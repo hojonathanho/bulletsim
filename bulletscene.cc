@@ -3,6 +3,8 @@
 #include <btBulletDynamicsCommon.h>
 #include "GLDebugDrawer.h"
 
+//TODO: delete display lists!
+
 // SCALING FACTOR: centimeter --> meter
 #define SCALE(n) (100.0*(n))
 #define SCALE2(n) (100.0*100.0*(n))
@@ -20,13 +22,12 @@ static const btScalar GRABBER_LENGTH = SCALE(0.1), GRABBER_RADIUS = SCALE(0.003)
 static const btScalar MAX_RAYCAST_DISTANCE = SCALE(1.0);
 
 class SimulationObject {
-public:
+protected:
     btDiscreteDynamicsWorld *dynamicsWorld;
 
     btRigidBody *rigidBody;
     btMotionState *motionState;
     btCollisionShape *collisionShape;
-    GLint displayList;
 
 public:
     SimulationObject(btDiscreteDynamicsWorld *dynamicsWorld_, btMotionState *motionState_) :
@@ -38,7 +39,9 @@ public:
     void init() { initPhysics(); initGraphics(); }
 
     virtual void drawGL();
-    virtual void drawLocal() { glCallList(displayList); }
+    //virtual void drawLocal() { glCallList(displayList); }
+    virtual void drawLocal() = 0;
+    virtual btRigidBody *getRigidBody() { return rigidBody; }
 };
 
 SimulationObject::~SimulationObject() {
@@ -51,7 +54,7 @@ SimulationObject::~SimulationObject() {
     if (collisionShape)
         delete collisionShape;
 
-    glDeleteLists(displayList, 1);
+    //glDeleteLists(displayList, 1);
 }
 
 void SimulationObject::drawGL() {
@@ -73,6 +76,7 @@ void SimulationObject::drawGL() {
 class GroundPlaneObject : public SimulationObject {
 private:
     btScalar size;
+    GLint displayList;
 
 public:
     GroundPlaneObject(btDiscreteDynamicsWorld *dynamicsWorld, btScalar size_) :
@@ -82,6 +86,7 @@ public:
 
     virtual void initGraphics();
     virtual void initPhysics();
+    void drawLocal() { glCallList(displayList); }
 };
 
 void GroundPlaneObject::initGraphics() {
@@ -111,6 +116,7 @@ void GroundPlaneObject::initPhysics() {
 class SphereObject : public SimulationObject {
 private:
     btScalar mass, radius;
+    GLint displayList;
 
 public:
     SphereObject(btDiscreteDynamicsWorld *dynamicsWorld, btScalar mass_, btScalar radius_, btMotionState *motionState_) :
@@ -118,6 +124,7 @@ public:
 
     virtual void initGraphics();
     virtual void initPhysics();
+    void drawLocal() { glCallList(displayList); }
 };
 
 void SphereObject::initGraphics() {
@@ -140,6 +147,7 @@ void SphereObject::initPhysics() {
 class TorusObject : public SimulationObject {
 private:
     btScalar mass, innerRadius, outerRadius;
+    GLint displayList;
 
 public:
     TorusObject(btDiscreteDynamicsWorld *dynamicsWorld, btScalar mass_, btScalar innerRadius_, btScalar outerRadius_, btMotionState *motionState_) :
@@ -147,6 +155,7 @@ public:
     virtual ~TorusObject() { delete static_cast<btCompoundShape *> (collisionShape)->getChildShape(0); }
     virtual void initGraphics();
     virtual void initPhysics();
+    void drawLocal() { glCallList(displayList); }
 };
 
 void TorusObject::initGraphics() {
@@ -191,6 +200,7 @@ void TorusObject::initPhysics() {
 class CylinderObject : public SimulationObject {
 private:
     btScalar mass, radius, height;
+    GLint displayList;
 
 public:
     CylinderObject(btDiscreteDynamicsWorld *dynamicsWorld, btScalar mass_, btScalar radius_, btScalar height_, btMotionState *motionState_) :
@@ -198,6 +208,7 @@ public:
 
     virtual void initGraphics();
     virtual void initPhysics();
+    void drawLocal() { glCallList(displayList); }
 };
 
 void CylinderObject::initGraphics() {
@@ -237,6 +248,7 @@ public:
 
 class P2PGrabberKinematicObject : public SimulationObject {
 private:
+    GLint displayList;
     btScalar radius;
     btScalar height;
     bool grabState; // true => grabbing, false => nothing
@@ -254,6 +266,7 @@ public:
 
     virtual void initGraphics();
     virtual void initPhysics();
+    void drawLocal() { glCallList(displayList); }
 
     void setTransform(const btTransform &trans) { static_cast<KinematicMotionState *> (motionState)->setKinematicPos(trans); }
     void toggleGrabber() { if (grabState) releaseConstraint(); else grabNearestObjectAhead(); grabState = !grabState; }
@@ -368,17 +381,30 @@ void P2PGrabberKinematicObject::releaseConstraint() {
     }
 }
 
+// This grabber is not a SimulationObject in the traditional sense.
+// It implements a primary btRigidBody/CollisionShape/etc as the rod/stick,
+// but the fingers (which are not kinematic objects) are grafted on separately
+// on top of the SimulationObject interface
 class GrabberKinematicObject : public SimulationObject {
 private:
     btScalar radius;
     btScalar height;
     btScalar fingerLength, fingerWidth, fingerThickness;
-    const btScalar fingerBaseSeparation;
+    btScalar fingerBaseSeparation;
+
     bool grabState; // true => grabbing, false => nothing
+
     const btVector3 finger1Pivot, finger2Pivot;
     btHingeConstraint *finger1Constraint, *finger2Constraint;
     btCompoundShape *compoundShape;
     btCollisionShape *rodShape, *fingerShape;
+
+    // the protected rigidBody, motionState, collisionShape from SimulationObject
+    // refer to the rod only.
+    btRigidBody *leftFingerRigidBody, *rightFingerRigidBody;
+    btMotionState *leftFingerMotionState, *rightFingerMotionState;
+    btCollisionShape *leftFingerCollisionShape, *rightFingerCollisionShape;
+    const btVector3 leftFingerPivot, rightFingerPivot;
 
     GLint rodDisplayList;
 
@@ -422,19 +448,6 @@ GrabberKinematicObject::~GrabberKinematicObject() {
     glDeleteLists(rodDisplayList, 1);
 }
 
-void GrabberKinematicObject::initGraphics() {
-    GLUquadricObj *qobj = gluNewQuadric();
-    rodDisplayList = glGenLists(1);
-    gluQuadricDrawStyle(qobj, GLU_FILL);
-    gluQuadricNormals(qobj, GLU_SMOOTH); 
-    glNewList(rodDisplayList, GL_COMPILE);
-    glMatrixMode(GL_MODELVIEW);
-    glRotatef(-90., 1., 0., 0.);
-    gluCylinder(qobj, radius, radius, height, 32, 32);
-    glEndList();
-    gluDeleteQuadric(qobj);
-}
-
 void GrabberKinematicObject::drawLocal() {
     // up in the (0, 1, 0) direction
     btScalar m[16];
@@ -462,6 +475,20 @@ void GrabberKinematicObject::drawLocal() {
     glCallList(rodDisplayList);
     glPopMatrix();
 }
+
+void GrabberKinematicObject::initGraphics() {
+    GLUquadricObj *qobj = gluNewQuadric();
+    rodDisplayList = glGenLists(1);
+    gluQuadricDrawStyle(qobj, GLU_FILL);
+    gluQuadricNormals(qobj, GLU_SMOOTH); 
+    glNewList(rodDisplayList, GL_COMPILE);
+    glMatrixMode(GL_MODELVIEW);
+    glRotatef(-90., 1., 0., 0.);
+    gluCylinder(qobj, radius, radius, height, 32, 32);
+    glEndList();
+    gluDeleteQuadric(qobj);
+}
+
 
 void GrabberKinematicObject::initPhysics() {
     // the model has its origin at the base of the rod where the fingers meet
@@ -693,7 +720,7 @@ static void mouse(int button, int state, int x, int y) {
 
     case 3: // wheel up
         if (holdingZ) {
-            btTransform trans; grabberObject->motionState->getWorldTransform(trans);
+            btTransform trans; grabberObject->getRigidBody()->getMotionState()->getWorldTransform(trans);
             btQuaternion rot = trans.getRotation() * btQuaternion(M_PI/180., 0., 0.);
             trans.setRotation(rot);
             grabberObject->setTransform(trans);
@@ -708,7 +735,7 @@ static void mouse(int button, int state, int x, int y) {
 
     case 4: // wheel down
         if (holdingZ) {
-            btTransform trans; grabberObject->motionState->getWorldTransform(trans);
+            btTransform trans; grabberObject->getRigidBody()->getMotionState()->getWorldTransform(trans);
             btQuaternion rot = trans.getRotation() * btQuaternion(-M_PI/180., 0., 0.);
             trans.setRotation(rot);
             grabberObject->setTransform(trans);
@@ -738,7 +765,7 @@ static void motion(int x, int y) {
     } else if (leftButtonDown) {
         if (holdingZ) {
             // if holding z, left-dragging changes pitch/yaw
-            btTransform trans; grabberObject->motionState->getWorldTransform(trans);
+            btTransform trans; grabberObject->getRigidBody()->getMotionState()->getWorldTransform(trans);
             btQuaternion rot = btQuaternion(-dx*M_PI/180., dy*M_PI/180., 0.) * trans.getRotation();
             trans.setRotation(rot);
             grabberObject->setTransform(trans);
@@ -755,7 +782,7 @@ static void motion(int x, int y) {
             btVector3 xDisplacement = normal.cross(up) * dx / 100.;
             btVector3 yDisplacement = -up * dy / 100.;
 
-            btTransform origTrans; grabberObject->motionState->getWorldTransform(origTrans);
+            btTransform origTrans; grabberObject->getRigidBody()->getMotionState()->getWorldTransform(origTrans);
             btTransform newTrans(origTrans);
             newTrans.setOrigin(newTrans.getOrigin() + xDisplacement + yDisplacement);
             grabberObject->setTransform(newTrans);
