@@ -17,8 +17,10 @@ static const int NUM_CYLINDERS = 7;
 static const btScalar TORUS_INNER_RADIUS = SCALE(0.003), TORUS_OUTER_RADIUS = SCALE(0.02), TORUS_SUBDIVISIONS = 32;
 static const btScalar SPHERE_RADIUS = SCALE(0.01);
 static const btScalar PLANE_SIZE = SCALE(1.0);
-static const btScalar GRABBER_LENGTH = SCALE(0.1), GRABBER_RADIUS = SCALE(0.003), GRABBER_FINGER_LENGTH = SCALE(0.005),
-    GRABBER_FINGER_WIDTH = SCALE(0.002), GRABBER_FINGER_THICKNESS = SCALE(0.001);
+static const btScalar GRABBER_LENGTH = SCALE(0.1), GRABBER_RADIUS = SCALE(0.003),
+    GRABBER_FINGER_LENGTH = SCALE(0.007), GRABBER_FINGER_WIDTH = SCALE(0.002),
+    GRABBER_FINGER_THICKNESS = SCALE(0.001);
+static const btScalar FINGER_FRICTION = 2.0;
 static const btScalar MAX_RAYCAST_DISTANCE = SCALE(1.0);
 
 class SimulationObject {
@@ -381,6 +383,60 @@ void P2PGrabberKinematicObject::releaseConstraint() {
     }
 }
 
+// This class implements a finger for the GrabberKinematicObject.
+class GrabberFingerObject : public SimulationObject {
+private:
+    btScalar length, width, thickness;
+    btScalar mass;
+    enum Orientation { LEFT_ORIENTATION, RIGHT_ORIENTATION } orientation;
+    btVector3 pivotLocation, pivotAxis;
+    GLint displayList;
+
+public:
+    GrabberFingerObject(btDiscreteDynamicsWorld *dynamicsWorld,
+                        btScalar length_, btScalar width_, btScalar thickness_, btScalar mass_,
+                        Orientation orientation_,
+                        btMotionState *motionState) :
+        SimulationObject(dynamicsWorld, motionState),
+        length(length_), width(width_), thickness(thickness_), mass(mass_),
+        pivotAxis(0., 0., 1.) {
+        if (orientation == LEFT_ORIENTATION) {
+            // this is the left finger
+            // place the pivot location on the upper right corner
+            pivotLocation = btVector3(thickness/2., length/2., 0.);
+        } else {
+            // place the pivot location on the upper left corner
+            pivotLocation = btVector3(-thickness/2., length/2., 0.);
+        }
+    }
+
+    void initGraphics();
+    void initPhysics();
+    void drawLocal();
+
+    friend class GrabberKinematicObject;
+};
+
+void GrabberFingerObject::initGraphics() {
+}
+
+void GrabberFingerObject::initPhysics() {
+    collisionShape = new btBoxShape(btVector3(thickness/2., length/2., width/2.));
+    btVector3 fallInertia(0, 0, 0);
+    collisionShape->calculateLocalInertia(mass, fallInertia);
+    btRigidBody::btRigidBodyConstructionInfo ci(mass, motionState, collisionShape, fallInertia);
+    ci.m_friction = FINGER_FRICTION;
+    rigidBody = new btRigidBody(ci);
+    rigidBody->setDamping(0, 1);
+    dynamicsWorld->addRigidBody(rigidBody);
+}
+
+void GrabberFingerObject::drawLocal() {
+    glMatrixMode(GL_MODELVIEW);
+    glScalef(thickness, length, width);
+    glutSolidCube(1.0);
+}
+
 // This grabber is not a SimulationObject in the traditional sense.
 // It implements a primary btRigidBody/CollisionShape/etc as the rod/stick,
 // but the fingers (which are not kinematic objects) are grafted on separately
@@ -389,91 +445,95 @@ class GrabberKinematicObject : public SimulationObject {
 private:
     btScalar radius;
     btScalar height;
-    btScalar fingerLength, fingerWidth, fingerThickness;
     btScalar fingerBaseSeparation;
 
     bool grabState; // true => grabbing, false => nothing
 
-    const btVector3 finger1Pivot, finger2Pivot;
-    btHingeConstraint *finger1Constraint, *finger2Constraint;
-    btCompoundShape *compoundShape;
-    btCollisionShape *rodShape, *fingerShape;
-
-    // the protected rigidBody, motionState, collisionShape from SimulationObject
-    // refer to the rod only.
-    btRigidBody *leftFingerRigidBody, *rightFingerRigidBody;
-    btMotionState *leftFingerMotionState, *rightFingerMotionState;
-    btCollisionShape *leftFingerCollisionShape, *rightFingerCollisionShape;
     const btVector3 leftFingerPivot, rightFingerPivot;
+    btVector3 leftFingerPivotAxis, rightFingerPivotAxis;
+    GrabberFingerObject *leftFinger, *rightFinger;
+    btHingeConstraint *leftFingerConstraint, *rightFingerConstraint;
 
     GLint rodDisplayList;
 
 public:
-    GrabberKinematicObject(btDiscreteDynamicsWorld *dynamicsWorld, btScalar radius_, btScalar height_, btScalar fingerLength_, btScalar fingerWidth_, btScalar fingerThickness_, const btTransform &initialTransform) :
-        SimulationObject(dynamicsWorld, new KinematicMotionState(initialTransform)),
-        radius(radius_), height(height_), grabState(false),
-        fingerLength(fingerLength_), fingerWidth(fingerWidth_), fingerThickness(fingerThickness_),
-        fingerBaseSeparation(radius_),
-        finger1Pivot(-fingerBaseSeparation/2., -height/2., 0.), finger2Pivot(fingerBaseSeparation/2., -height/2., 0.),
-        finger1Constraint(NULL), finger2Constraint(NULL) { }
+    GrabberKinematicObject(btDiscreteDynamicsWorld *dynamicsWorld,
+                           btScalar radius_, btScalar height_,
+                           btScalar fingerLength_, btScalar fingerWidth_, btScalar fingerThickness_, btScalar fingerMass_,
+                           const btTransform &initialTransform);
 
     virtual ~GrabberKinematicObject();
 
     virtual void initGraphics();
     virtual void initPhysics();
     virtual void drawLocal();
+    void drawGL();
 
     void setTransform(const btTransform &trans) { static_cast<KinematicMotionState *> (motionState)->setKinematicPos(trans); }
-/*
-    void toggleGrabber() { if (grabState) releaseConstraint(); else grabNearestObjectAhead(); grabState = !grabState; }
-    void grabNearestObjectAhead();
-    void releaseConstraint();*/
+
+    void toggleGrabber();
 };
+
+GrabberKinematicObject::GrabberKinematicObject(
+    btDiscreteDynamicsWorld *dynamicsWorld,
+    btScalar radius_, btScalar height_,
+    btScalar fingerLength_, btScalar fingerWidth_, btScalar fingerThickness_, btScalar fingerMass_,
+    const btTransform &initialTransform) :
+        SimulationObject(dynamicsWorld, new KinematicMotionState(initialTransform)),
+        radius(radius_), height(height_), grabState(false),
+        fingerBaseSeparation(2.*radius_),
+        leftFingerPivot(-fingerBaseSeparation/2., -height/2., 0.),
+        rightFingerPivot(fingerBaseSeparation/2., -height/2., 0.),
+        leftFingerPivotAxis(0., 0., 1.),
+        rightFingerPivotAxis(0., 0., 1.),
+        leftFingerConstraint(NULL), rightFingerConstraint(NULL) {
+
+    // initialize the finger objects
+    btTransform leftFingerInitialTransform = btTransform(btQuaternion(0., 0., 0., 1.),
+        btVector3(-fingerThickness_/2. - radius, -fingerLength_/2., 0.)) * initialTransform;
+    leftFinger = new GrabberFingerObject(dynamicsWorld,
+        fingerLength_, fingerWidth_, fingerThickness_, fingerMass_,
+        GrabberFingerObject::LEFT_ORIENTATION,
+        new btDefaultMotionState(leftFingerInitialTransform));
+
+    btTransform rightFingerInitialTransform = btTransform(btQuaternion(0., 0., 0., 1.),
+        btVector3(fingerThickness_/2. + radius, -fingerLength_/2., 0.)) * initialTransform;
+    rightFinger = new GrabberFingerObject(dynamicsWorld,
+        fingerLength_, fingerWidth_, fingerThickness_, fingerMass_,
+        GrabberFingerObject::RIGHT_ORIENTATION,
+        new btDefaultMotionState(rightFingerInitialTransform));
+}
 
 GrabberKinematicObject::~GrabberKinematicObject() {
     // delete all child shapes of the compound shape
-    delete rodShape;
-    delete fingerShape;
+    delete leftFinger;
+    delete rightFinger;
 
-    if (finger1Constraint) {
-        dynamicsWorld->removeConstraint(finger1Constraint);
-        delete finger1Constraint;
+    if (leftFingerConstraint) {
+        dynamicsWorld->removeConstraint(leftFingerConstraint);
+        delete leftFingerConstraint;
     }
 
-    if (finger2Constraint) {
-        dynamicsWorld->removeConstraint(finger2Constraint);
-        delete finger2Constraint;
+    if (rightFingerConstraint) {
+        dynamicsWorld->removeConstraint(rightFingerConstraint);
+        delete rightFingerConstraint;
     }
 
     glDeleteLists(rodDisplayList, 1);
 }
 
+void GrabberKinematicObject::drawGL() {
+    // we override this method because we don't want the automatic
+    // transformation to the standard rigidBody location done by the usual drawGL
+    // since we want to draw the rod and the fingers separately
+    SimulationObject::drawGL();
+    leftFinger->drawGL();
+    rightFinger->drawGL();
+}
+
 void GrabberKinematicObject::drawLocal() {
-    // up in the (0, 1, 0) direction
-    btScalar m[16];
-
-    glMatrixMode(GL_MODELVIEW);
-
-    // draw the left finger
-    compoundShape->getChildTransform(1).getOpenGLMatrix(m);
-    glPushMatrix();
-    glMultMatrixf(m);
-    glScalef(fingerThickness, fingerLength, fingerWidth);
-    glutSolidCube(1.0);
-    glPopMatrix();
-
-    // draw the right finger
-    compoundShape->getChildTransform(2).getOpenGLMatrix(m);
-    glPushMatrix();
-    glMultMatrixf(m);
-    glScalef(fingerThickness, fingerLength, fingerWidth);
-    glutSolidCube(1.0);
-    glPopMatrix();
-
     // draw the rod
-    glPushMatrix();
     glCallList(rodDisplayList);
-    glPopMatrix();
 }
 
 void GrabberKinematicObject::initGraphics() {
@@ -483,18 +543,45 @@ void GrabberKinematicObject::initGraphics() {
     gluQuadricNormals(qobj, GLU_SMOOTH); 
     glNewList(rodDisplayList, GL_COMPILE);
     glMatrixMode(GL_MODELVIEW);
+    glTranslatef(0., -height/2., 0.);
     glRotatef(-90., 1., 0., 0.);
     gluCylinder(qobj, radius, radius, height, 32, 32);
     glEndList();
     gluDeleteQuadric(qobj);
-}
 
+    leftFinger->initGraphics();
+    rightFinger->initGraphics();
+}
 
 void GrabberKinematicObject::initPhysics() {
     // the model has its origin at the base of the rod where the fingers meet
 
-    compoundShape = new btCompoundShape();
+    // our main collisionShape/rigidBody is the rod, so set that up first
+    collisionShape = new btCylinderShape(btVector3(radius, height/2., radius));
+    btRigidBody::btRigidBodyConstructionInfo ci(0.0, motionState, collisionShape, btVector3(0.0, 0.0, 0.0));
+    rigidBody = new btRigidBody(ci);
+    // special flags for kinematic objects
+    rigidBody->setCollisionFlags(rigidBody->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);
+    rigidBody->setActivationState(DISABLE_DEACTIVATION);
+    dynamicsWorld->addRigidBody(rigidBody);
 
+    // now init the fingers and attach constraints
+    leftFinger->initPhysics();
+    leftFingerConstraint = new btHingeConstraint(*rigidBody, *leftFinger->rigidBody,
+                                                 leftFingerPivot, leftFinger->pivotLocation,
+                                                 leftFingerPivotAxis, leftFinger->pivotAxis);
+    leftFingerConstraint->setLimit(0., M_PI/4.);
+    dynamicsWorld->addConstraint(leftFingerConstraint);
+
+    rightFinger->initPhysics();
+    rightFingerConstraint = new btHingeConstraint(*rigidBody, *rightFinger->rigidBody,
+                                                  rightFingerPivot, rightFinger->pivotLocation,
+                                                  rightFingerPivotAxis, rightFinger->pivotAxis);
+    rightFingerConstraint->setLimit(-M_PI/4., 0.);
+    dynamicsWorld->addConstraint(rightFingerConstraint);
+
+
+/*
     // first add in the handle/rod
     rodShape = new btCylinderShape(btVector3(radius, height/2., radius));
     compoundShape->addChildShape(btTransform(btQuaternion(0., 0., 0., 1.), btVector3(0., height/2., 0.)),
@@ -521,8 +608,21 @@ void GrabberKinematicObject::initPhysics() {
     rigidBody->setActivationState(DISABLE_DEACTIVATION);
 
     dynamicsWorld->addRigidBody(rigidBody);
+*/
 }
 
+void GrabberKinematicObject::toggleGrabber() {
+    if (grabState) {
+        // release
+        leftFingerConstraint->enableAngularMotor(true, 4, 100.);
+        rightFingerConstraint->enableAngularMotor(true, -4, 100.);
+    } else {
+        // grab
+        leftFingerConstraint->enableAngularMotor(true, -4, 100.);
+        rightFingerConstraint->enableAngularMotor(true, 4, 100.);
+    }
+    grabState = !grabState;
+}
 
 // GLOBALS ////////////////////////////////
 static btBroadphaseInterface *broadphase;
@@ -604,8 +704,8 @@ void initPhysics() {
     torusObject->init();
 
     grabberObject = new GrabberKinematicObject(dynamicsWorld, GRABBER_RADIUS, GRABBER_LENGTH, GRABBER_FINGER_LENGTH,
-                                               GRABBER_FINGER_WIDTH, GRABBER_FINGER_THICKNESS,
-                                               btTransform(btQuaternion(0, 0, 0, 1), btVector3(5.0, 5.0, 0)));
+                                               GRABBER_FINGER_WIDTH, GRABBER_FINGER_THICKNESS, 0.5,
+                                               btTransform(btQuaternion(0, 0, 0, 1), btVector3(4.0, 10.0, 0)));
     grabberObject->init();
 }
 
@@ -799,7 +899,7 @@ static void keyboard(unsigned char key, int x, int y) {
             break;
 
         case ' ':
-            //grabberObject->toggleGrabber();
+            grabberObject->toggleGrabber();
             break;
 
         case 'z': case 'Z':
