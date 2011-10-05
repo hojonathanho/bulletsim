@@ -389,7 +389,8 @@ private:
     btScalar length, width, thickness;
     btScalar mass;
     enum Orientation { LEFT_ORIENTATION, RIGHT_ORIENTATION } orientation;
-    btVector3 pivotLocation, pivotAxis;
+//    btVector3 pivotLocation, pivotAxis;
+    btTransform constraintFrame;
     GLint displayList;
 
 public:
@@ -398,15 +399,18 @@ public:
                         Orientation orientation_,
                         btMotionState *motionState) :
         SimulationObject(dynamicsWorld, motionState),
-        length(length_), width(width_), thickness(thickness_), mass(mass_),
-        pivotAxis(0., 0., 1.) {
+        length(length_), width(width_), thickness(thickness_), mass(mass_)
+        //pivotAxis(0., 0., 1.) {
+    {
         if (orientation == LEFT_ORIENTATION) {
             // this is the left finger
             // place the pivot location on the upper right corner
-            pivotLocation = btVector3(thickness/2., length/2., 0.);
+            //pivotLocation = btVector3(thickness/2., length/2., 0.);
+            constraintFrame = btTransform(btQuaternion(0., 0., 0.), btVector3(thickness/2., /*length/2.*/0., 0.));
         } else {
             // place the pivot location on the upper left corner
-            pivotLocation = btVector3(-thickness/2., length/2., 0.);
+            //pivotLocation = btVector3(-thickness/2., length/2., 0.);
+            constraintFrame = btTransform(btQuaternion(0., 0., 0.), btVector3(-thickness/2., /*length/2.*/0., 0.));
         }
     }
 
@@ -427,7 +431,7 @@ void GrabberFingerObject::initPhysics() {
     btRigidBody::btRigidBodyConstructionInfo ci(mass, motionState, collisionShape, fallInertia);
     ci.m_friction = FINGER_FRICTION;
     rigidBody = new btRigidBody(ci);
-    rigidBody->setDamping(0, 1);
+    rigidBody->setDamping(0.5, 1);
     dynamicsWorld->addRigidBody(rigidBody);
 }
 
@@ -449,10 +453,11 @@ private:
 
     bool grabState; // true => grabbing, false => nothing
 
-    const btVector3 leftFingerPivot, rightFingerPivot;
-    btVector3 leftFingerPivotAxis, rightFingerPivotAxis;
+//    const btVector3 leftFingerPivot, rightFingerPivot;
+//    btVector3 leftFingerPivotAxis, rightFingerPivotAxis;
+    btTransform leftFingerFrame, rightFingerFrame;
     GrabberFingerObject *leftFinger, *rightFinger;
-    btHingeConstraint *leftFingerConstraint, *rightFingerConstraint;
+    btSliderConstraint *leftFingerConstraint, *rightFingerConstraint;
 
     GLint rodDisplayList;
 
@@ -481,23 +486,25 @@ GrabberKinematicObject::GrabberKinematicObject(
     const btTransform &initialTransform) :
         SimulationObject(dynamicsWorld, new KinematicMotionState(initialTransform)),
         radius(radius_), height(height_), grabState(false),
-        fingerBaseSeparation(2.*radius_),
-        leftFingerPivot(-fingerBaseSeparation/2., -height/2., 0.),
+        fingerBaseSeparation(3.*radius_),
+        leftFingerFrame(btQuaternion(M_PI, 0., 0.), btVector3(-fingerBaseSeparation/2., -height/2.-fingerLength_/2./*-height/2.*/, 0.)),
+        rightFingerFrame(btQuaternion(0., 0., 0.), btVector3(fingerBaseSeparation/2., -height/2.-fingerLength_/2./*-height/2.*/, 0.)),
+        /*leftFingerPivot(-fingerBaseSeparation/2., -height/2., 0.),
         rightFingerPivot(fingerBaseSeparation/2., -height/2., 0.),
         leftFingerPivotAxis(0., 0., 1.),
-        rightFingerPivotAxis(0., 0., 1.),
+        rightFingerPivotAxis(0., 0., 1.),*/
         leftFingerConstraint(NULL), rightFingerConstraint(NULL) {
 
     // initialize the finger objects
     btTransform leftFingerInitialTransform = btTransform(btQuaternion(0., 0., 0., 1.),
-        btVector3(-fingerThickness_/2. - radius, -fingerLength_/2., 0.)) * initialTransform;
+        btVector3(-fingerThickness_/2. - fingerBaseSeparation/2., -fingerLength_/2., 0.)) * initialTransform;
     leftFinger = new GrabberFingerObject(dynamicsWorld,
         fingerLength_, fingerWidth_, fingerThickness_, fingerMass_,
         GrabberFingerObject::LEFT_ORIENTATION,
         new btDefaultMotionState(leftFingerInitialTransform));
 
     btTransform rightFingerInitialTransform = btTransform(btQuaternion(0., 0., 0., 1.),
-        btVector3(fingerThickness_/2. + radius, -fingerLength_/2., 0.)) * initialTransform;
+        btVector3(fingerThickness_/2. + fingerBaseSeparation/2., -fingerLength_/2., 0.)) * initialTransform;
     rightFinger = new GrabberFingerObject(dynamicsWorld,
         fingerLength_, fingerWidth_, fingerThickness_, fingerMass_,
         GrabberFingerObject::RIGHT_ORIENTATION,
@@ -567,17 +574,28 @@ void GrabberKinematicObject::initPhysics() {
 
     // now init the fingers and attach constraints
     leftFinger->initPhysics();
-    leftFingerConstraint = new btHingeConstraint(*rigidBody, *leftFinger->rigidBody,
+/*    leftFingerConstraint = new btHingeConstraint(*rigidBody, *leftFinger->rigidBody,
                                                  leftFingerPivot, leftFinger->pivotLocation,
-                                                 leftFingerPivotAxis, leftFinger->pivotAxis);
-    leftFingerConstraint->setLimit(0., M_PI/4.);
+                                                 leftFingerPivotAxis, leftFinger->pivotAxis);*/
+    leftFingerConstraint = new btSliderConstraint(*rigidBody, *leftFinger->rigidBody,
+                                                  leftFingerFrame, leftFinger->constraintFrame, false);
+    leftFingerConstraint->setLowerLinLimit(0);
+    leftFingerConstraint->setUpperLinLimit(fingerBaseSeparation/2.);
+    leftFingerConstraint->setLowerAngLimit(0.);
+    leftFingerConstraint->setUpperAngLimit(0.);
     dynamicsWorld->addConstraint(leftFingerConstraint);
 
     rightFinger->initPhysics();
-    rightFingerConstraint = new btHingeConstraint(*rigidBody, *rightFinger->rigidBody,
+    /*rightFingerConstraint = new btHingeConstraint(*rigidBody, *rightFinger->rigidBody,
                                                   rightFingerPivot, rightFinger->pivotLocation,
-                                                  rightFingerPivotAxis, rightFinger->pivotAxis);
-    rightFingerConstraint->setLimit(-M_PI/4., 0.);
+                                                  rightFingerPivotAxis, rightFinger->pivotAxis);*/
+    rightFingerConstraint = new btSliderConstraint(*rigidBody, *rightFinger->rigidBody,
+                                                   rightFingerFrame, rightFinger->constraintFrame, false);
+    //rightFingerConstraint->setLimit(-M_PI/4., 0.);
+    rightFingerConstraint->setLowerLinLimit(0.);
+    rightFingerConstraint->setUpperLinLimit(fingerBaseSeparation/2.);
+    rightFingerConstraint->setLowerAngLimit(0.);
+    rightFingerConstraint->setUpperAngLimit(0.);
     dynamicsWorld->addConstraint(rightFingerConstraint);
 
 
@@ -613,13 +631,22 @@ void GrabberKinematicObject::initPhysics() {
 
 void GrabberKinematicObject::toggleGrabber() {
     if (grabState) {
-        // release
-        leftFingerConstraint->enableAngularMotor(true, 4, 100.);
-        rightFingerConstraint->enableAngularMotor(true, -4, 100.);
-    } else {
         // grab
-        leftFingerConstraint->enableAngularMotor(true, -4, 100.);
-        rightFingerConstraint->enableAngularMotor(true, 4, 100.);
+        leftFingerConstraint->setMaxLinMotorForce(1);
+        leftFingerConstraint->setTargetLinMotorVelocity(1);
+        leftFingerConstraint->setPoweredLinMotor(true);
+        rightFingerConstraint->setMaxLinMotorForce(1);
+        rightFingerConstraint->setTargetLinMotorVelocity(1);
+        rightFingerConstraint->setPoweredLinMotor(true);
+    } else {
+        // release
+        leftFingerConstraint->setMaxLinMotorForce(1);
+        leftFingerConstraint->setTargetLinMotorVelocity(-1);
+        leftFingerConstraint->setPoweredLinMotor(true);
+        rightFingerConstraint->setMaxLinMotorForce(1);
+        rightFingerConstraint->setTargetLinMotorVelocity(-1);
+        rightFingerConstraint->setPoweredLinMotor(true);
+
     }
     grabState = !grabState;
 }
@@ -699,7 +726,7 @@ void initPhysics() {
         cylinderObject[i]->init();
     }
 
-    torusObject = new TorusObject(dynamicsWorld, 1.0, TORUS_INNER_RADIUS, TORUS_OUTER_RADIUS,
+    torusObject = new TorusObject(dynamicsWorld, 0.1, TORUS_INNER_RADIUS, TORUS_OUTER_RADIUS,
         new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 15+TORUS_INNER_RADIUS, 0))));
     torusObject->init();
 
