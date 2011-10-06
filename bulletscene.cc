@@ -17,7 +17,7 @@ static const int NUM_CYLINDERS = 7;
 static const btScalar TORUS_INNER_RADIUS = SCALE(0.003), TORUS_OUTER_RADIUS = SCALE(0.02), TORUS_SUBDIVISIONS = 32;
 static const btScalar SPHERE_RADIUS = SCALE(0.01);
 static const btScalar PLANE_SIZE = SCALE(1.0);
-static const btScalar GRABBER_LENGTH = SCALE(0.1), GRABBER_RADIUS = SCALE(0.003),
+static const btScalar GRABBER_LENGTH = SCALE(0.1), GRABBER_RADIUS = SCALE(0.001),
     GRABBER_FINGER_LENGTH = SCALE(0.007), GRABBER_FINGER_WIDTH = SCALE(0.002),
     GRABBER_FINGER_THICKNESS = SCALE(0.001);
 static const btScalar FINGER_FRICTION = 2.0;
@@ -328,49 +328,28 @@ void P2PGrabberKinematicObject::grabNearestObjectAhead() {
         btRigidBody *hitBody = btRigidBody::upcast(rayCallback.m_collisionObject);
         if (hitBody && !hitBody->isStaticObject() && !hitBody->isKinematicObject()) {
             hitBody->setActivationState(DISABLE_DEACTIVATION);
-            // if it hit, get the point where it hit in the coordinate system of the object hit
-            btVector3 localHitPoint = hitBody->getCenterOfMassTransform().inverse() * rayCallback.m_hitPointWorld;
-            // now implement the constraint
-            releaseConstraint();
-            //constraint = new btPoint2PointConstraint(*rigidBody, *hitBody, constraintPivot, localHitPoint);
 
-            btTransform grabberFrame; grabberFrame.setIdentity(); grabberFrame.setOrigin(constraintPivot);
-            btTransform hitFrame; hitFrame.setIdentity(); hitFrame.setOrigin(localHitPoint);
+            releaseConstraint();
+
+            // the constraint in the grabber's coordinate system
+            btTransform grabberFrame;
+            grabberFrame.setIdentity();
+            grabberFrame.setOrigin(constraintPivot);
+            grabberFrame.setRotation(trans.inverse().getRotation());
+
+            // the constraint in the target's coordinate system
+            btVector3 localHitPoint = hitBody->getCenterOfMassTransform().inverse() * rayCallback.m_hitPointWorld;
+            btTransform hitFrame;
+            hitFrame.setIdentity();
+            hitFrame.setOrigin(localHitPoint);
 
 			constraint = new btGeneric6DofConstraint(*rigidBody, *hitBody, grabberFrame, hitFrame, false);
-/*			constraint->setLinearLowerLimit(btVector3(0,0,0));
-			constraint->setLinearUpperLimit(btVector3(0,0,0));
-			constraint->setAngularLowerLimit(btVector3(0,0,0));
-			constraint->setAngularUpperLimit(btVector3(0,0,0));*/
-			constraint->setParam(BT_CONSTRAINT_STOP_CFM,0.8,0);
-			constraint->setParam(BT_CONSTRAINT_STOP_CFM,0.8,1);
-			constraint->setParam(BT_CONSTRAINT_STOP_CFM,0.8,2);
-			constraint->setParam(BT_CONSTRAINT_STOP_CFM,0.8,3);
-			constraint->setParam(BT_CONSTRAINT_STOP_CFM,0.8,4);
-			constraint->setParam(BT_CONSTRAINT_STOP_CFM,0.8,5);
-			constraint->setParam(BT_CONSTRAINT_STOP_ERP,0.1,0);
-			constraint->setParam(BT_CONSTRAINT_STOP_ERP,0.1,1);
-			constraint->setParam(BT_CONSTRAINT_STOP_ERP,0.1,2);
-			constraint->setParam(BT_CONSTRAINT_STOP_ERP,0.1,3);
-			constraint->setParam(BT_CONSTRAINT_STOP_ERP,0.1,4);
-			constraint->setParam(BT_CONSTRAINT_STOP_ERP,0.1,5);
-
-
-            for (int i = 0; i < 3; ++i) {
-                constraint->getTranslationalLimitMotor()->m_enableMotor[i] = true;
-                constraint->getTranslationalLimitMotor()->m_damping = 1.f;
-                //constraint->getTranslationalLimitMotor()->m_targetVelocity[i] = -5.0f;
-                //constraint->getTranslationalLimitMotor()->m_maxMotorForce[i] = 0.1f;
-
-                constraint->getRotationalLimitMotor(i)->m_damping = 1.f;
-            }
+			constraint->setLinearLowerLimit(btVector3(0., 0., 0.));
+			constraint->setLinearUpperLimit(btVector3(0., 0., 0.));
+            constraint->setAngularLowerLimit(btVector3(0., 0., 0.));
+            constraint->setAngularUpperLimit(btVector3(0., 0., 0.));
 
 			dynamicsWorld->addConstraint(constraint);
-
-
-//            constraint->m_setting.m_impulseClamp = 30.;
-//            constraint->m_setting.m_tau = 0.001f;
-//            dynamicsWorld->addConstraint(constraint);
         }
     }
 }
@@ -659,7 +638,7 @@ static btSequentialImpulseConstraintSolver *solver;
 static btDiscreteDynamicsWorld *dynamicsWorld;
 static SimulationObject *groundObject, *sphereObject, *torusObject;
 static SimulationObject *cylinderObject[NUM_CYLINDERS];
-static GrabberKinematicObject *grabberObject;
+static P2PGrabberKinematicObject *grabberObject;
 static GLDebugDrawer *debugDrawer;
 
 static bool debugDrawingOn = false;
@@ -730,9 +709,11 @@ void initPhysics() {
         new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 15+TORUS_INNER_RADIUS, 0))));
     torusObject->init();
 
-    grabberObject = new GrabberKinematicObject(dynamicsWorld, GRABBER_RADIUS, GRABBER_LENGTH, GRABBER_FINGER_LENGTH,
-                                               GRABBER_FINGER_WIDTH, GRABBER_FINGER_THICKNESS, 0.5,
-                                               btTransform(btQuaternion(0, 0, 0, 1), btVector3(4.0, 10.0, 0)));
+    //grabberObject = new GrabberKinematicObject(dynamicsWorld, GRABBER_RADIUS, GRABBER_LENGTH, GRABBER_FINGER_LENGTH,
+    //                                           GRABBER_FINGER_WIDTH, GRABBER_FINGER_THICKNESS, 0.5,
+    //                                           btTransform(btQuaternion(0, 0, 0, 1), btVector3(4.0, 10.0, 0)));
+    grabberObject = new P2PGrabberKinematicObject(dynamicsWorld, GRABBER_RADIUS, GRABBER_LENGTH, 
+                                                  btTransform(btQuaternion(0, 0, 0, 1), btVector3(4.0, 10.0, 0)));
     grabberObject->init();
 }
 
