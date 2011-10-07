@@ -296,7 +296,7 @@ void P2PGrabberKinematicObject::initGraphics() {
 
     glNewList(displayList, GL_COMPILE);
     glMatrixMode(GL_MODELVIEW);
-//    glTranslatef(0, -height/2., 0);
+    glTranslatef(0, -height/2., 0);
     glRotatef(-90, 1, 0, 0);
     gluCylinder(qobj, radius, radius, height, 32, 32);
     glTranslatef(0, 0, radius);
@@ -819,33 +819,32 @@ static void haptics() {
 	Vector3d start_proxy_pos, end_proxy_pos;
 	Matrix3d start_proxy_rot, end_proxy_rot;
 	bool start_proxybutton[2], end_proxybutton[2];
+    static bool last_button[2] = { false, false };
     if (getDeviceState(start_proxy_pos, start_proxy_rot, start_proxybutton,
                        end_proxy_pos, end_proxy_rot, end_proxybutton)) {
-
         // unfortunately now we need to convert the eigen data structures
         // to bullet structures, which the rest of the program uses
         btVector3 hap0Pos = VECTOR_EIGEN_TO_BT(start_proxy_pos);
-        printf("hap0pos: %f %f %f\n", hap0Pos.x(), hap0Pos.y(), hap0Pos.z());
+//        printf("hap0pos: %f %f %f\n", hap0Pos.x(), hap0Pos.y(), hap0Pos.z());
         btMatrix3x3 hap0Rot = MATRIX_EIGEN_TO_BT(start_proxy_rot);
-
         btTransform hap0Trans(hap0Rot * HAPTIC_ROTATION, hap0Pos*HAPTIC_TRANS_SCALE + HAPTIC_OFFSET0);
-//        printf("hap0pos2: %f %f %f\n", x.getOrigin().x(), x.getOrigin().y(), x.getOrigin().z());
         grabberObject[0]->setTransform(hap0Trans);
-        if (start_proxybutton[0])
+        if (start_proxybutton[0] && !last_button[0])
             grabberObject[0]->grabNearestObjectAhead();
-        else
+        else if (!start_proxybutton[0] && last_button[0])
             grabberObject[0]->releaseConstraint();
+        last_button[0] = start_proxybutton[0];
 
         btVector3 hap1Pos = VECTOR_EIGEN_TO_BT(end_proxy_pos);
-        printf("hap1pos: %f %f %f\n", hap1Pos.x(), hap1Pos.y(), hap1Pos.z());
-
+//        printf("hap1pos: %f %f %f\n", hap1Pos.x(), hap1Pos.y(), hap1Pos.z());
         btMatrix3x3 hap1Rot = MATRIX_EIGEN_TO_BT(end_proxy_rot);
         btTransform hap1Trans(hap1Rot * HAPTIC_ROTATION, hap1Pos*HAPTIC_TRANS_SCALE + HAPTIC_OFFSET1);
         grabberObject[1]->setTransform(hap1Trans);
-        if (end_proxybutton[0])
+        if (end_proxybutton[0] && !last_button[1])
             grabberObject[1]->grabNearestObjectAhead();
-        else
+        else if (!end_proxybutton[0] && last_button[1])
             grabberObject[1]->releaseConstraint();
+        last_button[1] = end_proxybutton[0];
     }
 }
 
