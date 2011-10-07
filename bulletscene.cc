@@ -2,6 +2,7 @@
 #include <GL/glut.h>
 #include <btBulletDynamicsCommon.h>
 #include "GLDebugDrawer.h"
+#include "thread_socket_interface.h"
 
 //TODO: delete display lists!
 
@@ -11,7 +12,15 @@
 
 static const int WINDOW_WIDTH = 800, WINDOW_HEIGHT = 800;
 static const bool DEBUG_DRAWING_ENABLED = true;
+
+static const bool ENABLE_HAPTICS = true;
+static const btScalar HAPTIC_TRANS_SCALE = 1./2.;
+static const btVector3 HAPTIC_OFFSET0(-2., 40.*HAPTIC_TRANS_SCALE, 0.);
+static const btVector3 HAPTIC_OFFSET1(2., 40.*HAPTIC_TRANS_SCALE, 0.);
+static const btMatrix3x3 HAPTIC_ROTATION(btQuaternion(0., 0., -M_PI/2.));
+
 static const btScalar GRAVITY = SCALE(9.81);
+
 static const btScalar CYL_HEIGHT = SCALE(0.1), CYL_RADIUS = SCALE(.005), CYL_SPACING = SCALE(0.05);
 static const int NUM_CYLINDERS = 7;
 static const btScalar TORUS_INNER_RADIUS = SCALE(0.003), TORUS_OUTER_RADIUS = SCALE(0.02), TORUS_SUBDIVISIONS = 32;
@@ -287,7 +296,7 @@ void P2PGrabberKinematicObject::initGraphics() {
 
     glNewList(displayList, GL_COMPILE);
     glMatrixMode(GL_MODELVIEW);
-    glTranslatef(0, -height/2., 0);
+//    glTranslatef(0, -height/2., 0);
     glRotatef(-90, 1, 0, 0);
     gluCylinder(qobj, radius, radius, height, 32, 32);
     glTranslatef(0, 0, radius);
@@ -299,7 +308,7 @@ void P2PGrabberKinematicObject::initGraphics() {
 
 void P2PGrabberKinematicObject::initPhysics() {
     // we only model the cylinder/stick part. the sphere at the end effector is just cosmetic
-    collisionShape = new btCylinderShape(btVector3(radius, height / 2.0, radius));
+    collisionShape = new btCylinderShape(btVector3(radius, height/2., radius));
 
     btRigidBody::btRigidBodyConstructionInfo ci(0.0, motionState, collisionShape, btVector3(0.0, 0.0, 0.0));
     rigidBody = new btRigidBody(ci);
@@ -640,7 +649,7 @@ static btSequentialImpulseConstraintSolver *solver;
 static btDiscreteDynamicsWorld *dynamicsWorld;
 static SimulationObject *groundObject, *sphereObject, *torusObject;
 static SimulationObject *cylinderObject[NUM_CYLINDERS];
-static P2PGrabberKinematicObject *grabberObject;
+static P2PGrabberKinematicObject *grabberObject[2];
 static GLDebugDrawer *debugDrawer;
 
 static bool debugDrawingOn = false;
@@ -714,9 +723,14 @@ void initPhysics() {
     //grabberObject = new GrabberKinematicObject(dynamicsWorld, GRABBER_RADIUS, GRABBER_LENGTH, GRABBER_FINGER_LENGTH,
     //                                           GRABBER_FINGER_WIDTH, GRABBER_FINGER_THICKNESS, 0.5,
     //                                           btTransform(btQuaternion(0, 0, 0, 1), btVector3(4.0, 10.0, 0)));
-    grabberObject = new P2PGrabberKinematicObject(dynamicsWorld, GRABBER_RADIUS, GRABBER_LENGTH, 
-                                                  btTransform(btQuaternion(0, 0, 0, 1), btVector3(4.0, 10.0, 0)));
-    grabberObject->init();
+    grabberObject[0] = new P2PGrabberKinematicObject(dynamicsWorld, GRABBER_RADIUS, GRABBER_LENGTH, 
+                                                     btTransform(btQuaternion(0., M_PI/2., 0.), btVector3(4.0, 10.0, 0)));
+    grabberObject[0]->init();
+
+
+    grabberObject[1] = new P2PGrabberKinematicObject(dynamicsWorld, GRABBER_RADIUS, GRABBER_LENGTH, 
+                                                     btTransform(btQuaternion(0., M_PI/2., 0.), btVector3(2.0, 10.0, 0)));
+    grabberObject[1]->init();
 }
 
 void destroy() {
@@ -725,7 +739,8 @@ void destroy() {
     for (int i = 0; i < NUM_CYLINDERS; ++i)
         delete cylinderObject[i];
     delete torusObject;
-    delete grabberObject;
+    delete grabberObject[0];
+    delete grabberObject[1];
 
     if (DEBUG_DRAWING_ENABLED)
         delete debugDrawer;
@@ -748,7 +763,8 @@ static void draw() {
             cylinderObject[i]->drawGL();
         sphereObject->drawGL();
         torusObject->drawGL();
-        grabberObject->drawGL();
+        grabberObject[0]->drawGL();
+        grabberObject[1]->drawGL();
     }
 
     if (DEBUG_DRAWING_ENABLED && debugDrawingOn)
@@ -786,11 +802,51 @@ static void reshape(int w, int h) {
     ymax = znear * tanf(45 * M_PI / 360.0);
     xmax = ymax * w/h;
     glFrustum(-xmax, xmax, -ymax, ymax, znear, zfar);*/
-    gluPerspective(45, (float)w/h, 0.1, 100);
+    gluPerspective(45, (float)w/h, 0.1, 10000);
     //glFrustum(-1.0, 1.0, -1.0, 1.0, 0.1, 100);
 //    glOrtho(-w/2, w/2, -h/2, h/2, 0, 10);
 
     setCamera();
+}
+
+#define VECTOR_EIGEN_TO_BT(v) btVector3((v).x(), (v).y(), (v).z())
+#define MATRIX_EIGEN_TO_BT(m) btMatrix3x3((m)(0, 0), (m)(0, 1), (m)(0, 2), \
+                                          (m)(1, 0), (m)(1, 1), (m)(1, 2), \
+                                          (m)(2, 0), (m)(2, 1), (m)(2, 2))
+
+static void haptics() {
+    // read the haptic controllers
+	Vector3d start_proxy_pos, end_proxy_pos;
+	Matrix3d start_proxy_rot, end_proxy_rot;
+	bool start_proxybutton[2], end_proxybutton[2];
+    if (getDeviceState(start_proxy_pos, start_proxy_rot, start_proxybutton,
+                       end_proxy_pos, end_proxy_rot, end_proxybutton)) {
+
+        // unfortunately now we need to convert the eigen data structures
+        // to bullet structures, which the rest of the program uses
+        btVector3 hap0Pos = VECTOR_EIGEN_TO_BT(start_proxy_pos);
+        printf("hap0pos: %f %f %f\n", hap0Pos.x(), hap0Pos.y(), hap0Pos.z());
+        btMatrix3x3 hap0Rot = MATRIX_EIGEN_TO_BT(start_proxy_rot);
+
+        btTransform hap0Trans(hap0Rot * HAPTIC_ROTATION, hap0Pos*HAPTIC_TRANS_SCALE + HAPTIC_OFFSET0);
+//        printf("hap0pos2: %f %f %f\n", x.getOrigin().x(), x.getOrigin().y(), x.getOrigin().z());
+        grabberObject[0]->setTransform(hap0Trans);
+        if (start_proxybutton[0])
+            grabberObject[0]->grabNearestObjectAhead();
+        else
+            grabberObject[0]->releaseConstraint();
+
+        btVector3 hap1Pos = VECTOR_EIGEN_TO_BT(end_proxy_pos);
+        printf("hap1pos: %f %f %f\n", hap1Pos.x(), hap1Pos.y(), hap1Pos.z());
+
+        btMatrix3x3 hap1Rot = MATRIX_EIGEN_TO_BT(end_proxy_rot);
+        btTransform hap1Trans(hap1Rot * HAPTIC_ROTATION, hap1Pos*HAPTIC_TRANS_SCALE + HAPTIC_OFFSET1);
+        grabberObject[1]->setTransform(hap1Trans);
+        if (end_proxybutton[0])
+            grabberObject[1]->grabNearestObjectAhead();
+        else
+            grabberObject[1]->releaseConstraint();
+    }
 }
 
 static void idle() {
@@ -799,7 +855,11 @@ static void idle() {
     int elapsedTime = currTime - prevDrawTime;
     prevDrawTime = currTime;
 
+    if (ENABLE_HAPTICS)
+        haptics();
+
     dynamicsWorld->stepSimulation((float)elapsedTime / 1000.0, 500, 1./500.);
+
     glutPostRedisplay();
 }
 
@@ -830,10 +890,10 @@ static void mouse(int button, int state, int x, int y) {
 
     case 3: // wheel up
         if (holdingZ) {
-            btTransform trans; grabberObject->getRigidBody()->getMotionState()->getWorldTransform(trans);
+            btTransform trans; grabberObject[0]->getRigidBody()->getMotionState()->getWorldTransform(trans);
             btQuaternion rot = trans.getRotation() * btQuaternion(M_PI/180., 0., 0.);
             trans.setRotation(rot);
-            grabberObject->setTransform(trans);
+            grabberObject[0]->setTransform(trans);
             break;
         }
 
@@ -845,10 +905,10 @@ static void mouse(int button, int state, int x, int y) {
 
     case 4: // wheel down
         if (holdingZ) {
-            btTransform trans; grabberObject->getRigidBody()->getMotionState()->getWorldTransform(trans);
+            btTransform trans; grabberObject[0]->getRigidBody()->getMotionState()->getWorldTransform(trans);
             btQuaternion rot = trans.getRotation() * btQuaternion(-M_PI/180., 0., 0.);
             trans.setRotation(rot);
-            grabberObject->setTransform(trans);
+            grabberObject[0]->setTransform(trans);
             break;
         }
 
@@ -875,10 +935,10 @@ static void motion(int x, int y) {
     } else if (leftButtonDown) {
         if (holdingZ) {
             // if holding z, left-dragging changes pitch/yaw
-            btTransform trans; grabberObject->getRigidBody()->getMotionState()->getWorldTransform(trans);
+            btTransform trans; grabberObject[0]->getRigidBody()->getMotionState()->getWorldTransform(trans);
             btQuaternion rot = btQuaternion(-dx*M_PI/180., dy*M_PI/180., 0.) * trans.getRotation();
             trans.setRotation(rot);
-            grabberObject->setTransform(trans);
+            grabberObject[0]->setTransform(trans);
         } else {
             // else left-dragging will drag the grabber in the plane of view
             btVector3 from(cameraPos[0], cameraPos[1], cameraPos[2]);
@@ -892,10 +952,10 @@ static void motion(int x, int y) {
             btVector3 xDisplacement = normal.cross(up) * dx / 100.;
             btVector3 yDisplacement = -up * dy / 100.;
 
-            btTransform origTrans; grabberObject->getRigidBody()->getMotionState()->getWorldTransform(origTrans);
+            btTransform origTrans; grabberObject[0]->getRigidBody()->getMotionState()->getWorldTransform(origTrans);
             btTransform newTrans(origTrans);
             newTrans.setOrigin(newTrans.getOrigin() + xDisplacement + yDisplacement);
-            grabberObject->setTransform(newTrans);
+            grabberObject[0]->setTransform(newTrans);
         }
     }
 }
@@ -909,7 +969,7 @@ static void keyboard(unsigned char key, int x, int y) {
             break;
 
         case ' ':
-            grabberObject->toggleGrabber();
+            grabberObject[0]->toggleGrabber();
             break;
 
         case 'z': case 'Z':
@@ -964,6 +1024,7 @@ int main(int argc, char *argv[]) {
     glutKeyboardUpFunc(keyboardUp);
     glutSpecialFunc(special);
 
+    connectionInit();
     initGraphics();
     initPhysics();
 
