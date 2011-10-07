@@ -338,10 +338,12 @@ void P2PGrabberKinematicObject::grabNearestObjectAhead() {
             grabberFrame.setRotation(trans.inverse().getRotation());
 
             // the constraint in the target's coordinate system
-            btVector3 localHitPoint = hitBody->getCenterOfMassTransform().inverse() * rayCallback.m_hitPointWorld;
+            const btTransform &hitBodyTransInverse = hitBody->getCenterOfMassTransform().inverse();
+            btVector3 localHitPoint = hitBodyTransInverse * rayCallback.m_hitPointWorld;
             btTransform hitFrame;
             hitFrame.setIdentity();
             hitFrame.setOrigin(localHitPoint);
+            hitFrame.setRotation(hitBodyTransInverse.getRotation());
 
 			constraint = new btGeneric6DofConstraint(*rigidBody, *hitBody, grabberFrame, hitFrame, false);
 			constraint->setLinearLowerLimit(btVector3(0., 0., 0.));
