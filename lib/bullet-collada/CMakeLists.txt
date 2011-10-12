@@ -1,0 +1,3 @@
+add_subdirectory(LibXML)
+add_subdirectory(COLLADA_DOM)
+add_subdirectory(BulletColladaConverter)

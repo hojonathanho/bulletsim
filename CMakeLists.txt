@@ -3,6 +3,7 @@ project(SURGICAL_PHYSICS)
 
 # bullet directory (packaged in this tree)
 set(BULLET_DIR ${SURGICAL_PHYSICS_SOURCE_DIR}/lib/bullet-2.77)
+set(BULLET_COLLADA_DIR ${SURGICAL_PHYSICS_SOURCE_DIR}/lib/bullet-collada)
 
 # hack
 set(CMAKE_SKIP_RPATH TRUE)
