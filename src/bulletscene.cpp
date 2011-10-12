@@ -1,6 +1,7 @@
 #include <string>
 #include <GL/glut.h>
 #include <btBulletDynamicsCommon.h>
+#include "ColladaConverter.h"
 #include "GLDebugDrawer.h"
 #include "thread_socket_interface.h"
 
@@ -652,6 +653,8 @@ static SimulationObject *cylinderObject[NUM_CYLINDERS];
 static P2PGrabberKinematicObject *grabberObject[2];
 static GLDebugDrawer *debugDrawer;
 
+static ColladaConverter *colladaConverter;
+
 static bool debugDrawingOn = false;
 static bool standardDrawingOn = true;
 
@@ -731,6 +734,8 @@ void initPhysics() {
     grabberObject[1] = new P2PGrabberKinematicObject(dynamicsWorld, GRABBER_RADIUS, GRABBER_LENGTH, 
                                                      btTransform(btQuaternion(0., M_PI/2., 0.), btVector3(2.0, 10.0, 0)));
     grabberObject[1]->init();
+
+    colladaConverter = new ColladaConverter(dynamicsWorld);
 }
 
 void destroy() {
@@ -744,6 +749,8 @@ void destroy() {
 
     if (DEBUG_DRAWING_ENABLED)
         delete debugDrawer;
+
+    delete colladaConverter;
 
     delete dynamicsWorld;
     delete solver;
@@ -795,17 +802,7 @@ static void reshape(int w, int h) {
     glViewport (0, 0, (GLsizei) w, (GLsizei) h);
     glMatrixMode (GL_PROJECTION);
     glLoadIdentity();
-
-    /*float znear = 0.1, zfar = 100;
-    float ymax, xmax;
-    float temp, temp2, temp3, temp4;
-    ymax = znear * tanf(45 * M_PI / 360.0);
-    xmax = ymax * w/h;
-    glFrustum(-xmax, xmax, -ymax, ymax, znear, zfar);*/
     gluPerspective(45, (float)w/h, 0.1, 10000);
-    //glFrustum(-1.0, 1.0, -1.0, 1.0, 0.1, 100);
-//    glOrtho(-w/2, w/2, -h/2, h/2, 0, 10);
-
     setCamera();
 }
 
