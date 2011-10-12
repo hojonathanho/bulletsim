@@ -28,6 +28,5 @@ endif(EIGEN2_INCLUDE_DIR)
 find_package(GLUT)
 find_package(OpenGL)
 
-
 add_subdirectory(lib)
 add_subdirectory(src)
