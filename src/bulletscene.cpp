@@ -1,9 +1,16 @@
 #include <string>
 #include <GL/glut.h>
 #include <btBulletDynamicsCommon.h>
-#include "ColladaConverter.h"
+#include <boost/shared_ptr.hpp>
 #include "GLDebugDrawer.h"
 #include "thread_socket_interface.h"
+#include "openravesupport.h"
+
+// communication with openrave control
+#include <boost/interprocess/ipc/message_queue.hpp>
+#include <boost/archive/binary_iarchive.hpp>
+#include <boost/iostreams/stream.hpp>
+#include <boost/iostreams/device/array.hpp>
 
 //TODO: delete display lists!
 
@@ -647,13 +654,14 @@ static btBroadphaseInterface *broadphase;
 static btDefaultCollisionConfiguration *collisionConfiguration;
 static btCollisionDispatcher *dispatcher;
 static btSequentialImpulseConstraintSolver *solver;
-static btDiscreteDynamicsWorld *dynamicsWorld;
+static boost::shared_ptr<btDiscreteDynamicsWorld> dynamicsWorld;
 static SimulationObject *groundObject, *sphereObject, *torusObject;
 static SimulationObject *cylinderObject[NUM_CYLINDERS];
 static P2PGrabberKinematicObject *grabberObject[2];
+static OpenRAVESupport::KinBodyInfoPtr pr2;
 static GLDebugDrawer *debugDrawer;
-
-static ColladaConverter *colladaConverter;
+static boost::shared_ptr<OpenRAVESupport> openRAVE;
+//static boost::shared_ptr<boost::interprocess::message_queue> mqRAVEControl;
 
 static bool debugDrawingOn = false;
 static bool standardDrawingOn = true;
@@ -697,45 +705,54 @@ void initPhysics() {
     collisionConfiguration = new btDefaultCollisionConfiguration();
     dispatcher = new btCollisionDispatcher(collisionConfiguration);
     solver = new btSequentialImpulseConstraintSolver;
-    dynamicsWorld = new btDiscreteDynamicsWorld(dispatcher, broadphase, solver, collisionConfiguration);
+    dynamicsWorld.reset(new btDiscreteDynamicsWorld(dispatcher, broadphase, solver, collisionConfiguration));
     dynamicsWorld->setGravity(btVector3(0, -GRAVITY, 0));
+
+    btContactSolverInfo &solverInfo = dynamicsWorld->getSolverInfo();
+    solverInfo.m_numIterations = 10;
+    solverInfo.m_globalCfm = 0;
 
     if (DEBUG_DRAWING_ENABLED) {
         debugDrawer = new GLDebugDrawer;
-        debugDrawer->setDebugMode(btIDebugDraw::DBG_MAX_DEBUG_DRAW_MODE/* | btIDebugDraw::DBG_DrawAabb*/);
+        debugDrawer->setDebugMode(/*btIDebugDraw::DBG_MAX_DEBUG_DRAW_MODE*/ btIDebugDraw::DBG_DrawWireframe);
         dynamicsWorld->setDebugDrawer(debugDrawer);
     }
-
-    groundObject = new GroundPlaneObject(dynamicsWorld, PLANE_SIZE);
+    groundObject = new GroundPlaneObject(dynamicsWorld.get(), PLANE_SIZE);
     groundObject->init();
 
-    sphereObject = new SphereObject(dynamicsWorld, 1.0, SPHERE_RADIUS,
-        new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0.3, 10, 0))));
+    sphereObject = new SphereObject(dynamicsWorld.get(), 1.0, SPHERE_RADIUS,
+        new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0.3, 15, 0))));
     sphereObject->init();
 
     for (int i = 0; i < NUM_CYLINDERS; ++i) {
-        cylinderObject[i] = new CylinderObject(dynamicsWorld, 0.0, CYL_RADIUS, CYL_HEIGHT, 
+        cylinderObject[i] = new CylinderObject(dynamicsWorld.get(), 0.0, CYL_RADIUS, CYL_HEIGHT, 
             new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3((i - NUM_CYLINDERS/2)*CYL_SPACING, CYL_HEIGHT/2., 0))));
         cylinderObject[i]->init();
     }
 
-    torusObject = new TorusObject(dynamicsWorld, 0.1, TORUS_INNER_RADIUS, TORUS_OUTER_RADIUS,
+    torusObject = new TorusObject(dynamicsWorld.get(), 0.1, TORUS_INNER_RADIUS, TORUS_OUTER_RADIUS,
         new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 15+TORUS_INNER_RADIUS, 0))));
     torusObject->init();
 
     //grabberObject = new GrabberKinematicObject(dynamicsWorld, GRABBER_RADIUS, GRABBER_LENGTH, GRABBER_FINGER_LENGTH,
     //                                           GRABBER_FINGER_WIDTH, GRABBER_FINGER_THICKNESS, 0.5,
     //                                           btTransform(btQuaternion(0, 0, 0, 1), btVector3(4.0, 10.0, 0)));
-    grabberObject[0] = new P2PGrabberKinematicObject(dynamicsWorld, GRABBER_RADIUS, GRABBER_LENGTH, 
+    grabberObject[0] = new P2PGrabberKinematicObject(dynamicsWorld.get(), GRABBER_RADIUS, GRABBER_LENGTH, 
                                                      btTransform(btQuaternion(0., M_PI/2., 0.), btVector3(4.0, 10.0, 0)));
     grabberObject[0]->init();
 
 
-    grabberObject[1] = new P2PGrabberKinematicObject(dynamicsWorld, GRABBER_RADIUS, GRABBER_LENGTH, 
+    grabberObject[1] = new P2PGrabberKinematicObject(dynamicsWorld.get(), GRABBER_RADIUS, GRABBER_LENGTH, 
                                                      btTransform(btQuaternion(0., M_PI/2., 0.), btVector3(2.0, 10.0, 0)));
     grabberObject[1]->init();
 
-    colladaConverter = new ColladaConverter(dynamicsWorld);
+    openRAVE.reset(new OpenRAVESupport(dynamicsWorld));
+    openRAVE->initRAVE();
+    pr2 = openRAVE->loadURIIntoBullet("/home/jonathan/Downloads/pr2-beta-static.zae",
+                                      btTransform(btQuaternion(0., -M_PI/2., M_PI/2.), btVector3(0., 1., 1.5)));
+    //openRAVE->loadURIIntoBullet("/home/jonathan/Downloads/openrave-r2678-linux-src/src/robots/schunk-lwa3.zae");
+    //openRAVE->loadURIIntoBullet("/home/jonathan/Downloads/openrave-r2678-linux-src/src/robots/neuronics-katana.zae");
+//    mqRAVEControl.reset(new boost::interprocess::message_queue(boost::interprocess::open_only, RAVE_TO_SIMULATION_MQ_NAME));
 }
 
 void destroy() {
@@ -750,9 +767,7 @@ void destroy() {
     if (DEBUG_DRAWING_ENABLED)
         delete debugDrawer;
 
-    delete colladaConverter;
-
-    delete dynamicsWorld;
+    //delete dynamicsWorld;
     delete solver;
     delete collisionConfiguration;
     delete dispatcher;
@@ -845,6 +860,39 @@ static void haptics() {
     }
 }
 
+/*
+static void receiveOpenRAVEMessages() {
+    // we may have a queue full of unread messages
+    // just empty all of them out and process the most recent one
+
+    char buf[MSG_MAX_SIZE];
+    unsigned int pri;
+    size_t recvSize;
+
+    if (!mqRAVEControl->try_receive(buf, MSG_MAX_SIZE, recvSize, pri))
+        return;
+
+    printf("received message from openrave control\n");
+    RobotActiveDOFsMessage msg;
+
+    boost::iostreams::stream<boost::iostreams::basic_array<char> > source(buf, MSG_MAX_SIZE); 
+    boost::archive::binary_iarchive ia(source); 
+    ia >> msg;  
+
+    printf("activeDOFS: ");
+    for (int i = 0; i < msg.activeDOFs.size(); ++i)
+        printf("%d ", msg.activeDOFs[i]);
+    printf("\n");
+
+
+    printf("values: ");
+    for (int i = 0; i < msg.values.size(); ++i)
+        printf("%f ", msg.values[i]);
+    printf("\n");
+
+    pr2->setDOFValues(msg.activeDOFs, msg.values);
+}*/
+
 static void idle() {
     static int prevDrawTime = glutGet(GLUT_ELAPSED_TIME);
     int currTime = glutGet(GLUT_ELAPSED_TIME);
@@ -853,6 +901,14 @@ static void idle() {
 
     if (ENABLE_HAPTICS)
         haptics();
+
+//    receiveOpenRAVEMessages()
+    static Transform origt = pr2->probot->GetActiveManipulator()->GetEndEffectorTransform();
+    static unsigned int n = 0;
+    Transform t = origt;
+    float x = 0.1*cos(n/100.), z = 0.1*sin(n/100.); ++n;
+    t.trans += Vector(-0.1, x, z);
+    pr2->moveActiveManipByIk(t);
 
     dynamicsWorld->stepSimulation((float)elapsedTime / 1000.0, 500, 1./500.);
 
