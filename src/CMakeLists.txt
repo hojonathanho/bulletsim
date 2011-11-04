@@ -1,24 +1,24 @@
 include_directories(${BULLET_DIR}/src
                     ${BULLET_DIR}/Demos/OpenGL # for debug drawing
-                    ${BULLET_COLLADA_DIR}/BulletColladaConverter
+#                    ${BULLET_COLLADA_DIR}/BulletColladaConverter
                     ${OpenRAVE_INCLUDE_DIRS}
                     ${Boost_INCLUDE_DIRS}
                     ${EIGEN2_INCLUDE_DIR}
                     ${SURGICAL_PHYSICS_SOURCE_DIR}/lib/haptics)
-set(BULLET_LIBS OpenGLSupport BulletDynamics BulletCollision LinearMath)
-set(BULLET_COLLADA_LIBS BulletColladaConverter ColladaDom XML)
+set(BULLET_LIBS OpenGLSupport BulletSoftBody BulletDynamics BulletCollision LinearMath)
+#set(BULLET_COLLADA_LIBS BulletColladaConverter ColladaDom XML)
 
 IF (NOT CMAKE_BUILD_TYPE)
  SET(CMAKE_BUILD_TYPE "Debug")
 # SET(CMAKE_BUILD_TYPE "Release")
 ENDIF (NOT CMAKE_BUILD_TYPE) 
 
-add_executable(bulletscene bulletscene.cpp openravesupport.cpp)
+add_executable(bulletscene bulletscene.cpp openravesupport.cpp environment.cpp)
 set_target_properties(bulletscene PROPERTIES COMPILE_FLAGS "${OpenRAVE_CXX_FLAGS}")
 set_target_properties(bulletscene PROPERTIES LINK_FLAGS "${OpenRAVE_LINK_FLAGS}")
 target_link_libraries(bulletscene
     haptics
-#    ${BULLET_COLLADA_LIBS}
+    ${BULLET_COLLADA_LIBS}
     ${BULLET_LIBS}
 
     ${OpenRAVE_LIBRARIES}
@@ -26,9 +26,26 @@ target_link_libraries(bulletscene
 
     ${Boost_SERIALIZATION_LIBRARY}
 
+    osgBullet osgWorks
+    ${OSG_LIBS}
+
     ${GLUT_glut_LIBRARY}
     ${OPENGL_gl_LIBRARY}
     ${OPENGL_glu_LIBRARY})
 
-add_executable(openravecontrol openravecontrol.cpp)
-target_link_libraries(openravecontrol ${BULLET_LIBS} ${OpenRAVE_LIBRARIES} ${OpenRAVE_CORE_LIBRARIES} ${Boost_SERIALIZATION_LIBRARY})
+add_executable(newscene newscene.cpp environment.cpp basicobjects.cpp openravesupport.cpp)
+target_link_libraries(newscene haptics osgBullet osgWorks ${OSG_LIBS} ${BULLET_LIBS} ${OpenRAVE_LIBRARIES} ${OpenRAVE_CORE_LIBRARIES})
+
+#add_executable(openravecontrol openravecontrol.cpp)
+#target_link_libraries(openravecontrol ${BULLET_LIBS} ${OpenRAVE_LIBRARIES} ${OpenRAVE_CORE_LIBRARIES} ${Boost_SERIALIZATION_LIBRARY})
+
+add_executable(basicdemo BasicDemo.cpp)
+target_link_libraries(basicdemo
+    osgBullet osgWorks ${OSG_LIBS} ${BULLET_LIBS})
+#${OSGBULLET_LIBRARIES} ${OSGWCONTROLS_LIBRARY} ${OSGWTOOLS_LIBRARY}
+#    ${OSG_LIBS} ${BULLET_LIBS})
+
+add_executable(hingedemo hinge.cpp)
+target_link_libraries(hingedemo osgBullet osgWorks ${OSG_LIBS} ${BULLET_LIBS})
+add_executable(dicedemo dice.cpp)
+target_link_libraries(dicedemo osgBullet osgWorks ${OSG_LIBS} ${BULLET_LIBS})

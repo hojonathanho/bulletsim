@@ -13,7 +13,7 @@ using namespace OpenRAVE;
 #include <string>
 using namespace std;
 
-#include <boost/serialization/vector.hpp>
+#include "environment.h"
 
 #define FOREACH(it, v) for(typeof((v).begin())it = (v).begin(); it != (v).end(); (it)++)
 #define FOREACH_NOINC(it, v) for(typeof((v).begin())it = (v).begin(); it != (v).end(); )
@@ -21,21 +21,51 @@ using namespace std;
 #define FOREACHC FOREACH
 #define FOREACHC_NOINC FOREACH_NOINC
 
-#define SIMULATION_TO_RAVE_MQ_NAME "simulation_to_rave_mq"
-#define RAVE_TO_SIMULATION_MQ_NAME "rave_to_simulation_mq"
+struct RaveInstance {
+    typedef boost::shared_ptr<RaveInstance> Ptr;
 
-#define MSG_MAX_SIZE 4096
-struct RobotActiveDOFsMessage {
-    vector<int> activeDOFs;
-    vector<dReal> values;
+    EnvironmentBasePtr env;
 
+    RaveInstance();
+    ~RaveInstance();
+};
+
+class RaveRobotKinematicObject : public EnvironmentObject {
 private:
-    friend class boost::serialization::access;
-    template<class Archive>
-    void serialize(Archive &ar, const unsigned int version) {
-        ar & activeDOFs;
-        ar & values;
+
+    static inline btTransform GetBtTransform(const Transform& t) {
+        return btTransform(btQuaternion(t.rot.y,t.rot.z,t.rot.w,t.rot.x),GetBtVector(t.trans));
     }
+
+    static inline btVector3 GetBtVector(const Vector& v) {
+        return btVector3(v.x,v.y,v.z);
+    }
+
+
+    RaveInstance::Ptr rave;
+    RobotBasePtr robot;
+    std::vector<BulletKinematicObject::Ptr> children;
+
+    // these two containers just keep track of the smart pointers
+    // so that the objects get deallocated on destruction
+    std::vector<boost::shared_ptr<btStridingMeshInterface> > meshes;
+    std::vector<boost::shared_ptr<btCollisionShape> > subshapes;
+
+    // for the loaded robot, this will create BulletKinematicObjects
+    // and place them into the children vector
+    void initRobotWithoutDynamics(const btTransform &initialTransform, float fmargin);
+
+public:
+    typedef boost::shared_ptr<RaveRobotKinematicObject> Ptr;
+
+    // this class is actually a collection of BulletKinematicObjects,
+    // each of which represents a link of the robot
+    RaveRobotKinematicObject(RaveInstance::Ptr rave_, const std::string &uri, const btTransform &initialTransform);
+
+    // this will initialize each sub-object
+    void init();
+    void prePhysics();
+    void preDraw();
 };
 
 class OpenRAVESupport {
