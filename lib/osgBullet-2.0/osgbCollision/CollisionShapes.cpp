@@ -553,7 +553,7 @@ osg::Geometry* osgGeometryFromBtCollisionShape( const btBoxShape* btBox )
 
 osg::Geometry* osgGeometryFromBtCollisionShape( const btSphereShape* btSphere )
 {
-    return( osgwTools::makeAltAzSphere( btSphere->getRadius() ) );
+    return( osgwTools::makeAltAzSphere( btSphere->getRadius(), 32, 32 ) );
 }
 
 osg::Geometry* osgGeometryFromBtCollisionShape( const btCylinderShape* btCylinder )

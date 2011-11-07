@@ -40,7 +40,6 @@ void Environment::step(btScalar dt) {
 }
 
 void BulletObject::init() {
-//    initBulletStructures();
     getEnvironment()->bullet->dynamicsWorld->addRigidBody(rigidBody.get());
 
     node = createOSGNode();

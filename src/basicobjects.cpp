@@ -1,6 +1,81 @@
 #include "basicobjects.h"
 #include <osg/Geometry>
 #include <osg/Geode>
+#include <osg/Shape>
+#include <osg/ShapeDrawable>
+#include <osgwTools/Shapes.h>
+
+#define MAX_RAYCAST_DISTANCE 100.0
+
+GrabberKinematicObject::GrabberKinematicObject(float radius_, float height_) :
+    radius(radius_), height(height_),
+    constraintPivot(0, 0, height), // this is where objects will attach to
+    BulletKinematicObject(boost::shared_ptr<btCollisionShape>(new btConeShapeZ(radius, height)),
+        btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0))) {
+}
+
+osg::ref_ptr<osg::Node> GrabberKinematicObject::createOSGNode() {
+    osg::ref_ptr<osg::Geode> geode = new osg::Geode;
+    osg::ref_ptr<osg::Cone> cone = new osg::Cone(osg::Vec3(), radius, height);
+    cone->setCenter(osg::Vec3(0, 0, -cone->getBaseOffset()));
+    // FIXME: this cone seems a bit taller than the bullet cone
+    geode->addDrawable(new osg::ShapeDrawable(cone));
+    return geode;
+}
+
+void GrabberKinematicObject::grabNearestObjectAhead() {
+    // first, try to find the object ahead.
+    // trace a ray in the direction of the end affector and get the first object hit
+    btTransform trans; motionState->getWorldTransform(trans);
+    btVector3 rayFrom = trans(btVector3(0, 0, 0)); // some point in the middle of the stick
+    btVector3 rayTo = trans(constraintPivot); // the end affector
+    rayTo = (rayTo - rayFrom).normalize()*MAX_RAYCAST_DISTANCE + rayTo;
+
+    printf("from: %f %f %f\nto:%f %f %f\n", rayFrom.x(), rayFrom.y(), rayFrom.z(), rayTo.x(), rayTo.y(), rayTo.z());
+    // send the ray
+    btCollisionWorld::ClosestRayResultCallback rayCallback(rayFrom, rayTo);
+    getEnvironment()->bullet->dynamicsWorld->rayTest(rayFrom, rayTo, rayCallback);
+    printf("tracing!\n");
+    if (rayCallback.hasHit()) {
+        printf("hit!\n");
+        btRigidBody *hitBody = btRigidBody::upcast(rayCallback.m_collisionObject);
+        if (hitBody && !hitBody->isStaticObject() && !hitBody->isKinematicObject()) {
+            hitBody->setActivationState(DISABLE_DEACTIVATION);
+
+            releaseConstraint();
+
+            // the constraint in the grabber's coordinate system
+            btTransform grabberFrame;
+            grabberFrame.setIdentity();
+            grabberFrame.setOrigin(constraintPivot);
+            grabberFrame.setRotation(trans.inverse().getRotation());
+
+            // the constraint in the target's coordinate system
+            const btTransform &hitBodyTransInverse = hitBody->getCenterOfMassTransform().inverse();
+            btVector3 localHitPoint = hitBodyTransInverse * rayCallback.m_hitPointWorld;
+            btTransform hitFrame;
+            hitFrame.setIdentity();
+            hitFrame.setOrigin(localHitPoint);
+            hitFrame.setRotation(hitBodyTransInverse.getRotation());
+
+			constraint.reset(new btGeneric6DofConstraint(*rigidBody, *hitBody, grabberFrame, hitFrame, false));
+            // make the constraint completely rigid
+			constraint->setLinearLowerLimit(btVector3(0., 0., 0.));
+			constraint->setLinearUpperLimit(btVector3(0., 0., 0.));
+            constraint->setAngularLowerLimit(btVector3(0., 0., 0.));
+            constraint->setAngularUpperLimit(btVector3(0., 0., 0.));
+
+			getEnvironment()->bullet->dynamicsWorld->addConstraint(constraint.get());
+        }
+    }
+}
+
+void GrabberKinematicObject::releaseConstraint() {
+    if (!constraint) return;
+    getEnvironment()->bullet->dynamicsWorld->removeConstraint(constraint.get());
+    constraint.reset();
+}
+
 
 PlaneStaticObject::PlaneStaticObject(
         const btVector3 &planeNormal_,
@@ -54,4 +129,5 @@ SphereObject::SphereObject(btScalar mass_, btScalar radius_, boost::shared_ptr<b
     btRigidBody::btRigidBodyConstructionInfo ci(mass, motionState.get(),
                                                 collisionShape.get(), fallInertia);
     rigidBody.reset(new btRigidBody(ci));
+    rigidBody->setActivationState(DISABLE_DEACTIVATION);
 }

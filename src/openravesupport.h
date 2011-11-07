@@ -32,7 +32,7 @@ struct RaveInstance {
 
 class RaveRobotKinematicObject : public EnvironmentObject {
 private:
-
+    // utility functions
     static inline btTransform GetBtTransform(const Transform& t) {
         return btTransform(btQuaternion(t.rot.y,t.rot.z,t.rot.w,t.rot.x),GetBtVector(t.trans));
     }
@@ -41,9 +41,9 @@ private:
         return btVector3(v.x,v.y,v.z);
     }
 
-
     RaveInstance::Ptr rave;
     RobotBasePtr robot;
+    btTransform initialTransform;
     std::vector<BulletKinematicObject::Ptr> children;
 
     // these two containers just keep track of the smart pointers
@@ -53,19 +53,34 @@ private:
 
     // for the loaded robot, this will create BulletKinematicObjects
     // and place them into the children vector
-    void initRobotWithoutDynamics(const btTransform &initialTransform, float fmargin);
+    void initRobotWithoutDynamics(const btTransform &initialTransform, float fmargin=0.0005);
 
 public:
     typedef boost::shared_ptr<RaveRobotKinematicObject> Ptr;
 
     // this class is actually a collection of BulletKinematicObjects,
     // each of which represents a link of the robot
-    RaveRobotKinematicObject(RaveInstance::Ptr rave_, const std::string &uri, const btTransform &initialTransform);
+    RaveRobotKinematicObject(RaveInstance::Ptr rave_, const std::string &uri, const btTransform &initialTransform_);
 
-    // this will initialize each sub-object
+    // EnvironmentObject methods
+    // these act on each sub-object
     void init();
     void prePhysics();
     void preDraw();
+
+    // position the robot according to DOF values in the OpenRAVE model
+    // and copy link positions to the Bullet rigid bodies
+    void setDOFValues(const vector<int> &indices, const vector<dReal> &vals);
+
+    // IK support
+    struct ManipulatorIKModel {
+        typedef boost::shared_ptr<ManipulatorIKModel> Ptr;
+
+        ModuleBasePtr ikmodule;
+        RobotBase::ManipulatorPtr manip;
+    };
+    ManipulatorIKModel::Ptr createManipulatorIKModel(const std::string &manipName);
+    void moveByIK(ManipulatorIKModel::Ptr ikmodel, const OpenRAVE::Transform &targetTrans);
 };
 
 class OpenRAVESupport {

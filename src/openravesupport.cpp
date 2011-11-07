@@ -15,10 +15,10 @@ RaveInstance::~RaveInstance() {
 
 RaveRobotKinematicObject::RaveRobotKinematicObject(
         RaveInstance::Ptr rave_, const std::string &uri,
-        const btTransform &initialTransform) : rave(rave_) {
+        const btTransform &initialTransform_) : rave(rave_), initialTransform(initialTransform_) {
     robot = rave->env->ReadRobotURI(uri);
     rave->env->AddRobot(robot);
-    initRobotWithoutDynamics(initialTransform, 0.0005);
+    initRobotWithoutDynamics(initialTransform);
 }
 
 void RaveRobotKinematicObject::initRobotWithoutDynamics(const btTransform &initialTransform, float fmargin) {
@@ -131,6 +131,59 @@ void RaveRobotKinematicObject::preDraw() {
             (*i)->preDraw();
 }
 
+void RaveRobotKinematicObject::setDOFValues(const vector<int> &indices, const vector<dReal> &vals) {
+    // update openrave structure
+    {
+        EnvironmentMutex::scoped_lock lock(rave->env->GetMutex());
+        robot->SetActiveDOFs(indices);
+        robot->SetActiveDOFValues(vals);
+        rave->env->UpdatePublishedBodies();
+    }
+
+    // update bullet structures
+    // we gave OpenRAVE the DOFs, now ask it for the equivalent transformations
+    // which are easy to feed into Bullet
+    vector<OpenRAVE::Transform> transforms;
+    robot->GetLinkTransformations(transforms);
+
+    // iterate through the transforms vector and the vlinks at the same time
+    BOOST_ASSERT(transforms.size() == children.size());
+    for (int i = 0; i < transforms.size(); ++i)
+        if (children[i])
+            children[i]->getKinematicMotionState().setKinematicPos(
+                initialTransform * GetBtTransform(transforms[i]));
+}
+
+RaveRobotKinematicObject::ManipulatorIKModel::Ptr
+RaveRobotKinematicObject::createManipulatorIKModel(const std::string &manipName) {
+    RaveRobotKinematicObject::ManipulatorIKModel::Ptr m(new ManipulatorIKModel);
+    robot->SetActiveManipulator(manipName);
+    m->ikmodule = RaveCreateModule(rave->env, "ikfast");
+    rave->env->AddModule(m->ikmodule, "");
+    stringstream ssin, ssout;
+    ssin << "LoadIKFastSolver " << robot->GetName() << " " << (int)IkParameterization::Type_Transform6D;
+    if (!m->ikmodule->SendCommand(ssout, ssin)) {
+        RAVELOG_ERROR("failed to load iksolver\n");
+        return ManipulatorIKModel::Ptr(); // null
+    }
+    return m;
+}
+
+void RaveRobotKinematicObject::moveByIK(ManipulatorIKModel::Ptr ikmodel, const OpenRAVE::Transform &targetTrans) {
+    if (!ikmodel) return;
+
+    vector<dReal> vsolution;
+    // TODO: lock environment?!?!
+    if (!ikmodel->manip->FindIKSolution(IkParameterization(targetTrans), vsolution, true)) {
+        stringstream ss;
+        ss << "failed to get solution for target transform for end effector: " << targetTrans << endl;
+        RAVELOG_INFO(ss.str());
+        return;
+    }
+    setDOFValues(ikmodel->manip->GetArmIndices(), vsolution);
+}
+
+#if 0
 void OpenRAVESupport::initRAVE() {
     RaveInitialize(true);
     env = RaveCreateEnvironment();
@@ -191,6 +244,7 @@ void OpenRAVESupport::KinBodyInfo::moveActiveManipByIk(const Transform &targetEn
     setDOFValues(probot->GetActiveManipulator()->GetArmIndices(), vsolution);
     env->UpdatePublishedBodies();
 }
+
 
 OpenRAVESupport::KinBodyInfoPtr OpenRAVESupport::InitRobotWithoutDynamics(RobotBasePtr probot, const btTransform &transform, KinBodyInfoPtr pinfo, btScalar fmargin) {
     KinBodyPtr pbody = probot;
@@ -300,3 +354,4 @@ OpenRAVESupport::KinBodyInfoPtr OpenRAVESupport::InitRobotWithoutDynamics(RobotB
 
     return pinfo;
 }
+#endif

@@ -48,6 +48,8 @@ public:
 };
 
 struct Environment {
+    typedef boost::shared_ptr<Environment> Ptr;
+
     BulletInstance::Ptr bullet;
     OSGInstance::Ptr osg;
 
@@ -67,16 +69,15 @@ struct Environment {
 // (the OSG model will be created from the btRigidBody, and
 // will be added to the scene graph and the dynamics world, respectively)
 class BulletObject : public EnvironmentObject {
-protected:
+public:
+    typedef boost::shared_ptr<EnvironmentObject> Ptr;
+
     boost::shared_ptr<btRigidBody> rigidBody;
     boost::shared_ptr<btMotionState> motionState;
     boost::shared_ptr<btCollisionShape> collisionShape;
 
     osg::ref_ptr<osg::Node> node;
     osg::ref_ptr<osg::MatrixTransform> transform;
-
-public:
-    typedef boost::shared_ptr<EnvironmentObject> Ptr;
 
     BulletObject() { }
     BulletObject(boost::shared_ptr<btCollisionShape> collisionShape_, boost::shared_ptr<btMotionState> motionState_,
@@ -110,6 +111,7 @@ public:
     };
 
     BulletKinematicObject(boost::shared_ptr<btCollisionShape> collisionShape_, const btTransform &trans);
+    MotionState &getKinematicMotionState() { return *static_cast<MotionState *> (motionState.get()); }
 };
 
 #endif // _ENVIRONMENT_H_

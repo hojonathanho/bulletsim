@@ -3,6 +3,24 @@
 
 #include "environment.h"
 
+class GrabberKinematicObject : public BulletKinematicObject {
+private:
+    float radius, height;
+    btVector3 constraintPivot;
+    boost::shared_ptr<btGeneric6DofConstraint> constraint;
+
+public:
+    typedef boost::shared_ptr<GrabberKinematicObject> Ptr;
+
+    GrabberKinematicObject(float radius_, float height_);
+    ~GrabberKinematicObject() { releaseConstraint(); }
+
+    osg::ref_ptr<osg::Node> createOSGNode();
+
+    void grabNearestObjectAhead();
+    void releaseConstraint();
+};
+
 // An infinite surface on the X-Y plane.
 // the drawHalfExtents argument to the constructor is for rendering only
 class PlaneStaticObject : public BulletObject {
