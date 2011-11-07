@@ -15,7 +15,9 @@ struct Scene {
 
     PlaneStaticObject::Ptr ground;
     SphereObject::Ptr sphere;
+
     RaveRobotKinematicObject::Ptr pr2;
+    RaveRobotKinematicObject::Manipulator::Ptr pr2Left, pr2Right;
     GrabberKinematicObject::Ptr grabber[2];
 
     Scene(Environment::Ptr env_, RaveInstance::Ptr rave_) : env(env_), rave(rave_) {
@@ -35,21 +37,19 @@ struct Scene {
         env.add(cyl2);
     #endif
 
-        ms.reset(new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 3))));
+        ms.reset(new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(1, 0, 3))));
         sphere.reset(new SphereObject(1, 0.1, ms));
         env->add(sphere);
 
         btTransform trans(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0));
         pr2.reset(new RaveRobotKinematicObject(rave, "/home/jonathan/Downloads/pr2-beta-static.zae", trans));
         env->add(pr2);
-
-        grabber[0].reset(new GrabberKinematicObject(0.02, 0.05));
-        env->add(grabber[0]);
-        grabber[0]->getKinematicMotionState().setKinematicPos(btTransform(btQuaternion(0, 0, 0, 1), btVector3(5, 5, 0)));
-
-        grabber[1].reset(new GrabberKinematicObject(0.02, 0.05));
-        env->add(grabber[1]);
-        grabber[1]->getKinematicMotionState().setKinematicPos(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 1, 2)));
+        pr2Left = pr2->createManipulator("leftarm");
+        pr2Right = pr2->createManipulator("rightarm");
+        env->add(pr2Left->grabber);
+        env->add(pr2Right->grabber);
+        grabber[0] = pr2Left->grabber;
+        grabber[1] = pr2Right->grabber;
     }
 
     void processHaptics() {
@@ -93,14 +93,14 @@ struct Scene {
         if (!util::getHapticInput(trans0, buttons0, trans1, buttons1))
             return;
 
-        grabber[0]->getKinematicMotionState().setKinematicPos(trans0);
+        pr2Left->moveByIK(trans0);
         if (buttons0[0] && !lastButton[0])
             grabber[0]->grabNearestObjectAhead();
         else if (!buttons0[0] && lastButton[0])
             grabber[0]->releaseConstraint();
         lastButton[0] = buttons0[0];
 
-        grabber[1]->getKinematicMotionState().setKinematicPos(trans1);
+        pr2Right->moveByIK(trans0);
         if (buttons1[0] && !lastButton[1])
             grabber[1]->grabNearestObjectAhead();
         else if (!buttons1[0] && lastButton[1])
@@ -110,9 +110,11 @@ struct Scene {
 
     class EventHandler : public osgGA::TrackballManipulator {
     private:
-        bool debugDraw;
+        Scene *scene;
+        float lastX, lastY, dx, dy;
 
     protected:
+        // the default TrackballManipulator has weird keybindings, so we set them here
         virtual bool performMovementLeftMouseButton(double dt, double dx, double dy) {
             return osgGA::TrackballManipulator::performMovementMiddleMouseButton(dt, dx, dy);
         }
@@ -126,40 +128,89 @@ struct Scene {
         }
         
     public:
-        EventHandler() : debugDraw(false) { }
+        struct {
+            bool debugDraw, moveGrabber0, moveGrabber1, startDragging;
+        } state;
+        EventHandler(Scene *scene_) : scene(scene_), state() {}
 
         bool handle(const osgGA::GUIEventAdapter &ea, osgGA::GUIActionAdapter &aa) {
             switch (ea.getEventType()) {
             case osgGA::GUIEventAdapter::KEYDOWN:
                 switch (ea.getKey()) {
                 case 'd':
-                    debugDraw = !debugDraw;
-                    break;
+                    state.debugDraw = !state.debugDraw; break;
+                case '1':
+                    state.moveGrabber0 = true; break;
+                case '2':
+                    state.moveGrabber1 = true; break;
                 }
+                break;
+
+            case osgGA::GUIEventAdapter::KEYUP:
+                switch (ea.getKey()) {
+                case '1':
+                    state.moveGrabber0 = false; break;
+                case '2':
+                    state.moveGrabber1 = false; break;
+                }
+                break;
+
+            case osgGA::GUIEventAdapter::PUSH:
+                state.startDragging = true;
+                return osgGA::TrackballManipulator::handle(ea, aa);
+
+            case osgGA::GUIEventAdapter::DRAG:
+                // drag the active grabber in the plane of view
+                if ((ea.getButtonMask() & ea.LEFT_MOUSE_BUTTON) &&
+                    (state.moveGrabber0 || state.moveGrabber1)) {
+
+                    dx = lastX - ea.getXnormalized();
+                    dy = ea.getYnormalized() - lastY;
+                    lastX = ea.getXnormalized(); lastY = ea.getYnormalized();
+
+                    if (state.startDragging) { dx = dy = 0; }
+                    state.startDragging = false;
+
+                    // get our current view
+                    osg::Vec3d osgCenter, osgEye, osgUp;
+                    getTransformation(osgCenter, osgEye, osgUp);
+                    btVector3 from(util::toBtVector(osgEye));
+                    btVector3 to(util::toBtVector(osgCenter));
+                    btVector3 up(util::toBtVector(osgUp)); up.normalize();
+
+                    // compute basis vectors for the plane of view
+                    // (the plane normal to the ray from the camera to the center of the scene)
+                    btVector3 normal = to - from; normal.normalize();
+                    up = (up.dot(-normal))*normal + up; up.normalize(); //FIXME: is this necessary with osg?
+                    btVector3 xDisplacement = normal.cross(up) * dx;
+                    btVector3 yDisplacement = up * dy;
+
+                    // now set the position of the grabber
+                    int g = state.moveGrabber0 ? 0 : 1;
+                    btTransform origTrans;
+                    scene->grabber[g]->motionState->getWorldTransform(origTrans);
+                    btTransform newTrans(origTrans);
+                    newTrans.setOrigin(origTrans.getOrigin() + xDisplacement + yDisplacement);
+                    if (g == 0) scene->pr2Left->moveByIK(newTrans);
+                    else scene->pr2Right->moveByIK(newTrans);
+
+                } else {
+                    // if not dragging, we want the camera to move
+                    return osgGA::TrackballManipulator::handle(ea, aa);
+                }
+
                 break;
 
             default:
                 return osgGA::TrackballManipulator::handle(ea, aa);
-    /*        case osgGA::GUIEventAdapter::DRAG:
-                float dx = lastX - ea.getXnormalized();
-                float dy = ea.getYnormalized() - lastY;
-                lastX = ea.getXnormalized(); lastY = ea.getYnormalized();
-
-                if (ea.getButtonMask() & ea.RIGHT_MOUSE_BUTTON) {
-                    printf("rmb dragging\n");
-                    //setByMatrix(getMatrix() * osg::Matrix::rotate(dy/ osg::));
-                }
-                break;
-*/
             }
 
             // this event handler doesn't actually change the camera, so return false
             // to let other handlers deal with this event too
             return false;
         }
-
-        bool debugDrawOn() const { return debugDraw; }
     };
+    osg::ref_ptr<EventHandler> createEventHandler() { return osg::ref_ptr<EventHandler>(new EventHandler(this)); }
 };
 
 int main() {
@@ -172,15 +223,13 @@ int main() {
     Environment::Ptr env(new Environment(bullet, osg));
     Scene::Ptr scene(new Scene(env, rave));
 
-    // start osg
     osgbCollision::GLDebugDrawer *dbgDraw = new osgbCollision::GLDebugDrawer();
     dbgDraw->setDebugMode(btIDebugDraw::DBG_MAX_DEBUG_DRAW_MODE /*btIDebugDraw::DBG_DrawWireframe*/);
     bullet->dynamicsWorld->setDebugDrawer(dbgDraw);
 
     osgViewer::Viewer viewer;
     viewer.setUpViewInWindow(30, 30, 800, 800);
-
-    osg::ref_ptr<Scene::EventHandler> manip = new Scene::EventHandler;
+    osg::ref_ptr<Scene::EventHandler> manip = scene->createEventHandler();
     manip->setHomePosition(osg::Vec3(5, 0, 5), osg::Vec3(), osg::Z_AXIS);
     viewer.setCameraManipulator(manip);
 
@@ -192,7 +241,7 @@ int main() {
     double prevSimTime = prevSimTime;
     viewer.realize();
     while (!viewer.done()) {
-        if (manip->debugDrawOn()) {
+        if (manip->state.debugDraw) {
             if (!osg->root->containsNode(dbgDraw->getSceneGraph()))
                 osg->root->addChild(dbgDraw->getSceneGraph());
             dbgDraw->BeginDraw();
@@ -206,7 +255,7 @@ int main() {
         env->step(currSimTime - prevSimTime);
         prevSimTime = currSimTime;
 
-        if (manip->debugDrawOn()) {
+        if (manip->state.debugDraw) {
             bullet->dynamicsWorld->debugDrawWorld();
             dbgDraw->EndDraw();
         }

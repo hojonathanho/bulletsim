@@ -1,5 +1,4 @@
 include_directories(${OSG_INCLUDE_DIRS} ${OSGWORKS_DIR})
-message(INFO ${OSGWORKS_DIR})
 
 set(OSGWORKS_SOURCES
     osgwQuery/QueryStats.cpp

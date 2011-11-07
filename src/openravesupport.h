@@ -14,6 +14,7 @@ using namespace OpenRAVE;
 using namespace std;
 
 #include "environment.h"
+#include "basicobjects.h"
 
 #define FOREACH(it, v) for(typeof((v).begin())it = (v).begin(); it != (v).end(); (it)++)
 #define FOREACH_NOINC(it, v) for(typeof((v).begin())it = (v).begin(); it != (v).end(); )
@@ -35,6 +36,13 @@ private:
     // utility functions
     static inline btTransform GetBtTransform(const Transform& t) {
         return btTransform(btQuaternion(t.rot.y,t.rot.z,t.rot.w,t.rot.x),GetBtVector(t.trans));
+    }
+
+    static inline OpenRAVE::Transform GetRaveTransform(const btTransform &t) {
+        OpenRAVE::Transform s;
+        s.rot = OpenRAVE::Vector(t.getRotation().w(), t.getRotation().x(), t.getRotation().y(), t.getRotation().z());
+        s.trans = OpenRAVE::Vector(t.getOrigin().x(), t.getOrigin().y(), t.getOrigin().z());
+        return s;
     }
 
     static inline btVector3 GetBtVector(const Vector& v) {
@@ -73,14 +81,19 @@ public:
     void setDOFValues(const vector<int> &indices, const vector<dReal> &vals);
 
     // IK support
-    struct ManipulatorIKModel {
-        typedef boost::shared_ptr<ManipulatorIKModel> Ptr;
-
+    struct Manipulator {
+        RaveRobotKinematicObject *robot;
         ModuleBasePtr ikmodule;
         RobotBase::ManipulatorPtr manip;
+        GrabberKinematicObject::Ptr grabber;
+        void updateGrabberPos();
+
+        typedef boost::shared_ptr<Manipulator> Ptr;
+        Manipulator(RaveRobotKinematicObject *robot_) : robot(robot_) { }
+        void moveByIK(const OpenRAVE::Transform &targetTrans);
+        void moveByIK(const btTransform &targetTrans) { moveByIK(GetRaveTransform(targetTrans)); }
     };
-    ManipulatorIKModel::Ptr createManipulatorIKModel(const std::string &manipName);
-    void moveByIK(ManipulatorIKModel::Ptr ikmodel, const OpenRAVE::Transform &targetTrans);
+    Manipulator::Ptr createManipulator(const std::string &manipName);
 };
 
 class OpenRAVESupport {

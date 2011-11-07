@@ -35,15 +35,3 @@ ENDIF (NOT CMAKE_BUILD_TYPE)
 
 add_executable(newscene newscene.cpp environment.cpp basicobjects.cpp openravesupport.cpp util.cpp)
 target_link_libraries(newscene haptics osgBullet osgWorks ${OSG_LIBS} ${BULLET_LIBS} ${OpenRAVE_LIBRARIES} ${OpenRAVE_CORE_LIBRARIES})
-
-#add_executable(openravecontrol openravecontrol.cpp)
-#target_link_libraries(openravecontrol ${BULLET_LIBS} ${OpenRAVE_LIBRARIES} ${OpenRAVE_CORE_LIBRARIES} ${Boost_SERIALIZATION_LIBRARY})
-
-add_executable(basicdemo BasicDemo.cpp)
-target_link_libraries(basicdemo
-    osgBullet osgWorks ${OSG_LIBS} ${BULLET_LIBS})
-#${OSGBULLET_LIBRARIES} ${OSGWCONTROLS_LIBRARY} ${OSGWTOOLS_LIBRARY}
-#    ${OSG_LIBS} ${BULLET_LIBS})
-
-add_executable(dicedemo dice.cpp)
-target_link_libraries(dicedemo osgBullet osgWorks ${OSG_LIBS} ${BULLET_LIBS})

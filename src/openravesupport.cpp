@@ -154,33 +154,43 @@ void RaveRobotKinematicObject::setDOFValues(const vector<int> &indices, const ve
                 initialTransform * GetBtTransform(transforms[i]));
 }
 
-RaveRobotKinematicObject::ManipulatorIKModel::Ptr
-RaveRobotKinematicObject::createManipulatorIKModel(const std::string &manipName) {
-    RaveRobotKinematicObject::ManipulatorIKModel::Ptr m(new ManipulatorIKModel);
+RaveRobotKinematicObject::Manipulator::Ptr
+RaveRobotKinematicObject::createManipulator(const std::string &manipName) {
+    RaveRobotKinematicObject::Manipulator::Ptr m(new Manipulator(this));
+    // initialize the ik module
     robot->SetActiveManipulator(manipName);
+    m->manip = robot->GetActiveManipulator();
     m->ikmodule = RaveCreateModule(rave->env, "ikfast");
     rave->env->AddModule(m->ikmodule, "");
     stringstream ssin, ssout;
     ssin << "LoadIKFastSolver " << robot->GetName() << " " << (int)IkParameterization::Type_Transform6D;
     if (!m->ikmodule->SendCommand(ssout, ssin)) {
         RAVELOG_ERROR("failed to load iksolver\n");
-        return ManipulatorIKModel::Ptr(); // null
+        return Manipulator::Ptr(); // null
     }
+
+    // initialize the grabber
+    m->grabber.reset(new GrabberKinematicObject(0.02, 0.05));
+    m->updateGrabberPos();
     return m;
 }
 
-void RaveRobotKinematicObject::moveByIK(ManipulatorIKModel::Ptr ikmodel, const OpenRAVE::Transform &targetTrans) {
-    if (!ikmodel) return;
+void RaveRobotKinematicObject::Manipulator::updateGrabberPos() {
+    // set the grabber right on top of the end effector
+    grabber->getKinematicMotionState().setKinematicPos(GetBtTransform(manip->GetTransform()));
+}
 
+void RaveRobotKinematicObject::Manipulator::moveByIK(const OpenRAVE::Transform &targetTrans) {
     vector<dReal> vsolution;
     // TODO: lock environment?!?!
-    if (!ikmodel->manip->FindIKSolution(IkParameterization(targetTrans), vsolution, true)) {
+    if (!manip->FindIKSolution(IkParameterization(targetTrans), vsolution, true)) {
         stringstream ss;
         ss << "failed to get solution for target transform for end effector: " << targetTrans << endl;
         RAVELOG_INFO(ss.str());
         return;
     }
-    setDOFValues(ikmodel->manip->GetArmIndices(), vsolution);
+    robot->setDOFValues(manip->GetArmIndices(), vsolution);
+    updateGrabberPos();
 }
 
 #if 0
