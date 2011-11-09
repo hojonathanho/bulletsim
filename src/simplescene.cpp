@@ -14,7 +14,7 @@
     env->add(ground);
 
     btTransform trans(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0));
-    pr2.reset(new RaveRobotKinematicObject(rave, "robots/pr2-beta-static.zae", trans));
+    pr2.reset(new RaveRobotKinematicObject(rave, "robots/pr2-beta-sim.robot.xml", trans));
     env->add(pr2);
 
 
@@ -134,11 +134,11 @@ bool EventHandler::handle(const osgGA::GUIEventAdapter &ea, osgGA::GUIActionAdap
 
 
 
-int main() {
+// int main() {
 
 
-  Scene s =     Scene();
+//   Scene s =     Scene();
 
-  for (int i=0; i<10000; i++)
-    s.step();
-}
+//   for (int i=0; i<10000; i++)
+//     s.step();
+// }

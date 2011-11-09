@@ -13,6 +13,7 @@ class EventHandler;
 class Scene {
   typedef boost::shared_ptr<Scene> Ptr;
 
+public:
   OSGInstance::Ptr osg;
   BulletInstance::Ptr bullet;
   Environment::Ptr env;
@@ -23,7 +24,8 @@ class Scene {
   osgViewer::Viewer viewer;
 
   osg::ref_ptr<EventHandler> manip;
-public:
+
+
   Scene();
   void step();
   osg::ref_ptr<EventHandler> createEventHandler();
