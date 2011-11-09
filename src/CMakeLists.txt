@@ -1,6 +1,8 @@
 include_directories(${BULLET_DIR}/src
                     ${BULLET_DIR}/Demos/OpenGL # for debug drawing
 #                    ${BULLET_COLLADA_DIR}/BulletColladaConverter
+                    ${OSGBULLET_DIR}
+                    ${OSGWORKS_DIR}
                     ${OpenRAVE_INCLUDE_DIRS}
                     ${Boost_INCLUDE_DIRS}
                     ${EIGEN2_INCLUDE_DIR}

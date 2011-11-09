@@ -42,7 +42,7 @@ struct Scene {
         env->add(sphere);
 
         btTransform trans(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0));
-        pr2.reset(new RaveRobotKinematicObject(rave, "/home/jonathan/Downloads/pr2-beta-static.zae", trans));
+        pr2.reset(new RaveRobotKinematicObject(rave, "robots/pr2-beta-static.zae", trans));
         env->add(pr2);
         pr2Left = pr2->createManipulator("leftarm");
         pr2Right = pr2->createManipulator("rightarm");
@@ -114,18 +114,29 @@ struct Scene {
         float lastX, lastY, dx, dy;
 
     protected:
-        // the default TrackballManipulator has weird keybindings, so we set them here
-        virtual bool performMovementLeftMouseButton(double dt, double dx, double dy) {
-            return osgGA::TrackballManipulator::performMovementMiddleMouseButton(dt, dx, dy);
-        }
 
-        virtual bool performMovementMiddleMouseButton(double dt, double dx, double dy) {
-            return false;
-        }
 
-        virtual bool performMovementRightMouseButton(double dt, double dx, double dy) {
-            return osgGA::TrackballManipulator::performMovementLeftMouseButton(dt, dx, dy);
-        }
+
+      void getTransformation( osg::Vec3d& eye, osg::Vec3d& center, osg::Vec3d& up ) const
+	{
+	    center = _center;
+	    eye = _center + _rotation * osg::Vec3d( 0., 0., _distance );
+	    up = _rotation * osg::Vec3d( 0., 1., 0. );
+	}
+
+
+      //the default TrackballManipulator has weird keybindings, so we set them here
+        // virtual bool performMovementLeftMouseButton(double dt, double dx, double dy) {
+        //     return osgGA::TrackballManipulator::performMovementMiddleMouseButton(dt, dx, dy);
+        // }
+
+        // virtual bool performMovementMiddleMouseButton(double dt, double dx, double dy) {
+        //     return false;
+        // }
+
+        // virtual bool performMovementRightMouseButton(double dt, double dx, double dy) {
+        //     return osgGA::TrackballManipulator::performMovementLeftMouseButton(dt, dx, dy);
+        // }
         
     public:
         struct {
