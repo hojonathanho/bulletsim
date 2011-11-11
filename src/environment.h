@@ -65,6 +65,39 @@ struct Environment {
 
 // objects
 
+// Not a real object; just wraps a bunch of child objects.
+template<class ChildType>
+class CompoundObject : public EnvironmentObject {
+protected:
+    std::vector<ChildType> children;
+    std::vector<ChildType> &getChildren() { return children; }
+
+public:
+    void init() {
+        typename std::vector<ChildType>::iterator i;
+        for (i = children.begin(); i != children.end(); ++i) {
+            if (*i) {
+                (*i)->setEnvironment(getEnvironment());
+                (*i)->init();
+            }
+        }
+    }
+
+    void prePhysics() {
+        typename std::vector<ChildType>::iterator i;
+        for (i = children.begin(); i != children.end(); ++i)
+            if (*i)
+                (*i)->prePhysics();
+    }
+
+    void preDraw() {
+        typename std::vector<ChildType>::iterator i;
+        for (i = children.begin(); i != children.end(); ++i)
+            if (*i)
+                (*i)->preDraw();
+    }
+};
+
 // an object that is entirely specified as a bullet btRigidBody
 // (the OSG model will be created from the btRigidBody, and
 // will be added to the scene graph and the dynamics world, respectively)

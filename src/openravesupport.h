@@ -22,12 +22,11 @@ struct RaveInstance {
     ~RaveInstance();
 };
 
-class RaveRobotKinematicObject : public EnvironmentObject {
+class RaveRobotKinematicObject : public CompoundObject<BulletKinematicObject::Ptr> {
 private:
     RaveInstance::Ptr rave;
     RobotBasePtr robot;
     btTransform initialTransform;
-    std::vector<BulletKinematicObject::Ptr> children;
 
     // these two containers just keep track of the smart pointers
     // so that the objects get deallocated on destruction
@@ -44,12 +43,6 @@ public:
     // this class is actually a collection of BulletKinematicObjects,
     // each of which represents a link of the robot
     RaveRobotKinematicObject(RaveInstance::Ptr rave_, const std::string &uri, const btTransform &initialTransform_);
-
-    // EnvironmentObject methods
-    // these act on each sub-object
-    void init();
-    void prePhysics();
-    void preDraw();
 
     // position the robot according to DOF values in the OpenRAVE model
     // and copy link positions to the Bullet rigid bodies

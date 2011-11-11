@@ -24,7 +24,7 @@ RaveRobotKinematicObject::RaveRobotKinematicObject(
 
 void RaveRobotKinematicObject::initRobotWithoutDynamics(const btTransform &initialTransform, float fmargin) {
     const std::vector<KinBody::LinkPtr> &links = robot->GetLinks();
-    children.reserve(links.size());
+    getChildren().reserve(links.size());
     // iterate through each link in the robot (to be stored in the children vector)
     for (std::vector<KinBody::LinkPtr>::const_iterator link = links.begin(); link != links.end(); ++link) {
         const std::list<KinBody::Link::GEOMPROPERTIES> &geometries = (*link)->GetGeometries();
@@ -32,7 +32,7 @@ void RaveRobotKinematicObject::initRobotWithoutDynamics(const btTransform &initi
         // (this is the case with the PR2 model). therefore just add an empty BulletKinematicObject
         // pointer so we know to skip it in the future
         if (geometries.empty()) {
-            children.push_back(BulletKinematicObject::Ptr());
+            getChildren().push_back(BulletKinematicObject::Ptr());
             continue;
         }
 
@@ -104,32 +104,8 @@ void RaveRobotKinematicObject::initRobotWithoutDynamics(const btTransform &initi
 
         btTransform childTrans = initialTransform * util::toBtTransform((*link)->GetTransform());
         BulletKinematicObject::Ptr child(new BulletKinematicObject(compound, childTrans));
-        children.push_back(child);
+        getChildren().push_back(child);
     }
-}
-
-void RaveRobotKinematicObject::init() {
-    std::vector<BulletKinematicObject::Ptr>::iterator i;
-    for (i = children.begin(); i != children.end(); ++i) {
-        if (*i) {
-            (*i)->setEnvironment(getEnvironment());
-            (*i)->init();
-        }
-    }
-}
-
-void RaveRobotKinematicObject::prePhysics() {
-    std::vector<BulletKinematicObject::Ptr>::iterator i;
-    for (i = children.begin(); i != children.end(); ++i)
-        if (*i)
-            (*i)->prePhysics();
-}
-
-void RaveRobotKinematicObject::preDraw() {
-    std::vector<BulletKinematicObject::Ptr>::iterator i;
-    for (i = children.begin(); i != children.end(); ++i)
-        if (*i)
-            (*i)->preDraw();
 }
 
 void RaveRobotKinematicObject::setDOFValues(const vector<int> &indices, const vector<dReal> &vals) {
@@ -148,10 +124,10 @@ void RaveRobotKinematicObject::setDOFValues(const vector<int> &indices, const ve
     robot->GetLinkTransformations(transforms);
 
     // iterate through the transforms vector and the vlinks at the same time
-    BOOST_ASSERT(transforms.size() == children.size());
+    BOOST_ASSERT(transforms.size() == getChildren().size());
     for (int i = 0; i < transforms.size(); ++i)
-        if (children[i])
-            children[i]->getKinematicMotionState().setKinematicPos(
+        if (getChildren()[i])
+            getChildren()[i]->getKinematicMotionState().setKinematicPos(
                 initialTransform * util::toBtTransform(transforms[i]));
 }
 
