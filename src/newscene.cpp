@@ -6,6 +6,7 @@
 #include "openravesupport.h"
 #include "thread_socket_interface.h"
 #include "util.h"
+#include "rope.h"
 
 struct Scene {
     typedef boost::shared_ptr<Scene> Ptr;
@@ -19,6 +20,8 @@ struct Scene {
     RaveRobotKinematicObject::Ptr pr2;
     RaveRobotKinematicObject::Manipulator::Ptr pr2Left, pr2Right;
     GrabberKinematicObject::Ptr grabber[2];
+
+    CapsuleRope::Ptr rope;
 
     Scene(Environment::Ptr env_, RaveInstance::Ptr rave_) : env(env_), rave(rave_) {
         boost::shared_ptr<btMotionState> ms;
@@ -50,6 +53,15 @@ struct Scene {
         env->add(pr2Right->grabber);
         grabber[0] = pr2Left->grabber;
         grabber[1] = pr2Right->grabber;
+
+
+          int nLinks = 20;
+          btAlignedObjectArray<btVector3> ctrlPts;
+          for (int i=0; i< nLinks; i++) {
+            ctrlPts.push_back(btVector3(.25*i,0,1));
+          }
+        rope.reset(new CapsuleRope(ctrlPts, 0.5f));
+        env->add(rope);
     }
 
     void processHaptics() {

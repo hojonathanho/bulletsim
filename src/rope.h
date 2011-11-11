@@ -17,4 +17,6 @@ public:
 public:
   CapsuleRope(const btAlignedObjectArray<btVector3>& ctrlPoints, float radius_);
   void init();
+  void prePhysics();
+  void preDraw();
 };

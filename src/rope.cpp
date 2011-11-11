@@ -1,16 +1,6 @@
 #include "rope.h"
 #include <iostream>
 using namespace std;
-btRigidBody* createRigidBody(float mass, const btTransform& startTransform, btCollisionShape* shape) {
-  // from DemoApplication.cpp
-  bool isDynamic = (mass != 0.f);
-  btVector3 localInertia(0,0,0);
-  if (isDynamic) shape->calculateLocalInertia(mass,localInertia);
-  btDefaultMotionState* myMotionState = new btDefaultMotionState(startTransform);
-  btRigidBody::btRigidBodyConstructionInfo cInfo(mass,myMotionState,shape,localInertia);
-  btRigidBody* body = new btRigidBody(cInfo);
-  return body;
-}
 
 CapsuleRope::CapsuleRope(const btAlignedObjectArray<btVector3>& ctrlPoints, btScalar radius_) {
   radius = radius_;
@@ -40,7 +30,13 @@ CapsuleRope::CapsuleRope(const btAlignedObjectArray<btVector3>& ctrlPoints, btSc
     //btCollisionShape* shape = new btCapsuleShapeX(radius,len);
     btCollisionShape* shape = new btCylinderShapeX(btVector3(len,radius,radius));
 
-    btRigidBody* body = createRigidBody(mass,trans,shape);
+    bool isDynamic = (mass != 0.f);
+    btVector3 localInertia(0,0,0);
+    if (isDynamic) shape->calculateLocalInertia(mass,localInertia);
+    btDefaultMotionState* myMotionState = new btDefaultMotionState(trans);
+    btRigidBody::btRigidBodyConstructionInfo cInfo(mass,myMotionState,shape,localInertia);
+    btRigidBody* body = new btRigidBody(cInfo);
+
     cout << &body << endl;
     cout << body->getCenterOfMassPosition().x() << endl;
     bodies.push_back(body);
@@ -49,7 +45,7 @@ CapsuleRope::CapsuleRope(const btAlignedObjectArray<btVector3>& ctrlPoints, btSc
     boost::shared_ptr<btMotionState> msPtr;
     boost::shared_ptr<btRigidBody> rbPtr;
     shapePtr.reset(shape);
-    msPtr.reset(new btDefaultMotionState(trans));
+    msPtr.reset(myMotionState);
     rbPtr.reset(body);
     BulletObject::Ptr child(new BulletObject(shapePtr,msPtr,rbPtr));
     children.push_back(child);
@@ -77,4 +73,20 @@ void CapsuleRope::init() {
     btTypedConstraint* joint = joints[i];
     getEnvironment()->bullet->dynamicsWorld->addConstraint(joint,true);
   }
+}
+void CapsuleRope::prePhysics() {
+    vector<BulletObject::Ptr>::iterator i;
+    for (i = children.begin(); i != children.end(); ++i) {
+        if (*i) {
+            (*i)->prePhysics();
+        }
+    }
+}
+void CapsuleRope::preDraw() {
+    vector<BulletObject::Ptr>::iterator i;
+    for (i = children.begin(); i != children.end(); ++i) {
+        if (*i) {
+            (*i)->preDraw();
+        }
+    }
 }

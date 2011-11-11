@@ -19,9 +19,10 @@ int main() {
 
 
 
-  for (int i = 0; i < 100; i++) {
-    cout << "height at time " << i << ": " << ropePtr->bodies[0]->getCenterOfMassPosition().z() << endl;
-    usleep(1000*10);
+  s.viewer.realize();
+  while (!s.viewer.done()) {
+    //cout << "height at time " << i << ": " << ropePtr->bodies[0]->getCenterOfMassPosition().z() << endl;
+    //usleep(1000*10);
     s.step();
   }
 

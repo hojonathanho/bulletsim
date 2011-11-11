@@ -35,7 +35,7 @@ ENDIF (NOT CMAKE_BUILD_TYPE)
 #    ${OPENGL_gl_LIBRARY}
 #    ${OPENGL_glu_LIBRARY})
 
-add_executable(newscene newscene.cpp environment.cpp basicobjects.cpp openravesupport.cpp util.cpp)
+add_executable(newscene newscene.cpp environment.cpp basicobjects.cpp openravesupport.cpp util.cpp rope.cpp)
 target_link_libraries(newscene haptics osgBullet osgWorks ${OSG_LIBS} ${BULLET_LIBS} ${OpenRAVE_LIBRARIES} ${OpenRAVE_CORE_LIBRARIES})
 
 

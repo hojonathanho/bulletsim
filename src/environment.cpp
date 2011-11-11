@@ -56,7 +56,7 @@ void BulletObject::preDraw() {
     // before drawing, we must copy the orientation/position
     // of the object from Bullet to OSG
     btTransform btTrans;
-    motionState->getWorldTransform(btTrans);
+    rigidBody->getMotionState()->getWorldTransform(btTrans);
 
     btScalar m[16];
     btTrans.getOpenGLMatrix(m);

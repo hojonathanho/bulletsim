@@ -73,6 +73,10 @@ public:
     typedef boost::shared_ptr<EnvironmentObject> Ptr;
 
     boost::shared_ptr<btRigidBody> rigidBody;
+    // the motionState and collisionShape actually don't matter; the ones
+    // embedded in the rigidBody are used for simulation. However,
+    // placing them here will have them automatically deallocated
+    // on destruction of the BulletObject
     boost::shared_ptr<btMotionState> motionState;
     boost::shared_ptr<btCollisionShape> collisionShape;
 
