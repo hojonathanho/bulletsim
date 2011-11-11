@@ -312,7 +312,7 @@ IF (USE_GLUT)
 ENDIF(USE_GLUT)
 
 
-OPTION(BUILD_DEMOS "Set when you want to build the demos" ON)
+OPTION(BUILD_DEMOS "Set when you want to build the demos" OFF)
 IF(BUILD_DEMOS)
 	IF(EXISTS ${BULLET_PHYSICS_SOURCE_DIR}/Demos AND IS_DIRECTORY ${BULLET_PHYSICS_SOURCE_DIR}/Demos)
 		SUBDIRS(Demos)
