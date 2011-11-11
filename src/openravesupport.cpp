@@ -46,7 +46,7 @@ void RaveRobotKinematicObject::initRobotWithoutDynamics(const btTransform &initi
 
             switch (geom->GetType()) {
             case KinBody::Link::GEOMPROPERTIES::GeomBox:
-                subshape.reset(new btBoxShape(GetBtVector(geom->GetBoxExtents())));
+                subshape.reset(new btBoxShape(util::toBtVector(geom->GetBoxExtents())));
                 break;
 
             case KinBody::Link::GEOMPROPERTIES::GeomSphere:
@@ -65,9 +65,9 @@ void RaveRobotKinematicObject::initRobotWithoutDynamics(const btTransform &initi
 
                     // for some reason adding indices makes everything crash
                     for(size_t i = 0; i < geom->GetCollisionMesh().indices.size(); i += 3)
-                        ptrimesh->addTriangle(GetBtVector(geom->GetCollisionMesh().vertices[i]),
-                                              GetBtVector(geom->GetCollisionMesh().vertices[i+1]),
-                                              GetBtVector(geom->GetCollisionMesh().vertices[i+2]));
+                        ptrimesh->addTriangle(util::toBtVector(geom->GetCollisionMesh().vertices[i]),
+                                              util::toBtVector(geom->GetCollisionMesh().vertices[i+1]),
+                                              util::toBtVector(geom->GetCollisionMesh().vertices[i+2]));
 
                     RAVELOG_DEBUG("converting triangle mesh to convex hull\n");
                     boost::shared_ptr<btConvexShape> pconvexbuilder(new btConvexTriangleMeshShape(ptrimesh));
@@ -99,10 +99,10 @@ void RaveRobotKinematicObject::initRobotWithoutDynamics(const btTransform &initi
             // store the subshape somewhere so it doesn't get deallocated by the smart pointer
             subshapes.push_back(subshape);
             subshape->setMargin(fmargin);
-            compound->addChildShape(GetBtTransform(geom->GetTransform()), subshape.get());
+            compound->addChildShape(util::toBtTransform(geom->GetTransform()), subshape.get());
         }
 
-        btTransform childTrans = initialTransform * GetBtTransform((*link)->GetTransform());
+        btTransform childTrans = initialTransform * util::toBtTransform((*link)->GetTransform());
         BulletKinematicObject::Ptr child(new BulletKinematicObject(compound, childTrans));
         children.push_back(child);
     }
@@ -152,7 +152,7 @@ void RaveRobotKinematicObject::setDOFValues(const vector<int> &indices, const ve
     for (int i = 0; i < transforms.size(); ++i)
         if (children[i])
             children[i]->getKinematicMotionState().setKinematicPos(
-                initialTransform * GetBtTransform(transforms[i]));
+                initialTransform * util::toBtTransform(transforms[i]));
 }
 
 RaveRobotKinematicObject::Manipulator::Ptr
@@ -178,7 +178,7 @@ RaveRobotKinematicObject::createManipulator(const std::string &manipName) {
 
 void RaveRobotKinematicObject::Manipulator::updateGrabberPos() {
     // set the grabber right on top of the end effector
-    grabber->getKinematicMotionState().setKinematicPos(GetBtTransform(manip->GetTransform()));
+    grabber->getKinematicMotionState().setKinematicPos(util::toBtTransform(manip->GetTransform()));
 }
 
 void RaveRobotKinematicObject::Manipulator::moveByIK(const OpenRAVE::Transform &targetTrans) {

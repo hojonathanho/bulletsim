@@ -11,6 +11,7 @@ using namespace std;
 
 #include "environment.h"
 #include "basicobjects.h"
+#include "util.h"
 
 struct RaveInstance {
     typedef boost::shared_ptr<RaveInstance> Ptr;
@@ -23,22 +24,6 @@ struct RaveInstance {
 
 class RaveRobotKinematicObject : public EnvironmentObject {
 private:
-    // utility functions
-    static inline btTransform GetBtTransform(const Transform& t) {
-        return btTransform(btQuaternion(t.rot.y,t.rot.z,t.rot.w,t.rot.x),GetBtVector(t.trans));
-    }
-
-    static inline OpenRAVE::Transform GetRaveTransform(const btTransform &t) {
-        OpenRAVE::Transform s;
-        s.rot = OpenRAVE::Vector(t.getRotation().w(), t.getRotation().x(), t.getRotation().y(), t.getRotation().z());
-        s.trans = OpenRAVE::Vector(t.getOrigin().x(), t.getOrigin().y(), t.getOrigin().z());
-        return s;
-    }
-
-    static inline btVector3 GetBtVector(const Vector& v) {
-        return btVector3(v.x,v.y,v.z);
-    }
-
     RaveInstance::Ptr rave;
     RobotBasePtr robot;
     btTransform initialTransform;
@@ -81,7 +66,7 @@ public:
         typedef boost::shared_ptr<Manipulator> Ptr;
         Manipulator(RaveRobotKinematicObject *robot_) : robot(robot_) { }
         void moveByIK(const OpenRAVE::Transform &targetTrans);
-        void moveByIK(const btTransform &targetTrans) { moveByIK(GetRaveTransform(targetTrans)); }
+        void moveByIK(const btTransform &targetTrans) { moveByIK(util::toRaveTransform(targetTrans)); }
     };
     Manipulator::Ptr createManipulator(const std::string &manipName);
 };
