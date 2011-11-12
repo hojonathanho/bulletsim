@@ -5,9 +5,9 @@
 using namespace std;
 
 
-class CapsuleRope : public EnvironmentObject {
+class CapsuleRope : public CompoundObject<BulletObject::Ptr> {
 public:
-  typedef boost::shared_ptr<EnvironmentObject> Ptr;
+  typedef boost::shared_ptr<CapsuleRope> Ptr;
   btAlignedObjectArray<btRigidBody*> bodies;
   btAlignedObjectArray<btTypedConstraint*> joints;
   btScalar radius;
@@ -17,6 +17,6 @@ public:
 public:
   CapsuleRope(const btAlignedObjectArray<btVector3>& ctrlPoints, float radius_);
   void init();
-  void prePhysics();
-  void preDraw();
+  //  void prePhysics();
+  //void preDraw();
 };

@@ -37,7 +37,6 @@ CapsuleRope::CapsuleRope(const btAlignedObjectArray<btVector3>& ctrlPoints, btSc
     btRigidBody::btRigidBodyConstructionInfo cInfo(mass,myMotionState,shape,localInertia);
     btRigidBody* body = new btRigidBody(cInfo);
 
-    cout << &body << endl;
     cout << body->getCenterOfMassPosition().x() << endl;
     bodies.push_back(body);
 
@@ -60,33 +59,11 @@ CapsuleRope::CapsuleRope(const btAlignedObjectArray<btVector3>& ctrlPoints, btSc
 
 void CapsuleRope::init() {
   cout << "rope initializing" << endl;
-    vector<BulletObject::Ptr>::iterator i;
-    for (i = children.begin(); i != children.end(); ++i) {
-        if (*i) {
-	  cout << "initializing rope segment" << endl;
-            (*i)->setEnvironment(getEnvironment());
-            (*i)->init();
-        }
-    }
+  CompoundObject::init();
 
   for (int i=0; i< joints.size(); i++) {
     btTypedConstraint* joint = joints[i];
-    getEnvironment()->bullet->dynamicsWorld->addConstraint(joint,true);
+    //getEnvironment()->bullet->dynamicsWorld->addConstraint(joint,true);
   }
 }
-void CapsuleRope::prePhysics() {
-    vector<BulletObject::Ptr>::iterator i;
-    for (i = children.begin(); i != children.end(); ++i) {
-        if (*i) {
-            (*i)->prePhysics();
-        }
-    }
-}
-void CapsuleRope::preDraw() {
-    vector<BulletObject::Ptr>::iterator i;
-    for (i = children.begin(); i != children.end(); ++i) {
-        if (*i) {
-            (*i)->preDraw();
-        }
-    }
-}
+
