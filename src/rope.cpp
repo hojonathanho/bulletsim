@@ -5,9 +5,6 @@ using namespace std;
 CapsuleRope::CapsuleRope(const btAlignedObjectArray<btVector3>& ctrlPoints, btScalar radius_) {
   radius = radius_;
   nLinks = ctrlPoints.size() - 1;
-  bodies.resize(nLinks);
-  shapes.resize(nLinks);
-  joints.resize(nLinks-1);
 
 
   for (int i=0; i < nLinks; i++) {
@@ -17,41 +14,37 @@ CapsuleRope::CapsuleRope(const btAlignedObjectArray<btVector3>& ctrlPoints, btSc
     btVector3 diff = (pt1-pt0);
     btQuaternion q;
     btScalar ang = diff.angle(btVector3(1,0,0));
-    if (ang > 0) {
+    if (ang*ang > 1e-4) {
       btVector3 ax = diff.cross(btVector3(1,0,0));
       q = btQuaternion(ax,ang);
     }
     else {
-      q = btQuaternion();
+      q = btQuaternion(0,0,0,1);
     }
     btTransform trans;
-    trans.setIdentity();
     trans.setOrigin(midpt);
     trans.setRotation(q);
 
     float len = diff.length();
     float mass = 1;//mass = 3.14*radius*radius*len;
     //btCollisionShape* shape = new btCapsuleShapeX(radius,len);
-    btCollisionShape* shape = new btCylinderShapeX(btVector3(len/3,radius,radius));
-    shapes[i].reset(shape);
-    //btCollisionShape* shape = new btSphereShape(len/2.1);
+    shared_ptr<btCollisionShape> shapePtr(new btCylinderShapeX(btVector3(len/2,radius,radius)));
 
     bool isDynamic = (mass != 0.f);
     btVector3 localInertia(0,0,0);
-    if (isDynamic) shape->calculateLocalInertia(mass,localInertia);
+    if (isDynamic) shapePtr->calculateLocalInertia(mass,localInertia);
     btDefaultMotionState* myMotionState = new btDefaultMotionState(trans);
-    btRigidBody::btRigidBodyConstructionInfo cInfo(mass,myMotionState,shape,localInertia);
-    btRigidBody* body = new btRigidBody(cInfo);
+    btRigidBody::btRigidBodyConstructionInfo cInfo(mass,myMotionState,shapePtr.get(),localInertia);
+    shared_ptr<btRigidBody> bodyPtr(new btRigidBody(cInfo));
 
-    cout << body->getCenterOfMassPosition().x() << endl;
-    bodies[i].reset(body);
+    bodies.push_back(bodyPtr);
 
-    BulletObject::Ptr child(new BulletObject(shapes[i],bodies[i]));
+    BulletObject::Ptr child(new BulletObject(shapePtr,bodyPtr));
     children.push_back(child);
 
     if (i>0) {
-      btPoint2PointConstraint* joint = new btPoint2PointConstraint(*bodies[i-1],*bodies[i],btVector3(len/2,0,0),btVector3(-len/2,0,0));
-      joints[i-1].reset(joint);
+      shared_ptr<btPoint2PointConstraint> jointPtr(new btPoint2PointConstraint(*bodies[i-1],*bodies[i],btVector3(len/2,0,0),btVector3(-len/2,0,0)));
+      joints.push_back(jointPtr);
     }
 
 
@@ -67,19 +60,19 @@ void CapsuleRope::init() {
 
 
 
-   for (int i=0; i < children.size()-1; i++) {
-     //     BulletObject::Ptr bo0 = static_cast<BulletObject::Ptr>(children[i]);
-     //BulletObject::Ptr bo1 = static_cast<BulletObject::Ptr>(children[i+1]);
+   // for (int i=0; i < children.size()-1; i++) {
+   //        BulletObject::Ptr bo0 = static_cast<BulletObject::Ptr>(children[i]);
+   //   BulletObject::Ptr bo1 = static_cast<BulletObject::Ptr>(children[i+1]);
 
-     //btRigidBody* body0 = (bo0->rigidBody).get();
+   //   btRigidBody* body0 = (bo0->rigidBody).get();
      //btRigidBody* body1 = (bo1->rigidBody).get();
-     //        btPoint2PointConstraint* joint = new btPoint2PointConstraint(*body0,*body1,btVector3(.1/2,0,0),btVector3(-.1/2,0,0));
-  //      //getEnvironment()->bullet->dynamicsWorld->addConstraint(joint);
-   }
+     //         btPoint2PointConstraint* joint = new btPoint2PointConstraint(*body0,*body1,btVector3(.1/2,0,0),btVector3(-.1/2,0,0));
+  //      getEnvironment()->bullet->dynamicsWorld->addConstraint(joint);
+  //  }
 
 
   for (int i=0; i< joints.size(); i++) {
-    //   getEnvironment()->bullet->dynamicsWorld->addConstraint(joints[i].get(),true);
+       getEnvironment()->bullet->dynamicsWorld->addConstraint(joints[i].get(),true);
   }
 }
 
