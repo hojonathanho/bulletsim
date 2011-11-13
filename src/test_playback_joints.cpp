@@ -53,7 +53,7 @@ int main() {
   for (int i = 0; i < joints.size(); i++) {
     vector<double> joint(joints[i].begin(),joints[i].end());
     s.pr2->setDOFValues(inds,joint);
-    s.step(.01);
+    s.step(.01, 0, 0.01);
     usleep(1000*100);
 
   }
