@@ -14,8 +14,8 @@
     env->add(ground);
 
     btTransform trans(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0));
-    //pr2.reset(new RaveRobotKinematicObject(rave, "robots/pr2-beta-sim.robot.xml", trans));
-    //env->add(pr2);
+    pr2.reset(new RaveRobotKinematicObject(rave, "robots/pr2-beta-sim.robot.xml", trans));
+    env->add(pr2);
 
 
     dbgDraw = new osgbCollision::GLDebugDrawer();

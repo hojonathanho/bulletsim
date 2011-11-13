@@ -7,12 +7,12 @@ int main() {
   int nLinks = 20;
   btAlignedObjectArray<btVector3> ctrlPts;
   for (int i=0; i< nLinks; i++) {
-    ctrlPts.push_back(btVector3(1*(i-nLinks/2.),0,2));
+    ctrlPts.push_back(btVector3(.1*(i-nLinks/2.),0,2));
   }
 
 
   boost::shared_ptr<CapsuleRope> ropePtr;
-  ropePtr.reset(new CapsuleRope(ctrlPts,.25));
+  ropePtr.reset(new CapsuleRope(ctrlPts,.025));
 
   Scene s = Scene();
   s.env->add(ropePtr);
@@ -29,7 +29,7 @@ int main() {
       body->getCenterOfMassPosition().z() << " " << endl;
         
     s.step(.01);
-    usleep(100*1000);
+    usleep(10*1000);
   }
 
 }
