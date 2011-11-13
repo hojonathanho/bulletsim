@@ -27,7 +27,7 @@ public:
 
 
   Scene();
-  void step();
+  void step(float);
   osg::ref_ptr<EventHandler> createEventHandler();
 };
 

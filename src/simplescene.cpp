@@ -14,8 +14,8 @@
     env->add(ground);
 
     btTransform trans(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0));
-    pr2.reset(new RaveRobotKinematicObject(rave, "robots/pr2-beta-sim.robot.xml", trans));
-    env->add(pr2);
+    //pr2.reset(new RaveRobotKinematicObject(rave, "robots/pr2-beta-sim.robot.xml", trans));
+    //env->add(pr2);
 
 
     dbgDraw = new osgbCollision::GLDebugDrawer();
@@ -33,19 +33,17 @@
 
   }
 
-void Scene::step() {
-    double currSimTime = viewer.getFrameStamp()->getSimulationTime();
-    double prevSimTime = prevSimTime;
+void Scene::step(float dt) {
+
     if (!osg->root->containsNode(dbgDraw->getSceneGraph()))
       osg->root->addChild(dbgDraw->getSceneGraph());
-    dbgDraw->BeginDraw();
 
 
-    currSimTime = viewer.getFrameStamp()->getSimulationTime();
-    env->step(currSimTime - prevSimTime);
-    prevSimTime = currSimTime;
+
+    env->step(dt);
 
     if (manip->state.debugDraw) {
+      dbgDraw->BeginDraw();
       bullet->dynamicsWorld->debugDrawWorld();
       dbgDraw->EndDraw();
     }
