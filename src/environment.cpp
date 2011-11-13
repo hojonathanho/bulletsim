@@ -31,11 +31,11 @@ void Environment::add(EnvironmentObject::Ptr obj) {
     // to the dynamics world and the osg root
 }
 
-void Environment::step(btScalar dt) {
+void Environment::step(btScalar dt, int maxSubSteps, btScalar fixedTimeStep) {
     ObjectList::iterator i;
     for (i = objects.begin(); i != objects.end(); ++i)
         (*i)->prePhysics();
-    bullet->dynamicsWorld->stepSimulation(dt,0,dt);
+    bullet->dynamicsWorld->stepSimulation(dt, maxSubSteps, fixedTimeStep);
     for (i = objects.begin(); i != objects.end(); ++i)
         (*i)->preDraw();
 }

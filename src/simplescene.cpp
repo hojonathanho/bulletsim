@@ -33,14 +33,14 @@
 
   }
 
-void Scene::step(float dt) {
+void Scene::step(float dt, int maxsteps, float internaldt) {
 
     if (!osg->root->containsNode(dbgDraw->getSceneGraph()))
       osg->root->addChild(dbgDraw->getSceneGraph());
 
 
 
-    env->step(dt);
+    env->step(dt, maxsteps, internaldt);
 
     if (manip->state.debugDraw) {
       dbgDraw->BeginDraw();

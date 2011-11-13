@@ -28,7 +28,7 @@ int main() {
       body->getCenterOfMassPosition().y() << " " <<
       body->getCenterOfMassPosition().z() << " " << endl;
         
-    s.step(.01);
+    s.step(.01, 0, 0.01);
     usleep(100*1000);
   }
 
