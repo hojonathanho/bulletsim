@@ -35,7 +35,7 @@ void Environment::step(btScalar dt) {
     ObjectList::iterator i;
     for (i = objects.begin(); i != objects.end(); ++i)
         (*i)->prePhysics();
-    bullet->dynamicsWorld->stepSimulation(dt);
+    bullet->dynamicsWorld->stepSimulation(dt,0,dt);
     for (i = objects.begin(); i != objects.end(); ++i)
         (*i)->preDraw();
 }
