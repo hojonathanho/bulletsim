@@ -59,7 +59,7 @@ struct Environment {
     Environment(BulletInstance::Ptr bullet_, OSGInstance::Ptr osg_) : bullet(bullet_), osg(osg_) { }
 
     void add(EnvironmentObject::Ptr obj);
-    void step(btScalar dt);
+    void step(btScalar dt, int maxSubSteps=200, btScalar fixedTimeStep=1/200.);
 };
 
 

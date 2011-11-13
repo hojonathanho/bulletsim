@@ -252,7 +252,7 @@ int main() {
         scene->processHaptics();
 
         currSimTime = viewer.getFrameStamp()->getSimulationTime();
-        env->step(currSimTime - prevSimTime);
+        env->step(currSimTime - prevSimTime, 200, 1./200.);
         prevSimTime = currSimTime;
 
         if (manip->state.debugDraw) {
