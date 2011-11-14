@@ -30,6 +30,7 @@
     viewer.setCameraManipulator(manip);
     viewer.setSceneData(osg->root.get());
 
+    viewer.realize();
 
   }
 

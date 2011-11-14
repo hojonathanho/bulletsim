@@ -131,3 +131,16 @@ SphereObject::SphereObject(btScalar mass_, btScalar radius_, boost::shared_ptr<b
     rigidBody.reset(new btRigidBody(ci));
     rigidBody->setActivationState(DISABLE_DEACTIVATION);
 }
+
+BoxObject::BoxObject(btScalar mass_, btVector3 halfExtents_, boost::shared_ptr<btMotionState> motionState_) :
+  mass(mass_), halfExtents(halfExtents_) {
+  motionState = motionState_;
+  collisionShape.reset(new btBoxShape(halfExtents));
+  btVector3 fallInertia(0,0,0);
+  collisionShape->calculateLocalInertia(mass,fallInertia);
+  btRigidBody::btRigidBodyConstructionInfo ci(mass, motionState.get(),
+					      collisionShape.get(), fallInertia);
+  rigidBody.reset(new btRigidBody(ci));
+  rigidBody->setActivationState(DISABLE_DEACTIVATION);
+
+}
