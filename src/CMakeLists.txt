@@ -44,8 +44,8 @@ target_link_libraries(newscene haptics osgBullet osgWorks ${OSG_LIBS} ${BULLET_L
 # add_executable(simplescene simplescene.cpp environment.cpp basicobjects.cpp openravesupport.cpp util.cpp)
 # target_link_libraries(simplescene haptics osgBullet osgWorks ${OSG_LIBS} ${BULLET_LIBS} ${OpenRAVE_LIBRARIES} ${OpenRAVE_CORE_LIBRARIES})
 
-add_executable(test_playback_joints test_playback_joints.cpp simplescene.cpp environment.cpp basicobjects.cpp openravesupport.cpp util.cpp)
-target_link_libraries(test_playback_joints  haptics osgBullet osgWorks ${OSG_LIBS} ${BULLET_LIBS} ${OpenRAVE_LIBRARIES} ${OpenRAVE_CORE_LIBRARIES})
+#add_executable(test_playback_joints test_playback_joints.cpp simplescene.cpp environment.cpp basicobjects.cpp openravesupport.cpp util.cpp)
+#target_link_libraries(test_playback_joints  haptics osgBullet osgWorks ${OSG_LIBS} ${BULLET_LIBS} ${OpenRAVE_LIBRARIES} ${OpenRAVE_CORE_LIBRARIES})
 
 add_executable(test_rope test_rope.cpp rope.cpp environment.cpp simplescene.cpp basicobjects.cpp openravesupport.cpp)
 target_link_libraries(test_rope osgBullet osgWorks ${OSG_LIBS} ${BULLET_LIBS} ${OpenRAVE_LIBRARIES} ${OpenRAVE_CORE_LIBRARIES})
