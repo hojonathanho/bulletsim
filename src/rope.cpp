@@ -45,6 +45,25 @@ CapsuleRope::CapsuleRope(const btAlignedObjectArray<btVector3>& ctrlPoints, btSc
     if (i>0) {
       shared_ptr<btPoint2PointConstraint> jointPtr(new btPoint2PointConstraint(*bodies[i-1],*bodies[i],btVector3(len/2,0,0),btVector3(-len/2,0,0)));
       joints.push_back(jointPtr);
+
+
+      btTransform p1,p2;
+      p1.setIdentity(); p2.setIdentity();
+      p1.setOrigin(btVector3(len/2,0,0)); p2.setOrigin(btVector3(-len/2,0,0));
+      shared_ptr<btGeneric6DofSpringConstraint> springPtr(new btGeneric6DofSpringConstraint(*bodies[i-1],*bodies[i],p1,p2,false));
+      springPtr->enableSpring(3,true);
+      springPtr->enableSpring(4,true);
+      springPtr->enableSpring(5,true);
+      springPtr->setStiffness(3,.1);
+      springPtr->setStiffness(4,.1);
+      springPtr->setStiffness(5,.1);
+      springPtr->setDamping(3,1);
+      springPtr->setDamping(4,1);
+      springPtr->setDamping(5,1);
+      springPtr->setAngularLowerLimit(btVector3(-.4,-.4,-.4));
+      springPtr->setAngularUpperLimit(btVector3(.4,.4,.4));
+      joints.push_back(springPtr);
+							  
     }
 
 

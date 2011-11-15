@@ -18,8 +18,8 @@ int main() {
   }
 
 
-  shared_ptr <btMotionState> ms(new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(1,0,table_height))));
-  shared_ptr<BulletObject> table(new BoxObject(0,btVector3(.75,.75,.01),ms));
+  shared_ptr <btMotionState> ms(new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(1,0,table_height-.03))));
+  shared_ptr<BulletObject> table(new BoxObject(0,btVector3(.75,.75,.03),ms));
 
   shared_ptr<CapsuleRope> ropePtr(new CapsuleRope(ctrlPts,.01));
 
@@ -36,8 +36,11 @@ int main() {
 
   //  btVector3 v = ropePtr->bodies[0]->getCenterOfMassPosition();
   RobotBase::ManipulatorPtr rarm(s.pr2->robot->GetManipulators()[5]);
+  RobotBase::ManipulatorPtr larm(s.pr2->robot->GetManipulators()[7]);
+
 
   Grab g;
+  Grab g2;
   for (int i=0; i < joints.size() && !s.viewer.done(); i++) {
     cout << i << endl;
     vector<double> joint = joints[i];
@@ -52,6 +55,16 @@ int main() {
     if (i > 160) {
       g.updatePosition(util::toBtTransform(rarm->GetEndEffectorTransform()).getOrigin());
     }
+
+
+    if (i == 330) {
+      btVector3 lhpos = util::toBtTransform(larm->GetEndEffectorTransform()).getOrigin();
+      g2 = Grab(ropePtr->bodies[nLinks-2].get(),lhpos,s.env->bullet->dynamicsWorld);
+    }
+    if (i > 330) {
+      g2.updatePosition(util::toBtTransform(larm->GetEndEffectorTransform()).getOrigin());
+    }
+
 
 
     /*

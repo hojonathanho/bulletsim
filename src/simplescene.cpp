@@ -25,7 +25,7 @@
 
     viewer.setUpViewInWindow(30, 30, 800, 800);
     manip = createEventHandler();
-    manip->state.debugDraw = true;
+    manip->state.debugDraw = false;
     manip->setHomePosition(osg::Vec3(5, 0, 5), osg::Vec3(), osg::Z_AXIS);
     viewer.setCameraManipulator(manip);
     viewer.setSceneData(osg->root.get());
