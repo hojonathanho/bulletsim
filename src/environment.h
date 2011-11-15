@@ -5,6 +5,8 @@
 #include <btBulletDynamicsCommon.h>
 #include <list>
 #include <boost/shared_ptr.hpp>
+#include <iostream>
+using namespace std;
 
 struct OSGInstance {
     typedef boost::shared_ptr<OSGInstance> Ptr;
@@ -74,6 +76,8 @@ protected:
 
 public:
     void init() {
+      cout << "CompoundObject::init" <<endl;
+      cout << "children.size():" << children.size();
         typename std::vector<ChildType>::iterator i;
         for (i = children.begin(); i != children.end(); ++i) {
             if (*i) {
@@ -103,9 +107,13 @@ public:
 // will be added to the scene graph and the dynamics world, respectively)
 class BulletObject : public EnvironmentObject {
 public:
-    typedef boost::shared_ptr<EnvironmentObject> Ptr;
+    typedef boost::shared_ptr<BulletObject> Ptr;
 
     boost::shared_ptr<btRigidBody> rigidBody;
+    // the motionState and collisionShape actually don't matter; the ones
+    // embedded in the rigidBody are used for simulation. However,
+    // placing them here will have them automatically deallocated
+    // on destruction of the BulletObject
     boost::shared_ptr<btMotionState> motionState;
     boost::shared_ptr<btCollisionShape> collisionShape;
 
@@ -113,9 +121,8 @@ public:
     osg::ref_ptr<osg::MatrixTransform> transform;
 
     BulletObject() { }
-    BulletObject(boost::shared_ptr<btCollisionShape> collisionShape_, boost::shared_ptr<btMotionState> motionState_,
-                 boost::shared_ptr<btRigidBody> rigidBody_) :
-        collisionShape(collisionShape_), motionState(motionState_), rigidBody(rigidBody_) { }
+    BulletObject(boost::shared_ptr<btCollisionShape> collisionShape_, boost::shared_ptr<btRigidBody> rigidBody_) :
+      collisionShape(collisionShape_), rigidBody(rigidBody_), motionState(new btDefaultMotionState()) { }
     virtual ~BulletObject() { }
 
     // called by Environment

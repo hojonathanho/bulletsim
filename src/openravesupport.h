@@ -25,7 +25,6 @@ struct RaveInstance {
 class RaveRobotKinematicObject : public CompoundObject<BulletKinematicObject::Ptr> {
 private:
     RaveInstance::Ptr rave;
-    RobotBasePtr robot;
     btTransform initialTransform;
 
     // these two containers just keep track of the smart pointers
@@ -38,6 +37,7 @@ private:
     void initRobotWithoutDynamics(const btTransform &initialTransform, float fmargin=0.0005);
 
 public:
+    RobotBasePtr robot;
     typedef boost::shared_ptr<RaveRobotKinematicObject> Ptr;
 
     // this class is actually a collection of BulletKinematicObjects,

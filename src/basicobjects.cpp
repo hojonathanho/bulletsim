@@ -150,4 +150,15 @@ osg::ref_ptr<osg::Node> CapsuleObject::createOSGNode() {
     capsule->setRotation(osg::Quat(osg::PI_2, osg::Vec3(0, 1, 0)));
     geode->addDrawable(new osg::ShapeDrawable(capsule));
     return geode;
+
+BoxObject::BoxObject(btScalar mass_, btVector3 halfExtents_, boost::shared_ptr<btMotionState> motionState_) :
+  mass(mass_), halfExtents(halfExtents_) {
+  motionState = motionState_;
+  collisionShape.reset(new btBoxShape(halfExtents));
+  btVector3 fallInertia(0,0,0);
+  collisionShape->calculateLocalInertia(mass,fallInertia);
+  btRigidBody::btRigidBodyConstructionInfo ci(mass, motionState.get(),
+					      collisionShape.get(), fallInertia);
+  rigidBody.reset(new btRigidBody(ci));
+  rigidBody->setActivationState(DISABLE_DEACTIVATION);
 }

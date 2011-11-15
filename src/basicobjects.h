@@ -75,4 +75,17 @@ public:
     osg::ref_ptr<osg::Node> createOSGNode();
 };
 
+class BoxObject : public BulletObject {
+private:
+  btScalar mass;
+  btVector3 halfExtents;
+
+public:
+    typedef boost::shared_ptr<SphereObject> Ptr;
+
+    BoxObject(btScalar mass_, btVector3 halfExtents_,
+                 boost::shared_ptr<btMotionState> motionState_);
+};
+
+
 #endif // _BASICOBJECTS_H_

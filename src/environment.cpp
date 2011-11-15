@@ -1,7 +1,8 @@
 #include "environment.h"
 #include <osgbCollision/CollisionShapes.h>
 #include <osgUtil/SmoothingVisitor>
-
+#include <iostream>
+using namespace std;
 OSGInstance::OSGInstance() {
     root = new osg::Group;
 }
@@ -41,7 +42,7 @@ void Environment::step(btScalar dt, int maxSubSteps, btScalar fixedTimeStep) {
 
 void BulletObject::init() {
     getEnvironment()->bullet->dynamicsWorld->addRigidBody(rigidBody.get());
-
+    cout << "adding rigid body" << endl;
     node = createOSGNode();
     transform = new osg::MatrixTransform;
     transform->addChild(node.get());
@@ -56,7 +57,7 @@ void BulletObject::preDraw() {
     // before drawing, we must copy the orientation/position
     // of the object from Bullet to OSG
     btTransform btTrans;
-    motionState->getWorldTransform(btTrans);
+    rigidBody->getMotionState()->getWorldTransform(btTrans);
 
     btScalar m[16];
     btTrans.getOpenGLMatrix(m);

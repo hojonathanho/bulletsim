@@ -6,6 +6,7 @@
 #include "openravesupport.h"
 #include "thread_socket_interface.h"
 #include "util.h"
+#include "rope.h"
 
 struct Scene {
     typedef boost::shared_ptr<Scene> Ptr;
@@ -20,6 +21,8 @@ struct Scene {
     RaveRobotKinematicObject::Ptr pr2;
     RaveRobotKinematicObject::Manipulator::Ptr pr2Left, pr2Right;
     GrabberKinematicObject::Ptr grabber[2];
+
+    CapsuleRope::Ptr rope;
 
     Scene(Environment::Ptr env_, RaveInstance::Ptr rave_) : env(env_), rave(rave_) {
         boost::shared_ptr<btMotionState> ms;
@@ -47,7 +50,7 @@ struct Scene {
         env->add(capsule);
         
         btTransform trans(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0));
-        pr2.reset(new RaveRobotKinematicObject(rave, "/home/jonathan/Downloads/pr2-beta-static.zae", trans));
+        pr2.reset(new RaveRobotKinematicObject(rave, "robots/pr2-beta-static.zae", trans));
         env->add(pr2);
         pr2Left = pr2->createManipulator("leftarm");
         pr2Right = pr2->createManipulator("rightarm");
@@ -55,6 +58,15 @@ struct Scene {
         env->add(pr2Right->grabber);
         grabber[0] = pr2Left->grabber;
         grabber[1] = pr2Right->grabber;
+
+
+          int nLinks = 20;
+          btAlignedObjectArray<btVector3> ctrlPts;
+          for (int i=0; i< nLinks; i++) {
+            ctrlPts.push_back(btVector3(.25*i,0,1));
+          }
+        rope.reset(new CapsuleRope(ctrlPts, 0.5f));
+        env->add(rope);
     }
 
     void processHaptics() {
@@ -119,18 +131,29 @@ struct Scene {
         float lastX, lastY, dx, dy;
 
     protected:
-        // the default TrackballManipulator has weird keybindings, so we set them here
-        virtual bool performMovementLeftMouseButton(double dt, double dx, double dy) {
-            return osgGA::TrackballManipulator::performMovementMiddleMouseButton(dt, dx, dy);
-        }
 
-        virtual bool performMovementMiddleMouseButton(double dt, double dx, double dy) {
-            return false;
-        }
 
-        virtual bool performMovementRightMouseButton(double dt, double dx, double dy) {
-            return osgGA::TrackballManipulator::performMovementLeftMouseButton(dt, dx, dy);
-        }
+
+      void getTransformation( osg::Vec3d& eye, osg::Vec3d& center, osg::Vec3d& up ) const
+	{
+	    center = _center;
+	    eye = _center + _rotation * osg::Vec3d( 0., 0., _distance );
+	    up = _rotation * osg::Vec3d( 0., 1., 0. );
+	}
+
+
+      //the default TrackballManipulator has weird keybindings, so we set them here
+        // virtual bool performMovementLeftMouseButton(double dt, double dx, double dy) {
+        //     return osgGA::TrackballManipulator::performMovementMiddleMouseButton(dt, dx, dy);
+        // }
+
+        // virtual bool performMovementMiddleMouseButton(double dt, double dx, double dy) {
+        //     return false;
+        // }
+
+        // virtual bool performMovementRightMouseButton(double dt, double dx, double dy) {
+        //     return osgGA::TrackballManipulator::performMovementLeftMouseButton(dt, dx, dy);
+        // }
         
     public:
         struct {
