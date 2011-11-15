@@ -15,6 +15,7 @@ struct Scene {
 
     PlaneStaticObject::Ptr ground;
     SphereObject::Ptr sphere;
+    CapsuleObject::Ptr capsule;
 
     RaveRobotKinematicObject::Ptr pr2;
     RaveRobotKinematicObject::Manipulator::Ptr pr2Left, pr2Right;
@@ -41,6 +42,10 @@ struct Scene {
         sphere.reset(new SphereObject(1, 0.1, ms));
         env->add(sphere);
 
+        ms.reset(new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(2, 2, 5))));
+        capsule.reset(new CapsuleObject(1, 0.1, 0.3, ms));
+        env->add(capsule);
+        
         btTransform trans(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0));
         pr2.reset(new RaveRobotKinematicObject(rave, "/home/jonathan/Downloads/pr2-beta-static.zae", trans));
         env->add(pr2);

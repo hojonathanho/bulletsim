@@ -131,3 +131,23 @@ SphereObject::SphereObject(btScalar mass_, btScalar radius_, boost::shared_ptr<b
     rigidBody.reset(new btRigidBody(ci));
     rigidBody->setActivationState(DISABLE_DEACTIVATION);
 }
+
+CapsuleObject::CapsuleObject(btScalar mass_, btScalar radius_, btScalar height_,
+          boost::shared_ptr<btMotionState> motionState_) : mass(mass_), radius(radius_), height(height_) {
+    motionState = motionState_;
+    collisionShape.reset(new btCapsuleShapeX(radius, height));
+    btVector3 fallInertia(0, 0, 0);
+    collisionShape->calculateLocalInertia(mass, fallInertia);
+    btRigidBody::btRigidBodyConstructionInfo ci(mass, motionState.get(),
+                                                collisionShape.get(), fallInertia);
+    rigidBody.reset(new btRigidBody(ci));
+    rigidBody->setActivationState(DISABLE_DEACTIVATION);
+}
+
+osg::ref_ptr<osg::Node> CapsuleObject::createOSGNode() {
+    osg::ref_ptr<osg::Geode> geode = new osg::Geode;
+    osg::ref_ptr<osg::Capsule> capsule = new osg::Capsule(osg::Vec3(0, 0, 0), radius, height);
+    capsule->setRotation(osg::Quat(osg::PI_2, osg::Vec3(0, 1, 0)));
+    geode->addDrawable(new osg::ShapeDrawable(capsule));
+    return geode;
+}
