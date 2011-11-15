@@ -29,8 +29,8 @@ int main() {
 
   vector< vector<double> > joints;
   vector< int > inds;
-  read_1d_array(inds, "/home/joschu/Data/knot_kinect1/inds.txt");
-  read_2d_array(joints,"/home/joschu/Data/knot_kinect1/vals.txt");
+  read_1d_array(inds, "../data/inds.txt");
+  read_2d_array(joints,"../data/vals.txt");
 
   int step = 0;
 
