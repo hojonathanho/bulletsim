@@ -2,6 +2,32 @@
 #include <iostream>
 using namespace std;
 
+void createRigidBody(shared_ptr<btRigidBody>& bodyPtr,  const shared_ptr<btCollisionShape>& shapePtr, const btTransform& trans, btScalar mass) {
+  bool isDynamic = (mass != 0.f);
+  btVector3 localInertia(0,0,0);
+  if (isDynamic) shapePtr->calculateLocalInertia(mass,localInertia);
+  btDefaultMotionState* myMotionState = new btDefaultMotionState(trans);
+  btRigidBody::btRigidBodyConstructionInfo cInfo(mass,myMotionState,shapePtr.get(),localInertia);
+  bodyPtr.reset(new btRigidBody(cInfo));
+}
+
+void createBendConstraint(shared_ptr<btGeneric6DofSpringConstraint>& springPtr, btScalar len,
+			  const shared_ptr<btRigidBody>& rbA, const shared_ptr<btRigidBody>& rbB) {
+
+  btTransform tA,tB;
+  tA.setIdentity(); tB.setIdentity();
+  tA.setOrigin(btVector3(len/2,0,0)); tB.setOrigin(btVector3(-len/2,0,0));
+  springPtr.reset(new btGeneric6DofSpringConstraint(*rbA,*rbB,tA,tB,false));
+  for (int i=3; i<=5; i++) {
+    springPtr->enableSpring(i,true);
+    springPtr->setStiffness(i,.1);
+    springPtr->setDamping(i,4);
+  }
+  springPtr->setAngularLowerLimit(btVector3(-.4,-.4,-.4));
+  springPtr->setAngularUpperLimit(btVector3(.4,.4,.4));
+}
+
+
 CapsuleRope::CapsuleRope(const btAlignedObjectArray<btVector3>& ctrlPoints, btScalar radius_) {
   radius = radius_;
   nLinks = ctrlPoints.size() - 1;
@@ -21,24 +47,18 @@ CapsuleRope::CapsuleRope(const btAlignedObjectArray<btVector3>& ctrlPoints, btSc
     else {
       q = btQuaternion(0,0,0,1);
     }
-    btTransform trans;
-    trans.setOrigin(midpt);
-    trans.setRotation(q);
+    btTransform trans(q,midpt);
+      //    trans.setOrigin(midpt);
+      //    trans.setRotation(q);
 
     float len = diff.length();
     float mass = 1;//mass = 3.14*radius*radius*len;
     //btCollisionShape* shape = new btCapsuleShapeX(radius,len);
     shared_ptr<btCollisionShape> shapePtr(new btCylinderShapeX(btVector3(len/2,radius,radius)));
-
-    bool isDynamic = (mass != 0.f);
-    btVector3 localInertia(0,0,0);
-    if (isDynamic) shapePtr->calculateLocalInertia(mass,localInertia);
-    btDefaultMotionState* myMotionState = new btDefaultMotionState(trans);
-    btRigidBody::btRigidBodyConstructionInfo cInfo(mass,myMotionState,shapePtr.get(),localInertia);
-    shared_ptr<btRigidBody> bodyPtr(new btRigidBody(cInfo));
-
+    shared_ptr<btRigidBody> bodyPtr;
+    createRigidBody(bodyPtr,shapePtr,trans,mass);
+    bodyPtr->setFriction(10);
     bodies.push_back(bodyPtr);
-
     BulletObject::Ptr child(new BulletObject(shapePtr,bodyPtr));
     children.push_back(child);
 
@@ -47,21 +67,8 @@ CapsuleRope::CapsuleRope(const btAlignedObjectArray<btVector3>& ctrlPoints, btSc
       joints.push_back(jointPtr);
 
 
-      btTransform p1,p2;
-      p1.setIdentity(); p2.setIdentity();
-      p1.setOrigin(btVector3(len/2,0,0)); p2.setOrigin(btVector3(-len/2,0,0));
-      shared_ptr<btGeneric6DofSpringConstraint> springPtr(new btGeneric6DofSpringConstraint(*bodies[i-1],*bodies[i],p1,p2,false));
-      springPtr->enableSpring(3,true);
-      springPtr->enableSpring(4,true);
-      springPtr->enableSpring(5,true);
-      springPtr->setStiffness(3,.1);
-      springPtr->setStiffness(4,.1);
-      springPtr->setStiffness(5,.1);
-      springPtr->setDamping(3,1);
-      springPtr->setDamping(4,1);
-      springPtr->setDamping(5,1);
-      springPtr->setAngularLowerLimit(btVector3(-.4,-.4,-.4));
-      springPtr->setAngularUpperLimit(btVector3(.4,.4,.4));
+      shared_ptr<btGeneric6DofSpringConstraint> springPtr;
+      createBendConstraint(springPtr,len,bodies[i-1],bodies[i]);
       joints.push_back(springPtr);
 							  
     }

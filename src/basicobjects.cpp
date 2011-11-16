@@ -143,7 +143,7 @@ BoxObject::BoxObject(btScalar mass_, btVector3 halfExtents_, boost::shared_ptr<b
 					      collisionShape.get(), fallInertia);
   rigidBody.reset(new btRigidBody(ci));
   rigidBody->setActivationState(DISABLE_DEACTIVATION);
-
+}
 
 CapsuleObject::CapsuleObject(btScalar mass_, btScalar radius_, btScalar height_,
           boost::shared_ptr<btMotionState> motionState_) : mass(mass_), radius(radius_), height(height_) {
