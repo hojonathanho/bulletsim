@@ -51,7 +51,6 @@ public:
                          boost::shared_ptr<btMotionState> motionState_);
 };
 
-
 class SphereObject : public BulletObject {
 private:
     btScalar mass, radius;
@@ -63,6 +62,7 @@ public:
                  boost::shared_ptr<btMotionState> motionState_);
 };
 
+
 class BoxObject : public BulletObject {
 private:
   btScalar mass;
@@ -73,6 +73,21 @@ public:
 
     BoxObject(btScalar mass_, btVector3 halfExtents_,
                  boost::shared_ptr<btMotionState> motionState_);
+};
+
+
+
+// A wrapper for btCapsuleShapeX
+class CapsuleObject : public BulletObject {
+private: 
+    btScalar mass, radius, height;
+
+public:
+    typedef boost::shared_ptr<CapsuleObject> Ptr;
+
+    CapsuleObject(btScalar mass_, btScalar radius_, btScalar height_,
+                  boost::shared_ptr<btMotionState> motionState_);
+    osg::ref_ptr<osg::Node> createOSGNode();
 };
 
 
