@@ -69,7 +69,7 @@ private:
   btVector3 halfExtents;
 
 public:
-    typedef boost::shared_ptr<SphereObject> Ptr;
+    typedef boost::shared_ptr<BoxObject> Ptr;
 
     BoxObject(btScalar mass_, btVector3 halfExtents_,
                  boost::shared_ptr<btMotionState> motionState_);

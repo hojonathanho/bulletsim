@@ -1,4 +1,5 @@
 #include "rope.h"
+#include "basicobjects.h"
 #include <iostream>
 using namespace std;
 
@@ -27,12 +28,8 @@ void createBendConstraint(shared_ptr<btGeneric6DofSpringConstraint>& springPtr, 
   springPtr->setAngularUpperLimit(btVector3(.4,.4,.4));
 }
 
-
-CapsuleRope::CapsuleRope(const btAlignedObjectArray<btVector3>& ctrlPoints, btScalar radius_) {
-  radius = radius_;
-  nLinks = ctrlPoints.size() - 1;
-
-
+void createRopeTransforms(vector<btTransform>& transforms, vector<btScalar>& lengths, const btAlignedObjectArray<btVector3>& ctrlPoints) {
+  int nLinks = ctrlPoints.size()-1;
   for (int i=0; i < nLinks; i++) {
     btVector3 pt0 = ctrlPoints[i];
     btVector3 pt1 = ctrlPoints[i+1];
@@ -52,14 +49,37 @@ CapsuleRope::CapsuleRope(const btAlignedObjectArray<btVector3>& ctrlPoints, btSc
       //    trans.setRotation(q);
 
     float len = diff.length();
+    transforms.push_back(trans);
+      lengths.push_back(len);
+  }
+}
+
+
+CapsuleRope::CapsuleRope(const btAlignedObjectArray<btVector3>& ctrlPoints, btScalar radius_) {
+  radius = radius_;
+  int nLinks = ctrlPoints.size()-1;
+  vector<btTransform> transforms;
+  vector<btScalar> lengths;
+  createRopeTransforms(transforms,lengths,ctrlPoints);
+  for (int i=0; i < nLinks; i++) {
+    btTransform trans = transforms[i];
+    btScalar len = lengths[i];
     float mass = 1;//mass = 3.14*radius*radius*len;
     //btCollisionShape* shape = new btCapsuleShapeX(radius,len);
+    
+    /*
     shared_ptr<btCollisionShape> shapePtr(new btCylinderShapeX(btVector3(len/2,radius,radius)));
     shared_ptr<btRigidBody> bodyPtr;
     createRigidBody(bodyPtr,shapePtr,trans,mass);
     bodyPtr->setFriction(10);
     bodies.push_back(bodyPtr);
     BulletObject::Ptr child(new BulletObject(shapePtr,bodyPtr));
+    */
+    shared_ptr<btDefaultMotionState> ms(new btDefaultMotionState(trans));
+
+    CapsuleObject::Ptr child(new CapsuleObject(1,radius/2,len,ms));
+    bodies.push_back(child->rigidBody);
+
     children.push_back(child);
 
     if (i>0) {
