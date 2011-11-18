@@ -10,16 +10,18 @@ int main() {
 
   const float table_height = .765;
   const float rope_radius = .01;
+  const float segment_len = .025;
+  const float table_thickness = .1;
+  int nLinks = 50;
 
-  int nLinks = 30;
   btAlignedObjectArray<btVector3> ctrlPts;
   for (int i=0; i< nLinks; i++) {
-    ctrlPts.push_back(btVector3(.5+.05*i,0,table_height+rope_radius));
+    ctrlPts.push_back(btVector3(.5+segment_len*i,0,table_height+5*rope_radius));
   }
 
 
-  shared_ptr <btMotionState> ms(new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(1,0,table_height-.03))));
-  shared_ptr<BulletObject> table(new BoxObject(0,btVector3(.75,.75,.03),ms));
+  shared_ptr <btMotionState> ms(new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(1,0,table_height-table_thickness/2))));
+  shared_ptr<BulletObject> table(new BoxObject(0,btVector3(.75,.75,table_thickness/2),ms));
 
   shared_ptr<CapsuleRope> ropePtr(new CapsuleRope(ctrlPts,.01));
 
@@ -38,7 +40,7 @@ int main() {
   RobotBase::ManipulatorPtr rarm(s.pr2->robot->GetManipulators()[5]);
   RobotBase::ManipulatorPtr larm(s.pr2->robot->GetManipulators()[7]);
 
-
+  s.env->bullet->dynamicsWorld->setGravity(btVector3(0,0,-100.));
   Grab g;
   Grab g2;
   for (int i=0; i < joints.size() && !s.viewer.done(); i++) {
@@ -75,7 +77,7 @@ int main() {
       body->getCenterOfMassPosition().z() << " " << endl;
     */
 
-    s.step(1/30.,300,.001);
+    s.step(.01,300,.001);
     // usleep(10*1000);
   }
 

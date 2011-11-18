@@ -22,7 +22,7 @@ void createBendConstraint(shared_ptr<btGeneric6DofSpringConstraint>& springPtr, 
   for (int i=3; i<=5; i++) {
     springPtr->enableSpring(i,true);
     springPtr->setStiffness(i,.1);
-    springPtr->setDamping(i,4);
+    springPtr->setDamping(i,1);
   }
   springPtr->setAngularLowerLimit(btVector3(-.4,-.4,-.4));
   springPtr->setAngularUpperLimit(btVector3(.4,.4,.4));
@@ -77,8 +77,10 @@ CapsuleRope::CapsuleRope(const btAlignedObjectArray<btVector3>& ctrlPoints, btSc
     */
     shared_ptr<btDefaultMotionState> ms(new btDefaultMotionState(trans));
 
-    CapsuleObject::Ptr child(new CapsuleObject(1,radius/2,len,ms));
+    CapsuleObject::Ptr child(new CapsuleObject(1,radius,len,ms));
     bodies.push_back(child->rigidBody);
+    child->rigidBody->setDamping(.75,1);
+    child->rigidBody->setFriction(1);
 
     children.push_back(child);
 
