@@ -23,6 +23,11 @@ BulletInstance::~BulletInstance() {
     delete broadphase;
 }
 
+Environment::~Environment() {
+    for (ObjectList::iterator i = objects.begin(); i != objects.end(); ++i)
+        (*i)->destroy();
+}
+
 void Environment::add(EnvironmentObject::Ptr obj) {
     obj->setEnvironment(this);
     obj->init();
@@ -63,6 +68,10 @@ void BulletObject::preDraw() {
     btTrans.getOpenGLMatrix(m);
 
     transform->setMatrix(osg::Matrix(m));
+}
+
+void BulletObject::destroy() {
+    getEnvironment()->bullet->dynamicsWorld->removeRigidBody(rigidBody.get());
 }
 
 BulletKinematicObject::BulletKinematicObject(boost::shared_ptr<btCollisionShape> collisionShape_, const btTransform &trans) {

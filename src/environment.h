@@ -47,6 +47,7 @@ public:
     virtual void init() { }
     virtual void prePhysics() { }
     virtual void preDraw() { }
+    virtual void destroy() { }
 };
 
 struct Environment {
@@ -59,6 +60,7 @@ struct Environment {
     ObjectList objects;
 
     Environment(BulletInstance::Ptr bullet_, OSGInstance::Ptr osg_) : bullet(bullet_), osg(osg_) { }
+    ~Environment();
 
     void add(EnvironmentObject::Ptr obj);
     void step(btScalar dt, int maxSubSteps=200, btScalar fixedTimeStep=1/200.);
@@ -100,6 +102,13 @@ public:
             if (*i)
                 (*i)->preDraw();
     }
+
+    void destroy() {
+        typename std::vector<ChildType>::iterator i;
+        for (i = children.begin(); i != children.end(); ++i)
+            if (*i)
+                (*i)->destroy();
+    }
 };
 
 // an object that is entirely specified as a bullet btRigidBody
@@ -128,6 +137,7 @@ public:
     // called by Environment
     void init();
     void preDraw();
+    void destroy();
 
     // methods to be overridden
     virtual void initBulletStructures() { }; // should set rigidBody, motionState, collisionShape, if not set by constructor

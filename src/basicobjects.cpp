@@ -145,6 +145,7 @@ BoxObject::BoxObject(btScalar mass_, btVector3 halfExtents_, boost::shared_ptr<b
   rigidBody->setActivationState(DISABLE_DEACTIVATION);
 }
 
+
 CapsuleObject::CapsuleObject(btScalar mass_, btScalar radius_, btScalar height_,
           boost::shared_ptr<btMotionState> motionState_) : mass(mass_), radius(radius_), height(height_) {
     motionState = motionState_;
@@ -163,5 +164,4 @@ osg::ref_ptr<osg::Node> CapsuleObject::createOSGNode() {
     capsule->setRotation(osg::Quat(osg::PI_2, osg::Vec3(0, 1, 0)));
     geode->addDrawable(new osg::ShapeDrawable(capsule));
     return geode;
-
 }

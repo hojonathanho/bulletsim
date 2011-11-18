@@ -13,7 +13,7 @@ public:
     typedef boost::shared_ptr<GrabberKinematicObject> Ptr;
 
     GrabberKinematicObject(float radius_, float height_);
-    ~GrabberKinematicObject() { releaseConstraint(); }
+    void destroy() { releaseConstraint(); }
 
     osg::ref_ptr<osg::Node> createOSGNode();
 
@@ -89,6 +89,5 @@ public:
                   boost::shared_ptr<btMotionState> motionState_);
     osg::ref_ptr<osg::Node> createOSGNode();
 };
-
 
 #endif // _BASICOBJECTS_H_
