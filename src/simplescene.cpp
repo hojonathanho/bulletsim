@@ -1,5 +1,6 @@
 #include "simplescene.h"
-
+#include <iostream>
+using namespace std;
 
   Scene::Scene() {
     osg.reset(new OSGInstance());
@@ -25,7 +26,7 @@
 
     viewer.setUpViewInWindow(30, 30, 800, 800);
     manip = createEventHandler();
-    manip->state.debugDraw = false;
+    manip->state.debugDraw = true;
     manip->setHomePosition(osg::Vec3(5, 0, 5), osg::Vec3(), osg::Z_AXIS);
     viewer.setCameraManipulator(manip);
     viewer.setSceneData(osg->root.get());
@@ -33,6 +34,7 @@
     viewer.realize();
 
   }
+
 
 void Scene::step(float dt, int maxsteps, float internaldt) {
 
@@ -42,7 +44,10 @@ void Scene::step(float dt, int maxsteps, float internaldt) {
 
 
     env->step(dt, maxsteps, internaldt);
+    draw();
+  }
 
+void Scene::draw() {
     if (manip->state.debugDraw) {
       dbgDraw->BeginDraw();
       bullet->dynamicsWorld->debugDrawWorld();
@@ -50,7 +55,9 @@ void Scene::step(float dt, int maxsteps, float internaldt) {
     }
 
     viewer.frame();
-  }
+}
+
+
 
 osg::ref_ptr<EventHandler> Scene::createEventHandler() { return osg::ref_ptr<EventHandler>(new EventHandler(this)); }
 
@@ -80,6 +87,23 @@ EventHandler::EventHandler(Scene *scene_) : scene(scene_), state() {}
 
 bool EventHandler::handle(const osgGA::GUIEventAdapter &ea, osgGA::GUIActionAdapter &aa) {
     switch (ea.getEventType()) {
+
+    case osgGA::GUIEventAdapter::KEYDOWN:
+      switch (ea.getKey()) {
+      case 'd':
+	state.debugDraw = !state.debugDraw; break;
+      case 'p':
+	state.idling = !state.idling;
+	while (state.idling) {
+	  usleep(30*1000);
+	  scene->draw();
+	}
+
+
+      }
+      break;
+
+
 
     case osgGA::GUIEventAdapter::PUSH:
       state.startDragging = true;

@@ -28,6 +28,8 @@ public:
 
   Scene();
   void step(float, int, float);
+  void draw();
+
   osg::ref_ptr<EventHandler> createEventHandler();
 };
 
@@ -42,7 +44,7 @@ protected:
 public:
   EventHandler(Scene *scene_);
   struct {
-    bool debugDraw, moveGrabber0, moveGrabber1, startDragging;
+    bool debugDraw, moveGrabber0, moveGrabber1, startDragging, idling;
   } state;
   bool handle(const osgGA::GUIEventAdapter &ea, osgGA::GUIActionAdapter &aa);
 
