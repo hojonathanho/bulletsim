@@ -32,11 +32,6 @@ endif(EIGEN2_INCLUDE_DIR)
 
 find_package(OpenRAVE 0.4.0 REQUIRED)
 
-find_package(Boost COMPONENTS serialization iostreams thread REQUIRED)
-
-#find_package(GLUT)
-#find_package(OpenGL)
-
 find_package(OpenThreads)
 find_package(osg)
 find_package(osgDB)

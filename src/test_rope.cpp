@@ -25,7 +25,7 @@ int main() {
 
   shared_ptr<CapsuleRope> ropePtr(new CapsuleRope(ctrlPts,.01));
 
-  Scene s = Scene();
+  Scene s = Scene(false, false);
   s.env->add(ropePtr);
   s.env->add(table);
 
