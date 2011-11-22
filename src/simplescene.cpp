@@ -9,13 +9,16 @@ Scene::Scene(bool enableIK, bool enableHaptics) {
 
     osg.reset(new OSGInstance());
     bullet.reset(new BulletInstance());
-    bullet->dynamicsWorld->setGravity(btVector3(0., 0., -9.8));
+    bullet->setGravity(btVector3(0., 0., -9.8));
     rave.reset(new RaveInstance());
     env.reset(new Environment(bullet, osg));
 
+#if 0
     dbgDraw.reset(new osgbCollision::GLDebugDrawer());
     dbgDraw->setDebugMode(btIDebugDraw::DBG_MAX_DEBUG_DRAW_MODE /*btIDebugDraw::DBG_DrawWireframe*/);
     bullet->dynamicsWorld->setDebugDrawer(dbgDraw.get());
+    osg->root->addChild(dbgDraw->getSceneGraph());
+#endif
 
     if (options.enableHaptics)
         connectionInit(); // socket connection for haptics
@@ -38,7 +41,6 @@ Scene::Scene(bool enableIK, bool enableHaptics) {
 
     viewer.setUpViewInWindow(30, 30, 800, 800);
     manip = new EventHandler(this);
-    manip->state.debugDraw = true;
     manip->setHomePosition(osg::Vec3(5, 0, 5), osg::Vec3(), osg::Z_AXIS);
     viewer.setCameraManipulator(manip);
     viewer.setSceneData(osg->root.get());
@@ -69,13 +71,6 @@ void Scene::processHaptics() {
 }
 
 void Scene::step(float dt, int maxsteps, float internaldt) {
-    if (manip->state.debugDraw) {
-        if (!osg->root->containsNode(dbgDraw->getSceneGraph()))
-            osg->root->addChild(dbgDraw->getSceneGraph());
-        dbgDraw->BeginDraw();
-    } else {
-        osg->root->removeChild(dbgDraw->getSceneGraph());
-    }
     if (options.enableHaptics)
         processHaptics();
     env->step(dt, maxsteps, internaldt);
@@ -83,10 +78,13 @@ void Scene::step(float dt, int maxsteps, float internaldt) {
 }
 
 void Scene::draw() {
+#if 0
     if (manip->state.debugDraw) {
-      bullet->dynamicsWorld->debugDrawWorld();
-      dbgDraw->EndDraw();
+        dbgDraw->BeginDraw();
+        bullet->dynamicsWorld->debugDrawWorld();
+        dbgDraw->EndDraw();
     }
+#endif
     viewer.frame();
 }
 
@@ -126,7 +124,9 @@ bool EventHandler::handle(const osgGA::GUIEventAdapter &ea, osgGA::GUIActionAdap
     case osgGA::GUIEventAdapter::KEYDOWN:
         switch (ea.getKey()) {
         case 'd':
-	        state.debugDraw = !state.debugDraw; break;
+	        state.debugDraw = !state.debugDraw;
+//            scene->dbgDraw->setEnabled(state.debugDraw);
+            break;
         case 'p':
         	state.idling = !state.idling;
 	        while (state.idling) {

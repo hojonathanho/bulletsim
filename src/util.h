@@ -11,6 +11,8 @@ namespace util {
 // and then transforms the rotations/coordinates to our coordinate system
 bool getHapticInput(btTransform &trans0, bool buttons0[2], btTransform &trans1, bool buttons1[2]);
 
+inline osg::Vec3d toOSGVector(const btVector3 &v) { return osg::Vec3d(v.x(), v.y(), v.z()); }
+
 inline btVector3 toBtVector(const osg::Vec3d &v) { return btVector3(v.x(), v.y(), v.z()); }
 inline btVector3 toBtVector(const OpenRAVE::Vector &v) { return btVector3(v.x, v.y, v.z); }
 inline btTransform toBtTransform(const OpenRAVE::Transform &t) {
