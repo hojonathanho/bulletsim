@@ -4,8 +4,8 @@
 #include <iostream>
 using namespace std;
 
-Scene::Scene(bool enableIK, bool enableHaptics) {
-    options.enableIK = enableIK; options.enableHaptics = enableHaptics;
+Scene::Scene(bool enableIK, bool enableHaptics, bool enableRobot) {
+  options.enableIK = enableIK; options.enableHaptics = enableHaptics; options.enableRobot = enableRobot;
 
     osg.reset(new OSGInstance());
     bullet.reset(new BulletInstance());
@@ -26,9 +26,12 @@ Scene::Scene(bool enableIK, bool enableHaptics) {
     ground.reset(new PlaneStaticObject(btVector3(0., 0., 1.), 0., ms));
     env->add(ground);
 
-    btTransform trans(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0));
-    pr2.reset(new RaveRobotKinematicObject(rave, "robots/pr2-beta-sim.robot.xml", trans));
-    env->add(pr2);
+    if (options.enableRobot) {
+      btTransform trans(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0));
+      pr2.reset(new RaveRobotKinematicObject(rave, "robots/pr2-beta-sim.robot.xml", trans));
+      env->add(pr2);
+    }
+
     if (options.enableIK) {
         pr2Left = pr2->createManipulator("leftarm");
         pr2Right = pr2->createManipulator("rightarm");
@@ -84,6 +87,7 @@ void Scene::step(float dt, int maxsteps, float internaldt) {
 
 void Scene::draw() {
     if (manip->state.debugDraw) {
+      dbgDraw->BeginDraw();
       bullet->dynamicsWorld->debugDrawWorld();
       dbgDraw->EndDraw();
     }
@@ -120,6 +124,14 @@ void EventHandler::getTransformation( osg::Vec3d& eye, osg::Vec3d& center, osg::
   // virtual bool performMovementRightMouseButton(double dt, double dx, double dy) {
   //     return osgGA::TrackballManipulator::performMovementLeftMouseButton(dt, dx, dy);
   // }
+
+void EventHandler::toggleIdle() {
+  state.idling = !state.idling; 
+  while (state.idling) {
+    usleep(30*1000);
+    scene->draw();
+  }
+}
         
 bool EventHandler::handle(const osgGA::GUIEventAdapter &ea, osgGA::GUIActionAdapter &aa) {
     switch (ea.getEventType()) {
@@ -128,13 +140,7 @@ bool EventHandler::handle(const osgGA::GUIEventAdapter &ea, osgGA::GUIActionAdap
         case 'd':
 	        state.debugDraw = !state.debugDraw; break;
         case 'p':
-        	state.idling = !state.idling;
-	        while (state.idling) {
-                usleep(30*1000);
-                scene->draw();
-            }
-            break;
-
+        	toggleIdle(); break;
         case '1':
             state.moveGrabber0 = true; break;
         case '2':
