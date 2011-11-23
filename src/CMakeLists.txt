@@ -23,3 +23,6 @@ target_link_libraries(simplescene_test simulation)
 
 add_executable(test_rope test_rope.cpp)
 target_link_libraries(test_rope simulation)
+
+add_executable(test_kinect_rope test_kinect_rope.cpp)
+target_link_libraries(test_kinect_rope simulation)
