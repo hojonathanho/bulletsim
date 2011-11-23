@@ -39,14 +39,12 @@ void createRopeTransforms(vector<btTransform>& transforms, vector<btScalar>& len
     btScalar ang = diff.angle(btVector3(1,0,0));
     if (ang*ang > 1e-4) {
       btVector3 ax = diff.cross(btVector3(1,0,0));
-      q = btQuaternion(ax,ang);
+      q = btQuaternion(ax,-ang);
     }
     else {
       q = btQuaternion(0,0,0,1);
     }
     btTransform trans(q,midpt);
-      //    trans.setOrigin(midpt);
-      //    trans.setRotation(q);
 
     float len = diff.length();
     transforms.push_back(trans);
