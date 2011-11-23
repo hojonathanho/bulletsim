@@ -18,6 +18,9 @@ inline btVector3 toBtVector(const OpenRAVE::Vector &v) { return btVector3(v.x, v
 inline btTransform toBtTransform(const OpenRAVE::Transform &t) {
     return btTransform(btQuaternion(t.rot.y, t.rot.z, t.rot.w, t.rot.x), toBtVector(t.trans));
 }
+inline btTransform toBtTransform(const OpenRAVE::Transform &t, btScalar scale) {
+    return btTransform(btQuaternion(t.rot.y, t.rot.z, t.rot.w, t.rot.x), scale * toBtVector(t.trans));
+}
 
 inline OpenRAVE::Vector toRaveQuaternion(const btQuaternion &q) {
     return OpenRAVE::Vector(q.w(), q.x(), q.y(), q.z());
@@ -27,6 +30,9 @@ inline OpenRAVE::Vector toRaveVector(const btVector3 &v) {
 }
 inline OpenRAVE::Transform toRaveTransform(const btTransform &t) {
     return OpenRAVE::Transform(toRaveQuaternion(t.getRotation()), toRaveVector(t.getOrigin()));
+}
+inline OpenRAVE::Transform toRaveTransform(const btTransform &t, btScalar scale) {
+    return OpenRAVE::Transform(toRaveQuaternion(t.getRotation()), toRaveVector(scale * t.getOrigin()));
 }
 
 }

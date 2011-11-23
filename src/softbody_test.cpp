@@ -8,7 +8,7 @@ void gen(Scene &scene, btScalar s, btScalar z) {
 		btVector3(+s,-s,z),
 		btVector3(-s,+s,z),
 		btVector3(+s,+s,z),
-		31,31,
+		31, 31,
 		0/*1+2+4+8*/, true);
 
 	psb->getCollisionShape()->setMargin(0.4);
@@ -17,15 +17,14 @@ void gen(Scene &scene, btScalar s, btScalar z) {
 //	pm->m_flags		-=	btSoftBody::fMaterial::DebugDraw;
 	psb->generateBendingConstraints(2, pm);
 	psb->setTotalMass(150);
-    psb->setCollisionFlags(0);
     scene.env->add(BulletSoftObject::Ptr(new BulletSoftObject(psb)));
 }
 
 int main() {
-    Scene scene(false, false);
+    Scene scene(true, true);
 
 //    gen(scene, 1, 0.1);
-    gen(scene, 2, 1);
+    gen(scene, 5, 30);
     
     scene.viewerLoop();
     return 0;

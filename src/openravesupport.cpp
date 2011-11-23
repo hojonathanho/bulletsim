@@ -16,7 +16,10 @@ RaveInstance::~RaveInstance() {
 
 RaveRobotKinematicObject::RaveRobotKinematicObject(
         RaveInstance::Ptr rave_, const std::string &uri,
-        const btTransform &initialTransform_) : rave(rave_), initialTransform(initialTransform_) {
+        const btTransform &initialTransform_, btScalar scale_) :
+            rave(rave_),
+            initialTransform(initialTransform_),
+            scale(scale_) {
     robot = rave->env->ReadRobotURI(uri);
     rave->env->AddRobot(robot);
     initRobotWithoutDynamics(initialTransform);
@@ -46,16 +49,18 @@ void RaveRobotKinematicObject::initRobotWithoutDynamics(const btTransform &initi
 
             switch (geom->GetType()) {
             case KinBody::Link::GEOMPROPERTIES::GeomBox:
-                subshape.reset(new btBoxShape(util::toBtVector(geom->GetBoxExtents())));
+                subshape.reset(new btBoxShape(util::toBtVector(scale * geom->GetBoxExtents())));
                 break;
 
             case KinBody::Link::GEOMPROPERTIES::GeomSphere:
-                subshape.reset(new btSphereShape(geom->GetSphereRadius()));
+                subshape.reset(new btSphereShape(scale * geom->GetSphereRadius()));
                 break;
 
             case KinBody::Link::GEOMPROPERTIES::GeomCylinder:
                 // cylinder axis aligned to Y
-                subshape.reset(new btCylinderShapeZ(btVector3(geom->GetCylinderRadius(), geom->GetCylinderRadius(), geom->GetCylinderHeight()/2.)));
+                subshape.reset(new btCylinderShapeZ(btVector3(scale * geom->GetCylinderRadius(),
+                                                              scale * geom->GetCylinderRadius(),
+                                                              scale * geom->GetCylinderHeight()/2.)));
                 break;
 
             case KinBody::Link::GEOMPROPERTIES::GeomTrimesh:
@@ -65,9 +70,9 @@ void RaveRobotKinematicObject::initRobotWithoutDynamics(const btTransform &initi
 
                     // for some reason adding indices makes everything crash
                     for(size_t i = 0; i < geom->GetCollisionMesh().indices.size(); i += 3)
-                        ptrimesh->addTriangle(util::toBtVector(geom->GetCollisionMesh().vertices[i]),
-                                              util::toBtVector(geom->GetCollisionMesh().vertices[i+1]),
-                                              util::toBtVector(geom->GetCollisionMesh().vertices[i+2]));
+                        ptrimesh->addTriangle(util::toBtVector(scale * geom->GetCollisionMesh().vertices[i]),
+                                              util::toBtVector(scale * geom->GetCollisionMesh().vertices[i+1]),
+                                              util::toBtVector(scale * geom->GetCollisionMesh().vertices[i+2]));
 
                     RAVELOG_DEBUG("converting triangle mesh to convex hull\n");
                     boost::shared_ptr<btConvexShape> pconvexbuilder(new btConvexTriangleMeshShape(ptrimesh));
@@ -99,10 +104,10 @@ void RaveRobotKinematicObject::initRobotWithoutDynamics(const btTransform &initi
             // store the subshape somewhere so it doesn't get deallocated by the smart pointer
             subshapes.push_back(subshape);
             subshape->setMargin(fmargin);
-            compound->addChildShape(util::toBtTransform(geom->GetTransform()), subshape.get());
+            compound->addChildShape(util::toBtTransform(geom->GetTransform(), scale), subshape.get());
         }
 
-        btTransform childTrans = initialTransform * util::toBtTransform((*link)->GetTransform());
+        btTransform childTrans = initialTransform * util::toBtTransform((*link)->GetTransform(), scale);
         BulletKinematicObject::Ptr child(new BulletKinematicObject(compound, childTrans));
         getChildren().push_back(child);
     }
@@ -128,7 +133,7 @@ void RaveRobotKinematicObject::setDOFValues(const vector<int> &indices, const ve
     for (int i = 0; i < transforms.size(); ++i)
         if (getChildren()[i])
             getChildren()[i]->getKinematicMotionState().setKinematicPos(
-                initialTransform * util::toBtTransform(transforms[i]));
+                initialTransform * util::toBtTransform(transforms[i], scale));
 }
 
 RaveRobotKinematicObject::Manipulator::Ptr
@@ -154,10 +159,10 @@ RaveRobotKinematicObject::createManipulator(const std::string &manipName) {
 
 void RaveRobotKinematicObject::Manipulator::updateGrabberPos() {
     // set the grabber right on top of the end effector
-    grabber->getKinematicMotionState().setKinematicPos(util::toBtTransform(manip->GetTransform()));
+    grabber->getKinematicMotionState().setKinematicPos(util::toBtTransform(manip->GetTransform(), robot->scale));
 }
 
-void RaveRobotKinematicObject::Manipulator::moveByIK(const OpenRAVE::Transform &targetTrans) {
+void RaveRobotKinematicObject::Manipulator::moveByIKUnscaled(const OpenRAVE::Transform &targetTrans) {
     vector<dReal> vsolution;
     // TODO: lock environment?!?!
     if (!manip->FindIKSolution(IkParameterization(targetTrans), vsolution, true)) {
@@ -168,4 +173,7 @@ void RaveRobotKinematicObject::Manipulator::moveByIK(const OpenRAVE::Transform &
     }
     robot->setDOFValues(manip->GetArmIndices(), vsolution);
     updateGrabberPos();
+}
+void RaveRobotKinematicObject::Manipulator::moveByIK(const btTransform &targetTrans) {
+    moveByIKUnscaled(util::toRaveTransform(targetTrans, 1./robot->scale));
 }

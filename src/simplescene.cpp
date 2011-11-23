@@ -4,7 +4,7 @@
 #include <iostream>
 using namespace std;
 
-Scene::Scene(bool enableIK, bool enableHaptics) {
+Scene::Scene(bool enableIK, bool enableHaptics, btScalar pr2Scale) {
     options.enableIK = enableIK; options.enableHaptics = enableHaptics;
 
     osg.reset(new OSGInstance());
@@ -28,7 +28,7 @@ Scene::Scene(bool enableIK, bool enableHaptics) {
     env->add(ground);
 
     btTransform trans(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0));
-    pr2.reset(new RaveRobotKinematicObject(rave, "robots/pr2-beta-sim.robot.xml", trans));
+    pr2.reset(new RaveRobotKinematicObject(rave, "robots/pr2-beta-sim.robot.xml", trans, pr2Scale));
     env->add(pr2);
     if (options.enableIK) {
         pr2Left = pr2->createManipulator("leftarm");
@@ -39,7 +39,7 @@ Scene::Scene(bool enableIK, bool enableHaptics) {
 
     viewer.setUpViewInWindow(30, 30, 800, 800);
     manip = new EventHandler(this);
-    manip->setHomePosition(osg::Vec3(5, 0, 5), osg::Vec3(), osg::Z_AXIS);
+    manip->setHomePosition(osg::Vec3(50, 0, 50), osg::Vec3(), osg::Z_AXIS);
     manip->state.debugDraw = true;
     viewer.setCameraManipulator(manip);
     viewer.setSceneData(osg->root.get());
@@ -160,11 +160,13 @@ bool EventHandler::handle(const osgGA::GUIEventAdapter &ea, osgGA::GUIActionAdap
         if (scene->options.enableIK &&
               (ea.getButtonMask() & ea.LEFT_MOUSE_BUTTON) &&
               (state.moveGrabber0 || state.moveGrabber1)) {
-            dx = lastX - ea.getXnormalized();
-            dy = ea.getYnormalized() - lastY;
+            if (state.startDragging) {
+                dx = dy = 0;
+            } else {
+                dx = lastX - ea.getXnormalized();
+                dy = ea.getYnormalized() - lastY;
+            }
             lastX = ea.getXnormalized(); lastY = ea.getYnormalized();
-  
-            if (state.startDragging) { dx = dy = 0; }
             state.startDragging = false;
   
             // get our current view

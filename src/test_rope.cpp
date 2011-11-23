@@ -25,7 +25,7 @@ int main() {
 
   shared_ptr<CapsuleRope> ropePtr(new CapsuleRope(ctrlPts,.01));
 
-  Scene s = Scene(false, false);
+  Scene s = Scene(false, false, 1.0);
   s.env->bullet->setGravity(btVector3(0,0,-100.));
 
   s.env->add(ropePtr);

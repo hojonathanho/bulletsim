@@ -41,7 +41,7 @@ struct Scene {
     bool enableIK, enableHaptics;
   } options;
 
-  Scene(bool enableIK, bool enableHaptics);
+  Scene(bool enableIK, bool enableHaptics, btScalar pr2Scale=10.);
 
   void processHaptics();
   void step(float, int, float);
