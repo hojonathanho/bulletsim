@@ -3,7 +3,7 @@
 #include <BulletSoftBody/btSoftBodyHelpers.h>
 
 void gen(Scene &scene, btScalar s, btScalar z) {
-	btSoftBody*		psb=btSoftBodyHelpers::CreatePatch(scene.env->bullet->dynamicsWorld->getWorldInfo(),
+	btSoftBody*		psb=btSoftBodyHelpers::CreatePatch(scene.env->bullet->softBodyWorldInfo,
         btVector3(-s,-s,z),
 		btVector3(+s,-s,z),
 		btVector3(-s,+s,z),

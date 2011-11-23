@@ -4,12 +4,6 @@
 
 OSGInstance::OSGInstance() {
     root = new osg::Group;
-
-    // soft body drawing is done by btSoftBodyHelpers::* methods, which need
-    // a btIDebugDraw, so we just use a GLDebugDrawer
-    softBodyDrawer.reset(new osgbCollision::GLDebugDrawer());
-    //softBodyDrawer->setDebugMode(btIDebugDraw::DBG_MAX_DEBUG_DRAW_MODE /*btIDebugDraw::DBG_DrawWireframe*/);
-    //root->addChild(softBodyDrawer->getSceneGraph());
 }
 
 BulletInstance::BulletInstance() {
@@ -20,10 +14,9 @@ BulletInstance::BulletInstance() {
     dynamicsWorld = new btSoftRigidDynamicsWorld(dispatcher, broadphase, solver, collisionConfiguration);
     dynamicsWorld->getDispatchInfo().m_enableSPU = true;
 
-    btSoftBodyWorldInfo &info = dynamicsWorld->getWorldInfo();
-    info.m_broadphase = broadphase;
-    info.m_dispatcher = dispatcher;
-    info.m_sparsesdf.Initialize();
+    softBodyWorldInfo.m_broadphase = broadphase;
+    softBodyWorldInfo.m_dispatcher = dispatcher;
+    softBodyWorldInfo.m_sparsesdf.Initialize();
 }
 
 BulletInstance::~BulletInstance() {
@@ -36,7 +29,7 @@ BulletInstance::~BulletInstance() {
 
 void BulletInstance::setGravity(const btVector3 &gravity) {
     dynamicsWorld->setGravity(gravity);
-    dynamicsWorld->getWorldInfo().m_gravity = gravity;
+    softBodyWorldInfo.m_gravity = gravity;
 }
 
 Environment::~Environment() {
@@ -57,11 +50,9 @@ void Environment::step(btScalar dt, int maxSubSteps, btScalar fixedTimeStep) {
     for (i = objects.begin(); i != objects.end(); ++i)
         (*i)->prePhysics();
     bullet->dynamicsWorld->stepSimulation(dt, maxSubSteps, fixedTimeStep);
-    osg->softBodyDrawer->BeginDraw();
     for (i = objects.begin(); i != objects.end(); ++i)
         (*i)->preDraw();
-    osg->softBodyDrawer->EndDraw();
-    bullet->dynamicsWorld->getWorldInfo().m_sparsesdf.GarbageCollect();
+    bullet->softBodyWorldInfo.m_sparsesdf.GarbageCollect();
 }
 
 void BulletObject::init() {

@@ -15,7 +15,6 @@ struct OSGInstance {
     typedef boost::shared_ptr<OSGInstance> Ptr;
 
     osg::ref_ptr<osg::Group> root;
-    boost::shared_ptr<osgbCollision::GLDebugDrawer> softBodyDrawer;
 
     OSGInstance();
 };

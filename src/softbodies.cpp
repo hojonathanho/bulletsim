@@ -38,7 +38,6 @@ void BulletSoftObject::preDraw() {
     vertices->clear();
     normals->clear();
 
-    btVector3 asdf(0, 0, 0);
     for (int i = 0; i < faces.size(); ++i) {
         vertices->push_back(util::toOSGVector(faces[i].m_n[0]->m_x));
         normals->push_back(util::toOSGVector(faces[i].m_n[0]->m_n));
@@ -48,16 +47,11 @@ void BulletSoftObject::preDraw() {
 
         vertices->push_back(util::toOSGVector(faces[i].m_n[2]->m_x));
         normals->push_back(util::toOSGVector(faces[i].m_n[2]->m_n));
-
-        asdf += faces[i].m_n[0]->m_x;
     }
     vertices->dirty();
     normals->dirty();
     geom->dirtyBound();
     geom->addPrimitiveSet(new osg::DrawArrays(GL_TRIANGLES, 0, vertices->size()));
-
-    asdf /= (float)faces.size();
-    cout << "average vertex: " << asdf.x() << ' ' << asdf.y() << ' ' << asdf.z() << '\n';
 }
 
 void BulletSoftObject::destroy() {

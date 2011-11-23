@@ -13,12 +13,10 @@ Scene::Scene(bool enableIK, bool enableHaptics) {
     rave.reset(new RaveInstance());
     env.reset(new Environment(bullet, osg));
 
-#if 0
     dbgDraw.reset(new osgbCollision::GLDebugDrawer());
     dbgDraw->setDebugMode(btIDebugDraw::DBG_MAX_DEBUG_DRAW_MODE /*btIDebugDraw::DBG_DrawWireframe*/);
     bullet->dynamicsWorld->setDebugDrawer(dbgDraw.get());
     osg->root->addChild(dbgDraw->getSceneGraph());
-#endif
 
     if (options.enableHaptics)
         connectionInit(); // socket connection for haptics
@@ -42,6 +40,7 @@ Scene::Scene(bool enableIK, bool enableHaptics) {
     viewer.setUpViewInWindow(30, 30, 800, 800);
     manip = new EventHandler(this);
     manip->setHomePosition(osg::Vec3(5, 0, 5), osg::Vec3(), osg::Z_AXIS);
+    manip->state.debugDraw = true;
     viewer.setCameraManipulator(manip);
     viewer.setSceneData(osg->root.get());
     viewer.realize();
@@ -73,18 +72,17 @@ void Scene::processHaptics() {
 void Scene::step(float dt, int maxsteps, float internaldt) {
     if (options.enableHaptics)
         processHaptics();
+    if (manip->state.debugDraw)
+        dbgDraw->BeginDraw();
     env->step(dt, maxsteps, internaldt);
     draw();
 }
 
 void Scene::draw() {
-#if 0
     if (manip->state.debugDraw) {
-        dbgDraw->BeginDraw();
         bullet->dynamicsWorld->debugDrawWorld();
         dbgDraw->EndDraw();
     }
-#endif
     viewer.frame();
 }
 
@@ -125,7 +123,7 @@ bool EventHandler::handle(const osgGA::GUIEventAdapter &ea, osgGA::GUIActionAdap
         switch (ea.getKey()) {
         case 'd':
 	        state.debugDraw = !state.debugDraw;
-//            scene->dbgDraw->setEnabled(state.debugDraw);
+            scene->dbgDraw->setEnabled(state.debugDraw);
             break;
         case 'p':
         	state.idling = !state.idling;
