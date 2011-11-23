@@ -35,6 +35,43 @@ void read_1d_array(vector<T>& arr, string fname) {
   }
 }
 
+template <class T>
+void write_1d_array(vector<T>& arr, string fname) {
+  ofstream outfile(fname.c_str());
+  for (int i=0; i < arr.size(); i++) {
+    outfile << arr[i] << " ";
+  }
+  outfile << "\n";
+  outfile.close();
+}
+
+
+
+template <class T>
+void write_2d_array(vector< vector<T> >& arr, string fname) {
+
+  ofstream outfile(fname.c_str());
+
+  for (int i=0; i < arr.size(); i++) {
+    vector<T> v = arr[i];
+    for (int j=0; j < v.size(); v++) {
+      outfile << v[j] << " ";
+    }
+    outfile << "\n";
+  }
+  outfile.close();
+}
+
+template <class T>
+void write_vector(vector<T>& vec, string fname) {
+  ofstream outfile(fname.c_str());
+
+  for (int i=0; i < vec.size(); i++) {
+    outfile << vec[i] << endl;
+  }
+  outfile.close();
+}
+
 /*
 int main() {
   vector<int> inds;
