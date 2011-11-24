@@ -1,5 +1,5 @@
 #include "simplescene.h"
-#include "file_reading.h"
+#include "vector_io.h"
 #include "rope.h"
 #include "unistd.h"
 using boost::shared_ptr;
