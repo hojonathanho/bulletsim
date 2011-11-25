@@ -25,6 +25,15 @@ target_link_libraries(simplescene_test simulation)
 add_executable(test_rope test_rope.cpp)
 target_link_libraries(test_rope simulation)
 
-add_executable(test_kinect_rope test_kinect_rope.cpp dist_math.cpp)
-target_link_libraries(test_kinect_rope simulation)
-#add_executable(test_dist_math dist_math.cpp)
+
+
+find_package(PCL 1.3 REQUIRED)
+include_directories(${PCL_INCLUDE_DIRS})
+link_directories(${PCL_LIBRARY_DIRS})
+add_definitions(${PCL_DEFINITIONS})
+
+add_executable(test_kinect_rope test_kinect_rope.cpp dist_math.cpp plotting.cpp)
+target_link_libraries(test_kinect_rope simulation ${PCL_LIBRARIES})
+
+
+

@@ -10,7 +10,7 @@ Scene::Scene(bool enableIK, bool enableHaptics, bool enableRobot) {
     osg.reset(new OSGInstance());
     bullet.reset(new BulletInstance());
     bullet->dynamicsWorld->setGravity(btVector3(0., 0., -9.8));
-    rave.reset(new RaveInstance());
+    if (options.enableRobot) {rave.reset(new RaveInstance());}
     env.reset(new Environment(bullet, osg));
 
     dbgDraw.reset(new osgbCollision::GLDebugDrawer());

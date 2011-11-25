@@ -1,3 +1,4 @@
+#pragma once
 #include <osgViewer/Viewer>
 #include <osgbCollision/GLDebugDrawer.h>
 #include <osgGA/TrackballManipulator>

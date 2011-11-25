@@ -5,6 +5,12 @@
 #include <Eigen/Dense>
 #include "dist_math.h"
 #include <math.h>
+#include "plotting.h"
+#include <pcl/point_types.h>
+#include <pcl/io/pcd_io.h>
+#include <pcl/common/transforms.h>
+#include "pcl/common/eigen.h"
+
 using boost::shared_ptr;
 using namespace Eigen;
 // make table and rope from kinect data
@@ -27,6 +33,8 @@ void verts2boxPars(const vector<btVector3>& verts, btVector3& halfExtents, btVec
   origin = (verts[0] + verts[2])/2;
   halfExtents = (verts[2] - verts[0]).absolute()/2;
   origin[2] -= thickness/2;
+  halfExtents[0] *= 2;
+  halfExtents[1] *= 2;
   halfExtents[2] = thickness/2;
 }
 
@@ -55,8 +63,8 @@ void calcOptImpulses(const vector<btVector3>& ctrlPts, const vector<btVector3>& 
   }
 }
 
-void applyImpulses(vector< shared_ptr<btRigidBody> > bodies, vector<btVector3> impulses) {
-  for (int i=0; i<bodies.size(); i++) bodies[i]->applyCentralImpulse(impulses[i]);
+void applyImpulses(vector< shared_ptr<btRigidBody> > bodies, vector<btVector3> impulses, float multiplier) {
+  for (int i=0; i<bodies.size(); i++) bodies[i]->applyCentralImpulse(impulses[i]*multiplier);
 }
 
 int main() {
@@ -89,7 +97,7 @@ int main() {
   for (int i=0; i<xyzs_cam.size(); i++) {
   btVector3 xyz_world = cam2world*btVector3(xyzs_cam[i][0],xyzs_cam[i][1],xyzs_cam[i][2]);
   //print_vector<btVector3,3>(xyz_world)
-    ctrlPts.push_back(xyz_world);
+  ctrlPts.push_back(xyz_world+btVector3(.1,0,0));
   }
   btVector3 halfExtents;
   btVector3 origin;
@@ -97,32 +105,79 @@ int main() {
   verts2boxPars(verts_world,halfExtents,origin,.2);
   origin[2] -= .01;
 
+
+
+
+
+  const string pcdfile = "/home/joschu/Data/pink_rope/0003.pcd";
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
+  if (pcl::io::loadPCDFile<pcl::PointXYZRGB> (pcdfile, *cloud) == -1) {
+    PCL_ERROR(("couldn't read file " + pcdfile + "\n").c_str());
+    return -1;
+  }
+  PlotPoints::Ptr plot(new PlotPoints());
+  Affine3f T;
+  Matrix3f M;
+  for (int i=0; i<3; i++) for (int j=0; j<3; j++) M(i,j) = cam2world[i][j];
+  DPRINT(M);
+  btVector3 vbullet = btVector3(1,2,3);
+  Vector3f veigen = Vector3f(1,2,3);
+  DPRINT(M*veigen);
+  cout << "cam2world*vbullet: " << (M*veigen) << endl;
+
+
+  T = M;
+  //cout << M << endl;
+  cout << "before" << endl;
+  pcl::PointXYZRGB pt = cloud->at(10000);
+  cout << pt.x QQ pt.y QQ pt.z QQ (int)pt.r QQ (int)pt.g QQ (int)pt.b << endl;
+
+  vbullet = btVector3(pt.x,pt.y,pt.z);
+
+  pcl::transformPointCloud(*cloud,*cloud,T);
+  cout << "after" << endl;
+  pt = cloud->at(100);
+  cout << pt.x QQ pt.y QQ pt.z QQ (int)pt.r QQ (int)pt.g QQ (int)pt.b << endl;
+
+  cout << "transformed with bullet " << endl << (cam2world*vbullet) << endl;
+
+  plot->setPoints(cloud);
+
+
+
+
   shared_ptr<CapsuleRope> ropePtr(new CapsuleRope(ctrlPts,.01));
   shared_ptr<btMotionState> ms(new btDefaultMotionState(btTransform(btQuaternion(0,0,0,1),origin)));
+
   shared_ptr<BulletObject> table(new BoxObject(0,halfExtents,ms));
   Scene s = Scene(false,false,false);
-  s.env->add(ropePtr);
+  s.manip->state.debugDraw = false;
+
+  s.env->add(plot);
   s.env->add(table);
-  s.step(0,100,.01);
+  s.env->add(ropePtr);
+  s.viewerLoop();
 
   vector<btVector3> pointCloud;
   vector<btVector3> forces(ctrlPts.size());
   // point cloud is a little offset from rope
   vector<btVector3> centers;
 
+
+
   s.step(0,0,.01);
   vector<btRigidBody> bodies;
-  for (int t=0; t < 100; t++) {
+  for (int t=0; t < 100 && !s.viewer.done(); t++) {
 
     pointCloud.clear();
-    for (int i=0; i < ctrlPts.size(); i++) pointCloud.push_back(ctrlPts[i]+btVector3(.2*sin(t/3.),0,0));
+    for (int i=0; i < ctrlPts.size(); i++) pointCloud.push_back(ctrlPts[i]+btVector3(0*sin(t/3.),0,0));
 
 
     ropePtr->getPts(centers);
     calcOptImpulses(centers, pointCloud, forces);
     DPRINT(forces[0]);
     DPRINT(forces[1]);
-    applyImpulses(ropePtr->bodies, forces);
+    applyImpulses(ropePtr->bodies, forces, 1);
     s.step(.01,1,.01);
     cout << t << endl;
   }
