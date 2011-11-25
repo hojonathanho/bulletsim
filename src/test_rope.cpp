@@ -14,7 +14,7 @@ int main() {
   const float table_thickness = .1;
   int nLinks = 50;
 
-  btAlignedObjectArray<btVector3> ctrlPts;
+  vector<btVector3> ctrlPts;
   for (int i=0; i< nLinks; i++) {
     ctrlPts.push_back(btVector3(.5+segment_len*i,0,table_height+5*rope_radius));
   }

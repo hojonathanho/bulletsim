@@ -2,10 +2,19 @@
 #include "vector_io.h"
 #include "rope.h"
 #include "unistd.h"
+#include <Eigen/Dense>
+#include "dist_math.h"
+#include <math.h>
 using boost::shared_ptr;
+using namespace Eigen;
 // make table and rope from kinect data
 
 const string data_dir = "/home/joschu/Data/pink_rope";
+
+ostream &operator<<( ostream &out, btVector3 &v ) {
+  out << "[" << v.getX() << " " << v.getY() << " " << v.getZ() << "]";
+}
+
 
 void minRot(const btVector3& v1, const btVector3& v2, btMatrix3x3& m) {
   btScalar ang = v1.angle(v2);
@@ -19,6 +28,35 @@ void verts2boxPars(const vector<btVector3>& verts, btVector3& halfExtents, btVec
   halfExtents = (verts[2] - verts[0]).absolute()/2;
   origin[2] -= thickness/2;
   halfExtents[2] = thickness/2;
+}
+
+
+MatrixXf toEigen(const vector<btVector3>& vecs) {
+  MatrixXf out = MatrixXf(vecs.size(),3);
+  for (int i=0; i < vecs.size(); i++) {
+    //out.row(i).readArray(vecs[i].m_floats);
+    out(i,0) = vecs[i].getX();
+    out(i,1) = vecs[i].getY();
+    out(i,2) = vecs[i].getZ();
+  }
+  return out;
+
+}
+
+void calcOptImpulses(const vector<btVector3>& ctrlPts, const vector<btVector3>& pointCloud, vector<btVector3>& forces) {
+  MatrixXf ropePts = toEigen(ctrlPts);
+  MatrixXf kinPts = toEigen(pointCloud);
+  VectorXi indRope2Kin = argminAlongRows(pairwiseSquareDist(ropePts,kinPts));
+  int nRope = ctrlPts.size();
+  forces.clear();
+  forces.resize(nRope);
+  for (int i=0; i < nRope; i++) {
+    forces[i] = pointCloud[indRope2Kin[i]] - ctrlPts[i];
+  }
+}
+
+void applyImpulses(vector< shared_ptr<btRigidBody> > bodies, vector<btVector3> impulses) {
+  for (int i=0; i<bodies.size(); i++) bodies[i]->applyCentralImpulse(impulses[i]);
 }
 
 int main() {
@@ -41,46 +79,59 @@ int main() {
   btVector3 normal(abcd[0],abcd[1],abcd[2]);
   minRot(btVector3(0,0,1),normal,cam2world);
 
-
-  cout << "cam2world: " << endl;
-  cout << cam2world[0][0] << " "  << cam2world[0][1] << " "  << cam2world[0][2] << endl;
+  cout << "cam2world:" << endl;
+  print_matrix<btMatrix3x3,3> (cam2world);
 
   vector<btVector3> verts_world;
   for (int i=0; i<verts_cam.size(); i++) verts_world.push_back(cam2world*btVector3(verts_cam[i][0],verts_cam[i][1],verts_cam[i][2]));
 
-  btAlignedObjectArray<btVector3> ctrlPts;
+  vector<btVector3> ctrlPts;
   for (int i=0; i<xyzs_cam.size(); i++) {
   btVector3 xyz_world = cam2world*btVector3(xyzs_cam[i][0],xyzs_cam[i][1],xyzs_cam[i][2]);
-  cout << xyz_world[0] << " " << xyz_world[1] << " " << xyz_world[2] << endl;
-ctrlPts.push_back(xyz_world);
+  //print_vector<btVector3,3>(xyz_world)
+    ctrlPts.push_back(xyz_world);
   }
   btVector3 halfExtents;
   btVector3 origin;
-  cout << "verts world:" << endl;
-  cout << verts_world[0][0] << " "  << verts_world[0][1] << " "  << verts_world[0][2] << " " << endl;
-  cout << verts_world[1][0] << " "  << verts_world[1][1] << " "  << verts_world[1][2] << " " << endl;
-  cout << verts_world[2][0] << " "  << verts_world[2][1] << " "  << verts_world[2][2] << " " << endl;
 
   verts2boxPars(verts_world,halfExtents,origin,.2);
-  origin[2] -= .1;
+  origin[2] -= .01;
 
   shared_ptr<CapsuleRope> ropePtr(new CapsuleRope(ctrlPts,.01));
-
-
   shared_ptr<btMotionState> ms(new btDefaultMotionState(btTransform(btQuaternion(0,0,0,1),origin)));
   shared_ptr<BulletObject> table(new BoxObject(0,halfExtents,ms));
-
-
-
   Scene s = Scene(false,false,false);
   s.env->add(ropePtr);
   s.env->add(table);
   s.step(0,100,.01);
+
+  vector<btVector3> pointCloud;
+  vector<btVector3> forces(ctrlPts.size());
+  // point cloud is a little offset from rope
+  vector<btVector3> centers;
+
+  s.step(0,0,.01);
+  vector<btRigidBody> bodies;
+  for (int t=0; t < 100; t++) {
+
+    pointCloud.clear();
+    for (int i=0; i < ctrlPts.size(); i++) pointCloud.push_back(ctrlPts[i]+btVector3(.2*sin(t/3.),0,0));
+
+
+    ropePtr->getPts(centers);
+    calcOptImpulses(centers, pointCloud, forces);
+    DPRINT(forces[0]);
+    DPRINT(forces[1]);
+    applyImpulses(ropePtr->bodies, forces);
+    s.step(.01,1,.01);
+    cout << t << endl;
+  }
+  /*
   s.manip->toggleIdle();
   while (!s.viewer.done()) {
-
     s.step(.01,300,.001);
     usleep(10*1000);
   }
+  */
 
 }
