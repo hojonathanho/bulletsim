@@ -47,7 +47,6 @@ void Environment::step(btScalar dt, int maxSubSteps, btScalar fixedTimeStep) {
 
 void BulletObject::init() {
     getEnvironment()->bullet->dynamicsWorld->addRigidBody(rigidBody.get());
-    cout << "adding rigid body" << endl;
     node = createOSGNode();
     transform = new osg::MatrixTransform;
     transform->addChild(node.get());

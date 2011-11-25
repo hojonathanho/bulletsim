@@ -99,7 +99,6 @@ CapsuleRope::CapsuleRope(const btAlignedObjectArray<btVector3>& ctrlPoints, btSc
 
 void CapsuleRope::init() {
 
-  cout << "rope initializing" << endl;
   CompoundObject::init();
 
 

@@ -19,5 +19,5 @@ public:
   CapsuleRope(const btAlignedObjectArray<btVector3>& ctrlPoints, float radius_);
   void init();
   void destroy();
-
+  void updatePts(vector<btVector3>& ctrlPts) { for (int i=0; i < ctrlPts.size(); i++) ctrlPts[i] = bodies[i]->getCenterOfMassPosition();}
 };
