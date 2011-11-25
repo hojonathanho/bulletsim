@@ -12,7 +12,8 @@
 #include <Eigen/Core>
 
 // import most common Eigen types
-USING_PART_OF_NAMESPACE_EIGEN
+//USING_PART_OF_NAMESPACE_EIGEN
+using namespace Eigen;
 
 #define IP "128.32.37.98"
 #define RECEIVE_PORT 9000
