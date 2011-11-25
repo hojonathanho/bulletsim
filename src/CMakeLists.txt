@@ -3,9 +3,10 @@ include_directories(${BULLET_DIR}/src
                     ${OSGWORKS_DIR}
                     ${OpenRAVE_INCLUDE_DIRS}
                     ${Boost_INCLUDE_DIRS}
-                    ${EIGEN2_INCLUDE_DIR}
+		    ${EIGEN3_INCLUDE_DIR}
                     ${SURGICAL_PHYSICS_SOURCE_DIR}/lib/haptics)
 set(BULLET_LIBS BulletSoftBody BulletDynamics BulletCollision LinearMath)
+
 
 IF (NOT CMAKE_BUILD_TYPE)
  SET(CMAKE_BUILD_TYPE "Debug")
