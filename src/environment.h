@@ -84,8 +84,6 @@ protected:
 
 public:
     void init() {
-      cout << "CompoundObject::init" <<endl;
-      cout << "children.size():" << children.size();
         typename std::vector<ChildType>::iterator i;
         for (i = children.begin(); i != children.end(); ++i) {
             if (*i) {

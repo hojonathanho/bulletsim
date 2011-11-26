@@ -74,7 +74,6 @@ void RaveRobotKinematicObject::initRobotWithoutDynamics(const btTransform &initi
                                               util::toBtVector(scale * geom->GetCollisionMesh().vertices[i+1]),
                                               util::toBtVector(scale * geom->GetCollisionMesh().vertices[i+2]));
 
-                    RAVELOG_DEBUG("converting triangle mesh to convex hull\n");
                     boost::shared_ptr<btConvexShape> pconvexbuilder(new btConvexTriangleMeshShape(ptrimesh));
                     pconvexbuilder->setMargin(fmargin);
 
