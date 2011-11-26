@@ -1,5 +1,5 @@
 #include "simplescene.h"
-#include "vector_io.h"
+#include "util.h"
 #include "rope.h"
 #include "unistd.h"
 #include <Eigen/Dense>
@@ -13,13 +13,12 @@
 #include "cloud_filtering.h"
 using boost::shared_ptr;
 using namespace Eigen;
+using namespace util;
 // make table and rope from kinect data
 
 const string data_dir = "/home/joschu/Data/pink_rope";
 
-ostream &operator<<( ostream &out, btVector3 &v ) {
-  out << "[" << v.getX() << " " << v.getY() << " " << v.getZ() << "]";
-}
+
 
 
 void minRot(const btVector3& v1, const btVector3& v2, btMatrix3x3& m) {

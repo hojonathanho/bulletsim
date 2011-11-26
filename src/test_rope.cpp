@@ -1,10 +1,11 @@
 #include "rope.h"
 #include "simplescene.h"
 #include "unistd.h"
-#include "vector_io.h"
+#include "util.h"
 #include "grabbing.h"
 
 using boost::shared_ptr;
+using namespace util;
 
 int main() {
 
