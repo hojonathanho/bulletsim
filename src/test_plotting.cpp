@@ -66,7 +66,7 @@ int main(int argc, char* argv[]) {
 
   else if (!strcmp(argv[1],"3")) {
     shared_ptr<PlotPoints> plot3(new PlotPoints());
-    const string pcdfile = "/home/joschu/Data/pink_rope/0003.pcd";
+    const string pcdfile = "../data/0003.pcd";
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGB>);
     if (pcl::io::loadPCDFile<pcl::PointXYZRGB> (pcdfile, *cloud) == -1) {
       PCL_ERROR(("couldn't read file " + pcdfile + "\n").c_str());

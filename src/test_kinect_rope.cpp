@@ -10,13 +10,12 @@
 #include <pcl/io/pcd_io.h>
 #include <pcl/common/transforms.h>
 #include "pcl/common/eigen.h"
-#include "cloud_filtering.h"
 using boost::shared_ptr;
 using namespace Eigen;
 using namespace util;
 // make table and rope from kinect data
 
-const string data_dir = "/home/joschu/Data/pink_rope";
+const string data_dir = "../data";
 
 
 
@@ -111,7 +110,7 @@ int main() {
 
 
 
-  const string pcdfile = "/home/joschu/Data/pink_rope/0003.pcd";
+  const string pcdfile = "../data/0003.pcd";
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
   if (pcl::io::loadPCDFile<pcl::PointXYZRGB> (pcdfile, *cloud) == -1) {
     PCL_ERROR(("couldn't read file " + pcdfile + "\n").c_str());

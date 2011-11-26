@@ -25,9 +25,7 @@ target_link_libraries(simplescene_test simulation)
 add_executable(test_rope test_rope.cpp)
 target_link_libraries(test_rope simulation)
 
-
-
-find_package(PCL 1.3 REQUIRED)
+find_package(PCL 1.3)
 include_directories(${PCL_INCLUDE_DIRS})
 link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
