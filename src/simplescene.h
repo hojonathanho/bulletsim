@@ -44,6 +44,7 @@ struct Scene {
 
   Scene(bool enableIK, bool enableHaptics, bool enableRobot=true);
 
+
   void processHaptics();
   void step(float, int, float);
   void draw();

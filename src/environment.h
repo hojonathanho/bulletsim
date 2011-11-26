@@ -3,7 +3,10 @@
 
 #include <osg/MatrixTransform>
 #include <btBulletDynamicsCommon.h>
-#include <list>
+#include <BulletSoftBody/btSoftRigidDynamicsWorld.h>
+#include <BulletSoftBody/btSoftBodyRigidBodyCollisionConfiguration.h>
+#include <osgbCollision/GLDebugDrawer.h>
+#include <vector>
 #include <boost/shared_ptr.hpp>
 #include <iostream>
 using namespace std;
@@ -20,13 +23,16 @@ struct BulletInstance {
     typedef boost::shared_ptr<BulletInstance> Ptr;
 
     btBroadphaseInterface *broadphase;
-    btDefaultCollisionConfiguration *collisionConfiguration;
+    btSoftBodyRigidBodyCollisionConfiguration *collisionConfiguration;
     btCollisionDispatcher *dispatcher;
     btSequentialImpulseConstraintSolver *solver;
-    btDiscreteDynamicsWorld *dynamicsWorld;
+    btSoftRigidDynamicsWorld *dynamicsWorld;
+    btSoftBodyWorldInfo softBodyWorldInfo;
 
     BulletInstance();
     ~BulletInstance();
+
+    void setGravity(const btVector3 &gravity);
 };
 
 class Environment;
@@ -56,7 +62,7 @@ struct Environment {
     BulletInstance::Ptr bullet;
     OSGInstance::Ptr osg;
 
-    typedef std::list<EnvironmentObject::Ptr> ObjectList;
+    typedef std::vector<EnvironmentObject::Ptr> ObjectList;
     ObjectList objects;
 
     Environment(BulletInstance::Ptr bullet_, OSGInstance::Ptr osg_) : bullet(bullet_), osg(osg_) { }

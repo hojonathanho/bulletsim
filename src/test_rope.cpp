@@ -26,7 +26,9 @@ int main() {
 
   shared_ptr<CapsuleRope> ropePtr(new CapsuleRope(ctrlPts,.01));
 
-  Scene s = Scene(false, false);
+  Scene s = Scene(false, false, 1.0);
+  s.env->bullet->setGravity(btVector3(0,0,-100.));
+
   s.env->add(ropePtr);
   s.env->add(table);
 
@@ -41,7 +43,6 @@ int main() {
   RobotBase::ManipulatorPtr rarm(s.pr2->robot->GetManipulators()[5]);
   RobotBase::ManipulatorPtr larm(s.pr2->robot->GetManipulators()[7]);
 
-  s.env->bullet->dynamicsWorld->setGravity(btVector3(0,0,-100.));
   Grab g;
   Grab g2;
   for (int i=0; i < joints.size() && !s.viewer.done(); i++) {

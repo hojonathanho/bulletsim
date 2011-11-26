@@ -37,12 +37,14 @@ private:
     void initRobotWithoutDynamics(const btTransform &initialTransform, float fmargin=0.0005);
 
 public:
-    RobotBasePtr robot;
     typedef boost::shared_ptr<RaveRobotKinematicObject> Ptr;
+
+    RobotBasePtr robot;
+    const btScalar scale;
 
     // this class is actually a collection of BulletKinematicObjects,
     // each of which represents a link of the robot
-    RaveRobotKinematicObject(RaveInstance::Ptr rave_, const std::string &uri, const btTransform &initialTransform_);
+    RaveRobotKinematicObject(RaveInstance::Ptr rave_, const std::string &uri, const btTransform &initialTransform_, btScalar scale=1.0f);
 
     // position the robot according to DOF values in the OpenRAVE model
     // and copy link positions to the Bullet rigid bodies
@@ -58,8 +60,8 @@ public:
 
         typedef boost::shared_ptr<Manipulator> Ptr;
         Manipulator(RaveRobotKinematicObject *robot_) : robot(robot_) { }
-        void moveByIK(const OpenRAVE::Transform &targetTrans);
-        void moveByIK(const btTransform &targetTrans) { moveByIK(util::toRaveTransform(targetTrans)); }
+        void moveByIKUnscaled(const OpenRAVE::Transform &targetTrans); // note: targetTrans is in unscaled coordinates
+        void moveByIK(const btTransform &targetTrans);
     };
     Manipulator::Ptr createManipulator(const std::string &manipName);
 };

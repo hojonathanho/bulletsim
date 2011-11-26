@@ -1,18 +1,22 @@
 #include "environment.h"
 #include <osgbCollision/CollisionShapes.h>
 #include <osgUtil/SmoothingVisitor>
-#include <iostream>
-using namespace std;
+
 OSGInstance::OSGInstance() {
     root = new osg::Group;
 }
 
 BulletInstance::BulletInstance() {
     broadphase = new btDbvtBroadphase();
-    collisionConfiguration = new btDefaultCollisionConfiguration();
+    collisionConfiguration = new btSoftBodyRigidBodyCollisionConfiguration();
     dispatcher = new btCollisionDispatcher(collisionConfiguration);
     solver = new btSequentialImpulseConstraintSolver;
-    dynamicsWorld = new btDiscreteDynamicsWorld(dispatcher, broadphase, solver, collisionConfiguration);
+    dynamicsWorld = new btSoftRigidDynamicsWorld(dispatcher, broadphase, solver, collisionConfiguration);
+    dynamicsWorld->getDispatchInfo().m_enableSPU = true;
+
+    softBodyWorldInfo.m_broadphase = broadphase;
+    softBodyWorldInfo.m_dispatcher = dispatcher;
+    softBodyWorldInfo.m_sparsesdf.Initialize();
 }
 
 BulletInstance::~BulletInstance() {
@@ -21,6 +25,11 @@ BulletInstance::~BulletInstance() {
     delete dispatcher;
     delete collisionConfiguration;
     delete broadphase;
+}
+
+void BulletInstance::setGravity(const btVector3 &gravity) {
+    dynamicsWorld->setGravity(gravity);
+    softBodyWorldInfo.m_gravity = gravity;
 }
 
 Environment::~Environment() {
@@ -43,6 +52,7 @@ void Environment::step(btScalar dt, int maxSubSteps, btScalar fixedTimeStep) {
     bullet->dynamicsWorld->stepSimulation(dt, maxSubSteps, fixedTimeStep);
     for (i = objects.begin(); i != objects.end(); ++i)
         (*i)->preDraw();
+    bullet->softBodyWorldInfo.m_sparsesdf.GarbageCollect();
 }
 
 void BulletObject::init() {

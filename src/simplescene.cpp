@@ -4,6 +4,7 @@
 #include <iostream>
 using namespace std;
 
+
 Scene::Scene(bool enableIK, bool enableHaptics, bool enableRobot) {
   options.enableIK = enableIK; options.enableHaptics = enableHaptics; options.enableRobot = enableRobot;
 
@@ -11,11 +12,13 @@ Scene::Scene(bool enableIK, bool enableHaptics, bool enableRobot) {
     bullet.reset(new BulletInstance());
     bullet->dynamicsWorld->setGravity(btVector3(0., 0., -9.8));
     if (options.enableRobot) {rave.reset(new RaveInstance());}
+
     env.reset(new Environment(bullet, osg));
 
     dbgDraw.reset(new osgbCollision::GLDebugDrawer());
     dbgDraw->setDebugMode(btIDebugDraw::DBG_MAX_DEBUG_DRAW_MODE /*btIDebugDraw::DBG_DrawWireframe*/);
     bullet->dynamicsWorld->setDebugDrawer(dbgDraw.get());
+    osg->root->addChild(dbgDraw->getSceneGraph());
 
     if (options.enableHaptics)
         connectionInit(); // socket connection for haptics
@@ -25,6 +28,7 @@ Scene::Scene(bool enableIK, bool enableHaptics, bool enableRobot) {
     ms.reset(new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0))));
     ground.reset(new PlaneStaticObject(btVector3(0., 0., 1.), 0., ms));
     env->add(ground);
+
 
     if (options.enableRobot) {
       btTransform trans(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0));
@@ -41,8 +45,8 @@ Scene::Scene(bool enableIK, bool enableHaptics, bool enableRobot) {
 
     viewer.setUpViewInWindow(30, 30, 800, 800);
     manip = new EventHandler(this);
+    manip->setHomePosition(osg::Vec3(50, 0, 50), osg::Vec3(), osg::Z_AXIS);
     manip->state.debugDraw = true;
-    manip->setHomePosition(osg::Vec3(5, 0, 5), osg::Vec3(), osg::Z_AXIS);
     viewer.setCameraManipulator(manip);
     viewer.setSceneData(osg->root.get());
     viewer.realize();
@@ -72,15 +76,10 @@ void Scene::processHaptics() {
 }
 
 void Scene::step(float dt, int maxsteps, float internaldt) {
-    if (manip->state.debugDraw) {
-        if (!osg->root->containsNode(dbgDraw->getSceneGraph()))
-            osg->root->addChild(dbgDraw->getSceneGraph());
-        dbgDraw->BeginDraw();
-    } else {
-        osg->root->removeChild(dbgDraw->getSceneGraph());
-    }
     if (options.enableHaptics)
         processHaptics();
+    if (manip->state.debugDraw)
+        dbgDraw->BeginDraw();
     env->step(dt, maxsteps, internaldt);
     draw();
 }
@@ -138,7 +137,9 @@ bool EventHandler::handle(const osgGA::GUIEventAdapter &ea, osgGA::GUIActionAdap
     case osgGA::GUIEventAdapter::KEYDOWN:
         switch (ea.getKey()) {
         case 'd':
-	        state.debugDraw = !state.debugDraw; break;
+	        state.debugDraw = !state.debugDraw;
+            scene->dbgDraw->setEnabled(state.debugDraw);
+            break;
         case 'p':
         	toggleIdle(); break;
         case '1':
@@ -168,11 +169,13 @@ bool EventHandler::handle(const osgGA::GUIEventAdapter &ea, osgGA::GUIActionAdap
         if (scene->options.enableIK &&
               (ea.getButtonMask() & ea.LEFT_MOUSE_BUTTON) &&
               (state.moveGrabber0 || state.moveGrabber1)) {
-            dx = lastX - ea.getXnormalized();
-            dy = ea.getYnormalized() - lastY;
+            if (state.startDragging) {
+                dx = dy = 0;
+            } else {
+                dx = lastX - ea.getXnormalized();
+                dy = ea.getYnormalized() - lastY;
+            }
             lastX = ea.getXnormalized(); lastY = ea.getYnormalized();
-  
-            if (state.startDragging) { dx = dy = 0; }
             state.startDragging = false;
   
             // get our current view
