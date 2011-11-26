@@ -28,7 +28,7 @@ void createBendConstraint(shared_ptr<btGeneric6DofSpringConstraint>& springPtr, 
   springPtr->setAngularUpperLimit(btVector3(.4,.4,.4));
 }
 
-void createRopeTransforms(vector<btTransform>& transforms, vector<btScalar>& lengths, const btAlignedObjectArray<btVector3>& ctrlPoints) {
+void createRopeTransforms(vector<btTransform>& transforms, vector<btScalar>& lengths, const vector<btVector3>& ctrlPoints) {
   int nLinks = ctrlPoints.size()-1;
   for (int i=0; i < nLinks; i++) {
     btVector3 pt0 = ctrlPoints[i];
@@ -39,14 +39,12 @@ void createRopeTransforms(vector<btTransform>& transforms, vector<btScalar>& len
     btScalar ang = diff.angle(btVector3(1,0,0));
     if (ang*ang > 1e-4) {
       btVector3 ax = diff.cross(btVector3(1,0,0));
-      q = btQuaternion(ax,ang);
+      q = btQuaternion(ax,-ang);
     }
     else {
       q = btQuaternion(0,0,0,1);
     }
     btTransform trans(q,midpt);
-      //    trans.setOrigin(midpt);
-      //    trans.setRotation(q);
 
     float len = diff.length();
     transforms.push_back(trans);
@@ -55,7 +53,7 @@ void createRopeTransforms(vector<btTransform>& transforms, vector<btScalar>& len
 }
 
 
-CapsuleRope::CapsuleRope(const btAlignedObjectArray<btVector3>& ctrlPoints, btScalar radius_) {
+CapsuleRope::CapsuleRope(const vector<btVector3>& ctrlPoints, btScalar radius_) {
   radius = radius_;
   int nLinks = ctrlPoints.size()-1;
   vector<btTransform> transforms;
@@ -101,7 +99,6 @@ CapsuleRope::CapsuleRope(const btAlignedObjectArray<btVector3>& ctrlPoints, btSc
 
 void CapsuleRope::init() {
 
-  cout << "rope initializing" << endl;
   CompoundObject::init();
 
 

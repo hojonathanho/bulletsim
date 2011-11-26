@@ -1,3 +1,4 @@
+#pragma once
 #include <osgViewer/Viewer>
 #include <osgbCollision/GLDebugDrawer.h>
 #include <osgGA/TrackballManipulator>
@@ -19,7 +20,7 @@ public:
     bool debugDraw, moveGrabber0, moveGrabber1, startDragging, idling;
   } state;
   bool handle(const osgGA::GUIEventAdapter &ea, osgGA::GUIActionAdapter &aa);
-
+  void toggleIdle();
 };
 
 struct Scene {
@@ -38,10 +39,11 @@ struct Scene {
   RaveRobotKinematicObject::Manipulator::Ptr pr2Left, pr2Right;
 
   struct {
-    bool enableIK, enableHaptics;
+    bool enableIK, enableHaptics, enableRobot;
   } options;
 
-  Scene(bool enableIK, bool enableHaptics, btScalar pr2Scale=10.);
+  Scene(bool enableIK, bool enableHaptics, bool enableRobot=true);
+
 
   void processHaptics();
   void step(float, int, float);
