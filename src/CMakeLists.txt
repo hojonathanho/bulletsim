@@ -35,5 +35,6 @@ add_definitions(${PCL_DEFINITIONS})
 add_executable(test_kinect_rope test_kinect_rope.cpp dist_math.cpp plotting.cpp)
 target_link_libraries(test_kinect_rope simulation ${PCL_LIBRARIES})
 
-
+add_executable(test_plotting test_plotting.cpp plotting.cpp)
+target_link_libraries(test_plotting simulation ${PCL_LIBRARIES})
 

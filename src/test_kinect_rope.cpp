@@ -10,7 +10,7 @@
 #include <pcl/io/pcd_io.h>
 #include <pcl/common/transforms.h>
 #include "pcl/common/eigen.h"
-
+#include "cloud_filtering.h"
 using boost::shared_ptr;
 using namespace Eigen;
 // make table and rope from kinect data
@@ -84,26 +84,29 @@ int main() {
   read_2d_array(verts_cam,data_dir+"/verts.txt"); // table vertices
 
   btMatrix3x3 cam2world;
+
   btVector3 normal(abcd[0],abcd[1],abcd[2]);
-  minRot(btVector3(0,0,1),normal,cam2world);
+  minRot(btVector3(0,0,1),-normal,cam2world);
 
   cout << "cam2world:" << endl;
   print_matrix<btMatrix3x3,3> (cam2world);
+  btVector3 trans(0,0,1.5);
+  btTransform cam2world1(cam2world,trans);
+
 
   vector<btVector3> verts_world;
-  for (int i=0; i<verts_cam.size(); i++) verts_world.push_back(cam2world*btVector3(verts_cam[i][0],verts_cam[i][1],verts_cam[i][2]));
+  for (int i=0; i<verts_cam.size(); i++) verts_world.push_back(cam2world1*btVector3(verts_cam[i][0],verts_cam[i][1],verts_cam[i][2]));
 
   vector<btVector3> ctrlPts;
-  for (int i=0; i<xyzs_cam.size(); i++) {
-  btVector3 xyz_world = cam2world*btVector3(xyzs_cam[i][0],xyzs_cam[i][1],xyzs_cam[i][2]);
+  for (int i=0; i<xyzs_cam.size(); i+=2) {
+  btVector3 xyz_world = cam2world1*btVector3(xyzs_cam[i][0],xyzs_cam[i][1],xyzs_cam[i][2]);
   //print_vector<btVector3,3>(xyz_world)
-  ctrlPts.push_back(xyz_world+btVector3(.1,0,0));
+  ctrlPts.push_back(xyz_world);
   }
   btVector3 halfExtents;
   btVector3 origin;
 
   verts2boxPars(verts_world,halfExtents,origin,.2);
-  origin[2] -= .01;
 
 
 
@@ -115,10 +118,16 @@ int main() {
     PCL_ERROR(("couldn't read file " + pcdfile + "\n").c_str());
     return -1;
   }
+  cout << "new cloud size: " << cloud->size();
+
+
   PlotPoints::Ptr plot(new PlotPoints());
   Affine3f T;
   Matrix3f M;
   for (int i=0; i<3; i++) for (int j=0; j<3; j++) M(i,j) = cam2world[i][j];
+  Vector3f eig_trans(trans.getX(),trans.getY(),trans.getZ());
+
+
   DPRINT(M);
   btVector3 vbullet = btVector3(1,2,3);
   Vector3f veigen = Vector3f(1,2,3);
@@ -126,17 +135,17 @@ int main() {
   cout << "cam2world*vbullet: " << (M*veigen) << endl;
 
 
-  T = M;
+  T = Translation3f(eig_trans)*M;
   //cout << M << endl;
   cout << "before" << endl;
-  pcl::PointXYZRGB pt = cloud->at(10000);
+  pcl::PointXYZRGB pt = cloud->at(10);
   cout << pt.x QQ pt.y QQ pt.z QQ (int)pt.r QQ (int)pt.g QQ (int)pt.b << endl;
 
   vbullet = btVector3(pt.x,pt.y,pt.z);
 
   pcl::transformPointCloud(*cloud,*cloud,T);
   cout << "after" << endl;
-  pt = cloud->at(100);
+  pt = cloud->at(10);
   cout << pt.x QQ pt.y QQ pt.z QQ (int)pt.r QQ (int)pt.g QQ (int)pt.b << endl;
 
   cout << "transformed with bullet " << endl << (cam2world*vbullet) << endl;

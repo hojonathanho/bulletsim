@@ -10,25 +10,39 @@
 #include <btBulletDynamicsCommon.h>
 
 
-class PlotPoints : public EnvironmentObject {
-
+class PlotObject : public EnvironmentObject {
+protected:
   osg::ref_ptr<osg::Geometry> m_geom;
   osg::ref_ptr<osg::Geode> m_geode;
+  osg::ref_ptr<osg::StateSet> m_stateset;
 public:
-  typedef boost::shared_ptr<PlotPoints> Ptr;
-
-  PlotPoints();
+  typedef boost::shared_ptr<PlotObject> Ptr;
 
   void init(){
     getEnvironment()->osg->root->addChild(m_geode.get());
   }
   void prePhysics(){}// no physics
-  void preDraw(){} // no transforms needed
-  void destroy(){} // all ref_ptrs
+  void preDraw(){};//{ m_geode->setStateSet(m_stateset);}
+  void destroy(){} 
+};
+
+
+class PlotPoints : public PlotObject {
+public:
+  typedef boost::shared_ptr<PlotPoints> Ptr;
+  PlotPoints(float size=5);
   void setPoints(const osg::ref_ptr<osg::Vec3Array>& osgPts, const osg::ref_ptr<osg::Vec4Array>& osgCols);
   void setPoints(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud);
   void setPoints(const std::vector<btVector3>& pts);
 };
 
+class PlotLines : public PlotObject {
+
+public:
+  typedef boost::shared_ptr<PlotLines> Ptr;
+  PlotLines();
+  void setPoints(const std::vector<btVector3>& pts1, const std::vector<btVector3>& pts2);
+  void setPoints(const osg::ref_ptr<osg::Vec3Array>& pts, const osg::ref_ptr<osg::Vec4Array>& cols);
+};
 
 
