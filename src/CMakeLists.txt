@@ -34,3 +34,4 @@ target_link_libraries(test_kinect_rope simulation ${PCL_LIBRARIES})
 add_executable(test_plotting test_plotting.cpp plotting.cpp)
 target_link_libraries(test_plotting simulation ${PCL_LIBRARIES})
 
+add_executable(test_dist_math test_dist_math.cpp dist_math.cpp)

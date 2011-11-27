@@ -40,7 +40,7 @@ class PlotLines : public PlotObject {
 
 public:
   typedef boost::shared_ptr<PlotLines> Ptr;
-  PlotLines();
+  PlotLines(float width=5);
   void setPoints(const std::vector<btVector3>& pts1, const std::vector<btVector3>& pts2);
   void setPoints(const osg::ref_ptr<osg::Vec3Array>& pts, const osg::ref_ptr<osg::Vec4Array>& cols);
 };

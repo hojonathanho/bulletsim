@@ -7,7 +7,7 @@ MatrixXf pairwiseSquareDist(MatrixXf x_m3, MatrixXf y_n3) {
   VectorXf xnorm_m = x_m3.rowwise().squaredNorm();
   VectorXf ynorm_n = y_n3.rowwise().squaredNorm();
   MatrixXf sqdists_mn = ((-2*dots_mn).colwise() + xnorm_m).transpose().colwise()+ynorm_n;
-  return sqdists_mn;
+  return sqdists_mn.transpose();
 }
 
 VectorXi argminAlongRows(MatrixXf d_mn) {

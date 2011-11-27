@@ -47,8 +47,6 @@ inline OpenRAVE::Transform toRaveTransform(const btTransform &t, btScalar scale)
 #define CONVERT_VECTOR3(cls,v,w) cls v(w[0],w[1],w[2])
 #define CONVERT_VECTOR4(cls,v,w) cls v(w[0],w[1],w[2],w[3])
 
-
-
   ///////////////// FILE IO ////////////////////////////
 
 
@@ -57,7 +55,7 @@ void read_2d_array(vector< vector<T> >& arr, string fname) {
 
   ifstream infile(fname.c_str());
   string line;
-  
+  arr.clear();
   while (getline(infile,line)) {
     stringstream ss (stringstream::in | stringstream::out);
     ss << line;
@@ -76,6 +74,7 @@ template <class T>
 void read_1d_array(vector<T>& arr, string fname) {
   ifstream infile(fname.c_str());
   T i;
+  arr.clear();
   while (infile) {
     infile >>i;
     arr.push_back(i);
@@ -121,6 +120,7 @@ void write_vector(vector<T>& vec, string fname) {
 
 template <class T>
 void read_vector(vector<T>& vec, string fname) {
+  vec.clear();
   ifstream infile(fname.c_str());
   T i;
   while (infile) {
