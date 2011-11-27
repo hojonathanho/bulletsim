@@ -21,7 +21,7 @@ void gen(Scene &scene, btScalar s, btScalar z) {
 }
 
 int main() {
-    Scene scene(true, true);
+    Scene scene(true, true, true, 10.);
 
 //    gen(scene, 1, 0.1);
     gen(scene, 5, 30);
