@@ -5,12 +5,12 @@
 using namespace std;
 
 
-Scene::Scene(bool enableIK, bool enableHaptics, bool enableRobot) {
+Scene::Scene(bool enableIK, bool enableHaptics, bool enableRobot, btScalar pr2Scale) {
   options.enableIK = enableIK; options.enableHaptics = enableHaptics; options.enableRobot = enableRobot;
 
     osg.reset(new OSGInstance());
     bullet.reset(new BulletInstance());
-    bullet->dynamicsWorld->setGravity(btVector3(0., 0., -9.8));
+    bullet->setGravity(btVector3(0., 0., -9.8));
     if (options.enableRobot) {rave.reset(new RaveInstance());}
 
     env.reset(new Environment(bullet, osg));
@@ -32,7 +32,7 @@ Scene::Scene(bool enableIK, bool enableHaptics, bool enableRobot) {
 
     if (options.enableRobot) {
       btTransform trans(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0));
-      pr2.reset(new RaveRobotKinematicObject(rave, "robots/pr2-beta-sim.robot.xml", trans));
+      pr2.reset(new RaveRobotKinematicObject(rave, "robots/pr2-beta-sim.robot.xml", trans, pr2Scale));
       env->add(pr2);
     }
 
@@ -86,9 +86,8 @@ void Scene::step(float dt, int maxsteps, float internaldt) {
 
 void Scene::draw() {
     if (manip->state.debugDraw) {
-      dbgDraw->BeginDraw();
-      bullet->dynamicsWorld->debugDrawWorld();
-      dbgDraw->EndDraw();
+        bullet->dynamicsWorld->debugDrawWorld();
+        dbgDraw->EndDraw();
     }
     viewer.frame();
 }
