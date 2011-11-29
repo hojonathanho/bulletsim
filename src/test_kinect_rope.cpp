@@ -16,7 +16,7 @@ using namespace Eigen;
 using namespace util;
 // make table and rope from kinect data
 
-const string data_dir = "/home/joschu/Data/pink_rope_sequence";
+const string data_dir = "/home/joschu/Data/pink_and_blue";
 
 #define DEBUG_PLOTS
 
@@ -27,6 +27,32 @@ PlotPoints::Ptr targpts;
 
 
 
+// ostream &operator<<( ostream &out, const btVector3 &v ) {
+//   out << "[" << v.getX() << " " << v.getY() << " " << v.getZ() << "]";
+// }
+
+// istream &operator>>( istream &in, btVector3 &v ) {
+//     float x,y,z;
+//     in >> x >> y >> z;
+//     v = btVector3(x,y,z);
+// }
+
+
+void read_btVectors(vector<btVector3>& out, const string fname) {
+  float x,y,z;
+  out.clear();
+  ifstream infile(fname.c_str());
+  while (infile) {
+    infile >> x >> y >> z;
+    if (infile) {
+      out.push_back(btVector3(x,y,z));
+      cout <<"vector " QQ x QQ y QQ z QQ endl;
+    }
+  }
+
+  assert(out.size() > 0);
+
+}
 
 void minRot(const btVector3& v1, const btVector3& v2, btMatrix3x3& m) {
   btScalar ang = v1.angle(v2);
@@ -62,19 +88,19 @@ void calcOptImpulses(const vector<btVector3>& ctrlPts, const vector<btVector3>& 
   MatrixXf kinPts = toEigen(pointCloud);
   VectorXi indRope2Kin = argminAlongRows(pairwiseSquareDist(ropePts,kinPts));
   /*
-  ofstream outfile("kinpts.txt");
-  outfile << kinPts;
-  outfile.close();
-  ofstream outfile1("ropepts.txt");
-  outfile1 << ropePts;
-  outfile1.close();
-  ofstream outfile2("indrope2kin.txt");
-  outfile2 << indRope2Kin;
-  outfile2.close();
-  ofstream outfile3("sqdists.txt");
-  outfile3 << pairwiseSquareDist(ropePts,kinPts);
-  outfile3.close();
-  cin.get();
+    ofstream outfile("kinpts.txt");
+    outfile << kinPts;
+    outfile.close();
+    ofstream outfile1("ropepts.txt");
+    outfile1 << ropePts;
+    outfile1.close();
+    ofstream outfile2("indrope2kin.txt");
+    outfile2 << indRope2Kin;
+    outfile2.close();
+    ofstream outfile3("sqdists.txt");
+    outfile3 << pairwiseSquareDist(ropePts,kinPts);
+    outfile3.close();
+    cin.get();
   */
 
   vector<btVector3> plot_srcs;
@@ -124,6 +150,8 @@ int main() {
 
 
   ////////// files /////////////////////////////////////
+  string initial_ropefile = data_dir+"/initial_rope.txt";
+  string initial_endfile = data_dir+"/initial_ends.txt";  
 
   vector<string> pcdfiles;
   pcdfiles.push_back(data_dir+"/0001.pcd");
@@ -137,19 +165,39 @@ int main() {
   pcdfiles.push_back(data_dir+"/0009.pcd");
   pcdfiles.push_back(data_dir+"/0010.pcd");
   pcdfiles.push_back(data_dir+"/0011.pcd");
+  pcdfiles.push_back(data_dir+"/0012.pcd");
+  pcdfiles.push_back(data_dir+"/0013.pcd");
 
-  vector<string> xyzfiles;
-  xyzfiles.push_back(data_dir+"/0001_xyz.txt");
-  xyzfiles.push_back(data_dir+"/0002_xyz.txt");
-  xyzfiles.push_back(data_dir+"/0003_xyz.txt");
-  xyzfiles.push_back(data_dir+"/0004_xyz.txt");
-  xyzfiles.push_back(data_dir+"/0005_xyz.txt");
-  xyzfiles.push_back(data_dir+"/0006_xyz.txt");
-  xyzfiles.push_back(data_dir+"/0007_xyz.txt");
-  xyzfiles.push_back(data_dir+"/0008_xyz.txt");
-  xyzfiles.push_back(data_dir+"/0009_xyz.txt");
-  xyzfiles.push_back(data_dir+"/00010_xyz.txt");
-  xyzfiles.push_back(data_dir+"/00011_xyz.txt");
+  vector<string> ropefiles;
+  ropefiles.push_back(data_dir+"/0001_rope.txt");
+  ropefiles.push_back(data_dir+"/0002_rope.txt");
+  ropefiles.push_back(data_dir+"/0003_rope.txt");
+  ropefiles.push_back(data_dir+"/0004_rope.txt");
+  ropefiles.push_back(data_dir+"/0005_rope.txt");
+  ropefiles.push_back(data_dir+"/0006_rope.txt");
+  ropefiles.push_back(data_dir+"/0007_rope.txt");
+  ropefiles.push_back(data_dir+"/0008_rope.txt");
+  ropefiles.push_back(data_dir+"/0009_rope.txt");
+  ropefiles.push_back(data_dir+"/0010_rope.txt");
+  ropefiles.push_back(data_dir+"/0011_rope.txt");
+  ropefiles.push_back(data_dir+"/0012_rope.txt");
+  ropefiles.push_back(data_dir+"/0013_rope.txt");
+
+
+  vector<string> endfiles;
+  endfiles.push_back(data_dir+"/0001_ends.txt");
+  endfiles.push_back(data_dir+"/0002_ends.txt");
+  endfiles.push_back(data_dir+"/0003_ends.txt");
+  endfiles.push_back(data_dir+"/0004_ends.txt");
+  endfiles.push_back(data_dir+"/0005_ends.txt");
+  endfiles.push_back(data_dir+"/0006_ends.txt");
+  endfiles.push_back(data_dir+"/0007_ends.txt");
+  endfiles.push_back(data_dir+"/0008_ends.txt");
+  endfiles.push_back(data_dir+"/0009_ends.txt");
+  endfiles.push_back(data_dir+"/0010_ends.txt");
+  endfiles.push_back(data_dir+"/0011_ends.txt");
+  endfiles.push_back(data_dir+"/0012_ends.txt");
+  endfiles.push_back(data_dir+"/0013_ends.txt");
 
 
 
@@ -157,7 +205,7 @@ int main() {
   ////////// figure out rope and table and transform //////////////////
 
   vector< vector<float> > xyzs_cam;
-  read_2d_array(xyzs_cam,xyzfiles[0]); //rope vertices
+  read_2d_array(xyzs_cam,initial_ropefile); //rope vertices
   vector<float> abcd;
   read_1d_array(abcd, data_dir + "/coeffs.txt"); // table coefficients
   vector< vector<float> > verts_cam;
@@ -225,25 +273,34 @@ int main() {
 
 
 
-
   //////////////////// Declarations for stuff in loops
 
-  vector<btVector3> pointCloud;
+  btPoint2PointConstraint* ptp1 = new btPoint2PointConstraint(*ropePtr->bodies[0].get(),btVector3(0,0,0));
+  btPoint2PointConstraint* ptp2 = new btPoint2PointConstraint(*ropePtr->bodies[ropePtr->bodies.size()-1].get(),btVector3(0,0,0));
+  s.env->bullet->dynamicsWorld->addConstraint(ptp1);
+  s.env->bullet->dynamicsWorld->addConstraint(ptp2);
+
   vector<btVector3> forces(ctrlPts.size());
   vector<btVector3> centers;
+  string ropefile, endfile, pcdfile;
+  endfile = endfiles[0];
+  vector<btVector3> endpts_cam,ropepts_cam,endpts_world,ropepts_world;
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud;
 
 
-
-
-
-
-
   for (int t=0;  t<pcdfiles.size(); t++) {
-    s.manip->toggleIdle();
-    string pcdfile = pcdfiles[t];
+    pcdfile = pcdfiles[t];
     cout << "--------------- reading file " << pcdfile << "------------" << endl;
-    string xyzfile = xyzfiles[t];
+    ropefile = ropefiles[t];
+    endfile = endfiles[t];
+    cout << "rope pts:" << endl;
+    read_btVectors(ropepts_cam,ropefile);
+    cout << "end pts:" << endl;
+    read_btVectors(endpts_cam,endfile);
+    DPRINT(endpts_cam.size());
+
+
+
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
     if (pcl::io::loadPCDFile<pcl::PointXYZRGB> (pcdfile, *cloud) == -1) {
       PCL_ERROR(("couldn't read file " + pcdfile + "\n").c_str());
@@ -253,21 +310,36 @@ int main() {
     pcl::transformPointCloud(*cloud,*cloud,T);
     plot->setPoints(cloud);
     s.step(0,1,.01);
+
+
     for (int i=0; i < 100; i++) {
 
-      vector< vector<float> > pointCloud_;
-      read_2d_array(pointCloud_,xyzfile);
-      pointCloud.clear();
-      BOOST_FOREACH(vector<float> vec,pointCloud_) pointCloud.push_back(cam2world1*btVector3(vec[0],vec[1],vec[2]));
+      ropepts_world.clear();
+      BOOST_FOREACH(btVector3 vec,ropepts_cam) ropepts_world.push_back(cam2world1*vec);
+      endpts_world.clear();
+      BOOST_FOREACH(btVector3 vec,endpts_cam) endpts_world.push_back(cam2world1*vec);
+
+      ptp1->setPivotB(endpts_world[0]);
+      ptp2->setPivotB(endpts_world[1]);
+      //why is this reversed?!!!
 
       ropePtr->getPts(centers);
-      calcOptImpulses(centers, pointCloud, forces);
+      calcOptImpulses(centers, ropepts_world, forces);
 
-      applyImpulses(ropePtr->bodies, forces, 3);
+      applyImpulses(ropePtr->bodies, forces, 5);
+
       s.step(.01,1,.01);
+
+
+
+      
+
+
       cout << "iteration " << i  << endl;
       usleep(10*1000);
     }
+
+      s.manip->toggleIdle();
   }
 }
 
