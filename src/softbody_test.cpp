@@ -26,6 +26,7 @@ int main() {
 //    gen(scene, 1, 0.1);
     gen(scene, 5, 30);
     
+    scene.startViewer();
     scene.viewerLoop();
     return 0;
 }

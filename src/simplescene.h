@@ -46,6 +46,8 @@ struct Scene {
 
 
   void processHaptics();
+
+  void startViewer();
   void step(float, int, float);
   void draw();
   void viewerLoop(int maxsteps=200, float internaldt=1./200.);

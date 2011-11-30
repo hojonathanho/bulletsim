@@ -50,6 +50,7 @@ int main() {
     }
 
   Scene s = Scene();
+  s.startViewer();
   for (int i = 0; i < joints.size(); i++) {
     vector<double> joint(joints[i].begin(),joints[i].end());
     s.pr2->setDOFValues(inds,joint);

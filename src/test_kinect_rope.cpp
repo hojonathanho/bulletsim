@@ -237,7 +237,7 @@ int main() {
 
 
 
-
+  s.startViewer();
 
   for (int t=0;  t<pcdfiles.size(); t++) {
     s.manip->toggleIdle();
