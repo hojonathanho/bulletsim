@@ -3,11 +3,16 @@
 #include "unistd.h"
 #include "util.h"
 #include "grabbing.h"
+#include "userconfig.h"
 
 using boost::shared_ptr;
 using namespace util;
 
-int main() {
+int main(int argc, char *argv[]) {
+  Config::read(argc, argv);
+  CFG.scene.enableIK = CFG.scene.enableHaptics = false;
+  CFG.scene.enableRobot = true;
+  CFG.scene.scale = 1.0;
 
   const float table_height = .765;
   const float rope_radius = .01;
@@ -26,7 +31,7 @@ int main() {
 
   shared_ptr<CapsuleRope> ropePtr(new CapsuleRope(ctrlPts,.01));
 
-  Scene s = Scene(false, false, true, 1.0);
+  Scene s;
   s.env->bullet->setGravity(btVector3(0,0,-100.));
 
   s.env->add(ropePtr);

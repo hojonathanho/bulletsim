@@ -69,7 +69,7 @@ struct Environment {
     ~Environment();
 
     void add(EnvironmentObject::Ptr obj);
-    void step(btScalar dt, int maxSubSteps=200, btScalar fixedTimeStep=1/200.);
+    void step(btScalar dt, int maxSubSteps, btScalar fixedTimeStep);
 };
 
 

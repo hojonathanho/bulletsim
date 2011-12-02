@@ -38,18 +38,14 @@ struct Scene {
   RaveRobotKinematicObject::Ptr pr2;
   RaveRobotKinematicObject::Manipulator::Ptr pr2Left, pr2Right;
 
-  struct {
-    bool enableIK, enableHaptics, enableRobot;
-  } options;
-
-  Scene(bool enableIK, bool enableHaptics, bool enableRobot=true, btScalar pr2Scale=10.);
-
+  Scene();
 
   void processHaptics();
 
   void startViewer();
   void step(float, int, float);
+  void step(float);
   void draw();
-  void viewerLoop(int maxsteps=200, float internaldt=1./200.);
+  void viewerLoop();
 };
 

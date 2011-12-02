@@ -2,6 +2,7 @@
 
 #include "plotting.h"
 #include "simplescene.h"
+#include "userconfig.h"
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_types.h>
 using boost::shared_ptr;
@@ -9,7 +10,9 @@ using boost::shared_ptr;
 using namespace std;
 
 int main(int argc, char* argv[]) {
-  Scene s = Scene(false,false,false);
+  Config::read(argc, argv);
+  CFG.scene.enableIK = CFG.scene.enableHaptics = CFG.scene.enableRobot = false;
+  Scene s;
 
   if (argc < 2) {
     cout << "must supply an argument 1,2,3,..." << endl;
