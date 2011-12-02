@@ -1,13 +1,15 @@
 #include "openravesupport.h"
 #include <openrave-core.h>
 #include <BulletCollision/CollisionShapes/btShapeHull.h>
+#include "userconfig.h"
 
 using namespace OpenRAVE;
 
 RaveInstance::RaveInstance() {
     RaveInitialize(true);
     env = RaveCreateEnvironment();
-    RaveSetDebugLevel(Level_Debug);
+    if (CFG.verbose)
+        RaveSetDebugLevel(Level_Debug);
 }
 
 RaveInstance::~RaveInstance() {
@@ -167,7 +169,7 @@ void RaveRobotKinematicObject::Manipulator::moveByIKUnscaled(const OpenRAVE::Tra
     if (!manip->FindIKSolution(IkParameterization(targetTrans), vsolution, true)) {
         stringstream ss;
         ss << "failed to get solution for target transform for end effector: " << targetTrans << endl;
-        RAVELOG_INFO(ss.str());
+        RAVELOG_DEBUG(ss.str());
         return;
     }
     robot->setDOFValues(manip->GetArmIndices(), vsolution);

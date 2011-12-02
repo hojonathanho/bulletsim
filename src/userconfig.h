@@ -31,6 +31,8 @@ namespace po = boost::program_options;
  */
 
 struct ConfigData {
+    bool verbose;
+
     struct {
         btVector3 gravity;
         int maxSubSteps;
@@ -49,6 +51,7 @@ struct ConfigData {
         int windowWidth;
         int windowHeight;
     } viewer;
+
 
     // set default values in the constructor
     ConfigData();

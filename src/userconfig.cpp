@@ -35,6 +35,7 @@ ConfigData::ConfigData() {
 #define OPT(name, type, defaultVal, desc) ((#name), po::value<type>(&(name))->default_value(defaultVal), (desc))
 #define OPT_MULTI(name, type, defaultVal, desc) ((#name), po::value<type>(&(name))->default_value(defaultVal)->multitoken(), (desc))
     opts.add_options()
+        OPT(verbose, bool, false, "verbose")
         OPT_MULTI(bullet.gravity, btVector3, btVector3(0., 0., -9.8), "gravity")
         OPT(bullet.maxSubSteps, int, 200, "maximum Bullet internal substeps per simulation step")
         OPT(bullet.internalTimeStep, float, 1./200., "internal Bullet timestep")
