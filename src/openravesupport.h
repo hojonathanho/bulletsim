@@ -34,7 +34,7 @@ private:
 
     // for the loaded robot, this will create BulletKinematicObjects
     // and place them into the children vector
-    void initRobotWithoutDynamics(const btTransform &initialTransform, float fmargin=0.0005);
+    void initRobotWithoutDynamics(const btTransform &initialTransform, bool useConvexHull=true, float fmargin=0.0005);
 
 public:
     typedef boost::shared_ptr<RaveRobotKinematicObject> Ptr;

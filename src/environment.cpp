@@ -1,6 +1,5 @@
 #include "environment.h"
 #include <osgbCollision/CollisionShapes.h>
-#include <osgUtil/SmoothingVisitor>
 
 OSGInstance::OSGInstance() {
     root = new osg::Group;

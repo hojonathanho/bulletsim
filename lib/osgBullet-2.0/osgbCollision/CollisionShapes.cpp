@@ -425,6 +425,11 @@ osg::Node* osgNodeFromBtCollisionShape( const btTriangleMeshShape* btTriMesh, co
     osg::Geode* geode = new osg::Geode();
     geode->addDrawable( geom );
 
+    // added code: compute normals
+    osgUtil::SmoothingVisitor sv;
+    sv.apply(*geode);
+    // end added code
+
     osg::Matrix m = asOsgMatrix( trans );
     if (m.isIdentity())
         return( geode );
@@ -480,6 +485,11 @@ osg::Node* osgNodeFromBtCollisionShape( const btConvexTriangleMeshShape* btTriMe
 
     osg::Geode* geode = new osg::Geode();
     geode->addDrawable( geom );
+
+    // added code: compute normals
+    osgUtil::SmoothingVisitor sv;
+    sv.apply(*geode);
+    // end added code
 
     osg::Matrix m = asOsgMatrix( trans );
     if (m.isIdentity())
