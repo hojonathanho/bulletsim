@@ -29,3 +29,4 @@ set(OSG_INCLUDE_DIRS ${OPENTHREADS_LIBRARY_INCLUDE_DIR} ${OSG_LIBRARY_INCLUDE_DI
 
 add_subdirectory(lib)
 add_subdirectory(src)
+add_subdirectory(perception)
