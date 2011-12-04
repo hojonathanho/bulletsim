@@ -256,7 +256,7 @@ int main() {
   /////////////// put stuf into scene //////////////////
 
   shared_ptr<CapsuleRope> ropePtr(new CapsuleRope(ctrlPts,.01));
-  shared_ptr<btMotionState> ms(new btDefaultMotionState(btTransform(btQuaternion(0,0,0,1),origin-btVector3(0,0,.01))));
+  shared_ptr<btMotionState> ms(new btDefaultMotionState(btTransform(btQuaternion(0,0,0,1),origin-btVector3(0,0,.025))));
   shared_ptr<BulletObject> table(new BoxObject(0,halfExtents,ms));
   Scene s = Scene(false,false,false);
   s.manip->state.debugDraw = false;
@@ -312,7 +312,7 @@ int main() {
     s.step(0,1,.01);
 
 
-    for (int i=0; i < 100; i++) {
+    for (int i=0; i < 20; i++) {
 
       ropepts_world.clear();
       BOOST_FOREACH(btVector3 vec,ropepts_cam) ropepts_world.push_back(cam2world1*vec);
@@ -339,7 +339,7 @@ int main() {
       usleep(10*1000);
     }
 
-      s.manip->toggleIdle();
+    //      s.manip->toggleIdle();
   }
 }
 

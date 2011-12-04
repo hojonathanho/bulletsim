@@ -78,16 +78,17 @@ void Scene::processHaptics() {
 void Scene::step(float dt, int maxsteps, float internaldt) {
     if (options.enableHaptics)
         processHaptics();
-    if (manip->state.debugDraw)
-        dbgDraw->BeginDraw();
+    // if (manip->state.debugDraw)
+    //     dbgDraw->BeginDraw();
     env->step(dt, maxsteps, internaldt);
     draw();
 }
 
 void Scene::draw() {
     if (manip->state.debugDraw) {
-        bullet->dynamicsWorld->debugDrawWorld();
-        dbgDraw->EndDraw();
+      dbgDraw->BeginDraw();
+      bullet->dynamicsWorld->debugDrawWorld();
+      dbgDraw->EndDraw();
     }
     viewer.frame();
 }

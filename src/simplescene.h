@@ -42,7 +42,7 @@ struct Scene {
     bool enableIK, enableHaptics, enableRobot;
   } options;
 
-  Scene(bool enableIK, bool enableHaptics, bool enableRobot=true, btScalar pr2Scale=10.);
+  Scene(bool enableIK, bool enableHaptics, bool enableRobot=true, btScalar pr2Scale=1.);
 
 
   void processHaptics();
