@@ -26,7 +26,7 @@ int main() {
 
   shared_ptr<CapsuleRope> ropePtr(new CapsuleRope(ctrlPts,.01));
 
-  Scene s = Scene(false, false, 1.0);
+  Scene s = Scene(false, false, true, 1.0);
   s.env->bullet->setGravity(btVector3(0,0,-100.));
 
   s.env->add(ropePtr);
@@ -45,6 +45,8 @@ int main() {
 
   Grab g;
   Grab g2;
+
+  s.startViewer();
   for (int i=0; i < joints.size() && !s.viewer.done(); i++) {
     cout << i << endl;
     vector<double> joint = joints[i];

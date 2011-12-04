@@ -11,14 +11,10 @@ Scene::Scene(bool enableIK, bool enableHaptics, bool enableRobot, btScalar pr2Sc
     osg.reset(new OSGInstance());
     bullet.reset(new BulletInstance());
     bullet->setGravity(btVector3(0., 0., -9.8));
-    if (options.enableRobot) {rave.reset(new RaveInstance());}
+    if (options.enableRobot)
+        rave.reset(new RaveInstance());
 
     env.reset(new Environment(bullet, osg));
-
-    dbgDraw.reset(new osgbCollision::GLDebugDrawer());
-    dbgDraw->setDebugMode(btIDebugDraw::DBG_MAX_DEBUG_DRAW_MODE /*btIDebugDraw::DBG_DrawWireframe*/);
-    bullet->dynamicsWorld->setDebugDrawer(dbgDraw.get());
-    osg->root->addChild(dbgDraw->getSceneGraph());
 
     if (options.enableHaptics)
         connectionInit(); // socket connection for haptics
@@ -28,7 +24,6 @@ Scene::Scene(bool enableIK, bool enableHaptics, bool enableRobot, btScalar pr2Sc
     ms.reset(new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0))));
     ground.reset(new PlaneStaticObject(btVector3(0., 0., 1.), 0., ms));
     env->add(ground);
-
 
     if (options.enableRobot) {
       btTransform trans(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0));
@@ -42,6 +37,13 @@ Scene::Scene(bool enableIK, bool enableHaptics, bool enableRobot, btScalar pr2Sc
         env->add(pr2Left->grabber);
         env->add(pr2Right->grabber);
     }
+}
+
+void Scene::startViewer() {
+    dbgDraw.reset(new osgbCollision::GLDebugDrawer());
+    dbgDraw->setDebugMode(btIDebugDraw::DBG_MAX_DEBUG_DRAW_MODE /*btIDebugDraw::DBG_DrawWireframe*/);
+    bullet->dynamicsWorld->setDebugDrawer(dbgDraw.get());
+    osg->root->addChild(dbgDraw->getSceneGraph());
 
     viewer.setUpViewInWindow(30, 30, 800, 800);
     manip = new EventHandler(this);

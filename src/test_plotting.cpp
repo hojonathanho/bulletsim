@@ -78,6 +78,6 @@ int main(int argc, char* argv[]) {
 
 
 
-
+  s.startViewer();
   s.viewerLoop();
 }
