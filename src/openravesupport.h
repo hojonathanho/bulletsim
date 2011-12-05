@@ -22,7 +22,7 @@ struct RaveInstance {
     ~RaveInstance();
 };
 
-class RaveRobotKinematicObject : public CompoundObject<BulletKinematicObject::Ptr> {
+class RaveRobotKinematicObject : public CompoundObject<BulletKinematicObject> {
 private:
     RaveInstance::Ptr rave;
     btTransform initialTransform;

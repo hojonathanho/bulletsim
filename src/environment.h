@@ -44,9 +44,12 @@ public:
     typedef boost::shared_ptr<EnvironmentObject> Ptr;
 
     EnvironmentObject() { }
+    EnvironmentObject(Environment *env_) : env(env_) { }
     virtual ~EnvironmentObject() { }
 
     Environment *getEnvironment() { return env; }
+
+    virtual EnvironmentObject::Ptr copy() = 0;
 
     // methods only to be called by the Environment
     void setEnvironment(Environment *env_) { env = env_; }
@@ -70,6 +73,24 @@ struct Environment {
 
     void add(EnvironmentObject::Ptr obj);
     void step(btScalar dt, int maxSubSteps, btScalar fixedTimeStep);
+
+    // An Environment::Fork is a wrapper around an Environment with an operator
+    // that associates copied objects with their original ones
+    struct Fork {
+        typedef boost::shared_ptr<Fork> Ptr;
+
+        Environment::Ptr parentEnv;
+        Environment::Ptr env;
+
+        typedef std::map<EnvironmentObject::Ptr, EnvironmentObject::Ptr> ObjectMap;
+        ObjectMap objMap; // maps object in parentEnv to object in env
+
+        Fork(Environment *parentEnv_, BulletInstance::Ptr bullet, OSGInstance::Ptr osg);
+
+        EnvironmentObject::Ptr correspondingObject(EnvironmentObject::Ptr orig);
+        EnvironmentObject::Ptr operator()(EnvironmentObject::Ptr orig) { return correspondingObject(orig); }
+    };
+    Fork::Ptr fork(BulletInstance::Ptr newBullet);
 };
 
 
@@ -79,12 +100,24 @@ struct Environment {
 template<class ChildType>
 class CompoundObject : public EnvironmentObject {
 protected:
-    std::vector<ChildType> children;
-    std::vector<ChildType> &getChildren() { return children; }
+    typedef std::vector<typename ChildType::Ptr> ChildVector;
+    ChildVector children;
+    ChildVector &getChildren() { return children; }
 
 public:
+    typedef boost::shared_ptr<CompoundObject> Ptr;
+
+    EnvironmentObject::Ptr copy() {
+        CompoundObject::Ptr c(new CompoundObject);
+        c->children.reserve(children.size());
+        typename ChildVector::iterator i;
+        for (i = children.begin(); i != children.end(); ++i)
+            c->children.push_back(boost::static_pointer_cast<ChildType> ((*i)->copy()));
+        return c;
+    }
+
     void init() {
-        typename std::vector<ChildType>::iterator i;
+        typename ChildVector::iterator i;
         for (i = children.begin(); i != children.end(); ++i) {
             if (*i) {
                 (*i)->setEnvironment(getEnvironment());
@@ -94,21 +127,21 @@ public:
     }
 
     void prePhysics() {
-        typename std::vector<ChildType>::iterator i;
+        typename ChildVector::iterator i;
         for (i = children.begin(); i != children.end(); ++i)
             if (*i)
                 (*i)->prePhysics();
     }
 
     void preDraw() {
-        typename std::vector<ChildType>::iterator i;
+        typename ChildVector::iterator i;
         for (i = children.begin(); i != children.end(); ++i)
             if (*i)
                 (*i)->preDraw();
     }
 
     void destroy() {
-        typename std::vector<ChildType>::iterator i;
+        typename ChildVector::iterator i;
         for (i = children.begin(); i != children.end(); ++i)
             if (*i)
                 (*i)->destroy();
@@ -137,6 +170,8 @@ public:
     BulletObject(boost::shared_ptr<btCollisionShape> collisionShape_, boost::shared_ptr<btRigidBody> rigidBody_) :
       collisionShape(collisionShape_), rigidBody(rigidBody_), motionState(new btDefaultMotionState()) { }
     virtual ~BulletObject() { }
+
+    EnvironmentObject::Ptr copy();
 
     // called by Environment
     void init();

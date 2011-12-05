@@ -5,7 +5,7 @@
 using namespace std;
 using boost::shared_ptr;
 
-class CapsuleRope : public CompoundObject<BulletObject::Ptr> {
+class CapsuleRope : public CompoundObject<BulletObject> {
 public:
   typedef shared_ptr<CapsuleRope> Ptr;
   vector<shared_ptr<btRigidBody> > bodies;

@@ -54,6 +54,23 @@ void Environment::step(btScalar dt, int maxSubSteps, btScalar fixedTimeStep) {
     bullet->softBodyWorldInfo.m_sparsesdf.GarbageCollect();
 }
 
+Environment::Fork::Fork(Environment *parentEnv_, BulletInstance::Ptr bullet, OSGInstance::Ptr osg) :
+    parentEnv(parentEnv_), env(new Environment(bullet, osg)) { }
+
+EnvironmentObject::Ptr Environment::Fork::correspondingObject(EnvironmentObject::Ptr orig) {
+    ObjectMap::iterator i = objMap.find(orig);
+    return (i == objMap.end()) ? EnvironmentObject::Ptr() : i->second;
+}
+
+Environment::Fork::Ptr Environment::fork(BulletInstance::Ptr newBullet) {
+    Fork::Ptr f(new Fork(this, newBullet, osg));
+    for (ObjectList::const_iterator i = objects.begin(); i != objects.end(); ++i) {
+        EnvironmentObject::Ptr copy = (*i)->copy();
+        f->env->add(copy);
+        f->objMap[*i] = copy;
+    }
+}
+
 void BulletObject::init() {
     getEnvironment()->bullet->dynamicsWorld->addRigidBody(rigidBody.get());
     node = createOSGNode();
