@@ -33,6 +33,7 @@ struct BulletInstance {
     ~BulletInstance();
 
     void setGravity(const btVector3 &gravity);
+    void reset();
 };
 
 class Environment;
@@ -155,6 +156,14 @@ class BulletObject : public EnvironmentObject {
 public:
     typedef boost::shared_ptr<BulletObject> Ptr;
 
+#if 0
+    // a custom motion state that provides copying functionality
+    struct BulletMotionState : public btMotionState {
+        typedef boost::shared_ptr<BulletMotionState> Ptr;
+        BulletMotionState::Ptr copy() = 0;
+    };
+#endif
+
     boost::shared_ptr<btRigidBody> rigidBody;
     // the motionState and collisionShape actually don't matter; the ones
     // embedded in the rigidBody are used for simulation. However,
@@ -169,6 +178,9 @@ public:
     BulletObject() { }
     BulletObject(boost::shared_ptr<btCollisionShape> collisionShape_, boost::shared_ptr<btRigidBody> rigidBody_) :
       collisionShape(collisionShape_), rigidBody(rigidBody_), motionState(new btDefaultMotionState()) { }
+    BulletObject(boost::shared_ptr<btCollisionShape> collisionShape_, boost::shared_ptr<btRigidBody> rigidBody_,
+            boost::shared_ptr<btMotionState> motionState_) :
+      collisionShape(collisionShape_), rigidBody(rigidBody_), motionState(motionState_) { }
     virtual ~BulletObject() { }
 
     EnvironmentObject::Ptr copy();

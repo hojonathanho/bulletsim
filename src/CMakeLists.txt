@@ -1,4 +1,5 @@
 include_directories(${BULLET_DIR}/src
+                    ${BULLET_DIR}/Extras
                     ${OSGBULLET_DIR}
                     ${OSGWORKS_DIR}
                     ${OpenRAVE_INCLUDE_DIRS}
@@ -6,7 +7,7 @@ include_directories(${BULLET_DIR}/src
                     ${YAMLCPP_DIR}/include
                     ${EIGEN3_INCLUDE_DIR}
                     ${SURGICAL_PHYSICS_SOURCE_DIR}/lib/haptics)
-set(BULLET_LIBS BulletSoftBody BulletDynamics BulletCollision LinearMath)
+set(BULLET_LIBS BulletFileLoader BulletSoftBody BulletDynamics BulletCollision LinearMath)
 
 add_library(simulation environment.cpp basicobjects.cpp openravesupport.cpp util.cpp simplescene.cpp userconfig.cpp softbodies.cpp rope.cpp)
 
