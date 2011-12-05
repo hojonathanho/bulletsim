@@ -15,7 +15,8 @@ using namespace std;
 
 enum COMM_MODE {
   MODE_INC,
-  MODE_LAST
+  MODE_LAST,
+  MODE_NOUP
 };
 
 
@@ -71,9 +72,20 @@ namespace comm {
 
 
       }
-      if (mode == MODE_INC) m_current_ind++;
-      else if (mode == MODE_LAST) m_current_ind = ind2fname.rbegin()->first;
-      return ind2fname[m_current_ind];
+
+      string fname;
+      if (mode == MODE_INC) {
+	m_current_ind++;
+	fname = ind2fname[m_current_ind];
+      }
+      else if (mode == MODE_LAST) {
+	m_current_ind = ind2fname.rbegin()->first;
+	fname = ind2fname[m_current_ind];
+      }
+      else fname = ind2fname[m_current_ind+1];
+
+
+      return fname;
     }
   };
 

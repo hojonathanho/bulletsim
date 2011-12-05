@@ -37,10 +37,10 @@ void cloud_cb_ (const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr &cloud)
   }
 
   if (doPause || timur.elapsed() > delay) {
+    timur.restart();
     string fname = pcd_pub->next();
     pcl::io::savePCDFileBinary(fname, *cloud);
     cout << "wrote " << fname << endl;
-    timur.restart();
   }
 
 }
@@ -83,10 +83,13 @@ void disconnect(int x) {
 int main(int ac, char* av[])
 
 {
+  float freq;
+  timur.restart();
   po::options_description opts("Allowed options");
   opts.add_options()
     ("help", "produce help message")
     ("pause,p", po::value< bool >(&doPause)->default_value(false)->implicit_value(true),"prompt user before each img")
+    ("freq,f", po::value< float >(&freq)->default_value(100.),"max frequency")
     ;
 
   po::positional_options_description p;
@@ -98,7 +101,6 @@ int main(int ac, char* av[])
 	    .positional(p)
 	    .run()
 	    , vm);
-
   if (vm.count("help")) {
     cout << "usage: record_pcds  [options]" << endl;
     cout << opts << endl;
@@ -106,6 +108,7 @@ int main(int ac, char* av[])
   }
   po::notify(vm);    
 
+  delay = 1/freq;
   pcd_pub = new comm::Publisher("pcds","pcd");
   signal(SIGINT, &disconnect);
   run ();

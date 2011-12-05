@@ -1,5 +1,6 @@
 #include "geom.h"
 #include <boost/foreach.hpp>
+#include <math.h>
 using namespace Wm5;
 using namespace std;
 
@@ -27,7 +28,7 @@ void minEncRect(const vector<Vector3f>& pts3d, const Vector4f& abcd, vector<Vect
     pts2d[i] = Vector2f(pts3d[i].Dot(va),pts3d[i].Dot(vb));
   }
 
-  Box2<float> minBox = MinBox2<float>(nPts,pts2d,.01,Query::QT_REAL,false);
+  Box2<float> minBox = MinBox2<float>(nPts,pts2d,.005,Query::QT_REAL,false);
 
   Vector2f* verts2d = new Vector2f[4];
   minBox.ComputeVertices(verts2d);
@@ -58,6 +59,10 @@ float angBetween(const Vector3f& v1, const Vector3f& v2) {
   return Mathf::ACos(v1.Dot(v2));
 }
 
+float angBetween(const Eigen::Vector3f& v1, const Eigen::Vector3f& v2) {
+  return acos(v1.dot(v2));
+}
+
 // fails if v1==v2 or v1==-v2
 void minRot(const Vector3f& v1, const Vector3f& v2, Matrix3f m) {
   float ang = angBetween(v1,v2);
@@ -66,6 +71,17 @@ void minRot(const Vector3f& v1, const Vector3f& v2, Matrix3f m) {
 }
 
 
+void minRot(const btVector3& v1, const btVector3& v2, btMatrix3x3& m) {
+  btScalar ang = v1.angle(v2);
+  btVector3 ax = v2.cross(v1);
+  m = btMatrix3x3(btQuaternion(ax,ang));
+}
+
+void minRot(const Eigen::Vector3f& v1, const Eigen::Vector3f& v2, Eigen::Matrix3f& m) {
+  float ang = angBetween(v1,v2);
+  Eigen::Vector3f ax = v2.cross(v1);
+  m = Eigen::AngleAxisf(ang,ax).toRotationMatrix();
+}
 /*
 int main() {
   cout << "hi" << endl;
