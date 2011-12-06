@@ -211,7 +211,7 @@ int main(int argc, char *argv[]) {
   /////////////// put stuf into scene //////////////////
 
   shared_ptr<CapsuleRope> ropePtr(new CapsuleRope(ctrlPts,.01));
-  shared_ptr<btMotionState> ms(new btDefaultMotionState(btTransform(btQuaternion(0,0,0,1),origin-btVector3(0,0,.01))));
+  shared_ptr<btDefaultMotionState> ms(new btDefaultMotionState(btTransform(btQuaternion(0,0,0,1),origin-btVector3(0,0,.01))));
   shared_ptr<BulletObject> table(new BoxObject(0,halfExtents,ms));
   Scene s;
   s.manip->state.debugDraw = false;

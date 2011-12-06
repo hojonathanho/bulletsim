@@ -106,16 +106,18 @@ protected:
     ChildVector &getChildren() { return children; }
 
 public:
-    typedef boost::shared_ptr<CompoundObject> Ptr;
+    typedef boost::shared_ptr<CompoundObject<ChildType> > Ptr;
 
-    EnvironmentObject::Ptr copy() {
-        CompoundObject::Ptr c(new CompoundObject);
-        c->children.reserve(children.size());
-        typename ChildVector::iterator i;
-        for (i = children.begin(); i != children.end(); ++i)
-            c->children.push_back(boost::static_pointer_cast<ChildType> ((*i)->copy()));
-        return c;
+    CompoundObject() { }
+    // copy constructor
+    CompoundObject(const CompoundObject<ChildType> &c) {
+        children.reserve(c.children.size());
+        typename ChildVector::const_iterator i;
+        for (i = c.children.begin(); i != c.children.end(); ++i)
+            children.push_back(boost::static_pointer_cast<ChildType> ((*i)->copy()));
     }
+
+    EnvironmentObject::Ptr copy() { return Ptr(new CompoundObject(*this)); }
 
     void init() {
         typename ChildVector::iterator i;
@@ -156,20 +158,12 @@ class BulletObject : public EnvironmentObject {
 public:
     typedef boost::shared_ptr<BulletObject> Ptr;
 
-#if 0
-    // a custom motion state that provides copying functionality
-    struct BulletMotionState : public btMotionState {
-        typedef boost::shared_ptr<BulletMotionState> Ptr;
-        BulletMotionState::Ptr copy() = 0;
-    };
-#endif
-
     boost::shared_ptr<btRigidBody> rigidBody;
     // the motionState and collisionShape actually don't matter; the ones
     // embedded in the rigidBody are used for simulation. However,
     // placing them here will have them automatically deallocated
     // on destruction of the BulletObject
-    boost::shared_ptr<btMotionState> motionState;
+    boost::shared_ptr<btDefaultMotionState> motionState;
     boost::shared_ptr<btCollisionShape> collisionShape;
 
     osg::ref_ptr<osg::Node> node;
@@ -179,11 +173,12 @@ public:
     BulletObject(boost::shared_ptr<btCollisionShape> collisionShape_, boost::shared_ptr<btRigidBody> rigidBody_) :
       collisionShape(collisionShape_), rigidBody(rigidBody_), motionState(new btDefaultMotionState()) { }
     BulletObject(boost::shared_ptr<btCollisionShape> collisionShape_, boost::shared_ptr<btRigidBody> rigidBody_,
-            boost::shared_ptr<btMotionState> motionState_) :
+            boost::shared_ptr<btDefaultMotionState> motionState_) :
       collisionShape(collisionShape_), rigidBody(rigidBody_), motionState(motionState_) { }
+    BulletObject(const BulletObject &o); // copy constructor
     virtual ~BulletObject() { }
 
-    EnvironmentObject::Ptr copy();
+    EnvironmentObject::Ptr copy() { return Ptr(new BulletObject(*this)); }
 
     // called by Environment
     void init();
@@ -202,16 +197,16 @@ public:
 
     // this is a motion state for kinematic objects, as described at
     // http://bulletphysics.org/mediawiki-1.5.8/index.php/MotionStates
-    struct MotionState : public btMotionState {
+    struct MotionState : public btDefaultMotionState {
         typedef boost::shared_ptr<MotionState> Ptr;
-        btTransform trans;
-        MotionState(const btTransform &trans_) : trans(trans_) { }
-        void getWorldTransform(btTransform &worldTrans) const { worldTrans = trans; }
+        MotionState(const btTransform &trans) : btDefaultMotionState(trans) { }
         void setWorldTransform(const btTransform &) { }
-        void setKinematicPos(const btTransform &pos) { trans = pos; }
+        void setKinematicPos(const btTransform &pos) { btDefaultMotionState::setWorldTransform(pos); }
     };
 
     BulletKinematicObject(boost::shared_ptr<btCollisionShape> collisionShape_, const btTransform &trans);
+    EnvironmentObject::Ptr copy() { return Ptr(new BulletKinematicObject(*this)); }
+
     MotionState &getKinematicMotionState() { return *static_cast<MotionState *> (motionState.get()); }
 };
 

@@ -1,6 +1,7 @@
 #include "environment.h"
 #include <osgbCollision/CollisionShapes.h>
 #include <Serialize/BulletFileLoader/btBulletFile.h>
+#include <boost/scoped_array.hpp>
 
 OSGInstance::OSGInstance() {
     root = new osg::Group;
@@ -60,7 +61,7 @@ Environment::Fork::Fork(Environment *parentEnv_, BulletInstance::Ptr bullet, OSG
 
 EnvironmentObject::Ptr Environment::Fork::correspondingObject(EnvironmentObject::Ptr orig) {
     ObjectMap::iterator i = objMap.find(orig);
-    return (i == objMap.end()) ? EnvironmentObject::Ptr() : i->second;
+    return i == objMap.end() ? EnvironmentObject::Ptr() : i->second;
 }
 
 Environment::Fork::Ptr Environment::fork(BulletInstance::Ptr newBullet) {
@@ -100,18 +101,27 @@ void BulletObject::destroy() {
     getEnvironment()->bullet->dynamicsWorld->removeRigidBody(rigidBody.get());
 }
 
-EnvironmentObject::Ptr BulletObject::copy() {
+BulletObject::BulletObject(const BulletObject &o) {
     // we need to access lots of private members of btRigidBody and etc
     // the easiest way to do this is to use serialization
+
+    // first copy over the collisionShape. This isn't a real deep copy,
+    // but we can share collisionShapes so this should be fine
+    collisionShape = o.collisionShape;
+
+    // then copy the motionstate
+    motionState.reset(new btDefaultMotionState(*o.motionState.get()));
+
+    // then serialize the rigid body
     boost::shared_ptr<btDefaultSerializer> serializer(new btDefaultSerializer());
     int len; btChunk *chunk; const char *structType;
     // http://www.bulletphysics.com/Bullet/BulletFull/btDiscreteDynamicsWorld_8cpp_source.html#l01147
     serializer->startSerialization();
         // rigid body
-        len = rigidBody->calculateSerializeBufferSize();
+        len = o.rigidBody->calculateSerializeBufferSize();
         chunk = serializer->allocate(len, 1);
-        structType = rigidBody->serialize(chunk->m_oldPtr, serializer.get());
-        serializer->finalizeChunk(chunk, structType, BT_RIGIDBODY_CODE, rigidBody.get());
+        structType = o.rigidBody->serialize(chunk->m_oldPtr, serializer.get());
+        serializer->finalizeChunk(chunk, structType, BT_RIGIDBODY_CODE, o.rigidBody.get());
         // collision shape
 //        len = collisionShape->calculateSerializeBufferSize();
 //        chunk = serializer->allocate(len, 1);
@@ -120,79 +130,56 @@ EnvironmentObject::Ptr BulletObject::copy() {
         // TODO: constraints?
     serializer->finishSerialization();
 
-    // load everything back
-    boost::shared_ptr<btRigidBody> newRigidBody;
-
-    // just use the old collisionShape. yes this isn't strictly a deep copy
-    boost::shared_ptr<btCollisionShape> newCollisionShape(collisionShape);
-
+    // read the data that the serializer just wrote
     int bufSize = serializer->getCurrentBufferSize();
-    char *buf = new char[bufSize];
-    memcpy(buf, serializer->getBufferPointer(), bufSize);
+    boost::scoped_array<char> buf(new char[bufSize]);
+    memcpy(buf.get(), serializer->getBufferPointer(), bufSize);
     boost::shared_ptr<bParse::btBulletFile> bulletFile(new bParse::btBulletFile(
-                buf, bufSize));
-//                serializer->getBufferPointer(), serializer->getCurrentBufferSize()));
+                buf.get(), bufSize));
+    // create a new rigidBody with the data
+    BOOST_ASSERT(bulletFile->m_rigidBodies.size() == 1);
     if (bulletFile->getFlags() & bParse::FD_DOUBLE_PRECISION) {
+        // double precision not supported
+        BOOST_ASSERT(false);
     } else {
-        btRigidBodyFloatData *colObjData = reinterpret_cast<btRigidBodyFloatData *> (bulletFile->m_rigidBodies[0]);
-        btScalar mass = btScalar(colObjData->m_inverseMass? 1.f/colObjData->m_inverseMass : 0.f);
+        // single precision
+        btRigidBodyFloatData *data = reinterpret_cast<btRigidBodyFloatData *> (bulletFile->m_rigidBodies[0]);
+        btScalar mass = btScalar(data->m_inverseMass? 1.f/data->m_inverseMass : 0.f);
         btVector3 localInertia; localInertia.setZero();
-//        btCollisionShape** shapePtr = m_data2shapeMap.find(colObjData->m_collisionObjectData.m_collisionShape);
-//        btCollisionShape** shapePtr = &collisionShape.get();
-//        if (shapePtr && *shapePtr) {
-            btTransform startTransform;
-            startTransform.deSerializeFloat(colObjData->m_collisionObjectData.m_worldTransform);
-//	startTransform.setBasis(btMatrix3x3::getIdentity());
-            btCollisionShape* shape = newCollisionShape.get();
-            if (shape->isNonMoving())
-		mass = 0.f;
-            if (mass)
-                shape->calculateLocalInertia(mass,localInertia);
-            bool isDynamic = mass!=0.f;
-            btRigidBody* body = rigidBodyFromData(mass, colObjData, startTransform, shape);
-            if (body) {
-                printf("body was created");
-//                if (m_dynamicsWorld)
-//                        m_dynamicsWorld->addRigidBody(body);
-                //spawnResult->m_allocatedRigidBodies.push_back(body);
-                newRigidBody.reset(body);
-//                spawnResult->m_allocatedRigidBodyNames.push_back(colObjData->m_collisionObjectData.m_name);
-            }
-#if 0
-	#ifdef USE_INTERNAL_EDGE_UTILITY
-					if (shape->getShapeType() == TRIANGLE_MESH_SHAPE_PROXYTYPE)
-					{
-						btBvhTriangleMeshShape* trimesh = (btBvhTriangleMeshShape*)shape;
-						if (trimesh->getTriangleInfoMap())
-						{
-							body->setCollisionFlags(body->getCollisionFlags()  | btCollisionObject::CF_CUSTOM_MATERIAL_CALLBACK);
-						}
-					}
-	#endif //USE_INTERNAL_EDGE_UTILITY
-#endif
-                //bodyMap.insert(colObjData,body);
-//            } else
-//                    printf("error: no shape found\n");
+        btTransform startTransform;
+        startTransform.deSerializeFloat(data->m_collisionObjectData.m_worldTransform);
+        //	startTransform.setBasis(btMatrix3x3::getIdentity());
+        if (collisionShape->isNonMoving())
+            mass = 0.f;
+        if (mass)
+            collisionShape->calculateLocalInertia(mass, localInertia);
+
+        // fill in btRigidBody params
+        btRigidBody::btRigidBodyConstructionInfo ci(mass, motionState.get(), collisionShape.get(), localInertia);
+        ci.m_linearDamping = data->m_linearDamping;
+        ci.m_angularDamping = data->m_angularDamping;
+        ci.m_additionalDampingFactor = data->m_additionalDampingFactor;
+        ci.m_additionalLinearDampingThresholdSqr = data->m_additionalLinearDampingThresholdSqr;
+        ci.m_additionalAngularDampingThresholdSqr = data->m_additionalAngularDampingThresholdSqr;
+        ci.m_additionalAngularDampingFactor = data->m_additionalAngularDampingFactor;
+        ci.m_linearSleepingThreshold = data->m_linearSleepingThreshold;
+        ci.m_angularSleepingThreshold = data->m_angularSleepingThreshold;
+        ci.m_additionalDamping = data->m_additionalDamping;
+        rigidBody.reset(new btRigidBody(ci));
+
+        // fill in btCollisionObject params for the rigid body
+        btCollisionObject *colObj = rigidBody.get();
+        btCollisionObjectFloatData &colObjData = data->m_collisionObjectData;
+        btVector3 temp;
+        temp.deSerializeFloat(colObjData.m_anisotropicFriction);
+        colObj->setAnisotropicFriction(temp);
+        colObj->setContactProcessingThreshold(colObjData.m_contactProcessingThreshold);
+        colObj->setFriction(colObjData.m_friction);
+        colObj->setRestitution(colObjData.m_restitution);
+        colObj->setCollisionFlags(colObjData.m_collisionFlags);
+        colObj->setHitFraction(colObjData.m_hitFraction);
+        // TODO: activation state
     }
-    delete [] buf;
-
-
-
-
-//    boost::shared_ptr<btBulletWorldImporter> importer(new btBulletWorldImporter(0));
-//    importer->loadFileFromMemory(serializer->getBufferPointer(), serializer->getCurrentBufferSize());
-//    BOOST_ASSERT(importer->getNumRigidBodies() == 1);
-//    boost::shared_ptr<btRigidBody> newRigidBody(importer->getRigidBodyByIndex(0));
-
-    // duplicate the bullet object (this is the hard part)
-
-    // to get the new motionstate, just do a direct memory copy of the current one
-    // (this should be safe)
-    //char *buf = new char[sizeof(*motionState)];
-    boost::shared_ptr<btMotionState> newMotionState();
-    //memcpy(newMotionState);
-
-    return new BulletObject(newCollisionShape, newRigidBody, newMotionState);
 }
 
 BulletKinematicObject::BulletKinematicObject(boost::shared_ptr<btCollisionShape> collisionShape_, const btTransform &trans) {

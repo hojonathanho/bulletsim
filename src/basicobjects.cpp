@@ -80,7 +80,7 @@ void GrabberKinematicObject::releaseConstraint() {
 PlaneStaticObject::PlaneStaticObject(
         const btVector3 &planeNormal_,
         btScalar planeConstant_,
-        boost::shared_ptr<btMotionState> motionState_, btScalar drawHalfExtents_) :
+        boost::shared_ptr<btDefaultMotionState> motionState_, btScalar drawHalfExtents_) :
             planeNormal(planeNormal_), planeConstant(planeConstant_), drawHalfExtents(drawHalfExtents_) {
     motionState = motionState_;
     collisionShape.reset(new btStaticPlaneShape(planeNormal, planeConstant));
@@ -111,7 +111,7 @@ osg::ref_ptr<osg::Node> PlaneStaticObject::createOSGNode() {
 
 CylinderStaticObject::CylinderStaticObject(
         btScalar mass_, btScalar radius_, btScalar height_,
-        boost::shared_ptr<btMotionState> motionState_) :
+        boost::shared_ptr<btDefaultMotionState> motionState_) :
             mass(mass_), radius(radius_), height(height_) {
     motionState = motionState_;
     collisionShape.reset(new btCylinderShapeZ(btVector3(radius, radius, height/2.)));
@@ -120,7 +120,7 @@ CylinderStaticObject::CylinderStaticObject(
     rigidBody.reset(new btRigidBody(ci));
 }
 
-SphereObject::SphereObject(btScalar mass_, btScalar radius_, boost::shared_ptr<btMotionState> motionState_) :
+SphereObject::SphereObject(btScalar mass_, btScalar radius_, boost::shared_ptr<btDefaultMotionState> motionState_) :
         mass(mass_), radius(radius_) {
     motionState = motionState_; 
     collisionShape.reset(new btSphereShape(radius));
@@ -133,7 +133,7 @@ SphereObject::SphereObject(btScalar mass_, btScalar radius_, boost::shared_ptr<b
 }
 
 
-BoxObject::BoxObject(btScalar mass_, btVector3 halfExtents_, boost::shared_ptr<btMotionState> motionState_) :
+BoxObject::BoxObject(btScalar mass_, btVector3 halfExtents_, boost::shared_ptr<btDefaultMotionState> motionState_) :
   mass(mass_), halfExtents(halfExtents_) {
   motionState = motionState_;
   collisionShape.reset(new btBoxShape(halfExtents));
@@ -147,7 +147,7 @@ BoxObject::BoxObject(btScalar mass_, btVector3 halfExtents_, boost::shared_ptr<b
 
 
 CapsuleObject::CapsuleObject(btScalar mass_, btScalar radius_, btScalar height_,
-          boost::shared_ptr<btMotionState> motionState_) : mass(mass_), radius(radius_), height(height_) {
+          boost::shared_ptr<btDefaultMotionState> motionState_) : mass(mass_), radius(radius_), height(height_) {
     motionState = motionState_;
     collisionShape.reset(new btCapsuleShapeX(radius, height));
     btVector3 fallInertia(0, 0, 0);

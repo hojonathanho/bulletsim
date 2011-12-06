@@ -26,7 +26,7 @@ int main(int argc, char *argv[]) {
   }
 
 
-  shared_ptr <btMotionState> ms(new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(1,0,table_height-table_thickness/2))));
+  shared_ptr <btDefaultMotionState> ms(new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(1,0,table_height-table_thickness/2))));
   shared_ptr<BulletObject> table(new BoxObject(0,btVector3(.75,.75,table_thickness/2),ms));
 
   shared_ptr<CapsuleRope> ropePtr(new CapsuleRope(ctrlPts,.01));
