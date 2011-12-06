@@ -15,8 +15,10 @@ include_directories(${BULLET_DIR}/src
 		    ${WM_INCLUDE_DIR}
                     ${SURGICAL_PHYSICS_SOURCE_DIR}/lib/haptics
 		    ${PCL_INCLUDE_DIRS}
-		    "../src"
+		    ${SURGICAL_PHYSICS_SOURCE_DIR}/src
+		    ${JSON_INCLUDE_DIR}
 )
+
 set(BULLET_LIBS BulletSoftBody BulletDynamics BulletCollision LinearMath)
 link_directories(
   ${PCL_LIBRARY_DIRS} 
@@ -33,8 +35,11 @@ add_executable(test_get_table_full test_get_table_full.cpp geom.cpp get_table.cp
 target_link_libraries(test_get_table_full  ${WM_LIBRARIES} ${PCL_LIBRARIES})
 
 add_executable(test_kinect_rope1 test_kinect_rope.cpp ../src/dist_math.cpp get_table.cpp geom.cpp)
-target_link_libraries(test_kinect_rope1 simulation ${PCL_LIBRARIES} ${WM_LIBRARIES})
+target_link_libraries(test_kinect_rope1 simulation ${PCL_LIBRARIES} ${WM_LIBRARIES} json)
 
 add_executable(test_eigen_inc test_eigen_inc.cpp)
 add_executable(test_json test_json.cpp)
 target_link_libraries(test_json json)
+
+add_executable(get_focal_length get_focal_length.cpp)
+target_link_libraries(get_focal_length ${PCL_LIBRARIES})
