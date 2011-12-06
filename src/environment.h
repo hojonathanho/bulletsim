@@ -80,7 +80,7 @@ struct Environment {
     struct Fork {
         typedef boost::shared_ptr<Fork> Ptr;
 
-        Environment::Ptr parentEnv;
+        Environment *parentEnv;
         Environment::Ptr env;
 
         typedef std::map<EnvironmentObject::Ptr, EnvironmentObject::Ptr> ObjectMap;
@@ -88,10 +88,9 @@ struct Environment {
 
         Fork(Environment *parentEnv_, BulletInstance::Ptr bullet, OSGInstance::Ptr osg);
 
-        EnvironmentObject::Ptr correspondingObject(EnvironmentObject::Ptr orig);
-        EnvironmentObject::Ptr operator()(EnvironmentObject::Ptr orig) { return correspondingObject(orig); }
+        EnvironmentObject::Ptr forkOf(EnvironmentObject::Ptr orig);
     };
-    Fork::Ptr fork(BulletInstance::Ptr newBullet);
+    Fork::Ptr fork(BulletInstance::Ptr newBullet, OSGInstance::Ptr newOSG);
 };
 
 

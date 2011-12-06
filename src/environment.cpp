@@ -59,18 +59,19 @@ void Environment::step(btScalar dt, int maxSubSteps, btScalar fixedTimeStep) {
 Environment::Fork::Fork(Environment *parentEnv_, BulletInstance::Ptr bullet, OSGInstance::Ptr osg) :
     parentEnv(parentEnv_), env(new Environment(bullet, osg)) { }
 
-EnvironmentObject::Ptr Environment::Fork::correspondingObject(EnvironmentObject::Ptr orig) {
+EnvironmentObject::Ptr Environment::Fork::forkOf(EnvironmentObject::Ptr orig) {
     ObjectMap::iterator i = objMap.find(orig);
     return i == objMap.end() ? EnvironmentObject::Ptr() : i->second;
 }
 
-Environment::Fork::Ptr Environment::fork(BulletInstance::Ptr newBullet) {
-    Fork::Ptr f(new Fork(this, newBullet, osg));
+Environment::Fork::Ptr Environment::fork(BulletInstance::Ptr newBullet, OSGInstance::Ptr newOSG) {
+    Fork::Ptr f(new Fork(this, newBullet, newOSG));
     for (ObjectList::const_iterator i = objects.begin(); i != objects.end(); ++i) {
         EnvironmentObject::Ptr copy = (*i)->copy();
         f->env->add(copy);
         f->objMap[*i] = copy;
     }
+    return f;
 }
 
 void BulletObject::init() {
@@ -134,9 +135,11 @@ BulletObject::BulletObject(const BulletObject &o) {
     int bufSize = serializer->getCurrentBufferSize();
     boost::scoped_array<char> buf(new char[bufSize]);
     memcpy(buf.get(), serializer->getBufferPointer(), bufSize);
-    boost::shared_ptr<bParse::btBulletFile> bulletFile(new bParse::btBulletFile(
-                buf.get(), bufSize));
+    boost::shared_ptr<bParse::btBulletFile> bulletFile(
+        new bParse::btBulletFile(buf.get(), bufSize));
+    bulletFile->parse(false);
     // create a new rigidBody with the data
+    printf("num rigidbodies: %d\n", bulletFile->m_rigidBodies.size());
     BOOST_ASSERT(bulletFile->m_rigidBodies.size() == 1);
     if (bulletFile->getFlags() & bParse::FD_DOUBLE_PRECISION) {
         // double precision not supported
@@ -166,6 +169,12 @@ BulletObject::BulletObject(const BulletObject &o) {
         ci.m_angularSleepingThreshold = data->m_angularSleepingThreshold;
         ci.m_additionalDamping = data->m_additionalDamping;
         rigidBody.reset(new btRigidBody(ci));
+
+        // extra "active" params
+        rigidBody->setLinearVelocity(o.rigidBody->getLinearVelocity());
+        rigidBody->setAngularVelocity(o.rigidBody->getAngularVelocity());
+        rigidBody->applyCentralForce(o.rigidBody->getTotalForce());
+        rigidBody->applyTorque(o.rigidBody->getTotalTorque());
 
         // fill in btCollisionObject params for the rigid body
         btCollisionObject *colObj = rigidBody.get();
