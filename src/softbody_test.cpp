@@ -1,5 +1,6 @@
 #include "simplescene.h"
 #include "softbodies.h"
+#include "userconfig.h"
 #include <BulletSoftBody/btSoftBodyHelpers.h>
 
 void gen(Scene &scene, btScalar s, btScalar z) {
@@ -20,12 +21,14 @@ void gen(Scene &scene, btScalar s, btScalar z) {
     scene.env->add(BulletSoftObject::Ptr(new BulletSoftObject(psb)));
 }
 
-int main() {
-    Scene scene(true, true, true, 10.);
+int main(int argc, char *argv[]) {
+    Config::read(argc, argv);
+    CFG.scene.scale = 10.;
+    Scene scene;
 
 //    gen(scene, 1, 0.1);
     gen(scene, 5, 30);
-    
+
     scene.startViewer();
     scene.viewerLoop();
     return 0;

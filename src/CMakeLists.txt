@@ -1,15 +1,17 @@
 include_directories(${BULLET_DIR}/src
+                    ${BULLET_DIR}/Extras
                     ${OSGBULLET_DIR}
                     ${OSGWORKS_DIR}
                     ${OpenRAVE_INCLUDE_DIRS}
                     ${Boost_INCLUDE_DIRS}
-		    ${EIGEN3_INCLUDE_DIR}
+                    ${YAMLCPP_DIR}/include
+                    ${EIGEN3_INCLUDE_DIR}
                     ${SURGICAL_PHYSICS_SOURCE_DIR}/lib/haptics)
-set(BULLET_LIBS BulletSoftBody BulletDynamics BulletCollision LinearMath)
+set(BULLET_LIBS BulletFileLoader BulletSoftBody BulletDynamics BulletCollision LinearMath)
 
-add_library(simulation environment.cpp basicobjects.cpp openravesupport.cpp util.cpp simplescene.cpp softbodies.cpp rope.cpp plotting.cpp)
+add_library(simulation environment.cpp basicobjects.cpp openravesupport.cpp util.cpp simplescene.cpp userconfig.cpp softbodies.cpp rope.cpp plotting.cpp)
 
-target_link_libraries(simulation haptics osgBullet osgWorks ${OSG_LIBS} ${BULLET_LIBS} ${OpenRAVE_LIBRARIES} ${OpenRAVE_CORE_LIBRARIES})
+target_link_libraries(simulation haptics osgBullet osgWorks ${Boost_LIBRARIES} ${OSG_LIBS} ${BULLET_LIBS} ${OpenRAVE_LIBRARIES} ${OpenRAVE_CORE_LIBRARIES})
 
 add_executable(simplescene_test simplescene_test.cpp)
 target_link_libraries(simplescene_test simulation)
@@ -33,3 +35,9 @@ target_link_libraries(test_kinect_rope simulation ${PCL_LIBRARIES})
 
 add_executable(test_plotting test_plotting.cpp plotting.cpp)
 target_link_libraries(test_plotting simulation ${PCL_LIBRARIES})
+
+
+#add_executable(test_dist_math test_dist_math.cpp dist_math.cpp)
+
+#add_executable(test_fork test_fork.cpp)
+#target_link_libraries(test_fork simulation)

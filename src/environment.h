@@ -33,6 +33,7 @@ struct BulletInstance {
     ~BulletInstance();
 
     void setGravity(const btVector3 &gravity);
+    void reset();
 };
 
 class Environment;
@@ -44,9 +45,12 @@ public:
     typedef boost::shared_ptr<EnvironmentObject> Ptr;
 
     EnvironmentObject() { }
+    EnvironmentObject(Environment *env_) : env(env_) { }
     virtual ~EnvironmentObject() { }
 
     Environment *getEnvironment() { return env; }
+
+    virtual EnvironmentObject::Ptr copy() = 0;
 
     // methods only to be called by the Environment
     void setEnvironment(Environment *env_) { env = env_; }
@@ -69,7 +73,24 @@ struct Environment {
     ~Environment();
 
     void add(EnvironmentObject::Ptr obj);
-    void step(btScalar dt, int maxSubSteps=200, btScalar fixedTimeStep=1/200.);
+    void step(btScalar dt, int maxSubSteps, btScalar fixedTimeStep);
+
+    // An Environment::Fork is a wrapper around an Environment with an operator
+    // that associates copied objects with their original ones
+    struct Fork {
+        typedef boost::shared_ptr<Fork> Ptr;
+
+        Environment *parentEnv;
+        Environment::Ptr env;
+
+        typedef std::map<EnvironmentObject::Ptr, EnvironmentObject::Ptr> ObjectMap;
+        ObjectMap objMap; // maps object in parentEnv to object in env
+
+        Fork(Environment *parentEnv_, BulletInstance::Ptr bullet, OSGInstance::Ptr osg);
+
+        EnvironmentObject::Ptr forkOf(EnvironmentObject::Ptr orig);
+    };
+    Fork::Ptr fork(BulletInstance::Ptr newBullet, OSGInstance::Ptr newOSG);
 };
 
 
@@ -79,12 +100,26 @@ struct Environment {
 template<class ChildType>
 class CompoundObject : public EnvironmentObject {
 protected:
-    std::vector<ChildType> children;
-    std::vector<ChildType> &getChildren() { return children; }
+    typedef std::vector<typename ChildType::Ptr> ChildVector;
+    ChildVector children;
+    ChildVector &getChildren() { return children; }
 
 public:
+    typedef boost::shared_ptr<CompoundObject<ChildType> > Ptr;
+
+    CompoundObject() { }
+    // copy constructor
+    CompoundObject(const CompoundObject<ChildType> &c) {
+        children.reserve(c.children.size());
+        typename ChildVector::const_iterator i;
+        for (i = c.children.begin(); i != c.children.end(); ++i)
+            children.push_back(boost::static_pointer_cast<ChildType> ((*i)->copy()));
+    }
+
+    EnvironmentObject::Ptr copy() { return Ptr(new CompoundObject(*this)); }
+
     void init() {
-        typename std::vector<ChildType>::iterator i;
+        typename ChildVector::iterator i;
         for (i = children.begin(); i != children.end(); ++i) {
             if (*i) {
                 (*i)->setEnvironment(getEnvironment());
@@ -94,21 +129,21 @@ public:
     }
 
     void prePhysics() {
-        typename std::vector<ChildType>::iterator i;
+        typename ChildVector::iterator i;
         for (i = children.begin(); i != children.end(); ++i)
             if (*i)
                 (*i)->prePhysics();
     }
 
     void preDraw() {
-        typename std::vector<ChildType>::iterator i;
+        typename ChildVector::iterator i;
         for (i = children.begin(); i != children.end(); ++i)
             if (*i)
                 (*i)->preDraw();
     }
 
     void destroy() {
-        typename std::vector<ChildType>::iterator i;
+        typename ChildVector::iterator i;
         for (i = children.begin(); i != children.end(); ++i)
             if (*i)
                 (*i)->destroy();
@@ -127,7 +162,7 @@ public:
     // embedded in the rigidBody are used for simulation. However,
     // placing them here will have them automatically deallocated
     // on destruction of the BulletObject
-    boost::shared_ptr<btMotionState> motionState;
+    boost::shared_ptr<btDefaultMotionState> motionState;
     boost::shared_ptr<btCollisionShape> collisionShape;
 
     osg::ref_ptr<osg::Node> node;
@@ -136,7 +171,13 @@ public:
     BulletObject() { }
     BulletObject(boost::shared_ptr<btCollisionShape> collisionShape_, boost::shared_ptr<btRigidBody> rigidBody_) :
       collisionShape(collisionShape_), rigidBody(rigidBody_), motionState(new btDefaultMotionState()) { }
+    BulletObject(boost::shared_ptr<btCollisionShape> collisionShape_, boost::shared_ptr<btRigidBody> rigidBody_,
+            boost::shared_ptr<btDefaultMotionState> motionState_) :
+      collisionShape(collisionShape_), rigidBody(rigidBody_), motionState(motionState_) { }
+    BulletObject(const BulletObject &o); // copy constructor
     virtual ~BulletObject() { }
+
+    EnvironmentObject::Ptr copy() { return Ptr(new BulletObject(*this)); }
 
     // called by Environment
     void init();
@@ -155,16 +196,16 @@ public:
 
     // this is a motion state for kinematic objects, as described at
     // http://bulletphysics.org/mediawiki-1.5.8/index.php/MotionStates
-    struct MotionState : public btMotionState {
+    struct MotionState : public btDefaultMotionState {
         typedef boost::shared_ptr<MotionState> Ptr;
-        btTransform trans;
-        MotionState(const btTransform &trans_) : trans(trans_) { }
-        void getWorldTransform(btTransform &worldTrans) const { worldTrans = trans; }
+        MotionState(const btTransform &trans) : btDefaultMotionState(trans) { }
         void setWorldTransform(const btTransform &) { }
-        void setKinematicPos(const btTransform &pos) { trans = pos; }
+        void setKinematicPos(const btTransform &pos) { btDefaultMotionState::setWorldTransform(pos); }
     };
 
     BulletKinematicObject(boost::shared_ptr<btCollisionShape> collisionShape_, const btTransform &trans);
+    EnvironmentObject::Ptr copy() { return Ptr(new BulletKinematicObject(*this)); }
+
     MotionState &getKinematicMotionState() { return *static_cast<MotionState *> (motionState.get()); }
 };
 

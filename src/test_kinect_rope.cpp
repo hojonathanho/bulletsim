@@ -11,6 +11,7 @@
 #include <pcl/common/transforms.h>
 #include "pcl/common/eigen.h"
 #include <boost/foreach.hpp>
+#include "userconfig.h"
 using boost::shared_ptr;
 using namespace Eigen;
 using namespace util;
@@ -138,7 +139,9 @@ void applyImpulses(vector< shared_ptr<btRigidBody> > bodies, vector<btVector3> i
   for (int i=0; i<bodies.size(); i++) bodies[i]->applyCentralImpulse(impulses[i]*multiplier);
 }
 
-int main() {
+int main(int argc, char *argv[]) {
+  Config::read(argc, argv);
+  CFG.scene.enableIK = CFG.scene.enableHaptics = CFG.scene.enableRobot = false;
 
   // load table plane coeffs
   // figure out the rotation matrix
@@ -256,9 +259,9 @@ int main() {
   /////////////// put stuf into scene //////////////////
 
   shared_ptr<CapsuleRope> ropePtr(new CapsuleRope(ctrlPts,.01));
-  shared_ptr<btMotionState> ms(new btDefaultMotionState(btTransform(btQuaternion(0,0,0,1),origin-btVector3(0,0,.025))));
+  shared_ptr<btDefaultMotionState> ms(new btDefaultMotionState(btTransform(btQuaternion(0,0,0,1),origin-btVector3(0,0,.025))));
   shared_ptr<BulletObject> table(new BoxObject(0,halfExtents,ms));
-  Scene s = Scene(false,false,false);
+  Scene s;
   s.manip->state.debugDraw = false;
   PlotPoints::Ptr plot(new PlotPoints());
   s.env->add(plot);

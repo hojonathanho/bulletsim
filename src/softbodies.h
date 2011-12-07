@@ -18,6 +18,9 @@ public:
     BulletSoftObject(btSoftBody *softBody_) : softBody(softBody_) { }
     virtual ~BulletSoftObject() { }
 
+    // TODO: implement copying!
+    EnvironmentObject::Ptr copy() { return Ptr(new BulletSoftObject(*this)); }
+
     // called by Environment
     void init();
     void preDraw();

@@ -1,13 +1,15 @@
 #include "openravesupport.h"
 #include <openrave-core.h>
 #include <BulletCollision/CollisionShapes/btShapeHull.h>
+#include "userconfig.h"
 
 using namespace OpenRAVE;
 
 RaveInstance::RaveInstance() {
     RaveInitialize(true);
     env = RaveCreateEnvironment();
-    RaveSetDebugLevel(Level_Debug);
+    if (CFG.verbose)
+        RaveSetDebugLevel(Level_Debug);
 }
 
 RaveInstance::~RaveInstance() {
@@ -25,7 +27,7 @@ RaveRobotKinematicObject::RaveRobotKinematicObject(
     initRobotWithoutDynamics(initialTransform);
 }
 
-void RaveRobotKinematicObject::initRobotWithoutDynamics(const btTransform &initialTransform, float fmargin) {
+void RaveRobotKinematicObject::initRobotWithoutDynamics(const btTransform &initialTransform, bool useConvexHull, float fmargin) {
     const std::vector<KinBody::LinkPtr> &links = robot->GetLinks();
     getChildren().reserve(links.size());
     // iterate through each link in the robot (to be stored in the children vector)
@@ -65,29 +67,32 @@ void RaveRobotKinematicObject::initRobotWithoutDynamics(const btTransform &initi
 
             case KinBody::Link::GEOMPROPERTIES::GeomTrimesh:
                 if (geom->GetCollisionMesh().indices.size() >= 3) {
-                    // TODO: not sure if leaking memory here...
                     btTriangleMesh* ptrimesh = new btTriangleMesh();
-
                     // for some reason adding indices makes everything crash
                     for(size_t i = 0; i < geom->GetCollisionMesh().indices.size(); i += 3)
                         ptrimesh->addTriangle(util::toBtVector(scale * geom->GetCollisionMesh().vertices[i]),
                                               util::toBtVector(scale * geom->GetCollisionMesh().vertices[i+1]),
                                               util::toBtVector(scale * geom->GetCollisionMesh().vertices[i+2]));
-
-                    boost::shared_ptr<btConvexShape> pconvexbuilder(new btConvexTriangleMeshShape(ptrimesh));
-                    pconvexbuilder->setMargin(fmargin);
-
-                    //Create a hull shape to approximate Trimesh
-                    boost::shared_ptr<btShapeHull> hull(new btShapeHull(pconvexbuilder.get()));
-                    hull->buildHull(fmargin);
-
-                    btConvexHullShape *convexShape = new btConvexHullShape();
-                    for (int i = 0; i < hull->numVertices(); ++i)
-                        convexShape->addPoint(hull->getVertexPointer()[i]);
-
-                    subshape.reset(convexShape);
                     // store the trimesh somewhere so it doesn't get deallocated by the smart pointer
                     meshes.push_back(boost::shared_ptr<btStridingMeshInterface>(ptrimesh));
+
+                    if (useConvexHull) {
+                        boost::shared_ptr<btConvexShape> pconvexbuilder(new btConvexTriangleMeshShape(ptrimesh));
+                        pconvexbuilder->setMargin(fmargin);
+
+                        //Create a hull shape to approximate Trimesh
+                        boost::shared_ptr<btShapeHull> hull(new btShapeHull(pconvexbuilder.get()));
+                        hull->buildHull(fmargin);
+
+                        btConvexHullShape *convexShape = new btConvexHullShape();
+                        for (int i = 0; i < hull->numVertices(); ++i)
+                            convexShape->addPoint(hull->getVertexPointer()[i]);
+
+                        subshape.reset(convexShape);
+                    }
+                    else {
+                        subshape.reset(new btBvhTriangleMeshShape(ptrimesh, true));
+                    }
                 }
                 break;
 
@@ -167,7 +172,7 @@ void RaveRobotKinematicObject::Manipulator::moveByIKUnscaled(const OpenRAVE::Tra
     if (!manip->FindIKSolution(IkParameterization(targetTrans), vsolution, true)) {
         stringstream ss;
         ss << "failed to get solution for target transform for end effector: " << targetTrans << endl;
-        RAVELOG_INFO(ss.str());
+        RAVELOG_DEBUG(ss.str());
         return;
     }
     robot->setDOFValues(manip->GetArmIndices(), vsolution);
