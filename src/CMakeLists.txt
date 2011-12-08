@@ -41,5 +41,5 @@ endif(BUILD_PERCEPTION)
 
 #add_executable(test_dist_math test_dist_math.cpp dist_math.cpp)
 
-#add_executable(test_fork test_fork.cpp)
-#target_link_libraries(test_fork simulation)
+add_executable(test_fork test_fork.cpp)
+target_link_libraries(test_fork simulation)

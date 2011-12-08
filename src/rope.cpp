@@ -102,7 +102,7 @@ CapsuleRope::CapsuleRope(const vector<btVector3>& ctrlPoints, btScalar radius_, 
 
 void CapsuleRope::init() {
 
-  CompoundObject::init();
+  CompoundObject<BulletObject>::init();
 
 
 

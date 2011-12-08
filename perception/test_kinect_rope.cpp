@@ -323,7 +323,7 @@ void updateEnds(const string jsonfile, btDynamicsWorld* world, EndInfo& endinfo,
 
     s.startViewer();
     s.step(0,1,.01);
-    s.manip->toggleIdle();
+    s.idle(true);
 
     int nSegs = ropePtr->bodies.size();
     btPoint2PointConstraint* ptp0 = new btPoint2PointConstraint(*ropePtr->bodies[0].get(),(ropePts[0]-ropePts[1])/2);
