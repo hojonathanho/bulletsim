@@ -20,7 +20,6 @@ public:
     bool debugDraw, moveGrabber0, moveGrabber1, startDragging, idling;
   } state;
   bool handle(const osgGA::GUIEventAdapter &ea, osgGA::GUIActionAdapter &aa);
-  void toggleIdle();
 };
 
 struct Scene {
@@ -47,5 +46,8 @@ struct Scene {
   void step(float);
   void draw();
   void viewerLoop();
+  void idle(bool);
+
+  double currSimTime, prevSimTime;
 };
 

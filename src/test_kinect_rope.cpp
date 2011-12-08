@@ -243,7 +243,7 @@ int main(int argc, char *argv[]) {
   s.startViewer();
 
   for (int t=0;  t<pcdfiles.size(); t++) {
-    s.manip->toggleIdle();
+    s.idle(true);
     string pcdfile = pcdfiles[t];
     cout << "--------------- reading file " << pcdfile << "------------" << endl;
     string xyzfile = xyzfiles[t];

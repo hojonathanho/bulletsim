@@ -80,8 +80,6 @@ void Scene::processHaptics() {
 void Scene::step(float dt, int maxsteps, float internaldt) {
     if (CFG.scene.enableHaptics)
         processHaptics();
-    if (manip->state.debugDraw)
-        dbgDraw->BeginDraw();
     env->step(dt, maxsteps, internaldt);
     draw();
 }
@@ -92,6 +90,7 @@ void Scene::step(float dt) {
 
 void Scene::draw() {
     if (manip->state.debugDraw) {
+        dbgDraw->BeginDraw();
         bullet->dynamicsWorld->debugDrawWorld();
         dbgDraw->EndDraw();
     }
@@ -99,13 +98,20 @@ void Scene::draw() {
 }
 
 void Scene::viewerLoop() {
-    double currSimTime = viewer.getFrameStamp()->getSimulationTime();
-    double prevSimTime = prevSimTime;
+    currSimTime = viewer.getFrameStamp()->getSimulationTime();
+    prevSimTime = currSimTime;
     while (!viewer.done()) {
         currSimTime = viewer.getFrameStamp()->getSimulationTime();
         step(currSimTime - prevSimTime);
         prevSimTime = currSimTime;
     }
+}
+
+void Scene::idle(bool on) {
+    manip->state.idling = on;
+    while (manip->state.idling && !viewer.done())
+        draw();
+    prevSimTime = currSimTime = viewer.getFrameStamp()->getSimulationTime();
 }
 
 void EventHandler::getTransformation( osg::Vec3d& eye, osg::Vec3d& center, osg::Vec3d& up ) const
@@ -129,14 +135,6 @@ void EventHandler::getTransformation( osg::Vec3d& eye, osg::Vec3d& center, osg::
   //     return osgGA::TrackballManipulator::performMovementLeftMouseButton(dt, dx, dy);
   // }
 
-void EventHandler::toggleIdle() {
-  state.idling = !state.idling; 
-  while (state.idling) {
-    usleep(30*1000);
-    scene->draw();
-  }
-}
-        
 bool EventHandler::handle(const osgGA::GUIEventAdapter &ea, osgGA::GUIActionAdapter &aa) {
     switch (ea.getEventType()) {
     case osgGA::GUIEventAdapter::KEYDOWN:
@@ -146,12 +144,13 @@ bool EventHandler::handle(const osgGA::GUIEventAdapter &ea, osgGA::GUIActionAdap
             scene->dbgDraw->setEnabled(state.debugDraw);
             break;
         case 'p':
-        	toggleIdle(); break;
+            state.idling = !state.idling;
+            scene->idle(state.idling);
+        	break;
         case '1':
             state.moveGrabber0 = true; break;
         case '2':
             state.moveGrabber1 = true; break;
-
       }
       break;
 
