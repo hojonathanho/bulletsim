@@ -5,9 +5,12 @@
 #include <osg/Geometry>
 #include <osg/Geode>
 #include <osg/StateSet>
+#include <btBulletDynamicsCommon.h>
+
+#if BUILD_PERCEPTION
 #include <pcl/point_types.h>
 #include <pcl/point_cloud.h>
-#include <btBulletDynamicsCommon.h>
+#endif //BUILD_PERCEPTION
 
 
 class PlotObject : public EnvironmentObject {
@@ -34,8 +37,10 @@ public:
   typedef boost::shared_ptr<PlotPoints> Ptr;
   PlotPoints(float size=5);
   void setPoints(const osg::ref_ptr<osg::Vec3Array>& osgPts, const osg::ref_ptr<osg::Vec4Array>& osgCols);
-  void setPoints(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud);
   void setPoints(const std::vector<btVector3>& pts);
+#ifdef BUILD_PERCEPTION
+  void setPoints(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud);
+#endif
 };
 
 class PlotLines : public PlotObject {
