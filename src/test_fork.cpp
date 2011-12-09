@@ -23,7 +23,7 @@ int main(int argc, char *argv[]) {
     const float dt = 0.01; int i;
     for (i = 0; i < 100; ++i) {
         scene.step(dt);
-        boost::this_thread::sleep(boost::posix_time::milliseconds(dt*1000));
+        scene.idle(dt);
     }
 
     // 1 second after, fork the environment and apply a force to the copied sphere
@@ -39,7 +39,7 @@ int main(int argc, char *argv[]) {
     for ( ; i < 1000; ++i) {
         fork->env->step(dt, CFG.bullet.maxSubSteps, CFG.bullet.internalTimeStep);
         scene.step(dt);
-        boost::this_thread::sleep(boost::posix_time::milliseconds(dt*1000));
+        scene.idle(dt);
     }
 
     return 0;

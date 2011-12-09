@@ -41,14 +41,28 @@ struct Scene {
 
   void processHaptics();
 
+  // Starts the viewer. Must be called before any step/draw/viewerLoop call
+  // and after adding objects to the environment
   void startViewer();
+
+  // Steps physics and draws
   void step(float, int, float);
   void step(float);
+
+  // Does debug drawing, updates the viewer window, and
+  // processes OSG events
   void draw();
   void viewerLoop();
-  void idle(bool);
+
+  // Pauses or restarts the simulation.
+  // The user can still interact with the viewer
+  void setIdle(bool);
+  void idle(float);
+
+  // Blocks the caller for a specified time interval
+  // The user can still interact with the viewer, and
+  // physics will proceed
   void activeSleep(float);
 
   double currSimTime, prevSimTime;
 };
-

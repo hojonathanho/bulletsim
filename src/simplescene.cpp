@@ -120,9 +120,16 @@ void Scene::activeSleep(float time) {
     }
 }
 
-void Scene::idle(bool on) {
+void Scene::setIdle(bool on) {
     manip->state.idling = on;
     while (manip->state.idling && !viewer.done())
+        draw();
+    prevSimTime = currSimTime = viewer.getFrameStamp()->getSimulationTime();
+}
+
+void Scene::idle(float time) {
+    float endTime = time + viewer.getFrameStamp()->getSimulationTime();
+    while (viewer.getFrameStamp()->getSimulationTime() < endTime && !viewer.done())
         draw();
     prevSimTime = currSimTime = viewer.getFrameStamp()->getSimulationTime();
 }
@@ -157,9 +164,8 @@ bool EventHandler::handle(const osgGA::GUIEventAdapter &ea, osgGA::GUIActionAdap
             scene->dbgDraw->setEnabled(state.debugDraw);
             break;
         case 'p':
-            state.idling = !state.idling;
-            scene->idle(state.idling);
-        	break;
+            scene->setIdle(!state.idling);
+            break;
         case '1':
             state.moveGrabber0 = true; break;
         case '2':
