@@ -17,7 +17,7 @@ int main(int argc, char *argv[]) {
   const float table_height = .765;
   const float rope_radius = .01;
   const float segment_len = .025;
-  const float table_thickness = .1;
+  const float table_thickness = .10;
   int nLinks = 50;
 
   vector<btVector3> ctrlPts;
