@@ -47,6 +47,7 @@ struct Scene {
   void draw();
   void viewerLoop();
   void idle(bool);
+  void activeSleep(float);
 
   double currSimTime, prevSimTime;
 };

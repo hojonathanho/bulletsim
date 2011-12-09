@@ -2,6 +2,7 @@
 #define _SOFTBODIES_H_
 
 #include "environment.h"
+#include "basicobjects.h"
 
 class BulletSoftObject : public EnvironmentObject {
 protected:

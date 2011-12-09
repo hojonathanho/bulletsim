@@ -107,6 +107,19 @@ void Scene::viewerLoop() {
     }
 }
 
+void Scene::activeSleep(float time) {
+    float elapsed = 0.f;
+    currSimTime = viewer.getFrameStamp()->getSimulationTime();
+    prevSimTime = currSimTime;
+    while (elapsed < time && !viewer.done()) {
+        currSimTime = viewer.getFrameStamp()->getSimulationTime();
+        float dt = currSimTime - prevSimTime;
+        step(dt);
+        prevSimTime = currSimTime;
+        elapsed += dt;
+    }
+}
+
 void Scene::idle(bool on) {
     manip->state.idling = on;
     while (manip->state.idling && !viewer.done())
