@@ -149,4 +149,16 @@ public:
     }
 };
 
+class Action {
+protected:
+    bool isDone;
+    void setDone(bool b) { isDone = b; }
+
+public:
+    typedef boost::shared_ptr<Action> Ptr;
+    Action() : isDone(false) { }
+    bool done() const { return isDone; }
+    virtual void step(float dt) = 0;
+};
+
 #endif // _ENVIRONMENT_H_

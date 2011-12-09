@@ -11,6 +11,7 @@ class BulletObject : public EnvironmentObject {
 public:
     typedef boost::shared_ptr<BulletObject> Ptr;
 
+    // Bullet members
     boost::shared_ptr<btRigidBody> rigidBody;
     // the motionState and collisionShape actually don't matter; the ones
     // embedded in the rigidBody are used for simulation. However,
@@ -19,6 +20,7 @@ public:
     boost::shared_ptr<btDefaultMotionState> motionState;
     boost::shared_ptr<btCollisionShape> collisionShape;
 
+    // OSG members
     osg::ref_ptr<osg::Node> node;
     osg::ref_ptr<osg::MatrixTransform> transform;
 
@@ -30,12 +32,7 @@ public:
       collisionShape(collisionShape_), rigidBody(rigidBody_), motionState(motionState_) { }
     BulletObject(const BulletObject &o); // copy constructor
     virtual ~BulletObject() { }
-
     EnvironmentObject::Ptr copy() { return Ptr(new BulletObject(*this)); }
-
-    // actions (for the user)
-    //class MoveAction : public Action {
-    //};
 
     // called by Environment
     void init();
@@ -44,6 +41,19 @@ public:
 
     // by default uses osgBullet. Can be overridden to provide custom OSG mesh
     virtual osg::ref_ptr<osg::Node> createOSGNode();
+
+    // actions (for the user)
+    class MoveAction : public Action {
+        BulletObject *obj;
+        btTransform start, end;
+        float time, timeElapsed;
+
+    public:
+        typedef boost::shared_ptr<MoveAction> Ptr;
+        MoveAction(BulletObject *obj_, const btTransform &start_, const btTransform &end_, float time_) : obj(obj_), start(start_), end(end_), time(time_), timeElapsed(0.f) { }
+        void step(float dt);
+    };
+    MoveAction::Ptr createMoveAction(const btTransform &start, const btTransform &end, float time) { return MoveAction::Ptr(new MoveAction(this, start, end, time)); }
 };
 
 class BulletKinematicObject : public BulletObject {

@@ -64,5 +64,8 @@ struct Scene {
   // physics will proceed
   void activeSleep(float);
 
+  void runAction(Action &a, float dt);
+  void runAction(Action::Ptr a, float dt) { runAction(*a.get(), dt); }
+
   double currSimTime, prevSimTime;
 };

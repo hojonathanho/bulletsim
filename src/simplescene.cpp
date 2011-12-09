@@ -134,6 +134,13 @@ void Scene::idle(float time) {
     prevSimTime = currSimTime = viewer.getFrameStamp()->getSimulationTime();
 }
 
+void Scene::runAction(Action &a, float dt) {
+    while (!a.done() && !viewer.done()) {
+        a.step(dt);
+        step(dt);
+    }
+}
+
 void EventHandler::getTransformation( osg::Vec3d& eye, osg::Vec3d& center, osg::Vec3d& up ) const
   {
     center = _center;
