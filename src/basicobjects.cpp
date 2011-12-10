@@ -127,7 +127,7 @@ BulletObject::BulletObject(const BulletObject &o) {
     }
 }
 
-void BulletKinematicObject::MoveAction::step(float dt) {
+void BulletObject::MoveAction::step(float dt) {
     timeElapsed += dt;
     float a = timeElapsed / time;
 
@@ -135,8 +135,7 @@ void BulletKinematicObject::MoveAction::step(float dt) {
     btVector3 newpos = (1-a)*start.getOrigin() + a*end.getOrigin();
     btQuaternion newrot = start.getRotation().slerp(end.getRotation(), a);
     btTransform newtrans(newrot, newpos);
-//    obj->motionState->setWorldTransform(newtrans);
-    obj->rigidBody->setCenterOfMassTransform(newtrans);
+    obj->motionState->setWorldTransform(newtrans);
 
     if (timeElapsed >= time)
         setDone(true);

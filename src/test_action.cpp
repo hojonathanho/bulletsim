@@ -24,13 +24,18 @@ int main(int argc, char *argv[]) {
     Action::Ptr moveSphere = sphere->createMoveAction(
         btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0)),
         btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 1, 1)),
-        5); // 5 sec
+        5);
 
+    sphere->rigidBody->setCollisionFlags(sphere->rigidBody->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);
     scene.startViewer();
     const float dt = 0.01;
 
+    float t = scene.viewer.getFrameStamp()->getSimulationTime();
     scene.runAction(moveSphere, dt);
-    scene.viewerLoop();
+    float s = scene.viewer.getFrameStamp()->getSimulationTime();
+    printf("took %f to move\n", s-t);
+
+    scene.startLoop();
 
     return 0;
 }

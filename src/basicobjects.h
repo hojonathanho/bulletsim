@@ -45,8 +45,9 @@ public:
     // actions (for the user)
     class MoveAction : public Action {
         BulletObject *obj;
-        btTransform start, end;
-        float time, timeElapsed;
+        const btTransform start, end;
+        const float time;
+        float timeElapsed;
 
     public:
         typedef boost::shared_ptr<MoveAction> Ptr;

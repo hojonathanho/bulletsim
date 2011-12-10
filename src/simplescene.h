@@ -39,33 +39,45 @@ struct Scene {
 
   Scene();
 
-  void processHaptics();
+  void showWindow(bool showWindow, bool realtime);
 
+  bool drawingOn, syncTime;
+  void setDrawing(bool b) { drawingOn = b; }
+  void setTimeSync(bool b) { syncTime = b; }
   // Starts the viewer. Must be called before any step/draw/viewerLoop call
   // and after adding objects to the environment
   void startViewer();
 
-  // Steps physics and draws
-  void step(float, int, float);
-  void step(float);
+  // Steps physics and updates the display (if displayOn is true)
+  // If syncTime is true, then these will block until the time interval passes on the system clock
+  void preStep();
+  void step(float dt, int maxsteps, float internaldt);
+  void step(float dt);
+  void stepFor(float dt, float time);
 
-  // Does debug drawing, updates the viewer window, and
-  // processes OSG events
-  void draw();
-  void viewerLoop();
+  // Blocks the caller and just runs the viewer for the specified
+  // time interval. If either syncTime or displayOn is false, this does nothing.
+  void idleFor(float time);
 
-  // Pauses or restarts the simulation.
-  // The user can still interact with the viewer
-  void setIdle(bool);
-  void idle(float);
-
-  // Blocks the caller for a specified time interval
-  // The user can still interact with the viewer, and
-  // physics will proceed
-  void activeSleep(float);
+  struct {
+      float currTime, prevTime;
+      bool looping, paused;
+  } loopState;
+  // Starts a viewer loop and blocks the caller.
+  void startLoop();
+  void stopLoop();
+  // If the display is on, this will pause the simulation
+  // while allowing the user to interact with the viewer.
+  void idle(bool b);
+  void toggleIdle();
 
   void runAction(Action &a, float dt);
   void runAction(Action::Ptr a, float dt) { runAction(*a.get(), dt); }
 
-  double currSimTime, prevSimTime;
+private:
+  void processHaptics();
+
+  // Does debug drawing, updates the viewer window, and
+  // processes OSG events
+  void draw();
 };

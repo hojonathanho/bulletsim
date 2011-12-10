@@ -40,6 +40,9 @@ Scene::Scene() {
 }
 
 void Scene::startViewer() {
+    drawingOn = syncTime = true;
+    loopState.looping = loopState.paused = false;
+
     dbgDraw.reset(new osgbCollision::GLDebugDrawer());
     dbgDraw->setDebugMode(btIDebugDraw::DBG_MAX_DEBUG_DRAW_MODE /*btIDebugDraw::DBG_DrawWireframe*/);
     bullet->dynamicsWorld->setDebugDrawer(dbgDraw.get());
@@ -78,17 +81,47 @@ void Scene::processHaptics() {
 }
 
 void Scene::step(float dt, int maxsteps, float internaldt) {
+    static float startTime=viewer.getFrameStamp()->getSimulationTime(), endTime;
+
+    if (syncTime && drawingOn)
+        endTime = viewer.getFrameStamp()->getSimulationTime();
+
     if (CFG.scene.enableHaptics)
         processHaptics();
     env->step(dt, maxsteps, internaldt);
     draw();
+
+    if (syncTime && drawingOn) {
+        float timeLeft = dt - (endTime - startTime);
+        idleFor(timeLeft);
+        startTime = endTime + timeLeft;
+    }
 }
 
 void Scene::step(float dt) {
     step(dt, CFG.bullet.maxSubSteps, CFG.bullet.internalTimeStep);
 }
 
+// Steps for a time interval
+void Scene::stepFor(float dt, float time) {
+    while (time > 0) {
+        step(dt);
+        time -= dt;
+    }
+}
+
+// Idles for a time interval. Physics will not run.
+void Scene::idleFor(float time) {
+    if (!drawingOn || !syncTime || time <= 0.f)
+        return;
+    float endTime = time + viewer.getFrameStamp()->getSimulationTime();
+    while (viewer.getFrameStamp()->getSimulationTime() < endTime && !viewer.done())
+        draw();
+}
+
 void Scene::draw() {
+    if (!drawingOn)
+        return;
     if (manip->state.debugDraw) {
         dbgDraw->BeginDraw();
         bullet->dynamicsWorld->debugDrawWorld();
@@ -97,45 +130,37 @@ void Scene::draw() {
     viewer.frame();
 }
 
-void Scene::viewerLoop() {
-    currSimTime = viewer.getFrameStamp()->getSimulationTime();
-    prevSimTime = currSimTime;
-    while (!viewer.done()) {
-        currSimTime = viewer.getFrameStamp()->getSimulationTime();
-        step(currSimTime - prevSimTime);
-        prevSimTime = currSimTime;
+void Scene::startLoop() {
+    bool oldSyncTime = syncTime;
+    syncTime = false;
+    loopState.looping = true;
+    loopState.prevTime = loopState.currTime =
+        viewer.getFrameStamp()->getSimulationTime();
+    while (loopState.looping && drawingOn && !viewer.done()) {
+        loopState.currTime = viewer.getFrameStamp()->getSimulationTime();
+        step(loopState.currTime - loopState.prevTime);
+        loopState.prevTime = loopState.currTime;
     }
+    syncTime = oldSyncTime;
 }
 
-void Scene::activeSleep(float time) {
-    float elapsed = 0.f;
-    currSimTime = viewer.getFrameStamp()->getSimulationTime();
-    prevSimTime = currSimTime;
-    while (elapsed < time && !viewer.done()) {
-        currSimTime = viewer.getFrameStamp()->getSimulationTime();
-        float dt = currSimTime - prevSimTime;
-        step(dt);
-        prevSimTime = currSimTime;
-        elapsed += dt;
-    }
+void Scene::stopLoop() {
+    loopState.looping = false;
 }
 
-void Scene::setIdle(bool on) {
-    manip->state.idling = on;
-    while (manip->state.idling && !viewer.done())
+void Scene::idle(bool b) {
+    loopState.paused = b;
+    while (loopState.paused && drawingOn && !viewer.done())
         draw();
-    prevSimTime = currSimTime = viewer.getFrameStamp()->getSimulationTime();
+    loopState.prevTime = loopState.currTime = viewer.getFrameStamp()->getSimulationTime();
 }
 
-void Scene::idle(float time) {
-    float endTime = time + viewer.getFrameStamp()->getSimulationTime();
-    while (viewer.getFrameStamp()->getSimulationTime() < endTime && !viewer.done())
-        draw();
-    prevSimTime = currSimTime = viewer.getFrameStamp()->getSimulationTime();
+void Scene::toggleIdle() {
+    idle(!loopState.paused);
 }
 
 void Scene::runAction(Action &a, float dt) {
-    while (!a.done() && !viewer.done()) {
+    while (!a.done()) {
         a.step(dt);
         step(dt);
     }
@@ -171,7 +196,7 @@ bool EventHandler::handle(const osgGA::GUIEventAdapter &ea, osgGA::GUIActionAdap
             scene->dbgDraw->setEnabled(state.debugDraw);
             break;
         case 'p':
-            scene->setIdle(!state.idling);
+            scene->toggleIdle();
             break;
         case '1':
             state.moveGrabber0 = true; break;
