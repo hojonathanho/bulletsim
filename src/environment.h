@@ -188,6 +188,7 @@ public:
     virtual void initBulletStructures() { }; // should set rigidBody, motionState, collisionShape, if not set by constructor
     // by default uses osgBullet. Can be overridden to provide custom OSG mesh
     virtual osg::ref_ptr<osg::Node> createOSGNode();
+  void setColor(float r, float g, float b, float a);
 };
 
 class BulletKinematicObject : public BulletObject {

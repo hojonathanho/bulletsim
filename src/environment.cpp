@@ -2,6 +2,7 @@
 #include <osgbCollision/CollisionShapes.h>
 #include <Serialize/BulletFileLoader/btBulletFile.h>
 #include <boost/scoped_array.hpp>
+#include "SetColorsVisitor.h"
 
 OSGInstance::OSGInstance() {
     root = new osg::Group;
@@ -189,6 +190,11 @@ BulletObject::BulletObject(const BulletObject &o) {
         colObj->setHitFraction(colObjData.m_hitFraction);
         // TODO: activation state
     }
+}
+
+void BulletObject::setColor(float r, float g, float b, float a) {
+  SetColorsVisitor visitor(r,g,b,a);
+  node->accept(visitor);
 }
 
 BulletKinematicObject::BulletKinematicObject(boost::shared_ptr<btCollisionShape> collisionShape_, const btTransform &trans) {

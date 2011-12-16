@@ -36,6 +36,7 @@ int main(int argc, char *argv[]) {
 
   s.env->add(ropePtr);
   s.env->add(table);
+  table->setColor(0,1,0,1);
 
   vector< vector<double> > joints;
   vector< int > inds;
@@ -75,16 +76,6 @@ int main(int argc, char *argv[]) {
     if (i > 330) {
       g2.updatePosition(util::toBtTransform(larm->GetEndEffectorTransform()).getOrigin());
     }
-
-
-
-    /*
-    btRigidBody* body = ropePtr->bodies[0].get();
-    cout << "position at time " << ++step << ": " << 
-      body->getCenterOfMassPosition().x() << " " <<
-      body->getCenterOfMassPosition().y() << " " <<
-      body->getCenterOfMassPosition().z() << " " << endl;
-    */
 
     s.step(.01,300,.001);
     // usleep(10*1000);
