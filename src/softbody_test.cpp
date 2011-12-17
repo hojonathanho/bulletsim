@@ -22,8 +22,8 @@ void gen(Scene &scene, btScalar s, btScalar z) {
 }
 
 int main(int argc, char *argv[]) {
-    Config::read(argc, argv);
-    CFG.scene.scale = 10.;
+    CFG->read(argc, argv);
+    CFG->scene.scale = 10.;
     Scene scene;
 
 //    gen(scene, 1, 0.1);

@@ -10,13 +10,13 @@ using namespace std;
 Scene::Scene() {
     osg.reset(new OSGInstance());
     bullet.reset(new BulletInstance());
-    bullet->setGravity(CFG.bullet.gravity);
-    if (CFG.scene.enableRobot)
+    bullet->setGravity(CFG->bullet.gravity);
+    if (CFG->scene.enableRobot)
         rave.reset(new RaveInstance());
 
     env.reset(new Environment(bullet, osg));
 
-    if (CFG.scene.enableHaptics)
+    if (CFG->scene.enableHaptics)
         connectionInit(); // socket connection for haptics
 
     // populate the scene with some basic objects
@@ -25,13 +25,13 @@ Scene::Scene() {
     ground.reset(new PlaneStaticObject(btVector3(0., 0., 1.), 0., ms));
     env->add(ground);
 
-    if (CFG.scene.enableRobot) {
+    if (CFG->scene.enableRobot) {
       btTransform trans(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0));
-      pr2.reset(new RaveRobotKinematicObject(rave, "robots/pr2-beta-sim.robot.xml", trans, CFG.scene.scale));
+      pr2.reset(new RaveRobotKinematicObject(rave, "robots/pr2-beta-sim.robot.xml", trans, CFG->scene.scale));
       env->add(pr2);
     }
 
-    if (CFG.scene.enableIK) {
+    if (CFG->scene.enableIK) {
         pr2Left = pr2->createManipulator("leftarm");
         pr2Right = pr2->createManipulator("rightarm");
         env->add(pr2Left->grabber);
@@ -45,9 +45,9 @@ void Scene::startViewer() {
     bullet->dynamicsWorld->setDebugDrawer(dbgDraw.get());
     osg->root->addChild(dbgDraw->getSceneGraph());
 
-    viewer.setUpViewInWindow(0, 0, CFG.viewer.windowWidth, CFG.viewer.windowHeight);
+    viewer.setUpViewInWindow(0, 0, CFG->viewer.windowWidth, CFG->viewer.windowHeight);
     manip = new EventHandler(this);
-    manip->setHomePosition(util::toOSGVector(CFG.viewer.cameraHomePosition), osg::Vec3(), osg::Z_AXIS);
+    manip->setHomePosition(util::toOSGVector(CFG->viewer.cameraHomePosition), osg::Vec3(), osg::Z_AXIS);
     manip->state.debugDraw = true;
     viewer.setCameraManipulator(manip);
     viewer.setSceneData(osg->root.get());
@@ -78,14 +78,14 @@ void Scene::processHaptics() {
 }
 
 void Scene::step(float dt, int maxsteps, float internaldt) {
-    if (CFG.scene.enableHaptics)
+    if (CFG->scene.enableHaptics)
         processHaptics();
     env->step(dt, maxsteps, internaldt);
     draw();
 }
 
 void Scene::step(float dt) {
-    step(dt, CFG.bullet.maxSubSteps, CFG.bullet.internalTimeStep);
+    step(dt, CFG->bullet.maxSubSteps, CFG->bullet.internalTimeStep);
 }
 
 void Scene::draw() {
@@ -170,7 +170,7 @@ bool EventHandler::handle(const osgGA::GUIEventAdapter &ea, osgGA::GUIActionAdap
 
     case osgGA::GUIEventAdapter::DRAG:
         // drag the active grabber in the plane of view
-        if (CFG.scene.enableIK &&
+        if (CFG->scene.enableIK &&
               (ea.getButtonMask() & ea.LEFT_MOUSE_BUTTON) &&
               (state.moveGrabber0 || state.moveGrabber1)) {
             if (state.startDragging) {

@@ -9,8 +9,6 @@ using std::string;
 #include <boost/lexical_cast.hpp>
 using boost::lexical_cast;
 
-ConfigData Config::data;
-
 // custom parsers for vector datatypes
 static void validate(boost::any &v, const vector<string> &vals, btVector3 *, int) {
     if (vals.size() != 3)
@@ -32,8 +30,14 @@ static void validate(boost::any &v, const vector<string> &vals, osg::Vec3 *, int
 }
 #endif
 
+// static ConfigData* ConfigData::Inst() {
+//   if (instancePtr == NULL) instancePtr = new ConfigData();
+//   return instancePtr;
+// }
+
 ConfigData::ConfigData() {
     opts.add_options()
+    ("help", "produce help message")
         OPT(verbose, bool, false, "verbose")
         OPT_MULTI(bullet.gravity, btVector3, btVector3(0., 0., -9.8), "gravity")
         OPT(bullet.maxSubSteps, int, 200, "maximum Bullet internal substeps per simulation step")
@@ -59,3 +63,5 @@ void ConfigData::read(int argc, char *argv[]) {
     }
     po::notify(vm);
 }
+
+ConfigData* ConfigData::instancePtr = NULL;

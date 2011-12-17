@@ -10,8 +10,8 @@ using boost::shared_ptr;
 using namespace std;
 
 int main(int argc, char* argv[]) {
-  Config::read(argc, argv);
-  CFG.scene.enableIK = CFG.scene.enableHaptics = CFG.scene.enableRobot = false;
+  CFG->read(argc, argv);
+  CFG->scene.enableIK = CFG->scene.enableHaptics = CFG->scene.enableRobot = false;
   Scene s;
 
   if (argc < 2) {

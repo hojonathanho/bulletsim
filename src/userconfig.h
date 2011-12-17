@@ -30,11 +30,18 @@ namespace po = boost::program_options;
  *    (Note: the only type of vector supported is btVector3.)
  *
  * 3. Then elsewhere in the program, you can access your option as:
- *        CFG.mysection.myoption
+ *        CFG->mysection.myoption
  */
 
 struct ConfigData {
     bool verbose;
+  static ConfigData* instancePtr;
+
+ static ConfigData* Inst() {
+   if (instancePtr == NULL) instancePtr = new ConfigData();
+   return instancePtr;
+ }
+
 
     struct {
         btVector3 gravity;
@@ -63,11 +70,6 @@ struct ConfigData {
   void read(int argc, char *argv[]);
 };
 
-struct Config {
-    static ConfigData data;
-};
-
-// convenience macros
-#define CFG (Config::data)
+#define CFG ConfigData::Inst()
 
 #endif // __USERCONFIG_H__

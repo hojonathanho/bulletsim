@@ -3,12 +3,12 @@
 
 int main(int argc, char *argv[]) {
     // first read the configuration from the user
-    Config::read(argc, argv);
+    CFG->read(argc, argv);
 
     // and override config values to what we want
-    CFG.scene.enableIK = true;
-    CFG.scene.enableRobot = true;
-    CFG.scene.enableHaptics = true;
+    CFG->scene.enableIK = true;
+    CFG->scene.enableRobot = true;
+    CFG->scene.enableHaptics = true;
 
     // construct the scene
     Scene scene;

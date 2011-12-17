@@ -3,10 +3,10 @@
 #include <boost/thread/thread.hpp>
 
 int main(int argc, char *argv[]) {
-    Config::read(argc, argv);
-    CFG.scene.enableIK = false;
-    CFG.scene.enableHaptics = false;
-    CFG.scene.enableRobot = false;
+    CFG->read(argc, argv);
+    CFG->scene.enableIK = false;
+    CFG->scene.enableHaptics = false;
+    CFG->scene.enableRobot = false;
 
     Scene scene;
 
@@ -29,7 +29,7 @@ int main(int argc, char *argv[]) {
     // 1 second after, fork the environment and apply a force to the copied sphere
 
     BulletInstance::Ptr bullet2(new BulletInstance);
-    bullet2->setGravity(CFG.bullet.gravity);
+    bullet2->setGravity(CFG->bullet.gravity);
     OSGInstance::Ptr osg2(new OSGInstance);
     scene.osg->root->addChild(osg2->root.get());
     Environment::Fork::Ptr fork = scene.env->fork(bullet2, osg2);
@@ -37,7 +37,7 @@ int main(int argc, char *argv[]) {
     SphereObject::Ptr sphere2 = boost::static_pointer_cast<SphereObject> (fork->forkOf(sphere));
     sphere2->rigidBody->applyCentralForce(btVector3(0, 50, 0));
     for ( ; i < 1000; ++i) {
-        fork->env->step(dt, CFG.bullet.maxSubSteps, CFG.bullet.internalTimeStep);
+        fork->env->step(dt, CFG->bullet.maxSubSteps, CFG->bullet.internalTimeStep);
         scene.step(dt);
         boost::this_thread::sleep(boost::posix_time::milliseconds(dt*1000));
     }

@@ -8,7 +8,7 @@ using namespace OpenRAVE;
 RaveInstance::RaveInstance() {
     RaveInitialize(true);
     env = RaveCreateEnvironment();
-    if (CFG.verbose)
+    if (CFG->verbose)
         RaveSetDebugLevel(Level_Debug);
 }
 
