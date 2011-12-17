@@ -33,8 +33,6 @@ static void validate(boost::any &v, const vector<string> &vals, osg::Vec3 *, int
 #endif
 
 ConfigData::ConfigData() {
-#define OPT(name, type, defaultVal, desc) ((#name), po::value<type>(&(name))->default_value(defaultVal), (desc))
-#define OPT_MULTI(name, type, defaultVal, desc) ((#name), po::value<type>(&(name))->default_value(defaultVal)->multitoken(), (desc))
     opts.add_options()
         OPT(verbose, bool, false, "verbose")
         OPT_MULTI(bullet.gravity, btVector3, btVector3(0., 0., -9.8), "gravity")
@@ -49,17 +47,14 @@ ConfigData::ConfigData() {
         OPT_MULTI(viewer.cameraHomePosition, btVector3, btVector3(5, 0, 5), "camera position on startup")
         OPT(viewer.windowWidth, int, 800, "viewer window width")
         OPT(viewer.windowHeight, int, 800, "viewer window height");
-#undef OPT_MULTI
-#undef OPT
-
 }
 
-void Config::read(int argc, char *argv[]) {
+void ConfigData::read(int argc, char *argv[]) {
     po::variables_map vm;
-    po::store(po::parse_command_line(argc, argv, data.opts), vm);
+    po::store(po::parse_command_line(argc, argv, opts), vm);
     if (vm.count("help")) {
       std::cout << "usage: "<< argv[0] << " [options]" << std::endl;
-      std::cout << data.opts << std::endl;
+      std::cout << opts << std::endl;
       exit(0);
     }
     po::notify(vm);

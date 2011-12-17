@@ -3,9 +3,12 @@
 
 #include <boost/program_options.hpp>
 namespace po = boost::program_options;
-
 #include <LinearMath/btVector3.h>
 #include <osg/Vec3>
+
+#define OPT(name, type, defaultVal, desc) ((#name), po::value<type>(&(name))->default_value(defaultVal), (desc))
+#define OPT_MULTI(name, type, defaultVal, desc) ((#name), po::value<type>(&(name))->default_value(defaultVal)->multitoken(), (desc))
+
 
 /* HOW TO USE THIS:
  *
@@ -57,11 +60,11 @@ struct ConfigData {
     ConfigData();
     void loadFromMap(const po::variables_map &vm);
     po::options_description opts;
+  void read(int argc, char *argv[]);
 };
 
 struct Config {
     static ConfigData data;
-    static void read(int argc, char *argv[]);
 };
 
 // convenience macros

@@ -43,3 +43,6 @@ endif(BUILD_PERCEPTION)
 
 add_executable(test_fork test_fork.cpp)
 target_link_libraries(test_fork simulation)
+
+add_executable(test_subclass_config test_subclass_config.cpp)
+target_link_libraries(test_subclass_config simulation)
