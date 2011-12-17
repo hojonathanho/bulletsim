@@ -33,6 +33,26 @@ PlotPoints::Ptr targpts;
 
 const float METERS = 10;
 
+
+struct MyConfigData : public ConfigData {
+  float atob;
+  float btoa;
+
+  MyConfigData() {
+    opts.add_options()
+      OPT(atob, float, 1, "force multiplier from model to observation")
+      OPT(btoa, float, 1, "force multiplier from observation to model");
+  }
+};
+
+static MyConfigData* mcfg;
+MyConfigData* getMyConfigData() {
+  if (mcfg==NULL) mcfg = new MyConfigData;
+  return mcfg;
+}
+#define CFG2 getMyConfigData()
+
+
 template<class T, class S>
 vector<T> operator*(vector<T>& xs, S p) {
   vector<T> ys;
@@ -47,8 +67,6 @@ struct EndInfo {
   bool active0;
   bool active1;
 };
-
-
 
 void verts2boxPars(const vector<btVector3>& verts, btVector3& halfExtents, btVector3& origin, btScalar thickness) {
   origin = (verts[0] + verts[2])/2;
@@ -88,6 +106,9 @@ void calcOptImpulses(const vector<btVector3>& ctrlPts, const vector<btVector3>& 
   vector<btVector3> plot_srcs;
   vector<btVector3> plot_targs;
 
+  float atob = CFG2->atob;
+  float btoa = CFG2->btoa;
+
   int nRope = ctrlPts.size();
   forces.resize(nRope);
   //cout << "sizes: " << occs.size() << " " << nRope << endl;
@@ -96,7 +117,7 @@ void calcOptImpulses(const vector<btVector3>& ctrlPts, const vector<btVector3>& 
     if (!occs[i_rope]) {
     btVector3 cloud_pt = pointCloud[indRope2Kin[i_rope]];
     btVector3 rope_pt = ctrlPts[i_rope];
-    forces[i_rope] = (cloud_pt - rope_pt);
+    forces[i_rope] = atob*(cloud_pt - rope_pt);
     plot_srcs.push_back(rope_pt);
     plot_targs.push_back(cloud_pt);}
   }
@@ -106,7 +127,7 @@ void calcOptImpulses(const vector<btVector3>& ctrlPts, const vector<btVector3>& 
     int i_rope = indKin2Rope[i_cloud];
     btVector3 rope_pt = ctrlPts[i_rope];
     btVector3 cloud_pt = pointCloud[i_cloud];
-    forces[i_rope] += (cloud_pt - rope_pt);
+    forces[i_rope] += btoa*(cloud_pt - rope_pt);
     plot_srcs.push_back(rope_pt);
     plot_targs.push_back(cloud_pt);
   }
@@ -220,7 +241,9 @@ void updateEnds(const string jsonfile, btDynamicsWorld* world, EndInfo& endinfo,
 
 
   int main(int argc, char *argv[]) {
-
+    CFG2->read(argc,argv);
+    CFG2->scene.enableIK = CFG2->scene.enableHaptics = CFG2->scene.enableRobot = false;
+    setConfigData(CFG2);
 
     string first_rope = comm::listenOnce("first_rope.txt");
     string first_ends = comm::listenOnce("first_ends.txt");
@@ -310,8 +333,6 @@ void updateEnds(const string jsonfile, btDynamicsWorld* world, EndInfo& endinfo,
     shared_ptr<BulletObject> table(new BoxObject(0,halfExtents*METERS,ms));
     Scene s;
 
-    Config::read(argc, argv);
-    CFG.scene.enableIK = CFG.scene.enableHaptics = CFG.scene.enableRobot = false;
 
     //s.manip->state.debugDraw = false;
     PlotPoints::Ptr plot(new PlotPoints());

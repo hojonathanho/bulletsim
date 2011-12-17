@@ -35,12 +35,7 @@ namespace po = boost::program_options;
 
 struct ConfigData {
     bool verbose;
-  static ConfigData* instancePtr;
 
- static ConfigData* Inst() {
-   if (instancePtr == NULL) instancePtr = new ConfigData();
-   return instancePtr;
- }
 
 
     struct {
@@ -70,6 +65,9 @@ struct ConfigData {
   void read(int argc, char *argv[]);
 };
 
-#define CFG ConfigData::Inst()
+ConfigData* getConfigData();
+void setConfigData(ConfigData*);
+
+#define CFG getConfigData()
 
 #endif // __USERCONFIG_H__

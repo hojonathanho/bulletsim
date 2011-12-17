@@ -64,4 +64,15 @@ void ConfigData::read(int argc, char *argv[]) {
     po::notify(vm);
 }
 
-ConfigData* ConfigData::instancePtr = NULL;
+static ConfigData* cfg;
+ConfigData* getConfigData()
+{
+  if (cfg==NULL) cfg = new ConfigData;
+  return cfg;
+}
+void setConfigData(ConfigData* newcfg) 
+{
+  cfg = newcfg;
+}
+
+
