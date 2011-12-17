@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <string>
+#include <iostream>
 using std::vector;
 using std::string;
 
@@ -56,5 +57,10 @@ ConfigData::ConfigData() {
 void Config::read(int argc, char *argv[]) {
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, data.opts), vm);
+    if (vm.count("help")) {
+      std::cout << "usage: "<< argv[0] << " [options]" << std::endl;
+      std::cout << data.opts << std::endl;
+      exit(0);
+    }
     po::notify(vm);
 }
