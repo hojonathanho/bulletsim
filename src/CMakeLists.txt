@@ -46,3 +46,6 @@ target_link_libraries(test_fork simulation)
 
 add_executable(test_subclass_config test_subclass_config.cpp userconfig.cpp)
 target_link_libraries(test_subclass_config ${BOOST_LIBRARIES})
+
+add_executable(test_shirt test_shirt.cpp)
+target_link_libraries(test_clothing simulation)
