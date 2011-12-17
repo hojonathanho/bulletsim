@@ -1,6 +1,7 @@
 #include <osg/Transform>
 #include <osg/Geometry>
 #include <osg/Geode>
+#include <osg/ShapeDrawable>
 #include <iostream>
 
 class SetColorsVisitor : public osg::NodeVisitor
@@ -8,10 +9,12 @@ class SetColorsVisitor : public osg::NodeVisitor
 
 public:
   osg::Vec4Array* colors;
+  osg::Vec4 color;
 
   SetColorsVisitor(float r, float g, float b, float a ) {
+    color = osg::Vec4(r,g,b,a);
     colors = new osg::Vec4Array;
-    colors->push_back(osg::Vec4(r,g,b,a));
+    colors->push_back(color);
     setTraversalMode(osg::NodeVisitor::TRAVERSE_ALL_CHILDREN );
   }
 
@@ -28,5 +31,11 @@ protected:
       geom->setColorArray(colors); 
       geom->setColorBinding(osg::Geometry::BIND_OVERALL); 
     }
+
+    osg::ShapeDrawable* sd = dynamic_cast<osg::ShapeDrawable*>(drawable);
+    if (sd != 0) {
+      sd->setColor(color);
+    }
+
   }
 };

@@ -101,11 +101,11 @@ template<class ChildType>
 class CompoundObject : public EnvironmentObject {
 protected:
     typedef std::vector<typename ChildType::Ptr> ChildVector;
-    ChildVector children;
-    ChildVector &getChildren() { return children; }
 
 public:
     typedef boost::shared_ptr<CompoundObject<ChildType> > Ptr;
+    ChildVector children;
+    ChildVector &getChildren() { return children; }
 
     CompoundObject() { }
     // copy constructor

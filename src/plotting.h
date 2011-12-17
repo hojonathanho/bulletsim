@@ -15,6 +15,7 @@
 
 class PlotObject : public EnvironmentObject {
 protected:
+  osg::Vec4 m_defaultColor;
   osg::ref_ptr<osg::Geometry> m_geom;
   osg::ref_ptr<osg::Geode> m_geode;
   osg::ref_ptr<osg::StateSet> m_stateset;
@@ -29,6 +30,7 @@ public:
   void prePhysics(){}// no physics
   void preDraw(){};//{ m_geode->setStateSet(m_stateset);}
   void destroy(){} 
+  void setDefaultColor(float r, float g, float b, float a);
 };
 
 

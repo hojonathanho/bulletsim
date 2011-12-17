@@ -10,11 +10,16 @@ using namespace std;
 
 // based on galaxy example in osg docs
 
+void PlotObject::setDefaultColor(float r, float g, float b, float a) {
+  m_defaultColor = osg::Vec4(r,g,b,a);
+}
+
 
 PlotPoints::PlotPoints(float size) {
   m_geode = new osg::Geode();
   m_geom = new osg::Geometry();
   m_geode->addDrawable(m_geom);
+  setDefaultColor(1,1,1,1);
 
   osg::ref_ptr<osg::StateSet> m_stateset = new osg::StateSet();
   osg::Point *point = new osg::Point();
@@ -32,8 +37,8 @@ void PlotPoints::setPoints(const osg::ref_ptr<osg::Vec3Array>& osgPts, const osg
   m_geom->getPrimitiveSetList().clear();
   m_geom->addPrimitiveSet(new osg::DrawArrays(osg::PrimitiveSet::POINTS,0,nPts));
 
-
 }
+
 
 
 #if BUILD_PERCEPTION
@@ -55,12 +60,14 @@ void PlotPoints::setPoints(const vector<btVector3>& pts) {
   for (int i = 0; i < pts.size(); i++) {
     btVector3 pt = pts[i];
     osgPts->push_back(osg::Vec3(pt.getX(),pt.getY(),pt.getZ()));
-    osgCols->push_back(osg::Vec4(1,0,0,1));
+    osgCols->push_back(m_defaultColor);
   }
   setPoints(osgPts,osgCols);
 }
 
 PlotLines::PlotLines(float width) {
+  setDefaultColor(1,1,1,1);
+
   m_geode = new osg::Geode();
   m_geom = new osg::Geometry();
   m_geode->addDrawable(m_geom);
@@ -83,7 +90,7 @@ void PlotLines::setPoints(const vector<btVector3>& pts1, const vector<btVector3>
     btVector3 pt2 = pts2[i];
     osgPts->push_back(osg::Vec3(pt1.getX(),pt1.getY(),pt1.getZ()));
     osgPts->push_back(osg::Vec3(pt2.getX(),pt2.getY(),pt2.getZ()));
-    osgCols->push_back(osg::Vec4(0,0,1,1));
+    osgCols->push_back(m_defaultColor);
   }
   setPoints(osgPts,osgCols);
 }

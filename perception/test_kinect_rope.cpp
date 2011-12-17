@@ -90,7 +90,7 @@ void calcOptImpulses(const vector<btVector3>& ctrlPts, const vector<btVector3>& 
 
   int nRope = ctrlPts.size();
   forces.resize(nRope);
-  cout << "sizes: " << occs.size() << " " << nRope << endl;
+  //cout << "sizes: " << occs.size() << " " << nRope << endl;
   assert(occs.size() == nRope);
   for (int i_rope=0; i_rope < nRope; i_rope++) {
     if (!occs[i_rope]) {
@@ -106,7 +106,7 @@ void calcOptImpulses(const vector<btVector3>& ctrlPts, const vector<btVector3>& 
     int i_rope = indKin2Rope[i_cloud];
     btVector3 rope_pt = ctrlPts[i_rope];
     btVector3 cloud_pt = pointCloud[i_cloud];
-    forces[i_rope] += cloud_pt - rope_pt;
+    forces[i_rope] += (cloud_pt - rope_pt);
     plot_srcs.push_back(rope_pt);
     plot_targs.push_back(cloud_pt);
   }
@@ -202,8 +202,8 @@ void updateEnds(const string jsonfile, btDynamicsWorld* world, EndInfo& endinfo,
 
   //hack to deal with case where we get an erroneous constraint
 
-  if (pivot0.getZ()/METERS > 1.1) newActive0 = false;
-  if (pivot1.getZ()/METERS > 1.1) newActive1 = false;
+  if (pivot0.getZ()/METERS > 1.1 || !isfinite(pivot0.getZ())) newActive0 = false;
+  if (pivot1.getZ()/METERS > 1.1 || !isfinite(pivot0.getZ())) newActive1 = false;
 
   cout << newActive0 QQ newActive1 QQ oldActive0 QQ oldActive1 << endl;
 
@@ -302,6 +302,10 @@ void updateEnds(const string jsonfile, btDynamicsWorld* world, EndInfo& endinfo,
     // /////////////// put stuf into scene //////////////////
 
     shared_ptr<CapsuleRope> ropePtr(new CapsuleRope(ropePts*METERS,.0075*METERS));
+    vector<BulletObject::Ptr> children =  ropePtr->getChildren();
+
+
+
     shared_ptr<btDefaultMotionState> ms(new btDefaultMotionState(btTransform(btQuaternion(0,0,0,1),origin*METERS)));
     shared_ptr<BulletObject> table(new BoxObject(0,halfExtents*METERS,ms));
     Scene s;
@@ -317,7 +321,9 @@ void updateEnds(const string jsonfile, btDynamicsWorld* world, EndInfo& endinfo,
     s.env->add(table);
     s.env->add(ropePtr);
     forcelines.reset(new PlotLines(3));
+    forcelines->setDefaultColor(0,0,1,1);
     targpts.reset(new PlotPoints(20));
+    targpts->setDefaultColor(0,0,1,.5);
     s.env->add(forcelines);
     s.env->add(targpts);
 
@@ -365,15 +371,17 @@ void updateEnds(const string jsonfile, btDynamicsWorld* world, EndInfo& endinfo,
       for (int i=0; i < 20; i++) {
 
 	vector<bool> occs = checkOccluded(centers,cloud,cam2world);
+	vector<BulletObject::Ptr> children =  ropePtr->getChildren();
+	for (int j=0; j<occs.size(); j++) {
+	  if (occs[j]) children[j]->setColor(0,0,0,1);
+	  else children[j]->setColor(1,1,1,1);
+	}
 
 
 
 	ropePtr->getPts(centers);
-
 	calcOptImpulses(centers, ropePts, forces,occs);
-
-	applyImpulses(ropePtr->bodies, forces, .25);
-
+	applyImpulses(ropePtr->bodies, forces, .2);
 	s.step(.01,1,.01);
 
 
