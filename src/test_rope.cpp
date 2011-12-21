@@ -52,7 +52,7 @@ int main(int argc, char *argv[]) {
   Grab g2;
 
   s.startViewer();
-  s.setTimeSync(false);
+  s.setSyncTime(true);
   for (int i=0; i < joints.size() && !s.viewer.done(); i++) {
     cout << i << endl;
     vector<double> joint = joints[i];

@@ -30,6 +30,6 @@ int main(int argc, char *argv[]) {
     gen(scene, 5, 30);
 
     scene.startViewer();
-    scene.viewerLoop();
+    scene.startLoop();
     return 0;
 }

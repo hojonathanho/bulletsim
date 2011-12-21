@@ -43,7 +43,7 @@ struct Scene {
 
   bool drawingOn, syncTime;
   void setDrawing(bool b) { drawingOn = b; }
-  void setTimeSync(bool b) { syncTime = b; }
+  void setSyncTime(bool b) { syncTime = b; }
   // Starts the viewer. Must be called before any step/draw/viewerLoop call
   // and after adding objects to the environment
   void startViewer();
