@@ -44,6 +44,7 @@ ConfigData::ConfigData() {
         OPT(scene.enableHaptics, bool, false, "enable haptics for the PR2")
         OPT(scene.enableRobot, bool, true, "enable the PR2")
         OPT(scene.scale, btScalar, 1.0, "scaling factor (1 = 1 meter)")
+        OPT(scene.mouseDragScale, btScalar, 1.0, "scaling factor for mouse control for IK")
 
         OPT_MULTI(viewer.cameraHomePosition, btVector3, btVector3(5, 0, 5), "camera position on startup")
         OPT(viewer.windowWidth, int, 800, "viewer window width")

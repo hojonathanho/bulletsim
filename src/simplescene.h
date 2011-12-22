@@ -67,7 +67,8 @@ struct Scene {
       bool looping, paused;
   } loopState;
   // Starts a viewer loop and blocks the caller.
-  void startLoop();
+  void startLoop(); // runs with a variable-rate dt that depends on the system speed
+  void startFixedTimestepLoop(float dt); // runs with constant dt
   void stopLoop();
   // If the display is on, this will pause the simulation
   // while allowing the user to interact with the viewer.

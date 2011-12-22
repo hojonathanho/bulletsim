@@ -3,6 +3,8 @@
 #include "userconfig.h"
 #include <BulletSoftBody/btSoftBodyHelpers.h>
 
+const float clothMargin = 0.2;
+
 class GripperAction : public Action {
     RaveRobotKinematicObject::Ptr robot;
     const float time;
@@ -19,7 +21,7 @@ public:
         indices.push_back(idx);
         vals.push_back(0);
     }
-    void setVals(dReal start, dReal end) { startVal = start; endVal = end; }
+    void setEndpoints(dReal start, dReal end) { startVal = start; endVal = end; }
 
     void step(float dt) {
         if (timeElapsed >= time) {
@@ -34,48 +36,63 @@ public:
     }
 };
 
-void createCloth(Scene &scene, btScalar s, btScalar z, int divs) {
-    btSoftBody *psb = btSoftBodyHelpers::CreatePatch(scene.env->bullet->softBodyWorldInfo,
-        btVector3(-s,-s,z),
-        btVector3(+s,-s,z),
-        btVector3(-s,+s,z),
-        btVector3(+s,+s,z),
+BulletSoftObject::Ptr createCloth(Scene &scene, btScalar s, const btVector3 &center, int divs) {
+    btSoftBody *psb = btSoftBodyHelpers::CreatePatch(
+        scene.env->bullet->softBodyWorldInfo,
+        center + btVector3(-s,-s,0),
+        center + btVector3(+s,-s,0),
+        center + btVector3(-s,+s,0),
+        center + btVector3(+s,+s,0),
         divs, divs,
-        0/*1+2+4+8*/, true);
+        0, true);
 
-    psb->m_cfg.piterations = 2;
-    psb->getCollisionShape()->setMargin(0.2);
+    psb->m_cfg.piterations = 8;
+    psb->getCollisionShape()->setMargin(clothMargin);
     btSoftBody::Material* pm=psb->appendMaterial();
-    pm->m_kLST		=	0.4;
+    pm->m_kLST		=	0.1;
     psb->generateBendingConstraints(2, pm);
     psb->setTotalMass(150);
-    //psb->createClotherateClusters(1024);
+    //psb->generateClusters(1024);
     //psb->m_cfg.collisions = btSoftBody::fCollision::CL_SS + btSoftBody::fCollision::CL_RS;// + btSoftBody::fCollision::CL_SELF;
 
-    scene.env->add(BulletSoftObject::Ptr(new BulletSoftObject(psb)));
+    return BulletSoftObject::Ptr(new BulletSoftObject(psb));
 }
 
 int main(int argc, char *argv[]) {
     Config::read(argc, argv);
-    CFG.scene.scale = 10.;
-    Scene scene;
+    CFG.scene.scale = 20.;
 
-    //createCloth(scene, 5, 30, 40);
+    const float table_height = .5;
+    const float table_thickness = .05;
+    boost::shared_ptr<btDefaultMotionState> ms(new btDefaultMotionState(
+        btTransform(btQuaternion(0, 0, 0, 1),
+                    CFG.scene.scale * btVector3(1, 0, table_height-table_thickness/2))));
+    boost::shared_ptr<BulletObject> table(
+        new BoxObject(0, CFG.scene.scale * btVector3(.75,.75,table_thickness/2),ms));
 
-    scene.startViewer();
+    Scene s;
+    s.env->add(table);
+    s.env->add(createCloth(s, CFG.scene.scale * 0.25, CFG.scene.scale * btVector3(0.75, 0, 1.5), 40));
+
+    s.startViewer();
+    //s.setSyncTime(true);
 
     // open gripper
     const float dt = 0.01f;
-    scene.stepFor(dt, 2);
+    //CFG.scene.mouseDragScale = 0.1;
+    CFG.bullet.internalTimeStep = dt;
+    CFG.bullet.maxSubSteps = 0;
+    s.stepFor(dt, 2);
 
-    GripperAction leftAction(scene.pr2, "l_gripper_l_finger_joint", 1);
-    leftAction.setVals(0, .54);
-    scene.runAction(leftAction, dt);
+    GripperAction leftAction(s.pr2, "l_gripper_l_finger_joint", 1);
+    leftAction.setEndpoints(0, .54); // .54 is the max joint value for the pr2
+    s.runAction(leftAction, dt);
 
-    GripperAction rightAction(scene.pr2, "r_gripper_l_finger_joint", 1);
-    rightAction.setVals(0, .54);
-    scene.runAction(rightAction, dt);
+    GripperAction rightAction(s.pr2, "r_gripper_l_finger_joint", 1);
+    rightAction.setEndpoints(0, .54);
+    s.runAction(rightAction, dt);
 
-    scene.startLoop();
+    s.startLoop();
+    //s.startFixedTimestepLoop(dt);
     return 0;
 }

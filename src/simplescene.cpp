@@ -51,7 +51,6 @@ void Scene::startViewer() {
     viewer.setUpViewInWindow(0, 0, CFG.viewer.windowWidth, CFG.viewer.windowHeight);
     manip = new EventHandler(this);
     manip->setHomePosition(util::toOSGVector(CFG.viewer.cameraHomePosition), osg::Vec3(), osg::Z_AXIS);
-    manip->state.debugDraw = true;
     viewer.setCameraManipulator(manip);
     viewer.setSceneData(osg->root.get());
     viewer.realize();
@@ -142,6 +141,12 @@ void Scene::startLoop() {
         loopState.prevTime = loopState.currTime;
     }
     syncTime = oldSyncTime;
+}
+
+void Scene::startFixedTimestepLoop(float dt) {
+    loopState.looping = true;
+    while (loopState.looping && drawingOn && !viewer.done())
+        step(dt);
 }
 
 void Scene::stopLoop() {
@@ -236,8 +241,8 @@ bool EventHandler::handle(const osgGA::GUIEventAdapter &ea, osgGA::GUIActionAdap
             if (state.startDragging) {
                 dx = dy = 0;
             } else {
-                dx = lastX - ea.getXnormalized();
-                dy = ea.getYnormalized() - lastY;
+                dx = CFG.scene.mouseDragScale * (lastX - ea.getXnormalized());
+                dy = CFG.scene.mouseDragScale * (ea.getYnormalized() - lastY);
             }
             lastX = ea.getXnormalized(); lastY = ea.getYnormalized();
             state.startDragging = false;
