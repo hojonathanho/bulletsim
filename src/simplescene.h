@@ -17,7 +17,11 @@ protected:
 public:
   EventHandler(Scene *scene_) : scene(scene_), state() {}
   struct {
-    bool debugDraw, moveGrabber0, moveGrabber1, startDragging, idling;
+    bool debugDraw,
+         moveGrabber0, moveGrabber1,
+         rotateGrabber0, rotateGrabber1,
+         startDragging,
+         idling;
   } state;
   bool handle(const osgGA::GUIEventAdapter &ea, osgGA::GUIActionAdapter &aa);
 };

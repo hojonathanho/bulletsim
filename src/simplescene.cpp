@@ -192,7 +192,7 @@ bool EventHandler::handle(const osgGA::GUIEventAdapter &ea, osgGA::GUIActionAdap
     case osgGA::GUIEventAdapter::KEYDOWN:
         switch (ea.getKey()) {
         case 'd':
-	        state.debugDraw = !state.debugDraw;
+            state.debugDraw = !state.debugDraw;
             scene->dbgDraw->setEnabled(state.debugDraw);
             break;
         case 'p':
@@ -202,6 +202,10 @@ bool EventHandler::handle(const osgGA::GUIEventAdapter &ea, osgGA::GUIActionAdap
             state.moveGrabber0 = true; break;
         case '2':
             state.moveGrabber1 = true; break;
+        case 'q':
+            state.rotateGrabber0 = true; break;
+        case 'w':
+            state.rotateGrabber1 = true; break;
       }
       break;
 
@@ -211,6 +215,10 @@ bool EventHandler::handle(const osgGA::GUIEventAdapter &ea, osgGA::GUIActionAdap
             state.moveGrabber0 = false; break;
         case '2':
             state.moveGrabber1 = false; break;
+        case 'q':
+            state.rotateGrabber0 = false; break;
+        case 'w':
+            state.rotateGrabber1 = false; break;
         }
         break;
 
@@ -223,7 +231,8 @@ bool EventHandler::handle(const osgGA::GUIEventAdapter &ea, osgGA::GUIActionAdap
         // drag the active grabber in the plane of view
         if (CFG.scene.enableIK &&
               (ea.getButtonMask() & ea.LEFT_MOUSE_BUTTON) &&
-              (state.moveGrabber0 || state.moveGrabber1)) {
+              (state.moveGrabber0 || state.moveGrabber1 ||
+               state.rotateGrabber0 || state.rotateGrabber1)) {
             if (state.startDragging) {
                 dx = dy = 0;
             } else {
@@ -242,23 +251,37 @@ bool EventHandler::handle(const osgGA::GUIEventAdapter &ea, osgGA::GUIActionAdap
   
             // compute basis vectors for the plane of view
             // (the plane normal to the ray from the camera to the center of the scene)
-            btVector3 normal = to - from; normal.normalize();
-            up = (up.dot(-normal))*normal + up; up.normalize(); //FIXME: is this necessary with osg?
-            btVector3 xDisplacement = normal.cross(up) * dx;
-            btVector3 yDisplacement = up * dy;
+            btVector3 normal = (to - from).normalized();
+            btVector3 yVec = (up - (up.dot(normal))*normal).normalized(); //FIXME: is this necessary with osg?
+            btVector3 xVec = normal.cross(yVec);
 
             // now set the position of the grabber
+            RaveRobotKinematicObject::Manipulator::Ptr manip;
+            if (state.moveGrabber0 || state.rotateGrabber0)
+                manip = scene->pr2Left;
+            else
+                manip = scene->pr2Right;
+
             btTransform origTrans;
-            if (state.moveGrabber0)
-                scene->pr2Left->grabber->motionState->getWorldTransform(origTrans);
-            else
-                scene->pr2Right->grabber->motionState->getWorldTransform(origTrans);
+            manip->grabber->motionState->getWorldTransform(origTrans);
             btTransform newTrans(origTrans);
-            newTrans.setOrigin(origTrans.getOrigin() + xDisplacement + yDisplacement);
-            if (state.moveGrabber0)
-                scene->pr2Left->moveByIK(newTrans);
-            else
-                scene->pr2Right->moveByIK(newTrans);
+
+            if (state.moveGrabber0 || state.moveGrabber1)
+                // if moving the grabber, just set the origin appropriately
+                newTrans.setOrigin(dx*xVec + dy*yVec + origTrans.getOrigin());
+            else if (state.rotateGrabber0 || state.rotateGrabber1) {
+                // if we're rotating, the axis is perpendicular to the
+                // direction the mouse is dragging
+                btVector3 axis = normal.cross(dx*xVec + dy*yVec);
+                btScalar angle = sqrt(dx*dx + dy*dy);
+                btQuaternion rot(axis, angle);
+                // we must ensure that we never get a bad rotation quaternion
+                // due to really small (effectively zero) mouse movements
+                // this is the easiest way to do this:
+                if (rot.length() > 0.99f && rot.length() < 1.01f)
+                    newTrans.setRotation(rot * origTrans.getRotation());
+            }
+            manip->moveByIK(newTrans);
         } else {
             // if not dragging, we want the camera to move
             return osgGA::TrackballManipulator::handle(ea, aa);
