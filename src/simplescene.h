@@ -50,7 +50,6 @@ struct Scene {
 
   // Steps physics and updates the display (if displayOn is true)
   // If syncTime is true, then these will block until the time interval passes on the system clock
-  void preStep();
   void step(float dt, int maxsteps, float internaldt);
   void step(float dt);
   void stepFor(float dt, float time);

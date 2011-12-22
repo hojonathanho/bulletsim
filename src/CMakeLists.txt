@@ -28,6 +28,9 @@ target_link_libraries(simplescene_test simulation)
 add_executable(softbody_test softbody_test.cpp)
 target_link_libraries(softbody_test simulation)
 
+add_executable(test_cloth_grasping test_cloth_grasping.cpp)
+target_link_libraries(test_cloth_grasping simulation)
+
 #add_executable(test_playback_joints test_playback_joints.cpp)
 #target_link_libraries(test_playback_joints simulation)
 
