@@ -1,6 +1,7 @@
 #include "softbodies.h"
 #include "util.h"
 
+#include <osg/LightModel>
 #include <BulletSoftBody/btSoftBodyHelpers.h>
 #include <osgbCollision/Utils.h>
 
@@ -19,6 +20,11 @@ void BulletSoftObject::init() {
 
     osg::ref_ptr<osg::Geode> geode = new osg::Geode;
     geode->addDrawable(geom);
+
+    osg::ref_ptr<osg::LightModel> lightModel = new osg::LightModel;
+    lightModel->setTwoSided(true);
+    geode->getOrCreateStateSet()->setAttributeAndModes(lightModel.get(), osg::StateAttribute::ON);
+
     transform = new osg::MatrixTransform;
     transform->addChild(geode);
     getEnvironment()->osg->root->addChild(transform);
