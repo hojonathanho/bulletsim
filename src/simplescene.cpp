@@ -45,6 +45,7 @@ void Scene::startViewer() {
 
     dbgDraw.reset(new osgbCollision::GLDebugDrawer());
     dbgDraw->setDebugMode(btIDebugDraw::DBG_MAX_DEBUG_DRAW_MODE /*btIDebugDraw::DBG_DrawWireframe*/);
+    dbgDraw->setEnabled(false);
     bullet->dynamicsWorld->setDebugDrawer(dbgDraw.get());
     osg->root->addChild(dbgDraw->getSceneGraph());
 
