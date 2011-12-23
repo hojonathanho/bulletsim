@@ -3,8 +3,6 @@
 #include "userconfig.h"
 #include <BulletSoftBody/btSoftBodyHelpers.h>
 
-const float clothMargin = 0.2;
-
 class GripperAction : public Action {
     RaveRobotKinematicObject::Ptr robot;
     const float time;
@@ -46,14 +44,19 @@ BulletSoftObject::Ptr createCloth(Scene &scene, btScalar s, const btVector3 &cen
         divs, divs,
         0, true);
 
-    psb->m_cfg.piterations = 8;
-    psb->getCollisionShape()->setMargin(clothMargin);
-    btSoftBody::Material* pm=psb->appendMaterial();
-    pm->m_kLST		=	0.1;
+    psb->m_cfg.piterations = 4;
+    psb->m_cfg.collisions = btSoftBody::fCollision::CL_SS
+        + btSoftBody::fCollision::CL_RS
+        + btSoftBody::fCollision::CL_SELF;
+    psb->m_cfg.kDF = 0.9;
+    psb->getCollisionShape()->setMargin(0.05);
+    btSoftBody::Material *pm = psb->appendMaterial();
+//    pm->m_kLST = 0.4;
+//    pm->m_kAST = 0.4;
     psb->generateBendingConstraints(2, pm);
-    psb->setTotalMass(150);
-    //psb->generateClusters(1024);
-    //psb->m_cfg.collisions = btSoftBody::fCollision::CL_SS + btSoftBody::fCollision::CL_RS;// + btSoftBody::fCollision::CL_SELF;
+    psb->randomizeConstraints();
+    psb->setTotalMass(1, true);
+    psb->generateClusters(0);
 
     return BulletSoftObject::Ptr(new BulletSoftObject(psb));
 }
@@ -72,7 +75,7 @@ int main(int argc, char *argv[]) {
 
     Scene s;
     s.env->add(table);
-    s.env->add(createCloth(s, CFG.scene.scale * 0.25, CFG.scene.scale * btVector3(0.75, 0, 1.5), 40));
+    s.env->add(createCloth(s, CFG.scene.scale * 0.25, CFG.scene.scale * btVector3(0.75, 0, 1), 31));
 
     s.startViewer();
     //s.setSyncTime(true);
@@ -92,7 +95,7 @@ int main(int argc, char *argv[]) {
     rightAction.setEndpoints(0, .54);
     s.runAction(rightAction, dt);
 
-    s.startLoop();
-    //s.startFixedTimestepLoop(dt);
+    //s.startLoop();
+    s.startFixedTimestepLoop(dt);
     return 0;
 }
