@@ -6,7 +6,6 @@
 int main(int argc, char **argv) {
     Config::read(argc, argv);
     CFG.scene.enableRobot = false;
-    CFG.scene.enableIK = false;
     Scene s;
     s.bullet->setGravity(btVector3(0, 0, 0));
 

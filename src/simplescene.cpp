@@ -31,7 +31,7 @@ Scene::Scene() {
       env->add(pr2);
     }
 
-    if (CFG.scene.enableIK) {
+    if (CFG.scene.enableIK && CFG.scene.enableRobot) {
         pr2Left = pr2->createManipulator("leftarm");
         pr2Right = pr2->createManipulator("rightarm");
         env->add(pr2Left->grabber);
@@ -58,6 +58,9 @@ void Scene::startViewer() {
 }
 
 void Scene::processHaptics() {
+    if (!CFG.scene.enableRobot)
+        return;
+
     // read the haptic controllers
     btTransform trans0, trans1;
     bool buttons0[2], buttons1[2];
@@ -235,7 +238,7 @@ bool EventHandler::handle(const osgGA::GUIEventAdapter &ea, osgGA::GUIActionAdap
 
     case osgGA::GUIEventAdapter::DRAG:
         // drag the active grabber in the plane of view
-        if (CFG.scene.enableIK &&
+        if (CFG.scene.enableRobot && CFG.scene.enableIK &&
               (ea.getButtonMask() & ea.LEFT_MOUSE_BUTTON) &&
               (state.moveGrabber0 || state.moveGrabber1 ||
                state.rotateGrabber0 || state.rotateGrabber1)) {
