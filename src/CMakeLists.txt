@@ -49,3 +49,6 @@ target_link_libraries(test_fork simulation)
 
 add_executable(test_action test_action.cpp)
 target_link_libraries(test_action simulation)
+
+add_executable(test_collision_detection test_collision_detection.cpp)
+target_link_libraries(test_collision_detection simulation)

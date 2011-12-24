@@ -30,6 +30,29 @@ void BulletInstance::setGravity(const btVector3 &gravity) {
     softBodyWorldInfo.m_gravity = gravity;
 }
 
+void BulletInstance::detectCollisions() {
+    dynamicsWorld->performDiscreteCollisionDetection();
+}
+
+void BulletInstance::contactTest(btCollisionObject *obj,
+                                CollisionObjectList &out,
+                                const CollisionObjectList *ignore) {
+    struct ContactCallback : public btCollisionWorld::ContactResultCallback {
+        const CollisionObjectList *ignore;
+        CollisionObjectList &out;
+        ContactCallback(const CollisionObjectList *ignore_, CollisionObjectList &out_) :
+            ignore(ignore_), out(out_) { }
+        btScalar addSingleResult(btManifoldPoint &,
+                                 const btCollisionObject *colObj0, int, int,
+                                 const btCollisionObject *colObj1, int, int) {
+            // linear search over ignore should be good enough
+            if (ignore && std::find(ignore->begin(), ignore->end(), colObj1) == ignore->end())
+                out.push_back(colObj1);
+        }
+    } cb(ignore, out);
+    dynamicsWorld->contactTest(obj, cb);
+}
+
 Environment::~Environment() {
     for (ObjectList::iterator i = objects.begin(); i != objects.end(); ++i)
         (*i)->destroy();

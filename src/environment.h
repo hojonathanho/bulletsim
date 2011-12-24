@@ -32,7 +32,14 @@ struct BulletInstance {
     ~BulletInstance();
 
     void setGravity(const btVector3 &gravity);
-    void reset();
+
+    // runs collision detection
+    void detectCollisions();
+
+    // Populates out with all objects colliding with obj, possibly ignoring some objects
+    // detectCollisions must be called before contactTest
+    typedef vector<const btCollisionObject *> CollisionObjectList;
+    void contactTest(btCollisionObject *obj, CollisionObjectList &out, const CollisionObjectList *ignore=NULL);
 };
 
 class Environment;
