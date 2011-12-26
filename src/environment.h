@@ -33,13 +33,11 @@ struct BulletInstance {
 
     void setGravity(const btVector3 &gravity);
 
-    // runs collision detection
-    void detectCollisions();
-
     // Populates out with all objects colliding with obj, possibly ignoring some objects
-    // detectCollisions must be called before contactTest
-    typedef vector<const btCollisionObject *> CollisionObjectList;
-    void contactTest(btCollisionObject *obj, CollisionObjectList &out, const CollisionObjectList *ignore=NULL);
+    // dynamicsWorld->updateAabbs() must be called before contactTest
+    // see http://bulletphysics.org/Bullet/phpBB3/viewtopic.php?t=4850
+    typedef std::set<const btCollisionObject *> CollisionObjectSet;
+    void contactTest(btCollisionObject *obj, CollisionObjectSet &out, const CollisionObjectSet *ignore=NULL);
 };
 
 class Environment;

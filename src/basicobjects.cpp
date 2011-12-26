@@ -143,7 +143,7 @@ void BulletObject::MoveAction::step(float dt) {
 
 BulletKinematicObject::BulletKinematicObject(boost::shared_ptr<btCollisionShape> collisionShape_, const btTransform &trans) {
     collisionShape = collisionShape_;
-    motionState.reset(new MotionState(trans));
+    motionState.reset(new MotionState(this, trans));
     
     // (the collisionShape is set by the constructor)
     // all kinematic objects have zero mass and inertia

@@ -65,9 +65,17 @@ public:
     // http://bulletphysics.org/mediawiki-1.5.8/index.php/MotionStates
     struct MotionState : public btDefaultMotionState {
         typedef boost::shared_ptr<MotionState> Ptr;
-        MotionState(const btTransform &trans) : btDefaultMotionState(trans) { }
+        BulletKinematicObject *obj;
+        MotionState(BulletKinematicObject *obj_, const btTransform &trans) :
+            obj(obj_), btDefaultMotionState(trans) { }
         void setWorldTransform(const btTransform &) { }
-        void setKinematicPos(const btTransform &pos) { btDefaultMotionState::setWorldTransform(pos); }
+        void setKinematicPos(const btTransform &pos) {
+            btDefaultMotionState::setWorldTransform(pos);
+
+            // if we want to do collision detection in between timesteps,
+            // we also have to directly set this
+            obj->rigidBody->setCenterOfMassTransform(pos);
+        }
     };
 
     BulletKinematicObject(boost::shared_ptr<btCollisionShape> collisionShape_, const btTransform &trans);

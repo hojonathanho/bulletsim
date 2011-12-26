@@ -29,6 +29,7 @@ Scene::Scene() {
       btTransform trans(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0));
       pr2.reset(new RaveRobotKinematicObject(rave, "robots/pr2-beta-sim.robot.xml", trans, CFG.scene.scale));
       env->add(pr2);
+      pr2->ignoreCollisionWith(ground->rigidBody.get()); // the robot's always touching the ground anyway
     }
 
     if (CFG.scene.enableIK && CFG.scene.enableRobot) {
@@ -68,14 +69,14 @@ void Scene::processHaptics() {
     if (!util::getHapticInput(trans0, buttons0, trans1, buttons1))
         return;
 
-    pr2Left->moveByIK(trans0);
+    pr2Left->moveByIK(trans0, true, true);
     if (buttons0[0] && !lastButton[0])
         pr2Left->grabber->grabNearestObjectAhead();
     else if (!buttons0[0] && lastButton[0])
         pr2Left->grabber->releaseConstraint();
     lastButton[0] = buttons0[0];
 
-    pr2Right->moveByIK(trans0);
+    pr2Right->moveByIK(trans0, true, true);
     if (buttons1[0] && !lastButton[1])
         pr2Right->grabber->grabNearestObjectAhead();
     else if (!buttons1[0] && lastButton[1])
@@ -290,7 +291,7 @@ bool EventHandler::handle(const osgGA::GUIEventAdapter &ea, osgGA::GUIActionAdap
                 if (rot.length() > 0.99f && rot.length() < 1.01f)
                     newTrans.setRotation(rot * origTrans.getRotation());
             }
-            manip->moveByIK(newTrans);
+            manip->moveByIK(newTrans, true, true);
         } else {
             // if not dragging, we want the camera to move
             return osgGA::TrackballManipulator::handle(ea, aa);
