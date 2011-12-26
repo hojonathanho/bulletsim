@@ -46,12 +46,10 @@ public:
     class MoveAction : public Action {
         BulletObject *obj;
         const btTransform start, end;
-        const float time;
-        float timeElapsed;
 
     public:
         typedef boost::shared_ptr<MoveAction> Ptr;
-        MoveAction(BulletObject *obj_, const btTransform &start_, const btTransform &end_, float time_) : obj(obj_), start(start_), end(end_), time(time_), timeElapsed(0.f) { }
+        MoveAction(BulletObject *obj_, const btTransform &start_, const btTransform &end_, float time) : obj(obj_), start(start_), end(end_), Action(time) { }
         void step(float dt);
     };
     MoveAction::Ptr createMoveAction(const btTransform &start, const btTransform &end, float time) { return MoveAction::Ptr(new MoveAction(this, start, end, time)); }

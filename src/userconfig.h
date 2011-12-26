@@ -35,6 +35,7 @@ struct ConfigData {
 
     struct {
         btVector3 gravity;
+        float dt;
         int maxSubSteps;
         float internalTimeStep;
     } bullet;

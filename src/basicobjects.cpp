@@ -128,17 +128,15 @@ BulletObject::BulletObject(const BulletObject &o) {
 }
 
 void BulletObject::MoveAction::step(float dt) {
-    timeElapsed += dt;
-    float a = timeElapsed / time;
+    if (done()) return;
+    stepTime(dt);
+    const float a = fracElapsed();
 
     // linear interpolation of pos
     btVector3 newpos = (1-a)*start.getOrigin() + a*end.getOrigin();
     btQuaternion newrot = start.getRotation().slerp(end.getRotation(), a);
     btTransform newtrans(newrot, newpos);
     obj->motionState->setWorldTransform(newtrans);
-
-    if (timeElapsed >= time)
-        setDone(true);
 }
 
 BulletKinematicObject::BulletKinematicObject(boost::shared_ptr<btCollisionShape> collisionShape_, const btTransform &trans) {

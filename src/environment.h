@@ -156,14 +156,21 @@ public:
 
 class Action {
 protected:
+    float timeElapsed;
+    const float totalTime;
     bool isDone;
+
     void setDone(bool b) { isDone = b; }
+    void stepTime(float dt) { timeElapsed += dt; }
+    float fracElapsed() const { return min(timeElapsed / totalTime, 1.f); }
 
 public:
     typedef boost::shared_ptr<Action> Ptr;
-    Action() : isDone(false) { }
-    bool done() const { return isDone; }
+    Action(float totalTime_) : isDone(false), timeElapsed(0.), totalTime(totalTime_) { }
+
+    bool done() const { return timeElapsed >= totalTime || isDone; }
     virtual void step(float dt) = 0;
+    virtual void reset() { timeElapsed = 0.; setDone(false); }
 };
 
 #endif // _ENVIRONMENT_H_

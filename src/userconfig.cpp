@@ -37,6 +37,7 @@ ConfigData::ConfigData() {
     opts.add_options()
         OPT(verbose, bool, false, "verbose")
         OPT_MULTI(bullet.gravity, btVector3, btVector3(0., 0., -9.8), "gravity")
+        OPT(bullet.dt, float, 0.01, "timestep for fixed-step simulations")
         OPT(bullet.maxSubSteps, int, 200, "maximum Bullet internal substeps per simulation step")
         OPT(bullet.internalTimeStep, float, 1./200., "internal Bullet timestep")
 

@@ -183,20 +183,6 @@ void EventHandler::getTransformation( osg::Vec3d& eye, osg::Vec3d& center, osg::
     up = _rotation * osg::Vec3d( 0., 1., 0. );
   }
 
-
-  //the default TrackballManipulator has weird keybindings, so we set them here
-  // virtual bool performMovementLeftMouseButton(double dt, double dx, double dy) {
-  //     return osgGA::TrackballManipulator::performMovementMiddleMouseButton(dt, dx, dy);
-  // }
-
-  // virtual bool performMovementMiddleMouseButton(double dt, double dx, double dy) {
-  //     return false;
-  // }
-
-  // virtual bool performMovementRightMouseButton(double dt, double dx, double dy) {
-  //     return osgGA::TrackballManipulator::performMovementLeftMouseButton(dt, dx, dy);
-  // }
-
 bool EventHandler::handle(const osgGA::GUIEventAdapter &ea, osgGA::GUIActionAdapter &aa) {
     switch (ea.getEventType()) {
     case osgGA::GUIEventAdapter::KEYDOWN:

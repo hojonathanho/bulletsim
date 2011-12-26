@@ -52,6 +52,8 @@ struct Scene {
   // and after adding objects to the environment
   void startViewer();
 
+  // TODO: remove all dt params and use CFG.bullet.dt instead
+
   // Steps physics and updates the display (if displayOn is true)
   // If syncTime is true, then these will block until the time interval passes on the system clock
   void step(float dt, int maxsteps, float internaldt);
