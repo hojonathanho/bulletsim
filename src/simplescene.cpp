@@ -69,14 +69,14 @@ void Scene::processHaptics() {
     if (!util::getHapticInput(trans0, buttons0, trans1, buttons1))
         return;
 
-    pr2Left->moveByIK(trans0, true, true);
+    pr2Left->moveByIK(trans0, CFG.scene.enableRobotCollision, true);
     if (buttons0[0] && !lastButton[0])
         pr2Left->grabber->grabNearestObjectAhead();
     else if (!buttons0[0] && lastButton[0])
         pr2Left->grabber->releaseConstraint();
     lastButton[0] = buttons0[0];
 
-    pr2Right->moveByIK(trans0, true, true);
+    pr2Right->moveByIK(trans0, CFG.scene.enableRobotCollision, true);
     if (buttons1[0] && !lastButton[1])
         pr2Right->grabber->grabNearestObjectAhead();
     else if (!buttons1[0] && lastButton[1])
@@ -277,7 +277,7 @@ bool EventHandler::handle(const osgGA::GUIEventAdapter &ea, osgGA::GUIActionAdap
                 if (rot.length() > 0.99f && rot.length() < 1.01f)
                     newTrans.setRotation(rot * origTrans.getRotation());
             }
-            manip->moveByIK(newTrans, true, true);
+            manip->moveByIK(newTrans, CFG.scene.enableRobotCollision, true);
         } else {
             // if not dragging, we want the camera to move
             return osgGA::TrackballManipulator::handle(ea, aa);

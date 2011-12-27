@@ -80,7 +80,7 @@ BulletSoftObject::Ptr CustomScene::createCloth(btScalar s, const btVector3 &cent
         + btSoftBody::fCollision::CL_RS
         + btSoftBody::fCollision::CL_SELF;
     psb->m_cfg.kDF = 0.9;
-    psb->getCollisionShape()->setMargin(0.03);
+    psb->getCollisionShape()->setMargin(0.04);
     btSoftBody::Material *pm = psb->appendMaterial();
 //    pm->m_kLST = 0.4;
 //    pm->m_kAST = 0.4;
