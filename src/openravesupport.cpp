@@ -184,7 +184,7 @@ RaveRobotKinematicObject::createManipulator(const std::string &manipName) {
 
 void RaveRobotKinematicObject::Manipulator::updateGrabberPos() {
     // set the grabber right on top of the end effector
-    grabber->getKinematicMotionState().setKinematicPos(util::toBtTransform(manip->GetTransform(), robot->scale));
+    grabber->getKinematicMotionState().setKinematicPos(getTransform());
 }
 
 bool RaveRobotKinematicObject::Manipulator::moveByIKUnscaled(

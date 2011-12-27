@@ -232,8 +232,8 @@ bool EventHandler::handle(const osgGA::GUIEventAdapter &ea, osgGA::GUIActionAdap
             if (state.startDragging) {
                 dx = dy = 0;
             } else {
-                dx = CFG.scene.mouseDragScale * (lastX - ea.getXnormalized());
-                dy = CFG.scene.mouseDragScale * (ea.getYnormalized() - lastY);
+                dx = lastX - ea.getXnormalized();
+                dy = ea.getYnormalized() - lastY;
             }
             lastX = ea.getXnormalized(); lastY = ea.getYnormalized();
             state.startDragging = false;
@@ -250,6 +250,7 @@ bool EventHandler::handle(const osgGA::GUIEventAdapter &ea, osgGA::GUIActionAdap
             btVector3 normal = (to - from).normalized();
             btVector3 yVec = (up - (up.dot(normal))*normal).normalized(); //FIXME: is this necessary with osg?
             btVector3 xVec = normal.cross(yVec);
+            btVector3 dragVec = CFG.scene.mouseDragScale * (dx*xVec + dy*yVec);
 
             // now set the position of the grabber
             RaveRobotKinematicObject::Manipulator::Ptr manip;
@@ -258,18 +259,17 @@ bool EventHandler::handle(const osgGA::GUIEventAdapter &ea, osgGA::GUIActionAdap
             else
                 manip = scene->pr2Right;
 
-            btTransform origTrans;
-            manip->grabber->motionState->getWorldTransform(origTrans);
+            btTransform origTrans = manip->getTransform();
             btTransform newTrans(origTrans);
 
             if (state.moveGrabber0 || state.moveGrabber1)
                 // if moving the grabber, just set the origin appropriately
-                newTrans.setOrigin(dx*xVec + dy*yVec + origTrans.getOrigin());
+                newTrans.setOrigin(dragVec + origTrans.getOrigin());
             else if (state.rotateGrabber0 || state.rotateGrabber1) {
                 // if we're rotating, the axis is perpendicular to the
                 // direction the mouse is dragging
-                btVector3 axis = normal.cross(dx*xVec + dy*yVec);
-                btScalar angle = sqrt(dx*dx + dy*dy);
+                btVector3 axis = normal.cross(dragVec);
+                btScalar angle = dragVec.length();
                 btQuaternion rot(axis, angle);
                 // we must ensure that we never get a bad rotation quaternion
                 // due to really small (effectively zero) mouse movements

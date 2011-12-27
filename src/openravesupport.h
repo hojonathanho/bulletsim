@@ -70,6 +70,10 @@ public:
         typedef boost::shared_ptr<Manipulator> Ptr;
         Manipulator(RaveRobotKinematicObject *robot_) : robot(robot_) { }
 
+        btTransform getTransform() const {
+            return util::toBtTransform(manip->GetTransform(), robot->scale);
+        }
+
         // Moves the manipulator with IK to targetTrans in unscaled coordinates
         // Returns false if IK cannot find a solution
         // If checkCollisions is true, then this will return false if the new
