@@ -12,14 +12,18 @@ class GripperAction : public Action {
 public:
     typedef boost::shared_ptr<GripperAction> Ptr;
     GripperAction(RaveRobotKinematicObject::Ptr robot_, const string &jointName, float time) :
-            robot(robot_), Action(time) {
-        int idx = robot->robot->GetJointIndex(jointName);
-        indices.push_back(idx);
-        vals.push_back(0);
+            indices(1), vals(1), robot(robot_), Action(time) {
+        indices[0] = robot->robot->GetJointIndex(jointName);
+        vals[0] = 0;
     }
     void setEndpoints(dReal start, dReal end) { startVal = start; endVal = end; }
-    void setOpenAction() { setEndpoints(0.f, 0.54f); } // 0.54 is the max joint value for the pr2
-    void setCloseAction() { setEndpoints(0.54f, 0.f); }
+    dReal getCurrDOFVal() const {
+        vector<dReal> v;
+        robot->robot->GetDOFValues(v);
+        return v[indices[0]];
+    }
+    void setOpenAction() { setEndpoints(getCurrDOFVal(), 0.54f); } // 0.54 is the max joint value for the pr2
+    void setCloseAction() { setEndpoints(getCurrDOFVal(), 0.f); }
 
     void step(float dt) {
         if (done()) return;
@@ -100,12 +104,12 @@ void CustomScene::run() {
     const float table_thickness = .05;
     boost::shared_ptr<btDefaultMotionState> ms(new btDefaultMotionState(
         btTransform(btQuaternion(0, 0, 0, 1),
-                    CFG.scene.scale * btVector3(1, 0, table_height-table_thickness/2))));
+                    CFG.scene.scale * btVector3(1.25, 0, table_height-table_thickness/2))));
     boost::shared_ptr<BulletObject> table(
         new BoxObject(0, CFG.scene.scale * btVector3(.75,.75,table_thickness/2),ms));
 
     env->add(table);
-    env->add(createCloth(CFG.scene.scale * 0.25, CFG.scene.scale * btVector3(0.75, 0, 1), 31));
+    env->add(createCloth(CFG.scene.scale * 0.25, CFG.scene.scale * btVector3(1, 0, 1), 31));
 
     leftAction.reset(new GripperAction(pr2, "l_gripper_l_finger_joint", 1));
     rightAction.reset(new GripperAction(pr2, "r_gripper_l_finger_joint", 1));
