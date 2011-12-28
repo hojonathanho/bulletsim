@@ -161,7 +161,7 @@ void RaveRobotKinematicObject::setDOFValues(const vector<int> &indices, const ve
 }
 
 RaveRobotKinematicObject::Manipulator::Ptr
-RaveRobotKinematicObject::createManipulator(const std::string &manipName) {
+RaveRobotKinematicObject::createManipulator(const std::string &manipName, bool useFakeGrabber) {
     RaveRobotKinematicObject::Manipulator::Ptr m(new Manipulator(this));
     // initialize the ik module
     robot->SetActiveManipulator(manipName);
@@ -175,16 +175,20 @@ RaveRobotKinematicObject::createManipulator(const std::string &manipName) {
         return Manipulator::Ptr(); // null
     }
 
-    // initialize the grabber
-    m->grabber.reset(new GrabberKinematicObject(0.02, 0.05));
-    m->updateGrabberPos();
-    ignoreCollisionWith(m->grabber->rigidBody.get());
+    m->useFakeGrabber = useFakeGrabber;
+    if (useFakeGrabber) {
+        m->grabber.reset(new GrabberKinematicObject(0.02, 0.05));
+        m->updateGrabberPos();
+        ignoreCollisionWith(m->grabber->rigidBody.get());
+    }
+
     return m;
 }
 
 void RaveRobotKinematicObject::Manipulator::updateGrabberPos() {
     // set the grabber right on top of the end effector
-    grabber->getKinematicMotionState().setKinematicPos(getTransform());
+    if (useFakeGrabber)
+        grabber->getKinematicMotionState().setKinematicPos(getTransform());
 }
 
 bool RaveRobotKinematicObject::Manipulator::moveByIKUnscaled(
@@ -214,6 +218,9 @@ bool RaveRobotKinematicObject::Manipulator::moveByIKUnscaled(
             robot->setDOFValues(manip->GetArmIndices(), oldVals);
         return false;
     }
-    updateGrabberPos();
+
+    if (useFakeGrabber)
+        updateGrabberPos();
+
     return true;
 }

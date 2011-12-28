@@ -45,6 +45,7 @@ ConfigData::ConfigData() {
         OPT(scene.enableHaptics, bool, false, "enable haptics for the PR2")
         OPT(scene.enableRobot, bool, true, "enable the PR2")
         OPT(scene.enableRobotCollision, bool, true, "collision detection between robot and environment during user manipulation")
+        OPT(scene.useFakeGrabber, bool, false, "use a fake grabber; pass false for realistic grasping")
         OPT(scene.scale, btScalar, 1.0, "scaling factor (1 = 1 meter)")
         OPT(scene.mouseDragScale, btScalar, 1.0, "scaling factor for mouse control for IK")
 

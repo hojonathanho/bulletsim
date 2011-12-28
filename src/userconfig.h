@@ -45,6 +45,7 @@ struct ConfigData {
         bool enableHaptics;
         bool enableRobot;
         bool enableRobotCollision;
+        bool useFakeGrabber;
         btScalar scale;
         btScalar mouseDragScale;
     } scene;

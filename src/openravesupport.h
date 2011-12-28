@@ -64,6 +64,8 @@ public:
         RaveRobotKinematicObject *robot;
         ModuleBasePtr ikmodule;
         RobotBase::ManipulatorPtr manip;
+
+        bool useFakeGrabber;
         GrabberKinematicObject::Ptr grabber;
         void updateGrabberPos();
 
@@ -89,7 +91,11 @@ public:
                 checkCollisions, revertOnCollision);
         }
     };
-    Manipulator::Ptr createManipulator(const std::string &manipName);
+
+    // If useFakeGrabber is true, the manipulator will use a GrabberKinematicObject
+    // which can "grab" objects by simply setting a point constraint with the nearest
+    // object in front of the manipulator. Pass in false for realistic grasping.
+    Manipulator::Ptr createManipulator(const std::string &manipName, bool useFakeGrabber=false);
 };
 
 #endif // _OPENRAVESUPPORT_H_

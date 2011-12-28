@@ -33,10 +33,12 @@ Scene::Scene() {
     }
 
     if (CFG.scene.enableIK && CFG.scene.enableRobot) {
-        pr2Left = pr2->createManipulator("leftarm");
-        pr2Right = pr2->createManipulator("rightarm");
-        env->add(pr2Left->grabber);
-        env->add(pr2Right->grabber);
+        pr2Left = pr2->createManipulator("leftarm", CFG.scene.useFakeGrabber);
+        pr2Right = pr2->createManipulator("rightarm", CFG.scene.useFakeGrabber);
+        if (CFG.scene.useFakeGrabber) {
+            env->add(pr2Left->grabber);
+            env->add(pr2Right->grabber);
+        }
     }
 }
 
@@ -70,17 +72,33 @@ void Scene::processHaptics() {
         return;
 
     pr2Left->moveByIK(trans0, CFG.scene.enableRobotCollision, true);
-    if (buttons0[0] && !lastButton[0])
-        pr2Left->grabber->grabNearestObjectAhead();
-    else if (!buttons0[0] && lastButton[0])
-        pr2Left->grabber->releaseConstraint();
+    if (buttons0[0] && !lastButton[0]) {
+        if (CFG.scene.useFakeGrabber)
+            pr2Left->grabber->grabNearestObjectAhead();
+        else
+            cout << "not implemented" << endl;
+    }
+    else if (!buttons0[0] && lastButton[0]) {
+        if (CFG.scene.useFakeGrabber)
+            pr2Left->grabber->releaseConstraint();
+        else
+            cout << "not implemented" << endl;
+    }
     lastButton[0] = buttons0[0];
 
     pr2Right->moveByIK(trans0, CFG.scene.enableRobotCollision, true);
-    if (buttons1[0] && !lastButton[1])
-        pr2Right->grabber->grabNearestObjectAhead();
-    else if (!buttons1[0] && lastButton[1])
-        pr2Right->grabber->releaseConstraint();
+    if (buttons1[0] && !lastButton[1]) {
+        if (CFG.scene.useFakeGrabber)
+            pr2Right->grabber->grabNearestObjectAhead();
+        else
+            cout << "not implemented" << endl;
+    }
+    else if (!buttons1[0] && lastButton[1]) {
+        if (CFG.scene.useFakeGrabber)
+            pr2Right->grabber->releaseConstraint();
+        else
+            cout << "not implemented" << endl;
+    }
     lastButton[1] = buttons1[0];
 }
 
@@ -195,26 +213,26 @@ bool EventHandler::handle(const osgGA::GUIEventAdapter &ea, osgGA::GUIActionAdap
             scene->toggleIdle();
             break;
         case '1':
-            state.moveGrabber0 = true; break;
+            state.moveManip0 = true; break;
         case '2':
-            state.moveGrabber1 = true; break;
+            state.moveManip1 = true; break;
         case 'q':
-            state.rotateGrabber0 = true; break;
+            state.rotateManip0 = true; break;
         case 'w':
-            state.rotateGrabber1 = true; break;
+            state.rotateManip1 = true; break;
       }
       break;
 
     case osgGA::GUIEventAdapter::KEYUP:
         switch (ea.getKey()) {
         case '1':
-            state.moveGrabber0 = false; break;
+            state.moveManip0 = false; break;
         case '2':
-            state.moveGrabber1 = false; break;
+            state.moveManip1 = false; break;
         case 'q':
-            state.rotateGrabber0 = false; break;
+            state.rotateManip0 = false; break;
         case 'w':
-            state.rotateGrabber1 = false; break;
+            state.rotateManip1 = false; break;
         }
         break;
 
@@ -224,11 +242,11 @@ bool EventHandler::handle(const osgGA::GUIEventAdapter &ea, osgGA::GUIActionAdap
         return osgGA::TrackballManipulator::handle(ea, aa);
 
     case osgGA::GUIEventAdapter::DRAG:
-        // drag the active grabber in the plane of view
+        // drag the active manipulator in the plane of view
         if (CFG.scene.enableRobot && CFG.scene.enableIK &&
               (ea.getButtonMask() & ea.LEFT_MOUSE_BUTTON) &&
-              (state.moveGrabber0 || state.moveGrabber1 ||
-               state.rotateGrabber0 || state.rotateGrabber1)) {
+              (state.moveManip0 || state.moveManip1 ||
+               state.rotateManip0 || state.rotateManip1)) {
             if (state.startDragging) {
                 dx = dy = 0;
             } else {
@@ -252,9 +270,8 @@ bool EventHandler::handle(const osgGA::GUIEventAdapter &ea, osgGA::GUIActionAdap
             btVector3 xVec = normal.cross(yVec);
             btVector3 dragVec = CFG.scene.mouseDragScale * (dx*xVec + dy*yVec);
 
-            // now set the position of the grabber
             RaveRobotKinematicObject::Manipulator::Ptr manip;
-            if (state.moveGrabber0 || state.rotateGrabber0)
+            if (state.moveManip0 || state.rotateManip0)
                 manip = scene->pr2Left;
             else
                 manip = scene->pr2Right;
@@ -262,10 +279,10 @@ bool EventHandler::handle(const osgGA::GUIEventAdapter &ea, osgGA::GUIActionAdap
             btTransform origTrans = manip->getTransform();
             btTransform newTrans(origTrans);
 
-            if (state.moveGrabber0 || state.moveGrabber1)
-                // if moving the grabber, just set the origin appropriately
+            if (state.moveManip0 || state.moveManip1)
+                // if moving the manip, just set the origin appropriately
                 newTrans.setOrigin(dragVec + origTrans.getOrigin());
-            else if (state.rotateGrabber0 || state.rotateGrabber1) {
+            else if (state.rotateManip0 || state.rotateManip1) {
                 // if we're rotating, the axis is perpendicular to the
                 // direction the mouse is dragging
                 btVector3 axis = normal.cross(dragVec);

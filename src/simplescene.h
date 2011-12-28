@@ -18,8 +18,8 @@ public:
   EventHandler(Scene *scene_) : scene(scene_), state() {}
   struct {
     bool debugDraw,
-         moveGrabber0, moveGrabber1,
-         rotateGrabber0, rotateGrabber1,
+         moveManip0, moveManip1,
+         rotateManip0, rotateManip1,
          startDragging,
          idling;
   } state;
