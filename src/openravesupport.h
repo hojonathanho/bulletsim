@@ -49,10 +49,12 @@ public:
     // each of which represents a link of the robot
     RaveRobotKinematicObject(RaveInstance::Ptr rave_, const std::string &uri, const btTransform &initialTransform_, btScalar scale=1.0f);
 
+
+    void prePhysics();
+
     void ignoreCollisionWith(const btCollisionObject *obj) { ignoreCollisionObjs.insert(obj); }
     // Returns true if the robot's current pose collides with anything in the environment
-    // It's the caller's responsibility to either call BulletInstance::detectCollisions()
-    // or dynamicsWorld->stepSimulation() beforehand.
+    // (this will call updateAabbs() on the dynamicsWorld)
     bool detectCollisions();
 
     // Positions the robot according to DOF values in the OpenRAVE model
@@ -90,6 +92,10 @@ public:
             return moveByIKUnscaled(util::toRaveTransform(targetTrans, 1./robot->scale),
                 checkCollisions, revertOnCollision);
         }
+
+        // make the insides of the gripper fingers stick to the specified softbody
+        // by setting anchors upon contact
+        void stickToSoftBody(btSoftBody *sb);
     };
 
     // If useFakeGrabber is true, the manipulator will use a GrabberKinematicObject

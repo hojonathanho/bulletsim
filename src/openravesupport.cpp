@@ -121,6 +121,13 @@ void RaveRobotKinematicObject::initRobotWithoutDynamics(const btTransform &initi
     }
 }
 
+void RaveRobotKinematicObject::prePhysics() {
+    CompoundObject<BulletKinematicObject>::prePhysics();
+
+    // if we're sticking to any soft bodies
+    // TODO: unimplemented
+}
+
 bool RaveRobotKinematicObject::detectCollisions() {
     getEnvironment()->bullet->dynamicsWorld->updateAabbs();
 

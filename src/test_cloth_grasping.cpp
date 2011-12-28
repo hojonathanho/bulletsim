@@ -3,23 +3,61 @@
 #include "userconfig.h"
 #include <BulletSoftBody/btSoftBodyHelpers.h>
 
+// I've only tested this on the PR2 model
 class GripperAction : public Action {
-    RaveRobotKinematicObject::Ptr robot;
+    RaveRobotKinematicObject::Manipulator::Ptr manip;
     dReal startVal, endVal;
     vector<int> indices;
     vector<dReal> vals;
 
+    // vector normal to the direction that the gripper fingers move in the manipulator frame
+    // (on the PR2 this points back into the arm)
+    const btVector3 closingNormal;
+
+    // points straight down in the PR2 initial position (manipulator frame)
+    const btVector3 toolDirection;
+
+    btTransform getManipRot() const {
+        btTransform trans(util::toBtTransform(manip->manip->GetTransform()));
+        trans.setOrigin(btVector3(0, 0, 0));
+        return trans;
+    }
+
+    // Returns the direction that the specified finger will move when closing
+    // (manipulator frame)
+    btVector3 getClosingDirection(bool left) const {
+        return (left ? 1 : -1) * toolDirection.cross(closingNormal);
+    }
+
+    // Returns true is pt is on the inner side of the specified finger of the gripper
+    bool onInnerSide(const btVector3 &pt, bool left) const {
+        // first get some innermost point on the gripper
+        btVector3 x;
+        cout << "NOT IMPLEMENTED" << endl;
+        BOOST_ASSERT(false);
+
+        // then the point and the closing direction define the plane
+        return (getManipRot() * getClosingDirection(left)).dot(pt - x) > 0;
+    }
+
 public:
     typedef boost::shared_ptr<GripperAction> Ptr;
-    GripperAction(RaveRobotKinematicObject::Ptr robot_, const string &jointName, float time) :
-            indices(1), vals(1), robot(robot_), Action(time) {
-        indices[0] = robot->robot->GetJointIndex(jointName);
-        vals[0] = 0;
+    GripperAction(RaveRobotKinematicObject::Manipulator::Ptr manip_, float time) :
+            Action(time), manip(manip_), vals(1, 0),
+            indices(manip->manip->GetGripperIndices()),
+            closingNormal(manip->manip->GetClosingDirection()[0],
+                          manip->manip->GetClosingDirection()[1],
+                          manip->manip->GetClosingDirection()[2]),
+            toolDirection(util::toBtVector(manip->manip->GetLocalToolDirection()))
+    {
+        if (indices.size() != 1)
+            cout << "WARNING: more than one gripper DOF; just choosing first one" << endl;
     }
+
     void setEndpoints(dReal start, dReal end) { startVal = start; endVal = end; }
     dReal getCurrDOFVal() const {
         vector<dReal> v;
-        robot->robot->GetDOFValues(v);
+        manip->robot->robot->GetDOFValues(v);
         return v[indices[0]];
     }
     void setOpenAction() { setEndpoints(getCurrDOFVal(), 0.54f); } // 0.54 is the max joint value for the pr2
@@ -31,7 +69,7 @@ public:
 
         float frac = fracElapsed();
         vals[0] = (1.f - frac)*startVal + frac*endVal;
-        robot->setDOFValues(indices, vals);
+        manip->robot->setDOFValues(indices, vals);
     }
 };
 
@@ -40,6 +78,7 @@ struct CustomScene : public Scene {
     GripperAction::Ptr leftAction, rightAction;
     BulletSoftObject::Ptr createCloth(btScalar s, const btVector3 &center, int divs);
     void run();
+    void printDiagnostics();
 };
 
 class CustomKeyHandler : public osgGA::GUIEventHandler {
@@ -62,6 +101,10 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,osgGA::GUIActionA
             scene.rightAction->reset();
             scene.rightAction->setCloseAction();
             scene.runAction(scene.rightAction, CFG.bullet.dt);
+            break;
+
+        case ' ':
+            scene.printDiagnostics();
             break;
         }
         break;
@@ -96,6 +139,44 @@ BulletSoftObject::Ptr CustomScene::createCloth(btScalar s, const btVector3 &cent
     return BulletSoftObject::Ptr(new BulletSoftObject(psb));
 }
 
+#define PV(v) {for(int z=0;z<(v).size();++z)cout<<(v)[z]<<' ';cout<<'\n';}
+void CustomScene::printDiagnostics() {
+    printf("%d\n",pr2->robot->GetJointIndex("l_gripper_l_finger_joint"));
+    PV(pr2Left->manip->GetGripperIndices());
+    printf("\n");
+
+    struct S {
+        static void directionInfo(RaveRobotKinematicObject::Manipulator::Ptr p) {
+            printf("name: %s\n", p->manip->GetName().c_str());
+
+            btTransform manipRot(util::toBtTransform(p->manip->GetTransform()));
+            manipRot.setOrigin(btVector3(0, 0, 0));
+
+            btVector3 closingNormal = manipRot
+                * btVector3(p->manip->GetClosingDirection()[0],
+                            p->manip->GetClosingDirection()[1],
+                            p->manip->GetClosingDirection()[2]);
+            btVector3 tv = closingNormal;
+            printf("world closing normal: %f %f %f\n", tv.x(), tv.y(), tv.z());
+
+            btVector3 toolDirection = manipRot * util::toBtVector(p->manip->GetLocalToolDirection());
+            tv = toolDirection;
+            printf("world tool direction: %f %f %f\n", tv.x(), tv.y(), tv.z());
+
+            btVector3 closingDirection = toolDirection.cross(closingNormal);
+            tv = closingDirection;
+            printf("world closing direction (left finger): %f %f %f\n", tv.x(), tv.y(), tv.z());
+            tv = -closingDirection;
+            printf("world closing direction (right finger): %f %f %f\n", tv.x(), tv.y(), tv.z());
+
+            printf("\n");
+        }
+    };
+
+    S::directionInfo(pr2Left);
+    S::directionInfo(pr2Right);
+}
+
 void CustomScene::run() {
     viewer.addEventHandler(new CustomKeyHandler(*this));
 
@@ -111,9 +192,8 @@ void CustomScene::run() {
     env->add(table);
     env->add(createCloth(CFG.scene.scale * 0.25, CFG.scene.scale * btVector3(1, 0, 1), 31));
 
-    leftAction.reset(new GripperAction(pr2, "l_gripper_l_finger_joint", 1));
-    rightAction.reset(new GripperAction(pr2, "r_gripper_l_finger_joint", 1));
-
+    leftAction.reset(new GripperAction(pr2Left, 1));
+    rightAction.reset(new GripperAction(pr2Right, 1));
 
     //setSyncTime(true);
     startViewer();
