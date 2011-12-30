@@ -32,6 +32,10 @@ private:
     std::vector<boost::shared_ptr<btStridingMeshInterface> > meshes;
     std::vector<boost::shared_ptr<btCollisionShape> > subshapes;
 
+    // for looking up the associated Bullet object for an OpenRAVE link
+    std::map<KinBody::LinkPtr, BulletKinematicObject::Ptr> linkMap;
+    std::map<btCollisionObject *, KinBody::LinkPtr> collisionObjMap;
+
     // vector of objects to ignore collision with
     BulletInstance::CollisionObjectSet ignoreCollisionObjs;
 
@@ -51,6 +55,15 @@ public:
 
 
     void prePhysics();
+
+    BulletKinematicObject::Ptr associatedObj(KinBody::LinkPtr link) const {
+        std::map<KinBody::LinkPtr, BulletKinematicObject::Ptr>::const_iterator i = linkMap.find(link);
+        return i == linkMap.end() ? BulletKinematicObject::Ptr() : i->second;
+    }
+    KinBody::LinkPtr associatedObj(btCollisionObject *obj) const {
+        std::map<btCollisionObject *, KinBody::LinkPtr>::const_iterator i = collisionObjMap.find(obj);
+        return i == collisionObjMap.end() ? KinBody::LinkPtr() : i->second;
+    }
 
     void ignoreCollisionWith(const btCollisionObject *obj) { ignoreCollisionObjs.insert(obj); }
     // Returns true if the robot's current pose collides with anything in the environment

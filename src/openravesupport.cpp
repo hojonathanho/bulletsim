@@ -114,6 +114,8 @@ void RaveRobotKinematicObject::initRobotWithoutDynamics(const btTransform &initi
         btTransform childTrans = initialTransform * util::toBtTransform((*link)->GetTransform(), scale);
         BulletKinematicObject::Ptr child(new BulletKinematicObject(compound, childTrans));
         getChildren().push_back(child);
+        linkMap[*link] = child;
+        collisionObjMap[child->rigidBody.get()] = *link;
 
         // since the joints are always in contact, we should ignore their collisions
         // when setting joint positions (OpenRAVE should take care of them anyway)
