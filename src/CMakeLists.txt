@@ -11,6 +11,8 @@ include_directories(${BULLET_DIR}/src
 set(BULLET_LIBS BulletFileLoader BulletSoftBody BulletDynamics BulletCollision LinearMath)
 
 
+
+
 if (BUILD_PERCEPTION)
   find_package(PCL 1.3)
   include_directories(${PCL_INCLUDE_DIRS})
@@ -48,4 +50,4 @@ add_executable(test_subclass_config test_subclass_config.cpp userconfig.cpp)
 target_link_libraries(test_subclass_config ${BOOST_LIBRARIES})
 
 add_executable(test_shirt test_shirt.cpp)
-target_link_libraries(test_clothing simulation)
+target_link_libraries(test_shirt simulation)

@@ -1,4 +1,5 @@
 #include "basicobjects.h"
+#include "userconfig.h"
 #include <osg/Geometry>
 #include <osg/Geode>
 #include <osg/Shape>
@@ -6,6 +7,16 @@
 #include <osgwTools/Shapes.h>
 
 #define MAX_RAYCAST_DISTANCE 100.0
+
+btRigidBody::btRigidBodyConstructionInfo getCI(btScalar mass, boost::shared_ptr<btCollisionShape> collisionShape, boost::shared_ptr<btDefaultMotionState> motionState) {
+  btVector3 inertia(0,0,0);
+  collisionShape->calculateLocalInertia(mass,inertia);
+  btRigidBody::btRigidBodyConstructionInfo ci(mass, motionState.get(),
+					      collisionShape.get(), inertia);
+  ci.m_restitution = CFG->bullet.restitution;
+  ci.m_friction = CFG->bullet.friction;
+  return ci;
+}
 
 GrabberKinematicObject::GrabberKinematicObject(float radius_, float height_) :
     radius(radius_), height(height_),
@@ -137,10 +148,7 @@ BoxObject::BoxObject(btScalar mass_, btVector3 halfExtents_, boost::shared_ptr<b
   mass(mass_), halfExtents(halfExtents_) {
   motionState = motionState_;
   collisionShape.reset(new btBoxShape(halfExtents));
-  btVector3 fallInertia(0,0,0);
-  collisionShape->calculateLocalInertia(mass,fallInertia);
-  btRigidBody::btRigidBodyConstructionInfo ci(mass, motionState.get(),
-					      collisionShape.get(), fallInertia);
+  btRigidBody::btRigidBodyConstructionInfo ci = getCI(mass_,collisionShape, motionState);
   rigidBody.reset(new btRigidBody(ci));
   rigidBody->setActivationState(DISABLE_DEACTIVATION);
 }

@@ -42,6 +42,8 @@ ConfigData::ConfigData() {
         OPT_MULTI(bullet.gravity, btVector3, btVector3(0., 0., -9.8), "gravity")
         OPT(bullet.maxSubSteps, int, 200, "maximum Bullet internal substeps per simulation step")
         OPT(bullet.internalTimeStep, float, 1./200., "internal Bullet timestep")
+        OPT(bullet.friction, float, 1., "default friction coefficient for rigid bodies")
+        OPT(bullet.restitution, float, 1., "default restitution coefficient for rigid bodies")
 
         OPT(scene.enableIK, bool, true, "enable OpenRAVE IK for the PR2")
         OPT(scene.enableHaptics, bool, false, "enable haptics for the PR2")
@@ -55,24 +57,11 @@ ConfigData::ConfigData() {
 
 void ConfigData::read(int argc, char *argv[]) {
     po::variables_map vm;
-    po::store(po::parse_command_line(argc, argv, opts), vm);
-    if (vm.count("help")) {
-      std::cout << "usage: "<< argv[0] << " [options]" << std::endl;
-      std::cout << opts << std::endl;
-      exit(0);
-    }
-    po::notify(vm);
+ po::store(po::parse_command_line(argc, argv, opts), vm);
+
+  po::notify(vm);
 }
 
-static ConfigData* cfg;
-ConfigData* getConfigData()
-{
-  if (cfg==NULL) cfg = new ConfigData;
-  return cfg;
-}
-void setConfigData(ConfigData* newcfg) 
-{
-  cfg = newcfg;
-}
-
-
+ConfigData* configData = new ConfigData;
+ConfigData* getConfigData() {return configData;}
+void setConfigData(ConfigData* newConfigData) {configData = newConfigData;}

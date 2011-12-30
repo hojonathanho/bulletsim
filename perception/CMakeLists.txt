@@ -31,10 +31,11 @@ link_directories(
 )
 add_definitions(${PCL_DEFINITIONS})
 
+add_library(perception tracking.cpp utils_perception.cpp dist_math.cpp)
+target_link_libraries(perception ${PCL_LIBRARIES} simulation)
 
-
-add_executable(test_kinect_rope1 test_kinect_rope.cpp ../src/dist_math.cpp clouds/get_table.cpp clouds/geom.cpp)
-target_link_libraries(test_kinect_rope1 simulation ${PCL_LIBRARIES} ${WM_LIBRARIES} json)
+add_executable(test_kinect_rope1 test_kinect_rope.cpp)
+target_link_libraries(test_kinect_rope1 simulation perception clouds ${PCL_LIBRARIES} json comm)
 
 
 add_subdirectory(clouds)
@@ -46,3 +47,5 @@ include_directories("clouds" "comm")
 add_executable(test_json test_json.cpp)
 target_link_libraries(test_json json)
 
+add_executable(test_kinect_towel test_kinect_towel.cpp)
+target_link_libraries(test_kinect_towel ${PCL_LIBRARIES} json simulation perception clouds comm)

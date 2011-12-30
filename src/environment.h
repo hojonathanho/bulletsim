@@ -167,6 +167,7 @@ public:
 
     osg::ref_ptr<osg::Node> node;
     osg::ref_ptr<osg::MatrixTransform> transform;
+  int plotOnly;
 
     BulletObject() { }
     BulletObject(boost::shared_ptr<btCollisionShape> collisionShape_, boost::shared_ptr<btRigidBody> rigidBody_) :

@@ -1,4 +1,5 @@
 #include "environment.h"
+#include "userconfig.h"
 #include <osgbCollision/CollisionShapes.h>
 #include <Serialize/BulletFileLoader/btBulletFile.h>
 #include <boost/scoped_array.hpp>
@@ -76,11 +77,11 @@ Environment::Fork::Ptr Environment::fork(BulletInstance::Ptr newBullet, OSGInsta
 }
 
 void BulletObject::init() {
-    getEnvironment()->bullet->dynamicsWorld->addRigidBody(rigidBody.get());
-    node = createOSGNode();
-    transform = new osg::MatrixTransform;
-    transform->addChild(node.get());
-    getEnvironment()->osg->root->addChild(transform.get());
+  getEnvironment()->bullet->dynamicsWorld->addRigidBody(rigidBody.get());
+  node = createOSGNode();
+  transform = new osg::MatrixTransform;
+  transform->addChild(node.get());
+  getEnvironment()->osg->root->addChild(transform.get());
 }
 
 osg::ref_ptr<osg::Node> BulletObject::createOSGNode() {

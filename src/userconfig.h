@@ -42,6 +42,8 @@ struct ConfigData {
         btVector3 gravity;
         int maxSubSteps;
         float internalTimeStep;
+        float friction;
+	float restitution;
     } bullet;
 
     struct {
@@ -60,13 +62,13 @@ struct ConfigData {
 
     // set default values in the constructor
     ConfigData();
-    void loadFromMap(const po::variables_map &vm);
+
     po::options_description opts;
   void read(int argc, char *argv[]);
 };
 
 ConfigData* getConfigData();
-void setConfigData(ConfigData*);
+void setConfigData(ConfigData* newConfigData);
 
 #define CFG getConfigData()
 

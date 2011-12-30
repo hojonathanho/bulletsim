@@ -23,6 +23,11 @@ PlotPoints::PlotPoints(float size) {
 
   osg::ref_ptr<osg::StateSet> m_stateset = new osg::StateSet();
   osg::Point *point = new osg::Point();
+
+
+  //  m_stateset->setMode(GL_DEPTH_TEST, osg::StateAttribute::OFF);
+  m_stateset->setMode(GL_LIGHTING, osg::StateAttribute::OFF);
+
   point->setSize(size);
   m_stateset->setAttribute(point);
   m_geode->setStateSet(m_stateset);
@@ -76,6 +81,7 @@ PlotLines::PlotLines(float width) {
   osg::LineWidth *linewidth = new osg::LineWidth();
   linewidth->setWidth(width);
   //m_stateset->setAttributeAndModes(linewidth,osg::StateAttribute::ON);
+  m_stateset->setMode(GL_LIGHTING, osg::StateAttribute::OFF);
   m_stateset->setAttribute(linewidth);
   m_geode->setStateSet(m_stateset);
 

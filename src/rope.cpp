@@ -54,11 +54,12 @@ void createRopeTransforms(vector<btTransform>& transforms, vector<btScalar>& len
 }
 
 
-CapsuleRope::CapsuleRope(const vector<btVector3>& ctrlPoints, btScalar radius_, float stiffness_, float damping_, float limit_) {
+CapsuleRope::CapsuleRope(const vector<btVector3>& ctrlPoints, btScalar radius_, float angStiffness_, float angDamping_, float linDamping_, float angLimit_) {
   radius = radius_;
-  stiffness = stiffness_;
-  damping = damping_;
-  limit = limit_;
+  angStiffness = angStiffness_;
+  angDamping = angDamping_;
+  linDamping = linDamping_;
+  angLimit = angLimit_;
   int nLinks = ctrlPoints.size()-1;
   vector<btTransform> transforms;
   vector<btScalar> lengths;
@@ -81,7 +82,7 @@ CapsuleRope::CapsuleRope(const vector<btVector3>& ctrlPoints, btScalar radius_, 
 
     CapsuleObject::Ptr child(new CapsuleObject(1,radius,len,ms));
     bodies.push_back(child->rigidBody);
-    child->rigidBody->setDamping(.75,1);
+    child->rigidBody->setDamping(linDamping,angDamping);
     child->rigidBody->setFriction(1);
 
     children.push_back(child);
@@ -91,7 +92,7 @@ CapsuleRope::CapsuleRope(const vector<btVector3>& ctrlPoints, btScalar radius_, 
       joints.push_back(jointPtr);
 
 
-      shared_ptr<btGeneric6DofSpringConstraint> springPtr = createBendConstraint(len,bodies[i-1],bodies[i],damping,stiffness,limit);
+      shared_ptr<btGeneric6DofSpringConstraint> springPtr = createBendConstraint(len,bodies[i-1],bodies[i],angDamping,angStiffness,angLimit);
       joints.push_back(springPtr);
 							  
     }
