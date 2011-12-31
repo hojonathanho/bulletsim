@@ -25,8 +25,9 @@ class GripperAction : public Action {
     // points straight down in the PR2 initial position (manipulator frame)
     const btVector3 toolDirection;
 
+public:
     btTransform getManipRot() const {
-        btTransform trans(util::toBtTransform(manip->manip->GetTransform()));
+        btTransform trans(manip->getTransform());
         trans.setOrigin(btVector3(0, 0, 0));
         return trans;
     }
@@ -37,20 +38,21 @@ class GripperAction : public Action {
         return (left ? 1 : -1) * toolDirection.cross(closingNormal);
     }
 
-public:
-    // Returns true is pt is on the inner side of the specified finger of the gripper
-    bool onInnerSide(const btVector3 &pt, bool left) const {
+    btVector3 getInnerPt(bool left) const {
         // first get some innermost point on the gripper
-        btTransform trans(util::toBtTransform((left ? leftFinger : rightFinger)->GetTransform()));
+        btTransform trans(manip->robot->getLinkTransform(left ? leftFinger : rightFinger));
         // this assumes that the gripper is symmetric when it is closed
         // we get an innermost point on the gripper by transforming a point
         // on the center of the gripper when it is closed
         const btTransform &origInv = left ? origLeftFingerInvTrans : origRightFingerInvTrans;
-        btVector3 innerPt = trans * origInv * centerPt;
+        return trans * origInv * centerPt;
         // actually above, we can just cache origInv * centerPt
+    }
 
+    // Returns true is pt is on the inner side of the specified finger of the gripper
+    bool onInnerSide(const btVector3 &pt, bool left) const {
         // then the innerPt and the closing direction define the plane
-        return (getManipRot() * getClosingDirection(left)).dot(pt - innerPt) > 0;
+        return (getManipRot() * getClosingDirection(left)).dot(pt - getInnerPt(left)) > 0;
     }
 
     typedef boost::shared_ptr<GripperAction> Ptr;
@@ -61,14 +63,14 @@ public:
             Action(time), manip(manip_), vals(1, 0),
             leftFinger(manip->robot->robot->GetLink(leftFingerName)),
             rightFinger(manip->robot->robot->GetLink(rightFingerName)),
-            origLeftFingerInvTrans(util::toBtTransform(leftFinger->GetTransform()).inverse()),
-            origRightFingerInvTrans(util::toBtTransform(rightFinger->GetTransform()).inverse()),
+            origLeftFingerInvTrans(manip->robot->getLinkTransform(leftFinger).inverse()),
+            origRightFingerInvTrans(manip->robot->getLinkTransform(rightFinger).inverse()),
             centerPt(manip->getTransform().getOrigin()),
             indices(manip->manip->GetGripperIndices()),
             closingNormal(manip->manip->GetClosingDirection()[0],
                           manip->manip->GetClosingDirection()[1],
                           manip->manip->GetClosingDirection()[2]),
-            toolDirection(util::toBtVector(manip->manip->GetLocalToolDirection()))
+            toolDirection(util::toBtVector(manip->manip->GetLocalToolDirection())) // don't bother scaling
     {
         if (indices.size() != 1)
             cout << "WARNING: more than one gripper DOF; just choosing first one" << endl;
@@ -161,10 +163,10 @@ BulletSoftObject::Ptr CustomScene::createCloth(btScalar s, const btVector3 &cent
 }
 
 void CustomScene::printDiagnostics() {
+#if 0
     struct S {
         static void directionInfo(RaveRobotKinematicObject::Manipulator::Ptr p) {
             printf("name: %s\n", p->manip->GetName().c_str());
-
             btTransform manipRot(util::toBtTransform(p->manip->GetTransform()));
             manipRot.setOrigin(btVector3(0, 0, 0));
 
@@ -184,13 +186,21 @@ void CustomScene::printDiagnostics() {
             printf("world closing direction (left finger): %f %f %f\n", tv.x(), tv.y(), tv.z());
             tv = -closingDirection;
             printf("world closing direction (right finger): %f %f %f\n", tv.x(), tv.y(), tv.z());
-
-            printf("\n");
         }
     };
+#endif
 
-    S::directionInfo(pr2Left);
-    S::directionInfo(pr2Right);
+    btVector3 tv = leftAction->getClosingDirection(true);
+    printf("world closing direction (left finger): %f %f %f\n", tv.x(), tv.y(), tv.z());
+    tv = leftAction->getClosingDirection(false);
+    printf("world closing direction (right finger): %f %f %f\n", tv.x(), tv.y(), tv.z());
+    printf("\n");
+
+    tv = rightAction->getClosingDirection(true);
+    printf("world closing direction (left finger): %f %f %f\n", tv.x(), tv.y(), tv.z());
+    tv = rightAction->getClosingDirection(false);
+    printf("world closing direction (right finger): %f %f %f\n", tv.x(), tv.y(), tv.z());
+    printf("\n");
 }
 
 void CustomScene::run() {
@@ -226,6 +236,18 @@ void CustomScene::run() {
 
     //startLoop();
 //    startFixedTimestepLoop(dt);
+
+
+
+
+    vector<btVector3> tmpPts, tmpLines0, tmpLines1;
+#if 0
+    for (int i = 0; i < cloth->softBody->m_faces.size(); ++i) {
+        for (int j = 0; j < 3; ++j)
+            tmpPts.push_back(cloth->softBody->m_faces[i].m_n[j]->m_x);
+    }
+    plotPoints->setPoints(tmpPts);
+#endif
 
     btCollisionObject *llfinger = pr2->associatedObj(pr2->robot->GetLink("l_gripper_l_finger_tip_link"))->rigidBody.get();
     btSoftBody * const psb = cloth->softBody.get();
@@ -315,22 +337,39 @@ void CustomScene::run() {
         docollide.stamargin     =       basemargin;
         psb->m_ndbvt.collideTV(psb->m_ndbvt.m_root,volume,docollide);
 
+        tmpPts.clear();
+        tmpLines0.clear(); tmpLines1.clear();
+        tmpLines0.push_back(leftAction->getInnerPt(true));
+        tmpLines1.push_back(leftAction->getInnerPt(true) + CFG.scene.scale * (leftAction->getManipRot() * leftAction->getClosingDirection(true)));
+
+        btVector3 v = leftAction->getInnerPt(true);
+        cout << "inner point: " << v.x() << ' ' << v.y() << ' ' << v.z() << '\n';
+        v = pr2Left->getTransform().getOrigin();
+        cout << "center point: " << v.x() << ' ' << v.y() << ' ' << v.z() << '\n';
+
+
         for (int i = 0; i < docollide.rcontacts.size(); ++i) {
             const btSoftBody::RContact &c = docollide.rcontacts[i];
             KinBody::LinkPtr colLink = pr2->associatedObj(c.m_cti.m_colObj);
             if (!colLink) continue;
             cout << "robot contact: " << colLink->GetName() << '\n';
 
-            const btVector3 contactPt =c.m_node->m_x-c.m_cti.m_normal*(btDot(c.m_node->m_x,c.m_cti.m_normal)+c.m_cti.m_offset);
+            //const btVector3 contactPt = c.m_node->m_x - c.m_cti.m_normal*(btDot(c.m_node->m_x, c.m_cti.m_normal) + c.m_cti.m_offset);
+            const btVector3 &contactPt = c.m_node->m_x;
+            cout << "contact point: " << contactPt.x() << ' ' << contactPt.y() << ' ' << contactPt.z() << '\n';
 
-            if (leftAction->onInnerSide(contactPt, true))
+            if (leftAction->onInnerSide(contactPt, true)) {
                 cout << "\ton inner side\n";
+                tmpPts.push_back(contactPt);
+            }
 #if 0
             if (colLink->GetName() == "l_gripper_l_finger_tip_link") {
                 cout << "touching l_gripper_l_finger_tip_link" << endl;
             }
 #endif
         }
+        plotPoints->setPoints(tmpPts);
+        plotLines->setPoints(tmpLines0, tmpLines1);
 
         step(dt);
     }

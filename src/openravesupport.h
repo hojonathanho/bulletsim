@@ -65,6 +65,12 @@ public:
         return i == collisionObjMap.end() ? KinBody::LinkPtr() : i->second;
     }
 
+    // When getting transforms of links, you must remember to scale!
+    // or just get the transforms directly from the equivalent Bullet rigid bodies
+    btTransform getLinkTransform(KinBody::LinkPtr link) const {
+        return util::toBtTransform(link->GetTransform(), scale);
+    }
+
     void ignoreCollisionWith(const btCollisionObject *obj) { ignoreCollisionObjs.insert(obj); }
     // Returns true if the robot's current pose collides with anything in the environment
     // (this will call updateAabbs() on the dynamicsWorld)

@@ -5,6 +5,7 @@
 #include "environment.h"
 #include "basicobjects.h"
 #include "openravesupport.h"
+#include "plotting.h"
 
 class Scene;
 
@@ -36,6 +37,9 @@ struct Scene {
   boost::shared_ptr<osgbCollision::GLDebugDrawer> dbgDraw;
   osgViewer::Viewer viewer;
   osg::ref_ptr<EventHandler> manip;
+
+  PlotPoints::Ptr plotPoints;
+  PlotLines::Ptr plotLines;
 
   PlaneStaticObject::Ptr ground;
   RaveRobotKinematicObject::Ptr pr2;

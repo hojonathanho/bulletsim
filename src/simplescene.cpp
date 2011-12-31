@@ -19,6 +19,12 @@ Scene::Scene() {
     if (CFG.scene.enableHaptics)
         connectionInit(); // socket connection for haptics
 
+    // plots for debugging
+    plotPoints.reset(new PlotPoints(CFG.scene.scale * 0.5));
+    env->add(plotPoints);
+    plotLines.reset(new PlotLines(CFG.scene.scale * 0.5));
+    env->add(plotLines);
+
     // populate the scene with some basic objects
     boost::shared_ptr<btDefaultMotionState> ms;
     ms.reset(new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0))));
