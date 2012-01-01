@@ -5,11 +5,14 @@
 #include <openrave/kinbody.h>
 
 // I've only tested this on the PR2 model
-class GripperAction : public Action {
+class PR2SoftBodyGripperAction : public Action {
     RaveRobotKinematicObject::Manipulator::Ptr manip;
     dReal startVal, endVal;
     vector<int> indices;
     vector<dReal> vals;
+
+    // min/max gripper dof vals
+    static const float CLOSED_VAL = 0.03f, OPEN_VAL = 0.54f;
 
     KinBody::LinkPtr leftFinger, rightFinger;
     const btTransform origLeftFingerInvTrans, origRightFingerInvTrans;
@@ -25,9 +28,9 @@ class GripperAction : public Action {
     // points straight down in the PR2 initial position (manipulator frame)
     const btVector3 toolDirection;
 
+    // the target softbody
     btSoftBody *psb;
 
-public:
     btTransform getManipRot() const {
         btTransform trans(manip->getTransform());
         trans.setOrigin(btVector3(0, 0, 0));
@@ -40,8 +43,8 @@ public:
         return (left ? 1 : -1) * toolDirection.cross(closingNormal);
     }
 
+    // Finds some innermost point on the gripper
     btVector3 getInnerPt(bool left) const {
-        // first get some innermost point on the gripper
         btTransform trans(manip->robot->getLinkTransform(left ? leftFinger : rightFinger));
         // this assumes that the gripper is symmetric when it is closed
         // we get an innermost point on the gripper by transforming a point
@@ -57,64 +60,61 @@ public:
         return (getManipRot() * getClosingDirection(left)).dot(pt - getInnerPt(left)) > 0;
     }
 
+    // Fills in the rcontacs array with contact information between psb and pco
     static void getContactPointsWith(btSoftBody *psb, btCollisionObject *pco, btSoftBody::tRContactArray &rcontacts) {
-        // custom contact checking
-        // adapted from btSoftBody.cpp and btSoftBodyInternals.h
-        struct  Custom_CollideSDF_RS : btDbvt::ICollide
-        {
+        // custom contact checking adapted from btSoftBody.cpp and btSoftBodyInternals.h
+        struct Custom_CollideSDF_RS : btDbvt::ICollide {
             Custom_CollideSDF_RS(btSoftBody::tRContactArray &rcontacts_) : rcontacts(rcontacts_) { }
 
-                void            Process(const btDbvtNode* leaf)
-                {
-                        btSoftBody::Node*       node=(btSoftBody::Node*)leaf->data;
-                        DoNode(*node);
+            void Process(const btDbvtNode* leaf) {
+                btSoftBody::Node* node=(btSoftBody::Node*)leaf->data;
+                DoNode(*node);
+            }
+
+            void DoNode(btSoftBody::Node& n) {
+                const btScalar m=n.m_im>0?dynmargin:stamargin;
+                btSoftBody::RContact c;
+                if (!n.m_battach && psb->checkContact(m_colObj1,n.m_x,m,c.m_cti)) {
+                    const btScalar  ima=n.m_im;
+                    const btScalar  imb= m_rigidBody? m_rigidBody->getInvMass() : 0.f;
+                    const btScalar  ms=ima+imb;
+                    if(ms>0) {
+                        // there's a lot of extra information we don't need to compute
+                        // since we just want to find the contact points
+#if 0
+                        const btTransform&      wtr=m_rigidBody?m_rigidBody->getWorldTransform() : m_colObj1->getWorldTransform();
+                        static const btMatrix3x3        iwiStatic(0,0,0,0,0,0,0,0,0);
+                        const btMatrix3x3&      iwi=m_rigidBody?m_rigidBody->getInvInertiaTensorWorld() : iwiStatic;
+                        const btVector3         ra=n.m_x-wtr.getOrigin();
+                        const btVector3         va=m_rigidBody ? m_rigidBody->getVelocityInLocalPoint(ra)*psb->m_sst.sdt : btVector3(0,0,0);
+                        const btVector3         vb=n.m_x-n.m_q; 
+                        const btVector3         vr=vb-va;
+                        const btScalar          dn=btDot(vr,c.m_cti.m_normal);
+                        const btVector3         fv=vr-c.m_cti.m_normal*dn;
+                        const btScalar          fc=psb->m_cfg.kDF*m_colObj1->getFriction();
+#endif
+                        c.m_node        =       &n;
+#if 0
+                        c.m_c0          =       ImpulseMatrix(psb->m_sst.sdt,ima,imb,iwi,ra);
+                        c.m_c1          =       ra;
+                        c.m_c2          =       ima*psb->m_sst.sdt;
+                        c.m_c3          =       fv.length2()<(btFabs(dn)*fc)?0:1-fc;
+                        c.m_c4          =       m_colObj1->isStaticOrKinematicObject()?psb->m_cfg.kKHR:psb->m_cfg.kCHR;
+#endif
+                        rcontacts.push_back(c);
+#if 0
+                        if (m_rigidBody)
+                                m_rigidBody->activate();
+#endif
+                    }
                 }
-                void            DoNode(btSoftBody::Node& n)
-                {
-                        const btScalar                  m=n.m_im>0?dynmargin:stamargin;
-                        btSoftBody::RContact    c;
-                        if(     (!n.m_battach)&&
-                                psb->checkContact(m_colObj1,n.m_x,m,c.m_cti))
-                        {
-                                const btScalar  ima=n.m_im;
-                                const btScalar  imb= m_rigidBody? m_rigidBody->getInvMass() : 0.f;
-                                const btScalar  ms=ima+imb;
-                                if(ms>0)
-                                {
-#if 0
-                                        const btTransform&      wtr=m_rigidBody?m_rigidBody->getWorldTransform() : m_colObj1->getWorldTransform();
-                                        static const btMatrix3x3        iwiStatic(0,0,0,0,0,0,0,0,0);
-                                        const btMatrix3x3&      iwi=m_rigidBody?m_rigidBody->getInvInertiaTensorWorld() : iwiStatic;
-                                        const btVector3         ra=n.m_x-wtr.getOrigin();
-                                        const btVector3         va=m_rigidBody ? m_rigidBody->getVelocityInLocalPoint(ra)*psb->m_sst.sdt : btVector3(0,0,0);
-                                        const btVector3         vb=n.m_x-n.m_q; 
-                                        const btVector3         vr=vb-va;
-                                        const btScalar          dn=btDot(vr,c.m_cti.m_normal);
-                                        const btVector3         fv=vr-c.m_cti.m_normal*dn;
-                                        const btScalar          fc=psb->m_cfg.kDF*m_colObj1->getFriction();
-#endif
-                                        c.m_node        =       &n;
-#if 0
-                                        c.m_c0          =       ImpulseMatrix(psb->m_sst.sdt,ima,imb,iwi,ra);
-                                        c.m_c1          =       ra;
-                                        c.m_c2          =       ima*psb->m_sst.sdt;
-                                        c.m_c3          =       fv.length2()<(btFabs(dn)*fc)?0:1-fc;
-                                        c.m_c4          =       m_colObj1->isStaticOrKinematicObject()?psb->m_cfg.kKHR:psb->m_cfg.kCHR;
-#endif
-                                        rcontacts.push_back(c);
-#if 0
-                                        if (m_rigidBody)
-                                                m_rigidBody->activate();
-#endif
-                                }
-                        }
-                }
-                btSoftBody*             psb;
-                btCollisionObject*      m_colObj1;
-                btRigidBody*    m_rigidBody;
-                btScalar                dynmargin;
-                btScalar                stamargin;
-                btSoftBody::tRContactArray &rcontacts;
+            }
+            btSoftBody*             psb;
+            btCollisionObject*      m_colObj1;
+            btRigidBody*    m_rigidBody;
+            btScalar                dynmargin;
+            btScalar                stamargin;
+            btSoftBody::tRContactArray &rcontacts;
         };
 
         Custom_CollideSDF_RS  docollide(rcontacts);              
@@ -141,8 +141,40 @@ public:
         psb->m_ndbvt.collideTV(psb->m_ndbvt.m_root,volume,docollide);
     }
 
-    typedef boost::shared_ptr<GripperAction> Ptr;
-    GripperAction(RaveRobotKinematicObject::Manipulator::Ptr manip_,
+    // adapted from btSoftBody.cpp (btSoftBody::appendAnchor)
+    static void appendAnchor(btSoftBody *psb, btSoftBody::Node *node, btRigidBody *body, btScalar influence=1) {
+        btSoftBody::Anchor a;
+        a.m_node = node;
+        a.m_body = body;
+        a.m_local = body->getWorldTransform().inverse()*a.m_node->m_x;
+        a.m_node->m_battach = 1;
+        a.m_influence = influence;
+        psb->m_anchors.push_back(a);
+    }
+
+    // Checks if psb is touching the inside of the gripper fingers
+    // If so, attaches anchors to every contact point
+    void attach(bool left) {
+        btRigidBody *rigidBody =
+            manip->robot->associatedObj(left ? leftFinger : rightFinger)->rigidBody.get();
+        btSoftBody::tRContactArray rcontacts;
+        getContactPointsWith(psb, rigidBody, rcontacts);
+        cout << "got " << rcontacts.size() << " contacts\n";
+        for (int i = 0; i < rcontacts.size(); ++i) {
+            const btSoftBody::RContact &c = rcontacts[i];
+            KinBody::LinkPtr colLink = manip->robot->associatedObj(c.m_cti.m_colObj);
+            if (!colLink) continue;
+            const btVector3 &contactPt = c.m_node->m_x;
+            if (onInnerSide(contactPt, left)) {
+                appendAnchor(psb, c.m_node, rigidBody);
+                cout << "\tappending anchor\n";
+            }
+        }
+    }
+
+public:
+    typedef boost::shared_ptr<PR2SoftBodyGripperAction> Ptr;
+    PR2SoftBodyGripperAction(RaveRobotKinematicObject::Manipulator::Ptr manip_,
                   const string &leftFingerName,
                   const string &rightFingerName,
                   float time) :
@@ -160,6 +192,7 @@ public:
     {
         if (indices.size() != 1)
             cout << "WARNING: more than one gripper DOF; just choosing first one" << endl;
+        setCloseAction();
     }
 
     void setEndpoints(dReal start, dReal end) { startVal = start; endVal = end; }
@@ -168,41 +201,17 @@ public:
         manip->robot->robot->GetDOFValues(v);
         return v[indices[0]];
     }
-    static const float CLOSED_VAL = 0.05f, OPEN_VAL = 0.54f;
     void setOpenAction() { setEndpoints(getCurrDOFVal(), OPEN_VAL); } // 0.54 is the max joint value for the pr2
     void setCloseAction() { setEndpoints(getCurrDOFVal(), CLOSED_VAL); }
+    void toggleAction() {
+        if (endVal == CLOSED_VAL)
+            setOpenAction();
+        else if (endVal == OPEN_VAL)
+            setCloseAction();
+    }
 
+    // Must be called before the action is run!
     void setTarget(btSoftBody *psb_) { psb = psb_; }
-
-    static void appendAnchor(btSoftBody *psb, btSoftBody::Node *node, btRigidBody *body, btScalar influence=1) {
-        btSoftBody::Anchor a;
-        a.m_node = node;
-        a.m_body = body;
-        a.m_local = body->getWorldTransform().inverse()*a.m_node->m_x;
-        a.m_node->m_battach = 1;
-        a.m_influence = influence;
-        psb->m_anchors.push_back(a);
-    }
-
-    void attach(bool left) {
-        // checks if psb is touching the inside of the gripper fingers
-        // if so, attaches anchors to every contact point
-        btRigidBody *rigidBody =
-            manip->robot->associatedObj(left ? leftFinger : rightFinger)->rigidBody.get();
-        btSoftBody::tRContactArray rcontacts;
-        getContactPointsWith(psb, rigidBody, rcontacts);
-        cout << "got " << rcontacts.size() << " contacts\n";
-        for (int i = 0; i < rcontacts.size(); ++i) {
-            const btSoftBody::RContact &c = rcontacts[i];
-            KinBody::LinkPtr colLink = manip->robot->associatedObj(c.m_cti.m_colObj);
-            if (!colLink) continue;
-            const btVector3 &contactPt = c.m_node->m_x;
-            if (onInnerSide(contactPt, left)) {
-                appendAnchor(psb, c.m_node, rigidBody);
-                cout << "\tappending anchor\n";
-            }
-        }
-    }
 
     void releaseAllAnchors() {
         psb->m_anchors.clear();
@@ -230,10 +239,9 @@ public:
 
 
 struct CustomScene : public Scene {
-    GripperAction::Ptr leftAction, rightAction;
+    PR2SoftBodyGripperAction::Ptr leftAction, rightAction;
     BulletSoftObject::Ptr createCloth(btScalar s, const btVector3 &center, int divs);
     void run();
-    void printDiagnostics();
 };
 
 class CustomKeyHandler : public osgGA::GUIEventHandler {
@@ -249,17 +257,13 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,osgGA::GUIActionA
         switch (ea.getKey()) {
         case 'a':
             scene.leftAction->reset();
-            scene.leftAction->setCloseAction();
+            scene.leftAction->toggleAction();
             scene.runAction(scene.leftAction, CFG.bullet.dt);
             break;
         case 's':
             scene.rightAction->reset();
-            scene.rightAction->setCloseAction();
+            scene.rightAction->toggleAction();
             scene.runAction(scene.rightAction, CFG.bullet.dt);
-            break;
-
-        case ' ':
-            scene.printDiagnostics();
             break;
         }
         break;
@@ -279,7 +283,6 @@ BulletSoftObject::Ptr CustomScene::createCloth(btScalar s, const btVector3 &cent
 
     psb->m_cfg.piterations = 4;
     psb->m_cfg.collisions = btSoftBody::fCollision::CL_SS
-//        | btSoftBody::fCollision::SDF_RS // so we can use m_rcontacts
         | btSoftBody::fCollision::CL_RS
         | btSoftBody::fCollision::CL_SELF;
     psb->m_cfg.kDF = 0.9;
@@ -293,47 +296,6 @@ BulletSoftObject::Ptr CustomScene::createCloth(btScalar s, const btVector3 &cent
     psb->generateClusters(0);
 
     return BulletSoftObject::Ptr(new BulletSoftObject(psb));
-}
-
-void CustomScene::printDiagnostics() {
-#if 0
-    struct S {
-        static void directionInfo(RaveRobotKinematicObject::Manipulator::Ptr p) {
-            printf("name: %s\n", p->manip->GetName().c_str());
-            btTransform manipRot(util::toBtTransform(p->manip->GetTransform()));
-            manipRot.setOrigin(btVector3(0, 0, 0));
-
-            btVector3 closingNormal = manipRot
-                * btVector3(p->manip->GetClosingDirection()[0],
-                            p->manip->GetClosingDirection()[1],
-                            p->manip->GetClosingDirection()[2]);
-            btVector3 tv = closingNormal;
-            printf("world closing normal: %f %f %f\n", tv.x(), tv.y(), tv.z());
-
-            btVector3 toolDirection = manipRot * util::toBtVector(p->manip->GetLocalToolDirection());
-            tv = toolDirection;
-            printf("world tool direction: %f %f %f\n", tv.x(), tv.y(), tv.z());
-
-            btVector3 closingDirection = toolDirection.cross(closingNormal);
-            tv = closingDirection;
-            printf("world closing direction (left finger): %f %f %f\n", tv.x(), tv.y(), tv.z());
-            tv = -closingDirection;
-            printf("world closing direction (right finger): %f %f %f\n", tv.x(), tv.y(), tv.z());
-        }
-    };
-#endif
-
-    btVector3 tv = leftAction->getClosingDirection(true);
-    printf("world closing direction (left finger): %f %f %f\n", tv.x(), tv.y(), tv.z());
-    tv = leftAction->getClosingDirection(false);
-    printf("world closing direction (right finger): %f %f %f\n", tv.x(), tv.y(), tv.z());
-    printf("\n");
-
-    tv = rightAction->getClosingDirection(true);
-    printf("world closing direction (left finger): %f %f %f\n", tv.x(), tv.y(), tv.z());
-    tv = rightAction->getClosingDirection(false);
-    printf("world closing direction (right finger): %f %f %f\n", tv.x(), tv.y(), tv.z());
-    printf("\n");
 }
 
 void CustomScene::run() {
@@ -356,78 +318,28 @@ void CustomScene::run() {
     env->add(table);
     env->add(cloth);
 
-    leftAction.reset(new GripperAction(pr2Left, "l_gripper_l_finger_tip_link", "l_gripper_r_finger_tip_link", 1));
+    leftAction.reset(new PR2SoftBodyGripperAction(pr2Left, "l_gripper_l_finger_tip_link", "l_gripper_r_finger_tip_link", 1));
     leftAction->setTarget(psb);
-    rightAction.reset(new GripperAction(pr2Right, "r_gripper_l_finger_tip_link", "r_gripper_r_finger_tip_link", 1));
+    rightAction.reset(new PR2SoftBodyGripperAction(pr2Right, "r_gripper_l_finger_tip_link", "r_gripper_r_finger_tip_link", 1));
     rightAction->setTarget(psb);
 
     //setSyncTime(true);
     startViewer();
     stepFor(dt, 2);
 
+    /*
     leftAction->setOpenAction();
     runAction(leftAction, dt);
 
     rightAction->setOpenAction();
     runAction(rightAction, dt);
+    */
 
-    //startLoop();
-//    startFixedTimestepLoop(dt);
-
-
-
-
-    vector<btVector3> tmpPts, tmpLines0, tmpLines1;
-#if 0
-    for (int i = 0; i < cloth->softBody->m_faces.size(); ++i) {
-        for (int j = 0; j < 3; ++j)
-            tmpPts.push_back(cloth->softBody->m_faces[i].m_n[j]->m_x);
-    }
-    plotPoints->setPoints(tmpPts);
-#endif
-
-    btCollisionObject *llfinger = pr2->associatedObj(pr2->robot->GetLink("l_gripper_l_finger_tip_link"))->rigidBody.get();
-    while (true) {
-
-#if 0
-        tmpPts.clear();
-        tmpLines0.clear(); tmpLines1.clear();
-        tmpLines0.push_back(leftAction->getInnerPt(true));
-        tmpLines1.push_back(leftAction->getInnerPt(true) + CFG.scene.scale * (leftAction->getManipRot() * leftAction->getClosingDirection(true)));
-
-        btVector3 v = leftAction->getInnerPt(true);
-        cout << "inner point: " << v.x() << ' ' << v.y() << ' ' << v.z() << '\n';
-        v = pr2Left->getTransform().getOrigin();
-        cout << "center point: " << v.x() << ' ' << v.y() << ' ' << v.z() << '\n';
-
-
-            cout << "robot contact: " << colLink->GetName() << '\n';
-
-            //const btVector3 contactPt = c.m_node->m_x - c.m_cti.m_normal*(btDot(c.m_node->m_x, c.m_cti.m_normal) + c.m_cti.m_offset);
-            const btVector3 &contactPt = c.m_node->m_x;
-            cout << "contact point: " << contactPt.x() << ' ' << contactPt.y() << ' ' << contactPt.z() << '\n';
-
-            if (leftAction->onInnerSide(contactPt, true)) {
-                cout << "\ton inner side\n";
-                tmpPts.push_back(contactPt);
-            }
-#if 0
-            if (colLink->GetName() == "l_gripper_l_finger_tip_link") {
-                cout << "touching l_gripper_l_finger_tip_link" << endl;
-            }
-#endif
-        }
-        plotPoints->setPoints(tmpPts);
-        plotLines->setPoints(tmpLines0, tmpLines1);
-
-#endif
-        step(dt);
-    }
+    startFixedTimestepLoop(dt);
 }
 
 int main(int argc, char *argv[]) {
     Config::read(argc, argv);
-    //CFG.scene.mouseDragScale = 0.1;
     CFG.scene.scale = 20.;
     CFG.viewer.cameraHomePosition = btVector3(100, 0, 100);
     CFG.bullet.dt = 0.01;
