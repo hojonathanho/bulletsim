@@ -43,6 +43,7 @@ void BulletInstance::contactTest(btCollisionObject *obj,
                                  const btCollisionObject *colObj1, int, int) {
             if (ignore && ignore->find(colObj1) == ignore->end())
                 out.insert(colObj1);
+            return 0;
         }
     } cb(ignore, out);
     dynamicsWorld->contactTest(obj, cb);

@@ -205,14 +205,14 @@ void GrabberKinematicObject::grabNearestObjectAhead() {
             hitFrame.setOrigin(localHitPoint);
             hitFrame.setRotation(hitBodyTransInverse.getRotation());
 
-			constraint.reset(new btGeneric6DofConstraint(*rigidBody, *hitBody, grabberFrame, hitFrame, false));
+            constraint.reset(new btGeneric6DofConstraint(*rigidBody, *hitBody, grabberFrame, hitFrame, false));
             // make the constraint completely rigid
-			constraint->setLinearLowerLimit(btVector3(0., 0., 0.));
-			constraint->setLinearUpperLimit(btVector3(0., 0., 0.));
+            constraint->setLinearLowerLimit(btVector3(0., 0., 0.));
+            constraint->setLinearUpperLimit(btVector3(0., 0., 0.));
             constraint->setAngularLowerLimit(btVector3(0., 0., 0.));
             constraint->setAngularUpperLimit(btVector3(0., 0., 0.));
 
-			getEnvironment()->bullet->dynamicsWorld->addConstraint(constraint.get());
+            getEnvironment()->bullet->dynamicsWorld->addConstraint(constraint.get());
         }
     }
 }
