@@ -7,9 +7,9 @@ void read_btVectors(vector<btVector3>& out, const string& fname) {
   float x,y,z;
   out.clear();
   ifstream infile(fname.c_str());
-  while (infile) {
+  while (true) {
     infile >> x >> y >> z;
-    if (infile) {
+    if (!infile.fail()) {
       out.push_back(btVector3(x,y,z));
     }
   }
@@ -22,7 +22,7 @@ vector<btVector3> read_btVectors(const string& fname) {
   float x,y,z;
   out.clear();
   ifstream infile(fname.c_str());
-  while (infile) {
+  while (true) {
     infile >> x >> y >> z;
     if (infile) {
       out.push_back(btVector3(x,y,z));

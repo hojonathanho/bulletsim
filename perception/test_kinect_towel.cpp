@@ -7,10 +7,10 @@
 #include <BulletSoftBody/btSoftBodyHelpers.h>
 #include <BulletSoftBody/btSoftBody.h>
 
-#include "get_table.h"
+#include "clouds/get_table.h"
 #include "clouds/geom.h"
 #include "utils_perception.h"
-#include "comm.h"
+#include "comm/comm.h"
 
 #include <pcl/point_types.h>
 #include <pcl/io/pcd_io.h>

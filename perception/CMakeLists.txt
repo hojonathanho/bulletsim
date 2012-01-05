@@ -31,6 +31,10 @@ link_directories(
 )
 add_definitions(${PCL_DEFINITIONS})
 
+include_directories("~/cpp")
+link_directories("~/cpp/clouds/build" "~/cpp/comm/build")
+
+
 add_library(perception tracking.cpp utils_perception.cpp dist_math.cpp)
 target_link_libraries(perception ${PCL_LIBRARIES} simulation)
 
@@ -38,9 +42,6 @@ add_executable(test_kinect_rope1 test_kinect_rope.cpp)
 target_link_libraries(test_kinect_rope1 simulation perception clouds ${PCL_LIBRARIES} json comm)
 
 
-add_subdirectory(clouds)
-add_subdirectory(comm)
-include_directories("clouds" "comm")
 
 #add_executable(test_eigen_inc test_eigen_inc.cpp)
 
