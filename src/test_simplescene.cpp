@@ -1,15 +1,16 @@
 #include "simplescene.h"
-#include "userconfig.h"
+#include "config.h"
 
 int main(int argc, char *argv[]) {
     // first read the configuration from the user
-    CFG->read(argc, argv);
 
     // and override config values to what we want
-    CFG->scene.enableIK = true;
-    CFG->scene.enableRobot = true;
-    CFG->scene.enableHaptics = true;
+    SceneConfig::enableIK = true;
+    SceneConfig::enableRobot = true;
+    SceneConfig::enableHaptics = true;
 
+    Parser().read(argc, argv);    
+    
     // construct the scene
     Scene scene;
     // manipulate the scene or add more objects, if desired

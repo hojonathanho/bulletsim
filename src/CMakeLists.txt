@@ -20,15 +20,15 @@ if (BUILD_PERCEPTION)
   add_definitions(${PCL_DEFINITIONS})
 endif(BUILD_PERCEPTION)
 
-add_library(simulation environment.cpp basicobjects.cpp openravesupport.cpp util.cpp simplescene.cpp userconfig.cpp softbodies.cpp rope.cpp plotting.cpp)
+add_library(simulation environment.cpp basicobjects.cpp openravesupport.cpp util.cpp simplescene.cpp softbodies.cpp rope.cpp plotting.cpp config.cpp config_bullet.cpp config_viewer.cpp)
 
 target_link_libraries(simulation haptics osgBullet osgWorks ${Boost_LIBRARIES} ${OSG_LIBS} ${BULLET_LIBS} ${OpenRAVE_LIBRARIES} ${OpenRAVE_CORE_LIBRARIES})
 
-add_executable(simplescene_test simplescene_test.cpp)
-target_link_libraries(simplescene_test simulation)
+add_executable(test_simplescene test_simplescene.cpp)
+target_link_libraries(test_simplescene simulation)
 
-add_executable(softbody_test softbody_test.cpp)
-target_link_libraries(softbody_test simulation)
+add_executable(test_softbody test_softbody.cpp)
+target_link_libraries(test_softbody simulation)
 
 #add_executable(test_playback_joints test_playback_joints.cpp)
 #target_link_libraries(test_playback_joints simulation)
@@ -45,9 +45,6 @@ endif(BUILD_PERCEPTION)
 
 add_executable(test_fork test_fork.cpp)
 target_link_libraries(test_fork simulation)
-
-add_executable(test_subclass_config test_subclass_config.cpp userconfig.cpp)
-target_link_libraries(test_subclass_config ${BOOST_LIBRARIES})
 
 add_executable(test_shirt test_shirt.cpp)
 target_link_libraries(test_shirt simulation)

@@ -3,16 +3,16 @@
 #include "unistd.h"
 #include "util.h"
 #include "grabbing.h"
-#include "userconfig.h"
+#include "config.h"
 
 using boost::shared_ptr;
 using namespace util;
 
 int main(int argc, char *argv[]) {
-  CFG->read(argc, argv);
-  CFG->scene.enableIK = CFG->scene.enableHaptics = false;
-  CFG->scene.enableRobot = true;
-  CFG->scene.scale = 1.0;
+  Parser().read(argc, argv);
+  SceneConfig::enableIK = SceneConfig::enableHaptics = false;
+  SceneConfig::enableRobot = true;
+  GeneralConfig::scale = 1.0;
 
   const float table_height = .765;
   const float rope_radius = .01;

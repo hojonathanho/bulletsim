@@ -5,6 +5,7 @@
 #include "environment.h"
 #include "basicobjects.h"
 #include "openravesupport.h"
+#include "config.h"
 
 class Scene;
 
@@ -51,3 +52,8 @@ struct Scene {
   double currSimTime, prevSimTime;
 };
 
+struct SceneConfig : Config {
+  static bool enableIK;
+  static bool enableHaptics;
+  static bool enableRobot;
+};

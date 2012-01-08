@@ -1,14 +1,14 @@
 #include "openravesupport.h"
 #include <openrave-core.h>
 #include <BulletCollision/CollisionShapes/btShapeHull.h>
-#include "userconfig.h"
+#include "config.h"
 
 using namespace OpenRAVE;
 
 RaveInstance::RaveInstance() {
     RaveInitialize(true);
     env = RaveCreateEnvironment();
-    if (CFG->verbose)
+    if (GeneralConfig::verbose)
         RaveSetDebugLevel(Level_Debug);
 }
 

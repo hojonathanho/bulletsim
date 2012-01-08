@@ -1,9 +1,9 @@
-#include "userconfig.h"
 #include "simplescene.h"
 #include "util.h"
 #include "rope.h"
 #include "plotting.h"
 #include "tracking.h"
+#include "config.h"
 
 #include "clouds/get_table.h"
 #include "clouds/geom.h"
@@ -101,12 +101,11 @@ void updateEnds(const string jsonfile, btDynamicsWorld* world, EndInfo& endinfo,
 
 
 int main(int argc, char *argv[]) {
-  setConfigData(CFG2);
-  CFG->read(argc,argv);
-  CFG->scene.enableIK = CFG->scene.enableHaptics = CFG->scene.enableRobot = false;
 
+  Parser().read(argc, argv);
+  SceneConfig::enableIK = SceneConfig::enableHaptics = SceneConfig::enableRobot = false;
+  METERS = GeneralConfig::scale;
 
-  METERS = CFG->scene.scale;
   cout << "scale: " << METERS << endl;
 
   string first_rope = comm::listenOnce("first_rope.txt");

@@ -1,7 +1,8 @@
 #include "simplescene.h"
+#include "config_bullet.h"
+#include "config_viewer.h"
 #include "thread_socket_interface.h"
 #include "util.h"
-#include "userconfig.h"
 
 #include <iostream>
 using namespace std;
@@ -10,13 +11,13 @@ using namespace std;
 Scene::Scene() {
     osg.reset(new OSGInstance());
     bullet.reset(new BulletInstance());
-    bullet->setGravity(CFG->bullet.gravity);
-    if (CFG->scene.enableRobot)
+    bullet->setGravity(BulletConfig::gravity);
+    if (SceneConfig::enableRobot)
         rave.reset(new RaveInstance());
 
     env.reset(new Environment(bullet, osg));
 
-    if (CFG->scene.enableHaptics)
+    if (SceneConfig::enableHaptics)
         connectionInit(); // socket connection for haptics
 
     // populate the scene with some basic objects
@@ -25,13 +26,13 @@ Scene::Scene() {
     ground.reset(new PlaneStaticObject(btVector3(0., 0., 1.), 0., ms));
     env->add(ground);
 
-    if (CFG->scene.enableRobot) {
+    if (SceneConfig::enableRobot) {
       btTransform trans(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0));
-      pr2.reset(new RaveRobotKinematicObject(rave, "robots/pr2-beta-sim.robot.xml", trans, CFG->scene.scale));
+      pr2.reset(new RaveRobotKinematicObject(rave, "robots/pr2-beta-sim.robot.xml", trans, GeneralConfig::scale));
       env->add(pr2);
     }
 
-    if (CFG->scene.enableIK) {
+    if (SceneConfig::enableIK) {
         pr2Left = pr2->createManipulator("leftarm");
         pr2Right = pr2->createManipulator("rightarm");
         env->add(pr2Left->grabber);
@@ -45,9 +46,9 @@ void Scene::startViewer() {
     bullet->dynamicsWorld->setDebugDrawer(dbgDraw.get());
     osg->root->addChild(dbgDraw->getSceneGraph());
 
-    viewer.setUpViewInWindow(0, 0, CFG->viewer.windowWidth, CFG->viewer.windowHeight);
+    viewer.setUpViewInWindow(0, 0, ViewerConfig::windowWidth, ViewerConfig::windowHeight);
     manip = new EventHandler(this);
-    manip->setHomePosition(util::toOSGVector(CFG->viewer.cameraHomePosition), osg::Vec3(), osg::Z_AXIS);
+    manip->setHomePosition(util::toOSGVector(ViewerConfig::cameraHomePosition), osg::Vec3(), osg::Z_AXIS);
     manip->state.debugDraw = true;
     viewer.setCameraManipulator(manip);
     viewer.setSceneData(osg->root.get());
@@ -78,14 +79,14 @@ void Scene::processHaptics() {
 }
 
 void Scene::step(float dt, int maxsteps, float internaldt) {
-    if (CFG->scene.enableHaptics)
+    if (SceneConfig::enableHaptics)
         processHaptics();
     env->step(dt, maxsteps, internaldt);
     draw();
 }
 
 void Scene::step(float dt) {
-    step(dt, CFG->bullet.maxSubSteps, CFG->bullet.internalTimeStep);
+    step(dt, BulletConfig::maxSubSteps, BulletConfig::internalTimeStep);
 }
 
 void Scene::draw() {
@@ -170,7 +171,7 @@ bool EventHandler::handle(const osgGA::GUIEventAdapter &ea, osgGA::GUIActionAdap
 
     case osgGA::GUIEventAdapter::DRAG:
         // drag the active grabber in the plane of view
-        if (CFG->scene.enableIK &&
+        if (SceneConfig::enableIK &&
               (ea.getButtonMask() & ea.LEFT_MOUSE_BUTTON) &&
               (state.moveGrabber0 || state.moveGrabber1)) {
             if (state.startDragging) {
@@ -221,3 +222,7 @@ bool EventHandler::handle(const osgGA::GUIEventAdapter &ea, osgGA::GUIActionAdap
     // to let other handlers deal with this event too
     return false;
 }
+
+bool SceneConfig::enableIK = true;
+bool SceneConfig::enableHaptics = false;
+bool SceneConfig::enableRobot = true;

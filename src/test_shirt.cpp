@@ -1,6 +1,6 @@
 #include "simplescene.h"
 #include "util.h"
-#include "userconfig.h"
+#include "config_bullet.h"
 #include <iostream>
 #include <fstream>
 #include <BulletSoftBody/btSoftBodyHelpers.h>
@@ -42,9 +42,9 @@ int main(int argc, char* argv[]) {
         node.insert(node.length(), "\n");
     }
    
-    CFG->read(argc,argv);
-    CFG->scene.scale = 10.;
-    CFG->scene.enableRobot=CFG->scene.enableIK=false;
+    Parser().read(argc,argv);
+    GeneralConfig::scale = 10.;
+    SceneConfig::enableRobot=SceneConfig::enableIK=false;
     Scene s;
     //Create your psb
     btSoftBody* psb=btSoftBodyHelpers::CreateFromTetGenData(s.env->bullet->softBodyWorldInfo,

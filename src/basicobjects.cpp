@@ -1,5 +1,5 @@
 #include "basicobjects.h"
-#include "userconfig.h"
+#include "config_bullet.h"
 #include <osg/Geometry>
 #include <osg/Geode>
 #include <osg/Shape>
@@ -13,8 +13,8 @@ btRigidBody::btRigidBodyConstructionInfo getCI(btScalar mass, boost::shared_ptr<
   collisionShape->calculateLocalInertia(mass,inertia);
   btRigidBody::btRigidBodyConstructionInfo ci(mass, motionState.get(),
 					      collisionShape.get(), inertia);
-  ci.m_restitution = CFG->bullet.restitution;
-  ci.m_friction = CFG->bullet.friction;
+  ci.m_restitution = BulletConfig::restitution;
+  ci.m_friction = BulletConfig::friction;
   return ci;
 }
 
