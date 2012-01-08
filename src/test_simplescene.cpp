@@ -17,7 +17,7 @@ int main(int argc, char *argv[]) {
 
     // start the simulation
     scene.startViewer();
-    scene.viewerLoop();
+    scene.startLoop();
 
     return 0;
 }

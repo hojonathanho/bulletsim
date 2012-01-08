@@ -2,7 +2,7 @@
 
 #include "plotting.h"
 #include "simplescene.h"
-#include "userconfig.h"
+#include "config.h"
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_types.h>
 using boost::shared_ptr;

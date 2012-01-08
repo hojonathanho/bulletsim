@@ -114,7 +114,38 @@ void RaveRobotKinematicObject::initRobotWithoutDynamics(const btTransform &initi
         btTransform childTrans = initialTransform * util::toBtTransform((*link)->GetTransform(), scale);
         BulletKinematicObject::Ptr child(new BulletKinematicObject(compound, childTrans));
         getChildren().push_back(child);
+        linkMap[*link] = child;
+        collisionObjMap[child->rigidBody.get()] = *link;
+
+        // since the joints are always in contact, we should ignore their collisions
+        // when setting joint positions (OpenRAVE should take care of them anyway)
+        ignoreCollisionWith(child->rigidBody.get());
     }
+}
+
+void RaveRobotKinematicObject::prePhysics() {
+    CompoundObject<BulletKinematicObject>::prePhysics();
+
+    // if we're sticking to any soft bodies
+    // TODO: unimplemented
+}
+
+bool RaveRobotKinematicObject::detectCollisions() {
+    getEnvironment()->bullet->dynamicsWorld->updateAabbs();
+
+    BulletInstance::CollisionObjectSet objs;
+    for (int i = 0; i < getChildren().size(); ++i) {
+        BulletKinematicObject::Ptr child = getChildren()[i];
+        if (!child) continue;
+        objs.clear();
+        getEnvironment()->bullet->contactTest(child->rigidBody.get(),
+                objs, &ignoreCollisionObjs);
+        if (!objs.empty()) {
+            // collision!
+            return true;
+        }
+    }
+    return false;
 }
 
 void RaveRobotKinematicObject::setDOFValues(const vector<int> &indices, const vector<dReal> &vals) {
@@ -131,17 +162,15 @@ void RaveRobotKinematicObject::setDOFValues(const vector<int> &indices, const ve
     // which are easy to feed into Bullet
     vector<OpenRAVE::Transform> transforms;
     robot->GetLinkTransformations(transforms);
-
-    // iterate through the transforms vector and the vlinks at the same time
     BOOST_ASSERT(transforms.size() == getChildren().size());
-    for (int i = 0; i < transforms.size(); ++i)
+    for (int i = 0; i < getChildren().size(); ++i)
         if (getChildren()[i])
             getChildren()[i]->getKinematicMotionState().setKinematicPos(
                 initialTransform * util::toBtTransform(transforms[i], scale));
 }
 
 RaveRobotKinematicObject::Manipulator::Ptr
-RaveRobotKinematicObject::createManipulator(const std::string &manipName) {
+RaveRobotKinematicObject::createManipulator(const std::string &manipName, bool useFakeGrabber) {
     RaveRobotKinematicObject::Manipulator::Ptr m(new Manipulator(this));
     // initialize the ik module
     robot->SetActiveManipulator(manipName);
@@ -155,29 +184,52 @@ RaveRobotKinematicObject::createManipulator(const std::string &manipName) {
         return Manipulator::Ptr(); // null
     }
 
-    // initialize the grabber
-    m->grabber.reset(new GrabberKinematicObject(0.02, 0.05));
-    m->updateGrabberPos();
+    m->useFakeGrabber = useFakeGrabber;
+    if (useFakeGrabber) {
+        m->grabber.reset(new GrabberKinematicObject(0.02, 0.05));
+        m->updateGrabberPos();
+        ignoreCollisionWith(m->grabber->rigidBody.get());
+    }
+
     return m;
 }
 
 void RaveRobotKinematicObject::Manipulator::updateGrabberPos() {
     // set the grabber right on top of the end effector
-    grabber->getKinematicMotionState().setKinematicPos(util::toBtTransform(manip->GetTransform(), robot->scale));
+    if (useFakeGrabber)
+        grabber->getKinematicMotionState().setKinematicPos(getTransform());
 }
 
-void RaveRobotKinematicObject::Manipulator::moveByIKUnscaled(const OpenRAVE::Transform &targetTrans) {
+bool RaveRobotKinematicObject::Manipulator::moveByIKUnscaled(
+        const OpenRAVE::Transform &targetTrans,
+        bool checkCollisions, bool revertOnCollision) {
+
     vector<dReal> vsolution;
     // TODO: lock environment?!?!
     if (!manip->FindIKSolution(IkParameterization(targetTrans), vsolution, true)) {
         stringstream ss;
         ss << "failed to get solution for target transform for end effector: " << targetTrans << endl;
         RAVELOG_DEBUG(ss.str());
-        return;
+        return false;
     }
+
+    // save old manip pose if we might want to revert
+    vector<dReal> oldVals(0);
+    if (checkCollisions && revertOnCollision) {
+        robot->robot->SetActiveDOFs(manip->GetArmIndices());
+        robot->robot->GetActiveDOFValues(oldVals);
+    }
+
+    // move the arm
     robot->setDOFValues(manip->GetArmIndices(), vsolution);
-    updateGrabberPos();
-}
-void RaveRobotKinematicObject::Manipulator::moveByIK(const btTransform &targetTrans) {
-    moveByIKUnscaled(util::toRaveTransform(targetTrans, 1./robot->scale));
+    if (checkCollisions && robot->detectCollisions()) {
+        if (revertOnCollision)
+            robot->setDOFValues(manip->GetArmIndices(), oldVals);
+        return false;
+    }
+
+    if (useFakeGrabber)
+        updateGrabberPos();
+
+    return true;
 }

@@ -39,13 +39,21 @@ Scene::Scene() {
       pr2->ignoreCollisionWith(ground->rigidBody.get()); // the robot's always touching the ground anyway
     }
 
-    if (SceneConfig::enableIK && SceneConfig::enableRobot) {
-        pr2Left = pr2->createManipulator("leftarm", SceneConfig::useFakeGrabber);
-        pr2Right = pr2->createManipulator("rightarm", SceneConfig::useFakeGrabber);
-        if (SceneConfig::useFakeGrabber) {
+<<<<<<< HEAD
+    if (SceneConfig::enableIK) {
+        pr2Left = pr2->createManipulator("leftarm");
+        pr2Right = pr2->createManipulator("rightarm");
+        env->add(pr2Left->grabber);
+        env->add(pr2Right->grabber);
+=======
+    if (CFG.scene.enableIK && CFG.scene.enableRobot) {
+        pr2Left = pr2->createManipulator("leftarm", CFG.scene.useFakeGrabber);
+        pr2Right = pr2->createManipulator("rightarm", CFG.scene.useFakeGrabber);
+        if (CFG.scene.useFakeGrabber) {
             env->add(pr2Left->grabber);
             env->add(pr2Right->grabber);
         }
+>>>>>>> jonathan
     }
 }
 
@@ -61,14 +69,19 @@ void Scene::startViewer() {
 
     viewer.setUpViewInWindow(0, 0, ViewerConfig::windowWidth, ViewerConfig::windowHeight);
     manip = new EventHandler(this);
+<<<<<<< HEAD
     manip->setHomePosition(util::toOSGVector(ViewerConfig::cameraHomePosition), osg::Vec3(), osg::Z_AXIS);
+    manip->state.debugDraw = true;
+=======
+    manip->setHomePosition(util::toOSGVector(CFG.viewer.cameraHomePosition), osg::Vec3(), osg::Z_AXIS);
+>>>>>>> jonathan
     viewer.setCameraManipulator(manip);
     viewer.setSceneData(osg->root.get());
     viewer.realize();
 }
 
 void Scene::processHaptics() {
-    if (!SceneConfig::enableRobot)
+    if (!CFG.scene.enableRobot)
         return;
 
     // read the haptic controllers
@@ -78,30 +91,30 @@ void Scene::processHaptics() {
     if (!util::getHapticInput(trans0, buttons0, trans1, buttons1))
         return;
 
-    pr2Left->moveByIK(trans0, SceneConfig::enableRobotCollision, true);
+    pr2Left->moveByIK(trans0, CFG.scene.enableRobotCollision, true);
     if (buttons0[0] && !lastButton[0]) {
-        if (SceneConfig::useFakeGrabber)
+        if (CFG.scene.useFakeGrabber)
             pr2Left->grabber->grabNearestObjectAhead();
         else
             cout << "not implemented" << endl;
     }
     else if (!buttons0[0] && lastButton[0]) {
-        if (SceneConfig::useFakeGrabber)
+        if (CFG.scene.useFakeGrabber)
             pr2Left->grabber->releaseConstraint();
         else
             cout << "not implemented" << endl;
     }
     lastButton[0] = buttons0[0];
 
-    pr2Right->moveByIK(trans0, SceneConfig::enableRobotCollision, true);
+    pr2Right->moveByIK(trans0, CFG.scene.enableRobotCollision, true);
     if (buttons1[0] && !lastButton[1]) {
-        if (SceneConfig::useFakeGrabber)
+        if (CFG.scene.useFakeGrabber)
             pr2Right->grabber->grabNearestObjectAhead();
         else
             cout << "not implemented" << endl;
     }
     else if (!buttons1[0] && lastButton[1]) {
-        if (SceneConfig::useFakeGrabber)
+        if (CFG.scene.useFakeGrabber)
             pr2Right->grabber->releaseConstraint();
         else
             cout << "not implemented" << endl;
@@ -110,12 +123,16 @@ void Scene::processHaptics() {
 }
 
 void Scene::step(float dt, int maxsteps, float internaldt) {
+<<<<<<< HEAD
+    if (SceneConfig::enableHaptics)
+=======
     static float startTime=viewer.getFrameStamp()->getSimulationTime(), endTime;
 
     if (syncTime && drawingOn)
         endTime = viewer.getFrameStamp()->getSimulationTime();
 
-    if (SceneConfig::enableHaptics)
+    if (CFG.scene.enableHaptics)
+>>>>>>> jonathan
         processHaptics();
     env->step(dt, maxsteps, internaldt);
     draw();
@@ -249,8 +266,13 @@ bool EventHandler::handle(const osgGA::GUIEventAdapter &ea, osgGA::GUIActionAdap
         return osgGA::TrackballManipulator::handle(ea, aa);
 
     case osgGA::GUIEventAdapter::DRAG:
+<<<<<<< HEAD
+        // drag the active grabber in the plane of view
+        if (SceneConfig::enableIK &&
+=======
         // drag the active manipulator in the plane of view
-        if (SceneConfig::enableRobot && SceneConfig::enableIK &&
+        if (CFG.scene.enableRobot && CFG.scene.enableIK &&
+>>>>>>> jonathan
               (ea.getButtonMask() & ea.LEFT_MOUSE_BUTTON) &&
               (state.moveManip0 || state.moveManip1 ||
                state.rotateManip0 || state.rotateManip1)) {
@@ -275,7 +297,7 @@ bool EventHandler::handle(const osgGA::GUIEventAdapter &ea, osgGA::GUIActionAdap
             btVector3 normal = (to - from).normalized();
             btVector3 yVec = (up - (up.dot(normal))*normal).normalized(); //FIXME: is this necessary with osg?
             btVector3 xVec = normal.cross(yVec);
-            btVector3 dragVec = SceneConfig::mouseDragScale * (dx*xVec + dy*yVec);
+            btVector3 dragVec = CFG.scene.mouseDragScale * (dx*xVec + dy*yVec);
 
             RaveRobotKinematicObject::Manipulator::Ptr manip;
             if (state.moveManip0 || state.rotateManip0)
@@ -301,7 +323,7 @@ bool EventHandler::handle(const osgGA::GUIEventAdapter &ea, osgGA::GUIActionAdap
                 if (rot.length() > 0.99f && rot.length() < 1.01f)
                     newTrans.setRotation(rot * origTrans.getRotation());
             }
-            manip->moveByIK(newTrans, SceneConfig::enableRobotCollision, true);
+            manip->moveByIK(newTrans, CFG.scene.enableRobotCollision, true);
         } else {
             // if not dragging, we want the camera to move
             return osgGA::TrackballManipulator::handle(ea, aa);
@@ -319,6 +341,3 @@ bool EventHandler::handle(const osgGA::GUIEventAdapter &ea, osgGA::GUIActionAdap
 bool SceneConfig::enableIK = true;
 bool SceneConfig::enableHaptics = false;
 bool SceneConfig::enableRobot = true;
-bool SceneConfig::enableRobotCollision = true;
-bool SceneConfig::useFakeGrabber = false;
-float SceneConfig::mouseDragScale = 1.;

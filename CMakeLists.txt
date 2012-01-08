@@ -11,7 +11,7 @@ ENDIF (NOT CMAKE_BUILD_TYPE)
 find_package(Boost COMPONENTS program_options REQUIRED)
 
 find_package(Eigen3 REQUIRED)
-find_package(OpenRAVE REQUIRED)
+find_package(OpenRAVE 0.5 REQUIRED)
 
 find_package(OpenThreads REQUIRED)
 find_package(osg REQUIRED)

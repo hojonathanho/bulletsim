@@ -13,7 +13,8 @@
 
 // import most common Eigen types
 //USING_PART_OF_NAMESPACE_EIGEN
-using namespace Eigen;
+using Eigen::Vector3d;
+using Eigen::Matrix3d;
 
 #define IP "128.32.37.98"
 #define RECEIVE_PORT 9000

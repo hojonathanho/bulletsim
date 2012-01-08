@@ -1,6 +1,6 @@
 #pragma once
 
-#include "userconfig.h"
+#include "config.h"
 #include "plotting.h"
 
 #include <btBulletDynamicsCommon.h>

@@ -154,17 +154,59 @@ public:
     }
 };
 
+<<<<<<< HEAD
+// an object that is entirely specified as a bullet btRigidBody
+// (the OSG model will be created from the btRigidBody, and
+// will be added to the scene graph and the dynamics world, respectively)
+class BulletObject : public EnvironmentObject {
+public:
+    typedef boost::shared_ptr<BulletObject> Ptr;
+
+    boost::shared_ptr<btRigidBody> rigidBody;
+    // the motionState and collisionShape actually don't matter; the ones
+    // embedded in the rigidBody are used for simulation. However,
+    // placing them here will have them automatically deallocated
+    // on destruction of the BulletObject
+    boost::shared_ptr<btDefaultMotionState> motionState;
+    boost::shared_ptr<btCollisionShape> collisionShape;
+
+    osg::ref_ptr<osg::Node> node;
+    osg::ref_ptr<osg::MatrixTransform> transform;
+  int plotOnly;
+
+    BulletObject() { }
+    BulletObject(boost::shared_ptr<btCollisionShape> collisionShape_, boost::shared_ptr<btRigidBody> rigidBody_) :
+      collisionShape(collisionShape_), rigidBody(rigidBody_), motionState(new btDefaultMotionState()) { }
+    BulletObject(boost::shared_ptr<btCollisionShape> collisionShape_, boost::shared_ptr<btRigidBody> rigidBody_,
+            boost::shared_ptr<btDefaultMotionState> motionState_) :
+      collisionShape(collisionShape_), rigidBody(rigidBody_), motionState(motionState_) { }
+    BulletObject(const BulletObject &o); // copy constructor
+    virtual ~BulletObject() { }
+
+    EnvironmentObject::Ptr copy() { return Ptr(new BulletObject(*this)); }
+
+    // called by Environment
+    void init();
+    void preDraw();
+    void destroy();
+
+    // methods to be overridden
+    virtual void initBulletStructures() { }; // should set rigidBody, motionState, collisionShape, if not set by constructor
+    // by default uses osgBullet. Can be overridden to provide custom OSG mesh
+    virtual osg::ref_ptr<osg::Node> createOSGNode();
+  void setColor(float r, float g, float b, float a);
+};
+=======
 class Action {
 protected:
     float timeElapsed;
     const float totalTime;
     bool isDone;
-  int plotOnly;
+>>>>>>> jonathan
 
     void setDone(bool b) { isDone = b; }
     void stepTime(float dt) { timeElapsed += dt; }
     float fracElapsed() const { return min(timeElapsed / totalTime, 1.f); }
-  void setColor(float r, float g, float b, float a);
 
 public:
     typedef boost::shared_ptr<Action> Ptr;

@@ -8,10 +8,10 @@
 #include <osgbCollision/CollisionShapes.h>
 #include <Serialize/BulletFileLoader/btBulletFile.h>
 #include <boost/scoped_array.hpp>
-#include "SetColorsVisitor.h"
 
 #define MAX_RAYCAST_DISTANCE 100.0
 
+<<<<<<< HEAD
 btRigidBody::btRigidBodyConstructionInfo getCI(btScalar mass, boost::shared_ptr<btCollisionShape> collisionShape, boost::shared_ptr<btDefaultMotionState> motionState) {
   btVector3 inertia(0,0,0);
   collisionShape->calculateLocalInertia(mass,inertia);
@@ -22,6 +22,7 @@ btRigidBody::btRigidBodyConstructionInfo getCI(btScalar mass, boost::shared_ptr<
   return ci;
 }
 
+=======
 void BulletObject::init() {
     getEnvironment()->bullet->dynamicsWorld->addRigidBody(rigidBody.get());
     node = createOSGNode();
@@ -151,11 +152,6 @@ void BulletObject::MoveAction::step(float dt) {
     obj->motionState->setWorldTransform(newtrans);
 }
 
-void BulletObject::setColor(float r, float g, float b, float a) {
-  SetColorsVisitor visitor(r,g,b,a);
-  node->accept(visitor);
-}
-
 BulletKinematicObject::BulletKinematicObject(boost::shared_ptr<btCollisionShape> collisionShape_, const btTransform &trans) {
     collisionShape = collisionShape_;
     motionState.reset(new MotionState(this, trans));
@@ -171,6 +167,7 @@ BulletKinematicObject::BulletKinematicObject(boost::shared_ptr<btCollisionShape>
 }
 
 
+>>>>>>> jonathan
 GrabberKinematicObject::GrabberKinematicObject(float radius_, float height_) :
     radius(radius_), height(height_),
     constraintPivot(0, 0, height), // this is where objects will attach to
@@ -301,10 +298,7 @@ BoxObject::BoxObject(btScalar mass_, btVector3 halfExtents_, boost::shared_ptr<b
   mass(mass_), halfExtents(halfExtents_) {
   motionState = motionState_;
   collisionShape.reset(new btBoxShape(halfExtents));
-  btVector3 fallInertia(0,0,0);
-  collisionShape->calculateLocalInertia(mass,fallInertia);
-  btRigidBody::btRigidBodyConstructionInfo ci(mass, motionState.get(),
-					      collisionShape.get(), fallInertia);
+  btRigidBody::btRigidBodyConstructionInfo ci = getCI(mass_,collisionShape, motionState);
   rigidBody.reset(new btRigidBody(ci));
   rigidBody->setActivationState(DISABLE_DEACTIVATION);
 }

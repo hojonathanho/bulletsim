@@ -1,4 +1,4 @@
-#include "userconfig.h"
+#include "config.h"
 #include "simplescene.h"
 #include "util.h"
 #include "plotting.h"

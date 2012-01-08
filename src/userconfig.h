@@ -40,6 +40,7 @@ struct ConfigData {
 
     struct {
         btVector3 gravity;
+        float dt;
         int maxSubSteps;
         float internalTimeStep;
         float friction;
@@ -50,7 +51,10 @@ struct ConfigData {
         bool enableIK;
         bool enableHaptics;
         bool enableRobot;
+        bool enableRobotCollision;
+        bool useFakeGrabber;
         btScalar scale;
+        btScalar mouseDragScale;
     } scene;
 
     struct {

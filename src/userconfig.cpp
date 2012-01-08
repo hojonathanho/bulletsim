@@ -40,6 +40,7 @@ ConfigData::ConfigData() {
     ("help", "produce help message")
         OPT(verbose, bool, false, "verbose")
         OPT_MULTI(bullet.gravity, btVector3, btVector3(0., 0., -9.8), "gravity")
+        OPT(bullet.dt, float, 0.01, "timestep for fixed-step simulations")
         OPT(bullet.maxSubSteps, int, 200, "maximum Bullet internal substeps per simulation step")
         OPT(bullet.internalTimeStep, float, 1./200., "internal Bullet timestep")
         OPT(bullet.friction, float, 1., "default friction coefficient for rigid bodies")
@@ -48,7 +49,10 @@ ConfigData::ConfigData() {
         OPT(scene.enableIK, bool, true, "enable OpenRAVE IK for the PR2")
         OPT(scene.enableHaptics, bool, false, "enable haptics for the PR2")
         OPT(scene.enableRobot, bool, true, "enable the PR2")
+        OPT(scene.enableRobotCollision, bool, true, "collision detection between robot and environment during user manipulation")
+        OPT(scene.useFakeGrabber, bool, false, "use a fake grabber; pass false for realistic grasping")
         OPT(scene.scale, btScalar, 1.0, "scaling factor (1 = 1 meter)")
+        OPT(scene.mouseDragScale, btScalar, 1.0, "scaling factor for mouse control for IK")
 
         OPT_MULTI(viewer.cameraHomePosition, btVector3, btVector3(5, 0, 5), "camera position on startup")
         OPT(viewer.windowWidth, int, 800, "viewer window width")

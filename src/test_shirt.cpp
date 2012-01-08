@@ -56,5 +56,5 @@ int main(int argc, char* argv[]) {
     s.env->add(BulletSoftObject::Ptr(new BulletSoftObject(psb)));
     ele_f.close(); face_f.close(); node_f.close();
     s.startViewer();
-    s.viewerLoop();
+    s.startLoop();
 }
