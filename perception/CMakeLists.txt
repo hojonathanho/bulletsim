@@ -50,3 +50,6 @@ target_link_libraries(test_json json)
 
 add_executable(test_kinect_towel test_kinect_towel.cpp)
 target_link_libraries(test_kinect_towel ${PCL_LIBRARIES} json simulation perception clouds comm)
+
+add_executable(test_pr2_playback_rope test_pr2_playback_rope.cpp)
+target_link_libraries(test_pr2_playback_rope comm2 ${PCL_LIBRARIES})

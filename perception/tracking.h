@@ -28,19 +28,6 @@ struct plots {
   static PlotPoints::Ptr targpts;
 };
 
-struct MyConfigData : public ConfigData {
-  float atob;
-  float btoa;
-  float mult;
-  float reg;
-  float angDamping;
-  float linDamping;
-  int nIter;
-
-  MyConfigData();
-};
-
-#define CFG2 (static_cast<MyConfigData*>(CFG))
 
 
 
