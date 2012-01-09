@@ -1,12 +1,23 @@
 #include "environment.h"
 #include "simplescene.h"
 #include "config.h"
+#include "config_bullet.h"
 #include <boost/shared_ptr.hpp>
 
 int main(int argc, char **argv) {
-  Parser().read(argc, argv);
     SceneConfig::enableRobot = false;
-    Scene s;
+    
+
+    Parser parser;
+
+    parser.addGroup(GeneralConfig());
+    parser.addGroup(BulletConfig());
+    parser.addGroup(SceneConfig());
+    parser.read(argc, argv);
+
+
+
+Scene s;
     s.bullet->setGravity(btVector3(0, 0, 0));
 
     boost::shared_ptr<btDefaultMotionState> ms (

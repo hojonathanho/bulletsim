@@ -1,5 +1,4 @@
 #include "simplescene.h"
-#include "config.h"
 
 int main(int argc, char *argv[]) {
     // first read the configuration from the user
@@ -8,6 +7,12 @@ int main(int argc, char *argv[]) {
     SceneConfig::enableIK = true;
     SceneConfig::enableRobot = true;
     SceneConfig::enableHaptics = true;
+
+    Parser parser;
+    parser.addGroup(GeneralConfig());
+    parser.addGroup(SceneConfig());
+    parser.read(argc, argv);
+
 
     Parser().read(argc, argv);    
     
