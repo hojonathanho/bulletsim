@@ -3,6 +3,12 @@
 #include <boost/thread/thread.hpp>
 
 int main(int argc, char *argv[]) {
+    Parser parser;
+    parser.addGroup(GeneralConfig());
+    parser.addGroup(BulletConfig());
+    parser.addGroup(SceneConfig());
+    parser.read(argc, argv);
+
     SceneConfig::enableIK = false;
     SceneConfig::enableHaptics = false;
     SceneConfig::enableRobot = false;
@@ -10,12 +16,6 @@ int main(int argc, char *argv[]) {
     BulletConfig::internalTimeStep = 0.01;
     BulletConfig::maxSubSteps = 0;
     GeneralConfig::scale = 1;
-
-    Parser parser;
-    parser.addGroup(GeneralConfig());
-    parser.addGroup(BulletConfig());
-    parser.addGroup(SceneConfig());
-    parser.read(argc, argv);
 
     Scene scene;
 
