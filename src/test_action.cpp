@@ -1,12 +1,20 @@
 #include "simplescene.h"
 #include "config.h"
+#include "config_bullet.h"
 #include <boost/thread/thread.hpp>
 
 int main(int argc, char *argv[]) {
-    Config::read(argc, argv);
+
     SceneConfig::enableIK = false;
     SceneConfig::enableHaptics = false;
     SceneConfig::enableRobot = false;
+
+  Parser parser;
+  parser.addGroup(GeneralConfig());
+  parser.addGroup(BulletConfig());
+  parser.addGroup(SceneConfig());
+  parser.read(argc, argv);
+
 
     Scene scene;
 

@@ -1,6 +1,6 @@
 #include "simplescene.h"
 #include "softbodies.h"
-#include "config.h"
+#include "config_bullet.h"
 #include <BulletSoftBody/btSoftBodyHelpers.h>
 
 void gen(Scene &scene, btScalar s, btScalar z) {
@@ -23,9 +23,14 @@ void gen(Scene &scene, btScalar s, btScalar z) {
 
 int main(int argc, char *argv[]) {
     GeneralConfig::scale = 10.;    
-    Parser().read(argc, argv);
-    Scene scene;
 
+    Parser parser;
+    parser.addGroup(GeneralConfig());
+    parser.addGroup(BulletConfig());
+    parser.addGroup(SceneConfig());
+    parser.read(argc, argv);
+
+    Scene scene;
 //    gen(scene, 1, 0.1);
     gen(scene, 5, 30);
 

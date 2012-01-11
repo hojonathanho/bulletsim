@@ -42,9 +42,15 @@ int main(int argc, char* argv[]) {
         node.insert(node.length(), "\n");
     }
    
-    Parser().read(argc,argv);
     GeneralConfig::scale = 10.;
     SceneConfig::enableRobot=SceneConfig::enableIK=false;
+
+    Parser parser;
+    parser.addGroup(GeneralConfig());
+    parser.addGroup(BulletConfig());
+    parser.addGroup(SceneConfig());
+    parser.read(argc, argv);
+
     Scene s;
     //Create your psb
     btSoftBody* psb=btSoftBodyHelpers::CreateFromTetGenData(s.env->bullet->softBodyWorldInfo,
