@@ -65,6 +65,7 @@ void Scene::startViewer() {
     viewer.setCameraManipulator(manip);
     viewer.setSceneData(osg->root.get());
     viewer.realize();
+    step(0);
 }
 
 void Scene::processHaptics() {
