@@ -2,6 +2,7 @@
 #include <vector>
 #include <Eigen/Dense>
 using namespace std;
+using namespace Eigen;
 
-MatrixXf pairwiseSquareDist(MatrixXf x_m3, MatrixXf y_n3);
-VectorXi argminAlongRows(MatrixXf d_mn);
+MatrixXf pairwiseSquareDist(const MatrixXf& x_m3, const MatrixXf& y_n3);
+vector<int> argminAlongRows(const MatrixXf& d_mn);

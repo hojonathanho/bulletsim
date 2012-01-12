@@ -8,30 +8,39 @@
 using namespace Eigen;
 using namespace std;
 
-void read_btVectors(vector<btVector3>& out, const string& fname);
+vector<btVector3> toBulletVectors(const vector< vector<float> >&);
+vector<btVector3> toBulletVectors(const vector< Vector3f >&);
+vector<btVector3> toBulletVectors(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr&);
 
-vector<btVector3> read_btVectors(const string& fname);
+btTransform toBulletTransform(Affine3f);
 
-vector<btVector3> transform_btVectors(const vector<btVector3>& ins, btTransform tf);
+vector<Vector3f> toEigenVectors(const vector< vector<float> >&);
+vector<Vector3f> toEigenVectors(const vector<btVector3>&);
+vector<Vector3f> toEigenVectors(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr&);
 
-  btTransform toBTTransform(Affine3f t);
-
-MatrixXf toEigens(const vector<btVector3>& vecs);
-
-vector<btVector3> toBTs(vector<Vector3f>& vecs);
-
-btVector3 toBT(Vector3f& v);
-
-pcl::PointCloud<pcl::PointXYZRGB>::Ptr readPCD(string pcdfile);
+MatrixXf toEigenMatrix(const vector< vector<float> >&);
+MatrixXf toEigenMatrix(const vector<btVector3>&);
 
 template<class T, class S>
-vector<T> operator*(vector<T>& xs, S p) {
+vector<T> operator*(const vector<T>& xs, S p) {
   vector<T> ys;
   ys.resize(xs.size());
   for (int i=0; i<xs.size(); i++) ys[i] = xs[i]*p;
   return ys;
 }
 
-Affine3f scaling(float s);
+template<class T, class S>
+vector<T> operator*(S p, vector<T>& xs) {
+  vector<T> ys;
+  ys.resize(xs.size());
+  for (int i=0; i<xs.size(); i++) ys[i] = xs[i]*p;
+  return ys;
+}
 
-void verts2boxPars(const vector<btVector3>& verts, btVector3& halfExtents, btVector3& origin, btScalar thickness);
+vector<btVector3> operatorTimes(const btTransform& t, const vector<btVector3>& vecs);
+vector<Vector3f> operatorTimes(const Affine3f& t, const vector<Vector3f>& vecs);
+
+Affine3f Scaling3f(float s);
+
+//Affine3f getCamToWorldFromTable(const vector<Vector3f>& corners);
+btTransform getCamToWorldFromTable(const vector<btVector3>& corners);

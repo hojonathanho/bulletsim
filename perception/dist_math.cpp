@@ -1,7 +1,7 @@
 #include "dist_math.h"
 
 
-MatrixXf pairwiseSquareDist(MatrixXf x_m3, MatrixXf y_n3) {
+MatrixXf pairwiseSquareDist(const MatrixXf& x_m3, const MatrixXf& y_n3) {
   // vectors are rows of x and y
   MatrixXf dots_mn = x_m3 * y_n3.transpose();
   VectorXf xnorm_m = x_m3.rowwise().squaredNorm();
@@ -10,13 +10,13 @@ MatrixXf pairwiseSquareDist(MatrixXf x_m3, MatrixXf y_n3) {
   return sqdists_mn.transpose();
 }
 
-VectorXi argminAlongRows(MatrixXf d_mn) {
+vector<int> argminAlongRows(const MatrixXf& d_mn) {
   int nRows = d_mn.rows();
-  VectorXi out(nRows);
+  vector<int> out(nRows);
   for (int i=0; i<nRows; i++){
     int j;
     d_mn.row(i).minCoeff(&j);
-    out(i)=j;
+    out[i]=j;
   }
   return out;
 }

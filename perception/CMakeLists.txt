@@ -27,29 +27,33 @@ set(BULLET_LIBS BulletSoftBody BulletDynamics BulletCollision LinearMath)
 link_directories(
   ${PCL_LIBRARY_DIRS} 
   ${WM_LIBRARY_DIR}
-  ${JSON_LIBRARY_DIR}
 )
 add_definitions(${PCL_DEFINITIONS})
 
 include_directories("~/cpp")
-link_directories("~/cpp/clouds/build" "~/cpp/comm/build")
 
+# add_library(perception tracking.cpp utils_perception.cpp dist_math.cpp)
+# target_link_libraries(perception ${PCL_LIBRARIES} simulation)
 
-add_library(perception tracking.cpp utils_perception.cpp dist_math.cpp)
-target_link_libraries(perception ${PCL_LIBRARIES} simulation)
-
-add_executable(test_kinect_rope1 test_kinect_rope.cpp)
-target_link_libraries(test_kinect_rope1 simulation perception clouds ${PCL_LIBRARIES} json comm)
+#add_executable(test_kinect_rope1 test_kinect_rope.cpp)
+#target_link_libraries(test_kinect_rope1 simulation perception clouds ${PCL_LIBRARIES} json comm)
 
 
 
 #add_executable(test_eigen_inc test_eigen_inc.cpp)
 
-add_executable(test_json test_json.cpp)
-target_link_libraries(test_json json)
+# add_executable(test_kinect_towel test_kinect_towel.cpp)
+# target_link_libraries(test_kinect_towel ${PCL_LIBRARIES} json simulation perception clouds comm)
 
-add_executable(test_kinect_towel test_kinect_towel.cpp)
-target_link_libraries(test_kinect_towel ${PCL_LIBRARIES} json simulation perception clouds comm)
 
-add_executable(test_pr2_playback_rope test_pr2_playback_rope.cpp)
-target_link_libraries(test_pr2_playback_rope comm2 ${PCL_LIBRARIES})
+#add_executable(test_pr2_playback_rope test_pr2_playback_rope.cpp)
+#target_link_libraries(test_pr2_playback_rope comm2 ${PCL_LIBRARIES})
+
+add_executable(test_towel2 test_towel2.cpp utils_perception.cpp config_perception.cpp update_bodies.cpp make_bodies.cpp dist_math.cpp ~/cpp/vector_io.cpp bullet_io.cpp)
+target_link_libraries(test_towel2 comm2 ${PCL_LIBRARIES} simulation clouds)
+
+add_executable(test_eigen test_eigen.cpp bullet_io.cpp)
+target_link_libraries(test_eigen simulation)
+
+add_subdirectory(comm)
+add_subdirectory(clouds)
