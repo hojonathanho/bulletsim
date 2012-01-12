@@ -1,7 +1,6 @@
 #include "emptyscene.h"
 #include "config_bullet.h"
 #include "config_viewer.h"
-#include "thread_socket_interface.h"
 #include "util.h"
 #include <iostream>
 using namespace std;
