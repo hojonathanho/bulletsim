@@ -1,8 +1,16 @@
 #include "basescene.h"
+#include "openravesupport.h"
 
 int main(int argc, char *argv[]) {
+    typedef boost::shared_ptr<BaseScene> Ptr;
     // construct the scene
     BaseScene scene;
+    RaveInstance::Ptr rave;
+    rave.reset(new RaveInstance());
+    RaveRobotKinematicObject::Ptr pr2;
+    btTransform trans(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0));
+    pr2.reset(new RaveRobotKinematicObject(rave, "robots/puma.robot.xml", trans, GeneralConfig::scale));
+    scene.env->add(pr2);
     // manipulate the scene or add more objects, if desired
     boost::shared_ptr<btDefaultMotionState> ms;
     ms.reset(new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 10))));
