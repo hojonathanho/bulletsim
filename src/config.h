@@ -73,3 +73,5 @@ struct GeneralConfig : Config {
     params.push_back(new Parameter<float>("scale", &scale, "scale factor applied to distances that are assumed to be in meters")); 
   }
 };
+
+#define METERS GeneralConfig::scale
