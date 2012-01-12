@@ -24,8 +24,8 @@ add_library(simulation environment.cpp basicobjects.cpp openravesupport.cpp util
 
 target_link_libraries(simulation haptics osgBullet osgWorks ${Boost_LIBRARIES} ${OSG_LIBS} ${BULLET_LIBS} ${OpenRAVE_LIBRARIES} ${OpenRAVE_CORE_LIBRARIES})
 
-add_executable(test_emptyscene test_emptyscene.cpp emptyscene.cpp)
-target_link_libraries(test_emptyscene simulation)
+add_executable(test_basescene test_basescene.cpp basescene.cpp)
+target_link_libraries(test_basescene simulation)
 
 add_executable(test_simplescene test_simplescene.cpp)
 target_link_libraries(test_simplescene simulation)

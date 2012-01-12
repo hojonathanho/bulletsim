@@ -7,16 +7,16 @@
 #include "config.h"
 #include "plotting.h"
 
-struct EmptyScene;
+struct BaseScene;
 
-class EmptyEventHandler : public osgGA::TrackballManipulator {
+class BaseEventHandler : public osgGA::TrackballManipulator {
 private:
-  EmptyScene *scene;
+  BaseScene *scene;
   float lastX, lastY, dx, dy;
 protected:
   void getTransformation( osg::Vec3d& eye, osg::Vec3d& center, osg::Vec3d& up ) const;
 public:
-  EmptyEventHandler(EmptyScene *scene_) : scene(scene_), state() {}
+  BaseEventHandler(BaseScene *scene_) : scene(scene_), state() {}
   struct {
     bool debugDraw,
          moveManip0, moveManip1,
@@ -27,22 +27,22 @@ public:
   bool handle(const osgGA::GUIEventAdapter &ea, osgGA::GUIActionAdapter &aa);
 };
 
-struct EmptyScene {
-  typedef boost::shared_ptr<EmptyScene> Ptr;
+struct BaseScene {
+  typedef boost::shared_ptr<BaseScene> Ptr;
 
   OSGInstance::Ptr osg;
   BulletInstance::Ptr bullet;
   Environment::Ptr env;
   boost::shared_ptr<osgbCollision::GLDebugDrawer> dbgDraw;
   osgViewer::Viewer viewer;
-  osg::ref_ptr<EmptyEventHandler> manip;
+  osg::ref_ptr<BaseEventHandler> manip;
 
   PlotPoints::Ptr plotPoints;
   PlotLines::Ptr plotLines;
 
   PlaneStaticObject::Ptr ground;
 
-  EmptyScene();
+  BaseScene();
 
   void showWindow(bool showWindow, bool realtime);
 

@@ -1,8 +1,8 @@
-#include "emptyscene.h"
+#include "basescene.h"
 
 int main(int argc, char *argv[]) {
     // construct the scene
-    EmptyScene scene;
+    BaseScene scene;
     // manipulate the scene or add more objects, if desired
     boost::shared_ptr<btDefaultMotionState> ms;
     ms.reset(new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 10))));
