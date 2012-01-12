@@ -4,6 +4,7 @@
 #include "simplescene.h"
 #include "config.h"
 #include <pcl/io/pcd_io.h>
+#include "config_bullet.h"
 #include <pcl/point_types.h>
 using boost::shared_ptr;
 #include <iostream>
@@ -88,5 +89,5 @@ int main(int argc, char* argv[]) {
 
 
   s.startViewer();
-  s.viewerLoop();
+  s.startLoop();
 }

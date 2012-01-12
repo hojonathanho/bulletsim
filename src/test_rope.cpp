@@ -46,7 +46,13 @@ int main(int argc, char *argv[]) {
 
   s.env->add(ropePtr);
   s.env->add(table);
-  table->setColor(0,1,0,1);
+  //table->setColor(0,1,0,1);
+
+  vector<BulletObject::Ptr> children =  ropePtr->getChildren();
+  for (int j=0; j<children.size(); j++) {
+    children[j]->setColor(1,0,0,1);
+  }
+
 
   vector< vector<double> > joints;
   vector< int > inds;
