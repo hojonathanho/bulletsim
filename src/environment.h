@@ -60,11 +60,11 @@ public:
     // into the environment contained by f. This should NOT add objects to f.env;
     // however it should call f.registerCopy() for each Bullet
     // collision object that it makes.
-    virtual EnvironmentObject::Ptr copy(Fork &f) = 0;
+    virtual EnvironmentObject::Ptr copy(Fork &f) const = 0;
     // postCopy is called after all objects are copied and inserted into f.env.
     // This is useful for updating constraints, anchors, etc.
     // You're free to use f.forkOf() to get equivalent objects in the new env.
-    virtual void postCopy(EnvironmentObject::Ptr copy, Fork &f) { }
+    virtual void postCopy(EnvironmentObject::Ptr copy, Fork &f) const { }
 
     // methods only to be called by the Environment
     void setEnvironment(Environment *env_) { env = env_; }
@@ -99,7 +99,7 @@ class Fork {
 public:
     typedef boost::shared_ptr<Fork> Ptr;
 
-    Environment *parentEnv;
+    const Environment *parentEnv;
     Environment::Ptr env;
 
     typedef std::map<EnvironmentObject::Ptr, EnvironmentObject::Ptr> ObjectMap;
@@ -112,9 +112,9 @@ public:
         dataMap[orig] = copy;
     }
 
-    Fork(Environment *parentEnv_, BulletInstance::Ptr bullet, OSGInstance::Ptr osg) :
+    Fork(const Environment *parentEnv_, BulletInstance::Ptr bullet, OSGInstance::Ptr osg) :
         parentEnv(parentEnv_), env(new Environment(bullet, osg)) { copyObjects(); }
-    Fork(Environment::Ptr parentEnv_, BulletInstance::Ptr bullet, OSGInstance::Ptr osg) :
+    Fork(const Environment::Ptr parentEnv_, BulletInstance::Ptr bullet, OSGInstance::Ptr osg) :
         parentEnv(parentEnv_.get()), env(new Environment(bullet, osg)) { copyObjects(); }
 
     void *forkOf(const void *orig) const {
@@ -143,7 +143,7 @@ public:
 
     CompoundObject() { }
 
-    EnvironmentObject::Ptr copy(Fork &f) {
+    EnvironmentObject::Ptr copy(Fork &f) const {
         Ptr o(new CompoundObject<ChildType>());
         o->children.reserve(children.size());
         typename ChildVector::const_iterator i;

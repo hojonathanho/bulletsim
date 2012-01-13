@@ -74,7 +74,9 @@ void Environment::step(btScalar dt, int maxSubSteps, btScalar fixedTimeStep) {
 }
 
 void Fork::copyObjects() {
-    for (Environment::ObjectList::const_iterator i = parentEnv->objects.begin(); i != parentEnv->objects.end(); ++i) {
+    Environment::ObjectList::const_iterator i;
+
+    for (i = parentEnv->objects.begin(); i != parentEnv->objects.end(); ++i) {
         EnvironmentObject::Ptr copy = (*i)->copy(*this);
         env->add(copy);
         objMap[*i] = copy;
@@ -82,7 +84,7 @@ void Fork::copyObjects() {
 
     // some objects might need processing after all objects have been added
     // e.g. anchors and joints for soft bodies
-    for (Environment::ObjectList::const_iterator i = parentEnv->objects.begin(); i != parentEnv->objects.end(); ++i) {
+    for (i = parentEnv->objects.begin(); i != parentEnv->objects.end(); ++i) {
         (*i)->postCopy(objMap[*i], *this);
     }
 }

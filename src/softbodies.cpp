@@ -84,7 +84,7 @@ void BulletSoftObject::destroy() {
 }
 
 // adapted from bullet's SerializeDemo.cpp
-EnvironmentObject::Ptr BulletSoftObject::copy(Fork &f) {
+EnvironmentObject::Ptr BulletSoftObject::copy(Fork &f) const {
     //TODO: rewrite to do this directly without serialization
     // use postCopy to assign anchors and joints
 #if 0
@@ -395,7 +395,7 @@ EnvironmentObject::Ptr BulletSoftObject::copy(Fork &f) {
     return Ptr(new BulletSoftObject(psb));
 }
 
-void BulletSoftObject::postCopy(EnvironmentObject::Ptr copy, Fork &f) {
+void BulletSoftObject::postCopy(EnvironmentObject::Ptr copy, Fork &f) const {
     const btSoftBody *orig = softBody.get();
     btSoftBody *psb = ((BulletSoftObject &) copy).softBody.get();
     // copy the anchors

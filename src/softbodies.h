@@ -19,8 +19,8 @@ public:
     BulletSoftObject(btSoftBody *softBody_) : softBody(softBody_) { }
     virtual ~BulletSoftObject() { }
 
-    EnvironmentObject::Ptr copy(Fork &f);
-    void postCopy(EnvironmentObject::Ptr copy, Fork &f);
+    EnvironmentObject::Ptr copy(Fork &f) const;
+    void postCopy(EnvironmentObject::Ptr copy, Fork &f) const;
 
     // called by Environment
     void init();

@@ -32,12 +32,12 @@ public:
       collisionShape(collisionShape_), rigidBody(rigidBody_), motionState(motionState_) { }
     BulletObject(const BulletObject &o); // copy constructor
     virtual ~BulletObject() { }
-    EnvironmentObject::Ptr copy(Fork &f) {
+    EnvironmentObject::Ptr copy(Fork &f) const {
         Ptr o(new BulletObject(*this));
         internalCopy(o, f);
         return o;
     }
-    void internalCopy(BulletObject::Ptr o, Fork &f) {
+    void internalCopy(BulletObject::Ptr o, Fork &f) const {
         f.registerCopy(rigidBody.get(), o->rigidBody.get());
     }
 
@@ -85,7 +85,7 @@ public:
     };
 
     BulletKinematicObject(boost::shared_ptr<btCollisionShape> collisionShape_, const btTransform &trans);
-    EnvironmentObject::Ptr copy(Fork &f) {
+    EnvironmentObject::Ptr copy(Fork &f) const {
         Ptr o(new BulletKinematicObject(*this));
         internalCopy(o, f);
         return o;
@@ -104,7 +104,7 @@ public:
     typedef boost::shared_ptr<GrabberKinematicObject> Ptr;
 
     GrabberKinematicObject(float radius_, float height_);
-    EnvironmentObject::Ptr copy(Fork &f) {
+    EnvironmentObject::Ptr copy(Fork &f) const {
         Ptr o(new GrabberKinematicObject(*this));
         internalCopy(o, f);
         return o;
@@ -130,7 +130,7 @@ public:
 
     PlaneStaticObject(const btVector3 &planeNormal_, btScalar planeConstant_,
                       boost::shared_ptr<btDefaultMotionState> motionState_, btScalar drawHalfExtents_=50.);
-    EnvironmentObject::Ptr copy(Fork &f) {
+    EnvironmentObject::Ptr copy(Fork &f) const {
         Ptr o(new PlaneStaticObject(*this));
         internalCopy(o, f);
         return o;
@@ -151,7 +151,7 @@ public:
 
     CylinderStaticObject(btScalar mass_, btScalar radius_, btScalar height_,
                          boost::shared_ptr<btDefaultMotionState> motionState_);
-    EnvironmentObject::Ptr copy(Fork &f) {
+    EnvironmentObject::Ptr copy(Fork &f) const {
         Ptr o(new CylinderStaticObject(*this));
         internalCopy(o, f);
         return o;
@@ -167,7 +167,7 @@ public:
 
     SphereObject(btScalar mass_, btScalar radius_,
                  boost::shared_ptr<btDefaultMotionState> motionState_);
-    EnvironmentObject::Ptr copy(Fork &f) {
+    EnvironmentObject::Ptr copy(Fork &f) const {
         Ptr o(new SphereObject(*this));
         internalCopy(o, f);
         return o;
@@ -185,7 +185,7 @@ public:
 
     BoxObject(btScalar mass_, btVector3 halfExtents_,
                  boost::shared_ptr<btDefaultMotionState> motionState_);
-    EnvironmentObject::Ptr copy(Fork &f) {
+    EnvironmentObject::Ptr copy(Fork &f) const {
         Ptr o(new BoxObject(*this));
         internalCopy(o, f);
         return o;
@@ -202,7 +202,7 @@ public:
 
     CapsuleObject(btScalar mass_, btScalar radius_, btScalar height_,
                   boost::shared_ptr<btDefaultMotionState> motionState_);
-    EnvironmentObject::Ptr copy(Fork &f) {
+    EnvironmentObject::Ptr copy(Fork &f) const {
         Ptr o(new CapsuleObject(*this));
         internalCopy(o, f);
         return o;
