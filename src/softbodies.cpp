@@ -10,6 +10,9 @@
 // there is no btSoftBody::appendFace that takes Node pointers, so here it is
 static void btSoftBody_appendFace(btSoftBody *psb, btSoftBody::Node *node0, btSoftBody::Node *node1,
         btSoftBody::Node *node2, btSoftBody::Material *mat=0) {
+    btAssert(node0!=node1);
+    btAssert(node1!=node2);
+    btAssert(node2!=node0);
     if (node0==node1)
             return;
     if (node1==node2)
@@ -19,13 +22,10 @@ static void btSoftBody_appendFace(btSoftBody *psb, btSoftBody::Node *node0, btSo
 
     psb->appendFace(-1, mat);
     btSoftBody::Face &f = psb->m_faces[psb->m_faces.size()-1];
-    btAssert(node0!=node1);
-    btAssert(node1!=node2);
-    btAssert(node2!=node0);
     f.m_n[0] = node0;
     f.m_n[1] = node1;
     f.m_n[2] = node2;
-    f.m_ra = AreaOf(f.m_n[0]->m_x, f.m_n[1]->m_x, f.m_n[2]->m_x);	
+    f.m_ra = AreaOf(f.m_n[0]->m_x, f.m_n[1]->m_x, f.m_n[2]->m_x);
     psb->m_bUpdateRtCst = true;
 }
 
@@ -107,24 +107,22 @@ EnvironmentObject::Ptr BulletSoftObject::copy(Fork &f) const {
     bulletFile->parse(false);
 #endif
 
-    const btSoftBody &orig = *softBody.get();
+    const btSoftBody * const orig = softBody.get();
     int i, j;
 
     // create a new softBody with the data
-    btSoftBody *psb = new btSoftBody(&f.env->bullet->softBodyWorldInfo);
-    f.registerCopy(&orig, psb);
+    btSoftBody * const psb = new btSoftBody(&f.env->bullet->softBodyWorldInfo);
+    f.registerCopy(orig, psb);
 
     //materials
  //   typedef std::map<const btSoftBody::Material *, btSoftBody::Material *> MaterialMap; // maps old mats to new ones
  //   MaterialMap materialMap;
-    for (i=0;i<orig.m_materials.size();i++)
+    psb->m_materials.reserve(orig->m_materials.size());
+    for (i=0;i<orig->m_materials.size();i++)
     {
-        const btSoftBody::Material *mat = orig.m_materials[i];
+        const btSoftBody::Material *mat = orig->m_materials[i];
         btSoftBody::Material *newMat = psb->appendMaterial();
-        newMat->m_flags = mat->m_flags;
-        newMat->m_kAST = mat->m_kAST;
-        newMat->m_kLST = mat->m_kLST;
-        newMat->m_kVST = mat->m_kVST;
+        *newMat = *mat;
         f.registerCopy(mat, newMat);
 //        materialMap[mat] = newMat;
 /*
@@ -146,28 +144,37 @@ EnvironmentObject::Ptr BulletSoftObject::copy(Fork &f) const {
             */
     }
 
-//    typedef std::map<const btSoftBody::Node *, btSoftBody::Node *> NodeMap; // maps old nodes to new ones
-  //  NodeMap nodeMap;
-    for (i=0;i<orig.m_nodes.size();i++)
-    {
-        const btSoftBody::Node &node = orig.m_nodes[i];
-        btScalar mass = node.m_im ? 1./node.m_im : 0.f;
-        psb->appendNode(node.m_x, mass);
-        btSoftBody::Node &newNode = psb->m_nodes[psb->m_nodes.size()-1];
-        newNode.m_area = node.m_area;
-        newNode.m_battach = node.m_battach;
-        newNode.m_f = node.m_f;
-        newNode.m_im = node.m_im;
-        newNode.m_n = node.m_n;
-        newNode.m_q = node.m_q; /*newNode.m_x;*/
-        newNode.m_v = node.m_v;
+    typedef std::map<const btSoftBody::Node *, btSoftBody::Node *> NodeMap; // maps old nodes to new ones
+    NodeMap nodeMap;
+
+    std::set<const btSoftBody::Node *> seenNodes;
+    std::set<const btSoftBody::Node *> newNodes;
+    psb->m_nodes.reserve(orig->m_nodes.size());
+    for (i=0;i<orig->m_nodes.size();i++) {
+        const btSoftBody::Node *node = &orig->m_nodes[i];
+        psb->appendNode(node->m_x, node->m_im ? 1./node->m_im : 0.);
+        btSoftBody::Node *newNode = &psb->m_nodes[psb->m_nodes.size()-1];
+        newNode->m_area = node->m_area;
+        newNode->m_battach = node->m_battach;
+        newNode->m_f = node->m_f;
+        newNode->m_im = node->m_im;
+        newNode->m_n = node->m_n;
+        newNode->m_q = node->m_q;
+        newNode->m_v = node->m_v;
 
 /*        MaterialMap::const_iterator it = materialMap.find(node.m_material);
         if (it != materialMap.end())
             newNode.m_material = it->second;*/
-        newNode.m_material = (btSoftBody::Material *) f.forkOf(node.m_material);
+        newNode->m_material = (btSoftBody::Material *) f.copyOf(node->m_material);
+        BOOST_ASSERT(newNode->m_material);
 
-        f.registerCopy(&node, &newNode);
+        f.registerCopy(node, newNode);
+        BOOST_ASSERT(f.copyOf(node) == newNode);
+        BOOST_ASSERT( ((btSoftBody::Node*)f.copyOf(node))->m_x == node->m_x );
+        seenNodes.insert(node);
+        newNodes.insert(newNode);
+        nodeMap.insert(std::make_pair(node, newNode));
+
         //nodeMap[&node] = &newNode;
 /*
             SoftBodyNodeData& nodeData = softBodyData->m_nodes[i];
@@ -196,16 +203,28 @@ EnvironmentObject::Ptr BulletSoftObject::copy(Fork &f) const {
  */           
     }
 
-    for (i=0;i<orig.m_links.size();i++)
+    psb->m_links.reserve(orig->m_links.size());
+    for (i=0;i<orig->m_links.size();i++)
     {
-        const btSoftBody::Link &link = orig.m_links[i];
-        btSoftBody::Material *mat = (btSoftBody::Material *) f.forkOf((const void *) link.m_material);
+        const btSoftBody::Link *link = &orig->m_links[i];
+        btSoftBody::Material *mat = (btSoftBody::Material *) f.copyOf(link->m_material);
 //        MaterialMap::const_iterator it = materialMap.find(link.m_material);
-        psb->appendLink(link.m_n[0], link.m_n[1], mat);
+        btSoftBody::Node *n0 = (btSoftBody::Node *) f.copyOf(link->m_n[0]);
+        btSoftBody::Node *n1 = (btSoftBody::Node *) f.copyOf(link->m_n[1]);
+        BOOST_ASSERT(n0 && n1);
+        BOOST_ASSERT(nodeMap[link->m_n[0]] == f.copyOf(link->m_n[0]));
+        BOOST_ASSERT(nodeMap[link->m_n[1]] == f.copyOf(link->m_n[1]));
+        BOOST_ASSERT(seenNodes.find(link->m_n[0]) != seenNodes.end());
+        BOOST_ASSERT(seenNodes.find(link->m_n[1]) != seenNodes.end());
+        BOOST_ASSERT(newNodes.find(n0) != newNodes.end());
+        BOOST_ASSERT(newNodes.find(n1) != newNodes.end());
+        BOOST_ASSERT( ((btSoftBody::Node*)f.copyOf(link->m_n[0]))->m_x == link->m_n[0]->m_x );
+        BOOST_ASSERT( ((btSoftBody::Node*)f.copyOf(link->m_n[1]))->m_x == link->m_n[1]->m_x );
+        psb->appendLink(n0, n1, mat);
 
-        btSoftBody::Link &newLink = psb->m_links[psb->m_links.size() - 1];
-        newLink.m_bbending = link.m_bbending;
-        newLink.m_rl = link.m_rl;
+        btSoftBody::Link *newLink = &psb->m_links[psb->m_links.size() - 1];
+        newLink->m_bbending = link->m_bbending;
+        newLink->m_rl = link->m_rl;
 /*
             SoftBodyLinkData& linkData = softBodyData->m_links[i];
             btSoftBody::Material** matPtr = materialMap.find(linkData.m_material);
@@ -222,20 +241,44 @@ EnvironmentObject::Ptr BulletSoftObject::copy(Fork &f) const {
             */
     }
 
-    for (i=0;i<orig.m_faces.size();i++)
+    psb->m_faces.reserve(orig->m_faces.size());
+    for (i=0;i<orig->m_faces.size();i++)
     {
-        const btSoftBody::Face &face = orig.m_faces[i];
-/*        MaterialMap::const_iterator it = materialMap.find(face.m_material);
+        const btSoftBody::Face *face = &orig->m_faces[i];
+/*        MaterialMap::const_iterator it = materialMap.find(face->m_material);
         if (it != materialMap.end())
-            btSoftBody_appendFace(psb, face.m_n[0], face.m_n[1], face.m_n[2], it->second);
+            btSoftBody_appendFace(psb, face->m_n[0], face->m_n[1], face->m_n[2], it->second);
         else
-            btSoftBody_appendFace(psb, face.m_n[0], face.m_n[1], face.m_n[2]);*/
-        btSoftBody::Material *mat = (btSoftBody::Material *) f.forkOf(face.m_material);
-        btSoftBody_appendFace(psb, face.m_n[0], face.m_n[1], face.m_n[2], mat);
+            btSoftBody_appendFace(psb, face->m_n[0], face->m_n[1], face->m_n[2]);*/
+        btSoftBody::Material *mat = (btSoftBody::Material *) f.copyOf(face->m_material);
+        btSoftBody::Node *n0 = (btSoftBody::Node *) f.copyOf(face->m_n[0]);
+        btSoftBody::Node *n1 = (btSoftBody::Node *) f.copyOf(face->m_n[1]);
+        btSoftBody::Node *n2 = (btSoftBody::Node *) f.copyOf(face->m_n[2]);
+        BOOST_ASSERT(n0 && n1 && n2);
 
-        btSoftBody::Face &newFace = psb->m_faces[psb->m_faces.size()-1];
-        newFace.m_normal = face.m_normal;
-        newFace.m_ra = face.m_ra;
+        bool b0, b1, b2; b0 = b1 = b2 = false;
+        for (int z = 0; z < orig->m_nodes.size(); ++z) {
+            if (&orig->m_nodes[z] == face->m_n[0]) b0 = true;
+            else if (&orig->m_nodes[z] == face->m_n[1]) b1 = true;
+            else if (&orig->m_nodes[z] == face->m_n[2]) b2 = true;
+        }
+        BOOST_ASSERT(b0 && b1 && b2);
+
+
+        b0 = b1 = b2 = false;
+        for (int z = 0; z < psb->m_nodes.size(); ++z) {
+            if (&psb->m_nodes[z] == n0) b0 = true;
+            else if (&psb->m_nodes[z] == n1) b1 = true;
+            else if (&psb->m_nodes[z] == n2) b2 = true;
+        }
+        BOOST_ASSERT(b0 && b1 && b2);
+
+
+        btSoftBody_appendFace(psb, n0, n1, n2, mat);
+
+        btSoftBody::Face *newFace = &psb->m_faces[psb->m_faces.size()-1];
+        newFace->m_normal = face->m_normal;
+        newFace->m_ra = face->m_ra;
 /*
             SoftBodyFaceData& faceData = softBodyData->m_faces[i];
             btSoftBody::Material** matPtr = materialMap.find(faceData.m_material);
@@ -252,9 +295,8 @@ EnvironmentObject::Ptr BulletSoftObject::copy(Fork &f) const {
             */
     }
 
-    
 
-    psb->m_pose = orig.m_pose;
+    psb->m_pose = orig->m_pose;
     /*
     if (softBodyData->m_pose)
     {
@@ -278,7 +320,38 @@ EnvironmentObject::Ptr BulletSoftObject::copy(Fork &f) const {
             psb->m_pose.m_volume = softBodyData->m_pose->m_restVolume;
     }*/
 
-    psb->m_cfg = orig.m_cfg;
+    psb->m_cfg.aeromodel = orig->m_cfg.aeromodel;
+    psb->m_cfg.kVCF = orig->m_cfg.kVCF;
+    psb->m_cfg.kDP = orig->m_cfg.kDP;
+    psb->m_cfg.kDG = orig->m_cfg.kDG;
+    psb->m_cfg.kLF = orig->m_cfg.kLF;
+    psb->m_cfg.kPR = orig->m_cfg.kPR;
+    psb->m_cfg.kVC = orig->m_cfg.kVC;
+    psb->m_cfg.kDF = orig->m_cfg.kDF;
+    psb->m_cfg.kMT = orig->m_cfg.kMT;
+    psb->m_cfg.kCHR = orig->m_cfg.kCHR;
+    psb->m_cfg.kKHR = orig->m_cfg.kKHR;
+    psb->m_cfg.kSHR = orig->m_cfg.kSHR;
+    psb->m_cfg.kAHR = orig->m_cfg.kAHR;
+    psb->m_cfg.kSRHR_CL = orig->m_cfg.kSRHR_CL;
+    psb->m_cfg.kSKHR_CL = orig->m_cfg.kSKHR_CL;
+    psb->m_cfg.kSSHR_CL = orig->m_cfg.kSSHR_CL;
+    psb->m_cfg.kSR_SPLT_CL = orig->m_cfg.kSR_SPLT_CL;
+    psb->m_cfg.kSK_SPLT_CL = orig->m_cfg.kSK_SPLT_CL;
+    psb->m_cfg.kSS_SPLT_CL = orig->m_cfg.kSS_SPLT_CL;
+    psb->m_cfg.maxvolume = orig->m_cfg.maxvolume;
+    psb->m_cfg.timescale = orig->m_cfg.timescale;
+    psb->m_cfg.viterations = orig->m_cfg.viterations;
+    psb->m_cfg.piterations = orig->m_cfg.piterations;
+    psb->m_cfg.diterations = orig->m_cfg.diterations;
+    psb->m_cfg.citerations = orig->m_cfg.citerations;
+    psb->m_cfg.collisions = orig->m_cfg.collisions;
+#define COPY_ARRAY(a, b) { (a).resize((b).size()); for (int z = 0; z < (b).size(); ++z) (a)[z] = (b)[z]; }
+    COPY_ARRAY(psb->m_cfg.m_vsequence, orig->m_cfg.m_vsequence);
+    COPY_ARRAY(psb->m_cfg.m_psequence, orig->m_cfg.m_psequence);
+    COPY_ARRAY(psb->m_cfg.m_dsequence, orig->m_cfg.m_dsequence);
+#undef COPY_ARRAY
+
 /*
 
     psb->m_cfg.piterations=softBodyData->m_config.m_positionIterations;
@@ -306,31 +379,52 @@ EnvironmentObject::Ptr BulletSoftObject::copy(Fork &f) const {
 //      pm->m_kLST                              =       1;
 
     //clusters
-    psb->m_clusters.resize(orig.m_clusters.size());
-    for (i=0;i<orig.m_clusters.size();i++) {
-        const btSoftBody::Cluster *cluster = orig.m_clusters[i];
+    psb->m_clusters.resize(orig->m_clusters.size());
+    for (i=0;i<orig->m_clusters.size();i++) {
+        const btSoftBody::Cluster *cluster = orig->m_clusters[i];
         btSoftBody::Cluster *newCluster = psb->m_clusters[i] =
             new(btAlignedAlloc(sizeof(btSoftBody::Cluster),16)) btSoftBody::Cluster();
-
-        *newCluster = *cluster;
-
-        // not sure if this part is necessary
-        newCluster->m_framerefs.resize(cluster->m_framerefs.size());
-        for (j=0;j<cluster->m_framerefs.size();j++)
-            newCluster->m_framerefs[j] = cluster->m_framerefs[j];
 
         newCluster->m_nodes.resize(cluster->m_nodes.size());
         for (j=0;j<cluster->m_nodes.size();j++) {
 /*            NodeMap::const_iterator it = nodeMap.find(cluster->m_nodes[j]);
             if (it != nodeMap.end())
                 newCluster->m_nodes[j] = it->second;*/
-            newCluster->m_nodes[j] = (btSoftBody::Node *) f.forkOf(cluster->m_nodes[j]);
+            newCluster->m_nodes[j] = (btSoftBody::Node *) f.copyOf(cluster->m_nodes[j]);
+            BOOST_ASSERT(newCluster->m_nodes[j]->m_x == cluster->m_nodes[j]->m_x);
         }
 
-        // not sure if this part is necessary
         newCluster->m_masses.resize(cluster->m_masses.size());
         for (j=0;j<cluster->m_masses.size();j++)
             newCluster->m_masses[j] = cluster->m_masses[j];
+
+        newCluster->m_framerefs.resize(cluster->m_framerefs.size());
+        for (j=0;j<cluster->m_framerefs.size();j++)
+            newCluster->m_framerefs[j] = cluster->m_framerefs[j];
+
+        newCluster->m_framexform = cluster->m_framexform;
+        newCluster->m_idmass = cluster->m_idmass;
+        newCluster->m_imass = cluster->m_imass;
+        newCluster->m_locii = cluster->m_locii;
+        newCluster->m_invwi = cluster->m_invwi;
+        newCluster->m_com = cluster->m_com;
+        newCluster->m_vimpulses[0] = cluster->m_vimpulses[0];
+        newCluster->m_vimpulses[1] = cluster->m_vimpulses[1];
+        newCluster->m_dimpulses[0] = cluster->m_dimpulses[0];
+        newCluster->m_dimpulses[1] = cluster->m_dimpulses[1];
+        newCluster->m_nvimpulses = cluster->m_nvimpulses;
+        newCluster->m_ndimpulses = cluster->m_ndimpulses;
+        newCluster->m_lv = cluster->m_lv;
+        newCluster->m_av = cluster->m_av;
+        newCluster->m_ndamping = cluster->m_ndamping;
+        newCluster->m_ldamping = cluster->m_ldamping;
+        newCluster->m_adamping = cluster->m_adamping;
+        newCluster->m_matching = cluster->m_matching;
+        newCluster->m_maxSelfCollisionImpulse = cluster->m_maxSelfCollisionImpulse;
+        newCluster->m_selfCollisionImpulseFactor = cluster->m_selfCollisionImpulseFactor;
+        newCluster->m_containsAnchor = cluster->m_containsAnchor;
+        newCluster->m_collide = cluster->m_collide;
+        newCluster->m_clusterIndex = cluster->m_clusterIndex;
     }
 /*
 
@@ -398,10 +492,12 @@ EnvironmentObject::Ptr BulletSoftObject::copy(Fork &f) const {
 void BulletSoftObject::postCopy(EnvironmentObject::Ptr copy, Fork &f) const {
     const btSoftBody *orig = softBody.get();
     btSoftBody *psb = ((BulletSoftObject &) copy).softBody.get();
+
     // copy the anchors
+    psb->m_anchors.reserve(orig->m_anchors.size());
     for (int i=0;i<orig->m_anchors.size();i++) {
         const btSoftBody::Anchor &anchor = orig->m_anchors[i];
-        btRigidBody *body = btRigidBody::upcast((btCollisionObject *) f.forkOf(anchor.m_body));
+        btRigidBody *body = btRigidBody::upcast((btCollisionObject *) f.copyOf(anchor.m_body));
         if (!body) continue;
 
         btSoftBody::Anchor newAnchor = anchor;
@@ -411,7 +507,7 @@ void BulletSoftObject::postCopy(EnvironmentObject::Ptr copy, Fork &f) const {
         if (it2 != nodeMap.end())
             newAnchor->m_node = it2->second;*/
 
-        newAnchor.m_node = (btSoftBody::Node *) f.forkOf(anchor.m_node);
+        newAnchor.m_node = (btSoftBody::Node *) f.copyOf(anchor.m_node);
 
         psb->m_anchors.push_back(newAnchor);
 
@@ -420,7 +516,7 @@ void BulletSoftObject::postCopy(EnvironmentObject::Ptr copy, Fork &f) const {
 
     // copy the joints
     // TODO: THIS IS NOT TESTED
-
+    psb->m_joints.reserve(orig->m_joints.size());
     for (int i=0;i<orig->m_joints.size();i++) {
         btSoftBody::Joint *joint = orig->m_joints[i];
 
@@ -429,14 +525,14 @@ void BulletSoftObject::postCopy(EnvironmentObject::Ptr copy, Fork &f) const {
         btSoftBody::Body bdyB;
         const btSoftBody::Body &origBodyB = joint->m_bodies[1];
         if (origBodyB.m_soft)
-            bdyB.m_soft = (btSoftBody::Cluster *) f.forkOf(origBodyB.m_soft);
+            bdyB.m_soft = (btSoftBody::Cluster *) f.copyOf(origBodyB.m_soft);
         if (origBodyB.m_rigid)
-            bdyB.m_rigid = (btRigidBody *) f.forkOf(origBodyB.m_rigid);
+            bdyB.m_rigid = (btRigidBody *) f.copyOf(origBodyB.m_rigid);
         if (origBodyB.m_collisionObject)
-            bdyB.m_collisionObject = (btCollisionObject *) f.forkOf(origBodyB.m_collisionObject);
+            bdyB.m_collisionObject = (btCollisionObject *) f.copyOf(origBodyB.m_collisionObject);
 
         /*
-        btCollisionObject *colB = f.forkOf(joint->m_bodies[1]);
+        btCollisionObject *colB = f.copyOf(joint->m_bodies[1]);
         switch (colB->getInternalType()) {
         case CO_COLLISION_OBJECT:
             bdyB = colB; break;

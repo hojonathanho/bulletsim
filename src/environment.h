@@ -108,8 +108,8 @@ public:
     typedef std::map<const void *, void *> DataMap;
     DataMap dataMap;
     void registerCopy(const void *orig, void *copy) {
-        BOOST_ASSERT(forkOf(orig) == NULL);
-        dataMap[orig] = copy;
+        BOOST_ASSERT(copyOf(orig) == NULL && orig && copy);
+        dataMap.insert(std::make_pair(orig, copy));
     }
 
     Fork(const Environment *parentEnv_, BulletInstance::Ptr bullet, OSGInstance::Ptr osg) :
@@ -117,7 +117,7 @@ public:
     Fork(const Environment::Ptr parentEnv_, BulletInstance::Ptr bullet, OSGInstance::Ptr osg) :
         parentEnv(parentEnv_.get()), env(new Environment(bullet, osg)) { copyObjects(); }
 
-    void *forkOf(const void *orig) const {
+    void *copyOf(const void *orig) const {
         DataMap::const_iterator i = dataMap.find(orig);
         return i == dataMap.end() ? NULL : i->second;
     }
