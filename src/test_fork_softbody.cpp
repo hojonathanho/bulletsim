@@ -88,6 +88,7 @@ void CustomScene::run() {
     OSGInstance::Ptr osg2(new OSGInstance);
     osg->root->addChild(osg2->root.get());
     Fork::Ptr fork(new Fork(env, bullet2, osg2));
+    registerFork(fork);
     cout << "environment copied" << endl;
 
     SphereObject::Ptr sphere2 = boost::static_pointer_cast<SphereObject> (fork->forkOf(sphere));

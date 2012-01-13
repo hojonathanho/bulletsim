@@ -144,11 +144,6 @@ EnvironmentObject::Ptr BulletSoftObject::copy(Fork &f) const {
             */
     }
 
-    typedef std::map<const btSoftBody::Node *, btSoftBody::Node *> NodeMap; // maps old nodes to new ones
-    NodeMap nodeMap;
-
-    std::set<const btSoftBody::Node *> seenNodes;
-    std::set<const btSoftBody::Node *> newNodes;
     psb->m_nodes.reserve(orig->m_nodes.size());
     for (i=0;i<orig->m_nodes.size();i++) {
         const btSoftBody::Node *node = &orig->m_nodes[i];
@@ -171,9 +166,6 @@ EnvironmentObject::Ptr BulletSoftObject::copy(Fork &f) const {
         f.registerCopy(node, newNode);
         BOOST_ASSERT(f.copyOf(node) == newNode);
         BOOST_ASSERT( ((btSoftBody::Node*)f.copyOf(node))->m_x == node->m_x );
-        seenNodes.insert(node);
-        newNodes.insert(newNode);
-        nodeMap.insert(std::make_pair(node, newNode));
 
         //nodeMap[&node] = &newNode;
 /*
@@ -212,12 +204,6 @@ EnvironmentObject::Ptr BulletSoftObject::copy(Fork &f) const {
         btSoftBody::Node *n0 = (btSoftBody::Node *) f.copyOf(link->m_n[0]);
         btSoftBody::Node *n1 = (btSoftBody::Node *) f.copyOf(link->m_n[1]);
         BOOST_ASSERT(n0 && n1);
-        BOOST_ASSERT(nodeMap[link->m_n[0]] == f.copyOf(link->m_n[0]));
-        BOOST_ASSERT(nodeMap[link->m_n[1]] == f.copyOf(link->m_n[1]));
-        BOOST_ASSERT(seenNodes.find(link->m_n[0]) != seenNodes.end());
-        BOOST_ASSERT(seenNodes.find(link->m_n[1]) != seenNodes.end());
-        BOOST_ASSERT(newNodes.find(n0) != newNodes.end());
-        BOOST_ASSERT(newNodes.find(n1) != newNodes.end());
         BOOST_ASSERT( ((btSoftBody::Node*)f.copyOf(link->m_n[0]))->m_x == link->m_n[0]->m_x );
         BOOST_ASSERT( ((btSoftBody::Node*)f.copyOf(link->m_n[1]))->m_x == link->m_n[1]->m_x );
         psb->appendLink(n0, n1, mat);
@@ -256,6 +242,7 @@ EnvironmentObject::Ptr BulletSoftObject::copy(Fork &f) const {
         btSoftBody::Node *n2 = (btSoftBody::Node *) f.copyOf(face->m_n[2]);
         BOOST_ASSERT(n0 && n1 && n2);
 
+        /*
         bool b0, b1, b2; b0 = b1 = b2 = false;
         for (int z = 0; z < orig->m_nodes.size(); ++z) {
             if (&orig->m_nodes[z] == face->m_n[0]) b0 = true;
@@ -272,6 +259,7 @@ EnvironmentObject::Ptr BulletSoftObject::copy(Fork &f) const {
             else if (&psb->m_nodes[z] == n2) b2 = true;
         }
         BOOST_ASSERT(b0 && b1 && b2);
+        */
 
 
         btSoftBody_appendFace(psb, n0, n1, n2, mat);
@@ -491,13 +479,14 @@ EnvironmentObject::Ptr BulletSoftObject::copy(Fork &f) const {
 
 void BulletSoftObject::postCopy(EnvironmentObject::Ptr copy, Fork &f) const {
     const btSoftBody *orig = softBody.get();
-    btSoftBody *psb = ((BulletSoftObject &) copy).softBody.get();
+    btSoftBody *psb = boost::static_pointer_cast<BulletSoftObject>(copy)->softBody.get();
 
     // copy the anchors
     psb->m_anchors.reserve(orig->m_anchors.size());
     for (int i=0;i<orig->m_anchors.size();i++) {
         const btSoftBody::Anchor &anchor = orig->m_anchors[i];
         btRigidBody *body = btRigidBody::upcast((btCollisionObject *) f.copyOf(anchor.m_body));
+        BOOST_ASSERT(body);
         if (!body) continue;
 
         btSoftBody::Anchor newAnchor = anchor;
@@ -508,11 +497,13 @@ void BulletSoftObject::postCopy(EnvironmentObject::Ptr copy, Fork &f) const {
             newAnchor->m_node = it2->second;*/
 
         newAnchor.m_node = (btSoftBody::Node *) f.copyOf(anchor.m_node);
+        BOOST_ASSERT(newAnchor.m_node);
 
         psb->m_anchors.push_back(newAnchor);
 
         // TODO: disableCollisionBetweenLinkedBodies
     }
+    return;
 
     // copy the joints
     // TODO: THIS IS NOT TESTED
