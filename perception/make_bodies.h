@@ -1,3 +1,4 @@
+#pragma once
 #include "basicobjects.h"
 #include "softbodies.h"
 

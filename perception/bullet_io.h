@@ -1,3 +1,4 @@
+#pragma once
 // reading bullet vectors, and converting between them and vectors
 
 #include <btBulletDynamicsCommon.h>
