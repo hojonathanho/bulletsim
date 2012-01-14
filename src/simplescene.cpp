@@ -7,7 +7,6 @@
 #include <iostream>
 using namespace std;
 
-
 Scene::Scene() {
     osg.reset(new OSGInstance());
     bullet.reset(new BulletInstance());
@@ -226,7 +225,7 @@ bool EventHandler::handle(const osgGA::GUIEventAdapter &ea, osgGA::GUIActionAdap
         case 'q':
             state.rotateManip0 = true; break;
         case 'w':
-            state.rotateManip1 = true; break;
+	    state.rotateManip1 = true; break;
       }
       break;
 
