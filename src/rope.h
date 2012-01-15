@@ -22,7 +22,7 @@ public:
 
 
 public:
-  CapsuleRope(const vector<btVector3>& ctrlPoints, float radius_, float angStiffness=.1, float angDamping=1, float linDamping=.75, float angLimit=.4);
+  CapsuleRope(const vector<btVector3>& ctrlPoints, float radius_, float angStiffness_=.1, float angDamping_=1, float linDamping_=.75, float angLimit_=.4);
   void init();
   void destroy();
   void getPts(vector<btVector3>& centers) { 

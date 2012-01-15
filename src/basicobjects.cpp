@@ -10,6 +10,10 @@
 #include <boost/scoped_array.hpp>
 #include "SetColorsVisitor.h"
 
+#include <osg/BlendFunc>
+#include <osg/AlphaFunc>
+
+
 #define MAX_RAYCAST_DISTANCE 100.0
 
 btRigidBody::btRigidBodyConstructionInfo getCI(btScalar mass, boost::shared_ptr<btCollisionShape> collisionShape, boost::shared_ptr<btDefaultMotionState> motionState) {
@@ -28,6 +32,16 @@ void BulletObject::init() {
     transform = new osg::MatrixTransform;
     transform->addChild(node.get());
     getEnvironment()->osg->root->addChild(transform.get());
+    setColorAfterInit();
+    osg::StateSet* ss = node->getOrCreateStateSet();
+
+
+    osg::AlphaFunc* alphaFunc = new osg::AlphaFunc;
+    alphaFunc->setFunction(osg::AlphaFunc::GEQUAL,0.05f);
+    ss->setMode( GL_LIGHTING, osg::StateAttribute::OFF );
+    ss->setAttributeAndModes(new osg::BlendFunc, osg::StateAttribute::ON );
+    ss->setAttributeAndModes( alphaFunc, osg::StateAttribute::ON );
+    ss->setMode(GL_DEPTH_TEST,osg::StateAttribute::OFF);
 }
 
 osg::ref_ptr<osg::Node> BulletObject::createOSGNode() {
@@ -152,8 +166,13 @@ void BulletObject::MoveAction::step(float dt) {
 }
 
 void BulletObject::setColor(float r, float g, float b, float a) {
-  SetColorsVisitor visitor(r,g,b,a);
-  node->accept(visitor);
+  m_color.reset(new osg::Vec4f(r,g,b,a));
+}
+void BulletObject::setColorAfterInit() {
+  if (m_color) {
+    SetColorsVisitor visitor(m_color->r(),m_color->g(),m_color->b(),m_color->a());
+    node->accept(visitor);
+  }
 }
 
 BulletKinematicObject::BulletKinematicObject(boost::shared_ptr<btCollisionShape> collisionShape_, const btTransform &trans) {

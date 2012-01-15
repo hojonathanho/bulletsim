@@ -21,6 +21,7 @@ public:
 
     // TODO: implement copying!
     EnvironmentObject::Ptr copy() { return Ptr(new BulletSoftObject(*this)); }
+  void setColor(float,float,float,float);
 
     // called by Environment
     void init();

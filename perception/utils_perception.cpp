@@ -2,6 +2,9 @@
 #include <boost/foreach.hpp>
 #include <pcl/io/pcd_io.h>
 #include <algorithm>
+#include "config.h"
+using namespace Eigen;
+
 
 inline btVector3 toBulletVector(const vector<float>& vec) {return btVector3(vec[0],vec[1],vec[2]);}
 inline btVector3 toBulletVector(const Vector3f& vec) {return btVector3(vec[0],vec[1],vec[2]);}
@@ -106,6 +109,18 @@ btTransform getCamToWorldFromTable(const vector<btVector3>& corners) {
   float tz = 1-(rotCamToWorld*corners[0]).z();
   return btTransform(rotCamToWorld, btVector3(0,0,tz));
 }
+
+
+inline btVector3 CoordinateTransformer::toWorldFromCam(const btVector3& camVec) {
+  return GeneralConfig::scale * (worldFromCamUnscaled * camVec);
+}
+
+vector<btVector3> CoordinateTransformer::toWorldFromCamN(const vector<btVector3>& camVecs) {
+  vector<btVector3> worldVecs(camVecs.size());
+  for (int i=0; i<camVecs.size(); i++) worldVecs[i] = toWorldFromCam(camVecs[i]);
+  return worldVecs;
+}
+
 
 // Affine3f getCamToWorldFromTable(const vector<Vector3f>& corners) {
 //   btVector3 newY = corners[1] - corners[0];

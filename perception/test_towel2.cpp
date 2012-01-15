@@ -1,31 +1,15 @@
-#include "config_perception.h"
-#include "simplescene.h"
-#include "comm/comm2.h"
+#include "bullet_io.h"
 #include "clouds/comm_pcl.h"
 #include "clouds/geom.h"
-#include "vector_io.h"
-#include "bullet_io.h"
+#include "comm/comm2.h"
+#include "config_bullet.h"
+#include "config_perception.h"
 #include "make_bodies.h"
-#include "update_bodies.h"
+#include "simplescene.h"
 #include "softbodies.h"
+#include "update_bodies.h"
 #include "utils_perception.h"
-
-#include <algorithm>
-
-btTransform worldFromCamUnscaled;
-
-btVector3 toWorldFromCam(const btVector3& camVec) {
-  return GeneralConfig::scale * (worldFromCamUnscaled * camVec);
-}
-
-vector<btVector3> toWorldFromCamN(const vector<btVector3>& camVecs) {
-  vector<btVector3> worldVecs(camVecs.size());
-  transform(camVecs.begin(), camVecs.end(), worldVecs.begin(), toWorldFromCam);
-  return worldVecs;
-}
-
-
-
+#include "vector_io.h"
 
 
 
@@ -38,23 +22,26 @@ int main(int argc, char* argv[]) {
   parser.addGroup(SceneConfig());
   parser.addGroup(TrackingConfig());
   parser.addGroup(GeneralConfig());
+  parser.addGroup(BulletConfig());
   parser.read(argc, argv);
 
 
   ////////////// create scene
   Scene scene;
   static PlotPoints::Ptr kinectPts(new PlotPoints(2));
-  static PlotPoints::Ptr towelEstPts(new PlotPoints(5));
+  static PlotPoints::Ptr towelEstPts(new PlotPoints(10));
   towelEstPts->setDefaultColor(1,0,0,1);
-  static PlotPoints::Ptr towelObsPts(new PlotPoints(5));
+  static PlotPoints::Ptr towelObsPts(new PlotPoints(10));
   towelObsPts->setDefaultColor(0,1,0,1);
 
   /////////////// load table
   vector< vector<float> > vv = matFromFile<float>(onceFile("table_corners.txt").string());
   vector<btVector3> tableCornersCam = toBulletVectors(vv);
-  worldFromCamUnscaled = getCamToWorldFromTable(tableCornersCam);
-  vector<btVector3> tableCornersWorld = toWorldFromCamN(tableCornersCam);
+  CoordinateTransformer CT(getCamToWorldFromTable(tableCornersCam));
+
+  vector<btVector3> tableCornersWorld = CT.toWorldFromCamN(tableCornersCam);
   BulletObject::Ptr table = makeTable(tableCornersWorld, .1*GeneralConfig::scale);
+  table->setColor(1,1,1,.25);
 
   //////////////// load towel
 
@@ -64,15 +51,16 @@ int main(int argc, char* argv[]) {
   assert(success);
 
   CloudMessage towelPtsMsg1; //second mesage
-  success = towelSub.recv(towelPtsMsg1);
-  assert(success);
+  for (int i=0; i<3; i++) {
+    success = towelSub.recv(towelPtsMsg1);
+    assert(success);
+  }
 
   vector<btVector3> towelPtsCam = toBulletVectors(towelPtsMsg0.m_data);
-  vector<btVector3> towelPtsWorld = toWorldFromCamN(towelPtsCam);
+  vector<btVector3> towelPtsWorld = CT.toWorldFromCamN(towelPtsCam);
   vector<btVector3> towelCorners = toBulletVectors(getCorners(toEigenVectors(towelPtsWorld)));
-  cout << "towelCorners[0] " << towelCorners[0] << endl;
-  cout << "tableCorners[0] " << tableCornersWorld[0] << endl;
 
+  BOOST_FOREACH(btVector3& pt, towelCorners) pt += btVector3(.1*METERS,0,0);
   BulletSoftObject::Ptr towel = makeTowel(towelCorners, scene.env->bullet->softBodyWorldInfo);
 
   /// add stuff to scene
@@ -90,7 +78,7 @@ int main(int argc, char* argv[]) {
   scene.env->add(plots::linesBA);
 
   ///////////// locally optimize towel
-  vector<btVector3> newPts =  toWorldFromCamN(toBulletVectors(towelPtsMsg1.m_data));
+  vector<btVector3> newPts =  CT.toWorldFromCamN(toBulletVectors(towelPtsMsg1.m_data));
   towelObsPts->setPoints(newPts);
 
 

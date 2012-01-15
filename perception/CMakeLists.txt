@@ -46,13 +46,14 @@ include_directories("~/cpp")
 # target_link_libraries(test_kinect_towel ${PCL_LIBRARIES} json simulation perception clouds comm)
 
 
-add_executable(test_pr2_playback test_pr2_playback.cpp)
-target_link_libraries(test_pr2_playback comm2 ${PCL_LIBRARIES})
+add_executable(test_pr2_playback test_pr2_playback.cpp ~/cpp/vector_io.cpp config_perception.cpp utils_perception.cpp make_bodies.cpp bullet_io.cpp)
+target_link_libraries(test_pr2_playback comm2 ${PCL_LIBRARIES} simulation clouds)
 
 add_executable(test_towel2 test_towel2.cpp utils_perception.cpp config_perception.cpp update_bodies.cpp make_bodies.cpp dist_math.cpp ~/cpp/vector_io.cpp bullet_io.cpp)
 target_link_libraries(test_towel2 comm2 ${PCL_LIBRARIES} simulation clouds)
 
-
+#add_executable(test_eigen test_eigen.cpp bullet_io.cpp)
+#target_link_libraries(test_eigen simulation)
 
 add_subdirectory(comm)
 add_subdirectory(clouds)

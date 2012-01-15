@@ -5,21 +5,20 @@
 #include <pcl/point_cloud.h>
 #include <vector>
 #include <string>
-using namespace Eigen;
 using namespace std;
 
 vector<btVector3> toBulletVectors(const vector< vector<float> >&);
-vector<btVector3> toBulletVectors(const vector< Vector3f >&);
+vector<btVector3> toBulletVectors(const vector< Eigen::Vector3f >&);
 vector<btVector3> toBulletVectors(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr&);
 
-btTransform toBulletTransform(Affine3f);
+btTransform toBulletTransform(Eigen::Affine3f);
 
-vector<Vector3f> toEigenVectors(const vector< vector<float> >&);
-vector<Vector3f> toEigenVectors(const vector<btVector3>&);
-vector<Vector3f> toEigenVectors(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr&);
+vector<Eigen::Vector3f> toEigenVectors(const vector< vector<float> >&);
+vector<Eigen::Vector3f> toEigenVectors(const vector<btVector3>&);
+vector<Eigen::Vector3f> toEigenVectors(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr&);
 
-MatrixXf toEigenMatrix(const vector< vector<float> >&);
-MatrixXf toEigenMatrix(const vector<btVector3>&);
+Eigen::MatrixXf toEigenMatrix(const vector< vector<float> >&);
+Eigen::MatrixXf toEigenMatrix(const vector<btVector3>&);
 
 template<class T, class S>
 vector<T> operator*(const vector<T>& xs, S p) {
@@ -38,9 +37,17 @@ vector<T> operator*(S p, vector<T>& xs) {
 }
 
 vector<btVector3> operatorTimes(const btTransform& t, const vector<btVector3>& vecs);
-vector<Vector3f> operatorTimes(const Affine3f& t, const vector<Vector3f>& vecs);
+vector<Eigen::Vector3f> operatorTimes(const Eigen::Affine3f& t, const vector<Eigen::Vector3f>& vecs);
 
-Affine3f Scaling3f(float s);
+Eigen::Affine3f Scaling3f(float s);
 
-//Affine3f getCamToWorldFromTable(const vector<Vector3f>& corners);
+//Eigen::Affine3f getCamToWorldFromTable(const vector<Vector3f>& corners);
 btTransform getCamToWorldFromTable(const vector<btVector3>& corners);
+
+class CoordinateTransformer {
+public:
+  CoordinateTransformer(btTransform wfc) : worldFromCamUnscaled(wfc) {}
+  btTransform worldFromCamUnscaled;
+  inline btVector3 toWorldFromCam(const btVector3& camVec);
+  vector<btVector3> toWorldFromCamN(const vector<btVector3>& camVecs);
+};

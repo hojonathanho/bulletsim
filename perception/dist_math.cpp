@@ -1,4 +1,5 @@
 #include "dist_math.h"
+using namespace Eigen;
 
 
 MatrixXf pairwiseSquareDist(const MatrixXf& x_m3, const MatrixXf& y_n3) {

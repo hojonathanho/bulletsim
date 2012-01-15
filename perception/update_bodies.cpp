@@ -2,6 +2,7 @@
 #include "dist_math.h"
 #include "utils_perception.h"
 #include "config_perception.h"
+using namespace Eigen;
 
 PlotLines::Ptr plots::linesAB;
 PlotLines::Ptr plots::linesBA;
@@ -57,7 +58,7 @@ vector<btVector3> clothOptImpulses(BulletSoftObject::Ptr psb, const vector<btVec
   for (int iObs=0; iObs < nObs; iObs++) {
     int iEst = indEstFromObs[iObs];
     const btVector3 obsPt = obs[iObs];
-    const btVector3 estPt = obs[iEst];
+    const btVector3 estPt = est[iEst];
     impulses[iEst] += TrackingConfig::fBA*(obsPt - estPt);
     baLineStarts.push_back(obsPt);
     baLineEnds.push_back(estPt);

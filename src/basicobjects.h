@@ -54,6 +54,9 @@ public:
     };
     MoveAction::Ptr createMoveAction(const btTransform &start, const btTransform &end, float time) { return MoveAction::Ptr(new MoveAction(this, start, end, time)); }
   void setColor(float r, float g, float b, float a);
+private:
+  boost::shared_ptr<osg::Vec4f> m_color;
+  void setColorAfterInit();
 };
 
 class BulletKinematicObject : public BulletObject {

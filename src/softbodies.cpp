@@ -2,6 +2,12 @@
 #include "util.h"
 
 #include <osg/LightModel>
+
+#include <osg/BlendFunc>
+#include <osg/AlphaFunc>
+#include "SetColorsVisitor.h"
+
+
 #include <BulletSoftBody/btSoftBodyHelpers.h>
 #include <osgbCollision/Utils.h>
 
@@ -23,12 +29,27 @@ void BulletSoftObject::init() {
 
     osg::ref_ptr<osg::LightModel> lightModel = new osg::LightModel;
     lightModel->setTwoSided(true);
-    geode->getOrCreateStateSet()->setAttributeAndModes(lightModel.get(), osg::StateAttribute::ON);
+    osg::StateSet* ss = geode->getOrCreateStateSet();
+    ss->setAttributeAndModes(lightModel.get(), osg::StateAttribute::ON);
+
+    osg::AlphaFunc* alphaFunc = new osg::AlphaFunc;
+    alphaFunc->setFunction(osg::AlphaFunc::GEQUAL,0.05f);
+    ss->setAttributeAndModes(new osg::BlendFunc, osg::StateAttribute::ON );
+    ss->setAttributeAndModes( alphaFunc, osg::StateAttribute::ON );
+    ss->setMode(GL_DEPTH_TEST,osg::StateAttribute::OFF);
 
     transform = new osg::MatrixTransform;
     transform->addChild(geode);
     getEnvironment()->osg->root->addChild(transform);
 }
+
+void BulletSoftObject::setColor(float r, float g, float b, float a) {
+  osg::Vec4Array* colors = new osg::Vec4Array;
+  colors->push_back(osg::Vec4(r,g,b,a));
+  geom->setColorArray(colors);
+  geom->setColorBinding(osg::Geometry::BIND_OVERALL);
+}
+
 
 void BulletSoftObject::preDraw() {
 #if 0
