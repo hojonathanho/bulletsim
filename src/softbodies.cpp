@@ -503,7 +503,6 @@ void BulletSoftObject::postCopy(EnvironmentObject::Ptr copy, Fork &f) const {
 
         // TODO: disableCollisionBetweenLinkedBodies
     }
-    return;
 
     // copy the joints
     // TODO: THIS IS NOT TESTED

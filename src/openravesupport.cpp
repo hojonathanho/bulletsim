@@ -6,14 +6,21 @@
 using namespace OpenRAVE;
 
 RaveInstance::RaveInstance() {
+    isRoot = true;
     RaveInitialize(true);
     env = RaveCreateEnvironment();
     if (GeneralConfig::verbose)
         RaveSetDebugLevel(Level_Debug);
 }
 
+RaveInstance::RaveInstance(const RaveInstance &o, int cloneOpts) {
+    isRoot = false;
+    env = o.env->CloneSelf(cloneOpts);
+}
+
 RaveInstance::~RaveInstance() {
-    RaveDestroy();
+    if (isRoot)
+        RaveDestroy();
 }
 
 RaveRobotKinematicObject::RaveRobotKinematicObject(
@@ -116,18 +123,12 @@ void RaveRobotKinematicObject::initRobotWithoutDynamics(const btTransform &initi
         getChildren().push_back(child);
         linkMap[*link] = child;
         collisionObjMap[child->rigidBody.get()] = *link;
+        childPosMap[child] = getChildren().size() - 1;
 
         // since the joints are always in contact, we should ignore their collisions
         // when setting joint positions (OpenRAVE should take care of them anyway)
         ignoreCollisionWith(child->rigidBody.get());
     }
-}
-
-void RaveRobotKinematicObject::prePhysics() {
-    CompoundObject<BulletKinematicObject>::prePhysics();
-
-    // if we're sticking to any soft bodies
-    // TODO: unimplemented
 }
 
 bool RaveRobotKinematicObject::detectCollisions() {
@@ -169,6 +170,49 @@ void RaveRobotKinematicObject::setDOFValues(const vector<int> &indices, const ve
                 initialTransform * util::toBtTransform(transforms[i], scale));
 }
 
+EnvironmentObject::Ptr RaveRobotKinematicObject::copy(Fork &f) const {
+    Ptr o(new RaveRobotKinematicObject(scale));
+
+    internalCopy(o, f);
+
+    o->rave.reset(new RaveInstance(*rave.get(), OpenRAVE::Clone_Bodies));
+
+    for (std::map<KinBody::LinkPtr, BulletKinematicObject::Ptr>::const_iterator i = linkMap.begin();
+            i != linkMap.end(); ++i) {
+        const KinBody::LinkPtr raveObj = o->rave->env->GetKinBody(i->first->GetParent()->GetName())->GetLink(i->first->GetName());
+
+        const int j = childPosMap.find(i->second)->second;
+        const BulletKinematicObject::Ptr bulletObj = o->getChildren()[j];
+
+        o->linkMap.insert(std::make_pair(raveObj, bulletObj));
+        o->collisionObjMap.insert(std::make_pair(bulletObj->rigidBody.get(), raveObj));
+    }
+
+    for (std::map<BulletKinematicObject::Ptr, int>::const_iterator i = childPosMap.begin();
+            i != childPosMap.end(); ++i) {
+        const int j = childPosMap.find(i->first)->second;
+        o->childPosMap.insert(std::make_pair(o->getChildren()[j], i->second));
+    }
+
+    o->robot = o->rave->env->GetRobot(robot->GetName());
+
+    o->createdManips.reserve(createdManips.size());
+    for (int i = 0; i < createdManips.size(); ++i) {
+        o->createdManips.push_back(createdManips[i]->copy(o, f));
+        o->createdManips[i]->index = i;
+    }
+
+    return o;
+}
+
+void RaveRobotKinematicObject::postCopy(EnvironmentObject::Ptr copy, Fork &f) const {
+    Ptr o = boost::static_pointer_cast<RaveRobotKinematicObject>(copy);
+
+    for (BulletInstance::CollisionObjectSet::const_iterator i = ignoreCollisionObjs.begin();
+            i != ignoreCollisionObjs.end(); ++i)
+        o->ignoreCollisionObjs.insert((btCollisionObject *) f.copyOf(*i));
+}
+
 RaveRobotKinematicObject::Manipulator::Ptr
 RaveRobotKinematicObject::createManipulator(const std::string &manipName, bool useFakeGrabber) {
     RaveRobotKinematicObject::Manipulator::Ptr m(new Manipulator(this));
@@ -191,6 +235,8 @@ RaveRobotKinematicObject::createManipulator(const std::string &manipName, bool u
         ignoreCollisionWith(m->grabber->rigidBody.get());
     }
 
+    m->index = createdManips.size();
+    createdManips.push_back(m);
     return m;
 }
 
@@ -232,4 +278,29 @@ bool RaveRobotKinematicObject::Manipulator::moveByIKUnscaled(
         updateGrabberPos();
 
     return true;
+}
+
+RaveRobotKinematicObject::Manipulator::Ptr
+RaveRobotKinematicObject::Manipulator::copy(RaveRobotKinematicObject::Ptr newRobot, Fork &f) {
+    OpenRAVE::EnvironmentMutex::scoped_lock lock(newRobot->rave->env->GetMutex());
+
+    Manipulator::Ptr o(new Manipulator(newRobot.get()));
+    o->ikmodule = ikmodule; // use same ik module
+
+    newRobot->robot->SetActiveManipulator(manip->GetName());
+    o->manip = newRobot->robot->GetActiveManipulator();
+
+    o->useFakeGrabber = useFakeGrabber;
+    if (useFakeGrabber)
+        o->grabber = boost::static_pointer_cast<GrabberKinematicObject>(grabber->copy(f));
+
+    return o;
+}
+
+void RaveRobotKinematicObject::destroyManipulator(RaveRobotKinematicObject::Manipulator::Ptr m) {
+    std::vector<Manipulator::Ptr>::iterator i =
+        std::find(createdManips.begin(), createdManips.end(), m);
+    if (i == createdManips.end()) return;
+    (*i).reset();
+    createdManips.erase(i);
 }

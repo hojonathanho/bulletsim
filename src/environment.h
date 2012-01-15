@@ -63,7 +63,7 @@ public:
     virtual EnvironmentObject::Ptr copy(Fork &f) const = 0;
     // postCopy is called after all objects are copied and inserted into f.env.
     // This is useful for updating constraints, anchors, etc.
-    // You're free to use f.forkOf() to get equivalent objects in the new env.
+    // You're free to use f.forkOf()  or f.copyOf() to get equivalent objects in the new env.
     virtual void postCopy(EnvironmentObject::Ptr copy, Fork &f) const { }
 
     // methods only to be called by the Environment
@@ -145,11 +145,19 @@ public:
 
     EnvironmentObject::Ptr copy(Fork &f) const {
         Ptr o(new CompoundObject<ChildType>());
+        internalCopy(o, f);
+        return o;
+    }
+
+    void internalCopy(CompoundObject::Ptr o, Fork &f) const {
         o->children.reserve(children.size());
         typename ChildVector::const_iterator i;
-        for (i = children.begin(); i != children.end(); ++i)
-            o->children.push_back(boost::static_pointer_cast<ChildType> ((*i)->copy(f)));
-        return o;
+        for (i = children.begin(); i != children.end(); ++i) {
+            if (*i)
+                o->children.push_back(boost::static_pointer_cast<ChildType> ((*i)->copy(f)));
+            else
+                o->children.push_back(typename ChildType::Ptr());
+        }
     }
 
     void init() {

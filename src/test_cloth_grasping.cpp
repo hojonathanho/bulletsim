@@ -241,7 +241,14 @@ public:
 
 struct CustomScene : public Scene {
     PR2SoftBodyGripperAction::Ptr leftAction, rightAction;
+    BulletInstance::Ptr bullet2;
+    OSGInstance::Ptr osg2;
+    Fork::Ptr fork;
+
+
     BulletSoftObject::Ptr createCloth(btScalar s, const btVector3 &center, int divs);
+    void createFork();
+
     void run();
 };
 
@@ -265,6 +272,9 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,osgGA::GUIActionA
             scene.rightAction->reset();
             scene.rightAction->toggleAction();
             scene.runAction(scene.rightAction, BulletConfig::dt);
+            break;
+        case 'f':
+            scene.createFork();
             break;
         }
         break;
@@ -297,6 +307,18 @@ BulletSoftObject::Ptr CustomScene::createCloth(btScalar s, const btVector3 &cent
     psb->generateClusters(0);
 
     return BulletSoftObject::Ptr(new BulletSoftObject(psb));
+}
+
+void CustomScene::createFork() {
+    bullet2.reset(new BulletInstance);
+    bullet2->setGravity(BulletConfig::gravity);
+    osg2.reset(new OSGInstance);
+    osg->root->addChild(osg2->root.get());
+
+    fork.reset(new Fork(env, bullet2, osg2));
+    registerFork(fork);
+
+    cout << "forked!" << endl;
 }
 
 void CustomScene::run() {
