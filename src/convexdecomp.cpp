@@ -1,11 +1,11 @@
 #include "convexdecomp.h"
 
-void ConvexDecomp::addTriangle(const btVector3 &v0, const btVector3 &v1, const btVector3 &v2) {
+/*void ConvexDecomp::addTriangle(const btVector3 &v0, const btVector3 &v1, const btVector3 &v2) {
     points.push_back(toHACDVec(v0));
     points.push_back(toHACDVec(v1));
     points.push_back(toHACDVec(v2));
     triangles.push_back(HACD::Vec3<long>(points.size() - 3, points.size() - 2, points.size() - 1));
-}
+}*/
 
 boost::shared_ptr<btCompoundShape> ConvexDecomp::run(std::vector<boost::shared_ptr<btCollisionShape> > &shapeStorage) {
     HACD::HACD hacd;
@@ -18,7 +18,8 @@ boost::shared_ptr<btCompoundShape> ConvexDecomp::run(std::vector<boost::shared_p
 
     // HACD parameters
     // Recommended parameters: 2 100 0 0 0 0
-    size_t nClusters = 2;
+    //size_t nClusters = 2;
+    size_t nClusters = 1;
     double concavity = 100;
     bool invert = false;
     bool addExtraDistPoints = false;

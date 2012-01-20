@@ -25,17 +25,20 @@ RaveInstance::~RaveInstance() {
 }
 
 RaveRobotKinematicObject::RaveRobotKinematicObject(
-        RaveInstance::Ptr rave_, const std::string &uri,
-        const btTransform &initialTransform_, btScalar scale_) :
+        RaveInstance::Ptr rave_,
+        const std::string &uri,
+        const btTransform &initialTransform_,
+        btScalar scale_,
+        TrimeshMode trimeshMode) :
             rave(rave_),
             initialTransform(initialTransform_),
             scale(scale_) {
     robot = rave->env->ReadRobotURI(uri);
     rave->env->AddRobot(robot);
-    initRobotWithoutDynamics(initialTransform);
+    initRobotWithoutDynamics(initialTransform, trimeshMode);
 }
 
-void RaveRobotKinematicObject::initRobotWithoutDynamics(const btTransform &initialTransform, bool useConvexHull, float fmargin) {
+void RaveRobotKinematicObject::initRobotWithoutDynamics(const btTransform &initialTransform, TrimeshMode trimeshMode, float fmargin) {
     ConvexDecomp decomp(fmargin);
     const std::vector<KinBody::LinkPtr> &links = robot->GetLinks();
     getChildren().reserve(links.size());
@@ -57,6 +60,7 @@ void RaveRobotKinematicObject::initRobotWithoutDynamics(const btTransform &initi
         for (std::list<KinBody::Link::GEOMPROPERTIES>::const_iterator geom = geometries.begin();
                 geom != geometries.end(); ++geom) {
             boost::shared_ptr<btCollisionShape> subshape;
+            const KinBody::Link::TRIMESH &mesh = geom->GetCollisionMesh();
 
             switch (geom->GetType()) {
             case KinBody::Link::GEOMPROPERTIES::GeomBox:
@@ -75,43 +79,48 @@ void RaveRobotKinematicObject::initRobotWithoutDynamics(const btTransform &initi
                 break;
 
             case KinBody::Link::GEOMPROPERTIES::GeomTrimesh:
-                if (geom->GetCollisionMesh().indices.size() >= 3) {
-                    if (useConvexDecomp) {
-                        decomp.reset();
-                        for (size_t i = 0; i < geom->GetCollisionMesh().indices.size(); i += 3)
-                            decomp.addTriangle(util::toBtVector(scale * geom->GetCollisionMesh().vertices[i]),
-                                               util::toBtVector(scale * geom->GetCollisionMesh().vertices[i+1]),
-                                               util::toBtVector(scale * geom->GetCollisionMesh().vertices[i+2]));
-                        subshape = decomp.run(subshapes); // use subshapes to just store smart pointer
-                    }
+                if (mesh.indices.size() < 3) break;
+                if (trimeshMode == CONVEX_DECOMP) {
+                    printf("running convex decomposition\n");
+                    decomp.reset();
+                    for (size_t i = 0; i < mesh.vertices.size(); ++i)
+                        decomp.addPoint(util::toBtVector(mesh.vertices[i]));
+                    for (size_t i = 0; i < mesh.indices.size(); i += 3)
+                        decomp.addTriangle(mesh.indices[i], mesh.indices[i+1], mesh.indices[i+2]);
+                    subshape = decomp.run(subshapes); // use subshapes to just store smart pointer
 
-                    else {
-                        btTriangleMesh* ptrimesh = new btTriangleMesh();
-                        // for some reason adding indices makes everything crash
-                        for(size_t i = 0; i < geom->GetCollisionMesh().indices.size(); i += 3)
-                            ptrimesh->addTriangle(util::toBtVector(scale * geom->GetCollisionMesh().vertices[i]),
-                                                  util::toBtVector(scale * geom->GetCollisionMesh().vertices[i+1]),
-                                                  util::toBtVector(scale * geom->GetCollisionMesh().vertices[i+2]));
-                        // store the trimesh somewhere so it doesn't get deallocated by the smart pointer
-                        meshes.push_back(boost::shared_ptr<btStridingMeshInterface>(ptrimesh));
+                } else {
+                    btTriangleMesh* ptrimesh = new btTriangleMesh();
+                    // for some reason adding indices makes everything crash
+                    /*
+                    printf("-----------\n");
+                    for (int z = 0; z < mesh.indices.size(); ++z)
+                        printf("%d\n", mesh.indices[z]);
+                    printf("-----------\n");*/
 
-                        if (useConvexHull) {
-                            boost::shared_ptr<btConvexShape> pconvexbuilder(new btConvexTriangleMeshShape(ptrimesh));
-                            pconvexbuilder->setMargin(fmargin);
+                    for (size_t i = 0; i < mesh.indices.size(); i += 3)
+                        ptrimesh->addTriangle(util::toBtVector(scale * mesh.vertices[i]),
+                                              util::toBtVector(scale * mesh.vertices[i+1]),
+                                              util::toBtVector(scale * mesh.vertices[i+2]));
+                    // store the trimesh somewhere so it doesn't get deallocated by the smart pointer
+                    meshes.push_back(boost::shared_ptr<btStridingMeshInterface>(ptrimesh));
 
-                            //Create a hull shape to approximate Trimesh
-                            boost::shared_ptr<btShapeHull> hull(new btShapeHull(pconvexbuilder.get()));
-                            hull->buildHull(fmargin);
+                    if (trimeshMode == CONVEX_HULL) {
+                        boost::shared_ptr<btConvexShape> pconvexbuilder(new btConvexTriangleMeshShape(ptrimesh));
+                        pconvexbuilder->setMargin(fmargin);
 
-                            btConvexHullShape *convexShape = new btConvexHullShape();
-                            for (int i = 0; i < hull->numVertices(); ++i)
-                                convexShape->addPoint(hull->getVertexPointer()[i]);
+                        //Create a hull shape to approximate Trimesh
+                        boost::shared_ptr<btShapeHull> hull(new btShapeHull(pconvexbuilder.get()));
+                        hull->buildHull(fmargin);
 
-                            subshape.reset(convexShape);
-                        }
-                        else {
-                            subshape.reset(new btBvhTriangleMeshShape(ptrimesh, true));
-                        }
+                        btConvexHullShape *convexShape = new btConvexHullShape();
+                        for (int i = 0; i < hull->numVertices(); ++i)
+                            convexShape->addPoint(hull->getVertexPointer()[i]);
+
+                        subshape.reset(convexShape);
+
+                    } else { // RAW
+                        subshape.reset(new btBvhTriangleMeshShape(ptrimesh, true));
                     }
                 }
                 break;

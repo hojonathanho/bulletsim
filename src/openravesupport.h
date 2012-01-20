@@ -25,6 +25,12 @@ struct RaveInstance {
     ~RaveInstance();
 };
 
+enum TrimeshMode {
+    CONVEX_DECOMP, // use HACD convex decomposition
+    CONVEX_HULL, // use btShapeHull
+    RAW // use btBvhTriangleMeshShape (not recommended, makes simulation very slow)
+};
+
 class RaveRobotKinematicObject : public CompoundObject<BulletKinematicObject> {
 private:
     RaveInstance::Ptr rave;
@@ -47,7 +53,7 @@ private:
 
     // for the loaded robot, this will create BulletKinematicObjects
     // and place them into the children vector
-    void initRobotWithoutDynamics(const btTransform &initialTransform, bool useConvexHull=true, float fmargin=0.0005);
+    void initRobotWithoutDynamics(const btTransform &initialTransform, TrimeshMode trimeshMode, float fmargin=0.0005);
 
     // empty constructor for manual copying
     RaveRobotKinematicObject(btScalar scale_) : scale(scale_) { }
@@ -60,7 +66,12 @@ public:
 
     // this class is actually a collection of BulletKinematicObjects,
     // each of which represents a link of the robot
-    RaveRobotKinematicObject(RaveInstance::Ptr rave_, const std::string &uri, const btTransform &initialTransform_, btScalar scale=1.0f);
+    RaveRobotKinematicObject(RaveInstance::Ptr rave_,
+            const std::string &uri,
+            const btTransform &initialTransform_,
+            btScalar scale=1.0f,
+            TrimeshMode trimeshMode=CONVEX_HULL
+            );
 
     // forking
     EnvironmentObject::Ptr copy(Fork &f) const;
