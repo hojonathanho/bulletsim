@@ -4,6 +4,7 @@
 #include <osg/LineWidth>
 #include <osg/Geometry>
 #include <osg/StateSet>
+#include <boost/foreach.hpp>
 
 using namespace std;
 
@@ -44,16 +45,19 @@ void PlotPoints::setPoints(const osg::ref_ptr<osg::Vec3Array>& osgPts, const osg
 
 }
 
-
+inline bool pointIsFinite(pcl::PointXYZRGB& pt) {
+  return isfinite(pt.x) && isfinite(pt.y) && isfinite(pt.z);
+}
 
 #if BUILD_PERCEPTION
 void PlotPoints::setPoints(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud) {
   osg::ref_ptr<osg::Vec3Array> osgPts = new osg::Vec3Array();
   osg::ref_ptr<osg::Vec4Array>  osgCols = new osg::Vec4Array();
-  for (int i=0; i < cloud->size(); i++) {
-    pcl::PointXYZRGB pt = cloud->at(i);
-    osgPts->push_back(osg::Vec3(pt.x,pt.y,pt.z));
-    osgCols->push_back(osg::Vec4(pt.r/255.,pt.g/255.,pt.b/255.,1));
+  BOOST_FOREACH(pcl::PointXYZRGB& pt, cloud->points){
+    if (pointIsFinite(pt)) {
+      osgPts->push_back(osg::Vec3(pt.x,pt.y,pt.z));
+      osgCols->push_back(osg::Vec4(pt.r/255.,pt.g/255.,pt.b/255.,1));
+    }
   }
   setPoints(osgPts,osgCols);
 }

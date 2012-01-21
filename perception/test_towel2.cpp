@@ -14,7 +14,7 @@
 
 
 int main(int argc, char* argv[]) {
-  setDataRoot("/home/joschu/Data/comm_towel2");
+  setDataRoot("/home/joschu/comm/towel");
   //////////// get command line options
   Parser parser;
   SceneConfig::enableRobot = SceneConfig::enableIK = SceneConfig::enableHaptics = false;
@@ -35,7 +35,7 @@ int main(int argc, char* argv[]) {
   towelObsPts->setDefaultColor(0,1,0,1);
 
   /////////////// load table
-  vector< vector<float> > vv = matFromFile<float>(onceFile("table_corners.txt").string());
+  vector< vector<float> > vv = floatMatFromFile(onceFile("table_corners.txt").string());
   vector<btVector3> tableCornersCam = toBulletVectors(vv);
   CoordinateTransformer CT(getCamToWorldFromTable(tableCornersCam));
 
@@ -47,13 +47,11 @@ int main(int argc, char* argv[]) {
 
   FileSubscriber towelSub("towel_pts","pcd");
   CloudMessage towelPtsMsg0; //first message
-  bool success = towelSub.recv(towelPtsMsg0);
-  assert(success);
+  assert(towelSub.recv(towelPtsMsg0));
 
   CloudMessage towelPtsMsg1; //second mesage
   for (int i=0; i<3; i++) {
-    success = towelSub.recv(towelPtsMsg1);
-    assert(success);
+    assert(towelSub.recv(towelPtsMsg1));
   }
 
   vector<btVector3> towelPtsCam = toBulletVectors(towelPtsMsg0.m_data);

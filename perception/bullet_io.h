@@ -11,3 +11,6 @@ ostream &operator<<(ostream &stream, btVector3& v);
 ostream &operator<<(ostream &stream, btQuaternion& v);
 
 ostream &operator<<(ostream &stream, btTransform& v);
+
+ostream &operator<<(ostream &stream, vector<btVector3>& vs);
+

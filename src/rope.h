@@ -20,14 +20,13 @@ public:
   btScalar radius;
   int nLinks;
 
-
-public:
   CapsuleRope(const vector<btVector3>& ctrlPoints, float radius_, float angStiffness_=.1, float angDamping_=1, float linDamping_=.75, float angLimit_=.4);
   void init();
   void destroy();
-  void getPts(vector<btVector3>& centers) { 
-    centers.resize(bodies.size());
+  vector<btVector3> getNodes() { 
+    vector<btVector3> out(bodies.size());
     for (int i=0; i < bodies.size(); i++) 
-      centers[i] = bodies[i]->getCenterOfMassPosition();
+      out[i] = bodies[i]->getCenterOfMassPosition();
+  return out;
   }
 };

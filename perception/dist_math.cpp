@@ -1,4 +1,5 @@
 #include "dist_math.h"
+#include "utils_perception.h"
 using namespace Eigen;
 
 
@@ -21,19 +22,10 @@ vector<int> argminAlongRows(const MatrixXf& d_mn) {
   }
   return out;
 }
-/*
-int main() {
-  MatrixXf X(4,3);
-  MatrixXf Y(2,3);
-  X << 1,0,0,
-    0,1,0,
-    0,0,1,
-    1,1,1;
-  Y << 1,0,0,
-    0,1,0;
-  MatrixXf psd = pairwiseSquareDist(X,Y);
-  cout << psd << endl;
-  VectorXi amar = argminAlongRows(psd);
-  cout << amar << endl;
+
+class btVector3;
+vector<int> getNNInds(vector<btVector3> from, vector<btVector3> to) {
+  MatrixXf eigenFrom = toEigenMatrix(from);
+  MatrixXf eigenTo = toEigenMatrix(to);
+  return argminAlongRows(pairwiseSquareDist(eigenFrom, eigenTo));
 }
-*/

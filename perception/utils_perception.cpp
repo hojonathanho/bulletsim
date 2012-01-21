@@ -33,6 +33,24 @@ vector<btVector3> toBulletVectors(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& 
   return out;
 }
 
+btTransform toBulletTransform(const Eigen::Affine3f& affine) {
+  Vector3f transEig = affine.translation();
+  Matrix3f rotEig = affine.rotation();
+  Quaternionf quatEig = Quaternionf(rotEig);
+  btVector3 transBullet = toBulletVector(transEig);
+  btQuaternion quatBullet = btQuaternion(quatEig.x(), quatEig.y(), quatEig.z(), quatEig.w());
+  return btTransform(quatBullet,transBullet);
+}
+
+Affine3f toEigenTransform(const btTransform& transform) {
+  btVector3 transBullet = transform.getOrigin();
+  btQuaternion quatBullet = transform.getRotation();
+  Translation3f transEig = Translation3f(toEigenVector(transBullet));
+  Matrix3f rotEig = Quaternionf(quatBullet.w(),quatBullet.x(),quatBullet.y(),quatBullet.z()).toRotationMatrix();
+  Affine3f out = transEig*rotEig;
+  return out;
+}
+
 
 vector<Vector3f> toEigenVectors(const vector< vector<float> >&);
 vector<Vector3f> toEigenVectors(const vector<btVector3>& in) {
@@ -47,47 +65,20 @@ MatrixXf toEigenMatrix(const vector<btVector3>& in) {
   return out;
 }
 
+MatrixXf toEigenMatrix(const vector< vector<float> >& in) {
+  assert(in.size() > 1) ;
+  MatrixXf out(in.size(),in[0].size()); 
+  for (int i=0; i<in.size(); i++) 
+    for (int j=0; j<in[0].size(); j++)
+      out(i,j) = in[i][j];
+  return out;
+}
 
 vector<btVector3> operatorTimes(const btTransform& t, const vector<btVector3>& in) {
   vector<btVector3> out(in.size()); 
   for (int i=0; i<in.size(); i++) out[i] = t*in[i];
   return out;
 }
-
-
-
-// vector<btVector3> transform_btVectors(const vector<btVector3>& ins, btTransform tf) {
-//   vector<btVector3> outs;
-//   BOOST_FOREACH(btVector3 vec, ins) outs.push_back(tf*vec);
-//   return outs;
-// }
-
-// btTransform toBTTransform(Affine3f t) {
-//   btTransform out;
-//   out.setFromOpenGLMatrix(t.data());
-//   return out;
-// }
-
-// MatrixXf toEigens(const vector<btVector3>& vecs) {
-//   MatrixXf out = MatrixXf(vecs.size(),3);
-//   for (int i=0; i < vecs.size(); i++) {
-//     //out.row(i).readArray(vecs[i].m_floats);
-//     out(i,0) = vecs[i].getX();
-//     out(i,1) = vecs[i].getY();
-//     out(i,2) = vecs[i].getZ();
-//   }
-//   return out;
-// }
-
-// vector<btVector3> toBTs(vector<Vector3f>& vecs) {
-//   vector<btVector3> out;
-//   BOOST_FOREACH(Vector3f vec, vecs) out.push_back(btVector3(vec[0],vec[1],vec[2]));
-//   return out;
-// }
-
-// btVector3 toBT(Vector3f& v) {
-//   return btVector3(v[0],v[1],v[2]);
-// }
 
 
 Affine3f Scaling3f(float s) {
@@ -110,15 +101,28 @@ btTransform getCamToWorldFromTable(const vector<btVector3>& corners) {
   return btTransform(rotCamToWorld, btVector3(0,0,tz));
 }
 
+CoordinateTransformer::CoordinateTransformer(const btTransform& wfc) :
+  worldFromCamUnscaled(wfc),
+  worldFromCamEigen(Scaling3f(GeneralConfig::scale)*toEigenTransform(wfc)) {}
 
 inline btVector3 CoordinateTransformer::toWorldFromCam(const btVector3& camVec) {
   return GeneralConfig::scale * (worldFromCamUnscaled * camVec);
+}
+
+inline btVector3 CoordinateTransformer::toCamFromWorld(const btVector3& camVec) {
+  return (1/GeneralConfig::scale) * (worldFromCamUnscaled.inverse() * camVec);
 }
 
 vector<btVector3> CoordinateTransformer::toWorldFromCamN(const vector<btVector3>& camVecs) {
   vector<btVector3> worldVecs(camVecs.size());
   for (int i=0; i<camVecs.size(); i++) worldVecs[i] = toWorldFromCam(camVecs[i]);
   return worldVecs;
+}
+
+vector<btVector3> CoordinateTransformer::toCamFromWorldN(const vector<btVector3>& worldVecs) {
+  vector<btVector3> camVecs(worldVecs.size());
+  for (int i=0; i<worldVecs.size(); i++) camVecs[i] = toCamFromWorld(worldVecs[i]);
+  return camVecs;
 }
 
 

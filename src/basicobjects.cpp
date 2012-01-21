@@ -33,15 +33,15 @@ void BulletObject::init() {
     transform->addChild(node.get());
     getEnvironment()->osg->root->addChild(transform.get());
     setColorAfterInit();
-    osg::StateSet* ss = node->getOrCreateStateSet();
+    // osg::StateSet* ss = node->getOrCreateStateSet();
 
 
-    osg::AlphaFunc* alphaFunc = new osg::AlphaFunc;
-    alphaFunc->setFunction(osg::AlphaFunc::GEQUAL,0.05f);
-    ss->setMode( GL_LIGHTING, osg::StateAttribute::OFF );
-    ss->setAttributeAndModes(new osg::BlendFunc, osg::StateAttribute::ON );
-    ss->setAttributeAndModes( alphaFunc, osg::StateAttribute::ON );
-    ss->setMode(GL_DEPTH_TEST,osg::StateAttribute::OFF);
+    // osg::AlphaFunc* alphaFunc = new osg::AlphaFunc;
+    // alphaFunc->setFunction(osg::AlphaFunc::GEQUAL,0.05f);
+    // ss->setMode( GL_LIGHTING, osg::StateAttribute::OFF );
+    // ss->setAttributeAndModes(new osg::BlendFunc, osg::StateAttribute::ON );
+    // ss->setAttributeAndModes( alphaFunc, osg::StateAttribute::ON );
+    // ss->setMode(GL_DEPTH_TEST,osg::StateAttribute::OFF);
 }
 
 osg::ref_ptr<osg::Node> BulletObject::createOSGNode() {

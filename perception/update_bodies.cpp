@@ -23,14 +23,6 @@ vector<btVector3> getSoftBodyNodes(BulletSoftObject::Ptr psb) {
 }
 
 
-
-vector<int> getNNInds(vector<btVector3> from, vector<btVector3> to) {
-  MatrixXf eigenFrom = toEigenMatrix(from);
-  MatrixXf eigenTo = toEigenMatrix(to);
-  return argminAlongRows(pairwiseSquareDist(eigenFrom, eigenTo));
-
-}
-
 vector<btVector3> clothOptImpulses(BulletSoftObject::Ptr psb, const vector<btVector3>& obs) {
   const vector<btVector3> est = getSoftBodyNodes(psb);
   int nObs = obs.size();
