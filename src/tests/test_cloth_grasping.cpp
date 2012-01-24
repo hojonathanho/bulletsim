@@ -246,7 +246,7 @@ struct CustomScene : public Scene {
     Fork::Ptr fork;
 
 
-    BulletSoftObject::Ptr createCloth(btScalar s, const btVector3 &center, int divs);
+    BulletSoftObject::Ptr createCloth(btScalar s, const btVector3 &center);
     void createFork();
 
     void run();
@@ -282,7 +282,9 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,osgGA::GUIActionA
     return false;
 }
 
-BulletSoftObject::Ptr CustomScene::createCloth(btScalar s, const btVector3 &center, int divs) {
+BulletSoftObject::Ptr CustomScene::createCloth(btScalar s, const btVector3 &center) {
+    const int divs = 45;
+
     btSoftBody *psb = btSoftBodyHelpers::CreatePatch(
         env->bullet->softBodyWorldInfo,
         center + btVector3(-s,-s,0),
@@ -292,19 +294,22 @@ BulletSoftObject::Ptr CustomScene::createCloth(btScalar s, const btVector3 &cent
         divs, divs,
         0, true);
 
-    psb->m_cfg.piterations = 4;
+    psb->m_cfg.piterations = 2;
     psb->m_cfg.collisions = btSoftBody::fCollision::CL_SS
         | btSoftBody::fCollision::CL_RS
         | btSoftBody::fCollision::CL_SELF;
-    psb->m_cfg.kDF = 0.9;
-    psb->getCollisionShape()->setMargin(0.04);
+    psb->m_cfg.kDF = 1.0;
+    psb->getCollisionShape()->setMargin(0.05);
     btSoftBody::Material *pm = psb->appendMaterial();
-//    pm->m_kLST = 0.4;
-//    pm->m_kAST = 0.4;
+    pm->m_kLST = 0.1;
     psb->generateBendingConstraints(2, pm);
     psb->randomizeConstraints();
     psb->setTotalMass(100, true);
     psb->generateClusters(0);
+
+/*    for (int i = 0; i < psb->m_clusters.size(); ++i) {
+        psb->m_clusters[i]->m_selfCollisionImpulseFactor = 0.1;
+    }*/
 
     return BulletSoftObject::Ptr(new BulletSoftObject(psb));
 }
@@ -332,9 +337,10 @@ void CustomScene::run() {
                     GeneralConfig::scale * btVector3(1.25, 0, table_height-table_thickness/2))));
     BoxObject::Ptr table(
         new BoxObject(0, GeneralConfig::scale * btVector3(.75,.75,table_thickness/2),ms));
+    table->rigidBody->setFriction(1e10);
 
     BulletSoftObject::Ptr cloth(
-            createCloth(GeneralConfig::scale * 0.25, GeneralConfig::scale * btVector3(1, 0, 1), 31));
+            createCloth(GeneralConfig::scale * 0.2, GeneralConfig::scale * btVector3(1, 0, 1)));
     btSoftBody * const psb = cloth->softBody.get();
     pr2->ignoreCollisionWith(psb);
 
