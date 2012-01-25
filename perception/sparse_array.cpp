@@ -1,5 +1,6 @@
 #include "sparse_array.h"
 #include <boost/foreach.hpp>
+using namespace std;
 
 float vecSum(const SparseVector& vec) {
   float total=0;
@@ -15,4 +16,19 @@ SparseVector mulVec(const SparseVector& in, float x) {
   }
 }
 
+ostream &operator<<(ostream &stream, IndVal& iv) {
+  stream << "(" << iv.ind << ", " << iv.val << ")";
+  return stream;
+}
+
+ostream &operator<<(ostream &stream, SparseVector& vec) {
+  BOOST_FOREACH(IndVal& iv, vec) stream << iv << " ";
+  return stream;
+}
+
+
+ostream &operator<<(ostream &stream, SparseArray& arr) {
+  BOOST_FOREACH(SparseVector& vec, arr) stream << vec << endl;
+  return stream;
+}
 

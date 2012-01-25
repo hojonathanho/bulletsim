@@ -3,6 +3,8 @@
 #include <pcl/io/pcd_io.h>
 #include <algorithm>
 #include "config.h"
+#include "util.h"
+
 using namespace Eigen;
 
 
@@ -92,6 +94,10 @@ btTransform getCamToWorldFromTable(const vector<btVector3>& corners) {
   btVector3 newY = corners[1] - corners[0];
   btVector3 newX = corners[3] - corners[0];
   btVector3 newZ = newX.cross(newY);
+  if (newZ.z() > 0) {
+    newZ *= -1;
+    newX *= -1;
+  }
   newX.normalize(); newY.normalize(); newZ.normalize();
   rotWorldToCamT[0] = newX;
   rotWorldToCamT[1] = newY;
@@ -106,11 +112,11 @@ CoordinateTransformer::CoordinateTransformer(const btTransform& wfc) :
   worldFromCamEigen(Scaling3f(GeneralConfig::scale)*toEigenTransform(wfc)) {}
 
 inline btVector3 CoordinateTransformer::toWorldFromCam(const btVector3& camVec) {
-  return GeneralConfig::scale * (worldFromCamUnscaled * camVec);
+  return METERS * (worldFromCamUnscaled * camVec);
 }
 
-inline btVector3 CoordinateTransformer::toCamFromWorld(const btVector3& camVec) {
-  return (1/GeneralConfig::scale) * (worldFromCamUnscaled.inverse() * camVec);
+inline btVector3 CoordinateTransformer::toCamFromWorld(const btVector3& worldVec) {
+  return worldFromCamUnscaled.inverse() * ( worldVec / METERS);
 }
 
 vector<btVector3> CoordinateTransformer::toWorldFromCamN(const vector<btVector3>& camVecs) {
@@ -125,7 +131,13 @@ vector<btVector3> CoordinateTransformer::toCamFromWorldN(const vector<btVector3>
   return camVecs;
 }
 
-
+OSGCamParams::OSGCamParams(const btTransform& toWorldFromCam) {
+    btMatrix3x3 rotation = toWorldFromCam.getBasis();
+    btVector3 translation = toWorldFromCam.getOrigin();
+    eye = util::toOSGVector(translation);
+    center = util::toOSGVector(rotation.getColumn(2));
+    up = util::toOSGVector(rotation.getColumn(1));
+ }
 // Affine3f getCamToWorldFromTable(const vector<Vector3f>& corners) {
 //   btVector3 newY = corners[1] - corners[0];
 //   btVector3 newX = corners[3] - corners[0];

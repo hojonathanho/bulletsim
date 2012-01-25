@@ -11,7 +11,7 @@
 
 using namespace std;
 
-const string data_dir = "/home/joschu/Src/bulletsim/data/clothing/";
+const string data_dir = EXPAND(BULLETSIM_DATA_DIR)"/clothing/";
 #define DATA(str) (data_dir+str).c_str()
 
 int main(int argc, char* argv[]) {

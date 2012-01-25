@@ -167,6 +167,7 @@ void BulletObject::MoveAction::step(float dt) {
 
 void BulletObject::setColor(float r, float g, float b, float a) {
   m_color.reset(new osg::Vec4f(r,g,b,a));
+  if (node) setColorAfterInit();
 }
 void BulletObject::setColorAfterInit() {
   if (m_color) {

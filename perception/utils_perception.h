@@ -6,6 +6,7 @@
 #include <string>
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
+#include <osg/Vec3d>
 using namespace std;
 
 vector<btVector3> toBulletVectors(const vector< vector<float> >&);
@@ -56,4 +57,11 @@ public:
   inline btVector3 toCamFromWorld(const btVector3& camVec);
   vector<btVector3> toWorldFromCamN(const vector<btVector3>& camVecs);
   vector<btVector3> toCamFromWorldN(const vector<btVector3>& worldVecs);
+};
+
+struct OSGCamParams {
+  osg::Vec3d eye;
+  osg::Vec3d center;
+  osg::Vec3d up;
+  OSGCamParams(const btTransform& toWorldFromCam);
 };

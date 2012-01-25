@@ -14,6 +14,7 @@
 #include "bullet_io.h"
 #include "openrave_joints.h"
 #include "robot_geometry.h"
+#include "clouds/correction.h"
 
 using namespace std;
 using namespace Eigen;
@@ -32,6 +33,7 @@ int main(int argc, char *argv[]) {
   parser.addGroup(BulletConfig());
   parser.addGroup(TrackingConfig());
   parser.addGroup(SceneConfig());
+
 
   // create comm stuff
   setDataRoot(DATA_ROOT);

@@ -3,6 +3,7 @@
 #include "utils_perception.h"
 #include <Eigen/Dense>
 #include <boost/foreach.hpp>
+#include "matching.h"
 using namespace std;
 using namespace Eigen;
 
@@ -14,16 +15,26 @@ SparseArray calcCorrNN(const vector<btVector3>& estPts, const vector<btVector3>&
   MatrixXf distsEstObs = pairwiseSquareDist(toEigenMatrix(estPts), toEigenMatrix(obsPts));
   vector<int> estToObs = argminAlongRows(distsEstObs);
   vector<int> obsToEst = argminAlongRows(distsEstObs.transpose());
-  for (int iEst=0; iEst<nEst; iEst++) out[iEst].push_back(IndVal(estToObs[iEst],1));
+  for (int iEst=0; iEst<nEst; iEst++) 
+    if (pVis[iEst] > .5) 
+      out[iEst].push_back(IndVal(estToObs[iEst],2));
   for (int iObs=0; iObs<nObs; iObs++) out[obsToEst[iObs]].push_back(IndVal(iObs,1));
   return out;
+}
+
+SparseArray calcCorrOpt(const vector<btVector3>& estPts, const vector<btVector3>& obsPts, const vector<float>& pVis) {
+  // todo: use pvis
+  MatrixXf costs = pairwiseSquareDist(toEigenMatrix(estPts), toEigenMatrix(obsPts));
+  SparseArray corr = matchSoft(costs,1,0);
+  return corr;
 }
 
 vector<btVector3> calcImpulsesSimple(const vector<btVector3>& estPts, const vector<btVector3>& obsPts, const SparseArray& corr, float f) {
   int nEst = estPts.size();
   vector<btVector3> out(nEst, btVector3(0,0,0));
   for (int iEst=0; iEst < nEst; iEst++)
-    BOOST_FOREACH(const IndVal& iv, corr[iEst]) out[iEst] += f * iv.val * (obsPts[iv.ind] - estPts[iEst]);
+    BOOST_FOREACH(const IndVal& iv, corr[iEst]) 
+      out[iEst] += f * iv.val * (obsPts[iv.ind] - estPts[iEst]);
   return out;
 }
 
@@ -65,7 +76,8 @@ void CorrPlots::update(const vector<btVector3>& aPts, const vector<btVector3>& b
   for (int iA=0; iA < aPts.size(); iA++) {
     BOOST_FOREACH(const IndVal& iv, corr[iA]) {
       lineStarts.push_back(aPts[iA]);
-      lineEnds.push_back(bPts[iv.val]);
+      lineEnds.push_back(bPts[iv.ind]);
     }
   }
+  m_lines->setPoints(lineStarts,lineEnds);
 }

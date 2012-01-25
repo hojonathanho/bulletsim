@@ -10,14 +10,27 @@ include_directories(${BULLET_DIR}/src
 
 set(BULLET_LIBS BulletFileLoader BulletSoftBody BulletDynamics BulletCollision LinearMath)
 
+#if (BUILD_PERCEPTION)
+#  find_package(PCL 1.5)
+#  include_directories(${PCL_INCLUDE_DIRS})
+#  link_directories(${PCL_LIBRARY_DIRS})
+#  add_definitions(${PCL_DEFINITIONS})
+#endif(BUILD_PERCEPTION)
 
-
+set_property(
+  DIRECTORY
+  PROPERTY COMPILE_DEFINITIONS BULLETSIM_DATA_DIR=${SURGICAL_PHYSICS_SOURCE_DIR}/data)
 
 if (BUILD_PERCEPTION)
-  find_package(PCL 1.3)
+  find_package(PCL 1.5)
   include_directories(${PCL_INCLUDE_DIRS})
   link_directories(${PCL_LIBRARY_DIRS})
   add_definitions(${PCL_DEFINITIONS})
+  set_property(
+    SOURCE plotting.cpp test_plotting.cpp
+    PROPERTY COMPILE_DEFINITIONS BUILD_PERCEPTION)
+  add_executable(test_plotting test_plotting.cpp plotting.cpp)
+  target_link_libraries(test_plotting simulation ${PCL_LIBRARIES})
 endif(BUILD_PERCEPTION)
 
 add_library(simulation environment.cpp basicobjects.cpp openravesupport.cpp util.cpp simplescene.cpp softbodies.cpp rope.cpp plotting.cpp config.cpp config_bullet.cpp config_viewer.cpp)
@@ -42,11 +55,6 @@ target_link_libraries(test_rigidbody_grasping simulation)
 add_executable(test_rope test_rope.cpp)
 target_link_libraries(test_rope simulation)
 
-if (BUILD_PERCEPTION)
-  add_executable(test_plotting test_plotting.cpp plotting.cpp)
-  target_link_libraries(test_plotting simulation ${PCL_LIBRARIES})
-endif(BUILD_PERCEPTION)
-
 add_executable(test_fork test_fork.cpp)
 target_link_libraries(test_fork simulation)
 
@@ -58,3 +66,4 @@ target_link_libraries(test_collision_detection simulation)
 
 add_executable(test_action test_action.cpp)
 target_link_libraries(test_action simulation)
+

@@ -85,12 +85,12 @@ struct Scene {
   void runAction(Action &a, float dt);
   void runAction(Action::Ptr a, float dt) { runAction(*a.get(), dt); }
 
-private:
+protected:
   void processHaptics();
 
   // Does debug drawing, updates the viewer window, and
   // processes OSG events
-  void draw();
+  virtual void draw();
 };
 
 struct SceneConfig : Config {

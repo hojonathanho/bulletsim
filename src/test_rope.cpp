@@ -56,8 +56,9 @@ int main(int argc, char *argv[]) {
 
   vector< vector<double> > joints;
   vector< int > inds;
-  read_1d_array(inds, "../data/inds.txt");
-  read_2d_array(joints,"../data/vals.txt");
+
+  read_1d_array(inds, EXPAND(BULLETSIM_DATA_DIR) "/inds.txt");
+  read_2d_array(joints, EXPAND(BULLETSIM_DATA_DIR) "/vals.txt");
 
   int step = 0;
 
