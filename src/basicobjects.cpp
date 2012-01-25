@@ -48,6 +48,21 @@ osg::ref_ptr<osg::Node> BulletObject::createOSGNode() {
     return osg::ref_ptr<osg::Node>(osgbCollision::osgNodeFromBtCollisionShape(collisionShape.get()));
 }
 
+btScalar IDENTITY[] = {1,0,0,0,
+		       0,1,0,0,
+		       0,0,1,0,
+		       0,0,0,1};
+
+btScalar* identityIfBad(btScalar m[16]) { //doesn't fix segfaults, unfortunately.
+  for (int i=0; i<16; i++) {
+    if (m[i] > 1000 || m[i] < -1000 || !isfinite(m[i])) {
+      cout << "warning: bad values detected in transformation matrix. rendering at origin" << endl;
+      return IDENTITY;
+    }
+  }
+  return m;
+}
+
 void BulletObject::preDraw() {
     // before drawing, we must copy the orientation/position
     // of the object from Bullet to OSG
@@ -56,8 +71,7 @@ void BulletObject::preDraw() {
 
     btScalar m[16];
     btTrans.getOpenGLMatrix(m);
-
-    transform->setMatrix(osg::Matrix(m));
+    transform->setMatrix(osg::Matrix(identityIfBad(m)));
 }
 
 void BulletObject::destroy() {

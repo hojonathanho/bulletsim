@@ -1,0 +1,4 @@
+<robot> 
+   <robot file="pr2_with_kinect.dae"></robot> 
+
+</robot>

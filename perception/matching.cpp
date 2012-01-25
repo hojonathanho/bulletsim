@@ -117,3 +117,4 @@ SparseArray matchSoft(const MatrixXf& costs, float missingPenaltyA, float missin
     throw;
   }
 }
+

@@ -52,7 +52,7 @@ target_link_libraries(test_rigidbody_grasping simulation)
 #add_executable(test_playback_joints test_playback_joints.cpp)
 #target_link_libraries(test_playback_joints simulation)
 
-add_executable(test_rope test_rope.cpp)
+add_executable(test_rope test_rope.cpp grabbing.cpp)
 target_link_libraries(test_rope simulation)
 
 add_executable(test_fork test_fork.cpp)

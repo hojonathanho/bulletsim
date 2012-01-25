@@ -5,7 +5,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/CMakeModules")
 
 IF (NOT CMAKE_BUILD_TYPE)
 # SET(CMAKE_BUILD_TYPE "Debug")
- SET(CMAKE_BUILD_TYPE "Release")
+ SET(CMAKE_BUILD_TYPE "RelWithDebInfo") # note: my code segfaults in Release mode but not RelWithDebInfo
 ENDIF (NOT CMAKE_BUILD_TYPE) 
 
 find_package(Boost COMPONENTS program_options REQUIRED)

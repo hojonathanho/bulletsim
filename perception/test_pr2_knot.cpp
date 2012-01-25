@@ -1,4 +1,3 @@
-
 #include "basicobjects.h"
 #include "bullet_io.h"
 #include "clouds/comm_cv.h"
@@ -9,6 +8,7 @@
 #include "config.h"
 #include "config_bullet.h"
 #include "config_perception.h"
+#include "grabbing.h"
 #include "make_bodies.h"
 #include "rope.h"
 #include "simplescene.h"
@@ -34,17 +34,24 @@ struct CustomSceneConfig : Config {
     params.push_back(new Parameter<int>("record", &record, "record every n frames (default 0 means record nothing)"));
   }
 };
+int CustomSceneConfig::record = 0;
 
-struct CustomScene : Scene {
+struct CustomScene : public Scene {
   osgViewer::ScreenCaptureHandler* captureHandler;
   int framecount;
   int captureNumber;
-  CustomScene() : Scene() {
-   // add the screen capture handler
+  MonitorForGrabbing lMonitor;
+  MonitorForGrabbing rMonitor;
+
+
+  CustomScene() : 
+    Scene(), 
+    lMonitor(pr2->robot->GetManipulators()[5], env->bullet->dynamicsWorld), 
+    rMonitor(pr2->robot->GetManipulators()[7], env->bullet->dynamicsWorld) {
+    // add the screen capture handler
     framecount = 0;
     captureHandler = new osgViewer::ScreenCaptureHandler(new osgViewer::ScreenCaptureHandler::WriteToFile("screenshots/img", "jpg", osgViewer::ScreenCaptureHandler::WriteToFile::SEQUENTIAL_NUMBER));
     viewer.addEventHandler(captureHandler);
-    //   captureHandler->startCapture();
   };
   void draw() {
     if (CustomSceneConfig::record && framecount % CustomSceneConfig::record==0) captureHandler->captureNextFrame(viewer);
@@ -52,9 +59,12 @@ struct CustomScene : Scene {
     Scene::draw();
   }
 
+  void step(float dt) {
+    rMonitor.update();
+    lMonitor.update();
+    Scene::step(dt);
+  }
 };
-
-int CustomSceneConfig::record = 0;
 
 int main(int argc, char *argv[]) {
 
@@ -116,7 +126,8 @@ int main(int argc, char *argv[]) {
   scene.env->add(rope);
   scene.env->add(table);
   scene.env->add(corrPlots.m_lines);
-
+  scene.lMonitor.setBodies(rope->children);
+  scene.rMonitor.setBodies(rope->children);
 
   // end tracker
   vector<RigidBodyPtr> rope_ends;
@@ -124,8 +135,8 @@ int main(int argc, char *argv[]) {
   rope_ends.push_back(rope->bodies[rope->bodies.size()-1]);
   MultiPointTrackerRigid endTracker(rope_ends,scene.env->bullet->dynamicsWorld);
   TrackerPlotter trackerPlotter(endTracker);
-  scene.env->add(trackerPlotter.m_fakeObjects[0]);
-  scene.env->add(trackerPlotter.m_fakeObjects[1]);
+  //scene.env->add(trackerPlotter.m_fakeObjects[0]);
+  //scene.env->add(trackerPlotter.m_fakeObjects[1]);
 
   scene.startViewer();
   scene.setSyncTime(true);
@@ -163,8 +174,8 @@ int main(int argc, char *argv[]) {
       vector<btVector3> estPts = rope->getNodes();
       cv::Mat ropeMask = toSingleChannel(labels) == 1;
       Eigen::MatrixXf ropePtsCam = toEigenMatrix(CT.toCamFromWorldN(estPts));
-      Eigen::MatrixXf depthImage = getDepthImage(cloudCam);
-      vector<float> pVis = calcVisibility(ropePtsCam, depthImage, ropeMask); 
+      //Eigen::MatrixXf depthImage = getDepthImage(cloudCam);
+      vector<float> pVis = calcVisibility(rope->bodies, scene.env->bullet->dynamicsWorld, CT.worldFromCamUnscaled.getOrigin()*METERS, .04*METERS, 6); 
       colorByVisibility(rope, pVis);
       SparseArray corr = calcCorrNN(estPts, obsPts, pVis);
       corrPlots.update(estPts, obsPts, corr);

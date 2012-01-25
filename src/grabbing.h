@@ -1,22 +1,33 @@
 #pragma once
 #include "btBulletDynamicsCommon.h"
+#include <openrave/openrave.h>
+#include "bullet_typedefs.h"
+#include <vector>
+#include "basicobjects.h"
 
-class Grab
-{
+class Grab {
 public:
   btGeneric6DofConstraint* cnt;
+  btDynamicsWorld* world;
   Grab(){}
-  Grab(btRigidBody* rb, btVector3 pos, btDynamicsWorld* world) {
-    cnt = new btGeneric6DofConstraint(*rb,btTransform(btQuaternion(0,0,0,1),btVector3(0,0,0)),true); // second parameter?
-    cnt->setLinearLowerLimit(btVector3(0,0,0));
-    cnt->setLinearUpperLimit(btVector3(0,0,0));
-    cnt->setAngularLowerLimit(btVector3(0,0,0));
-    cnt->setAngularUpperLimit(btVector3(0,0,0));
-    world->addConstraint(cnt);
-    updatePosition(pos);
-  }
+  Grab(btRigidBody* rb, btVector3 pos, btDynamicsWorld* world);
+  ~Grab();
 
-  void updatePosition(btVector3 pos) {
-    cnt->getFrameOffsetA().setOrigin(pos);
-  }
+  void updatePosition(btVector3 pos);
+};
+
+class MonitorForGrabbing {
+public:
+  OpenRAVE::RobotBase::ManipulatorPtr m_manip;
+  std::vector<BulletObject::Ptr> m_bodies;
+  btDynamicsWorld* m_world;
+  bool m_wasClosed;
+  Grab* m_grab;
+
+
+  MonitorForGrabbing(OpenRAVE::RobotBase::ManipulatorPtr, btDynamicsWorld* world);
+  void update();
+  void setBodies(std::vector<BulletObject::Ptr>& bodies);
+  void grabNearestObject();
+  void releaseObject();
 };
