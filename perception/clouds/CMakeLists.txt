@@ -1,19 +1,20 @@
 cmake_minimum_required(VERSION 2.0)
-find_package(PCL 1.5 REQUIRED)
-find_package(OpenCV REQUIRED)
+find_package(PCL 1.3 REQUIRED)
 
-set(WM_ROOT "~/Src/GeometricTools/WildMagic5")
-set(WM_INCLUDE_DIR "${WM_ROOT}/SDK/Include")
-set(WM_LIBRARY_DIR "${WM_ROOT}/SDK/Library/Debug")
-set(WM_LIBRARIES Wm5Core Wm5Imagics Wm5Mathematics Wm5Physics)
-set(BULLET_INCLUDE_DIR "/usr/local/include/bullet")
+#set(WM_ROOT "~/GeometricTools/WildMagic5")
+#set(WM_INCLUDE_DIR "${WM_ROOT}/SDK/Include")
+#set(WM_LIBRARY_DIR "${WM_ROOT}/SDK/Library/Debug")
+#set(WM_LIBRARIES Wm5Core Wm5Imagics Wm5Mathematics Wm5Physics)
+#set(BULLET_INCLUDE_DIR "/usr/local/include/bullet")
 
 include_directories(
-  "~/cpp"
+  ../../utils
+  ../comm
+  ..
   ${PCL_INCLUDE_DIRS}
   ${WM_INCLUDE_DIR}
-  ${BULLET_INCLUDE_DIR}
-  "~/Src/jsoncpp/include"
+  ${BULLET_DIR}
+  ${JSON_INCLUDE_DIR}
 )
 link_directories(
   ${PCL_LIBRARY_DIRS} 
@@ -22,7 +23,6 @@ link_directories(
 )
 add_definitions(${PCL_DEFINITIONS})
 add_definitions("-DEIGEN_DEFAULT_TO_ROW_MAJOR")
-
 
 link_directories("/usr/local/lib")	
 
@@ -62,11 +62,11 @@ target_link_libraries(comm_downsample_clouds clouds ${PCL_LIBRARIES} boost_progr
 add_executable(test_utils test_utils.cpp)
 target_link_libraries(test_utils ${PCL_LIBRARIES} clouds)
 
-add_executable(test_correction test_correction.cpp ~/cpp/vector_io.cpp)
+add_executable(test_correction test_correction.cpp ../../utils/vector_io.cpp)
 target_link_libraries(test_correction ${PCL_LIBRARIES} clouds)
 
 
-add_executable(viz_curves viz_curves.cpp ~/cpp/vector_io.cpp)
+add_executable(viz_curves viz_curves.cpp ../../utils/vector_io.cpp)
 target_link_libraries(viz_curves ${PCL_LIBRARIES} clouds boost_program_options)
 
 INSTALL(TARGETS record_one_pcd comm_get_table comm_write_pcds DESTINATION "~/usr/bin")

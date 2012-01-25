@@ -1,11 +1,10 @@
-set(WM_ROOT "~/Src/GeometricTools/WildMagic5")
+set(WM_ROOT "~/GeometricTools/WildMagic5")
 set(WM_INCLUDE_DIR "${WM_ROOT}/SDK/Include")
-set(WM_LIBRARY_DIR "${WM_ROOT}/SDK/Library/Debug")
+set(WM_LIBRARY_DIR "${WM_ROOT}/SDK/Library/Release")
 set(WM_LIBRARIES Wm5Core Wm5Imagics Wm5Mathematics Wm5Physics)
-set(JSON_INCLUDE_DIR "${SURGICAL_PHYSICS_SOURCE_DIR}/lib/json")
-set(JSON_LIBRARY_DIR "${SURGICAL_PHYSICS_SOURCE_DIR}/lib/json")
-set(GUROBI_INCLUDE_DIR "~/Src/gurobi461/linux64/include")
-set(GUROBI_LIBRARY_DIR "~/Src/gurobi461/linux64/lib")
+set(JSON_INCLUDE_DIR "${JSON_DIR}/include")
+set(GUROBI_INCLUDE_DIR "~/gurobi461/linux64/include")
+set(GUROBI_LIBRARY_DIR "~/gurobi461/linux64/lib")
 
 #set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -D_GLIBCXX_DEBUG")
 
@@ -15,7 +14,7 @@ set_property(
 
 
 
-find_package(PCL 1.5 REQUIRED)
+find_package(PCL 1.3 REQUIRED)
 include_directories(${BULLET_DIR}/src
                     ${OSGBULLET_DIR}
                     ${OSGWORKS_DIR}
@@ -28,6 +27,9 @@ include_directories(${BULLET_DIR}/src
 		    ${SURGICAL_PHYSICS_SOURCE_DIR}/src
 		    ${JSON_INCLUDE_DIR}
 		    ${GUROBI_INCLUDE_DIR}
+            ../utils
+            clouds
+            comm
 )
 
 set(BULLET_LIBS BulletSoftBody BulletDynamics BulletCollision LinearMath)
@@ -37,8 +39,6 @@ link_directories(
   ${GUROBI_LIBRARY_DIR};
 )
 add_definitions(${PCL_DEFINITIONS})
-
-include_directories("~/cpp")
 
 # add_library(perception tracking.cpp utils_perception.cpp dist_math.cpp)
 # target_link_libraries(perception ${PCL_LIBRARIES} simulation)
@@ -53,13 +53,13 @@ include_directories("~/cpp")
 # add_executable(test_kinect_towel test_kinect_towel.cpp)
 # target_link_libraries(test_kinect_towel ${PCL_LIBRARIES} json simulation perception clouds comm)
 
-add_library(perception ~/cpp/vector_io.cpp config_perception.cpp utils_perception.cpp make_bodies.cpp bullet_io.cpp openrave_joints.cpp robot_geometry.cpp dist_math.cpp optimization_forces.cpp sparse_array.cpp apply_impulses.cpp visibility.cpp trackers.cpp matching.cpp)
+add_library(perception ../utils/vector_io.cpp config_perception.cpp utils_perception.cpp make_bodies.cpp bullet_io.cpp openrave_joints.cpp robot_geometry.cpp dist_math.cpp optimization_forces.cpp sparse_array.cpp apply_impulses.cpp visibility.cpp trackers.cpp matching.cpp)
 target_link_libraries(perception ${PCL_LIBRARIES} comm2 clouds simulation gurobi46 gurobi_c++ pthread)
 
 add_executable(test_matching test_matching.cpp matching.cpp)
 target_link_libraries(test_matching gurobi46 gurobi_c++ pthread perception)
 
-add_executable(test_pr2_playback test_pr2_playback.cpp ~/cpp/clouds/correction.cpp)
+add_executable(test_pr2_playback test_pr2_playback.cpp clouds/correction.cpp)
 target_link_libraries(test_pr2_playback ${PCL_LIBRARIES} simulation comm2 clouds perception)
 
 add_executable(test_towel2 test_towel2.cpp update_bodies.cpp)
@@ -68,10 +68,10 @@ target_link_libraries(test_towel2 comm2 ${PCL_LIBRARIES} simulation comm2 clouds
 #add_executable(test_eigen test_eigen.cpp bullet_io.cpp)
 #target_link_libraries(test_eigen simulation)
 
-add_executable(test_kinect_rope test_kinect_rope.cpp ~/cpp/clouds/utils_pcl.cpp) # need utils_pcl because of bizarre linker error
+add_executable(test_kinect_rope test_kinect_rope.cpp clouds/utils_pcl.cpp) # need utils_pcl because of bizarre linker error
 target_link_libraries(test_kinect_rope clouds comm2 simulation comm2 clouds perception)
 
-add_executable(test_pr2_knot test_pr2_knot.cpp ~/cpp/clouds/utils_pcl.cpp ../src/grabbing.cpp) # need utils_pcl because of bizarre linker error
+add_executable(test_pr2_knot test_pr2_knot.cpp clouds/utils_pcl.cpp ../src/grabbing.cpp) # need utils_pcl because of bizarre linker error
 target_link_libraries(test_pr2_knot clouds comm2 simulation comm2 clouds perception)
 
 

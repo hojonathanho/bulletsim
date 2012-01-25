@@ -27,15 +27,13 @@ set(OSG_INCLUDE_DIRS ${OPENTHREADS_LIBRARY_INCLUDE_DIR} ${OSG_LIBRARY_INCLUDE_DI
 set(BULLET_DIR ${SURGICAL_PHYSICS_SOURCE_DIR}/lib/bullet-2.79)
 set(OSGWORKS_DIR ${SURGICAL_PHYSICS_SOURCE_DIR}/lib/osgWorks-2.0)
 set(OSGBULLET_DIR ${SURGICAL_PHYSICS_SOURCE_DIR}/lib/osgBullet-2.0)
-
+set(JSON_DIR ${SURGICAL_PHYSICS_SOURCE_DIR}/lib/json)
 
 add_subdirectory(lib)
-
 add_subdirectory(src)
 
 option(BUILD_PERCEPTION OFF)
 if(BUILD_PERCEPTION)
+  find_package(OpenCV REQUIRED)
   add_subdirectory(perception)
 endif(BUILD_PERCEPTION)
-
-
