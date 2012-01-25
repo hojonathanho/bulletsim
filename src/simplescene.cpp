@@ -323,6 +323,6 @@ bool EventHandler::handle(const osgGA::GUIEventAdapter &ea, osgGA::GUIActionAdap
 bool SceneConfig::enableIK = true;
 bool SceneConfig::enableHaptics = false;
 bool SceneConfig::enableRobot = true;
-bool SceneConfig::enableRobotCollision = true;
+bool SceneConfig::enableRobotCollision = false;
 bool SceneConfig::useFakeGrabber = false;
 float SceneConfig::mouseDragScale = 1.;

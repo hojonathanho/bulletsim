@@ -304,7 +304,7 @@ BulletSoftObject::Ptr CustomScene::createCloth(btScalar s, const btVector3 &cent
     pm->m_kLST = 0.1;
     psb->generateBendingConstraints(2, pm);
     psb->randomizeConstraints();
-    psb->setTotalMass(100, true);
+    psb->setTotalMass(1, true);
     psb->generateClusters(0);
 
 /*    for (int i = 0; i < psb->m_clusters.size(); ++i) {
@@ -334,13 +334,13 @@ void CustomScene::run() {
     const float table_thickness = .05;
     boost::shared_ptr<btDefaultMotionState> ms(new btDefaultMotionState(
         btTransform(btQuaternion(0, 0, 0, 1),
-                    GeneralConfig::scale * btVector3(1.25, 0, table_height-table_thickness/2))));
+                    GeneralConfig::scale * btVector3(1.2, 0, table_height-table_thickness/2))));
     BoxObject::Ptr table(
         new BoxObject(0, GeneralConfig::scale * btVector3(.75,.75,table_thickness/2),ms));
-    table->rigidBody->setFriction(1e10);
+    table->rigidBody->setFriction(10);
 
     BulletSoftObject::Ptr cloth(
-            createCloth(GeneralConfig::scale * 0.2, GeneralConfig::scale * btVector3(1, 0, 1)));
+            createCloth(GeneralConfig::scale * 0.25, GeneralConfig::scale * btVector3(0.9, 0, table_height+0.01)));
     btSoftBody * const psb = cloth->softBody.get();
     pr2->ignoreCollisionWith(psb);
 
