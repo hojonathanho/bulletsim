@@ -16,7 +16,7 @@ SparseArray calcCorrNN(const vector<btVector3>& estPts, const vector<btVector3>&
 
 vector<btVector3> calcImpulsesSimple(const vector<btVector3>& estPts, const vector<btVector3>& obsPts, const SparseArray& corr, float f);
 vector<btVector3> calcImpulsesDamped(const vector<btVector3>& estPts, const vector<btVector3>& obsPts, const SparseArray& corr, float kp, float kd);
-
+Eigen::MatrixXf calcCorrProb(const MatrixXf& estPts, const MatrixXf& obsPts, const VectorXf& pVis, float stdev, float outlierDensity)
 
 class CorrPlots {
 public:

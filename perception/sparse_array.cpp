@@ -2,6 +2,16 @@
 #include <boost/foreach.hpp>
 using namespace std;
 
+SparseArray toSparseArray(Eigen::MatrixXf in, float cutoff) {
+  SparseArray out(in.rows());
+  for (int row = 0; row < in.rows(); row++) {
+    for (int col = 0; col < in.cols(); col++) {
+      if (in(row,col) > cutoff) out[row].push_back(IndVal(col, in(row,col)));
+    }
+  }
+  return out;
+}
+
 float vecSum(const SparseVector& vec) {
   float total=0;
   BOOST_FOREACH(const IndVal& iv, vec) total += iv.val;

@@ -22,6 +22,15 @@ SparseArray calcCorrNN(const vector<btVector3>& estPts, const vector<btVector3>&
   return out;
 }
 
+MatrixXf calcCorrProb(const MatrixXf& estPts, const MatrixXf& obsPts, const VectorXf& pVis, float stdev, float outlierDensity) {
+  ArrayXf sqdists = pairwiseSquareDist(toEigenMatrix(estPts), toEigenMatrix(obsPts));
+  ArrayXf pBgivenA = (-sqdists/(2*stdev)).exp();
+  ArrayXf pBandA = probs0.rowwise() * pVis.array();
+  ArrayXf colSums = probs.colwise().sum();
+  ArrayXf C = probs.colwise() / (colSums + outlierDensity);
+  return C;
+}
+
 SparseArray calcCorrOpt(const vector<btVector3>& estPts, const vector<btVector3>& obsPts, const vector<float>& pVis) {
   // todo: use pvis
   MatrixXf costs = pairwiseSquareDist(toEigenMatrix(estPts), toEigenMatrix(obsPts));

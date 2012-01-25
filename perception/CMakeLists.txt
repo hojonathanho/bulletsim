@@ -59,6 +59,9 @@ target_link_libraries(perception ${PCL_LIBRARIES} comm2 clouds simulation gurobi
 add_executable(test_matching test_matching.cpp matching.cpp)
 target_link_libraries(test_matching gurobi46 gurobi_c++ pthread perception)
 
+add_executable(test_prob_corr test_prob_corr.cpp optimization_forces.cpp)
+target_link_libraries(test_prob_corr perception clouds simulation)
+
 add_executable(test_pr2_playback test_pr2_playback.cpp ~/cpp/clouds/correction.cpp)
 target_link_libraries(test_pr2_playback ${PCL_LIBRARIES} simulation comm2 clouds perception)
 
