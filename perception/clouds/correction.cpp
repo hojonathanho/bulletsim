@@ -24,7 +24,10 @@ MatrixXf quadFeats(const MatrixXf& X) {
 ColorCloudPtr correctCloudXYZRGB(ColorCloudPtr in, const Eigen::MatrixXf& coefs) {
   MatrixXf X = in->getMatrixXfMap(3,8,0);
   Eigen::MatrixXf Y = correctPoints(X, coefs);
-  ColorCloudPtr out(new ColorCloud(in->width, in->height));
+  ColorCloudPtr out(new ColorCloud());
+  out->resize(in->width*in->height);
+  out->height=in->height;
+  out->width=in->width;
   out->getMatrixXfMap(3,8,0) = Y;
   out->getMatrixXfMap(1,8,4) = in->getMatrixXfMap(1,8,4);
   out->is_dense = in->is_dense;

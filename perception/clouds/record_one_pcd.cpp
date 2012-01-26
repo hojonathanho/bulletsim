@@ -83,7 +83,7 @@ int main(int ac, char* av[])
   po::options_description opts("Allowed options");
   opts.add_options()
     ("help", "produce help message")
-    ("outfile,o", po::value< string >(&outfile)->required(), "oubput directory")
+    ("outfile,o", po::value< string >(&outfile), "oubput directory")
     ;
 
   po::positional_options_description p;

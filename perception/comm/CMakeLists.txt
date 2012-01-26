@@ -7,7 +7,23 @@ include_directories(${JSON_INCLUDE_DIR})
 include_directories("../../utils")
 #link_directories("~/usr/lib")
 
-message("system: ${CMAKE_SYSTEM_NAME}")
+
+if (DEFINED SURGICAL_PHYSICS_SOURCE_DIR)
+  message("this is a subdirectory")
+else()
+  set(EIGEN3_INCLUDE_DIR "/usr/include/eigen3")
+  set(JSON_DIR "../../lib/json")
+
+  include_directories(
+    ${JSON_DIR}/include
+    ${EIGEN3_INCLUDE_DIR})
+  link_directories(
+    "~/usr/lib"
+  )
+
+endif()  
+
+
 
 #if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 #    include_directories("/Users/joschu/Src/jsoncpp/include")
