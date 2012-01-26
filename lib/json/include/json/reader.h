@@ -13,6 +13,7 @@
 # include <deque>
 # include <stack>
 # include <string>
+# include <iostream>
 
 namespace Json {
 

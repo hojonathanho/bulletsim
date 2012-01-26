@@ -22,14 +22,19 @@ SparseArray calcCorrNN(const vector<btVector3>& estPts, const vector<btVector3>&
   return out;
 }
 
-MatrixXf calcCorrProb(const MatrixXf& estPts, const MatrixXf& obsPts, const VectorXf& pVis, float stdev, float outlierDensity) {
-  ArrayXf sqdists = pairwiseSquareDist(toEigenMatrix(estPts), toEigenMatrix(obsPts));
-  ArrayXf pBgivenA = (-sqdists/(2*stdev)).exp();
-  ArrayXf pBandA = probs0.rowwise() * pVis.array();
-  ArrayXf colSums = probs.colwise().sum();
-  ArrayXf C = probs.colwise() / (colSums + outlierDensity);
-  return C;
+// todo: normalization factor in likelihood
+MatrixXf calcCorrProb(const MatrixXf& estPts, const MatrixXf& obsPts, const VectorXf& pVis, float stdev, float pBandOutlier) {
+  MatrixXf sqdists = pairwiseSquareDist(estPts, obsPts);
+  MatrixXf pBgivenZ_unnormed = (-sqdists/(2*stdev)).array().exp();
+  MatrixXf pBandZ_unnormed = pVis.asDiagonal()*pBgivenZ_unnormed;
+  VectorXf pB_unnormed = pBandZ_unnormed.colwise().sum();
+  VectorXf pBorOutlier_unnormed = (pB_unnormed.array() + pBandOutlier).inverse();
+  MatrixXf pZgivenB = pBandZ_unnormed * pBorOutlier_unnormed.asDiagonal();
+  //cout << pZgivenB.row(0);
+  cout << stdev << endl;
+  return pZgivenB;
 }
+
 
 SparseArray calcCorrOpt(const vector<btVector3>& estPts, const vector<btVector3>& obsPts, const vector<float>& pVis) {
   // todo: use pvis

@@ -19,6 +19,7 @@ Eigen::Affine3f toEigenTransform(const btTransform&);
 vector<Eigen::Vector3f> toEigenVectors(const vector< vector<float> >&);
 vector<Eigen::Vector3f> toEigenVectors(const vector<btVector3>&);
 vector<Eigen::Vector3f> toEigenVectors(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr&);
+Eigen::VectorXf toVectorXf(const vector<float>&);
 
 Eigen::MatrixXf toEigenMatrix(const vector< vector<float> >&);
 Eigen::MatrixXf toEigenMatrix(const vector<btVector3>&);

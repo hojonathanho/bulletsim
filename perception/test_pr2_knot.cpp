@@ -25,9 +25,6 @@
 #include <osgViewer/Viewer>
 #include <osgViewer/ViewerEventHandlers>
 
-const float forceMultiplier = 1; // todo: set this in a sensible way based on 
-// physical params and config option
-
 struct CustomSceneConfig : Config {
   static int record;
   CustomSceneConfig() : Config() {
@@ -74,12 +71,13 @@ int main(int argc, char *argv[]) {
   SceneConfig::enableRobot = true;
   
   Parser parser;
+  parser.addGroup(TrackingConfig());
+  parser.addGroup(CustomSceneConfig());
   parser.addGroup(GeneralConfig());
   parser.addGroup(BulletConfig());
-  parser.addGroup(TrackingConfig());
   parser.addGroup(SceneConfig());
-  parser.addGroup(CustomSceneConfig());
   parser.read(argc,argv);
+
 
   // comm stuff
   setDataRoot("/home/joschu/comm/pr2_knot");
@@ -175,11 +173,11 @@ int main(int argc, char *argv[]) {
       cv::Mat ropeMask = toSingleChannel(labels) == 1;
       Eigen::MatrixXf ropePtsCam = toEigenMatrix(CT.toCamFromWorldN(estPts));
       //Eigen::MatrixXf depthImage = getDepthImage(cloudCam);
-      vector<float> pVis = calcVisibility(rope->bodies, scene.env->bullet->dynamicsWorld, CT.worldFromCamUnscaled.getOrigin()*METERS, .04*METERS, 6); 
+      vector<float> pVis = calcVisibility(rope->bodies, scene.env->bullet->dynamicsWorld, CT.worldFromCamUnscaled.getOrigin()*METERS, TrackingConfig::sigA*METERS, TrackingConfig::nSamples); 
       colorByVisibility(rope, pVis);
-      SparseArray corr = calcCorrNN(estPts, obsPts, pVis);
+      SparseArray corr = toSparseArray(calcCorrProb(toEigenMatrix(estPts), toEigenMatrix(obsPts), toVectorXf(pVis), TrackingConfig::sigB*METERS, TrackingConfig::outlierParam),TrackingConfig::cutoff);
       corrPlots.update(estPts, obsPts, corr);
-      vector<btVector3> impulses = calcImpulsesSimple(estPts, obsPts, corr, forceMultiplier);
+      vector<btVector3> impulses = calcImpulsesSimple(estPts, obsPts, corr, TrackingConfig::stepSize);
       applyImpulses(impulses, rope);
       scene.step(DT);
 

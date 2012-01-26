@@ -28,22 +28,27 @@ std::vector<float> calcVisibility(const Eigen::MatrixXf& pts, const Eigen::Matri
 
 vector<btVector3> calcCandPositions(const btVector3& center, float stdev, int nSamples) {
   vector<btVector3> out(nSamples);
-  if (nSamples==1)
+
+  if (nSamples==1) {
     out[0] = center;
-  else if (nSamples==4) { //todo: use a better basis
-    out[0] = center + btVector3(stdev,0,0);
-    out[1] = center + btVector3(-stdev,0,0);
-    out[2] = center + btVector3(0,stdev,0);
-    out[3] = center + btVector3(0,-stdev,0);
   }
-  else if (nSamples==6) {
-    out[0] = center + btVector3(stdev,0,0);
-    out[1] = center + btVector3(-stdev,0,0);
-    out[2] = center + btVector3(0,stdev,0);
-    out[3] = center + btVector3(0,-stdev,0);
-    out[4] = center + btVector3(0,0,stdev);
-    out[5] = center + btVector3(0,0,-stdev);
+  else if (nSamples==5) { //todo: use a better basis
+    out[0] = center;
+    out[1] = center + btVector3(stdev,0,0);
+    out[2] = center + btVector3(-stdev,0,0);
+    out[3] = center + btVector3(0,stdev,0);
+    out[4] = center + btVector3(0,-stdev,0);
   }
+  else if (nSamples==7) {
+    out[0] = center;
+    out[1] = center + btVector3(stdev,0,0);
+    out[2] = center + btVector3(-stdev,0,0);
+    out[3] = center + btVector3(0,stdev,0);
+    out[4] = center + btVector3(0,-stdev,0);
+    out[5] = center + btVector3(0,0,stdev);
+    out[6] = center + btVector3(0,0,-stdev);
+  }
+  else assert("nSamples must be 1, 5, or 7" && false);
   return out;
 }
 

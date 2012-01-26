@@ -35,6 +35,12 @@ vector<btVector3> toBulletVectors(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& 
   return out;
 }
 
+VectorXf toVectorXf(const vector<float>& in) {
+  VectorXf out(in.size());
+  for (int i=0; i<in.size(); i++) out[i] = in[i];
+  return out;
+}
+
 btTransform toBulletTransform(const Eigen::Affine3f& affine) {
   Vector3f transEig = affine.translation();
   Matrix3f rotEig = affine.rotation();
