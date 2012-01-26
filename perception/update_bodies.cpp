@@ -16,9 +16,9 @@ void initTrackingPlots() {
 }
 
 vector<btVector3> getSoftBodyNodes(BulletSoftObject::Ptr psb) {
-  btAlignedObjectArray<btSoftBody::Node> m_nodes = psb->softBody->m_nodes;
-  vector<btVector3> out(m_nodes.size());
-  for (int i=0; i < m_nodes.size(); i++) out[i] = m_nodes[i].m_x;
+  btAlignedObjectArray<btSoftBody::Node> nodes = psb->softBody->m_nodes;
+  vector<btVector3> out(nodes.size());
+  for (int i=0; i < nodes.size(); i++) out[i] = nodes[i].m_x;
   return out;
 }
 
@@ -29,34 +29,32 @@ vector<btVector3> clothOptImpulses(BulletSoftObject::Ptr psb, const vector<btVec
   int nEst = est.size();
 
   vector<btVector3> impulses(nEst);
-  vector<btVector3> abLineStarts;
-  vector<btVector3> abLineEnds;
+  vector<btVector3> abLinePoints;
 
   vector<int> indObsFromEst = getNNInds(est, obs);
   for (int iEst=0; iEst < nEst; iEst++) {
     const btVector3 estPt = est[iEst];
     const btVector3 obsPt = obs[indObsFromEst[iEst]];
-    impulses[iEst] = TrackingConfig::fAB * (obsPt - estPt);
-    abLineStarts.push_back(obsPt);
-    abLineEnds.push_back(estPt);
+    impulses[iEst] = TrackingConfig::stepSize * (obsPt - estPt);
+    abLinePoints.push_back(obsPt);
+    abLinePoints.push_back(estPt);
   }
-  plots::linesAB->setPoints(abLineStarts,abLineEnds);
+  plots::linesAB->setPoints(abLinePoints);
 
 
-  vector<btVector3> baLineStarts;
-  vector<btVector3> baLineEnds;
+  vector<btVector3> baLinePoints;
 
   vector<int> indEstFromObs = getNNInds(obs, est);
   for (int iObs=0; iObs < nObs; iObs++) {
     int iEst = indEstFromObs[iObs];
     const btVector3 obsPt = obs[iObs];
     const btVector3 estPt = est[iEst];
-    impulses[iEst] += TrackingConfig::fBA*(obsPt - estPt);
-    baLineStarts.push_back(obsPt);
-    baLineEnds.push_back(estPt);
+    impulses[iEst] += TrackingConfig::stepSize*(obsPt - estPt);
+    baLinePoints.push_back(obsPt);
+    baLinePoints.push_back(estPt);
   }
 
-  plots::linesBA->setPoints(baLineStarts,baLineEnds);
+  plots::linesBA->setPoints(baLinePoints);
 
   return impulses;
 

@@ -1,3 +1,4 @@
+#pragma once
 #include <btBulletDynamicsCommon.h>
 #include "softbodies.h"
 #include "rope.h"

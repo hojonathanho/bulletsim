@@ -85,13 +85,12 @@ CorrPlots::CorrPlots() {
 
 void CorrPlots::update(const vector<btVector3>& aPts, const vector<btVector3>& bPts, const SparseArray& corr) {
 
-  vector<btVector3> lineStarts;
-  vector<btVector3> lineEnds;
+  vector<btVector3> linePoints;
   for (int iA=0; iA < aPts.size(); iA++) {
     BOOST_FOREACH(const IndVal& iv, corr[iA]) {
-      lineStarts.push_back(aPts[iA]);
-      lineEnds.push_back(bPts[iv.ind]);
+      linePoints.push_back(aPts[iA]);
+      linePoints.push_back(bPts[iv.ind]);
     }
   }
-  m_lines->setPoints(lineStarts,lineEnds);
+  m_lines->setPoints(linePoints);
 }

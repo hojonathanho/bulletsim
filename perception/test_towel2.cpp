@@ -10,7 +10,7 @@
 #include "update_bodies.h"
 #include "utils_perception.h"
 #include "vector_io.h"
-
+#include "visibility.h"
 
 
 int main(int argc, char* argv[]) {
@@ -79,12 +79,11 @@ int main(int argc, char* argv[]) {
   vector<btVector3> newPts =  CT.toWorldFromCamN(toBulletVectors(towelPtsMsg1.m_data));
   towelObsPts->setPoints(newPts);
 
-
   for (int i=0; i < TrackingConfig::nIter; i++) {
     cout << i << endl;
     scene.idle(true);
-    vector<btVector3> curPts = getSoftBodyNodes(towel);
-    towelEstPts->setPoints(curPts);
+    vector<float> pVis = calcVisibility(towel->softBody.get(), scene.env->bullet->dynamicsWorld, CT.worldFromCamUnscaled.getOrigin()*METERS);
+    colorByVisibility(towel->softBody.get(), pVis, towelEstPts);
     vector<btVector3> impulses = clothOptImpulses(towel, newPts);
     applyImpulses(impulses, towel);
     scene.step(.01);

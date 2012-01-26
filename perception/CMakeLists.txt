@@ -67,7 +67,7 @@ target_link_libraries(test_prob_corr perception clouds simulation)
 add_executable(test_pr2_playback test_pr2_playback.cpp clouds/correction.cpp)
 target_link_libraries(test_pr2_playback ${PCL_LIBRARIES} simulation comm2 clouds perception)
 
-add_executable(test_towel2 test_towel2.cpp update_bodies.cpp)
+add_executable(test_towel2 test_towel2.cpp update_bodies.cpp clouds/utils_pcl.cpp)
 target_link_libraries(test_towel2 comm2 ${PCL_LIBRARIES} simulation comm2 clouds perception)
 
 #add_executable(test_eigen test_eigen.cpp bullet_io.cpp)

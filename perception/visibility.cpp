@@ -3,6 +3,8 @@
 #include "clouds/utils_pcl.h"
 #include "vector_io.h"
 #include "bullet_typedefs.h"
+#include "visibility.h"
+#include "config.h"
 using namespace Eigen;
 using namespace pcl;
 
@@ -73,6 +75,19 @@ std::vector<float> calcVisibility(const vector<RigidBodyPtr> bodies, btDynamicsW
   return vis;
 }
 
+std::vector<float> calcVisibility(btSoftBody* softBody, btDynamicsWorld* world, const btVector3& cameraPos) {
+  btAlignedObjectArray<btSoftBody::Node> nodes = softBody->m_nodes;
+  vector<float> vis(nodes.size());
+  for (int i=0; i < nodes.size(); i++) {
+    btVector3 target = nodes[i].m_x + (cameraPos - nodes[i].m_x).normalized() * .005*METERS;
+    btCollisionWorld::ClosestRayResultCallback rayCallback(cameraPos, target);
+    world->rayTest(cameraPos, target, rayCallback);
+    btCollisionObject* hitBody = rayCallback.m_collisionObject;
+    vis[i] = (hitBody==NULL);
+  }
+  return vis;
+}
+
 
 void colorByVisibility(CapsuleRope::Ptr rope, const vector<float>& pVis) {
   assert(rope->children.size() == pVis.size());
@@ -80,4 +95,16 @@ void colorByVisibility(CapsuleRope::Ptr rope, const vector<float>& pVis) {
     float p = pVis[i];
     rope->children[i]->setColor(p,p,p,1);
   }
+}
+
+void colorByVisibility(btSoftBody* psb, const vector<float>& pVis, PlotPoints::Ptr plot) {
+  int nPts = pVis.size();
+  vector<btVector3> pts(nPts);
+  vector<btVector4> cols(nPts);
+  for (int i=0; i<nPts; i++) {
+    pts.push_back(psb->m_nodes[i].m_x);
+    float p = pVis[i];
+    cols.push_back(btVector4(p,p,p,1));
+  }
+  plot->setPoints(pts,cols);
 }

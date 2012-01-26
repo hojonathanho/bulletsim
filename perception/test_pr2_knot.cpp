@@ -164,15 +164,15 @@ int main(int argc, char *argv[]) {
     ValuesInds vi = getValuesInds(currentJoints);
     scene.pr2->setDOFValues(vi.second, vi.first);
 
+    cv::Mat ropeMask = toSingleChannel(labels) == 1;
+
 
 
     for (int iter=0; iter<TrackingConfig::nIter; iter++) {
       cout << "iteration " << iter << endl;
 
       vector<btVector3> estPts = rope->getNodes();
-      cv::Mat ropeMask = toSingleChannel(labels) == 1;
       Eigen::MatrixXf ropePtsCam = toEigenMatrix(CT.toCamFromWorldN(estPts));
-      //Eigen::MatrixXf depthImage = getDepthImage(cloudCam);
       vector<float> pVis = calcVisibility(rope->bodies, scene.env->bullet->dynamicsWorld, CT.worldFromCamUnscaled.getOrigin()*METERS, TrackingConfig::sigA*METERS, TrackingConfig::nSamples); 
       colorByVisibility(rope, pVis);
       SparseArray corr = toSparseArray(calcCorrProb(toEigenMatrix(estPts), toEigenMatrix(obsPts), toVectorXf(pVis), TrackingConfig::sigB*METERS, TrackingConfig::outlierParam),TrackingConfig::cutoff);
