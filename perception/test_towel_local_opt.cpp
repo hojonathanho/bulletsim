@@ -89,6 +89,4 @@ int main(int argc, char* argv[]) {
     scene.step(.01);
   }
 
-
-
 }

@@ -1,10 +1,12 @@
 cmake_minimum_required(VERSION 2.0)
 
+if (NOT DEFINED PCL_INCLUDE_DIRS)
+  find_package(PCL 1.3 REQUIRED)
+endif()
 
 if (DEFINED SURGICAL_PHYSICS_SOURCE_DIR)
   message("this is a subdirectory")
 else()
-  find_package(PCL 1.3 REQUIRED)
   set(BULLET_INCLUDE_DIR "../../lib/bullet-2.79/src")
   set(EIGEN3_INCLUDE_DIR "/usr/include/eigen3")
   set(JSON_INCLUDE_DIR "../../lib/json/include")
@@ -68,8 +70,6 @@ target_link_libraries(test_cloud_filtering clouds ${PCL_LIBRARIES} ${OpenCV_LIBS
 
 add_executable(comm_downsample_clouds comm_downsample_clouds.cpp)
 target_link_libraries(comm_downsample_clouds clouds ${PCL_LIBRARIES} boost_program_options comm2 ${OpenCV_LIBS})
-
-
 
 add_executable(test_utils test_utils.cpp)
 target_link_libraries(test_utils ${PCL_LIBRARIES} clouds)

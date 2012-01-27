@@ -7,10 +7,6 @@
 using std::vector;
 
 
-SparseArray normalizeRows(const SparseArray&);
-float sum(const SparseVector&);
-float sum(const SparseArray&);
-
 SparseArray calcCorrOpt(const vector<btVector3>& estPts, const vector<btVector3>& obsPts, const vector<float>& pVis);
 SparseArray calcCorrNN(const vector<btVector3>& estPts, const vector<btVector3>& obsPts, const vector<float>& pVis);
 
@@ -24,6 +20,9 @@ Eigen::MatrixXf calcCorrProb(const Eigen::MatrixXf& estPts, const Eigen::MatrixX
 class CorrPlots {
 public:
   PlotLines::Ptr m_lines;
+  PlotPoints::Ptr m_sources;
+  PlotPoints::Ptr m_targs;
+
   CorrPlots();
   void update(const vector<btVector3>&, const vector<btVector3>&, const SparseArray&);
 };

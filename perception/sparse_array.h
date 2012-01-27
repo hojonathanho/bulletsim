@@ -15,6 +15,9 @@ typedef std::vector<SparseVector> SparseArray;
 float vecSum(const SparseVector& vec);
 SparseVector mulVec(const SparseVector& in, float x);
 
+SparseArray normalizeRows(const SparseArray&);
+float sum(const SparseVector&);
+float sum(const SparseArray&);
 SparseArray toSparseArray(Eigen::MatrixXf, float cutoff);
 
 std::ostream &operator<<(std::ostream &stream, SparseArray&);

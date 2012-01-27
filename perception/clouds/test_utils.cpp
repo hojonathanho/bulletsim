@@ -42,6 +42,13 @@ void test_getDepthImage() {
   }
 }
 
+void test_xyz2uv() {
+  // todo
+  // for now, just here to avoid linker errors
+  MatrixXf x;
+  xyz2uv(x);
+}
+
 int main() {
   TEST_FUNC(test_toEigenMatrix);
   TEST_FUNC(test_toBGR);

@@ -26,6 +26,19 @@ SparseVector mulVec(const SparseVector& in, float x) {
   }
 }
 
+SparseArray normalizeRows(const SparseArray& in) {
+  SparseArray out(in.size());
+  for (int iRow=0; iRow < in.size(); iRow++) {
+    SparseVector inRow = in[iRow];
+    SparseVector outRow = out[iRow];
+    outRow.reserve(inRow.size());
+    float rowSum = vecSum(inRow);
+    BOOST_FOREACH(IndVal& iv, inRow) outRow.push_back(IndVal(iv.ind,iv.val/rowSum));
+  }
+  return out;
+}
+
+
 ostream &operator<<(ostream &stream, IndVal& iv) {
   stream << "(" << iv.ind << ", " << iv.val << ")";
   return stream;
