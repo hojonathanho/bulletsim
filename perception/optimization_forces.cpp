@@ -22,6 +22,20 @@ SparseArray calcCorrNN(const vector<btVector3>& estPts, const vector<btVector3>&
   return out;
 }
 
+// todo: normalization factor in likelihood
+MatrixXf calcCorrProb(const MatrixXf& estPts, const MatrixXf& obsPts, const VectorXf& pVis, float stdev, float pBandOutlier) {
+  MatrixXf sqdists = pairwiseSquareDist(estPts, obsPts);
+  MatrixXf pBgivenZ_unnormed = (-sqdists/(2*stdev)).array().exp();
+  MatrixXf pBandZ_unnormed = pVis.asDiagonal()*pBgivenZ_unnormed;
+  VectorXf pB_unnormed = pBandZ_unnormed.colwise().sum();
+  VectorXf pBorOutlier_unnormed = (pB_unnormed.array() + pBandOutlier).inverse();
+  MatrixXf pZgivenB = pBandZ_unnormed * pBorOutlier_unnormed.asDiagonal();
+  //cout << pZgivenB.row(0);
+  cout << stdev << endl;
+  return pZgivenB;
+}
+
+
 SparseArray calcCorrOpt(const vector<btVector3>& estPts, const vector<btVector3>& obsPts, const vector<float>& pVis) {
   // todo: use pvis
   MatrixXf costs = pairwiseSquareDist(toEigenMatrix(estPts), toEigenMatrix(obsPts));
@@ -52,32 +66,18 @@ vector<btVector3> calcImpulsesDamped(const vector<btVector3>& estPos, const vect
   return out;
 }
 
-SparseArray normalizeRows(const SparseArray& in) {
-  SparseArray out(in.size());
-  for (int iRow=0; iRow < in.size(); iRow++) {
-    SparseVector inRow = in[iRow];
-    SparseVector outRow = out[iRow];
-    outRow.reserve(inRow.size());
-    float rowSum = vecSum(inRow);
-    BOOST_FOREACH(IndVal& iv, inRow) outRow.push_back(IndVal(iv.ind,iv.val/rowSum));
-  }
-  return out;
-}
-
 CorrPlots::CorrPlots() {
   m_lines.reset(new PlotLines(3));
   m_lines->setDefaultColor(1,1,0,1);
 }
 
 void CorrPlots::update(const vector<btVector3>& aPts, const vector<btVector3>& bPts, const SparseArray& corr) {
-
-  vector<btVector3> lineStarts;
-  vector<btVector3> lineEnds;
+  vector<btVector3> linePoints;
   for (int iA=0; iA < aPts.size(); iA++) {
     BOOST_FOREACH(const IndVal& iv, corr[iA]) {
-      lineStarts.push_back(aPts[iA]);
-      lineEnds.push_back(bPts[iv.ind]);
+      linePoints.push_back(aPts[iA]);
+      linePoints.push_back(bPts[iv.ind]);
     }
   }
-  m_lines->setPoints(lineStarts,lineEnds);
+  m_lines->setPoints(linePoints);
 }

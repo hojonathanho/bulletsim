@@ -80,7 +80,7 @@ int main(int argc, char *argv[]) {
 
 
   // comm stuff
-  setDataRoot("/home/jonathan/comm/pr2_knot");
+  setDataRoot("/home/joschu/comm/pr2_knot");
   FileSubscriber pcSub("kinect","pcd");
   CloudMessage cloudMsg;
   FileSubscriber ropeSub("rope_pts","pcd");
@@ -141,6 +141,7 @@ int main(int argc, char *argv[]) {
   scene.idle(true);
 
   int count=0;
+
   while (pcSub.recv(cloudMsg)) {
     ColorCloudPtr cloudCam  = cloudMsg.m_data;
     ColorCloudPtr cloudWorld(new ColorCloud());
@@ -158,15 +159,23 @@ int main(int argc, char *argv[]) {
     endTracker.update(newEnds);
     trackerPlotter.update();
 
-
     VectorMessage<double>* jointMsgPtr = retimer.msgAt(cloudMsg.getTime());
     vector<double> currentJoints = jointMsgPtr->m_data;
-    ValuesInds vi = getValuesInds(currentJoints);
-    scene.pr2->setDOFValues(vi.second, vi.first);
+
+     ValuesInds vi_new = getValuesInds(currentJoints);
+    // for (int i=1; i <= 20; i++) {
+    //   float p = (float)i/20.;
+    //   ValuesInds vi_interp;
+    //   for (int j=0; j < vi.first.size(); j++) {
+    // 	vi_interp.first.push_back(vi_new.first[j]*p + vi.first[j]*(1-p));
+    // 	vi_interp.second.push_back(vi_new.second[j]);
+    //   }
+
+      scene.pr2->setDOFValues(vi_new.second, vi_new.first);
+    //   scene.step(DT);
+    // }
 
     cv::Mat ropeMask = toSingleChannel(labels) == 1;
-
-
 
     for (int iter=0; iter<TrackingConfig::nIter; iter++) {
       cout << "iteration " << iter << endl;

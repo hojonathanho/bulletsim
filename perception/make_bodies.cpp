@@ -28,13 +28,13 @@ BulletSoftObject::Ptr makeTowel(const vector<btVector3>& points, btSoftBodyWorld
 						 points[1]+offset,
 						 points[3]+offset,
 						 points[2]+offset,
-						 17, 17,
+						 45, 31,
 						 0/*1+2+4+8*/, true);
   cout << "points[0] " << points[0].x() << " " << points[0].y() << " " << points[0].z() << endl;
   psb->getCollisionShape()->setMargin(.01*METERS);
   btSoftBody::Material* pm=psb->appendMaterial();
-  pm->m_kLST		=	0.1;
-  pm->m_kAST = 0.1;
+  pm->m_kLST		=	5*0.1;
+  pm->m_kAST = 5*0.1;
   //	pm->m_flags		-=	btSoftBody::fMaterial::DebugDraw;
   psb->generateBendingConstraints(2, pm);
   psb->setTotalMass(1);

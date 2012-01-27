@@ -1,6 +1,6 @@
 set(WM_ROOT "~/Src/GeometricTools/WildMagic5")
 set(WM_INCLUDE_DIR "${WM_ROOT}/SDK/Include")
-set(WM_LIBRARY_DIR "${WM_ROOT}/SDK/Library/Release")
+set(WM_LIBRARY_DIR "${WM_ROOT}/SDK/Library/Debug")
 set(WM_LIBRARIES Wm5Core Wm5Imagics Wm5Mathematics Wm5Physics)
 set(JSON_INCLUDE_DIR "${JSON_DIR}/include")
 set(GUROBI_INCLUDE_DIR "$ENV{GUROBI_HOME}/include")
@@ -13,8 +13,10 @@ set_property(
   PROPERTY COMPILE_DEFINITIONS BUILD_PERCEPTION BULLETSIM_DATA_DIR=${SURGICAL_PHYSICS_SOURCE_DIR}/data)
 
 
+if (NOT DEFINED PCL_INCLUDE_DIRS)
+  find_package(PCL 1.3 REQUIRED)
+endif()
 
-find_package(PCL 1.3 REQUIRED)
 include_directories(${BULLET_DIR}/src
                     ${OSGBULLET_DIR}
                     ${OSGWORKS_DIR}
@@ -60,11 +62,19 @@ target_link_libraries(perception ${PCL_LIBRARIES} comm2 clouds simulation gurobi
 add_executable(test_matching test_matching.cpp matching.cpp)
 target_link_libraries(test_matching gurobi46 gurobi_c++ pthread perception)
 
-add_executable(test_pr2_playback test_pr2_playback.cpp clouds/correction.cpp)
+
+add_executable(test_prob_corr test_prob_corr.cpp)
+target_link_libraries(test_prob_corr perception clouds simulation)
+
+add_executable(test_pr2_playback test_pr2_playback.cpp)
 target_link_libraries(test_pr2_playback ${PCL_LIBRARIES} simulation comm2 clouds perception)
 
-add_executable(test_towel2 test_towel2.cpp update_bodies.cpp)
-target_link_libraries(test_towel2 comm2 ${PCL_LIBRARIES} simulation comm2 clouds perception)
+add_executable(test_towel_local_opt test_towel_local_opt.cpp update_bodies.cpp clouds/utils_pcl.cpp)
+target_link_libraries(test_towel_local_opt comm2 ${PCL_LIBRARIES} simulation clouds perception)
+
+add_executable(test_towel_track test_towel_track.cpp clouds/utils_pcl.cpp get_nodes.cpp)
+target_link_libraries(test_towel_track comm2 ${PCL_LIBRARIES} simulation clouds perception)
+
 
 #add_executable(test_eigen test_eigen.cpp bullet_io.cpp)
 #target_link_libraries(test_eigen simulation)

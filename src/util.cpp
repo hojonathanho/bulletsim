@@ -1,7 +1,23 @@
 #include "util.h"
 #include "thread_socket_interface.h"
+#include <boost/foreach.hpp>
 
 namespace util {
+
+  osg::ref_ptr<osg::Vec3Array> toVec3Array(const std::vector<btVector3>& in) {
+    osg::ref_ptr<osg::Vec3Array> out = new osg::Vec3Array();
+    out->reserve(in.size());
+    BOOST_FOREACH(const btVector3& pt, in) out->push_back(osg::Vec3(pt.x(),pt.y(),pt.z()));
+    return out;
+  }
+
+  osg::ref_ptr<osg::Vec4Array> toVec4Array(const std::vector<btVector4>& in) {
+    osg::ref_ptr<osg::Vec4Array> out = new osg::Vec4Array();
+    out->reserve(in.size());
+    BOOST_FOREACH(const btVector3& pt, in) out->push_back(osg::Vec4(pt.x(),pt.y(),pt.z(),pt.w()));
+    return out;
+  }
+
 
 static const btScalar HAPTIC_TRANS_SCALE = 1./40.;
 static const btVector3 HAPTIC_OFFSET0(0., -2., 1.);

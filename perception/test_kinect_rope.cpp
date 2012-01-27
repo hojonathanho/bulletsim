@@ -10,7 +10,7 @@
 #include "config_perception.h"
 #include "make_bodies.h"
 #include "rope.h"
-#include "simplescene.h"
+#include "custom_scene.h"
 #include "trackers.h"
 #include "utils_perception.h"
 #include "vector_io.h"
@@ -22,36 +22,7 @@
 #include <osgViewer/Viewer>
 #include <osgViewer/ViewerEventHandlers>
 
-const float forceMultiplier = 1; // todo: set this in a sensible way based on 
-// physical params and config option
 
-struct CustomSceneConfig : Config {
-  static int record;
-  CustomSceneConfig() : Config() {
-    params.push_back(new Parameter<int>("record", &record, "record every n frames (default 0 means record nothing)"));
-  }
-};
-
-struct CustomScene : Scene {
-  osgViewer::ScreenCaptureHandler* captureHandler;
-  int framecount;
-  int captureNumber;
-  CustomScene() : Scene() {
-   // add the screen capture handler
-    framecount = 0;
-    captureHandler = new osgViewer::ScreenCaptureHandler(new osgViewer::ScreenCaptureHandler::WriteToFile("screenshots/img", "jpg", osgViewer::ScreenCaptureHandler::WriteToFile::SEQUENTIAL_NUMBER));
-    viewer.addEventHandler(captureHandler);
-    //   captureHandler->startCapture();
-  };
-  void draw() {
-    if (CustomSceneConfig::record && framecount % CustomSceneConfig::record==0) captureHandler->captureNextFrame(viewer);
-    framecount++;
-    Scene::draw();
-  }
-
-};
-
-int CustomSceneConfig::record = 0;
 
 int main(int argc, char *argv[]) {
 
@@ -132,21 +103,21 @@ int main(int argc, char *argv[]) {
     vector<btVector3> newEnds = CT.toWorldFromCamN(toBulletVectors(endMsg.m_data));
     endTracker.update(newEnds);
     trackerPlotter.update();
+    Eigen::MatrixXf depthImage = getDepthImage(cloudCam);
+    cv::Mat ropeMask = toSingleChannel(labels) == 1;
 
     for (int iter=0; iter<TrackingConfig::nIter; iter++) {
       cout << "iteration " << iter << endl;
       vector<btVector3> estPts = rope->getNodes();
-      cv::Mat ropeMask = toSingleChannel(labels) == 1;
       Eigen::MatrixXf ropePtsCam = toEigenMatrix(CT.toCamFromWorldN(estPts));
-      Eigen::MatrixXf depthImage = getDepthImage(cloudCam);
       vector<float> pVis = calcVisibility(ropePtsCam, depthImage, ropeMask); 
       colorByVisibility(rope, pVis);
-      SparseArray corr = calcCorrNN(estPts, obsPts, pVis);
+      SparseArray corr = toSparseArray(calcCorrProb(toEigenMatrix(estPts), toEigenMatrix(obsPts), toVectorXf(pVis), TrackingConfig::sigB, TrackingConfig::outlierParam), TrackingConfig::cutoff);
       corrPlots.update(estPts, obsPts, corr);
-      vector<btVector3> impulses = calcImpulsesSimple(estPts, obsPts, corr, forceMultiplier);
+      vector<btVector3> impulses = calcImpulsesSimple(estPts, obsPts, corr, TrackingConfig::impulseSize);
       applyImpulses(impulses, rope);
       scene.step(DT);
-
+      usleep(1000*10);
     }
   }
 }

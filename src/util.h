@@ -3,6 +3,7 @@
 
 #include <LinearMath/btTransform.h>
 #include <osg/Vec3d>
+#include <osg/Geometry>
 #include <openrave/openrave.h>
 #include <string>
 #include <fstream>
@@ -44,6 +45,9 @@ namespace util {
   inline OpenRAVE::Transform toRaveTransform(const btTransform &t, btScalar scale) {
     return OpenRAVE::Transform(toRaveQuaternion(t.getRotation()), toRaveVector(scale * t.getOrigin()));
   }
+
+  osg::ref_ptr<osg::Vec3Array> toVec3Array(const std::vector<btVector3>&);
+  osg::ref_ptr<osg::Vec4Array> toVec4Array(const std::vector<btVector4>&);
 
   ///////////////// FILE IO ////////////////////////////
 

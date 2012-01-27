@@ -1,3 +1,4 @@
+#pragma once
 #include <vector>
 #include <Eigen/Dense>
 #include "sparse_array.h"
