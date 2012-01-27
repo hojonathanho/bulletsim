@@ -8,7 +8,7 @@ using namespace std;
 MatrixXf quadFeats(const MatrixXf& X) {
   int nColsX = X.cols();
   int nRowsX = X.rows();
-  assert(nColsX == 3);
+  BOOST_VERIFY(nColsX == 3);
   int nColsY = 10;
   MatrixXf Y(X.rows(), nColsY);
   Y.col(0).setOnes();

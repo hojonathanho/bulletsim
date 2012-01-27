@@ -12,9 +12,7 @@ set_property(
   DIRECTORY
   PROPERTY COMPILE_DEFINITIONS BUILD_PERCEPTION BULLETSIM_DATA_DIR=${SURGICAL_PHYSICS_SOURCE_DIR}/data)
 
-set_source_files_properties(sparse_array.cpp dist_math.cpp
-        PROPERTIES COMPILE_FLAGS "-DNDEBUG -O3")
-
+add_definitions("-DEIGEN_DEFAULT_TO_ROW_MAJOR")
 
 if (NOT DEFINED PCL_INCLUDE_DIRS)
   find_package(PCL 1.4 REQUIRED)

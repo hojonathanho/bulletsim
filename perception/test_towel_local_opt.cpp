@@ -47,11 +47,11 @@ int main(int argc, char* argv[]) {
 
   FileSubscriber towelSub("towel_pts","pcd");
   CloudMessage towelPtsMsg0; //first message
-  assert(towelSub.recv(towelPtsMsg0));
+  BOOST_VERIFY(towelSub.recv(towelPtsMsg0));
 
   CloudMessage towelPtsMsg1; //second mesage
   for (int i=0; i<3; i++) {
-    assert(towelSub.recv(towelPtsMsg1));
+    BOOST_VERIFY(towelSub.recv(towelPtsMsg1));
   }
 
   vector<btVector3> towelPtsCam = toBulletVectors(towelPtsMsg0.m_data);

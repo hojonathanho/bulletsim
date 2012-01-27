@@ -1,8 +1,6 @@
-set(CMAKE_BUILD_TYPE_ORIG ${CMAKE_BUILD_TYPE})
-#set(CMAKE_BUILD_TYPE Release)
 add_subdirectory(haptics)
 add_subdirectory(bullet-2.79)
 add_subdirectory(osgWorks-2.0)
 add_subdirectory(osgBullet-2.0)
 add_subdirectory(json)
-#set(CMAKE_BUILD_TYPE ${CMAKE_BUILD_TYPE_OLD})
+

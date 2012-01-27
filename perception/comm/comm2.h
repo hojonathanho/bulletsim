@@ -49,8 +49,8 @@ public:
   string m_extension;
   string m_topic;
   Names(string topic, string extension) : m_topic(topic), m_extension(extension), m_id(0) {
-    assert(!topic.empty());
-    assert(!extension.empty());
+    BOOST_VERIFY(!topic.empty());
+    BOOST_VERIFY(!extension.empty());
   }
   PathPair getCur() const;
   void step();

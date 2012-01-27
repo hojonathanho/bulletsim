@@ -38,10 +38,9 @@ void askToResetDir(path p) {
       cout << "deleting " << p.string() << endl;
       fs::remove_all(p);
     }
-    else assert(false);
+    else throw IOError();
   }
-  bool success = fs::create_directory(p);
-  assert(success);
+  BOOST_VERIFY(fs::create_directory(p));
 }
 
 
@@ -78,12 +77,11 @@ void setDataRoot(path newDataRoot) {
     DATA_ROOT = newDataRoot;
   }
   bool success=true;
-  if (!fs::exists(DATA_ROOT)) success = fs::create_directory(DATA_ROOT);
-  assert(success);
+  if (!fs::exists(DATA_ROOT)) BOOST_VERIFY(fs::create_directory(DATA_ROOT));
 }
 void setDataRoot() {
   path p  = getenv("DATA_ROOT");
-  assert(fs::exists(p));
+  BOOST_VERIFY(fs::exists(p));
   DATA_ROOT = p;
 }
 path getDataRoot() {return DATA_ROOT;}
@@ -215,10 +213,8 @@ AbstractRetimer::AbstractRetimer(Subscriber* sub) : m_sub(sub), m_new(true), m_d
 Message* AbstractRetimer::msgAt(double time) {
   //printf("msgAt: %10.10f %10.10f %10.10f\n", time, m_msg0->getTime(), m_msg1->getTime());
   if (m_new) {
-    bool success0 = m_sub->recv(*m_msg0);
-    assert(success0);
-    bool success1 = m_sub->recv(*m_msg1);
-    assert(success1);
+    BOOST_VERIFY(m_sub->recv(*m_msg0));
+    BOOST_VERIFY(m_sub->recv(*m_msg1));
     m_new = false;
   }
   if (m_done) return m_msg0;

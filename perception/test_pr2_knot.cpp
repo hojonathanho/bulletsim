@@ -149,11 +149,11 @@ int main(int argc, char *argv[]) {
     cout << "loaded cloud " << count << endl;
     count++;
 
-    assert(ropeSub.recv(ropeMsg));
+    BOOST_VERIFY(ropeSub.recv(ropeMsg));
     vector<btVector3> obsPts = CT.toWorldFromCamN(toBulletVectors(ropeMsg.m_data));
-    assert(labelSub.recv(labelMsg));
+    BOOST_VERIFY(labelSub.recv(labelMsg));
     cv::Mat labels = toSingleChannel(labelMsg.m_data);
-    assert(endSub.recv(endMsg));
+    BOOST_VERIFY(endSub.recv(endMsg));
     vector<btVector3> newEnds = CT.toWorldFromCamN(toBulletVectors(endMsg.m_data));
     endTracker.update(newEnds);
     trackerPlotter.update();

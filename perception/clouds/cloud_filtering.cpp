@@ -5,7 +5,7 @@
 #include <pcl/filters/extract_indices.h>
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/filters/statistical_outlier_removal.h>
-
+#include <boost/assert.hpp>
 #include "utils_pcl.h"
 #include <iostream>
 
@@ -15,10 +15,10 @@ using boost::shared_ptr;
 
 ColorCloudPtr maskCloud(const ColorCloudPtr in, const cv::Mat& mask) {
   cout << mask.elemSize() << endl;
-  assert(mask.elemSize() == 1);
-  assert(mask.rows == in->height);
-  assert(mask.cols == in->width);
-  assert(in->isOrganized());
+  BOOST_VERIFY(mask.elemSize() == 1);
+  BOOST_VERIFY(mask.rows == in->height);
+  BOOST_VERIFY(mask.cols == in->width);
+  BOOST_VERIFY(in->isOrganized());
 
   shared_ptr< vector<int> > indicesPtr(new vector<int>());
 
