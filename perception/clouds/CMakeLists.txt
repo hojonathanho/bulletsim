@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.0)
 
 if (NOT DEFINED PCL_INCLUDE_DIRS)
-  find_package(PCL 1.3 REQUIRED)
+  find_package(PCL 1.4 REQUIRED)
 endif()
 
 if (DEFINED SURGICAL_PHYSICS_SOURCE_DIR)

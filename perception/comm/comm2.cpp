@@ -67,11 +67,19 @@ Value readJson(path jsonfile) {
 }
 
 void setDataRoot(path newDataRoot) {
-  DATA_ROOT = newDataRoot;
+  // if the path starts with ~, expand it
+  if (!newDataRoot.empty() && newDataRoot.string()[0] == '~') {
+    const char *home = getenv("HOME");
+    if (home) {
+        DATA_ROOT = home;
+        DATA_ROOT /= newDataRoot.string().substr(1);
+    }
+  } else {
+    DATA_ROOT = newDataRoot;
+  }
   bool success=true;
   if (!fs::exists(DATA_ROOT)) success = fs::create_directory(DATA_ROOT);
   assert(success);
-
 }
 void setDataRoot() {
   path p  = getenv("DATA_ROOT");

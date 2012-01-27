@@ -31,7 +31,7 @@ int main(int argc, char* argv[]) {
   parser.read(argc, argv);
 
   //// comm stuff
-  setDataRoot("/home/joschu/comm/towel2");
+  setDataRoot("~/comm/towel2");
   FileSubscriber pcSub("kinect","pcd");
   CloudMessage cloudMsg;
   FileSubscriber towelSub("towel_pts","pcd");
@@ -63,7 +63,7 @@ int main(int argc, char* argv[]) {
   vector<btVector3> towelPtsWorld = CT.toWorldFromCamN(towelPtsCam);
   vector<btVector3> towelCorners = toBulletVectors(getCorners(toEigenVectors(towelPtsWorld)));
   BOOST_FOREACH(btVector3& pt, towelCorners) pt += btVector3(.01*METERS,0,0);
-  BulletSoftObject::Ptr towel = makeTowel(towelCorners, scene.env->bullet->softBodyWorldInfo);
+  BulletSoftObject::Ptr towel = makeSelfCollidingTowel(towelCorners, scene.env->bullet->softBodyWorldInfo);
 
 
 
