@@ -66,25 +66,12 @@ vector<btVector3> calcImpulsesDamped(const vector<btVector3>& estPos, const vect
   return out;
 }
 
-SparseArray normalizeRows(const SparseArray& in) {
-  SparseArray out(in.size());
-  for (int iRow=0; iRow < in.size(); iRow++) {
-    SparseVector inRow = in[iRow];
-    SparseVector outRow = out[iRow];
-    outRow.reserve(inRow.size());
-    float rowSum = vecSum(inRow);
-    BOOST_FOREACH(IndVal& iv, inRow) outRow.push_back(IndVal(iv.ind,iv.val/rowSum));
-  }
-  return out;
-}
-
 CorrPlots::CorrPlots() {
   m_lines.reset(new PlotLines(3));
   m_lines->setDefaultColor(1,1,0,1);
 }
 
 void CorrPlots::update(const vector<btVector3>& aPts, const vector<btVector3>& bPts, const SparseArray& corr) {
-
   vector<btVector3> linePoints;
   for (int iA=0; iA < aPts.size(); iA++) {
     BOOST_FOREACH(const IndVal& iv, corr[iA]) {

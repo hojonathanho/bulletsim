@@ -35,7 +35,7 @@ vector<btVector3> clothOptImpulses(BulletSoftObject::Ptr psb, const vector<btVec
   for (int iEst=0; iEst < nEst; iEst++) {
     const btVector3 estPt = est[iEst];
     const btVector3 obsPt = obs[indObsFromEst[iEst]];
-    impulses[iEst] = TrackingConfig::stepSize * (obsPt - estPt);
+    impulses[iEst] = TrackingConfig::impulseSize * (obsPt - estPt);
     abLinePoints.push_back(obsPt);
     abLinePoints.push_back(estPt);
   }
@@ -49,7 +49,7 @@ vector<btVector3> clothOptImpulses(BulletSoftObject::Ptr psb, const vector<btVec
     int iEst = indEstFromObs[iObs];
     const btVector3 obsPt = obs[iObs];
     const btVector3 estPt = est[iEst];
-    impulses[iEst] += TrackingConfig::stepSize*(obsPt - estPt);
+    impulses[iEst] += TrackingConfig::impulseSize*(obsPt - estPt);
     baLinePoints.push_back(obsPt);
     baLinePoints.push_back(estPt);
   }

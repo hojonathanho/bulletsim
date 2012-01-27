@@ -177,7 +177,7 @@ int main(int argc, char *argv[]) {
       colorByVisibility(rope, pVis);
       SparseArray corr = toSparseArray(calcCorrProb(toEigenMatrix(estPts), toEigenMatrix(obsPts), toVectorXf(pVis), TrackingConfig::sigB*METERS, TrackingConfig::outlierParam),TrackingConfig::cutoff);
       corrPlots.update(estPts, obsPts, corr);
-      vector<btVector3> impulses = calcImpulsesSimple(estPts, obsPts, corr, TrackingConfig::stepSize);
+      vector<btVector3> impulses = calcImpulsesSimple(estPts, obsPts, corr, TrackingConfig::impulseSize);
       applyImpulses(impulses, rope);
       scene.step(DT);
 
