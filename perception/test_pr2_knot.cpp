@@ -82,7 +82,7 @@ int main(int argc, char *argv[]) {
   parser.read(argc,argv);
 
   // comm stuff
-  setDataRoot("/home/joschu/comm/pr2_knot");
+  setDataRoot("/home/jonathan/comm/pr2_knot");
   FileSubscriber pcSub("kinect","pcd");
   CloudMessage cloudMsg;
   FileSubscriber ropeSub("rope_pts","pcd");

@@ -1,10 +1,10 @@
-set(WM_ROOT "~/GeometricTools/WildMagic5")
+set(WM_ROOT "~/Src/GeometricTools/WildMagic5")
 set(WM_INCLUDE_DIR "${WM_ROOT}/SDK/Include")
 set(WM_LIBRARY_DIR "${WM_ROOT}/SDK/Library/Release")
 set(WM_LIBRARIES Wm5Core Wm5Imagics Wm5Mathematics Wm5Physics)
 set(JSON_INCLUDE_DIR "${JSON_DIR}/include")
-set(GUROBI_INCLUDE_DIR "~/gurobi461/linux64/include")
-set(GUROBI_LIBRARY_DIR "~/gurobi461/linux64/lib")
+set(GUROBI_INCLUDE_DIR "$ENV{GUROBI_HOME}/include")
+set(GUROBI_LIBRARY_DIR "$ENV{GUROBI_HOME}/lib")
 
 #set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -D_GLIBCXX_DEBUG")
 
@@ -30,6 +30,7 @@ include_directories(${BULLET_DIR}/src
             ../utils
             clouds
             comm
+            .
 )
 
 set(BULLET_LIBS BulletSoftBody BulletDynamics BulletCollision LinearMath)
