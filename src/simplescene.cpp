@@ -11,6 +11,7 @@ using namespace std;
 Scene::Scene() {
     osg.reset(new OSGInstance());
     bullet.reset(new BulletInstance());
+    cout << BulletConfig::gravity.z() << endl;
     bullet->setGravity(BulletConfig::gravity);
     if (SceneConfig::enableRobot)
         rave.reset(new RaveInstance());

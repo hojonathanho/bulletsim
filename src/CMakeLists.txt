@@ -22,7 +22,9 @@ set_property(
   PROPERTY COMPILE_DEFINITIONS BULLETSIM_DATA_DIR=${SURGICAL_PHYSICS_SOURCE_DIR}/data)
 
 if (BUILD_PERCEPTION)
-  find_package(PCL 1.3)
+  if (NOT DEFINED PCL)
+    find_package(PCL 1.3)
+  endif()
   include_directories(${PCL_INCLUDE_DIRS})
   link_directories(${PCL_LIBRARY_DIRS})
   add_definitions(${PCL_DEFINITIONS})
