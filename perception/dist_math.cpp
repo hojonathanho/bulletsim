@@ -7,7 +7,7 @@ MatrixXf pairwiseSquareDist(const MatrixXf& x_m3, const MatrixXf& y_n3) {
   // vectors are rows of x and y
   MatrixXf dots_mn = x_m3 * y_n3.transpose();
   VectorXf xnorm_m = x_m3.rowwise().squaredNorm();
-  VectorXf ynorm_n = y_n3.rowwise().squaredNorm();
+  VectorXf ynorm_n = y_n3.rowwise().squaredNorm(); 
   MatrixXf sqdists_mn = ((-2*dots_mn).colwise() + xnorm_m).transpose().colwise()+ynorm_n;
   return sqdists_mn.transpose();
 }
