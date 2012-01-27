@@ -49,11 +49,11 @@ void PlotPoints::setPoints(const osg::ref_ptr<osg::Vec3Array>& osgPts) {
   setPoints(osgPts, osgCols);
 }
 
+#if BUILD_PERCEPTION
 inline bool pointIsFinite(const pcl::PointXYZRGB& pt) {
   return isfinite(pt.x) && isfinite(pt.y) && isfinite(pt.z);
 }
 
-#if BUILD_PERCEPTION
 void PlotPoints::setPoints(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud) {
   osg::ref_ptr<osg::Vec3Array> osgPts = new osg::Vec3Array();
   osg::ref_ptr<osg::Vec4Array>  osgCols = new osg::Vec4Array();

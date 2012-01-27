@@ -2,14 +2,14 @@
 #include "utils_perception.h"
 using namespace Eigen;
 
-
-MatrixXf pairwiseSquareDist(const MatrixXf& x_m3, const MatrixXf& y_n3) {
+MatrixXf pairwiseSquareDist(const Eigen::MatrixX3f& x_m3, const Eigen::MatrixX3f& y_n3) {
   // vectors are rows of x and y
   MatrixXf dots_mn = x_m3 * y_n3.transpose();
   VectorXf xnorm_m = x_m3.rowwise().squaredNorm();
   VectorXf ynorm_n = y_n3.rowwise().squaredNorm(); 
-  MatrixXf sqdists_mn = ((-2*dots_mn).colwise() + xnorm_m).transpose().colwise()+ynorm_n;
-  return sqdists_mn.transpose();
+  MatrixX3f sumpart_mn = xnorm_m.replicate(1,y_n3.rows()) + ynorm_n.transpose().replicate(x_m3.rows(),1);
+  MatrixX3f sqdists_mn = sumpart_mn - 2*dots_mn;
+  return sqdists_mn;
 }
 
 vector<int> argminAlongRows(const MatrixXf& d_mn) {

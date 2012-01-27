@@ -1,8 +1,9 @@
 #include "sparse_array.h"
 #include <boost/foreach.hpp>
 using namespace std;
+using namespace Eigen;
 
-SparseArray toSparseArray(Eigen::MatrixXf in, float cutoff) {
+SparseArray toSparseArray(MatrixXf in, float cutoff) {
   SparseArray out(in.rows());
   for (int row = 0; row < in.rows(); row++) {
     for (int col = 0; col < in.cols(); col++) {
