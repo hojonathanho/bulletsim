@@ -14,7 +14,7 @@
 
 
 int main(int argc, char* argv[]) {
-  setDataRoot("/home/joschu/comm/towel");
+  setDataRoot("~/comm/towel");
   //////////// get command line options
   Parser parser;
   SceneConfig::enableRobot = SceneConfig::enableIK = SceneConfig::enableHaptics = false;

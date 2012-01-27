@@ -39,7 +39,7 @@ int main(int argc, char *argv[]) {
   parser.read(argc,argv);
 
   // comm stuff
-  setDataRoot("/home/joschu/comm/rope_hands");
+  setDataRoot("~/comm/rope_hands");
   FileSubscriber pcSub("kinect","pcd");
   CloudMessage cloudMsg;
   FileSubscriber ropeSub("rope_pts","pcd");

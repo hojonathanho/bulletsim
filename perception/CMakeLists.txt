@@ -14,7 +14,7 @@ set_property(
 
 
 if (NOT DEFINED PCL_INCLUDE_DIRS)
-  find_package(PCL 1.3 REQUIRED)
+  find_package(PCL 1.4 REQUIRED)
 endif()
 
 include_directories(${BULLET_DIR}/src

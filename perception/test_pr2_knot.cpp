@@ -80,7 +80,7 @@ int main(int argc, char *argv[]) {
 
 
   // comm stuff
-  setDataRoot("/home/jonathan/comm/pr2_knot");
+  setDataRoot("~/comm/pr2_knot");
   FileSubscriber pcSub("kinect","pcd");
   CloudMessage cloudMsg;
   FileSubscriber ropeSub("rope_pts","pcd");

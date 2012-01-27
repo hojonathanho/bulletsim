@@ -157,7 +157,7 @@ void test_eigen_message() {
 
 
 int main() {
- setDataRoot("/home/joschu/Data/test_comm_cpp");
+ setDataRoot("~/Data/test_comm_cpp");
  TEST_FUNC(test_names);
  TEST_FUNC(test_publisher);
  TEST_FUNC(test_syncer);

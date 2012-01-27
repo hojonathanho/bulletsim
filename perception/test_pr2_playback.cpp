@@ -19,7 +19,7 @@
 using namespace std;
 using namespace Eigen;
 
-const string DATA_ROOT = "/home/joschu/comm/pr2_knot";
+const string DATA_ROOT = "~/comm/pr2_knot";
 const string PCD_TOPIC = "kinect";
 
 int main(int argc, char *argv[]) {
