@@ -205,6 +205,11 @@ bool FileSubscriber::recv(Message& message)  {
   }
 }
 
+bool FileSubscriber::skip() {
+  m_names.step();
+  return true;
+}
+
 // problem: you might do msgAt, and then call it again and lose your first message
 // maybe it would be better to pass msg into msgAt, and then clone it twice. Then use copy constructor to return it.
 

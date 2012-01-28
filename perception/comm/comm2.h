@@ -86,6 +86,7 @@ public:
 class Subscriber {
 public:
   virtual bool recv(Message& )=0;
+  virtual bool skip() = 0;
 };
 
 class FileSubscriber : public Subscriber {
@@ -93,6 +94,7 @@ public:
   Names m_names;
   FileSubscriber(string topic, string extension);
   bool recv(Message& message);
+  bool skip();
 };
 
 template <typename T> 

@@ -15,8 +15,6 @@ vector<btVector3> calcImpulsesDamped(const vector<btVector3>& estPts, const vect
 // todo: normalization factor in likelihood
 Eigen::MatrixXf calcCorrProb(const Eigen::MatrixXf& estPts, const Eigen::MatrixXf& obsPts, const Eigen::VectorXf& pVis, float stdev, float pBandOutlier);
 
-Eigen::MatrixXf calcCorrProb(const Eigen::MatrixXf& estPts, const Eigen::MatrixXf& obsPts, const Eigen::VectorXf& pVis, float stdev, float outlierDensity);
-
 class CorrPlots {
 public:
   PlotLines::Ptr m_lines;
