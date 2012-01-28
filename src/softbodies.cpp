@@ -24,19 +24,13 @@ void BulletSoftObject::init() {
     geom->setNormalArray(normals.get());
     geom->setNormalBinding(osg::Geometry::BIND_PER_VERTEX);
 
-    osg::ref_ptr<osg::Geode> geode = new osg::Geode;
+    geode = new osg::Geode;
     geode->addDrawable(geom);
 
     osg::ref_ptr<osg::LightModel> lightModel = new osg::LightModel;
     lightModel->setTwoSided(true);
     osg::StateSet* ss = geode->getOrCreateStateSet();
     ss->setAttributeAndModes(lightModel.get(), osg::StateAttribute::ON);
-
-    osg::AlphaFunc* alphaFunc = new osg::AlphaFunc;
-    alphaFunc->setFunction(osg::AlphaFunc::GEQUAL,0.05f);
-    ss->setAttributeAndModes(new osg::BlendFunc, osg::StateAttribute::ON );
-    ss->setAttributeAndModes( alphaFunc, osg::StateAttribute::ON );
-    ss->setMode(GL_DEPTH_TEST,osg::StateAttribute::OFF);
 
     transform = new osg::MatrixTransform;
     transform->addChild(geode);
@@ -48,6 +42,14 @@ void BulletSoftObject::setColor(float r, float g, float b, float a) {
   colors->push_back(osg::Vec4(r,g,b,a));
   geom->setColorArray(colors);
   geom->setColorBinding(osg::Geometry::BIND_OVERALL);
+
+  if (a != 1.0f) { // precision problems?
+    osg::ref_ptr<osg::BlendFunc> blendFunc = new osg::BlendFunc;
+    blendFunc->setFunction(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    osg::StateSet *ss = geode->getOrCreateStateSet();
+    ss->setAttributeAndModes(blendFunc);
+    ss->setRenderingHint(osg::StateSet::TRANSPARENT_BIN);
+  }
 }
 
 

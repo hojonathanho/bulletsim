@@ -32,16 +32,12 @@ void BulletObject::init() {
     transform = new osg::MatrixTransform;
     transform->addChild(node.get());
     getEnvironment()->osg->root->addChild(transform.get());
+
+    osg::ref_ptr<osg::BlendFunc> blendFunc = new osg::BlendFunc;
+    blendFunc->setFunction(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    osg::StateSet *ss = node->getOrCreateStateSet();
+    ss->setAttributeAndModes(blendFunc);
     setColorAfterInit();
-    // osg::StateSet* ss = node->getOrCreateStateSet();
-
-
-    // osg::AlphaFunc* alphaFunc = new osg::AlphaFunc;
-    // alphaFunc->setFunction(osg::AlphaFunc::GEQUAL,0.05f);
-    // ss->setMode( GL_LIGHTING, osg::StateAttribute::OFF );
-    // ss->setAttributeAndModes(new osg::BlendFunc, osg::StateAttribute::ON );
-    // ss->setAttributeAndModes( alphaFunc, osg::StateAttribute::ON );
-    // ss->setMode(GL_DEPTH_TEST,osg::StateAttribute::OFF);
 }
 
 osg::ref_ptr<osg::Node> BulletObject::createOSGNode() {
@@ -185,6 +181,11 @@ void BulletObject::setColor(float r, float g, float b, float a) {
 }
 void BulletObject::setColorAfterInit() {
   if (m_color) {
+    if (m_color->a() != 1.0f) {
+      osg::StateSet *ss = node->getOrCreateStateSet();
+      ss->setRenderingHint(osg::StateSet::TRANSPARENT_BIN);
+    }
+
     SetColorsVisitor visitor(m_color->r(),m_color->g(),m_color->b(),m_color->a());
     node->accept(visitor);
   }
