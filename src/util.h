@@ -9,7 +9,7 @@
 #include <fstream>
 #include <iostream>
 #include <vector>
-#include <boost/assert.hpp>
+#include <my_assert.h>
 using namespace std;
 
 #define STRINGIFY(x) #x

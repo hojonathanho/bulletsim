@@ -19,8 +19,8 @@ void test_names() {
   string topic = "test_Names";
   Names names("test_Names", "txt");
   PathPair pair0 = names.getCur();
-  BOOST_VERIFY(pair0.first==getDataRoot()/topic/"data000000000000.txt");
-  BOOST_VERIFY(pair0.second==getDataRoot()/topic/"info000000000000.json");
+  ASSERT(pair0.first==getDataRoot()/topic/"data000000000000.txt");
+  ASSERT(pair0.second==getDataRoot()/topic/"info000000000000.json");
 }
 
 void test_publisher() {
@@ -34,8 +34,8 @@ void test_publisher() {
   FileSubscriber sub(topic,"txt");
   StrMessage message;
   sub.recv(message);
-  BOOST_VERIFY(message.m_data==string("hi"));
-  BOOST_VERIFY(message.m_info["a"].asFloat()==2);
+  ASSERT(message.m_data==string("hi"));
+  ASSERT(message.m_info["a"].asFloat()==2);
 }
 
 void test_syncer() {
@@ -81,7 +81,7 @@ void test_syncer() {
 
 
   // for (int i=0; i<aData.size(); i++)
-  //   BOOST_VERIFY(tA[i] == aData[i]);
+  //   ASSERT(tA[i] == aData[i]);
 
 }
 
@@ -100,7 +100,7 @@ void test_vector_message() {
   VectorDMessage msgAfter;
   sub.recv(msgAfter);
 
-  for (int i=0; i< 10; i++)  BOOST_VERIFY(msgAfter.m_data[i] == msgBefore.m_data[i]);
+  for (int i=0; i< 10; i++)  ASSERT(msgAfter.m_data[i] == msgBefore.m_data[i]);
 
 }
 
@@ -125,7 +125,7 @@ void test_vecvec_message() {
   VecVecMessage<double> msgAfter;
   sub.recv(msgAfter);
 
-  for (int i=0; i< 10; i++) for (int j=0; j<3; j++)  BOOST_VERIFY(msgAfter.m_data[i][j] == msgBefore.m_data[i][j]);
+  for (int i=0; i< 10; i++) for (int j=0; j<3; j++)  ASSERT(msgAfter.m_data[i][j] == msgBefore.m_data[i][j]);
 
 }
 
@@ -148,7 +148,7 @@ void test_eigen_message() {
   EigenMessage msgAfter;
   sub.recv(msgAfter);
 
-  for (int i=0; i< 10; i++) for (int j=0; j<3; j++)  BOOST_VERIFY(msgAfter.m_data(i,j) == msgBefore.m_data(i,j));
+  for (int i=0; i< 10; i++) for (int j=0; j<3; j++)  ASSERT(msgAfter.m_data(i,j) == msgBefore.m_data(i,j));
 
 
 }

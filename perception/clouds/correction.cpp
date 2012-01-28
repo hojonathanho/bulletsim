@@ -1,6 +1,7 @@
 #include "correction.h"
 #include <iostream>
 #include <pcl/point_types.h>
+#include "my_assert.h"
 using namespace pcl;
 using namespace Eigen;
 using namespace std;
@@ -8,7 +9,7 @@ using namespace std;
 MatrixXf quadFeats(const MatrixXf& X) {
   int nColsX = X.cols();
   int nRowsX = X.rows();
-  BOOST_VERIFY(nColsX == 3);
+  ASSERT(nColsX == 3);
   int nColsY = 10;
   MatrixXf Y(X.rows(), nColsY);
   Y.col(0).setOnes();

@@ -1,7 +1,7 @@
 #include "matching.h"
 #include "my_matrix.h"
 #include <gurobi_c++.h>
-#include <boost/assert.hpp>
+#include <my_assert.h>
 
 using namespace Eigen;
 
@@ -22,7 +22,7 @@ vector<int> matchHardMaximal(const MatrixXf& costs) {
 vector<int> matchHardOneWay(const MatrixXf& costs) {
   //  env.set(GRB_IntParam_OutputFlag, 0); 
 
-  BOOST_VERIFY(costs.rows() <= costs.cols());
+  ASSERT(costs.rows() <= costs.cols());
   GRBModel model = GRBModel(env);
 
   // create matrix of variables

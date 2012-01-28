@@ -5,7 +5,7 @@
 #include <pcl/filters/extract_indices.h>
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/filters/statistical_outlier_removal.h>
-#include <boost/assert.hpp>
+#include "my_assert.h"
 #include "utils_pcl.h"
 #include <iostream>
 
@@ -15,10 +15,10 @@ using boost::shared_ptr;
 
 ColorCloudPtr maskCloud(const ColorCloudPtr in, const cv::Mat& mask) {
   cout << mask.elemSize() << endl;
-  BOOST_VERIFY(mask.elemSize() == 1);
-  BOOST_VERIFY(mask.rows == in->height);
-  BOOST_VERIFY(mask.cols == in->width);
-  BOOST_VERIFY(in->isOrganized());
+  ASSERT(mask.elemSize() == 1);
+  ASSERT(mask.rows == in->height);
+  ASSERT(mask.cols == in->width);
+  ASSERT(in->isOrganized());
 
   shared_ptr< vector<int> > indicesPtr(new vector<int>());
 
@@ -38,7 +38,7 @@ ColorCloudPtr maskCloud(const ColorCloudPtr in, const cv::Mat& mask) {
 
 ColorCloudPtr downsampleCloud(const ColorCloudPtr in, float sz) {
   cout << "downsampling to voxel size " << sz << endl;
- pcl::PointCloud<pcl::PointXYZRGB>::Ptr out(new pcl::PointCloud<pcl::PointXYZRGB>());
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr out(new pcl::PointCloud<pcl::PointXYZRGB>());
  pcl::VoxelGrid<pcl::PointXYZRGB> vg;
  vg.setInputCloud(in);
  vg.setLeafSize(sz,sz,sz);

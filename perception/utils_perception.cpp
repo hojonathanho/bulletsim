@@ -74,7 +74,7 @@ MatrixX3f toEigenMatrix(const vector<btVector3>& in) {
 }
 
 MatrixX3f toEigenMatrix(const vector< vector<float> >& in) {
-  BOOST_VERIFY(in.size() > 1) ;
+  ASSERT(in.size() > 1) ;
   MatrixXf out(in.size(),in[0].size()); 
   for (int i=0; i<in.size(); i++) 
     for (int j=0; j<in[0].size(); j++)

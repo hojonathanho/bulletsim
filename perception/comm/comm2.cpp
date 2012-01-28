@@ -40,7 +40,7 @@ void askToResetDir(path p) {
     }
     else throw IOError();
   }
-  BOOST_VERIFY(fs::create_directory(p));
+  ASSERT(fs::create_directory(p));
 }
 
 
@@ -77,11 +77,13 @@ void setDataRoot(path newDataRoot) {
     DATA_ROOT = newDataRoot;
   }
   bool success=true;
-  if (!fs::exists(DATA_ROOT)) BOOST_VERIFY(fs::create_directory(DATA_ROOT));
+  if (!fs::exists(DATA_ROOT)) ASSERT(fs::create_directory(DATA_ROOT));
 }
 void setDataRoot() {
-  path p  = getenv("DATA_ROOT");
-  BOOST_VERIFY(fs::exists(p));
+  const char *home = getenv("DATA_ROOT");
+  if (home==NULL) throw runtime_error("You forgot to set DATA_ROOT!");
+  path p  = home;
+  ASSERT(fs::exists(p));
   DATA_ROOT = p;
 }
 path getDataRoot() {return DATA_ROOT;}
@@ -218,8 +220,8 @@ AbstractRetimer::AbstractRetimer(Subscriber* sub) : m_sub(sub), m_new(true), m_d
 Message* AbstractRetimer::msgAt(double time) {
   //printf("msgAt: %10.10f %10.10f %10.10f\n", time, m_msg0->getTime(), m_msg1->getTime());
   if (m_new) {
-    BOOST_VERIFY(m_sub->recv(*m_msg0));
-    BOOST_VERIFY(m_sub->recv(*m_msg1));
+    ASSERT(m_sub->recv(*m_msg0));
+    ASSERT(m_sub->recv(*m_msg1));
     m_new = false;
   }
   if (m_done) return m_msg0;
