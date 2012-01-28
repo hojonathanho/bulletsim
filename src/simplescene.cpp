@@ -116,7 +116,11 @@ void Scene::step(float dt, int maxsteps, float internaldt) {
 
     if (SceneConfig::enableHaptics)
         processHaptics();
+
     env->step(dt, maxsteps, internaldt);
+    for (std::set<Fork::Ptr>::iterator i = forks.begin(); i != forks.end(); ++i)
+        (*i)->env->step(dt, maxsteps, internaldt);
+
     draw();
 
     if (syncTime && drawingOn) {

@@ -19,8 +19,8 @@ public:
     BulletSoftObject(btSoftBody *softBody_) : softBody(softBody_) { }
     virtual ~BulletSoftObject() { }
 
-    // TODO: implement copying!
-    EnvironmentObject::Ptr copy() { return Ptr(new BulletSoftObject(*this)); }
+    EnvironmentObject::Ptr copy(Fork &f) const;
+    void postCopy(EnvironmentObject::Ptr copy, Fork &f) const;
 
     // called by Environment
     void init();
