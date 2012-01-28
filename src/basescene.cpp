@@ -5,7 +5,7 @@
 #include <iostream>
 using namespace std;
 
-BaseScene::BaseScene(osg::ref_ptr<SceneEventHandler> manip_) : manip(manip_) {
+BaseScene::BaseScene() {
     osg.reset(new OSGInstance());
     bullet.reset(new BulletInstance());
     bullet->setGravity(BulletConfig::gravity);
@@ -36,6 +36,7 @@ void BaseScene::startViewer() {
     osg->root->addChild(dbgDraw->getSceneGraph());
 
     viewer.setUpViewInWindow(0, 0, ViewerConfig::windowWidth, ViewerConfig::windowHeight);
+    manip = new BaseEventHandler(this);
     manip->setHomePosition(util::toOSGVector(ViewerConfig::cameraHomePosition), osg::Vec3(), osg::Z_AXIS);
     viewer.setCameraManipulator(manip);
     viewer.setSceneData(osg->root.get());
@@ -132,3 +133,31 @@ void BaseScene::runAction(Action &a, float dt) {
     }
 }
 
+void BaseEventHandler::getTransformation( osg::Vec3d& eye, osg::Vec3d& center, osg::Vec3d& up ) const
+  {
+    center = _center;
+    eye = _center + _rotation * osg::Vec3d( 0., 0., _distance );
+    up = _rotation * osg::Vec3d( 0., 1., 0. );
+  }
+
+bool BaseEventHandler::handle(const osgGA::GUIEventAdapter &ea, osgGA::GUIActionAdapter &aa) {
+    switch (ea.getEventType()) {
+    case osgGA::GUIEventAdapter::KEYDOWN:
+        switch (ea.getKey()) {
+        case 'd':
+            state.debugDraw = !state.debugDraw;
+            scene->dbgDraw->setEnabled(state.debugDraw);
+            break;
+        case 'p':
+            scene->toggleIdle();
+            break;
+	}
+	break;
+
+    default:
+        return osgGA::TrackballManipulator::handle(ea, aa);
+    }
+    // this event handler doesn't actually change the camera, so return false
+    // to let other handlers deal with this event too
+    return false;
+}

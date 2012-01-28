@@ -5,7 +5,7 @@
 
 struct SceneControl {
   typedef boost::shared_ptr<SceneControl> Ptr;
-  SceneEventHandler handler;
+  //SceneEventHandler handler;
   BaseScene scene;
   RaveInstance::Ptr rave;
   RaveRobotKinematicObject::Ptr robot;
