@@ -1,19 +1,20 @@
 #include "utils_pcl.h"
 #include "testing.h"
 #include <cmath>
+#include "my_assert.h"
 using namespace Eigen;
 using namespace pcl;
 
 void test_toEigenMatrix() {
 ColorCloudPtr cloud = readPCD("/home/joschu/cpp/clouds/test.pcd");
  MatrixXf xyz = toEigenMatrix(cloud);
- BOOST_VERIFY(xyz.rows()==cloud->size());
- BOOST_VERIFY(xyz.cols()==3);
+ ASSERT(xyz.rows()==cloud->size());
+ ASSERT(xyz.cols()==3);
  for (int i=0; i<cloud->size(); i++) {
     PointXYZRGB& pt = cloud->at(i);
-    BOOST_VERIFY(pt.x == xyz(i,0));
-    BOOST_VERIFY(pt.y == xyz(i,1));
-    BOOST_VERIFY(pt.z == xyz(i,2));
+    ASSERT(pt.x == xyz(i,0));
+    ASSERT(pt.y == xyz(i,1));
+    ASSERT(pt.z == xyz(i,2));
 
  }
 }
@@ -21,13 +22,13 @@ ColorCloudPtr cloud = readPCD("/home/joschu/cpp/clouds/test.pcd");
 void test_toBGR() {
   ColorCloudPtr cloud = readPCD("/home/joschu/cpp/clouds/test.pcd");
   MatrixXb bgr = toBGR(cloud);
-  BOOST_VERIFY(bgr.rows() == cloud->size());
-  BOOST_VERIFY(bgr.cols() == 3);
+  ASSERT(bgr.rows() == cloud->size());
+  ASSERT(bgr.cols() == 3);
   for (int i=0; i<cloud->size(); i++) {
     PointXYZRGB& pt = cloud->at(i);
-    BOOST_VERIFY(pt.b == bgr(i,0));
-    BOOST_VERIFY(pt.g == bgr(i,1));
-    BOOST_VERIFY(pt.r == bgr(i,2));
+    ASSERT(pt.b == bgr(i,0));
+    ASSERT(pt.g == bgr(i,1));
+    ASSERT(pt.r == bgr(i,2));
   }
 }
 
@@ -38,7 +39,7 @@ void test_getDepthImage() {
   for (int i=0; i<cloud->size(); i++){
       PointXYZRGB& pt = cloud->at(i);
       float d = sqrtf(pow(pt.x,2)+pow(pt.y,2)+pow(pt.z,2));
-      BOOST_VERIFY(d == depths(i));
+      ASSERT(d == depths(i));
   }
 }
 

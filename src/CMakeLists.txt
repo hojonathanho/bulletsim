@@ -6,7 +6,9 @@ include_directories(${BULLET_DIR}/src
                     ${Boost_INCLUDE_DIRS}
                     ${YAMLCPP_DIR}/include
                     ${EIGEN3_INCLUDE_DIR}
-                    ${SURGICAL_PHYSICS_SOURCE_DIR}/lib/haptics)
+                    ${SURGICAL_PHYSICS_SOURCE_DIR}/lib/haptics
+		    ../utils
+)
 
 set(BULLET_LIBS BulletFileLoader BulletSoftBody BulletDynamics BulletCollision LinearMath)
 

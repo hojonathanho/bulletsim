@@ -10,6 +10,7 @@
 #include <boost/filesystem.hpp>
 #include <json/json.h>
 #include "my_exceptions.h"
+#include "my_assert.h"
 
 using namespace std;
 namespace fs = boost::filesystem;
@@ -49,8 +50,8 @@ public:
   string m_extension;
   string m_topic;
   Names(string topic, string extension) : m_topic(topic), m_extension(extension), m_id(0) {
-    BOOST_VERIFY(!topic.empty());
-    BOOST_VERIFY(!extension.empty());
+    ASSERT(!topic.empty());
+    ASSERT(!extension.empty());
   }
   PathPair getCur() const;
   void step();

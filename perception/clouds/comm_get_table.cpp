@@ -4,6 +4,7 @@
 #include <boost/foreach.hpp>
 #include "get_table.h"
 #include <comm/comm2.h>
+#include <my_assert.h>
 
 using namespace pcl;
 using namespace std;
@@ -36,6 +37,7 @@ int main(int argc, char* argv[]) {
   path outPath = onceFile("table_corners.txt");
   cout << "writing to " << outPath << endl;
   ofstream outFile(outPath.string().c_str());
+  ASSERT(!outFile.fail());
   for (int i=0; i<4; i++) {
     for (int j=0; j<3; j++) outFile << corners[i][j] << " ";
     outFile << endl;

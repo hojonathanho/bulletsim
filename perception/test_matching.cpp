@@ -4,7 +4,7 @@
 #include "matching.h"
 #include "dist_math.h"
 #include "vector_io.h"
-#include <boost/assert.hpp>
+#include <my_assert.h>
 using namespace Eigen;
 using namespace std;
 
@@ -18,7 +18,7 @@ void test_matching_equal_size() {
     
   MatrixXf costs = pairwiseSquareDist(x,y);
   vector<int> result = matchHardOneWay(costs);
-  for (int i=0; i<result.size(); i++) BOOST_VERIFY(result[i] == i);
+  for (int i=0; i<result.size(); i++) ASSERT(result[i] == i);
 
 }
 

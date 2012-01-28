@@ -19,7 +19,6 @@
 using namespace std;
 using namespace Eigen;
 
-const string DATA_ROOT = "~/comm/pr2_knot";
 const string PCD_TOPIC = "kinect";
 
 int main(int argc, char *argv[]) {
@@ -36,7 +35,7 @@ int main(int argc, char *argv[]) {
 
 
   // create comm stuff
-  setDataRoot(DATA_ROOT);
+  setDataRoot();
   FileSubscriber pcSub("kinect","pcd");
   FileSubscriber jointSub("joint_states","txt");
   CloudMessage cloudMsg;

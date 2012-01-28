@@ -7,7 +7,7 @@
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
 #include <osg/Vec3d>
-#include <boost/assert.hpp>
+#include <my_assert.h>
 using namespace std;
 
 vector<btVector3> toBulletVectors(const vector< vector<float> >&);
