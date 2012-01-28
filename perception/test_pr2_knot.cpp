@@ -43,8 +43,8 @@ struct CustomScene : public Scene {
 
   CustomScene() : 
     Scene(), 
-    lMonitor(pr2->robot->GetManipulators()[5], env->bullet->dynamicsWorld), 
-    rMonitor(pr2->robot->GetManipulators()[7], env->bullet->dynamicsWorld) {
+    lMonitor(pr2->robot->GetManipulators()[5], env->bullet),
+    rMonitor(pr2->robot->GetManipulators()[7], env->bullet) {
     // add the screen capture handler
     framecount = 0;
     captureHandler = new osgViewer::ScreenCaptureHandler(new osgViewer::ScreenCaptureHandler::WriteToFile("screenshots/img", "jpg", osgViewer::ScreenCaptureHandler::WriteToFile::SEQUENTIAL_NUMBER));

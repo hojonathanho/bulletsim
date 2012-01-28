@@ -16,18 +16,36 @@ public:
   void updatePosition(btVector3 pos);
 };
 
-class MonitorForGrabbing {
+class Monitor {
+protected:
+    OpenRAVE::RobotBase::ManipulatorPtr manip;
+    BulletInstance::Ptr bullet;
+
 public:
-  OpenRAVE::RobotBase::ManipulatorPtr m_manip;
+    Monitor(OpenRAVE::RobotBase::ManipulatorPtr manip_, BulletInstance::Ptr bullet_) :
+        manip(manip_), bullet(bullet_) { }
+    virtual void update() = 0;
+};
+
+class MonitorForGrabbing : public Monitor {
+public:
   std::vector<BulletObject::Ptr> m_bodies;
   btDynamicsWorld* m_world;
   bool m_wasClosed;
   Grab* m_grab;
 
-
-  MonitorForGrabbing(OpenRAVE::RobotBase::ManipulatorPtr, btDynamicsWorld* world);
+  MonitorForGrabbing(OpenRAVE::RobotBase::ManipulatorPtr, BulletInstance::Ptr);
   void update();
   void setBodies(std::vector<BulletObject::Ptr>& bodies);
   void grabNearestObject();
   void releaseObject();
+};
+
+// softbody grabbing monitor
+class SoftMonitorForGrabbing : public Monitor {
+public:
+    btSoftBody *psb;
+
+    SoftMonitorForGrabbing(OpenRAVE::RobotBase::ManipulatorPtr m, BulletInstance::Ptr bullet) :
+        Monitor(m, bullet) { }
 };
