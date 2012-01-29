@@ -20,13 +20,35 @@
 #include <pcl/common/transforms.h>
 #include <osgViewer/ViewerEventHandlers>
 
-struct LocalConfig : Config {
-  static int frameStep;
-  LocalConfig() : Config() {
-    params.push_back(new Parameter<int>("frameStep", &frameStep, "number of frames to advance by every iteration"));
+#define KEY_CONTROL_LEFT(key, incfunc, delta)				\
+  case key:								\
+  setTrans(IncTransform::incfunc(ta.ct.worldFromCamUnscaled,delta)); \
+  break
+#define KEY_CONTROL_RIGHT(key, incfunc, delta)				\
+  case key:								\
+  setTrans(IncTransform::incfunc(ta.ct.worldFromCamUnscaled,delta)); \
+  break
+
+struct IncTransform {
+  static btTransform rotX(btTransform t,float s) {
+    return t*btTransform(btQuaternion(s,0,0,1),btVector3(0,0,0));
+  }
+  static btTransform rotY(btTransform t,float s) {
+    return t*btTransform(btQuaternion(0,s,0,1),btVector3(0,0,0));
+  }
+  static btTransform rotZ(btTransform t,float s) {
+    return t*btTransform(btQuaternion(0,0,s,1),btVector3(0,0,0));
+  }
+  static btTransform moveX(btTransform t,float s) {
+    return t*btTransform(btQuaternion(0,0,0,1),btVector3(s,0,0));
+  }
+  static btTransform moveY(btTransform t,float s) {
+    return t*btTransform(btQuaternion(0,0,0,1),btVector3(0,s,0));
+  }
+  static btTransform moveZ(btTransform t,float s) {
+    return t*btTransform(btQuaternion(0,0,0,1),btVector3(0,0,s));
   }
 };
-int LocalConfig::frameStep = 3;
 
 struct CustomSceneConfig : Config {
   static int record;
@@ -35,6 +57,14 @@ struct CustomSceneConfig : Config {
   }
 };
 int CustomSceneConfig::record = 0;
+
+static void printTrans(const btTransform &t) {
+    printf("new kinect transform: ");
+    btQuaternion q = t.getRotation();
+    btVector3 c = t.getOrigin();
+    printf("btTransform(btQuaternion(%f, %f, %f, %f), btVector3(%f, %f, %f))\n",
+        q.x(), q.y(), q.z(), q.w(), c.x(), c.y(), c.z());
+}
 
 class TransformAdjuster {
 private:
@@ -53,6 +83,10 @@ public:
     } state;
     CustomKeyHandler(TransformAdjuster &ta_) : ta(ta_), state() { }
     bool handle(const osgGA::GUIEventAdapter& ea, osgGA::GUIActionAdapter&);
+    void setTrans(const btTransform &t) {
+      ta.ct.reset(t);
+      printTrans(t);
+    }
   };
   CustomKeyHandler *createKeyHandler() { return new CustomKeyHandler(*this); }
 };
@@ -61,12 +95,39 @@ bool TransformAdjuster::CustomKeyHandler::handle(const osgGA::GUIEventAdapter &e
     switch (ea.getEventType()) {
     case osgGA::GUIEventAdapter::KEYDOWN:
         switch (ea.getKey()) {
-        case '3':
+        case '-':
             state.moving = true; return true;
-        case 'e':
+        case '=':
             state.rotating = true; return true;
         case ' ':
             state.paused = !state.paused; return true;
+
+        // keyboard control stuff
+        KEY_CONTROL_LEFT('q',rotX,.01);
+        KEY_CONTROL_LEFT('Q',rotX,-.01);
+        KEY_CONTROL_LEFT('w',rotY,.01);
+        KEY_CONTROL_LEFT('W',rotY,-.01);
+        KEY_CONTROL_LEFT('e',rotZ,.01);
+        KEY_CONTROL_LEFT('E',rotZ,-.01);
+        KEY_CONTROL_LEFT('a',moveX,.01);
+        KEY_CONTROL_LEFT('A',moveX,-.01);
+        KEY_CONTROL_LEFT('s',moveY,.01);
+        KEY_CONTROL_LEFT('S',moveY,-.01);
+        KEY_CONTROL_LEFT('d',moveZ,.01);
+        KEY_CONTROL_LEFT('D',moveZ,-.01);
+
+        KEY_CONTROL_RIGHT('p',rotX,.01);
+        KEY_CONTROL_RIGHT('P',rotX,-.01);
+        KEY_CONTROL_RIGHT('o',rotY,.01);
+        KEY_CONTROL_RIGHT('O',rotY,-.01);
+        KEY_CONTROL_RIGHT('i',rotZ,.01);
+        KEY_CONTROL_RIGHT('I',rotZ,-.01);
+        KEY_CONTROL_RIGHT('l',moveX,.01);
+        KEY_CONTROL_RIGHT('L',moveX,-.01);
+        KEY_CONTROL_RIGHT('k',moveY,.01);
+        KEY_CONTROL_RIGHT('K',moveY,-.01);
+        KEY_CONTROL_RIGHT('j',moveZ,.01);
+        KEY_CONTROL_RIGHT('J',moveZ,-.01);
         }
         break;
     case osgGA::GUIEventAdapter::KEYUP:
@@ -117,7 +178,7 @@ bool TransformAdjuster::CustomKeyHandler::handle(const osgGA::GUIEventAdapter &e
                 if (rot.length() > 0.99f && rot.length() < 1.01f)
                     newTrans.setRotation(rot * origTrans.getRotation());
             }
-            ta.ct.reset(newTrans);
+            setTrans(newTrans);
             return true;
         }
         break;
@@ -156,15 +217,12 @@ int main(int argc, char* argv[]) {
   parser.addGroup(SceneConfig());
   parser.addGroup(GeneralConfig());
   parser.addGroup(BulletConfig());
-  parser.addGroup(LocalConfig());
   parser.read(argc, argv);
 
   //// comm stuff
   setDataRoot("~/comm/pr2_towel");
   FileSubscriber pcSub("kinect","pcd");
   CloudMessage cloudMsg;
-  FileSubscriber towelSub("towel_pts","pcd");
-  CloudMessage towelPtsMsg; //first message
 
   FileSubscriber jointSub("joint_states","txt");
   Retimer<VectorMessage<double> > retimer(&jointSub);
@@ -172,10 +230,6 @@ int main(int argc, char* argv[]) {
   ////////////// create scene
   CustomScene scene;
   static PlotPoints::Ptr kinectPts(new PlotPoints(2));
-  CorrPlots corrPlots;
-  static PlotPoints::Ptr towelEstPlot(new PlotPoints(4));
-  static PlotPoints::Ptr towelObsPlot(new PlotPoints(4));
-  towelObsPlot->setDefaultColor(0,1,0,1);
 
   vector<double> firstJoints = doubleVecFromFile(filePath("data000000000000.txt", "joint_states").string());
   ValuesInds vi = getValuesInds(firstJoints);
@@ -196,47 +250,26 @@ int main(int argc, char* argv[]) {
   BulletObject::Ptr table = makeTable(tableCornersWorld, .1*METERS);
   table->setColor(0,0,1,.25);
 
-  //////////////// load towel
-
-  towelPtsMsg.fromFiles(towelSub.m_names.getCur());
-  vector<btVector3> towelPtsCam = toBulletVectors(towelPtsMsg.m_data);
-  vector<btVector3> towelPtsWorld = CT.toWorldFromCamN(towelPtsCam);
-  vector<btVector3> towelCorners = toBulletVectors(getCorners(toEigenVectors(towelPtsWorld)));
-  BOOST_FOREACH(btVector3& pt, towelCorners) pt += btVector3(.01*METERS,0,0);
-
   /// add stuff to scene
-  MotionStatePtr ms(new btDefaultMotionState(btTransform(btQuaternion(0,0,0,1), btVector3(0,0,2))));
-
   scene.env->add(table);
   scene.env->add(kinectPts);
-//  scene.env->add(towelEstPlot);
-//  scene.env->add(towelObsPlot);
 
   scene.startViewer();
 
+  ColorCloudPtr cloudWorld(new ColorCloud());
   while (!scene.viewer.done()) {
-    if (!keyHandler->state.paused) {
-      for (int z = 0; z < LocalConfig::frameStep - 1; ++z) {
-        pcSub.skip();
-//        towelSub.skip();
-      }
+    if (!keyHandler->state.paused)
       if (!pcSub.recv(cloudMsg)) break;
-//      if (!towelSub.recv(towelPtsMsg)) break;
-    }
 
-    ColorCloudPtr cloudWorld(new ColorCloud());
     pcl::transformPointCloud(*cloudMsg.m_data, *cloudWorld, CT.worldFromCamEigen);
     kinectPts->setPoints(cloudWorld);
 
- //   vector<btVector3> towelObsPts =  CT.toWorldFromCamN(toBulletVectors(towelPtsMsg.m_data));
- //   towelObsPlot->setPoints(towelObsPts);
-
-/*    VectorMessage<double>* jointMsgPtr = retimer.msgAt(cloudMsg.getTime());
+    VectorMessage<double>* jointMsgPtr = retimer.msgAt(cloudMsg.getTime());
     vector<double> currentJoints = jointMsgPtr->m_data;
     ValuesInds vi = getValuesInds(currentJoints);
-    scene.pr2->setDOFValues(vi.second, vi.first);*/
+    scene.pr2->setDOFValues(vi.second, vi.first);
 
-    scene.idleFor(0.01);
+    scene.step(0.01);
   }
 
   return 0;

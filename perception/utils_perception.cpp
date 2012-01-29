@@ -116,7 +116,6 @@ btTransform getCamToWorldFromTable(const vector<btVector3>& corners) {
 CoordinateTransformer::CoordinateTransformer(const btTransform& wfc) { reset(wfc); }
 
 void CoordinateTransformer::reset(const btTransform &wfc) {
-  cout << "setting ct transform!" << endl;
   worldFromCamUnscaled = wfc;
   worldFromCamEigen = Scaling3f(GeneralConfig::scale)*toEigenTransform(wfc);
 }
