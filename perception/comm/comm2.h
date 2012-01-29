@@ -30,6 +30,13 @@ void setDataRoot(path p);
 void setDataRoot();
 path getDataRoot();
 
+void setLive(bool live);
+void setTimeout(float timeout);
+
+void initComm();
+
+
+
 //void absPath(string rel);
 path topicPath(string topic);
 path filePath(string basename, string topic);

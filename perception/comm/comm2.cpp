@@ -7,11 +7,13 @@
 #include <fstream>
 #include <sstream>
 #include <sys/time.h>
-
+#include <unistd.h>
+#include <boost/lexical_cast.hpp>
 using namespace std;
 
-
 path DATA_ROOT = "/dont/forget/to/set";
+bool LIVE = false;
+float TIMEOUT = 1; //second 
 
 double timeOfDay() {
   timeval tim;
@@ -79,14 +81,27 @@ void setDataRoot(path newDataRoot) {
   bool success=true;
   if (!fs::exists(DATA_ROOT)) ASSERT(fs::create_directory(DATA_ROOT));
 }
+
 void setDataRoot() {
   const char *home = getenv("DATA_ROOT");
-  if (home==NULL) throw runtime_error("You forgot to set DATA_ROOT!");
+  if (home==NULL) throw runtime_error("DATA_ROOT not set");
   path p  = home;
-  ASSERT(fs::exists(p));
+  if (!fs::exists(DATA_ROOT)) ASSERT(fs::create_directory(DATA_ROOT));
   DATA_ROOT = p;
 }
 path getDataRoot() {return DATA_ROOT;}
+
+void setLive(bool live){ LIVE = live;}
+void setTimeout(float timeout) {TIMEOUT = timeout;}
+
+void initComm() {
+  setDataRoot();
+  char* maybeLive = getenv("COMM_LIVE");
+  if (maybeLive) LIVE = boost::lexical_cast<bool>(maybeLive);
+  char* maybeTimeout = getenv("COMM_TIMEOUT");
+  if (maybeTimeout) TIMEOUT = boost::lexical_cast<float>(maybeTimeout);
+}
+
 path absPath(string path) {
   return DATA_ROOT / path;
 }
@@ -194,17 +209,25 @@ void FilePublisher::send(const Message& message) {
   message.toFiles(pair);
 }
 
+bool waitIfLive(path p) {
+  // Checks if file exists. If LIVE, waits up to TIMEOUT if it doesn't exist
+  if (LIVE) {
+    double tStart = timeOfDay();
+    while(timeOfDay() - tStart < TIMEOUT) {
+      if (exists(p)) return true;
+      else usleep(1000);
+    }
+    return false;
+  }
+  else return exists(p);
+}
+
 FileSubscriber::FileSubscriber(string topic, string extension) : m_names(topic, extension) {}
 bool FileSubscriber::recv(Message& message)  {
   PathPair namePair = m_names.getCurAndStep();
-  try {
-    message.fromFiles(namePair);
-    return true;
-  }
-  catch (FileOpenError err) {
-    cout << "recv failed for " << err.m_filename << endl;
-    return false;
-  }
+  bool gotIt = waitIfLive(namePair.second);
+  if (gotIt) message.fromFiles(namePair);
+  return gotIt;
 }
 
 // problem: you might do msgAt, and then call it again and lose your first message
