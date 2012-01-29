@@ -44,7 +44,7 @@ int main(int argc, char* argv[]) {
   }
   po::notify(vm);
 
-  setDataRoot();
+  initComm();
 
   CloudMessage cloudMsg;
   ImageMessage labelMsg;
