@@ -6,7 +6,8 @@
 // Special support for the OpenRAVE PR2 model
 
 class PR2SoftBodyGripper {
-    RaveRobotKinematicObject::Manipulator::Ptr manip;
+    RaveRobotKinematicObject::Ptr robot;
+    OpenRAVE::RobotBase::ManipulatorPtr manip;
 
     KinBody::LinkPtr leftFinger, rightFinger;
     const btTransform origLeftFingerInvTrans, origRightFingerInvTrans;
@@ -26,7 +27,7 @@ class PR2SoftBodyGripper {
     btSoftBody *psb;
 
     btTransform getManipRot() const {
-        btTransform trans(manip->getTransform());
+        btTransform trans(util::toBtTransform(manip->GetTransform(), robot->scale));
         trans.setOrigin(btVector3(0, 0, 0));
         return trans;
     }
@@ -39,7 +40,7 @@ class PR2SoftBodyGripper {
 
     // Finds some innermost point on the gripper
     btVector3 getInnerPt(bool left) const {
-        btTransform trans(manip->robot->getLinkTransform(left ? leftFinger : rightFinger));
+        btTransform trans(robot->getLinkTransform(left ? leftFinger : rightFinger));
         // this assumes that the gripper is symmetric when it is closed
         // we get an innermost point on the gripper by transforming a point
         // on the center of the gripper when it is closed
@@ -61,7 +62,7 @@ class PR2SoftBodyGripper {
 public:
     typedef boost::shared_ptr<PR2SoftBodyGripper> Ptr;
 
-    PR2SoftBodyGripper(RaveRobotKinematicObject::Manipulator::Ptr manip_, bool leftGripper);
+    PR2SoftBodyGripper(RaveRobotKinematicObject::Ptr robot_, OpenRAVE::RobotBase::ManipulatorPtr manip_, bool leftGripper);
 
     // Must be called before the action is run!
     void setTarget(btSoftBody *psb_) { psb = psb_; }

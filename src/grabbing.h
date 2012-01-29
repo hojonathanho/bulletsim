@@ -48,9 +48,9 @@ class SoftMonitorForGrabbing : public Monitor {
 public:
     PR2SoftBodyGripper::Ptr gripper;
 
-    SoftMonitorForGrabbing(RaveRobotKinematicObject::Manipulator::Ptr manip, bool leftGripper) :
-        Monitor(manip->manip),
-        gripper(new PR2SoftBodyGripper(manip, leftGripper)) { }
+    SoftMonitorForGrabbing(RaveRobotKinematicObject::Ptr robot, OpenRAVE::RobotBase::ManipulatorPtr manip, bool leftGripper) :
+        Monitor(manip),
+        gripper(new PR2SoftBodyGripper(robot, manip, leftGripper)) { }
 
     void setTarget(btSoftBody *psb) { gripper->setTarget(psb); }
     void grab() { gripper->grab(); }

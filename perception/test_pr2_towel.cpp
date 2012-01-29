@@ -5,7 +5,6 @@
 #include "comm/comm2.h"
 #include "config_bullet.h"
 #include "config_perception.h"
-#include "custom_scene.h"
 #include "get_nodes.h"
 #include "make_bodies.h"
 #include "simplescene.h"
@@ -16,8 +15,10 @@
 #include "visibility.h"
 #include "robot_geometry.h"
 #include "openrave_joints.h"
+#include "grabbing.h"
 
 #include <pcl/common/transforms.h>
+#include <osgViewer/ViewerEventHandlers>
 
 struct LocalConfig : Config {
   static int frameStep;
@@ -26,6 +27,44 @@ struct LocalConfig : Config {
   }
 };
 int LocalConfig::frameStep = 3;
+
+struct CustomSceneConfig : Config {
+  static int record;
+  CustomSceneConfig() : Config() {
+    params.push_back(new Parameter<int>("record", &record, "record every n frames (default 0 means record nothing)"));
+  }
+};
+int CustomSceneConfig::record = 0;
+
+struct CustomScene : public Scene {
+  osgViewer::ScreenCaptureHandler* captureHandler;
+  int framecount;
+  int captureNumber;
+  SoftMonitorForGrabbing lMonitor;
+  SoftMonitorForGrabbing rMonitor;
+
+  CustomScene() :
+    Scene(),
+    lMonitor(pr2, pr2->robot->GetManipulators()[5], true),
+    rMonitor(pr2, pr2->robot->GetManipulators()[7], false) {
+    // add the screen capture handler
+    framecount = 0;
+    captureHandler = new osgViewer::ScreenCaptureHandler(new osgViewer::ScreenCaptureHandler::WriteToFile("screenshots/img", "jpg", osgViewer::ScreenCaptureHandler::WriteToFile::SEQUENTIAL_NUMBER));
+    viewer.addEventHandler(captureHandler);
+  };
+  void draw() {
+    if (CustomSceneConfig::record && framecount % CustomSceneConfig::record==0) captureHandler->captureNextFrame(viewer);
+    framecount++;
+    Scene::draw();
+  }
+
+  void step(float dt) {
+    rMonitor.update();
+    lMonitor.update();
+    Scene::step(dt);
+  }
+};
+
 
 int main(int argc, char* argv[]) {
   //////////// get command line options
@@ -96,6 +135,8 @@ int main(int argc, char* argv[]) {
   scene.env->add(towelEstPlot);
   scene.env->add(towelObsPlot);
   //scene.env->add(corrPlots.m_lines);
+  scene.lMonitor.setTarget(towel->softBody.get());
+  scene.rMonitor.setTarget(towel->softBody.get());
 
   scene.startViewer();
   towel->setColor(1,1,0,.5);

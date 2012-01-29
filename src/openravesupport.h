@@ -111,10 +111,6 @@ public:
             return moveByIKUnscaled(util::toRaveTransform(targetTrans, 1./robot->scale),
                 checkCollisions, revertOnCollision);
         }
-
-        // make the insides of the gripper fingers stick to the specified softbody
-        // by setting anchors upon contact
-        void stickToSoftBody(btSoftBody *sb);
     };
 
     // If useFakeGrabber is true, the manipulator will use a GrabberKinematicObject

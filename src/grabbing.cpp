@@ -29,7 +29,7 @@ Grab::~Grab() {
 const float CLOSED_VAL = 0.03f, OPEN_VAL = 0.54f;
 const float MIDDLE_VAL = .28f;
 
-bool isClosed(RobotBase::ManipulatorPtr manip) {
+static bool isClosed(RobotBase::ManipulatorPtr manip) {
   vector<int> gripperInds = manip->GetGripperIndices();
   manip->GetRobot()->SetActiveDOFs(gripperInds);
   vector<double> dof_values;
@@ -38,7 +38,7 @@ bool isClosed(RobotBase::ManipulatorPtr manip) {
   return dof_values[0] < MIDDLE_VAL;
 }
 
-BulletObject::Ptr getNearestBody(vector<BulletObject::Ptr> bodies, btVector3 pos) {
+static BulletObject::Ptr getNearestBody(vector<BulletObject::Ptr> bodies, btVector3 pos) {
   VectorXf dists(bodies.size());
   for (int i=0; i < bodies.size(); i++) dists[i] = (bodies[i]->rigidBody->getCenterOfMassPosition() - pos).length();
   int argmin;

@@ -98,30 +98,30 @@ static void getContactPointsWith(btSoftBody *psb, btCollisionObject *pco, btSoft
     psb->m_ndbvt.collideTV(psb->m_ndbvt.m_root,volume,docollide);
 }
 
-PR2SoftBodyGripper::PR2SoftBodyGripper(RaveRobotKinematicObject::Manipulator::Ptr manip_, bool leftGripper) :
-        manip(manip_),
-        leftFinger(manip->robot->robot->GetLink(leftGripper ? LEFT_GRIPPER_LEFT_FINGER_NAME : RIGHT_GRIPPER_LEFT_FINGER_NAME)),
-        rightFinger(manip->robot->robot->GetLink(leftGripper ? LEFT_GRIPPER_RIGHT_FINGER_NAME : RIGHT_GRIPPER_RIGHT_FINGER_NAME)),
-        origLeftFingerInvTrans(manip->robot->getLinkTransform(leftFinger).inverse()),
-        origRightFingerInvTrans(manip->robot->getLinkTransform(rightFinger).inverse()),
-        centerPt(manip->getTransform().getOrigin()),
-        closingNormal(manip->manip->GetClosingDirection()[0],
-                      manip->manip->GetClosingDirection()[1],
-                      manip->manip->GetClosingDirection()[2]),
-        toolDirection(util::toBtVector(manip->manip->GetLocalToolDirection())) // don't bother scaling
+PR2SoftBodyGripper::PR2SoftBodyGripper(RaveRobotKinematicObject::Ptr robot_, OpenRAVE::RobotBase::ManipulatorPtr manip_, bool leftGripper) :
+        robot(robot_), manip(manip_),
+        leftFinger(robot->robot->GetLink(leftGripper ? LEFT_GRIPPER_LEFT_FINGER_NAME : RIGHT_GRIPPER_LEFT_FINGER_NAME)),
+        rightFinger(robot->robot->GetLink(leftGripper ? LEFT_GRIPPER_RIGHT_FINGER_NAME : RIGHT_GRIPPER_RIGHT_FINGER_NAME)),
+        origLeftFingerInvTrans(robot->getLinkTransform(leftFinger).inverse()),
+        origRightFingerInvTrans(robot->getLinkTransform(rightFinger).inverse()),
+        centerPt(util::toBtTransform(manip->GetTransform(), robot->scale).getOrigin()),
+        closingNormal(manip->GetClosingDirection()[0],
+                      manip->GetClosingDirection()[1],
+                      manip->GetClosingDirection()[2]),
+        toolDirection(util::toBtVector(manip->GetLocalToolDirection())) // don't bother scaling
 {
 }
 
 void PR2SoftBodyGripper::attach(bool left) {
     btRigidBody *rigidBody =
-        manip->robot->associatedObj(left ? leftFinger : rightFinger)->rigidBody.get();
+        robot->associatedObj(left ? leftFinger : rightFinger)->rigidBody.get();
     btSoftBody::tRContactArray rcontacts;
     getContactPointsWith(psb, rigidBody, rcontacts);
     cout << "got " << rcontacts.size() << " contacts\n";
     int nAppended = 0;
     for (int i = 0; i < rcontacts.size(); ++i) {
         const btSoftBody::RContact &c = rcontacts[i];
-        KinBody::LinkPtr colLink = manip->robot->associatedObj(c.m_cti.m_colObj);
+        KinBody::LinkPtr colLink = robot->associatedObj(c.m_cti.m_colObj);
         if (!colLink) continue;
         const btVector3 &contactPt = c.m_node->m_x;
         if (onInnerSide(contactPt, left)) {
