@@ -20,6 +20,36 @@
 #include <pcl/common/transforms.h>
 #include <osgViewer/ViewerEventHandlers>
 
+#define KEY_CONTROL_LEFT(key, incfunc, delta)				\
+  case key:								\
+  setTrans(IncTransform::incfunc(ta.ct.worldFromCamUnscaled,delta)); \
+  break
+#define KEY_CONTROL_RIGHT(key, incfunc, delta)				\
+  case key:								\
+  setTrans(IncTransform::incfunc(ta.ct.worldFromCamUnscaled,delta)); \
+  break
+
+struct IncTransform {
+  static btTransform rotX(btTransform t,float s) {
+    return t*btTransform(btQuaternion(s,0,0,1),btVector3(0,0,0));
+  }
+  static btTransform rotY(btTransform t,float s) {
+    return t*btTransform(btQuaternion(0,s,0,1),btVector3(0,0,0));
+  }
+  static btTransform rotZ(btTransform t,float s) {
+    return t*btTransform(btQuaternion(0,0,s,1),btVector3(0,0,0));
+  }
+  static btTransform moveX(btTransform t,float s) {
+    return t*btTransform(btQuaternion(0,0,0,1),btVector3(s,0,0));
+  }
+  static btTransform moveY(btTransform t,float s) {
+    return t*btTransform(btQuaternion(0,0,0,1),btVector3(0,s,0));
+  }
+  static btTransform moveZ(btTransform t,float s) {
+    return t*btTransform(btQuaternion(0,0,0,1),btVector3(0,0,s));
+  }
+};
+
 struct CustomSceneConfig : Config {
   static int record;
   CustomSceneConfig() : Config() {
@@ -27,6 +57,14 @@ struct CustomSceneConfig : Config {
   }
 };
 int CustomSceneConfig::record = 0;
+
+static void printTrans(const btTransform &t) {
+    printf("new kinect transform: ");
+    btQuaternion q = t.getRotation();
+    btVector3 c = t.getOrigin();
+    printf("btTransform(btQuaternion(%f, %f, %f, %f), btVector3(%f, %f, %f))\n",
+        q.x(), q.y(), q.z(), q.w(), c.x(), c.y(), c.z());
+}
 
 class TransformAdjuster {
 private:
@@ -45,6 +83,10 @@ public:
     } state;
     CustomKeyHandler(TransformAdjuster &ta_) : ta(ta_), state() { }
     bool handle(const osgGA::GUIEventAdapter& ea, osgGA::GUIActionAdapter&);
+    void setTrans(const btTransform &t) {
+      ta.ct.reset(t);
+      printTrans(t);
+    }
   };
   CustomKeyHandler *createKeyHandler() { return new CustomKeyHandler(*this); }
 };
@@ -53,12 +95,39 @@ bool TransformAdjuster::CustomKeyHandler::handle(const osgGA::GUIEventAdapter &e
     switch (ea.getEventType()) {
     case osgGA::GUIEventAdapter::KEYDOWN:
         switch (ea.getKey()) {
-        case '3':
+        case '-':
             state.moving = true; return true;
-        case 'e':
+        case '=':
             state.rotating = true; return true;
         case ' ':
             state.paused = !state.paused; return true;
+
+        // keyboard control stuff
+        KEY_CONTROL_LEFT('q',rotX,.01);
+        KEY_CONTROL_LEFT('Q',rotX,-.01);
+        KEY_CONTROL_LEFT('w',rotY,.01);
+        KEY_CONTROL_LEFT('W',rotY,-.01);
+        KEY_CONTROL_LEFT('e',rotZ,.01);
+        KEY_CONTROL_LEFT('E',rotZ,-.01);
+        KEY_CONTROL_LEFT('a',moveX,.01);
+        KEY_CONTROL_LEFT('A',moveX,-.01);
+        KEY_CONTROL_LEFT('s',moveY,.01);
+        KEY_CONTROL_LEFT('S',moveY,-.01);
+        KEY_CONTROL_LEFT('d',moveZ,.01);
+        KEY_CONTROL_LEFT('D',moveZ,-.01);
+
+        KEY_CONTROL_RIGHT('p',rotX,.01);
+        KEY_CONTROL_RIGHT('P',rotX,-.01);
+        KEY_CONTROL_RIGHT('o',rotY,.01);
+        KEY_CONTROL_RIGHT('O',rotY,-.01);
+        KEY_CONTROL_RIGHT('i',rotZ,.01);
+        KEY_CONTROL_RIGHT('I',rotZ,-.01);
+        KEY_CONTROL_RIGHT('l',moveX,.01);
+        KEY_CONTROL_RIGHT('L',moveX,-.01);
+        KEY_CONTROL_RIGHT('k',moveY,.01);
+        KEY_CONTROL_RIGHT('K',moveY,-.01);
+        KEY_CONTROL_RIGHT('j',moveZ,.01);
+        KEY_CONTROL_RIGHT('J',moveZ,-.01);
         }
         break;
     case osgGA::GUIEventAdapter::KEYUP:
@@ -109,7 +178,7 @@ bool TransformAdjuster::CustomKeyHandler::handle(const osgGA::GUIEventAdapter &e
                 if (rot.length() > 0.99f && rot.length() < 1.01f)
                     newTrans.setRotation(rot * origTrans.getRotation());
             }
-            ta.ct.reset(newTrans);
+            setTrans(newTrans);
             return true;
         }
         break;
