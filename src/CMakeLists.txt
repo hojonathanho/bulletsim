@@ -37,7 +37,7 @@ if (BUILD_PERCEPTION)
   target_link_libraries(test_plotting simulation ${PCL_LIBRARIES})
 endif(BUILD_PERCEPTION)
 
-add_library(simulation environment.cpp basicobjects.cpp openravesupport.cpp util.cpp simplescene.cpp softbodies.cpp rope.cpp plotting.cpp config.cpp config_bullet.cpp config_viewer.cpp)
+add_library(simulation environment.cpp basicobjects.cpp openravesupport.cpp util.cpp simplescene.cpp softbodies.cpp rope.cpp plotting.cpp pr2.cpp config.cpp config_bullet.cpp config_viewer.cpp)
 
 target_link_libraries(simulation haptics osgBullet osgWorks ${Boost_LIBRARIES} ${OSG_LIBS} ${BULLET_LIBS} ${OpenRAVE_LIBRARIES} ${OpenRAVE_CORE_LIBRARIES})
 

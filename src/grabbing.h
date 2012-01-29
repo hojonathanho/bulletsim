@@ -4,6 +4,7 @@
 #include "bullet_typedefs.h"
 #include <vector>
 #include "basicobjects.h"
+#include "pr2.h"
 
 class Grab {
 public:
@@ -18,14 +19,11 @@ public:
 
 class Monitor {
 protected:
-    OpenRAVE::RobotBase::ManipulatorPtr manip;
-    BulletInstance::Ptr bullet;
-
     bool m_wasClosed;
+    OpenRAVE::RobotBase::ManipulatorPtr m_manip;
 
 public:
-    Monitor(OpenRAVE::RobotBase::ManipulatorPtr manip_, BulletInstance::Ptr bullet_) :
-        manip(manip_), bullet(bullet_) { }
+    Monitor(OpenRAVE::RobotBase::ManipulatorPtr);
     virtual void update();
     virtual void grab() = 0;
     virtual void release() = 0;
@@ -38,7 +36,7 @@ public:
   btDynamicsWorld* m_world;
   Grab* m_grab;
 
-  MonitorForGrabbing(OpenRAVE::RobotBase::ManipulatorPtr, BulletInstance::Ptr);
+  MonitorForGrabbing(OpenRAVE::RobotBase::ManipulatorPtr, btDynamicsWorld*);
   void setBodies(std::vector<BulletObject::Ptr>& bodies);
   void grab();
   void release();
@@ -48,10 +46,14 @@ public:
 // softbody grabbing monitor
 class SoftMonitorForGrabbing : public Monitor {
 public:
-    btSoftBody *psb;
+    PR2SoftBodyGripper::Ptr gripper;
 
-    SoftMonitorForGrabbing(OpenRAVE::RobotBase::ManipulatorPtr m, BulletInstance::Ptr bullet) :
-        Monitor(m, bullet) { }
+    SoftMonitorForGrabbing(RaveRobotKinematicObject::Manipulator::Ptr manip, bool leftGripper) :
+        Monitor(manip->manip),
+        gripper(new PR2SoftBodyGripper(manip, leftGripper)) { }
 
-    void update();
+    void setTarget(btSoftBody *psb) { gripper->setTarget(psb); }
+    void grab() { gripper->grab(); }
+    void release() { gripper->releaseAllAnchors(); }
+    void updateGrabPos() { }
 };

@@ -4,6 +4,7 @@
 #include "config_viewer.h"
 #include <BulletSoftBody/btSoftBodyHelpers.h>
 #include <openrave/kinbody.h>
+#include "pr2.h"
 
 // I've only tested this on the PR2 model
 class PR2SoftBodyGripperAction : public Action {

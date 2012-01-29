@@ -46,30 +46,34 @@ BulletObject::Ptr getNearestBody(vector<BulletObject::Ptr> bodies, btVector3 pos
   return bodies[argmin];
 }
 
-
-MonitorForGrabbing::MonitorForGrabbing(RobotBase::ManipulatorPtr manip, BulletInstance::Ptr bullet) :
-  Monitor(manip, bullet),
-  m_world(bullet->dynamicsWorld),
-  m_bodies(),
-  m_grab(NULL)
+Monitor::Monitor(OpenRAVE::RobotBase::ManipulatorPtr manip) :
+    m_manip(manip),
+    m_wasClosed(isClosed(manip))
 {
-  m_wasClosed = isClosed(manip);
 }
 
-void MonitorForGrabbing::setBodies(vector<BulletObject::Ptr>& bodies) {m_bodies = bodies;}
-
 void Monitor::update() {
-  bool nowClosed = isClosed(manip);
+  bool nowClosed = isClosed(m_manip);
   if (nowClosed && !m_wasClosed) grab();
   else if (m_wasClosed && !nowClosed) release();
   else if (m_wasClosed && nowClosed) updateGrabPos();
   m_wasClosed = nowClosed;
 }
 
+MonitorForGrabbing::MonitorForGrabbing(OpenRAVE::RobotBase::ManipulatorPtr manip, btDynamicsWorld *dynamicsWorld) :
+  Monitor(manip),
+  m_world(dynamicsWorld),
+  m_bodies(),
+  m_grab(NULL)
+{
+}
+
+void MonitorForGrabbing::setBodies(vector<BulletObject::Ptr>& bodies) {m_bodies = bodies;}
+
 void MonitorForGrabbing::grab() {
   // grabs nearest object
   cout << "grabbing nearest object" << endl;
-  btVector3 curPos = util::toBtVector(manip->GetTransform().trans)*METERS;
+  btVector3 curPos = util::toBtVector(m_manip->GetTransform().trans)*METERS;
   cout << "curPos: " << curPos.x() << " " << curPos.y() << " " << curPos.z() << endl;
   BulletObject::Ptr nearestObj = getNearestBody(m_bodies, curPos);
   m_grab = new Grab(nearestObj->rigidBody.get(), curPos, m_world);
@@ -84,8 +88,5 @@ void MonitorForGrabbing::release() {
 void MonitorForGrabbing::updateGrabPos() {
     if (!m_grab) return;
     cout << "updating constraint position" << endl;
-    m_grab->updatePosition(util::toBtVector(manip->GetTransform().trans)*METERS);
-}
-
-void SoftMonitorForGrabbing::update() {
+    m_grab->updatePosition(util::toBtVector(m_manip->GetTransform().trans)*METERS);
 }
