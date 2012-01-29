@@ -20,14 +20,6 @@
 #include <pcl/common/transforms.h>
 #include <osgViewer/ViewerEventHandlers>
 
-struct LocalConfig : Config {
-  static int frameStep;
-  LocalConfig() : Config() {
-    params.push_back(new Parameter<int>("frameStep", &frameStep, "number of frames to advance by every iteration"));
-  }
-};
-int LocalConfig::frameStep = 3;
-
 struct CustomSceneConfig : Config {
   static int record;
   CustomSceneConfig() : Config() {
@@ -156,7 +148,6 @@ int main(int argc, char* argv[]) {
   parser.addGroup(SceneConfig());
   parser.addGroup(GeneralConfig());
   parser.addGroup(BulletConfig());
-  parser.addGroup(LocalConfig());
   parser.read(argc, argv);
 
   //// comm stuff
@@ -198,11 +189,8 @@ int main(int argc, char* argv[]) {
 
   ColorCloudPtr cloudWorld(new ColorCloud());
   while (!scene.viewer.done()) {
-    if (!keyHandler->state.paused) {
-      for (int z = 0; z < LocalConfig::frameStep - 1; ++z)
-        pcSub.skip();
+    if (!keyHandler->state.paused)
       if (!pcSub.recv(cloudMsg)) break;
-    }
 
     pcl::transformPointCloud(*cloudMsg.m_data, *cloudWorld, CT.worldFromCamEigen);
     kinectPts->setPoints(cloudWorld);
@@ -212,7 +200,7 @@ int main(int argc, char* argv[]) {
     ValuesInds vi = getValuesInds(currentJoints);
     scene.pr2->setDOFValues(vi.second, vi.first);
 
-    scene.idleFor(0.01);
+    scene.step(0.01);
   }
 
   return 0;
