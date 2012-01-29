@@ -5,19 +5,43 @@
 #include "get_table.h"
 #include <comm/comm2.h>
 #include <my_assert.h>
+#include <boost/program_options.hpp>
 
 using namespace pcl;
 using namespace std;
 using namespace Eigen;
-
+namespace po = boost::program_options;
 
 int main(int argc, char* argv[]) {
+
+  string infile="";
+
+  po::options_description opts("Allowed options");
+  opts.add_options()
+    ("help,h", "produce help message")
+    ("infile,i", po::value< string >(&infile),"input file");
+  po::variables_map vm;        
+  po::store(po::command_line_parser(argc, argv)
+	    .options(opts)
+	    .run()
+	    , vm);
+  if (vm.count("help")) {
+    cout << "usage: comm_downsample_clouds [options]" << endl;
+    cout << opts << endl;
+    return 0;
+  }
+  po::notify(vm);
+
+  initComm();
+
+
+
   PointCloud<PointXYZRGB>::Ptr cloud (new PointCloud<PointXYZRGB>);
-  setDataRoot();
-  string pcdfile = Names("kinect","pcd").getCur().first.string();
-  cout << "reading " << pcdfile << endl;
-  if (pcl::io::loadPCDFile<pcl::PointXYZRGB> (pcdfile, *cloud) == -1) {
-    PCL_ERROR(("couldn't read file " + pcdfile + "\n").c_str());
+  if (infile.size() == 0)
+    infile = Names("kinect","pcd").getCur().first.string();
+  cout << "reading " << infile << endl;
+  if (pcl::io::loadPCDFile<pcl::PointXYZRGB> (infile, *cloud) == -1) {
+    PCL_ERROR(("couldn't read file " + infile + "\n").c_str());
     return -1;
   }
   else {

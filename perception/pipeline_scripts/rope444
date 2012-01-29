@@ -1,0 +1,33 @@
+BIN_CLOUDS = ~/b/perception/clouds
+BIN_PERCEPTION = ~/b/perception
+IMG_PROC = ~/python/image_proc
+
+ONCE = $(DATA_ROOT)/once
+FIRST_PCD = $(ONCE)/first.pcd
+TABLE_CORNERS = $(ONCE)/table_corners.txt
+ROI_MASK = $(ONCE)/roi_mask.png
+
+CLASSIFIER = ~/comm/rope_hands/human_labels/classifier.pkl
+
+
+all : $(TABLE_CORNERS) $(ROI_MASK)
+$(TABLE_CORNERS) : $(FIRST_PCD)
+	$(BIN_CLOUDS)/comm_get_table -i $(FIRST_PCD)
+$(FIRST_PCD) : 
+	$(BIN_CLOUDS)/record_one_pcd -o $(FIRST_PCD)
+$(ROI_MASK) : $(FIRST_PCD)
+	$(IMG_PROC)/make_roi.py -p $(FIRST_PCD) -o $(ONCE)/roi_mask.png
+
+KINECT : 
+	$(BIN_CLOUDS)/comm_write_pcds -d 15
+IMAGES :
+	$(IMG_PROC)/comm_pcd2jpg.py
+LABELS :
+	$(IMG_PROC)/comm_apply_classifier.py images labels $(CLASSIFIER)
+ROPE_PTS :
+	$(BIN_CLOUDS)/comm_downsample_clouds -c kinect -l labels -o rope_pts -n 1 -v .02
+ROPE_ENDS : 
+	$(IMG_PROC)/comm_get_region_centers.py labels kinect rope_ends 2 --min_pix=25 --max_blobs=2
+
+PLAYBACK :
+	$(BIN_PERCEPTION)/test_pr2_playback
