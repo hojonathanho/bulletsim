@@ -20,6 +20,7 @@ void PlotObject::setDefaultColor(float r, float g, float b, float a) {
 PlotPoints::PlotPoints(float size) {
   m_geode = new osg::Geode();
   m_geom = new osg::Geometry();
+  m_geom->setDataVariance(osg::Object::DYNAMIC);
   m_geode->addDrawable(m_geom);
   setDefaultColor(1,1,1,1);
 
@@ -81,6 +82,7 @@ PlotLines::PlotLines(float width) {
 
   m_geode = new osg::Geode();
   m_geom = new osg::Geometry();
+  m_geom->setDataVariance(osg::Object::DYNAMIC);
   m_geode->addDrawable(m_geom);
 
   osg::ref_ptr<osg::StateSet> m_stateset = new osg::StateSet();
