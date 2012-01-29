@@ -5,7 +5,6 @@
 #include "comm/comm2.h"
 #include "config_bullet.h"
 #include "config_perception.h"
-#include "custom_scene.h"
 #include "get_nodes.h"
 #include "make_bodies.h"
 #include "simplescene.h"
@@ -14,30 +13,83 @@
 #include "utils_perception.h"
 #include "vector_io.h"
 #include "visibility.h"
+#include "robot_geometry.h"
+#include "openrave_joints.h"
+#include "grabbing.h"
 
 #include <pcl/common/transforms.h>
+#include <osgViewer/ViewerEventHandlers>
+
+struct LocalConfig : Config {
+  static int frameStep;
+  LocalConfig() : Config() {
+    params.push_back(new Parameter<int>("frameStep", &frameStep, "number of frames to advance by every iteration"));
+  }
+};
+int LocalConfig::frameStep = 3;
+
+struct CustomSceneConfig : Config {
+  static int record;
+  CustomSceneConfig() : Config() {
+    params.push_back(new Parameter<int>("record", &record, "record every n frames (default 0 means record nothing)"));
+  }
+};
+int CustomSceneConfig::record = 0;
+
+struct CustomScene : public Scene {
+  osgViewer::ScreenCaptureHandler* captureHandler;
+  int framecount;
+  int captureNumber;
+  SoftMonitorForGrabbing lMonitor;
+  SoftMonitorForGrabbing rMonitor;
+
+  CustomScene() :
+    Scene(),
+    lMonitor(pr2, pr2->robot->GetManipulators()[5], true),
+    rMonitor(pr2, pr2->robot->GetManipulators()[7], false) {
+    // add the screen capture handler
+    framecount = 0;
+    captureHandler = new osgViewer::ScreenCaptureHandler(new osgViewer::ScreenCaptureHandler::WriteToFile("screenshots/img", "jpg", osgViewer::ScreenCaptureHandler::WriteToFile::SEQUENTIAL_NUMBER));
+    viewer.addEventHandler(captureHandler);
+  };
+  void draw() {
+    if (CustomSceneConfig::record && framecount % CustomSceneConfig::record==0) captureHandler->captureNextFrame(viewer);
+    framecount++;
+    Scene::draw();
+  }
+
+  void step(float dt) {
+    rMonitor.update();
+    lMonitor.update();
+    Scene::step(dt);
+  }
+};
 
 
 int main(int argc, char* argv[]) {
   //////////// get command line options
   Parser parser;
-  SceneConfig::enableRobot = SceneConfig::enableIK = SceneConfig::enableHaptics = false;
+  SceneConfig::enableIK = SceneConfig::enableHaptics = false;
+  SceneConfig::enableRobot = true;
+  SceneConfig::enableRobotCollision = false;
   GeneralConfig::scale = 10;
   parser.addGroup(TrackingConfig());
   parser.addGroup(CustomSceneConfig());
   parser.addGroup(SceneConfig());
   parser.addGroup(GeneralConfig());
   parser.addGroup(BulletConfig());
+  parser.addGroup(LocalConfig());
   parser.read(argc, argv);
 
   //// comm stuff
-  setDataRoot("~/comm/towel2");
+  setDataRoot("~/comm/pr2_towel");
   FileSubscriber pcSub("kinect","pcd");
   CloudMessage cloudMsg;
   FileSubscriber towelSub("towel_pts","pcd");
   CloudMessage towelPtsMsg; //first message
 
-
+  FileSubscriber jointSub("joint_states","txt");
+  Retimer<VectorMessage<double> > retimer(&jointSub);
 
   ////////////// create scene
   CustomScene scene;
@@ -47,10 +99,17 @@ int main(int argc, char* argv[]) {
   static PlotPoints::Ptr towelObsPlot(new PlotPoints(4));
   towelObsPlot->setDefaultColor(0,1,0,1);
 
+  vector<double> firstJoints = doubleVecFromFile(filePath("data000000000000.txt", "joint_states").string());
+  ValuesInds vi = getValuesInds(firstJoints);
+  scene.pr2->setDOFValues(vi.second, vi.first);
+
+  // get kinect transform
+  btTransform worldFromKinect = getKinectToWorld(scene.pr2->robot);
+  CoordinateTransformer CT(worldFromKinect);
+
   /////////////// load table
   vector< vector<float> > vv = floatMatFromFile(onceFile("table_corners.txt").string());
   vector<btVector3> tableCornersCam = toBulletVectors(vv);
-  CoordinateTransformer CT(getCamToWorldFromTable(tableCornersCam));
 
   vector<btVector3> tableCornersWorld = CT.toWorldFromCamN(tableCornersCam);
   BulletObject::Ptr table = makeTable(tableCornersWorld, .1*METERS);
@@ -65,9 +124,6 @@ int main(int argc, char* argv[]) {
   BOOST_FOREACH(btVector3& pt, towelCorners) pt += btVector3(.01*METERS,0,0);
   BulletSoftObject::Ptr towel = makeSelfCollidingTowel(towelCorners, scene.env->bullet->softBodyWorldInfo);
 
-
-
-
   /// add stuff to scene
   MotionStatePtr ms(new btDefaultMotionState(btTransform(btQuaternion(0,0,0,1), btVector3(0,0,2))));
 
@@ -77,17 +133,23 @@ int main(int argc, char* argv[]) {
   scene.env->add(towelEstPlot);
   scene.env->add(towelObsPlot);
   //scene.env->add(corrPlots.m_lines);
-  //scene.env->add(sphere);
+  scene.lMonitor.setTarget(towel->softBody.get());
+  scene.rMonitor.setTarget(towel->softBody.get());
 
   scene.startViewer();
   towel->setColor(1,1,0,.5);
 
 
-  for (int t=0; ; t++) {
+
+  for (int t=0; ; ) {
     cout << "time step " << t << endl;
-    bool success = pcSub.recv(cloudMsg);
-    if (!success) break;
-    ENSURE(towelSub.recv(towelPtsMsg));
+    for (int z = 0; z < LocalConfig::frameStep - 1; ++z) {
+      pcSub.skip();
+      towelSub.skip();
+    }
+    if (!pcSub.recv(cloudMsg)) break;
+    if (!towelSub.recv(towelPtsMsg)) break;
+    t += LocalConfig::frameStep;
 
     ColorCloudPtr cloudCam  = cloudMsg.m_data;
     ColorCloudPtr cloudWorld(new ColorCloud());
@@ -96,6 +158,11 @@ int main(int argc, char* argv[]) {
 
     vector<btVector3> towelObsPts =  CT.toWorldFromCamN(toBulletVectors(towelPtsMsg.m_data));
     towelObsPlot->setPoints(towelObsPts);
+
+    VectorMessage<double>* jointMsgPtr = retimer.msgAt(cloudMsg.getTime());
+    vector<double> currentJoints = jointMsgPtr->m_data;
+    ValuesInds vi = getValuesInds(currentJoints);
+    scene.pr2->setDOFValues(vi.second, vi.first);
 
     for (int i=0; i < TrackingConfig::nIter; i++) {
       cout << "iteration " << i << endl;
@@ -109,11 +176,13 @@ int main(int argc, char* argv[]) {
 
       vector<btVector3> impulses = calcImpulsesSimple(towelEstPts, towelObsPts, corr, TrackingConfig::impulseSize);
       for (int i=0; i<impulses.size(); i++)
-	towel->softBody->addForce(impulses[i],i);
+        towel->softBody->addForce(impulses[i],i);
 
 
       scene.step(.01);
     }
 
   }
+
+  return 0;
 }

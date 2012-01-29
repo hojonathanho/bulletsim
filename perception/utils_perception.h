@@ -8,6 +8,7 @@
 #include <Eigen/Geometry>
 #include <osg/Vec3d>
 #include <my_assert.h>
+#include "simplescene.h"
 using namespace std;
 
 vector<btVector3> toBulletVectors(const vector< vector<float> >&);
@@ -59,6 +60,7 @@ public:
   inline btVector3 toCamFromWorld(const btVector3& camVec);
   vector<btVector3> toWorldFromCamN(const vector<btVector3>& camVecs);
   vector<btVector3> toCamFromWorldN(const vector<btVector3>& worldVecs);
+  void reset(const btTransform &wfc);
 };
 
 struct OSGCamParams {

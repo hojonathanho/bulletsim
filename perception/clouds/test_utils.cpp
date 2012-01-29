@@ -8,13 +8,13 @@ using namespace pcl;
 void test_toEigenMatrix() {
 ColorCloudPtr cloud = readPCD("/home/joschu/cpp/clouds/test.pcd");
  MatrixXf xyz = toEigenMatrix(cloud);
- ASSERT(xyz.rows()==cloud->size());
- ASSERT(xyz.cols()==3);
+ ENSURE(xyz.rows()==cloud->size());
+ ENSURE(xyz.cols()==3);
  for (int i=0; i<cloud->size(); i++) {
     PointXYZRGB& pt = cloud->at(i);
-    ASSERT(pt.x == xyz(i,0));
-    ASSERT(pt.y == xyz(i,1));
-    ASSERT(pt.z == xyz(i,2));
+    ENSURE(pt.x == xyz(i,0));
+    ENSURE(pt.y == xyz(i,1));
+    ENSURE(pt.z == xyz(i,2));
 
  }
 }
@@ -22,13 +22,13 @@ ColorCloudPtr cloud = readPCD("/home/joschu/cpp/clouds/test.pcd");
 void test_toBGR() {
   ColorCloudPtr cloud = readPCD("/home/joschu/cpp/clouds/test.pcd");
   MatrixXb bgr = toBGR(cloud);
-  ASSERT(bgr.rows() == cloud->size());
-  ASSERT(bgr.cols() == 3);
+  ENSURE(bgr.rows() == cloud->size());
+  ENSURE(bgr.cols() == 3);
   for (int i=0; i<cloud->size(); i++) {
     PointXYZRGB& pt = cloud->at(i);
-    ASSERT(pt.b == bgr(i,0));
-    ASSERT(pt.g == bgr(i,1));
-    ASSERT(pt.r == bgr(i,2));
+    ENSURE(pt.b == bgr(i,0));
+    ENSURE(pt.g == bgr(i,1));
+    ENSURE(pt.r == bgr(i,2));
   }
 }
 
@@ -39,7 +39,7 @@ void test_getDepthImage() {
   for (int i=0; i<cloud->size(); i++){
       PointXYZRGB& pt = cloud->at(i);
       float d = sqrtf(pow(pt.x,2)+pow(pt.y,2)+pow(pt.z,2));
-      ASSERT(d == depths(i));
+      ENSURE(d == depths(i));
   }
 }
 

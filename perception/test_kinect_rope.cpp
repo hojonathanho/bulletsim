@@ -95,11 +95,11 @@ int main(int argc, char *argv[]) {
     cout << "loaded cloud " << count << endl;
     count++;
 
-    ASSERT(ropeSub.recv(ropeMsg));
+    ENSURE(ropeSub.recv(ropeMsg));
     vector<btVector3> obsPts = CT.toWorldFromCamN(toBulletVectors(ropeMsg.m_data));
-    ASSERT(labelSub.recv(labelMsg));
+    ENSURE(labelSub.recv(labelMsg));
     cv::Mat labels = toSingleChannel(labelMsg.m_data);
-    ASSERT(endSub.recv(endMsg));
+    ENSURE(endSub.recv(endMsg));
     vector<btVector3> newEnds = CT.toWorldFromCamN(toBulletVectors(endMsg.m_data));
     endTracker.update(newEnds);
     trackerPlotter.update();

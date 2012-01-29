@@ -42,7 +42,7 @@ void askToResetDir(path p) {
     }
     else throw IOError();
   }
-  ASSERT(fs::create_directory(p));
+  ENSURE(fs::create_directory(p));
 }
 
 
@@ -79,14 +79,14 @@ void setDataRoot(path newDataRoot) {
     DATA_ROOT = newDataRoot;
   }
   bool success=true;
-  if (!fs::exists(DATA_ROOT)) ASSERT(fs::create_directory(DATA_ROOT));
+  if (!fs::exists(DATA_ROOT)) ENSURE(fs::create_directory(DATA_ROOT));
 }
 
 void setDataRoot() {
   const char *home = getenv("DATA_ROOT");
   if (home==NULL) throw runtime_error("DATA_ROOT not set");
   path p  = home;
-  if (!fs::exists(DATA_ROOT)) ASSERT(fs::create_directory(DATA_ROOT));
+  ENSURE(fs::exists(p));
   DATA_ROOT = p;
 }
 path getDataRoot() {return DATA_ROOT;}
@@ -230,6 +230,11 @@ bool FileSubscriber::recv(Message& message)  {
   return gotIt;
 }
 
+bool FileSubscriber::skip() {
+  m_names.step();
+  return true;
+}
+
 // problem: you might do msgAt, and then call it again and lose your first message
 // maybe it would be better to pass msg into msgAt, and then clone it twice. Then use copy constructor to return it.
 
@@ -238,8 +243,8 @@ AbstractRetimer::AbstractRetimer(Subscriber* sub) : m_sub(sub), m_new(true), m_d
 Message* AbstractRetimer::msgAt(double time) {
   //printf("msgAt: %10.10f %10.10f %10.10f\n", time, m_msg0->getTime(), m_msg1->getTime());
   if (m_new) {
-    ASSERT(m_sub->recv(*m_msg0));
-    ASSERT(m_sub->recv(*m_msg1));
+    ENSURE(m_sub->recv(*m_msg0));
+    ENSURE(m_sub->recv(*m_msg1));
     m_new = false;
   }
   if (m_done) return m_msg0;

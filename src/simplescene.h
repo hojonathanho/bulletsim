@@ -14,8 +14,6 @@ class EventHandler : public osgGA::TrackballManipulator {
 private:
   Scene *scene;
   float lastX, lastY, dx, dy;
-protected:
-  void getTransformation( osg::Vec3d& eye, osg::Vec3d& center, osg::Vec3d& up ) const;
 public:
   EventHandler(Scene *scene_) : scene(scene_), state() {}
   struct {
@@ -26,6 +24,7 @@ public:
          idling;
   } state;
   bool handle(const osgGA::GUIEventAdapter &ea, osgGA::GUIActionAdapter &aa);
+  void getTransformation( osg::Vec3d& eye, osg::Vec3d& center, osg::Vec3d& up ) const;
 };
 
 struct Scene {

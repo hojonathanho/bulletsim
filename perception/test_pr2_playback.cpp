@@ -74,7 +74,6 @@ int main(int argc, char *argv[]) {
 
   // indices of joint angles
   // see /home/joschu/pr2/rope_manipulation/rope_vision/test/write_joint_stuff_to_files.py
-  vector<int> inds = intVecFromFile(string("/home/joschu/Src/bulletsim/data/inds.txt"));
   ColorCloudPtr cloudWorld(new pcl::PointCloud<pcl::PointXYZRGB>());
 
   int count = 0;

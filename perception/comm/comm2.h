@@ -57,8 +57,8 @@ public:
   string m_extension;
   string m_topic;
   Names(string topic, string extension) : m_topic(topic), m_extension(extension), m_id(0) {
-    ASSERT(!topic.empty());
-    ASSERT(!extension.empty());
+    ENSURE(!topic.empty());
+    ENSURE(!extension.empty());
   }
   PathPair getCur() const;
   void step();
@@ -94,6 +94,7 @@ public:
 class Subscriber {
 public:
   virtual bool recv(Message& )=0;
+  virtual bool skip() = 0;
 };
 
 class FileSubscriber : public Subscriber {
@@ -101,6 +102,7 @@ public:
   Names m_names;
   FileSubscriber(string topic, string extension);
   bool recv(Message& message);
+  bool skip();
 };
 
 template <typename T> 

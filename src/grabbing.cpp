@@ -29,7 +29,7 @@ Grab::~Grab() {
 const float CLOSED_VAL = 0.03f, OPEN_VAL = 0.54f;
 const float MIDDLE_VAL = .28f;
 
-bool isClosed(RobotBase::ManipulatorPtr manip) {
+static bool isClosed(RobotBase::ManipulatorPtr manip) {
   vector<int> gripperInds = manip->GetGripperIndices();
   manip->GetRobot()->SetActiveDOFs(gripperInds);
   vector<double> dof_values;
@@ -38,7 +38,7 @@ bool isClosed(RobotBase::ManipulatorPtr manip) {
   return dof_values[0] < MIDDLE_VAL;
 }
 
-BulletObject::Ptr getNearestBody(vector<BulletObject::Ptr> bodies, btVector3 pos) {
+static BulletObject::Ptr getNearestBody(vector<BulletObject::Ptr> bodies, btVector3 pos) {
   VectorXf dists(bodies.size());
   for (int i=0; i < bodies.size(); i++) dists[i] = (bodies[i]->rigidBody->getCenterOfMassPosition() - pos).length();
   int argmin;
@@ -46,31 +46,32 @@ BulletObject::Ptr getNearestBody(vector<BulletObject::Ptr> bodies, btVector3 pos
   return bodies[argmin];
 }
 
+Monitor::Monitor(OpenRAVE::RobotBase::ManipulatorPtr manip) :
+    m_manip(manip),
+    m_wasClosed(isClosed(manip))
+{
+}
 
-MonitorForGrabbing::MonitorForGrabbing(RobotBase::ManipulatorPtr manip,  btDynamicsWorld* world) :
-  m_manip(manip),
-  m_bodies(),
-  m_world(world),
-  m_wasClosed(isClosed(m_manip)),
-  m_grab(NULL)
-{}
-
-void MonitorForGrabbing::setBodies(vector<BulletObject::Ptr>& bodies) {m_bodies = bodies;}
-
-void MonitorForGrabbing::update() {
+void Monitor::update() {
   bool nowClosed = isClosed(m_manip);
-
-  if (nowClosed && !m_wasClosed) grabNearestObject();
-  else if (m_wasClosed && !nowClosed) releaseObject();
-  else if (m_wasClosed && nowClosed && m_grab!=NULL) {
-    m_grab->updatePosition(util::toBtVector(m_manip->GetTransform().trans)*METERS);
-    cout << "updating constraint position" << endl;
-  }
-
+  if (nowClosed && !m_wasClosed) grab();
+  else if (m_wasClosed && !nowClosed) release();
+  else if (m_wasClosed && nowClosed) updateGrabPos();
   m_wasClosed = nowClosed;
 }
 
-void MonitorForGrabbing::grabNearestObject() {
+MonitorForGrabbing::MonitorForGrabbing(OpenRAVE::RobotBase::ManipulatorPtr manip, btDynamicsWorld *dynamicsWorld) :
+  Monitor(manip),
+  m_world(dynamicsWorld),
+  m_bodies(),
+  m_grab(NULL)
+{
+}
+
+void MonitorForGrabbing::setBodies(vector<BulletObject::Ptr>& bodies) {m_bodies = bodies;}
+
+void MonitorForGrabbing::grab() {
+  // grabs nearest object
   cout << "grabbing nearest object" << endl;
   btVector3 curPos = util::toBtVector(m_manip->GetTransform().trans)*METERS;
   cout << "curPos: " << curPos.x() << " " << curPos.y() << " " << curPos.z() << endl;
@@ -79,7 +80,13 @@ void MonitorForGrabbing::grabNearestObject() {
   nearestObj->setColor(0,0,1,1);
 }
 
-void MonitorForGrabbing::releaseObject() {
+void MonitorForGrabbing::release() {
   cout << "releasing object" << endl;
   if (m_grab != NULL) delete m_grab;
+}
+
+void MonitorForGrabbing::updateGrabPos() {
+    if (!m_grab) return;
+    cout << "updating constraint position" << endl;
+    m_grab->updatePosition(util::toBtVector(m_manip->GetTransform().trans)*METERS);
 }

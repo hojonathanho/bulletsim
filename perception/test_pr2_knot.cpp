@@ -43,7 +43,7 @@ struct CustomScene : public Scene {
 
   CustomScene() : 
     Scene(), 
-    lMonitor(pr2->robot->GetManipulators()[5], env->bullet->dynamicsWorld), 
+    lMonitor(pr2->robot->GetManipulators()[5], env->bullet->dynamicsWorld),
     rMonitor(pr2->robot->GetManipulators()[7], env->bullet->dynamicsWorld) {
     // add the screen capture handler
     framecount = 0;
@@ -149,11 +149,11 @@ int main(int argc, char *argv[]) {
     cout << "loaded cloud " << count << endl;
     count++;
 
-    ASSERT(ropeSub.recv(ropeMsg));
+    ENSURE(ropeSub.recv(ropeMsg));
     vector<btVector3> obsPts = CT.toWorldFromCamN(toBulletVectors(ropeMsg.m_data));
-    ASSERT(labelSub.recv(labelMsg));
+    ENSURE(labelSub.recv(labelMsg));
     cv::Mat labels = toSingleChannel(labelMsg.m_data);
-    ASSERT(endSub.recv(endMsg));
+    ENSURE(endSub.recv(endMsg));
     vector<btVector3> newEnds = CT.toWorldFromCamN(toBulletVectors(endMsg.m_data));
     endTracker.update(newEnds);
     trackerPlotter.update();

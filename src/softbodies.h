@@ -7,6 +7,7 @@
 class BulletSoftObject : public EnvironmentObject {
 protected:
     osg::ref_ptr<osg::Geometry> geom;
+    osg::ref_ptr<osg::Geode> geode;
     osg::ref_ptr<osg::Vec3Array> vertices, normals;
     osg::ref_ptr<osg::MatrixTransform> transform;
 
