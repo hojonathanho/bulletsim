@@ -37,7 +37,7 @@ int main(int argc, char* argv[]) {
   path outPath = onceFile("table_corners.txt");
   cout << "writing to " << outPath << endl;
   ofstream outFile(outPath.string().c_str());
-  ASSERT(!outFile.fail());
+  ENSURE(!outFile.fail());
   for (int i=0; i<4; i++) {
     for (int j=0; j<3; j++) outFile << corners[i][j] << " ";
     outFile << endl;

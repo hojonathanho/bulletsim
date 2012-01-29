@@ -89,5 +89,8 @@ target_link_libraries(test_pr2_knot clouds comm2 simulation comm2 clouds percept
 add_executable(test_pr2_towel test_pr2_towel.cpp clouds/utils_pcl.cpp ../src/grabbing.cpp get_nodes.cpp) # need utils_pcl because of bizarre linker error
 target_link_libraries(test_pr2_towel clouds comm2 simulation perception ${PCL_LIBRARIES})
 
+add_executable(calibrate_kinect calibrate_kinect clouds/utils_pcl.cpp ../src/grabbing.cpp get_nodes.cpp) # need utils_pcl because of bizarre linker error
+target_link_libraries(calibrate_kinect clouds comm2 simulation perception ${PCL_LIBRARIES})
+
 add_subdirectory(comm)
 add_subdirectory(clouds)

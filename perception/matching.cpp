@@ -22,7 +22,7 @@ vector<int> matchHardMaximal(const MatrixXf& costs) {
 vector<int> matchHardOneWay(const MatrixXf& costs) {
   //  env.set(GRB_IntParam_OutputFlag, 0); 
 
-  ASSERT(costs.rows() <= costs.cols());
+  ENSURE(costs.rows() <= costs.cols());
   GRBModel model = GRBModel(env);
 
   // create matrix of variables

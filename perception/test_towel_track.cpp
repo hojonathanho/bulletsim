@@ -87,7 +87,7 @@ int main(int argc, char* argv[]) {
     cout << "time step " << t << endl;
     bool success = pcSub.recv(cloudMsg);
     if (!success) break;
-    ASSERT(towelSub.recv(towelPtsMsg));
+    ENSURE(towelSub.recv(towelPtsMsg));
 
     ColorCloudPtr cloudCam  = cloudMsg.m_data;
     ColorCloudPtr cloudWorld(new ColorCloud());

@@ -4,7 +4,7 @@ using namespace std;
 
 void EigenMessage::writeDataTo(path p) const {
   ofstream outfile(p.string().c_str());
-  ASSERT(!outfile.fail());
+  ENSURE(!outfile.fail());
   const float* floatData = m_data.data();
   const char* charData = reinterpret_cast<const char*>(floatData);
 
@@ -20,7 +20,7 @@ void EigenMessage::writeDataTo(path p) const {
 
 void EigenMessage::readDataFrom(path p) {
   ifstream infile(p.string().c_str());
-  ASSERT(!infile.fail());
+  ENSURE(!infile.fail());
 
   int nRow;
   int nCol;

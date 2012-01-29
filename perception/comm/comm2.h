@@ -50,8 +50,8 @@ public:
   string m_extension;
   string m_topic;
   Names(string topic, string extension) : m_topic(topic), m_extension(extension), m_id(0) {
-    ASSERT(!topic.empty());
-    ASSERT(!extension.empty());
+    ENSURE(!topic.empty());
+    ENSURE(!extension.empty());
   }
   PathPair getCur() const;
   void step();

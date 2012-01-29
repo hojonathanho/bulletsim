@@ -15,10 +15,10 @@ using boost::shared_ptr;
 
 ColorCloudPtr maskCloud(const ColorCloudPtr in, const cv::Mat& mask) {
   cout << mask.elemSize() << endl;
-  ASSERT(mask.elemSize() == 1);
-  ASSERT(mask.rows == in->height);
-  ASSERT(mask.cols == in->width);
-  ASSERT(in->isOrganized());
+  ENSURE(mask.elemSize() == 1);
+  ENSURE(mask.rows == in->height);
+  ENSURE(mask.cols == in->width);
+  ENSURE(in->isOrganized());
 
   shared_ptr< vector<int> > indicesPtr(new vector<int>());
 

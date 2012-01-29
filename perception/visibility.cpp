@@ -50,7 +50,7 @@ vector<btVector3> calcCandPositions(const btVector3& center, float stdev, int nS
     out[5] = center + btVector3(0,0,stdev);
     out[6] = center + btVector3(0,0,-stdev);
   }
-  else ASSERT("nSamples must be 1, 5, or 7" && false);
+  else ENSURE("nSamples must be 1, 5, or 7" && false);
   return out;
 }
 
@@ -90,7 +90,7 @@ std::vector<float> calcVisibility(btSoftBody* softBody, btDynamicsWorld* world, 
 
 
 void colorByVisibility(CapsuleRope::Ptr rope, const vector<float>& pVis) {
-  ASSERT(rope->children.size() == pVis.size());
+  ENSURE(rope->children.size() == pVis.size());
   for (int i=0; i<pVis.size(); i++) {
     float p = pVis[i];
     rope->children[i]->setColor(p,p,p,1);

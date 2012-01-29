@@ -56,7 +56,7 @@ int main(int argc, char* argv[]) {
     bool gotOne = cloudSub.recv(cloudMsg);
     if (!gotOne) break;
 
-    ASSERT(labelSub.recv(labelMsg));
+    ENSURE(labelSub.recv(labelMsg));
 
     vector<cv::Mat> channels;
     cv::split(labelMsg.m_data,channels);

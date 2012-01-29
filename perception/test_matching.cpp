@@ -18,7 +18,7 @@ void test_matching_equal_size() {
     
   MatrixXf costs = pairwiseSquareDist(x,y);
   vector<int> result = matchHardOneWay(costs);
-  for (int i=0; i<result.size(); i++) ASSERT(result[i] == i);
+  for (int i=0; i<result.size(); i++) ENSURE(result[i] == i);
 
 }
 

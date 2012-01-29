@@ -107,11 +107,9 @@ int main(int argc, char* argv[]) {
   btTransform worldFromKinect = getKinectToWorld(scene.pr2->robot);
   CoordinateTransformer CT(worldFromKinect);
 
-
   /////////////// load table
   vector< vector<float> > vv = floatMatFromFile(onceFile("table_corners.txt").string());
   vector<btVector3> tableCornersCam = toBulletVectors(vv);
-  //CoordinateTransformer CT(getCamToWorldFromTable(tableCornersCam));
 
   vector<btVector3> tableCornersWorld = CT.toWorldFromCamN(tableCornersCam);
   BulletObject::Ptr table = makeTable(tableCornersWorld, .1*METERS);
@@ -140,6 +138,7 @@ int main(int argc, char* argv[]) {
 
   scene.startViewer();
   towel->setColor(1,1,0,.5);
+
 
 
   for (int t=0; ; ) {

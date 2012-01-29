@@ -74,7 +74,7 @@ MatrixX3f toEigenMatrix(const vector<btVector3>& in) {
 }
 
 MatrixX3f toEigenMatrix(const vector< vector<float> >& in) {
-  ASSERT(in.size() > 1) ;
+  ENSURE(in.size() > 1) ;
   MatrixXf out(in.size(),in[0].size()); 
   for (int i=0; i<in.size(); i++) 
     for (int j=0; j<in[0].size(); j++)
@@ -113,9 +113,13 @@ btTransform getCamToWorldFromTable(const vector<btVector3>& corners) {
   return btTransform(rotCamToWorld, btVector3(0,0,tz));
 }
 
-CoordinateTransformer::CoordinateTransformer(const btTransform& wfc) :
-  worldFromCamUnscaled(wfc),
-  worldFromCamEigen(Scaling3f(GeneralConfig::scale)*toEigenTransform(wfc)) {}
+CoordinateTransformer::CoordinateTransformer(const btTransform& wfc) { reset(wfc); }
+
+void CoordinateTransformer::reset(const btTransform &wfc) {
+  cout << "setting ct transform!" << endl;
+  worldFromCamUnscaled = wfc;
+  worldFromCamEigen = Scaling3f(GeneralConfig::scale)*toEigenTransform(wfc);
+}
 
 inline btVector3 CoordinateTransformer::toWorldFromCam(const btVector3& camVec) {
   return METERS * (worldFromCamUnscaled * camVec);
@@ -158,5 +162,3 @@ OSGCamParams::OSGCamParams(const btTransform& toWorldFromCam) {
 //   Affine3f trans = Translation3f(tz);
 //   return trans * rotCamToWorld;
 // }
-
-
