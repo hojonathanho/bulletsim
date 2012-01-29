@@ -51,26 +51,23 @@ MonitorForGrabbing::MonitorForGrabbing(RobotBase::ManipulatorPtr manip, BulletIn
   Monitor(manip, bullet),
   m_world(bullet->dynamicsWorld),
   m_bodies(),
-  m_wasClosed(isClosed(manip)),
   m_grab(NULL)
-{}
+{
+  m_wasClosed = isClosed(manip);
+}
 
 void MonitorForGrabbing::setBodies(vector<BulletObject::Ptr>& bodies) {m_bodies = bodies;}
 
-void MonitorForGrabbing::update() {
+void Monitor::update() {
   bool nowClosed = isClosed(manip);
-
-  if (nowClosed && !m_wasClosed) grabNearestObject();
-  else if (m_wasClosed && !nowClosed) releaseObject();
-  else if (m_wasClosed && nowClosed && m_grab!=NULL) {
-    m_grab->updatePosition(util::toBtVector(manip->GetTransform().trans)*METERS);
-    cout << "updating constraint position" << endl;
-  }
-
+  if (nowClosed && !m_wasClosed) grab();
+  else if (m_wasClosed && !nowClosed) release();
+  else if (m_wasClosed && nowClosed) updateGrabPos();
   m_wasClosed = nowClosed;
 }
 
-void MonitorForGrabbing::grabNearestObject() {
+void MonitorForGrabbing::grab() {
+  // grabs nearest object
   cout << "grabbing nearest object" << endl;
   btVector3 curPos = util::toBtVector(manip->GetTransform().trans)*METERS;
   cout << "curPos: " << curPos.x() << " " << curPos.y() << " " << curPos.z() << endl;
@@ -79,7 +76,16 @@ void MonitorForGrabbing::grabNearestObject() {
   nearestObj->setColor(0,0,1,1);
 }
 
-void MonitorForGrabbing::releaseObject() {
+void MonitorForGrabbing::release() {
   cout << "releasing object" << endl;
   if (m_grab != NULL) delete m_grab;
+}
+
+void MonitorForGrabbing::updateGrabPos() {
+    if (!m_grab) return;
+    cout << "updating constraint position" << endl;
+    m_grab->updatePosition(util::toBtVector(manip->GetTransform().trans)*METERS);
+}
+
+void SoftMonitorForGrabbing::update() {
 }
