@@ -2186,6 +2186,9 @@ void tetgenio::save_nodes(char* filebasename)
   char outmtrfilename[FILENAMESIZE];
   int i, j;
 
+  int oldfirstnumber = firstnumber;
+  firstnumber = 0;
+
   sprintf(outnodefilename, "%s.node", filebasename);
   printf("Saving nodes to %s\n", outnodefilename);
   fout = fopen(outnodefilename, "w");
@@ -2224,6 +2227,8 @@ void tetgenio::save_nodes(char* filebasename)
     }
     fclose(fout);
   }
+
+  firstnumber = oldfirstnumber;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -2237,6 +2242,9 @@ void tetgenio::save_elements(char* filebasename)
   FILE *fout;
   char outelefilename[FILENAMESIZE];
   int i, j;
+
+  int oldfirstnumber = firstnumber;
+  firstnumber = 0;
 
   sprintf(outelefilename, "%s.ele", filebasename);
   printf("Saving elements to %s\n", outelefilename);
@@ -2271,6 +2279,8 @@ void tetgenio::save_elements(char* filebasename)
   }
 
   fclose(fout);
+
+  firstnumber = oldfirstnumber;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -2284,6 +2294,9 @@ void tetgenio::save_faces(char* filebasename)
   FILE *fout;
   char outfacefilename[FILENAMESIZE];
   int i;
+
+  int oldfirstnumber = firstnumber;
+  firstnumber = 0;
 
   sprintf(outfacefilename, "%s.face", filebasename);
   printf("Saving faces to %s\n", outfacefilename);
@@ -2300,6 +2313,8 @@ void tetgenio::save_faces(char* filebasename)
   }
 
   fclose(fout);
+
+  firstnumber = oldfirstnumber;
 }
 
 ///////////////////////////////////////////////////////////////////////////////

@@ -30,6 +30,7 @@ include_directories(${BULLET_DIR}/src
 		    ${SURGICAL_PHYSICS_SOURCE_DIR}/src
 		    ${JSON_INCLUDE_DIR}
 		    ${GUROBI_INCLUDE_DIR}
+            ${TETGEN_DIR}
             ../utils
             clouds
             comm
@@ -40,7 +41,8 @@ set(BULLET_LIBS BulletSoftBody BulletDynamics BulletCollision LinearMath)
 link_directories(
   ${PCL_LIBRARY_DIRS} 
   ${WM_LIBRARY_DIR}
-  ${GUROBI_LIBRARY_DIR};
+  ${GUROBI_LIBRARY_DIR}
+  ${TETGEN_DIR}
 )
 add_definitions(${PCL_DEFINITIONS})
 
@@ -76,6 +78,8 @@ target_link_libraries(test_towel_local_opt comm2 ${PCL_LIBRARIES} simulation clo
 add_executable(test_towel_track test_towel_track.cpp clouds/utils_pcl.cpp get_nodes.cpp)
 target_link_libraries(test_towel_track comm2 ${PCL_LIBRARIES} simulation clouds perception)
 
+add_executable(test_tetra_track test_tetra_track.cpp clouds/utils_pcl.cpp get_nodes.cpp ../lib/tetgen-1.4.3/tetgen.h)
+target_link_libraries(test_tetra_track comm2 ${PCL_LIBRARIES} simulation clouds perception tetgen)
 
 #add_executable(test_eigen test_eigen.cpp bullet_io.cpp)
 #target_link_libraries(test_eigen simulation)
@@ -91,6 +95,9 @@ target_link_libraries(test_pr2_towel clouds comm2 simulation perception ${PCL_LI
 
 add_executable(calibrate_kinect calibrate_kinect clouds/utils_pcl.cpp ../src/grabbing.cpp get_nodes.cpp) # need utils_pcl because of bizarre linker error
 target_link_libraries(calibrate_kinect clouds comm2 simulation perception ${PCL_LIBRARIES})
+
+add_executable(test_tetgen test_tetgen.cpp ../lib/tetgen-1.4.3/tetgen.h)
+target_link_libraries(test_tetgen tetgen)
 
 add_subdirectory(comm)
 add_subdirectory(clouds)

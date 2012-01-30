@@ -6,10 +6,14 @@
 
 class BulletSoftObject : public EnvironmentObject {
 protected:
-    osg::ref_ptr<osg::Geometry> geom;
     osg::ref_ptr<osg::Geode> geode;
-    osg::ref_ptr<osg::Vec3Array> vertices, normals;
     osg::ref_ptr<osg::MatrixTransform> transform;
+
+    osg::ref_ptr<osg::Geometry> trigeom;
+    osg::ref_ptr<osg::Vec3Array> trivertices, trinormals;
+
+    osg::ref_ptr<osg::Geometry> quadgeom;
+    osg::ref_ptr<osg::Vec3Array> quadvertices, quadnormals;
 
 public:
     typedef boost::shared_ptr<BulletSoftObject> Ptr;

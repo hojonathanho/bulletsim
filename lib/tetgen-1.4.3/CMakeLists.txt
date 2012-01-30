@@ -1,3 +1,3 @@
 set_source_files_properties(predicates.cxx PROPERTIES COMPILE_FLAGS "-O0")
-add_library(tetgen tetgen.cxx predicates.cxx)
-set_target_properties(tetgen PROPERTIES COMPILE_DEFINITIONS "TETLIBRARY")
+set_source_files_properties(tetgen.cxx PROPERTIES COMPILE_FLAGS "-O2")
+add_library(tetgen STATIC tetgen.cxx predicates.cxx)
