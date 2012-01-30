@@ -2,7 +2,9 @@
 #include "config.h"
 #include "bullet_io.h"
 #include <boost/shared_ptr.hpp>
+#include <boost/scoped_array.hpp>
 #include <BulletSoftBody/btSoftBodyHelpers.h>
+#include "tetgen.h"
 
 using boost::shared_ptr;
 
@@ -69,3 +71,220 @@ BulletSoftObject::Ptr makeSelfCollidingTowel(const vector<btVector3>& points, bt
 
     return BulletSoftObject::Ptr(new BulletSoftObject(psb));
 }
+
+
+
+static char *readWholeFile(const char *filename) {
+  cout << "reading " << filename << endl;
+  FILE *f = fopen(filename, "r");
+  if (!f) return NULL;
+
+  fseek(f, 0, SEEK_END);
+  size_t size = ftell(f);
+  fseek(f, 0, SEEK_SET);
+
+  char *buf = new char[size];
+  size_t s = fread(buf, 1, size, f);
+  fclose(f);
+
+  if (s != size) {
+    cout << "ERROR: read " << s << " bytes instead of " << size << endl;
+    delete[] buf;
+    return NULL;
+  }
+  return buf;
+}
+
+#define FILE_PREFIX "tetra"
+#define NODE_FILE (FILE_PREFIX ".node")
+#define ELE_FILE (FILE_PREFIX ".ele")
+#define FACE_FILE (FILE_PREFIX ".face")
+
+// adapted from http://wias-berlin.de/software/tetgen/files/tetcall.cxx
+static void runTetgen(const btVector3 &dims) {
+  // TODO: deallocate memory!
+  tetgenio in, out;
+  tetgenio::facet *f;
+  tetgenio::polygon *p;
+  int i;
+
+  // All indices start from 1.
+  in.firstnumber = 1;
+
+  in.numberofpoints = 8;
+  in.pointlist = new REAL[in.numberofpoints * 3];
+  in.pointlist[0]  = 0;  // node 1.
+  in.pointlist[1]  = 0;
+  in.pointlist[2]  = 0;
+  in.pointlist[3]  = dims.x();  // node 2.
+  in.pointlist[4]  = 0;
+  in.pointlist[5]  = 0;
+  in.pointlist[6]  = dims.x();  // node 3.
+  in.pointlist[7]  = dims.y();
+  in.pointlist[8]  = 0;
+  in.pointlist[9]  = 0;  // node 4.
+  in.pointlist[10] = dims.y();
+  in.pointlist[11] = 0;
+  // Set node 5, 6, 7, 8.
+  for (i = 4; i < 8; i++) {
+    in.pointlist[i * 3]     = in.pointlist[(i - 4) * 3];
+    in.pointlist[i * 3 + 1] = in.pointlist[(i - 4) * 3 + 1];
+    in.pointlist[i * 3 + 2] = dims.z();
+  }
+
+  in.numberoffacets = 6;
+  in.facetlist = new tetgenio::facet[in.numberoffacets];
+  in.facetmarkerlist = new int[in.numberoffacets];
+
+  // Facet 1. The leftmost facet.
+  f = &in.facetlist[0];
+  f->numberofpolygons = 1;
+  f->polygonlist = new tetgenio::polygon[f->numberofpolygons];
+  f->numberofholes = 0;
+  f->holelist = NULL;
+  p = &f->polygonlist[0];
+  p->numberofvertices = 4;
+  p->vertexlist = new int[p->numberofvertices];
+  p->vertexlist[0] = 1;
+  p->vertexlist[1] = 2;
+  p->vertexlist[2] = 3;
+  p->vertexlist[3] = 4;
+  
+  // Facet 2. The rightmost facet.
+  f = &in.facetlist[1];
+  f->numberofpolygons = 1;
+  f->polygonlist = new tetgenio::polygon[f->numberofpolygons];
+  f->numberofholes = 0;
+  f->holelist = NULL;
+  p = &f->polygonlist[0];
+  p->numberofvertices = 4;
+  p->vertexlist = new int[p->numberofvertices];
+  p->vertexlist[0] = 5;
+  p->vertexlist[1] = 6;
+  p->vertexlist[2] = 7;
+  p->vertexlist[3] = 8;
+
+  // Facet 3. The bottom facet.
+  f = &in.facetlist[2];
+  f->numberofpolygons = 1;
+  f->polygonlist = new tetgenio::polygon[f->numberofpolygons];
+  f->numberofholes = 0;
+  f->holelist = NULL;
+  p = &f->polygonlist[0];
+  p->numberofvertices = 4;
+  p->vertexlist = new int[p->numberofvertices];
+  p->vertexlist[0] = 1;
+  p->vertexlist[1] = 5;
+  p->vertexlist[2] = 6;
+  p->vertexlist[3] = 2;
+
+  // Facet 4. The back facet.
+  f = &in.facetlist[3];
+  f->numberofpolygons = 1;
+  f->polygonlist = new tetgenio::polygon[f->numberofpolygons];
+  f->numberofholes = 0;
+  f->holelist = NULL;
+  p = &f->polygonlist[0];
+  p->numberofvertices = 4;
+  p->vertexlist = new int[p->numberofvertices];
+  p->vertexlist[0] = 2;
+  p->vertexlist[1] = 6;
+  p->vertexlist[2] = 7;
+  p->vertexlist[3] = 3;
+
+  // Facet 5. The top facet.
+  f = &in.facetlist[4];
+  f->numberofpolygons = 1;
+  f->polygonlist = new tetgenio::polygon[f->numberofpolygons];
+  f->numberofholes = 0;
+  f->holelist = NULL;
+  p = &f->polygonlist[0];
+  p->numberofvertices = 4;
+  p->vertexlist = new int[p->numberofvertices];
+  p->vertexlist[0] = 3;
+  p->vertexlist[1] = 7;
+  p->vertexlist[2] = 8;
+  p->vertexlist[3] = 4;
+
+  // Facet 6. The front facet.
+  f = &in.facetlist[5];
+  f->numberofpolygons = 1;
+  f->polygonlist = new tetgenio::polygon[f->numberofpolygons];
+  f->numberofholes = 0;
+  f->holelist = NULL;
+  p = &f->polygonlist[0];
+  p->numberofvertices = 4;
+  p->vertexlist = new int[p->numberofvertices];
+  p->vertexlist[0] = 4;
+  p->vertexlist[1] = 8;
+  p->vertexlist[2] = 5;
+  p->vertexlist[3] = 1;
+
+  // Set 'in.facetmarkerlist'
+
+  in.facetmarkerlist[0] = -1;
+  in.facetmarkerlist[1] = -2;
+  in.facetmarkerlist[2] = 0;
+  in.facetmarkerlist[3] = 0;
+  in.facetmarkerlist[4] = 0;
+  in.facetmarkerlist[5] = 0;
+
+  // Tetrahedralize the PLC. Switches are chosen to read a PLC (p),
+  //   do quality mesh generation (q) with a specified quality bound
+  //   (1.414), and apply a maximum volume constraint (a0.1).
+
+  tetrahedralize("zpq1.414a0.1", &in, &out);
+//  tetrahedralize("zp", &in, &out);
+
+  // Output mesh to files 'barout.node', 'barout.ele' and 'barout.face'.
+  out.save_nodes(FILE_PREFIX);
+  out.save_elements(FILE_PREFIX);
+  out.save_faces(FILE_PREFIX);
+}
+
+static void cleanupTetgen() {
+  cout << "deleting " << ELE_FILE << endl;
+  unlink(ELE_FILE);
+  cout << "deleting " << FACE_FILE << endl;
+  unlink(FACE_FILE);
+  cout << "deleting " << NODE_FILE << endl;
+  unlink(NODE_FILE);
+}
+
+/*namespace TetraCube {
+#include "cube.inl"
+}*/
+
+btSoftBody *generateTetraBox(const btVector3 &dims, btSoftBodyWorldInfo &worldInfo) {
+  runTetgen(dims);
+  boost::scoped_array<char> eleStr(readWholeFile(ELE_FILE));
+  boost::scoped_array<char> nodeStr(readWholeFile(NODE_FILE));
+  btSoftBody *psb = btSoftBodyHelpers::CreateFromTetGenData(worldInfo,
+    eleStr.get(), 0, nodeStr.get(),
+    false, true, true);
+  cleanupTetgen();
+  return psb;
+}
+  /*btSoftBody *psb = btSoftBodyHelpers::CreateFromTetGenData(worldInfo,
+    TetraCube::getElements(), 0, TetraCube::getNodes(),
+    false, true, true);*/
+
+BulletSoftObject::Ptr makeTetraBox(const vector<btVector3>& points, btScalar thickness, btSoftBodyWorldInfo& worldInfo) {
+  btVector3 dims(points[0].distance(points[1]), points[0].distance(points[2]), thickness);
+  btSoftBody *psb = generateTetraBox(dims, worldInfo);
+  psb->scale(btVector3(0.9, 0.9, 0.9));
+  psb->translate(points[0] + btVector3(-5, 0, 0));
+  psb->setVolumeMass(1);
+  psb->m_cfg.piterations=1;
+  psb->generateClusters(16);
+  psb->getCollisionShape()->setMargin(0.01);
+  psb->m_cfg.collisions	= btSoftBody::fCollision::CL_SS+	btSoftBody::fCollision::CL_RS
+  //+ btSoftBody::fCollision::CL_SELF
+  		;
+  //psb->m_materials[0]->m_kLST=0.8;
+  psb->m_materials[0]->m_kLST		=	0.1;
+  psb->m_materials[0]->m_kAST		=	0.1;
+  psb->m_materials[0]->m_kVST		=	0.1;
+  return BulletSoftObject::Ptr(new BulletSoftObject(psb));
+}
+

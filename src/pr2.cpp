@@ -139,9 +139,6 @@ void PR2SoftBodyGripper::grab() {
         attach(false);
         attach(true);
     } else {
-        for(int k = 0; k < 100; ++k) {
-        cout << "CALLING ATTACH!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << endl;
-        }
         // the gripper should be closed
         const btVector3 midpt = 0.5 * (getInnerPt(false) + getInnerPt(true));
         // get point on cloth closest to midpt, and attach an anchor there
