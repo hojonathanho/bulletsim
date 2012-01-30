@@ -32,7 +32,6 @@ static bool isClosed(RobotBase::ManipulatorPtr manip, float closedThreshold) {
   manip->GetRobot()->SetActiveDOFs(gripperInds);
   vector<double> dof_values;
   manip->GetRobot()->GetActiveDOFValues(dof_values);
-  cout << "gripper joint: " << dof_values[0] << endl;
   return dof_values[0] < closedThreshold;
 }
 
@@ -43,6 +42,8 @@ static BulletObject::Ptr getNearestBody(vector<BulletObject::Ptr> bodies, btVect
   dists.minCoeff(&argmin);
   return bodies[argmin];
 }
+
+Monitor::Monitor() : closedThreshold(PR2_CLOSED_VAL) { }
 
 Monitor::Monitor(OpenRAVE::RobotBase::ManipulatorPtr manip) :
     m_manip(manip),
@@ -57,6 +58,11 @@ void Monitor::update() {
   else if (m_wasClosed && !nowClosed) release();
   else if (m_wasClosed && nowClosed) updateGrabPos();
   m_wasClosed = nowClosed;
+}
+
+void Monitor::setManip(OpenRAVE::RobotBase::ManipulatorPtr m) {
+    m_manip = m;
+    m_wasClosed = isClosed(m_manip, closedThreshold);
 }
 
 MonitorForGrabbing::MonitorForGrabbing(OpenRAVE::RobotBase::ManipulatorPtr manip, btDynamicsWorld *dynamicsWorld) :
@@ -88,4 +94,10 @@ void MonitorForGrabbing::updateGrabPos() {
     if (!m_grab) return;
     cout << "updating constraint position" << endl;
     m_grab->updatePosition(util::toBtVector(m_manip->GetTransform().trans)*METERS);
+}
+
+SoftMonitorForGrabbing::SoftMonitorForGrabbing(RaveRobotKinematicObject::Ptr robot, bool leftGripper) {
+    robot->robot->SetActiveManipulator(leftGripper ? "leftarm" : "rightarm");
+    gripper.reset(new PR2SoftBodyGripper(robot, robot->robot->GetActiveManipulator(), leftGripper));
+    setManip(robot->robot->GetActiveManipulator());
 }

@@ -22,11 +22,13 @@ protected:
     bool m_wasClosed;
     OpenRAVE::RobotBase::ManipulatorPtr m_manip;
 
-    static const float PR2_CLOSED_VAL = 0.03f, PR2_OPEN_VAL = 0.54f;
+    //static const float PR2_CLOSED_VAL = 0.03f, PR2_OPEN_VAL = 0.54f;
+    static const float PR2_CLOSED_VAL = 0.1f, PR2_OPEN_VAL = 0.54f;
 
     float closedThreshold;
 
 public:
+    Monitor(); // must call setManip if using this constructor
     Monitor(OpenRAVE::RobotBase::ManipulatorPtr);
 
     void setClosedThreshold(float t) { closedThreshold = t; }
@@ -35,6 +37,8 @@ public:
     virtual void grab() = 0;
     virtual void release() = 0;
     virtual void updateGrabPos() = 0;
+
+    void setManip(OpenRAVE::RobotBase::ManipulatorPtr);
 };
 
 class MonitorForGrabbing : public Monitor {
@@ -58,6 +62,7 @@ public:
     SoftMonitorForGrabbing(RaveRobotKinematicObject::Ptr robot, OpenRAVE::RobotBase::ManipulatorPtr manip, bool leftGripper) :
         Monitor(manip),
         gripper(new PR2SoftBodyGripper(robot, manip, leftGripper)) { }
+    SoftMonitorForGrabbing(RaveRobotKinematicObject::Ptr robot, bool leftGripper);
 
     void setTarget(btSoftBody *psb) { gripper->setTarget(psb); }
     void grab() { gripper->grab(); }

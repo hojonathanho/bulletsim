@@ -4,7 +4,6 @@
 #include "openravesupport.h"
 
 // Special support for the OpenRAVE PR2 model
-
 class PR2SoftBodyGripper {
     RaveRobotKinematicObject::Ptr robot;
     OpenRAVE::RobotBase::ManipulatorPtr manip;
@@ -60,8 +59,6 @@ class PR2SoftBodyGripper {
     // Checks if psb is touching the inside of the gripper fingers
     // If so, attaches anchors to every contact point
     void attach(bool left);
-
-    Environment *env; BulletInstance::Ptr newBullet; OSGInstance::Ptr newOSG;
 
 public:
     typedef boost::shared_ptr<PR2SoftBodyGripper> Ptr;

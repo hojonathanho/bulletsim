@@ -45,8 +45,8 @@ struct CustomScene : public Scene {
 
   CustomScene() :
     Scene(),
-    lMonitor(pr2, pr2->robot->GetManipulators()[5], true),
-    rMonitor(pr2, pr2->robot->GetManipulators()[7], false) {
+    lMonitor(pr2, true),
+    rMonitor(pr2, false) {
     // add the screen capture handler
     framecount = 0;
     captureHandler = new osgViewer::ScreenCaptureHandler(new osgViewer::ScreenCaptureHandler::WriteToFile("screenshots/img", "jpg", osgViewer::ScreenCaptureHandler::WriteToFile::SEQUENTIAL_NUMBER));
@@ -165,7 +165,18 @@ int main(int argc, char* argv[]) {
     towelObsPlot->setPoints(towelObsPts);
 
     for (int i=0; i < TrackingConfig::nIter; i++) {
-      cout << "iteration " << i << endl;
+      //cout << "iteration " << i << endl;
+      cout << "NUMBER OF ANCHORS: " << towel->softBody->m_anchors.size() << endl;
+      vector<btVector3> p;
+      for (int z = 0; z < towel->softBody->m_anchors.size(); ++z) {
+        btSoftBody::Anchor &a = towel->softBody->m_anchors[z];
+        btVector3 &x = a.m_node->m_x;
+        cout << "\tanchor at " << x.x() << ' ' << x.y() << ' ' << x.z() << endl;
+        p.push_back(btVector3(0, 0, 0));
+        p.push_back(x);
+      }
+      scene.plotLines->setPoints(p);
+
       vector<float> pVis = calcVisibility(towel->softBody.get(), scene.env->bullet->dynamicsWorld, CT.worldFromCamUnscaled.getOrigin()*METERS);
       colorByVisibility(towel->softBody.get(), pVis, towelEstPlot);
 
