@@ -1,4 +1,5 @@
 #include "pr2.h"
+#include "environment.h"
 
 static const char LEFT_GRIPPER_LEFT_FINGER_NAME[] = "l_gripper_l_finger_tip_link";
 static const char LEFT_GRIPPER_RIGHT_FINGER_NAME[] = "l_gripper_r_finger_tip_link";
@@ -156,6 +157,6 @@ void PR2SoftBodyGripper::grab() {
         // fork the environment, close the gripper all the way, and
         // look for contact points. then we use those same points for
         // anchors in the original environment
-//        Fork fork(env, newBullet, newOSG);
+        Fork fork(env, newBullet, newOSG);
     }
 }

@@ -205,6 +205,9 @@ BulletKinematicObject::BulletKinematicObject(boost::shared_ptr<btCollisionShape>
     rigidBody->setActivationState(DISABLE_DEACTIVATION);
 }
 
+//EnvironmentObject::Ptr BulletKinematicObject::copy(Fork &f) const {
+//}
+
 
 GrabberKinematicObject::GrabberKinematicObject(float radius_, float height_) :
     radius(radius_), height(height_),

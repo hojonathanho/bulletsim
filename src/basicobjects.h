@@ -89,7 +89,12 @@ public:
 
     BulletKinematicObject(boost::shared_ptr<btCollisionShape> collisionShape_, const btTransform &trans);
     EnvironmentObject::Ptr copy(Fork &f) const {
+        btTransform trans; motionState->getWorldTransform(trans);
         Ptr o(new BulletKinematicObject(*this));
+        o->motionState.reset(new MotionState(o.get(), trans));
+        // FIXME: BROKEN!!!!!!!!!!!!
+        //  len = o.rigidBody->calculateSerializeBufferSize(); fails for some mysterious reason..
+        // I think the BulletObject copy constructor copies its own motion state already
         internalCopy(o, f);
         return o;
     }
