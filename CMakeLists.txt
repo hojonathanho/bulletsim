@@ -28,6 +28,7 @@ set(BULLET_DIR ${BULLETSIM_SOURCE_DIR}/lib/bullet-2.79)
 set(OSGWORKS_DIR ${BULLETSIM_SOURCE_DIR}/lib/osgWorks-2.0)
 set(OSGBULLET_DIR ${BULLETSIM_SOURCE_DIR}/lib/osgBullet-2.0)
 set(JSON_DIR ${BULLETSIM_SOURCE_DIR}/lib/json)
+set(TETGEN_DIR ${BULLETSIM_SOURCE_DIR}/lib/tetgen-1.4.3)
 
 add_subdirectory(lib)
 add_subdirectory(src)
