@@ -32,7 +32,14 @@ public:
       collisionShape(collisionShape_), rigidBody(rigidBody_), motionState(motionState_) { }
     BulletObject(const BulletObject &o); // copy constructor
     virtual ~BulletObject() { }
-    EnvironmentObject::Ptr copy() { return Ptr(new BulletObject(*this)); }
+    EnvironmentObject::Ptr copy(Fork &f) const {
+        Ptr o(new BulletObject(*this));
+        internalCopy(o, f);
+        return o;
+    }
+    void internalCopy(BulletObject::Ptr o, Fork &f) const {
+        f.registerCopy(rigidBody.get(), o->rigidBody.get());
+    }
 
     // called by Environment
     void init();
@@ -81,7 +88,11 @@ public:
     };
 
     BulletKinematicObject(boost::shared_ptr<btCollisionShape> collisionShape_, const btTransform &trans);
-    EnvironmentObject::Ptr copy() { return Ptr(new BulletKinematicObject(*this)); }
+    EnvironmentObject::Ptr copy(Fork &f) const {
+        Ptr o(new BulletKinematicObject(*this));
+        internalCopy(o, f);
+        return o;
+    }
 
     MotionState &getKinematicMotionState() { return *static_cast<MotionState *> (motionState.get()); }
 };
@@ -96,7 +107,11 @@ public:
     typedef boost::shared_ptr<GrabberKinematicObject> Ptr;
 
     GrabberKinematicObject(float radius_, float height_);
-    EnvironmentObject::Ptr copy() { return Ptr(new GrabberKinematicObject(*this)); }
+    EnvironmentObject::Ptr copy(Fork &f) const {
+        Ptr o(new GrabberKinematicObject(*this));
+        internalCopy(o, f);
+        return o;
+    }
     void destroy() { releaseConstraint(); BulletKinematicObject::destroy(); }
 
     osg::ref_ptr<osg::Node> createOSGNode();
@@ -118,7 +133,12 @@ public:
 
     PlaneStaticObject(const btVector3 &planeNormal_, btScalar planeConstant_,
                       boost::shared_ptr<btDefaultMotionState> motionState_, btScalar drawHalfExtents_=50.);
-    EnvironmentObject::Ptr copy() { return Ptr(new PlaneStaticObject(*this)); }
+    EnvironmentObject::Ptr copy(Fork &f) const {
+        Ptr o(new PlaneStaticObject(*this));
+        internalCopy(o, f);
+        return o;
+    }
+
 
     // must override this since osgBullet doesn't recognize btStaticPlaneShape
     osg::ref_ptr<osg::Node> createOSGNode();
@@ -134,7 +154,11 @@ public:
 
     CylinderStaticObject(btScalar mass_, btScalar radius_, btScalar height_,
                          boost::shared_ptr<btDefaultMotionState> motionState_);
-    EnvironmentObject::Ptr copy() { return Ptr(new CylinderStaticObject(*this)); }
+    EnvironmentObject::Ptr copy(Fork &f) const {
+        Ptr o(new CylinderStaticObject(*this));
+        internalCopy(o, f);
+        return o;
+    }
 };
 
 class SphereObject : public BulletObject {
@@ -146,7 +170,11 @@ public:
 
     SphereObject(btScalar mass_, btScalar radius_,
                  boost::shared_ptr<btDefaultMotionState> motionState_);
-    EnvironmentObject::Ptr copy() { return Ptr(new SphereObject(*this)); }
+    EnvironmentObject::Ptr copy(Fork &f) const {
+        Ptr o(new SphereObject(*this));
+        internalCopy(o, f);
+        return o;
+    }
 };
 
 
@@ -160,7 +188,11 @@ public:
 
     BoxObject(btScalar mass_, btVector3 halfExtents_,
                  boost::shared_ptr<btDefaultMotionState> motionState_);
-    EnvironmentObject::Ptr copy() { return Ptr(new BoxObject(*this)); }
+    EnvironmentObject::Ptr copy(Fork &f) const {
+        Ptr o(new BoxObject(*this));
+        internalCopy(o, f);
+        return o;
+    }
 };
 
 // A wrapper for btCapsuleShapeX
@@ -173,7 +205,11 @@ public:
 
     CapsuleObject(btScalar mass_, btScalar radius_, btScalar height_,
                   boost::shared_ptr<btDefaultMotionState> motionState_);
-    EnvironmentObject::Ptr copy() { return Ptr(new CapsuleObject(*this)); }
+    EnvironmentObject::Ptr copy(Fork &f) const {
+        Ptr o(new CapsuleObject(*this));
+        internalCopy(o, f);
+        return o;
+    }
     osg::ref_ptr<osg::Node> createOSGNode();
 };
 

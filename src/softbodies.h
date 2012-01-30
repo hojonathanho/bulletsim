@@ -20,9 +20,10 @@ public:
     BulletSoftObject(btSoftBody *softBody_) : softBody(softBody_) { }
     virtual ~BulletSoftObject() { }
 
-    // TODO: implement copying!
-    EnvironmentObject::Ptr copy() { return Ptr(new BulletSoftObject(*this)); }
-  void setColor(float,float,float,float);
+    void setColor(float,float,float,float);
+
+    EnvironmentObject::Ptr copy(Fork &f) const;
+    void postCopy(EnvironmentObject::Ptr copy, Fork &f) const;
 
     // called by Environment
     void init();

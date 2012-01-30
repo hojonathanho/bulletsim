@@ -40,7 +40,8 @@ struct BulletInstance {
     void contactTest(btCollisionObject *obj, CollisionObjectSet &out, const CollisionObjectSet *ignore=NULL);
 };
 
-class Environment;
+struct Environment;
+struct Fork;
 class EnvironmentObject {
 private:
     Environment *env;
@@ -54,7 +55,16 @@ public:
 
     Environment *getEnvironment() { return env; }
 
-    virtual EnvironmentObject::Ptr copy() = 0;
+    // These are for environment forking.
+    // copy() should return a copy of the object suitable for addition
+    // into the environment contained by f. This should NOT add objects to f.env;
+    // however it should call f.registerCopy() for each Bullet
+    // collision object that it makes.
+    virtual EnvironmentObject::Ptr copy(Fork &f) const = 0;
+    // postCopy is called after all objects are copied and inserted into f.env.
+    // This is useful for updating constraints, anchors, etc.
+    // You're free to use f.forkOf()  or f.copyOf() to get equivalent objects in the new env.
+    virtual void postCopy(EnvironmentObject::Ptr copy, Fork &f) const { }
 
     // methods only to be called by the Environment
     void setEnvironment(Environment *env_) { env = env_; }
@@ -78,25 +88,45 @@ struct Environment {
 
     void add(EnvironmentObject::Ptr obj);
     void step(btScalar dt, int maxSubSteps, btScalar fixedTimeStep);
-
-    // An Environment::Fork is a wrapper around an Environment with an operator
-    // that associates copied objects with their original ones
-    struct Fork {
-        typedef boost::shared_ptr<Fork> Ptr;
-
-        Environment *parentEnv;
-        Environment::Ptr env;
-
-        typedef std::map<EnvironmentObject::Ptr, EnvironmentObject::Ptr> ObjectMap;
-        ObjectMap objMap; // maps object in parentEnv to object in env
-
-        Fork(Environment *parentEnv_, BulletInstance::Ptr bullet, OSGInstance::Ptr osg);
-
-        EnvironmentObject::Ptr forkOf(EnvironmentObject::Ptr orig);
-    };
-    Fork::Ptr fork(BulletInstance::Ptr newBullet, OSGInstance::Ptr newOSG);
 };
 
+
+// An Environment Fork is a wrapper around an Environment with an operator
+// that associates copied objects with their original ones
+class Fork {
+    void copyObjects();
+
+public:
+    typedef boost::shared_ptr<Fork> Ptr;
+
+    const Environment *parentEnv;
+    Environment::Ptr env;
+
+    typedef std::map<EnvironmentObject::Ptr, EnvironmentObject::Ptr> ObjectMap;
+    ObjectMap objMap; // maps object in parentEnv to object in env
+
+    typedef std::map<const void *, void *> DataMap;
+    DataMap dataMap;
+    void registerCopy(const void *orig, void *copy) {
+        BOOST_ASSERT(copyOf(orig) == NULL && orig && copy);
+        dataMap.insert(std::make_pair(orig, copy));
+    }
+
+    Fork(const Environment *parentEnv_, BulletInstance::Ptr bullet, OSGInstance::Ptr osg) :
+        parentEnv(parentEnv_), env(new Environment(bullet, osg)) { copyObjects(); }
+    Fork(const Environment::Ptr parentEnv_, BulletInstance::Ptr bullet, OSGInstance::Ptr osg) :
+        parentEnv(parentEnv_.get()), env(new Environment(bullet, osg)) { copyObjects(); }
+
+    void *copyOf(const void *orig) const {
+        DataMap::const_iterator i = dataMap.find(orig);
+        return i == dataMap.end() ? NULL : i->second;
+    }
+    EnvironmentObject::Ptr forkOf(EnvironmentObject::Ptr orig) const {
+        ObjectMap::const_iterator i = objMap.find(orig);
+        return i == objMap.end() ? EnvironmentObject::Ptr() : i->second;
+    }
+
+};
 
 // objects
 
@@ -112,15 +142,23 @@ public:
     ChildVector &getChildren() { return children; }
 
     CompoundObject() { }
-    // copy constructor
-    CompoundObject(const CompoundObject<ChildType> &c) {
-        children.reserve(c.children.size());
-        typename ChildVector::const_iterator i;
-        for (i = c.children.begin(); i != c.children.end(); ++i)
-            children.push_back(boost::static_pointer_cast<ChildType> ((*i)->copy()));
+
+    EnvironmentObject::Ptr copy(Fork &f) const {
+        Ptr o(new CompoundObject<ChildType>());
+        internalCopy(o, f);
+        return o;
     }
 
-    EnvironmentObject::Ptr copy() { return Ptr(new CompoundObject(*this)); }
+    void internalCopy(CompoundObject::Ptr o, Fork &f) const {
+        o->children.reserve(children.size());
+        typename ChildVector::const_iterator i;
+        for (i = children.begin(); i != children.end(); ++i) {
+            if (*i)
+                o->children.push_back(boost::static_pointer_cast<ChildType> ((*i)->copy(f)));
+            else
+                o->children.push_back(typename ChildType::Ptr());
+        }
+    }
 
     void init() {
         typename ChildVector::iterator i;
