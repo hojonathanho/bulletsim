@@ -23,6 +23,7 @@ playback : PLAYBACK
 robot_knot : ROBOT_KNOT
 human_knot : HUMAN_KNOT
 robot_towel : ROBOT_TOWEL
+human_towel : HUMAN_TOWEL
 
 $(TABLE_CORNERS) : $(FIRST_PCD)
 	$(BIN_CLOUDS)/comm_get_table -i $(FIRST_PCD)
@@ -30,8 +31,11 @@ $(ROI_MASK) : $(FIRST_PCD)
 	$(IMG_PROC)/make_roi.py -p $(FIRST_PCD) -o $(ONCE)/roi_mask.png
 $(INIT_ROPE) : $(FIRST_PCD) $(FIRST_LABEL)
 	$(IMG_PROC)/initialize_rope.py $(FIRST_PCD) $(FIRST_LABEL) $(ONCE)/init_rope.txt
+$(FIRST_LABEL) : $(LABELS)
+$(FIRST_IMAGE) : $(IMAGES)
+$(FIRST_PCD) : $(KINECT)
 $(KINECT) : 
-	$(BIN_CLOUDS)/comm_write_pcds -d 10
+	$(BIN_CLOUDS)/comm_write_pcds -d 4
 $(IMAGES) : $(KINECT)
 	$(IMG_PROC)/comm_pcd2jpg.py kinect images
 $(LABELS) : $(IMAGES) $(CLASSIFIER) $(ROI_MASK)
@@ -39,7 +43,7 @@ $(LABELS) : $(IMAGES) $(CLASSIFIER) $(ROI_MASK)
 $(ROPE_PTS) :
 	$(BIN_CLOUDS)/comm_downsample_clouds -c kinect -l labels -o rope_pts -n 1 -v .02
 $(TOWEL_PTS) :
-	$(BIN_CLOUDS)/comm_downsample_clouds -c kinect -l labels -o towel_pts -n 1 -v .02
+	$(BIN_CLOUDS)/comm_downsample_clouds -c kinect -l labels -o towel_pts -n 1 -v .01
 $(ROPE_ENDS) : 
 	$(IMG_PROC)/comm_get_region_centers.py labels kinect rope_ends 2 --min_pix=25 --max_blobs=2
 PLAYBACK :
@@ -49,3 +53,5 @@ ROBOT_KNOT : $(LABELS) $(ROPE_PTS) $(ROPE_ENDS) $(TABLE_CORNERS) $(INIT_ROPE)
 HUMAN_KNOT : $(LABELS) $(ROPE_PTS) $(ROPE_ENDS) $(TABLE_CORNERS) $(INIT_ROPE)
 	$(BIN_PERCEPTION)/test_kinect_rope
 ROBOT_TOWEL : $(LABELS) $(TOWEL_PTS) $(TABLE_CORNERS)
+
+HUMAN_TOWEL : $(LABELS) $(TOWEL_PTS) $(TABLE_CORNERS)
