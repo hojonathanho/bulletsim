@@ -72,20 +72,18 @@ void Environment::step(btScalar dt, int maxSubSteps, btScalar fixedTimeStep) {
     bullet->softBodyWorldInfo.m_sparsesdf.GarbageCollect();
 }
 
-Environment::Fork::Fork(Environment *parentEnv_, BulletInstance::Ptr bullet, OSGInstance::Ptr osg) :
-    parentEnv(parentEnv_), env(new Environment(bullet, osg)) { }
+void Fork::copyObjects() {
+    Environment::ObjectList::const_iterator i;
 
-EnvironmentObject::Ptr Environment::Fork::forkOf(EnvironmentObject::Ptr orig) {
-    ObjectMap::iterator i = objMap.find(orig);
-    return i == objMap.end() ? EnvironmentObject::Ptr() : i->second;
-}
-
-Environment::Fork::Ptr Environment::fork(BulletInstance::Ptr newBullet, OSGInstance::Ptr newOSG) {
-    Fork::Ptr f(new Fork(this, newBullet, newOSG));
-    for (ObjectList::const_iterator i = objects.begin(); i != objects.end(); ++i) {
-        EnvironmentObject::Ptr copy = (*i)->copy();
-        f->env->add(copy);
-        f->objMap[*i] = copy;
+    for (i = parentEnv->objects.begin(); i != parentEnv->objects.end(); ++i) {
+        EnvironmentObject::Ptr copy = (*i)->copy(*this);
+        env->add(copy);
+        objMap[*i] = copy;
     }
-    return f;
+
+    // some objects might need processing after all objects have been added
+    // e.g. anchors and joints for soft bodies
+    for (i = parentEnv->objects.begin(); i != parentEnv->objects.end(); ++i) {
+        (*i)->postCopy(objMap[*i], *this);
+    }
 }

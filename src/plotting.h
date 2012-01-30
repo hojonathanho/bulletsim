@@ -22,7 +22,7 @@ protected:
 public:
   typedef boost::shared_ptr<PlotObject> Ptr;
 
-  EnvironmentObject::Ptr copy() { return Ptr(new PlotObject(*this)); }
+  EnvironmentObject::Ptr copy(Fork &f) const { return Ptr(new PlotObject(*this)); }
 
   void init(){
     getEnvironment()->osg->root->addChild(m_geode.get());

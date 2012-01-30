@@ -4,10 +4,11 @@
 #include "openravesupport.h"
 
 // Special support for the OpenRAVE PR2 model
-
 class PR2SoftBodyGripper {
     RaveRobotKinematicObject::Ptr robot;
     OpenRAVE::RobotBase::ManipulatorPtr manip;
+
+    float grabOnlyOnContact;
 
     KinBody::LinkPtr leftFinger, rightFinger;
     const btTransform origLeftFingerInvTrans, origRightFingerInvTrans;
@@ -67,8 +68,10 @@ public:
     // Must be called before the action is run!
     void setTarget(btSoftBody *psb_) { psb = psb_; }
 
-    void grab() { attach(false); attach(true); }
+    void grab();
     void releaseAllAnchors() { psb->m_anchors.clear(); }
+
+    void setForkParams(Environment *env_, BulletInstance::Ptr newBullet_, OSGInstance::Ptr newOSG_);
 };
 
 

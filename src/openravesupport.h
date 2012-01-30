@@ -16,10 +16,19 @@ using namespace std;
 struct RaveInstance {
     typedef boost::shared_ptr<RaveInstance> Ptr;
 
+    bool isRoot;
     EnvironmentBasePtr env;
 
     RaveInstance();
+    // copy constructor. will never call RaveInitialize or RaveDestroy
+    RaveInstance(const RaveInstance &o, int cloneOpts);
     ~RaveInstance();
+};
+
+enum TrimeshMode {
+    CONVEX_DECOMP, // use HACD convex decomposition
+    CONVEX_HULL, // use btShapeHull
+    RAW // use btBvhTriangleMeshShape (not recommended, makes simulation very slow)
 };
 
 class RaveRobotKinematicObject : public CompoundObject<BulletKinematicObject> {
@@ -36,12 +45,18 @@ private:
     std::map<KinBody::LinkPtr, BulletKinematicObject::Ptr> linkMap;
     std::map<btCollisionObject *, KinBody::LinkPtr> collisionObjMap;
 
+    // maps a child to a position in the children array. used for copying
+    std::map<BulletKinematicObject::Ptr, int> childPosMap;
+
     // vector of objects to ignore collision with
     BulletInstance::CollisionObjectSet ignoreCollisionObjs;
 
     // for the loaded robot, this will create BulletKinematicObjects
     // and place them into the children vector
-    void initRobotWithoutDynamics(const btTransform &initialTransform, bool useConvexHull=true, float fmargin=0.0005);
+    void initRobotWithoutDynamics(const btTransform &initialTransform, TrimeshMode trimeshMode, float fmargin=0.0005);
+
+    // empty constructor for manual copying
+    RaveRobotKinematicObject(btScalar scale_) : scale(scale_) { }
 
 public:
     typedef boost::shared_ptr<RaveRobotKinematicObject> Ptr;
@@ -51,11 +66,18 @@ public:
 
     // this class is actually a collection of BulletKinematicObjects,
     // each of which represents a link of the robot
-    RaveRobotKinematicObject(RaveInstance::Ptr rave_, const std::string &uri, const btTransform &initialTransform_, btScalar scale=1.0f);
+    RaveRobotKinematicObject(RaveInstance::Ptr rave_,
+            const std::string &uri,
+            const btTransform &initialTransform_,
+            btScalar scale=1.0f,
+            TrimeshMode trimeshMode=CONVEX_HULL
+            );
 
+    // forking
+    EnvironmentObject::Ptr copy(Fork &f) const;
+    void postCopy(EnvironmentObject::Ptr copy, Fork &f) const;
 
-    void prePhysics();
-
+    // Gets equivalent rigid bodies in OpenRAVE and in Bullet
     BulletKinematicObject::Ptr associatedObj(KinBody::LinkPtr link) const {
         std::map<KinBody::LinkPtr, BulletKinematicObject::Ptr>::const_iterator i = linkMap.find(link);
         return i == linkMap.end() ? BulletKinematicObject::Ptr() : i->second;
@@ -85,6 +107,7 @@ public:
         RaveRobotKinematicObject *robot;
         ModuleBasePtr ikmodule;
         RobotBase::ManipulatorPtr manip;
+        int index; // id for this manipulator in this robot instance
 
         bool useFakeGrabber;
         GrabberKinematicObject::Ptr grabber;
@@ -111,12 +134,19 @@ public:
             return moveByIKUnscaled(util::toRaveTransform(targetTrans, 1./robot->scale),
                 checkCollisions, revertOnCollision);
         }
+
+        Manipulator::Ptr copy(RaveRobotKinematicObject::Ptr newRobot, Fork &f);
     };
 
     // If useFakeGrabber is true, the manipulator will use a GrabberKinematicObject
     // which can "grab" objects by simply setting a point constraint with the nearest
     // object in front of the manipulator. Pass in false for realistic grasping.
     Manipulator::Ptr createManipulator(const std::string &manipName, bool useFakeGrabber=false);
+    void destroyManipulator(Manipulator::Ptr m); // not necessary to call this on destruction
+    Manipulator::Ptr getManipByIndex(int i) const { return createdManips[i]; }
+    int numCreatedManips() const { return createdManips.size(); }
+private:
+    std::vector<Manipulator::Ptr> createdManips;
 };
 
 #endif // _OPENRAVESUPPORT_H_

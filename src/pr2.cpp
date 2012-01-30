@@ -1,4 +1,5 @@
 #include "pr2.h"
+#include "environment.h"
 
 static const char LEFT_GRIPPER_LEFT_FINGER_NAME[] = "l_gripper_l_finger_tip_link";
 static const char LEFT_GRIPPER_RIGHT_FINGER_NAME[] = "l_gripper_r_finger_tip_link";
@@ -8,7 +9,7 @@ static const char RIGHT_GRIPPER_RIGHT_FINGER_NAME[] = "r_gripper_r_finger_tip_li
 
 // adapted from btSoftBody.cpp (btSoftBody::appendAnchor)
 static void btSoftBody_appendAnchor(btSoftBody *psb, btSoftBody::Node *node, btRigidBody *body, btScalar influence=1) {
-    btSoftBody::Anchor a;
+    btSoftBody::Anchor a = { 0 };
     a.m_node = node;
     a.m_body = body;
     a.m_local = body->getWorldTransform().inverse()*a.m_node->m_x;
@@ -108,7 +109,8 @@ PR2SoftBodyGripper::PR2SoftBodyGripper(RaveRobotKinematicObject::Ptr robot_, Ope
         closingNormal(manip->GetClosingDirection()[0],
                       manip->GetClosingDirection()[1],
                       manip->GetClosingDirection()[2]),
-        toolDirection(util::toBtVector(manip->GetLocalToolDirection())) // don't bother scaling
+        toolDirection(util::toBtVector(manip->GetLocalToolDirection())), // don't bother scaling
+        grabOnlyOnContact(false)
 {
 }
 
@@ -130,4 +132,33 @@ void PR2SoftBodyGripper::attach(bool left) {
         }
     }
     cout << "appended " << nAppended << " anchors\n";
+}
+
+void PR2SoftBodyGripper::grab() {
+    if (grabOnlyOnContact) {
+        attach(false);
+        attach(true);
+    } else {
+        for(int k = 0; k < 100; ++k) {
+        cout << "CALLING ATTACH!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << endl;
+        }
+        // the gripper should be closed
+        const btVector3 midpt = 0.5 * (getInnerPt(false) + getInnerPt(true));
+        // get point on cloth closest to midpt, and attach an anchor there
+        // (brute-force iteration through every cloth node)
+        btSoftBody::tNodeArray &nodes = psb->m_nodes;
+        btSoftBody::Node *closestNode = NULL;
+        btScalar closestDist;
+        for (int i = 0; i < nodes.size(); ++i) {
+            btSoftBody::Node &n = nodes[i];
+            btScalar d2 = midpt.distance2(n.m_x);
+            if (closestNode == NULL || d2 < closestDist) {
+                closestNode = &n;
+                closestDist = d2;
+            }
+        }
+        // attach to left finger (arbitrary choice)
+        if (closestNode)
+            btSoftBody_appendAnchor(psb, closestNode, robot->associatedObj(leftFinger)->rigidBody.get());
+    }
 }

@@ -33,7 +33,10 @@ struct Scene {
   OSGInstance::Ptr osg;
   BulletInstance::Ptr bullet;
   RaveInstance::Ptr rave;
+
   Environment::Ptr env;
+  std::set<Fork::Ptr> forks;
+
   boost::shared_ptr<osgbCollision::GLDebugDrawer> dbgDraw;
   osgViewer::Viewer viewer;
   osg::ref_ptr<EventHandler> manip;
@@ -52,6 +55,12 @@ struct Scene {
   bool drawingOn, syncTime;
   void setDrawing(bool b) { drawingOn = b; }
   void setSyncTime(bool b) { syncTime = b; }
+
+  // If you register a Fork, then stepping the scene will also
+  // step it in parallel with the main environment
+  void registerFork(Fork::Ptr f) { forks.insert(f); }
+  void unregisterFork(Fork::Ptr f) { forks.erase(f); }
+
   // Starts the viewer. Must be called before any step/draw/viewerLoop call
   // and after adding objects to the environment
   void startViewer();

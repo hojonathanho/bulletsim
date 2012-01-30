@@ -20,14 +20,6 @@
 #include <pcl/common/transforms.h>
 #include <osgViewer/ViewerEventHandlers>
 
-#define KEY_CONTROL_LEFT(key, incfunc, delta)				\
-  case key:								\
-  setTrans(IncTransform::incfunc(ta.ct.worldFromCamUnscaled,delta)); \
-  break
-#define KEY_CONTROL_RIGHT(key, incfunc, delta)				\
-  case key:								\
-  setTrans(IncTransform::incfunc(ta.ct.worldFromCamUnscaled,delta)); \
-  break
 
 struct IncTransform {
   static btTransform rotX(btTransform t,float s) {
@@ -92,6 +84,18 @@ public:
 };
 
 bool TransformAdjuster::CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea, osgGA::GUIActionAdapter &) {
+
+#define KEY_CONTROL_LEFT(key, incfunc, delta)				\
+  case key:								\
+  if (ea.getModKeyMask() & osgGA::GUIEventAdapter::MODKEY_CTRL) \
+    setTrans(IncTransform::incfunc(ta.ct.worldFromCamUnscaled,delta)); \
+  break
+#define KEY_CONTROL_RIGHT(key, incfunc, delta)				\
+  case key:								\
+  if (ea.getModKeyMask() & osgGA::GUIEventAdapter::MODKEY_CTRL) \
+    setTrans(IncTransform::incfunc(ta.ct.worldFromCamUnscaled,delta)); \
+  break
+
     switch (ea.getEventType()) {
     case osgGA::GUIEventAdapter::KEYDOWN:
         switch (ea.getKey()) {
@@ -132,9 +136,9 @@ bool TransformAdjuster::CustomKeyHandler::handle(const osgGA::GUIEventAdapter &e
         break;
     case osgGA::GUIEventAdapter::KEYUP:
         switch (ea.getKey()) {
-        case '3':
+        case '-':
             state.moving = false; return true;
-        case 'e':
+        case '=':
             state.rotating = false; return true;
         }
         break;
@@ -184,6 +188,9 @@ bool TransformAdjuster::CustomKeyHandler::handle(const osgGA::GUIEventAdapter &e
         break;
     }
     return false;
+
+#undef KEY_CONTROL_LEFT
+#undef KEY_CONTROL_RIGHT
 }
 
 struct CustomScene : public Scene {
@@ -230,29 +237,20 @@ int main(int argc, char* argv[]) {
   ////////////// create scene
   CustomScene scene;
   static PlotPoints::Ptr kinectPts(new PlotPoints(2));
+  scene.env->add(kinectPts);
 
   vector<double> firstJoints = doubleVecFromFile(filePath("data000000000000.txt", "joint_states").string());
   ValuesInds vi = getValuesInds(firstJoints);
   scene.pr2->setDOFValues(vi.second, vi.first);
 
   // get kinect transform
-  btTransform worldFromKinect = getKinectToWorld(scene.pr2->robot);
-  CoordinateTransformer CT(worldFromKinect);
+  KinectTrans kinectTrans(scene.pr2->robot);
+  kinectTrans.calibrate(btTransform(btQuaternion(-0.703407, 0.706030, -0.048280, 0.066401), btVector3(0.348212, -0.047753, 1.611060)));
+  CoordinateTransformer CT(kinectTrans.getKinectTrans());
+
   TransformAdjuster ta(CT, scene);
   TransformAdjuster::CustomKeyHandler *keyHandler = ta.createKeyHandler();
   scene.viewer.addEventHandler(keyHandler);
-
-  /////////////// load table
-  vector< vector<float> > vv = floatMatFromFile(onceFile("table_corners.txt").string());
-  vector<btVector3> tableCornersCam = toBulletVectors(vv);
-
-  vector<btVector3> tableCornersWorld = CT.toWorldFromCamN(tableCornersCam);
-  BulletObject::Ptr table = makeTable(tableCornersWorld, .1*METERS);
-  table->setColor(0,0,1,.25);
-
-  /// add stuff to scene
-  scene.env->add(table);
-  scene.env->add(kinectPts);
 
   scene.startViewer();
 
@@ -261,13 +259,13 @@ int main(int argc, char* argv[]) {
     if (!keyHandler->state.paused)
       if (!pcSub.recv(cloudMsg)) break;
 
+    VectorMessage<double>* jointMsgPtr = retimer.msgAt(cloudMsg.getTime());
+    ValuesInds vi = getValuesInds(jointMsgPtr->m_data);
+    scene.pr2->setDOFValues(vi.second, vi.first);
+    CT.reset(kinectTrans.getKinectTrans());
+
     pcl::transformPointCloud(*cloudMsg.m_data, *cloudWorld, CT.worldFromCamEigen);
     kinectPts->setPoints(cloudWorld);
-
-    VectorMessage<double>* jointMsgPtr = retimer.msgAt(cloudMsg.getTime());
-    vector<double> currentJoints = jointMsgPtr->m_data;
-    ValuesInds vi = getValuesInds(currentJoints);
-    scene.pr2->setDOFValues(vi.second, vi.first);
 
     scene.step(0.01);
   }

@@ -45,8 +45,8 @@ struct CustomScene : public Scene {
 
   CustomScene() :
     Scene(),
-    lMonitor(pr2, pr2->robot->GetManipulators()[5], true),
-    rMonitor(pr2, pr2->robot->GetManipulators()[7], false) {
+    lMonitor(pr2, true),
+    rMonitor(pr2, false) {
     // add the screen capture handler
     framecount = 0;
     captureHandler = new osgViewer::ScreenCaptureHandler(new osgViewer::ScreenCaptureHandler::WriteToFile("screenshots/img", "jpg", osgViewer::ScreenCaptureHandler::WriteToFile::SEQUENTIAL_NUMBER));
@@ -104,8 +104,9 @@ int main(int argc, char* argv[]) {
   scene.pr2->setDOFValues(vi.second, vi.first);
 
   // get kinect transform
-  btTransform worldFromKinect = getKinectToWorld(scene.pr2->robot);
-  CoordinateTransformer CT(worldFromKinect);
+  KinectTrans kinectTrans(scene.pr2->robot);
+  kinectTrans.calibrate(btTransform(btQuaternion(-0.703407, 0.706030, -0.048280, 0.066401), btVector3(0.348212, -0.047753, 1.611060)));
+  CoordinateTransformer CT(kinectTrans.getKinectTrans());
 
   /////////////// load table
   vector< vector<float> > vv = floatMatFromFile(onceFile("table_corners.txt").string());
@@ -141,6 +142,7 @@ int main(int argc, char* argv[]) {
 
 
 
+  ColorCloudPtr cloudWorld(new ColorCloud());
   for (int t=0; ; ) {
     cout << "time step " << t << endl;
     for (int z = 0; z < LocalConfig::frameStep - 1; ++z) {
@@ -151,22 +153,30 @@ int main(int argc, char* argv[]) {
     if (!towelSub.recv(towelPtsMsg)) break;
     t += LocalConfig::frameStep;
 
-    ColorCloudPtr cloudCam  = cloudMsg.m_data;
-    ColorCloudPtr cloudWorld(new ColorCloud());
-    pcl::transformPointCloud(*cloudCam, *cloudWorld, CT.worldFromCamEigen);
+    VectorMessage<double>* jointMsgPtr = retimer.msgAt(cloudMsg.getTime());
+    ValuesInds vi = getValuesInds(jointMsgPtr->m_data);
+    scene.pr2->setDOFValues(vi.second, vi.first);
+    CT.reset(kinectTrans.getKinectTrans());
+
+    pcl::transformPointCloud(*cloudMsg.m_data, *cloudWorld, CT.worldFromCamEigen);
     kinectPts->setPoints(cloudWorld);
 
     vector<btVector3> towelObsPts =  CT.toWorldFromCamN(toBulletVectors(towelPtsMsg.m_data));
     towelObsPlot->setPoints(towelObsPts);
 
-    VectorMessage<double>* jointMsgPtr = retimer.msgAt(cloudMsg.getTime());
-    vector<double> currentJoints = jointMsgPtr->m_data;
-    ValuesInds vi = getValuesInds(currentJoints);
-    scene.pr2->setDOFValues(vi.second, vi.first);
-
     for (int i=0; i < TrackingConfig::nIter; i++) {
-      cout << "iteration " << i << endl;
-      //scene.idle(true);
+      //cout << "iteration " << i << endl;
+      cout << "NUMBER OF ANCHORS: " << towel->softBody->m_anchors.size() << endl;
+      vector<btVector3> p;
+      for (int z = 0; z < towel->softBody->m_anchors.size(); ++z) {
+        btSoftBody::Anchor &a = towel->softBody->m_anchors[z];
+        btVector3 &x = a.m_node->m_x;
+        cout << "\tanchor at " << x.x() << ' ' << x.y() << ' ' << x.z() << endl;
+        p.push_back(btVector3(0, 0, 0));
+        p.push_back(x);
+      }
+      scene.plotLines->setPoints(p);
+
       vector<float> pVis = calcVisibility(towel->softBody.get(), scene.env->bullet->dynamicsWorld, CT.worldFromCamUnscaled.getOrigin()*METERS);
       colorByVisibility(towel->softBody.get(), pVis, towelEstPlot);
 
@@ -177,7 +187,6 @@ int main(int argc, char* argv[]) {
       vector<btVector3> impulses = calcImpulsesSimple(towelEstPts, towelObsPts, corr, TrackingConfig::impulseSize);
       for (int i=0; i<impulses.size(); i++)
         towel->softBody->addForce(impulses[i],i);
-
 
       scene.step(.01);
     }

@@ -166,8 +166,6 @@ int main(int argc, char *argv[]) {
 
     cv::Mat ropeMask = toSingleChannel(labels) == 1;
 
-
-
     for (int iter=0; iter<TrackingConfig::nIter; iter++) {
       cout << "iteration " << iter << endl;
 
