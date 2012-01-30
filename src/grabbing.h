@@ -22,8 +22,15 @@ protected:
     bool m_wasClosed;
     OpenRAVE::RobotBase::ManipulatorPtr m_manip;
 
+    static const float PR2_CLOSED_VAL = 0.03f, PR2_OPEN_VAL = 0.54f;
+
+    float closedThreshold;
+
 public:
     Monitor(OpenRAVE::RobotBase::ManipulatorPtr);
+
+    void setClosedThreshold(float t) { closedThreshold = t; }
+
     virtual void update();
     virtual void grab() = 0;
     virtual void release() = 0;

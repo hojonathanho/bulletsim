@@ -9,6 +9,8 @@ class PR2SoftBodyGripper {
     RaveRobotKinematicObject::Ptr robot;
     OpenRAVE::RobotBase::ManipulatorPtr manip;
 
+    float grabOnlyOnContact;
+
     KinBody::LinkPtr leftFinger, rightFinger;
     const btTransform origLeftFingerInvTrans, origRightFingerInvTrans;
 
@@ -59,6 +61,8 @@ class PR2SoftBodyGripper {
     // If so, attaches anchors to every contact point
     void attach(bool left);
 
+    Environment *env; BulletInstance::Ptr newBullet; OSGInstance::Ptr newOSG;
+
 public:
     typedef boost::shared_ptr<PR2SoftBodyGripper> Ptr;
 
@@ -67,8 +71,10 @@ public:
     // Must be called before the action is run!
     void setTarget(btSoftBody *psb_) { psb = psb_; }
 
-    void grab() { attach(false); attach(true); }
+    void grab();
     void releaseAllAnchors() { psb->m_anchors.clear(); }
+
+    void setForkParams(Environment *env_, BulletInstance::Ptr newBullet_, OSGInstance::Ptr newOSG_);
 };
 
 

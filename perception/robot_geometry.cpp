@@ -11,7 +11,6 @@ using namespace OpenRAVE;
 //   return worldFromCam * kinFromCam.inverse();
 // }
 
-
 btTransform getKinectToWorld(RobotBasePtr robot) {
   return util::toBtTransform(robot->GetLink("camera_rgb_optical_frame")->GetTransform());
 }

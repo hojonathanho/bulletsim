@@ -108,11 +108,17 @@ PR2SoftBodyGripper::PR2SoftBodyGripper(RaveRobotKinematicObject::Ptr robot_, Ope
         closingNormal(manip->GetClosingDirection()[0],
                       manip->GetClosingDirection()[1],
                       manip->GetClosingDirection()[2]),
-        toolDirection(util::toBtVector(manip->GetLocalToolDirection())) // don't bother scaling
+        toolDirection(util::toBtVector(manip->GetLocalToolDirection())), // don't bother scaling
+        grabOnlyOnContact(true), env(NULL)
 {
+    if (!grabOnlyOnContact) {
+    }
 }
 
 void PR2SoftBodyGripper::attach(bool left) {
+    for(int k = 0; k < 100; ++k) {
+    cout << "CALLING ATTACH!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << endl;
+    }
     btRigidBody *rigidBody =
         robot->associatedObj(left ? leftFinger : rightFinger)->rigidBody.get();
     btSoftBody::tRContactArray rcontacts;
@@ -130,4 +136,26 @@ void PR2SoftBodyGripper::attach(bool left) {
         }
     }
     cout << "appended " << nAppended << " anchors\n";
+    if (nAppended > 0) {
+    for(int k = 0; k < 100; ++k) {
+    cout << "ADDED ANCHORS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << endl;
+    }
+    exit(-12);
+    }
+}
+
+void PR2SoftBodyGripper::grab() {
+    if (grabOnlyOnContact) {
+        attach(false);
+        attach(true);
+    } else {
+        // just attach anchors to the cloth, no matter if the
+        // gripper fingers are touching it or not
+
+        // to determine which cloth points to constrain, first we
+        // fork the environment, close the gripper all the way, and
+        // look for contact points. then we use those same points for
+        // anchors in the original environment
+//        Fork fork(env, newBullet, newOSG);
+    }
 }
