@@ -22,39 +22,17 @@
 #include "robot_geometry.h"
 
 #include <pcl/common/transforms.h>
-#include <osgViewer/Viewer>
-#include <osgViewer/ViewerEventHandlers>
 
-struct CustomSceneConfig : Config {
-  static int record;
-  CustomSceneConfig() : Config() {
-    params.push_back(new Parameter<int>("record", &record, "record every n frames (default 0 means record nothing)"));
-  }
-};
-int CustomSceneConfig::record = 0;
 
 struct CustomScene : public Scene {
-  osgViewer::ScreenCaptureHandler* captureHandler;
-  int framecount;
-  int captureNumber;
   MonitorForGrabbing lMonitor;
   MonitorForGrabbing rMonitor;
-
 
   CustomScene() : 
     Scene(), 
     lMonitor(pr2->robot->GetManipulators()[5], env->bullet->dynamicsWorld),
     rMonitor(pr2->robot->GetManipulators()[7], env->bullet->dynamicsWorld) {
-    // add the screen capture handler
-    framecount = 0;
-    captureHandler = new osgViewer::ScreenCaptureHandler(new osgViewer::ScreenCaptureHandler::WriteToFile("screenshots/img", "jpg", osgViewer::ScreenCaptureHandler::WriteToFile::SEQUENTIAL_NUMBER));
-    viewer.addEventHandler(captureHandler);
   };
-  void draw() {
-    if (CustomSceneConfig::record && framecount % CustomSceneConfig::record==0) captureHandler->captureNextFrame(viewer);
-    framecount++;
-    Scene::draw();
-  }
 
   void step(float dt) {
     rMonitor.update();

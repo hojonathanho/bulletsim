@@ -47,3 +47,6 @@ target_link_libraries(test_collision_detection simulation)
 
 add_executable(test_action test_action.cpp)
 target_link_libraries(test_action simulation)
+
+add_executable(test_scene_record test_scene_record.cpp ../recording.cpp)
+target_link_libraries(test_scene_record simulation)
