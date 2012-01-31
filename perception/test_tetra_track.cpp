@@ -37,8 +37,6 @@ int main(int argc, char* argv[]) {
   FileSubscriber towelSub("towel_pts","pcd");
   CloudMessage towelPtsMsg; //first message
 
-
-
   ////////////// create scene
   CustomScene scene;
   static PlotPoints::Ptr kinectPts(new PlotPoints(2));
@@ -65,11 +63,11 @@ int main(int argc, char* argv[]) {
   BOOST_FOREACH(btVector3& pt, towelCorners) pt += btVector3(.01*METERS,0,0);
   BulletSoftObject::Ptr towel = makeSelfCollidingTowel(towelCorners, scene.env->bullet->softBodyWorldInfo);
 
-  BulletSoftObject::Ptr sponge = makeTetraBox(towelCorners, 0.05*METERS, scene.env->bullet->softBodyWorldInfo);
-  scene.env->add(sponge);
+//  BulletSoftObject::Ptr sponge = makeTetraBox(towelCorners, 0.05*METERS, scene.env->bullet->softBodyWorldInfo);
+  BulletSoftObject::Ptr sponge = makeBoxFromGrid(towelCorners, btVector3(0, 0, 0.05*METERS), 15, 15, 3, scene.env->bullet->softBodyWorldInfo);
 
   /// add stuff to scene
-//  scene.env->add(towel);
+  scene.env->add(sponge);
   scene.env->add(table);
   scene.env->add(kinectPts);
   scene.env->add(towelEstPlot);
@@ -77,7 +75,7 @@ int main(int argc, char* argv[]) {
   scene.env->add(corrPlots.m_lines);
 
   scene.startViewer();
-//  towel->setColor(1,1,0,.5);
+  sponge->setColor(1,1,0,.5);
 
   for (int t=0; ; t++) {
     cout << "time step " << t << endl;
@@ -95,7 +93,7 @@ int main(int argc, char* argv[]) {
 
     for (int i=0; i < TrackingConfig::nIter; i++) {
       cout << "iteration " << i << endl;
-      //scene.idle(true);
+//      scene.idle(true);
       vector<float> pVis = calcVisibility(sponge->softBody.get(), scene.env->bullet->dynamicsWorld, CT.worldFromCamUnscaled.getOrigin()*METERS);
       colorByVisibility(sponge->softBody.get(), pVis, towelEstPlot);
 
@@ -112,4 +110,6 @@ int main(int argc, char* argv[]) {
     }
 
   }
+
+  return 0;
 }

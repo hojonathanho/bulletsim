@@ -60,7 +60,7 @@ add_definitions(${PCL_DEFINITIONS})
 # target_link_libraries(test_kinect_towel ${PCL_LIBRARIES} json simulation perception clouds comm)
 
 add_library(perception ../utils/vector_io.cpp config_perception.cpp utils_perception.cpp make_bodies.cpp bullet_io.cpp openrave_joints.cpp robot_geometry.cpp dist_math.cpp optimization_forces.cpp sparse_array.cpp apply_impulses.cpp visibility.cpp trackers.cpp matching.cpp)
-target_link_libraries(perception ${PCL_LIBRARIES} comm2 clouds simulation gurobi46 gurobi_c++ pthread)
+target_link_libraries(perception ${PCL_LIBRARIES} comm2 clouds simulation gurobi46 gurobi_c++ pthread tetgen)
 
 add_executable(test_matching test_matching.cpp matching.cpp)
 target_link_libraries(test_matching gurobi46 gurobi_c++ pthread perception)
@@ -78,8 +78,8 @@ target_link_libraries(test_towel_local_opt comm2 ${PCL_LIBRARIES} simulation clo
 add_executable(test_towel_track test_towel_track.cpp clouds/utils_pcl.cpp get_nodes.cpp)
 target_link_libraries(test_towel_track comm2 ${PCL_LIBRARIES} simulation clouds perception)
 
-add_executable(test_tetra_track test_tetra_track.cpp clouds/utils_pcl.cpp get_nodes.cpp ../lib/tetgen-1.4.3/tetgen.h)
-target_link_libraries(test_tetra_track comm2 ${PCL_LIBRARIES} simulation clouds perception tetgen)
+add_executable(test_tetra_track test_tetra_track.cpp clouds/utils_pcl.cpp get_nodes.cpp)
+target_link_libraries(test_tetra_track comm2 ${PCL_LIBRARIES} simulation clouds perception)
 
 #add_executable(test_eigen test_eigen.cpp bullet_io.cpp)
 #target_link_libraries(test_eigen simulation)
