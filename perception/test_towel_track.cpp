@@ -14,6 +14,7 @@
 #include "utils_perception.h"
 #include "vector_io.h"
 #include "visibility.h"
+#include "recording.h"
 
 #include <pcl/common/transforms.h>
 
@@ -31,7 +32,7 @@ int main(int argc, char* argv[]) {
   parser.read(argc, argv);
 
   //// comm stuff
-  setDataRoot("~/comm/towel2");
+  initComm();
   FileSubscriber pcSub("kinect","pcd");
   CloudMessage cloudMsg;
   FileSubscriber towelSub("towel_pts","pcd");
@@ -75,13 +76,15 @@ int main(int argc, char* argv[]) {
   scene.env->add(table);
   scene.env->add(kinectPts);
   scene.env->add(towelEstPlot);
-  scene.env->add(towelObsPlot);
+  //scene.env->add(towelObsPlot);
   //scene.env->add(corrPlots.m_lines);
   //scene.env->add(sphere);
 
   scene.startViewer();
   towel->setColor(1,1,0,.5);
 
+  ScreenRecorder rec(scene.viewer);
+  //askToResetDir("snapshots");
 
   for (int t=0; ; t++) {
     cout << "time step " << t << endl;
@@ -111,7 +114,7 @@ int main(int argc, char* argv[]) {
       for (int i=0; i<impulses.size(); i++)
 	towel->softBody->addForce(impulses[i],i);
 
-
+      rec.snapshot();
       scene.step(.01);
     }
 

@@ -93,7 +93,7 @@ void colorByVisibility(CapsuleRope::Ptr rope, const vector<float>& pVis) {
   ENSURE(rope->children.size() == pVis.size());
   for (int i=0; i<pVis.size(); i++) {
     float p = pVis[i];
-    rope->children[i]->setColor(p,p,p,1);
+    rope->children[i]->setColor(0,0,p,1);
   }
 }
 

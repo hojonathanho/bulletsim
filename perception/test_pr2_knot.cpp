@@ -110,7 +110,7 @@ int main(int argc, char *argv[]) {
   scene.env->add(kinectPts);
   scene.env->add(rope);
   scene.env->add(table);
-  scene.env->add(corrPlots.m_lines);
+  //scene.env->add(corrPlots.m_lines);
   scene.lMonitor.setBodies(rope->children);
   scene.rMonitor.setBodies(rope->children);
 
