@@ -14,9 +14,12 @@
 #include "utils_perception.h"
 #include "vector_io.h"
 #include "visibility.h"
-#include <BulletSoftBody/btSoftBodyHelpers.h>
+#include "recording.h"
 
 #include <pcl/common/transforms.h>
+
+// WORKING PARAMS FOR SPONGE4:
+// test_tetra_track --sigB=0.1 --nIter=10 --friction=100000 --gravity=-0.5 --impulseSize=10
 
 int main(int argc, char* argv[]) {
   //////////// get command line options
@@ -81,12 +84,14 @@ int main(int argc, char* argv[]) {
   scene.env->add(sponge);
   scene.env->add(table);
   scene.env->add(kinectPts);
-  scene.env->add(towelEstPlot);
-  scene.env->add(towelObsPlot);
+  //scene.env->add(towelEstPlot);
+ // scene.env->add(towelObsPlot);
   //scene.env->add(corrPlots.m_lines);
 
   scene.startViewer();
   sponge->setColor(1, 0, 1, 1);
+
+  ScreenRecorder rec(scene.viewer);
 
   int skip = 40;
   while (skip-- > 0) { pcSub.skip(); towelSub.skip(); }
@@ -100,7 +105,7 @@ int main(int argc, char* argv[]) {
     ColorCloudPtr cloudWorld(new ColorCloud());
     pcl::transformPointCloud(*cloudCam, *cloudWorld, CT.worldFromCamEigen);
     kinectPts->setPoints(cloudWorld);
-    kinectPts->forceTransparency(0.05);
+    kinectPts->forceTransparency(0.5);
 
     vector<btVector3> towelObsPts =  CT.toWorldFromCamN(toBulletVectors(towelPtsMsg.m_data));
     towelObsPlot->setPoints(towelObsPts);
@@ -123,6 +128,7 @@ int main(int argc, char* argv[]) {
       scene.step(.01);
     }
 
+    if (RecordingConfig::record) rec.snapshot();
   }
 
   return 0;
