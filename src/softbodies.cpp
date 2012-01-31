@@ -7,6 +7,7 @@
 #include <BulletSoftBody/btSoftBodyHelpers.h>
 #include <BulletSoftBody/btSoftBodyData.h>
 #include <osgbCollision/Utils.h>
+#include <osgUtil/SmoothingVisitor>
 
 #define COPY_ARRAY(a, b) { (a).resize((b).size()); for (int z = 0; z < (b).size(); ++z) (a)[z] = (b)[z]; }
 
@@ -118,16 +119,19 @@ void BulletSoftObject::preDraw() {
         quadvertices->push_back(util::toOSGVector(tetras[i].m_n[1]->m_x));
         quadvertices->push_back(util::toOSGVector(tetras[i].m_n[2]->m_x));
         quadvertices->push_back(util::toOSGVector(tetras[i].m_n[3]->m_x));
-
+/*
         quadnormals->push_back(util::toOSGVector(tetras[i].m_n[0]->m_n));
         quadnormals->push_back(util::toOSGVector(tetras[i].m_n[1]->m_n));
         quadnormals->push_back(util::toOSGVector(tetras[i].m_n[2]->m_n));
-        quadnormals->push_back(util::toOSGVector(tetras[i].m_n[3]->m_n));
+        quadnormals->push_back(util::toOSGVector(tetras[i].m_n[3]->m_n));*/
     }
     quadvertices->dirty();
     quadnormals->dirty();
     quadgeom->dirtyBound();
     quadgeom->addPrimitiveSet(new osg::DrawArrays(GL_QUADS, 0, quadvertices->size()));
+
+/*    osgUtil::SmoothingVisitor sv;
+    sv.apply(*geode);*/
 }
 
 void BulletSoftObject::destroy() {

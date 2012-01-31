@@ -288,3 +288,155 @@ BulletSoftObject::Ptr makeTetraBox(const vector<btVector3>& points, btScalar thi
   return BulletSoftObject::Ptr(new BulletSoftObject(psb));
 }
 
+// adapted from btSoftBodyHelpers::CreatePatch
+btSoftBody* createBox(btSoftBodyWorldInfo& worldInfo,
+                      const btVector3& corner000,
+                      const btVector3& corner100,
+                      const btVector3& corner010,
+                      const btVector3& corner110,
+                      const btVector3& corner001,
+                      const btVector3& corner101,
+                      const btVector3& corner011,
+                      const btVector3& corner111,
+                      int resx,
+                      int resy,
+                      int resz,
+                      bool gendiags) {
+#define IDX(_x_,_y_,_z_) ((_z_)*ry*rx + (_y_)*rx + (_x_))
+	/* Create nodes	*/
+	if((resx<2)||(resy<2)||(resz<2)) return(0);
+	const int rx=resx;
+	const int ry=resy;
+    const int rz=resz;
+	const int tot=rx*ry*rz;
+	btVector3 *x=new btVector3[tot];
+	btScalar *m=new btScalar[tot];
+	int iy, iz;
+
+    for (iz=0;iz<rz;++iz)
+    {
+        const btScalar	tz=iz/(btScalar)(rz-1);
+        const btVector3 corner00=lerp(corner000, corner001, tz);
+        const btVector3 corner10=lerp(corner100, corner101, tz);
+        const btVector3 corner01=lerp(corner010, corner011, tz);
+        const btVector3 corner11=lerp(corner110, corner111, tz);
+        for(iy=0;iy<ry;++iy)
+        {
+            const btScalar	ty=iy/(btScalar)(ry-1);
+            const btVector3	py0=lerp(corner00,corner01,ty);
+            const btVector3	py1=lerp(corner10,corner11,ty);
+            for(int ix=0;ix<rx;++ix)
+            {
+                const btScalar	tx=ix/(btScalar)(rx-1);
+                x[IDX(ix,iy,iz)]=lerp(py0,py1,tx);
+                m[IDX(ix,iy,iz)]=1;
+            }
+        }
+    }
+	btSoftBody*		psb=new btSoftBody(&worldInfo,tot,x,m);
+	delete[] x;
+	delete[] m;
+	/* Create links	and faces */
+    for(iz=0;iz<rz;++iz)
+    {
+        for(iy=0;iy<ry;++iy)
+        {
+            for(int ix=0;ix<rx;++ix)
+            {
+                const int	idx=IDX(ix,iy,iz);
+                const bool	mdx=(ix+1)<rx;
+                const bool	mdy=(iy+1)<ry;
+                const bool	mdz=(iz+1)<rz;
+                if(mdx) psb->appendLink(idx,IDX(ix+1,iy,iz));
+                if(mdy) psb->appendLink(idx,IDX(ix,iy+1,iz));
+                if(mdz) psb->appendLink(idx,IDX(ix,iy,iz+1));
+
+                if(mdx&&mdy)
+                {
+                    if((ix+iy)&1)
+                    {
+                        psb->appendFace(IDX(ix,iy,iz),IDX(ix+1,iy,iz),IDX(ix+1,iy+1,iz));
+                        psb->appendFace(IDX(ix,iy,iz),IDX(ix+1,iy+1,iz),IDX(ix,iy+1,iz));
+                        if(gendiags)
+                        {
+                            psb->appendLink(IDX(ix,iy,iz),IDX(ix+1,iy+1,iz));
+                        }
+                    }
+                    else
+                    {
+                        psb->appendFace(IDX(ix,iy+1,iz),IDX(ix,iy,iz),IDX(ix+1,iy,iz));
+                        psb->appendFace(IDX(ix,iy+1,iz),IDX(ix+1,iy,iz),IDX(ix+1,iy+1,iz));
+                        if(gendiags)
+                        {
+                            psb->appendLink(IDX(ix+1,iy,iz),IDX(ix,iy+1,iz));
+                        }
+                    }
+                }
+                if(mdy&&mdz)
+                {
+                    if((iy+iz)&1)
+                    {
+                        psb->appendFace(IDX(ix,iy,iz),IDX(ix,iy+1,iz),IDX(ix,iy+1,iz+1));
+                        psb->appendFace(IDX(ix,iy,iz),IDX(ix,iy+1,iz+1),IDX(ix,iy,iz+1));
+                        if(gendiags)
+                        {
+                            psb->appendLink(IDX(ix,iy,iz),IDX(ix,iy+1,iz+1));
+                        }
+                    }
+                    else
+                    {
+                        psb->appendFace(IDX(ix,iy,iz+1),IDX(ix,iy,iz),IDX(ix,iy+1,iz));
+                        psb->appendFace(IDX(ix,iy,iz+1),IDX(ix,iy+1,iz),IDX(ix,iy+1,iz+1));
+                        if(gendiags)
+                        {
+                            psb->appendLink(IDX(ix,iy+1,iz),IDX(ix,iy,iz+1));
+                        }
+                    }
+                }
+                if(mdx&&mdz)
+                {
+                    if((ix+iz)&1)
+                    {
+                        psb->appendFace(IDX(ix,iy,iz),IDX(ix+1,iy,iz),IDX(ix+1,iy,iz+1));
+                        psb->appendFace(IDX(ix,iy,iz),IDX(ix+1,iy,iz+1),IDX(ix,iy,iz+1));
+                        if(gendiags)
+                        {
+                            psb->appendLink(IDX(ix,iy,iz),IDX(ix+1,iy,iz+1));
+                        }
+                    }
+                    else
+                    {
+                        psb->appendFace(IDX(ix,iy,iz+1),IDX(ix,iy,iz),IDX(ix+1,iy,iz));
+                        psb->appendFace(IDX(ix,iy,iz+1),IDX(ix+1,iy,iz),IDX(ix+1,iy,iz+1));
+                        if(gendiags)
+                        {
+                            psb->appendLink(IDX(ix+1,iy,iz),IDX(ix,iy,iz+1));
+                        }
+                    }
+                }
+
+            }
+        }
+    }
+	/* Finished		*/
+#undef IDX
+	return(psb);
+}
+
+BulletSoftObject::Ptr makeBoxFromGrid(const vector<btVector3>& points, const btVector3 &thickness, int resx, int resy, int resz, btSoftBodyWorldInfo& worldInfo) {
+  btSoftBody *psb = createBox(worldInfo,
+      points[0], points[1], points[3], points[2],
+      points[0] + thickness, points[1] + thickness, points[3] + thickness, points[2] + thickness,
+      resx, resy, resz, true);
+
+  psb->setTotalMass(1);
+  psb->m_cfg.piterations=1;
+  psb->generateClusters(0);
+  psb->getCollisionShape()->setMargin(0.01);
+  psb->m_cfg.collisions	= btSoftBody::fCollision::CL_SS + btSoftBody::fCollision::CL_RS + btSoftBody::fCollision::CL_SELF;
+  psb->m_materials[0]->m_kLST		=	0.1;
+  psb->m_materials[0]->m_kAST		=	0.1;
+  psb->m_materials[0]->m_kVST		=	1.0;
+  psb->randomizeConstraints();
+  return BulletSoftObject::Ptr(new BulletSoftObject(psb));
+}
