@@ -37,7 +37,7 @@ if (BUILD_PERCEPTION)
 endif(BUILD_PERCEPTION)
 
 add_library(simulation environment.cpp basicobjects.cpp openravesupport.cpp util.cpp simplescene.cpp softbodies.cpp rope.cpp plotting.cpp pr2.cpp convexdecomp.cpp grabbing.cpp
-                       config.cpp config_bullet.cpp config_viewer.cpp)
+                       config.cpp config_bullet.cpp config_viewer.cpp recording.cpp)
 
 target_link_libraries(simulation haptics osgBullet osgWorks ${Boost_LIBRARIES} ${OSG_LIBS} ${BULLET_LIBS} ${OpenRAVE_LIBRARIES} ${OpenRAVE_CORE_LIBRARIES})
 

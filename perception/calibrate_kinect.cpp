@@ -227,7 +227,7 @@ int main(int argc, char* argv[]) {
   parser.read(argc, argv);
 
   //// comm stuff
-  setDataRoot("~/comm/pr2_towel");
+  initComm();
   FileSubscriber pcSub("kinect","pcd");
   CloudMessage cloudMsg;
 
@@ -245,7 +245,7 @@ int main(int argc, char* argv[]) {
 
   // get kinect transform
   KinectTrans kinectTrans(scene.pr2->robot);
-  kinectTrans.calibrate(btTransform(btQuaternion(-0.703407, 0.706030, -0.048280, 0.066401), btVector3(0.348212, -0.047753, 1.611060)));
+  kinectTrans.calibrate(getKinectToWorld(scene.pr2->robot));//btTransform(btQuaternion(-0.703407, 0.706030, -0.048280, 0.066401), btVector3(0.348212, -0.047753, 1.611060)));
   CoordinateTransformer CT(kinectTrans.getKinectTrans());
 
   TransformAdjuster ta(CT, scene);
@@ -262,8 +262,6 @@ int main(int argc, char* argv[]) {
     VectorMessage<double>* jointMsgPtr = retimer.msgAt(cloudMsg.getTime());
     ValuesInds vi = getValuesInds(jointMsgPtr->m_data);
     scene.pr2->setDOFValues(vi.second, vi.first);
-    CT.reset(kinectTrans.getKinectTrans());
-
     pcl::transformPointCloud(*cloudMsg.m_data, *cloudWorld, CT.worldFromCamEigen);
     kinectPts->setPoints(cloudWorld);
 

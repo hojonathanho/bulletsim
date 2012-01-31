@@ -16,6 +16,7 @@ LABELS = $(DATA_ROOT)/labels
 ROPE_PTS = $(DATA_ROOT)/rope_pts
 ROPE_ENDS = $(DATA_ROOT)/rope_ends
 TOWEL_PTS = $(DATA_ROOT)/towel_pts
+SPONGE_PTS = $(DATA_ROOT)/sponge_pts
 
 setup : $(TABLE_CORNERS) $(ROI_MASK)
 before_train : $(ROI_MASK) $(IMAGES)
@@ -24,6 +25,7 @@ robot_knot : ROBOT_KNOT
 human_knot : HUMAN_KNOT
 robot_towel : ROBOT_TOWEL
 human_towel : HUMAN_TOWEL
+human_sponge : HUMAN_SPONGE
 
 $(TABLE_CORNERS) : $(FIRST_PCD)
 	$(BIN_CLOUDS)/comm_get_table -i $(FIRST_PCD)
@@ -43,7 +45,7 @@ $(ROPE_PTS) :
 $(TOWEL_PTS) :
 	$(BIN_CLOUDS)/comm_downsample_clouds -c kinect -l labels -o towel_pts -n 1 -v .02
 $(SPONGE_PTS) : 
-	$(BIN_CLOUDS)/comm_downsample_clouds -c kinect -l labels -o towel_pts -n 1 -v .01
+	$(BIN_CLOUDS)/comm_downsample_clouds -c kinect -l labels -o sponge_pts -n 1 -v .01
 
 $(ROPE_ENDS) : 
 	$(IMG_PROC)/comm_get_region_centers.py labels kinect rope_ends 2 --min_pix=25 --max_blobs=2
@@ -56,3 +58,4 @@ HUMAN_KNOT : $(LABELS) $(ROPE_PTS) $(ROPE_ENDS) $(TABLE_CORNERS) $(INIT_ROPE)
 ROBOT_TOWEL : $(LABELS) $(TOWEL_PTS) $(TABLE_CORNERS)
 
 HUMAN_TOWEL : $(LABELS) $(TOWEL_PTS) $(TABLE_CORNERS)
+HUMAN_SPONGE : $(LABELS) $(SPONGE_PTS) $(TABLE_CORNERS)
