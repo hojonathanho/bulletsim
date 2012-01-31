@@ -14,9 +14,12 @@
 #include "utils_perception.h"
 #include "vector_io.h"
 #include "visibility.h"
-#include <BulletSoftBody/btSoftBodyHelpers.h>
+#include "recording.h"
 
 #include <pcl/common/transforms.h>
+
+// WORKING PARAMS FOR SPONGE4:
+// test_tetra_track --sigB=0.1 --nIter=10 --friction=100000 --gravity=-0.5 --impulseSize=10
 
 int main(int argc, char* argv[]) {
   //////////// get command line options
@@ -31,10 +34,10 @@ int main(int argc, char* argv[]) {
   parser.read(argc, argv);
 
   //// comm stuff
-  setDataRoot("~/comm/towel2");
+  setDataRoot("~/comm/sponge4");
   FileSubscriber pcSub("kinect","pcd");
   CloudMessage cloudMsg;
-  FileSubscriber towelSub("towel_pts","pcd");
+  FileSubscriber towelSub("sponge_pts","pcd");
   CloudMessage towelPtsMsg; //first message
 
   ////////////// create scene
@@ -61,23 +64,38 @@ int main(int argc, char* argv[]) {
   vector<btVector3> towelPtsWorld = CT.toWorldFromCamN(towelPtsCam);
   vector<btVector3> towelCorners = toBulletVectors(getCorners(toEigenVectors(towelPtsWorld)));
   BOOST_FOREACH(btVector3& pt, towelCorners) pt += btVector3(.01*METERS,0,0);
-  BulletSoftObject::Ptr towel = makeSelfCollidingTowel(towelCorners, scene.env->bullet->softBodyWorldInfo);
 
-//  BulletSoftObject::Ptr sponge = makeTetraBox(towelCorners, 0.05*METERS, scene.env->bullet->softBodyWorldInfo);
-  BulletSoftObject::Ptr sponge = makeBoxFromGrid(towelCorners, btVector3(0, 0, 0.05*METERS), 15, 15, 3, scene.env->bullet->softBodyWorldInfo);
+// HACK
+  vector<btVector3> newCorners(4);
+  const float CM = 2.54/100*METERS;
+  newCorners[0] = towelCorners[0];
+/*  newCorners[1] = newCorners[0] + (towelCorners[1] - towelCorners[0]).normalized() * 5.75 * CM;
+  newCorners[2] = newCorners[1] + (towelCorners[2] - towelCorners[1]).normalized() * 2.5 * CM;
+  newCorners[3] = newCorners[2] + (towelCorners[3] - towelCorners[2]).normalized() * 5.75 * CM;
+  BulletSoftObject::Ptr sponge = makeBoxFromGrid(newCorners, btVector3(0, 0, 7.5*CM), 5, 15, 15, scene.env->bullet->softBodyWorldInfo);
+  sponge->softBody->translate(btVector3(0, 0, -7.5*CM));*/
+  newCorners[1] = newCorners[0] + (towelCorners[1] - towelCorners[0]).normalized() * 5 * CM;
+  newCorners[2] = newCorners[1] + (towelCorners[2] - towelCorners[1]).normalized() * 8 * CM;
+  newCorners[3] = newCorners[2] + (towelCorners[3] - towelCorners[2]).normalized() * 5 * CM;
+  BulletSoftObject::Ptr sponge = makeBoxFromGrid(newCorners, btVector3(0, 0, 1.5*CM), 10, 15, 15, scene.env->bullet->softBodyWorldInfo);
+//  BulletSoftObject::Ptr sponge = makeTetraBox(newCorners, 2.5*CM, scene.env->bullet->softBodyWorldInfo);
 
   /// add stuff to scene
   scene.env->add(sponge);
   scene.env->add(table);
   scene.env->add(kinectPts);
-  scene.env->add(towelEstPlot);
-  scene.env->add(towelObsPlot);
-  scene.env->add(corrPlots.m_lines);
+  //scene.env->add(towelEstPlot);
+ // scene.env->add(towelObsPlot);
+  //scene.env->add(corrPlots.m_lines);
 
   scene.startViewer();
-  sponge->setColor(1,1,0,.5);
+  sponge->setColor(1, 0, 1, 1);
 
-  for (int t=0; ; t++) {
+  ScreenRecorder rec(scene.viewer);
+
+  int skip = 40;
+  while (skip-- > 0) { pcSub.skip(); towelSub.skip(); }
+  for (int t=0; !scene.viewer.done(); t++) {
     cout << "time step " << t << endl;
     bool success = pcSub.recv(cloudMsg);
     if (!success) break;
@@ -87,6 +105,7 @@ int main(int argc, char* argv[]) {
     ColorCloudPtr cloudWorld(new ColorCloud());
     pcl::transformPointCloud(*cloudCam, *cloudWorld, CT.worldFromCamEigen);
     kinectPts->setPoints(cloudWorld);
+    kinectPts->forceTransparency(0.5);
 
     vector<btVector3> towelObsPts =  CT.toWorldFromCamN(toBulletVectors(towelPtsMsg.m_data));
     towelObsPlot->setPoints(towelObsPts);
@@ -109,6 +128,7 @@ int main(int argc, char* argv[]) {
       scene.step(.01);
     }
 
+    if (RecordingConfig::record) rec.snapshot();
   }
 
   return 0;
