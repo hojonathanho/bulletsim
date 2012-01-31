@@ -227,7 +227,7 @@ int main(int argc, char* argv[]) {
   parser.read(argc, argv);
 
   //// comm stuff
-  setDataRoot("~/comm/pr2_towel");
+  initComm();
   FileSubscriber pcSub("kinect","pcd");
   CloudMessage cloudMsg;
 
@@ -245,7 +245,7 @@ int main(int argc, char* argv[]) {
 
   // get kinect transform
   KinectTrans kinectTrans(scene.pr2->robot);
-  kinectTrans.calibrate(btTransform(btQuaternion(-0.703407, 0.706030, -0.048280, 0.066401), btVector3(0.348212, -0.047753, 1.611060)));
+  kinectTrans.calibrate(getKinectToWorld(scene.pr2->robot));//btTransform(btQuaternion(-0.703407, 0.706030, -0.048280, 0.066401), btVector3(0.348212, -0.047753, 1.611060)));
   CoordinateTransformer CT(kinectTrans.getKinectTrans());
 
   TransformAdjuster ta(CT, scene);

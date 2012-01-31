@@ -35,7 +35,7 @@ int main(int argc, char *argv[]) {
 
 
   // create comm stuff
-  setDataRoot();
+  initComm();
   FileSubscriber pcSub("kinect","pcd");
   FileSubscriber jointSub("joint_states","txt");
   CloudMessage cloudMsg;

@@ -20,41 +20,27 @@
 #include "apply_impulses.h"
 #include "openrave_joints.h"
 #include "robot_geometry.h"
+#include "recording.h"
 
 #include <pcl/common/transforms.h>
-#include <osgViewer/Viewer>
-#include <osgViewer/ViewerEventHandlers>
 
-struct CustomSceneConfig : Config {
-  static int record;
-  CustomSceneConfig() : Config() {
-    params.push_back(new Parameter<int>("record", &record, "record every n frames (default 0 means record nothing)"));
+struct LocalConfig : Config {
+  static int frameStep;
+  LocalConfig() : Config() {
+    params.push_back(new Parameter<int>("frameStep", &frameStep, "number of frames to advance by every iteration"));
   }
 };
-int CustomSceneConfig::record = 0;
+int LocalConfig::frameStep = 3;
 
 struct CustomScene : public Scene {
-  osgViewer::ScreenCaptureHandler* captureHandler;
-  int framecount;
-  int captureNumber;
   MonitorForGrabbing lMonitor;
   MonitorForGrabbing rMonitor;
-
 
   CustomScene() : 
     Scene(), 
     lMonitor(pr2->robot->GetManipulators()[5], env->bullet->dynamicsWorld),
     rMonitor(pr2->robot->GetManipulators()[7], env->bullet->dynamicsWorld) {
-    // add the screen capture handler
-    framecount = 0;
-    captureHandler = new osgViewer::ScreenCaptureHandler(new osgViewer::ScreenCaptureHandler::WriteToFile("screenshots/img", "jpg", osgViewer::ScreenCaptureHandler::WriteToFile::SEQUENTIAL_NUMBER));
-    viewer.addEventHandler(captureHandler);
   };
-  void draw() {
-    if (CustomSceneConfig::record && framecount % CustomSceneConfig::record==0) captureHandler->captureNextFrame(viewer);
-    framecount++;
-    Scene::draw();
-  }
 
   void step(float dt) {
     rMonitor.update();
@@ -72,7 +58,7 @@ int main(int argc, char *argv[]) {
   
   Parser parser;
   parser.addGroup(TrackingConfig());
-  parser.addGroup(CustomSceneConfig());
+  parser.addGroup(RecordingConfig());
   parser.addGroup(GeneralConfig());
   parser.addGroup(BulletConfig());
   parser.addGroup(SceneConfig());
@@ -80,7 +66,7 @@ int main(int argc, char *argv[]) {
 
 
   // comm stuff
-  setDataRoot("~/comm/pr2_knot");
+  initComm();
   FileSubscriber pcSub("kinect","pcd");
   CloudMessage cloudMsg;
   FileSubscriber ropeSub("rope_pts","pcd");
@@ -99,8 +85,9 @@ int main(int argc, char *argv[]) {
   ValuesInds vi = getValuesInds(firstJoints);
   scene.pr2->setDOFValues(vi.second, vi.first);
 
-  btTransform worldFromKinect = getKinectToWorld(scene.pr2->robot);
-  CoordinateTransformer CT(worldFromKinect);
+  KinectTrans kinectTrans(scene.pr2->robot);
+  kinectTrans.calibrate(btTransform(btQuaternion(0.669785, -0.668418, 0.222562, -0.234671), btVector3(0.263565, -0.038203, 1.762524)));
+  CoordinateTransformer CT(kinectTrans.getKinectTrans());
 
 
   // load table
@@ -140,15 +127,11 @@ int main(int argc, char *argv[]) {
   scene.setSyncTime(true);
   scene.idle(true);
 
+  ScreenRecorder rec(scene.viewer);
+
+
   int count=0;
   while (pcSub.recv(cloudMsg)) {
-    ColorCloudPtr cloudCam  = cloudMsg.m_data;
-    ColorCloudPtr cloudWorld(new ColorCloud());
-    pcl::transformPointCloud(*cloudCam, *cloudWorld, CT.worldFromCamEigen);
-    kinectPts->setPoints(cloudWorld);
-    cout << "loaded cloud " << count << endl;
-    count++;
-
     ENSURE(ropeSub.recv(ropeMsg));
     vector<btVector3> obsPts = CT.toWorldFromCamN(toBulletVectors(ropeMsg.m_data));
     ENSURE(labelSub.recv(labelMsg));
@@ -158,11 +141,20 @@ int main(int argc, char *argv[]) {
     endTracker.update(newEnds);
     trackerPlotter.update();
 
+    ColorCloudPtr cloudCam  = cloudMsg.m_data;
+    ColorCloudPtr cloudWorld(new ColorCloud());
+    pcl::transformPointCloud(*cloudCam, *cloudWorld, CT.worldFromCamEigen);
+    kinectPts->setPoints(cloudWorld);
+    cout << "loaded cloud " << count << endl;
+    count++;
+
 
     VectorMessage<double>* jointMsgPtr = retimer.msgAt(cloudMsg.getTime());
     vector<double> currentJoints = jointMsgPtr->m_data;
     ValuesInds vi = getValuesInds(currentJoints);
     scene.pr2->setDOFValues(vi.second, vi.first);
+    CT.reset(kinectTrans.getKinectTrans());
+
 
     cv::Mat ropeMask = toSingleChannel(labels) == 1;
 
@@ -180,5 +172,7 @@ int main(int argc, char *argv[]) {
       scene.step(DT);
 
     }
+  if (RecordingConfig::record) rec.snapshot();
+
   }
 }

@@ -32,7 +32,9 @@ static bool isClosed(RobotBase::ManipulatorPtr manip, float closedThreshold) {
   manip->GetRobot()->SetActiveDOFs(gripperInds);
   vector<double> dof_values;
   manip->GetRobot()->GetActiveDOFValues(dof_values);
-  return dof_values[0] < closedThreshold;
+  bool out  =dof_values[0] < closedThreshold;
+  cout << "isclosed: " << out << endl;
+  return out;
 }
 
 static BulletObject::Ptr getNearestBody(vector<BulletObject::Ptr> bodies, btVector3 pos) {
@@ -43,13 +45,14 @@ static BulletObject::Ptr getNearestBody(vector<BulletObject::Ptr> bodies, btVect
   return bodies[argmin];
 }
 
-Monitor::Monitor() : closedThreshold(PR2_CLOSED_VAL) { }
+Monitor::Monitor() : closedThreshold(PR2_CLOSED_VAL) { cout << "blah" << endl;}
 
 Monitor::Monitor(OpenRAVE::RobotBase::ManipulatorPtr manip) :
     m_manip(manip),
     closedThreshold(PR2_CLOSED_VAL),
-    m_wasClosed(isClosed(manip, closedThreshold))
+    m_wasClosed(isClosed(manip, PR2_CLOSED_VAL))
 {
+  cout << "monitor init: " << m_wasClosed << " " << isClosed(manip, closedThreshold) << endl;
 }
 
 void Monitor::update() {
@@ -71,6 +74,7 @@ MonitorForGrabbing::MonitorForGrabbing(OpenRAVE::RobotBase::ManipulatorPtr manip
   m_bodies(),
   m_grab(NULL)
 {
+
 }
 
 void MonitorForGrabbing::setBodies(vector<BulletObject::Ptr>& bodies) {m_bodies = bodies;}
