@@ -251,9 +251,9 @@ static void cleanupTetgen() {
   unlink(NODE_FILE);
 }
 
-/*namespace TetraCube {
+namespace TetraCube {
 #include "cube.inl"
-}*/
+}
 
 btSoftBody *generateTetraBox(const btVector3 &dims, btSoftBodyWorldInfo &worldInfo) {
   runTetgen(dims);
@@ -265,15 +265,15 @@ btSoftBody *generateTetraBox(const btVector3 &dims, btSoftBodyWorldInfo &worldIn
   cleanupTetgen();
   return psb;
 }
-  /*btSoftBody *psb = btSoftBodyHelpers::CreateFromTetGenData(worldInfo,
-    TetraCube::getElements(), 0, TetraCube::getNodes(),
-    false, true, true);*/
 
 BulletSoftObject::Ptr makeTetraBox(const vector<btVector3>& points, btScalar thickness, btSoftBodyWorldInfo& worldInfo) {
   btVector3 dims(points[0].distance(points[1]), points[0].distance(points[2]), thickness);
-  btSoftBody *psb = generateTetraBox(dims, worldInfo);
-  psb->scale(btVector3(0.9, 0.9, 0.9));
-  psb->translate(points[0] + btVector3(-5, 0, 0));
+  //btSoftBody *psb = generateTetraBox(dims, worldInfo);
+  btSoftBody *psb = btSoftBodyHelpers::CreateFromTetGenData(worldInfo,
+    TetraCube::getElements(), 0, TetraCube::getNodes(),
+    false, true, true);
+//  psb->scale(btVector3(0.9, 0.9, 0.9));
+  psb->transform(btTransform(btQuaternion(0, 0, 0, 1), points[0]));
   psb->setVolumeMass(1);
   psb->m_cfg.piterations=1;
   psb->generateClusters(16);
@@ -414,7 +414,6 @@ btSoftBody* createBox(btSoftBodyWorldInfo& worldInfo,
                         }
                     }
                 }
-
             }
         }
     }
@@ -429,14 +428,15 @@ BulletSoftObject::Ptr makeBoxFromGrid(const vector<btVector3>& points, const btV
       points[0] + thickness, points[1] + thickness, points[3] + thickness, points[2] + thickness,
       resx, resy, resz, true);
 
-  psb->setTotalMass(1);
-  psb->m_cfg.piterations=1;
+  psb->setTotalMass(100);
+  psb->m_cfg.piterations=2;
   psb->generateClusters(0);
   psb->getCollisionShape()->setMargin(0.01);
-  psb->m_cfg.collisions	= btSoftBody::fCollision::CL_SS + btSoftBody::fCollision::CL_RS + btSoftBody::fCollision::CL_SELF;
-  psb->m_materials[0]->m_kLST		=	0.1;
+  psb->m_cfg.collisions	= btSoftBody::fCollision::CL_SS + btSoftBody::fCollision::CL_RS;// + btSoftBody::fCollision::CL_SELF;
+//  psb->m_cfg.collisions	= btSoftBody::fCollision::SDF_RS + btSoftBody::fCollision::VF_SS;
+  psb->m_materials[0]->m_kLST		=	0.08;
   psb->m_materials[0]->m_kAST		=	0.1;
-  psb->m_materials[0]->m_kVST		=	1.0;
-  psb->randomizeConstraints();
+  psb->m_materials[0]->m_kVST		=	0.1;
+  //psb->randomizeConstraints();
   return BulletSoftObject::Ptr(new BulletSoftObject(psb));
 }

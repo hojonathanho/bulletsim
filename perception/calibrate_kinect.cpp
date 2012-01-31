@@ -262,7 +262,6 @@ int main(int argc, char* argv[]) {
     VectorMessage<double>* jointMsgPtr = retimer.msgAt(cloudMsg.getTime());
     ValuesInds vi = getValuesInds(jointMsgPtr->m_data);
     scene.pr2->setDOFValues(vi.second, vi.first);
-    CT.reset(kinectTrans.getKinectTrans());
 
     pcl::transformPointCloud(*cloudMsg.m_data, *cloudWorld, CT.worldFromCamEigen);
     kinectPts->setPoints(cloudWorld);

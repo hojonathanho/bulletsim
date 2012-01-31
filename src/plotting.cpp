@@ -5,6 +5,7 @@
 #include <osg/LineWidth>
 #include <osg/Geometry>
 #include <osg/StateSet>
+#include <osg/BlendFunc>
 #include <boost/foreach.hpp>
 
 using namespace std;
@@ -30,6 +31,11 @@ PlotPoints::PlotPoints(float size) {
   //  m_stateset->setMode(GL_DEPTH_TEST, osg::StateAttribute::OFF);
   m_stateset->setMode(GL_LIGHTING, osg::StateAttribute::OFF);
 
+  osg::ref_ptr<osg::BlendFunc> blendFunc = new osg::BlendFunc;
+  blendFunc->setFunction(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+  m_stateset->setAttributeAndModes(blendFunc);
+  m_stateset->setRenderingHint(osg::StateSet::TRANSPARENT_BIN);
+
   point->setSize(size);
   m_stateset->setAttribute(point);
   m_geode->setStateSet(m_stateset);
@@ -48,6 +54,14 @@ void PlotPoints::setPoints(const osg::ref_ptr<osg::Vec3Array>& osgPts) {
   osg::ref_ptr<osg::Vec4Array> osgCols = new osg::Vec4Array(osgPts->size());
   BOOST_FOREACH(osg::Vec4& col, *osgCols) col = m_defaultColor;
   setPoints(osgPts, osgCols);
+}
+
+void PlotPoints::forceTransparency(float a) {
+  osg::Vec4Array &colors = (osg::Vec4Array&) *m_geom->getColorArray();
+  for (int i = 0; i < colors.size(); ++i) {
+    osg::Vec4 c = colors[i];
+    colors[i] = osg::Vec4(c.r(), c.g(), c.b(), a);
+  }
 }
 
 #if BUILD_PERCEPTION
@@ -91,8 +105,13 @@ PlotLines::PlotLines(float width) {
   //m_stateset->setAttributeAndModes(linewidth,osg::StateAttribute::ON);
   m_stateset->setMode(GL_LIGHTING, osg::StateAttribute::OFF);
   m_stateset->setAttribute(linewidth);
-  m_geode->setStateSet(m_stateset);
 
+  osg::ref_ptr<osg::BlendFunc> blendFunc = new osg::BlendFunc;
+  blendFunc->setFunction(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+  m_stateset->setAttributeAndModes(blendFunc);
+  m_stateset->setRenderingHint(osg::StateSet::TRANSPARENT_BIN);
+
+  m_geode->setStateSet(m_stateset);
 }
 
 void PlotLines::setPoints(const vector<btVector3>& pts, const vector<btVector4>& cols) {
