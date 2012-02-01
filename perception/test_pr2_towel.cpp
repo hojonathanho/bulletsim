@@ -16,7 +16,7 @@
 #include "robot_geometry.h"
 #include "openrave_joints.h"
 #include "grabbing.h"
-
+#include "recording.h"
 #include <pcl/common/transforms.h>
 #include <osgViewer/ViewerEventHandlers>
 
@@ -28,18 +28,8 @@ struct LocalConfig : Config {
 };
 int LocalConfig::frameStep = 3;
 
-struct CustomSceneConfig : Config {
-  static int record;
-  CustomSceneConfig() : Config() {
-    params.push_back(new Parameter<int>("record", &record, "record every n frames (default 0 means record nothing)"));
-  }
-};
-int CustomSceneConfig::record = 0;
 
 struct CustomScene : public Scene {
-  osgViewer::ScreenCaptureHandler* captureHandler;
-  int framecount;
-  int captureNumber;
   SoftMonitorForGrabbing lMonitor;
   SoftMonitorForGrabbing rMonitor;
 
@@ -48,16 +38,7 @@ struct CustomScene : public Scene {
     lMonitor(pr2, true),
     rMonitor(pr2, false) {
     // add the screen capture handler
-    framecount = 0;
-    captureHandler = new osgViewer::ScreenCaptureHandler(new osgViewer::ScreenCaptureHandler::WriteToFile("screenshots/img", "jpg", osgViewer::ScreenCaptureHandler::WriteToFile::SEQUENTIAL_NUMBER));
-    viewer.addEventHandler(captureHandler);
   };
-  void draw() {
-    if (CustomSceneConfig::record && framecount % CustomSceneConfig::record==0) captureHandler->captureNextFrame(viewer);
-    framecount++;
-    Scene::draw();
-  }
-
   void step(float dt) {
     rMonitor.update();
     lMonitor.update();
@@ -74,7 +55,7 @@ int main(int argc, char* argv[]) {
   SceneConfig::enableRobotCollision = false;
   GeneralConfig::scale = 10;
   parser.addGroup(TrackingConfig());
-  parser.addGroup(CustomSceneConfig());
+  parser.addGroup(RecordingConfig());
   parser.addGroup(SceneConfig());
   parser.addGroup(GeneralConfig());
   parser.addGroup(BulletConfig());
@@ -95,7 +76,7 @@ int main(int argc, char* argv[]) {
   CustomScene scene;
   static PlotPoints::Ptr kinectPts(new PlotPoints(2));
   CorrPlots corrPlots;
-  static PlotPoints::Ptr towelEstPlot(new PlotPoints(4));
+  static PlotPoints::Ptr towelEstPlot(new PlotPoints(3));
   static PlotPoints::Ptr towelObsPlot(new PlotPoints(4));
   towelObsPlot->setDefaultColor(0,1,0,1);
 
@@ -132,7 +113,7 @@ int main(int argc, char* argv[]) {
   scene.env->add(table);
   scene.env->add(kinectPts);
   scene.env->add(towelEstPlot);
-  scene.env->add(towelObsPlot);
+  //scene.env->add(towelObsPlot);
   //scene.env->add(corrPlots.m_lines);
   scene.lMonitor.setTarget(towel->softBody.get());
   scene.rMonitor.setTarget(towel->softBody.get());
@@ -140,6 +121,12 @@ int main(int argc, char* argv[]) {
   scene.startViewer();
   towel->setColor(1,1,0,.5);
 
+  // recording
+  ScreenRecorder* rec;
+  if (RecordingConfig::record != DONT_RECORD){
+    rec = new ScreenRecorder(scene.viewer);
+  }
+  scene.idle(true);
 
 
   ColorCloudPtr cloudWorld(new ColorCloud());
@@ -164,7 +151,7 @@ int main(int argc, char* argv[]) {
     vector<btVector3> towelObsPts =  CT.toWorldFromCamN(toBulletVectors(towelPtsMsg.m_data));
     towelObsPlot->setPoints(towelObsPts);
 
-    for (int i=0; i < TrackingConfig::nIter; i++) {
+    for (int iter=0; iter < TrackingConfig::nIter; iter++) {
       //cout << "iteration " << i << endl;
       cout << "NUMBER OF ANCHORS: " << towel->softBody->m_anchors.size() << endl;
       vector<btVector3> p;
@@ -188,6 +175,9 @@ int main(int argc, char* argv[]) {
       for (int i=0; i<impulses.size(); i++)
         towel->softBody->addForce(impulses[i],i);
 
+      if (RecordingConfig::record == EVERY_ITERATION || 
+	  RecordingConfig::record == FINAL_ITERATION && iter==TrackingConfig::nIter-1)
+	rec->snapshot();
       scene.step(.01);
     }
 

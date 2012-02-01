@@ -26,7 +26,7 @@ bool yesOrNo(char message[]) {
     cout << message << " (y/n): ";
     char yn;
     cin >> yn;
-    if (yn == 'y') break;
+    if (yn == 'y') return true;
     else if (yn == 'n') exit(0);
   }
 }
@@ -182,7 +182,9 @@ PathPair Names::getCurAndStep() {
 // }
 
 void Message::toFiles(PathPair pair) const {
+  cout << "writing " << pair.first << "...";
   writeDataTo(pair.first);
+  cout << "OK" << endl;
   writeJson(m_info,pair.second);
 }
 

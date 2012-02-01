@@ -34,7 +34,6 @@ void CloudGrabber::cloud_cb_ (const ConstColorCloudPtr& cloud) {
 
   if (m_doPause || m_cbCount % m_downsample == 0) {
     m_pub.send(CloudMessage(boost::const_pointer_cast< pcl::PointCloud<pcl::PointXYZRGB> >(cloud)));
-    cout << "writing pcd file" << endl;
   }
   m_cbCount++;       
 }

@@ -5,7 +5,6 @@
 #include "comm/comm2.h"
 #include "config_bullet.h"
 #include "config_perception.h"
-#include "custom_scene.h"
 #include "get_nodes.h"
 #include "make_bodies.h"
 #include "simplescene.h"
@@ -25,7 +24,7 @@ int main(int argc, char* argv[]) {
   SceneConfig::enableRobot = SceneConfig::enableIK = SceneConfig::enableHaptics = false;
   GeneralConfig::scale = 10;
   parser.addGroup(TrackingConfig());
-  parser.addGroup(CustomSceneConfig());
+  parser.addGroup(RecordingConfig());
   parser.addGroup(SceneConfig());
   parser.addGroup(GeneralConfig());
   parser.addGroup(BulletConfig());
@@ -41,12 +40,18 @@ int main(int argc, char* argv[]) {
 
 
   ////////////// create scene
-  CustomScene scene;
+  Scene scene;
   static PlotPoints::Ptr kinectPts(new PlotPoints(2));
   CorrPlots corrPlots;
   static PlotPoints::Ptr towelEstPlot(new PlotPoints(4));
   static PlotPoints::Ptr towelObsPlot(new PlotPoints(4));
   towelObsPlot->setDefaultColor(0,1,0,1);
+
+  ///////////// recording
+  ScreenRecorder* rec;
+  if (RecordingConfig::record != DONT_RECORD){
+    rec = new ScreenRecorder(scene.viewer);
+  }
 
   /////////////// load table
   vector< vector<float> > vv = floatMatFromFile(onceFile("table_corners.txt").string());
@@ -79,12 +84,9 @@ int main(int argc, char* argv[]) {
   //scene.env->add(towelObsPlot);
   //scene.env->add(corrPlots.m_lines);
   //scene.env->add(sphere);
-
   scene.startViewer();
   towel->setColor(1,1,0,.5);
-
-  ScreenRecorder rec(scene.viewer);
-  //askToResetDir("snapshots");
+  scene.idle(true);
 
   for (int t=0; ; t++) {
     cout << "time step " << t << endl;
@@ -100,8 +102,8 @@ int main(int argc, char* argv[]) {
     vector<btVector3> towelObsPts =  CT.toWorldFromCamN(toBulletVectors(towelPtsMsg.m_data));
     towelObsPlot->setPoints(towelObsPts);
 
-    for (int i=0; i < TrackingConfig::nIter; i++) {
-      cout << "iteration " << i << endl;
+    for (int iter=0; iter < TrackingConfig::nIter; iter++) {
+      cout << "iteration " << iter << endl;
       //scene.idle(true);
       vector<float> pVis = calcVisibility(towel->softBody.get(), scene.env->bullet->dynamicsWorld, CT.worldFromCamUnscaled.getOrigin()*METERS);
       colorByVisibility(towel->softBody.get(), pVis, towelEstPlot);
@@ -114,7 +116,9 @@ int main(int argc, char* argv[]) {
       for (int i=0; i<impulses.size(); i++)
 	towel->softBody->addForce(impulses[i],i);
 
-      rec.snapshot();
+      if (RecordingConfig::record == EVERY_ITERATION || 
+	  RecordingConfig::record == FINAL_ITERATION && iter==TrackingConfig::nIter-1)
+	rec->snapshot();
       scene.step(.01);
     }
 

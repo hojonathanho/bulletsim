@@ -252,7 +252,7 @@ static void cleanupTetgen() {
 }
 
 namespace TetraCube {
-#include "cube.inl"
+
 }
 
 btSoftBody *generateTetraBox(const btVector3 &dims, btSoftBodyWorldInfo &worldInfo) {
@@ -269,9 +269,9 @@ btSoftBody *generateTetraBox(const btVector3 &dims, btSoftBodyWorldInfo &worldIn
 BulletSoftObject::Ptr makeTetraBox(const vector<btVector3>& points, btScalar thickness, btSoftBodyWorldInfo& worldInfo) {
   btVector3 dims(points[0].distance(points[1]), points[0].distance(points[2]), thickness);
   //btSoftBody *psb = generateTetraBox(dims, worldInfo);
-  btSoftBody *psb = btSoftBodyHelpers::CreateFromTetGenData(worldInfo,
-    TetraCube::getElements(), 0, TetraCube::getNodes(),
-    false, true, true);
+  btSoftBody *psb = 0;//btSoftBodyHelpers::CreateFromTetGenData(worldInfo,
+    // TetraCube::getElements(), 0, TetraCube::getNodes(),
+    // false, true, true);
 //  psb->scale(btVector3(0.9, 0.9, 0.9));
   psb->transform(btTransform(btQuaternion(0, 0, 0, 1), points[0]));
   psb->setVolumeMass(1);

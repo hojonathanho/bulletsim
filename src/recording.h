@@ -4,10 +4,16 @@
 #include <osgViewer/ViewerEventHandlers>
 
 
+enum RecordingMode {
+  DONT_RECORD=0,
+  EVERY_ITERATION=1,
+  FINAL_ITERATION=2
+};
+
 struct RecordingConfig : Config {
   static int record;
   RecordingConfig() : Config() {
-    params.push_back(new Parameter<int>("record", &record, "record every n frames (default 0 means record nothing)"));
+    params.push_back(new Parameter<int>("record", &record, "0: no recording. 1: record every iterations. 2: final iteration"));
   }
 };
 

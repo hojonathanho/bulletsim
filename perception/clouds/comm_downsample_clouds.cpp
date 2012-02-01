@@ -21,7 +21,8 @@ int main(int argc, char* argv[]) {
   string labelTopic;
   string outTopic;
   bool doPause;
-  int label;
+  vector<int> labels;
+  labels.push_back(1);
   float voxelSize;
 
   po::options_description opts("Allowed options");
@@ -30,7 +31,7 @@ int main(int argc, char* argv[]) {
     ("cloudTopic,c", po::value< string >(&cloudTopic)->default_value("kinect"),"cloud topic")
     ("labelTopic,l", po::value< string >(&labelTopic),"label topic")
     ("outTopic,o", po::value< string >(&outTopic),"output topic")
-    ("label,n", po::value<int>(&label)->default_value(1),"label to extract")
+    ("labels,n", po::value< vector<int> >(&labels)->multitoken(),"label to extract")
     ("voxelSize,v", po::value<float>(&voxelSize)->default_value(.01),"voxel side length (meters)");
   po::variables_map vm;        
   po::store(po::command_line_parser(argc, argv)
@@ -44,6 +45,8 @@ int main(int argc, char* argv[]) {
   }
   po::notify(vm);
 
+
+ 
   initComm();
 
   CloudMessage cloudMsg;
@@ -52,7 +55,7 @@ int main(int argc, char* argv[]) {
   FileSubscriber labelSub(labelTopic,"png");
   FilePublisher cloudPub(outTopic,"pcd");
 
-  while (true) {
+  while (true) { 
     bool gotOne = cloudSub.recv(cloudMsg);
     if (!gotOne) break;
 
@@ -60,7 +63,8 @@ int main(int argc, char* argv[]) {
 
     vector<cv::Mat> channels;
     cv::split(labelMsg.m_data,channels);
-    cv::Mat mask = channels[0] == label;
+    cv::Mat mask = (channels[0] == labels[0]);
+    for (int i = 1; i < labels.size(); i++) mask += (channels[0] == labels[i]);
 
     ColorCloudPtr maskedCloud = maskCloud(cloudMsg.m_data, mask);
     ColorCloudPtr downedCloud = downsampleCloud(maskedCloud, voxelSize);

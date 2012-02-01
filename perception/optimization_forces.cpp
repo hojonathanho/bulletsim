@@ -68,7 +68,7 @@ vector<btVector3> calcImpulsesDamped(const vector<btVector3>& estPos, const vect
 
 CorrPlots::CorrPlots() {
   m_lines.reset(new PlotLines(3));
-  m_lines->setDefaultColor(1,1,0,1);
+  m_lines->setDefaultColor(1,1,0,.33);
 }
 
 void CorrPlots::update(const vector<btVector3>& aPts, const vector<btVector3>& bPts, const SparseArray& corr) {

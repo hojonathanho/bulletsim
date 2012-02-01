@@ -11,7 +11,7 @@ bool yesOrNo(char message[]) {
     cout << message << " (y/n): ";
     char yn;
     cin >> yn;
-    if (yn == 'y') break;
+    if (yn == 'y') return true;
     else if (yn == 'n') exit(0);
   }
 }
@@ -34,9 +34,10 @@ void askToResetDir(fs::path p) {
 ScreenRecorder::ScreenRecorder(osgViewer::Viewer& viewer) : frameCount(0), m_viewer(viewer) {
   askToResetDir("screenshots");
   m_captureHandler = new osgViewer::ScreenCaptureHandler(new osgViewer::ScreenCaptureHandler::WriteToFile("screenshots/img", "jpg", osgViewer::ScreenCaptureHandler::WriteToFile::SEQUENTIAL_NUMBER));
-  m_viewer.addEventHandler(m_captureHandler);
+  //  m_viewer.addEventHandler(m_captureHandler);
 }
 
 void ScreenRecorder::snapshot() {
+  cout << "taking snapshot!" << endl;
   m_captureHandler->captureNextFrame(m_viewer);
 }

@@ -10,13 +10,13 @@
 #include "config_perception.h"
 #include "make_bodies.h"
 #include "rope.h"
-#include "custom_scene.h"
 #include "trackers.h"
 #include "utils_perception.h"
 #include "vector_io.h"
 #include "optimization_forces.h"
 #include "visibility.h"
 #include "apply_impulses.h"
+#include "recording.h"
 
 #include <pcl/common/transforms.h>
 #include <osgViewer/Viewer>
@@ -31,15 +31,15 @@ int main(int argc, char *argv[]) {
   SceneConfig::enableIK = SceneConfig::enableHaptics = SceneConfig::enableRobot = false;
   
   Parser parser;
+  parser.addGroup(TrackingConfig());
+  parser.addGroup(RecordingConfig());
   parser.addGroup(GeneralConfig());
   parser.addGroup(BulletConfig());
-  parser.addGroup(TrackingConfig());
   parser.addGroup(SceneConfig());
-  parser.addGroup(CustomSceneConfig());
   parser.read(argc,argv);
 
   // comm stuff
-  setDataRoot("~/comm/rope_hands");
+  initComm();
   FileSubscriber pcSub("kinect","pcd");
   CloudMessage cloudMsg;
   FileSubscriber ropeSub("rope_pts","pcd");
@@ -64,23 +64,32 @@ int main(int argc, char *argv[]) {
   // plots
   PlotPoints::Ptr kinectPts(new PlotPoints(2));
   CorrPlots corrPlots;
+  PlotPoints::Ptr obsPlot(new PlotPoints(4));
+  obsPlot->setDefaultColor(0,1,0,1);
 
   // setup scene
-  CustomScene scene;
+  Scene scene;
   scene.env->add(kinectPts);
   scene.env->add(rope);
   scene.env->add(table);
+  scene.env->add(obsPlot);
   scene.env->add(corrPlots.m_lines);
 
+
+  // recording
+  ScreenRecorder* rec;
+  if (RecordingConfig::record != DONT_RECORD){
+    rec = new ScreenRecorder(scene.viewer);
+  }
 
   // end tracker
   vector<RigidBodyPtr> rope_ends;
   rope_ends.push_back(rope->bodies[0]);
   rope_ends.push_back(rope->bodies[rope->bodies.size()-1]);
-  MultiPointTrackerRigid endTracker(rope_ends,scene.env->bullet->dynamicsWorld);
-  TrackerPlotter trackerPlotter(endTracker);
-  scene.env->add(trackerPlotter.m_fakeObjects[0]);
-  scene.env->add(trackerPlotter.m_fakeObjects[1]);
+  //MultiPointTrackerRigid endTracker(rope_ends,scene.env->bullet->dynamicsWorld);
+  //TrackerPlotter trackerPlotter(endTracker);
+  //scene.env->add(trackerPlotter.m_fakeObjects[0]);
+  //scene.env->add(trackerPlotter.m_fakeObjects[1]);
 
   scene.startViewer();
   scene.setSyncTime(true);
@@ -97,12 +106,13 @@ int main(int argc, char *argv[]) {
 
     ENSURE(ropeSub.recv(ropeMsg));
     vector<btVector3> obsPts = CT.toWorldFromCamN(toBulletVectors(ropeMsg.m_data));
+    obsPlot->setPoints(obsPts);
     ENSURE(labelSub.recv(labelMsg));
     cv::Mat labels = toSingleChannel(labelMsg.m_data);
     ENSURE(endSub.recv(endMsg));
     vector<btVector3> newEnds = CT.toWorldFromCamN(toBulletVectors(endMsg.m_data));
-    endTracker.update(newEnds);
-    trackerPlotter.update();
+    //endTracker.update(newEnds);
+    //trackerPlotter.update();
     Eigen::MatrixXf depthImage = getDepthImage(cloudCam);
     cv::Mat ropeMask = toSingleChannel(labels) == 1;
 
@@ -116,8 +126,12 @@ int main(int argc, char *argv[]) {
       corrPlots.update(estPts, obsPts, corr);
       vector<btVector3> impulses = calcImpulsesSimple(estPts, obsPts, corr, TrackingConfig::impulseSize);
       applyImpulses(impulses, rope);
+      //usleep(1000*10);
+      if (RecordingConfig::record == EVERY_ITERATION || 
+	  RecordingConfig::record == FINAL_ITERATION && iter==TrackingConfig::nIter-1)
+	rec->snapshot();
       scene.step(DT);
-      usleep(1000*10);
+
     }
   }
 }

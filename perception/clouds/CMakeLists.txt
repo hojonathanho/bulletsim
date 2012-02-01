@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 2.0)
 
 if (NOT DEFINED PCL_INCLUDE_DIRS)
+  set(WM_ROOT "~/Src/GeometricTools/WildMagic5")
   find_package(PCL 1.4 REQUIRED)
 endif()
 
