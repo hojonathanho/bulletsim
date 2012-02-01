@@ -24,6 +24,15 @@
 
 #include <pcl/common/transforms.h>
 
+vector<double> interpolateBetween(vector<double> a, vector<double> b, float p) {
+  vector<double> out;
+  for (int i=0; i < a.size(); i++) {
+    out.push_back(a[i]*(1-p) + b[i]*p);
+  }
+  cout << p << ": " << out << endl;
+  return out;
+}
+
 struct LocalConfig : Config {
   static int frameStep;
   LocalConfig() : Config() {
@@ -114,6 +123,13 @@ int main(int argc, char *argv[]) {
   scene.lMonitor.setBodies(rope->children);
   scene.rMonitor.setBodies(rope->children);
 
+  // recording
+  ScreenRecorder* rec;
+  if (RecordingConfig::record != DONT_RECORD){
+    rec = new ScreenRecorder(scene.viewer);
+  }
+
+
   // end tracker
   vector<RigidBodyPtr> rope_ends;
   rope_ends.push_back(rope->bodies[0]);
@@ -125,11 +141,10 @@ int main(int argc, char *argv[]) {
 
   scene.startViewer();
   scene.setSyncTime(true);
+
   scene.idle(true);
 
-  ScreenRecorder rec(scene.viewer);
-
-
+  vector<double> oldvals, newvals;
   int count=0;
   while (pcSub.recv(cloudMsg)) {
     ENSURE(ropeSub.recv(ropeMsg));
@@ -152,7 +167,13 @@ int main(int argc, char *argv[]) {
     VectorMessage<double>* jointMsgPtr = retimer.msgAt(cloudMsg.getTime());
     vector<double> currentJoints = jointMsgPtr->m_data;
     ValuesInds vi = getValuesInds(currentJoints);
-    scene.pr2->setDOFValues(vi.second, vi.first);
+    newvals = vi.first;
+    if (oldvals.size()==0) {
+      cout << "first one" << endl;
+      oldvals = newvals;
+    }
+
+
     CT.reset(kinectTrans.getKinectTrans());
 
 
@@ -160,6 +181,8 @@ int main(int argc, char *argv[]) {
 
     for (int iter=0; iter<TrackingConfig::nIter; iter++) {
       cout << "iteration " << iter << endl;
+
+      scene.pr2->setDOFValues(vi.second, interpolateBetween(oldvals, newvals, (iter+0.00001)/TrackingConfig::nIter));
 
       vector<btVector3> estPts = rope->getNodes();
       Eigen::MatrixXf ropePtsCam = toEigenMatrix(CT.toCamFromWorldN(estPts));
@@ -169,10 +192,13 @@ int main(int argc, char *argv[]) {
       corrPlots.update(estPts, obsPts, corr);
       vector<btVector3> impulses = calcImpulsesSimple(estPts, obsPts, corr, TrackingConfig::impulseSize);
       applyImpulses(impulses, rope);
+      if (RecordingConfig::record == EVERY_ITERATION || 
+	  RecordingConfig::record == FINAL_ITERATION && iter==TrackingConfig::nIter-1)
+	rec->snapshot();
       scene.step(DT);
 
     }
-  if (RecordingConfig::record) rec.snapshot();
+    oldvals = newvals;
 
   }
 }
