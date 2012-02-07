@@ -79,18 +79,18 @@ int main(int argc, char* argv[]) {
 
 // HACK
   vector<btVector3> newCorners(4);
-  const float CM = 2.54/100*METERS;
+  const float INCHES = 2.54/100*METERS;
   newCorners[0] = towelCorners[0];
-/*  newCorners[1] = newCorners[0] + (towelCorners[1] - towelCorners[0]).normalized() * 5.75 * CM;
-  newCorners[2] = newCorners[1] + (towelCorners[2] - towelCorners[1]).normalized() * 2.5 * CM;
-  newCorners[3] = newCorners[2] + (towelCorners[3] - towelCorners[2]).normalized() * 5.75 * CM;
-  BulletSoftObject::Ptr sponge = makeBoxFromGrid(newCorners, btVector3(0, 0, 7.5*CM), 5, 15, 15, scene.env->bullet->softBodyWorldInfo);
-  sponge->softBody->translate(btVector3(0, 0, -7.5*CM));*/
-  newCorners[1] = newCorners[0] + (towelCorners[1] - towelCorners[0]).normalized() * 5 * CM;
-  newCorners[2] = newCorners[1] + (towelCorners[2] - towelCorners[1]).normalized() * 8 * CM;
-  newCorners[3] = newCorners[2] + (towelCorners[3] - towelCorners[2]).normalized() * 5 * CM;
-  BulletSoftObject::Ptr sponge = makeBoxFromGrid(newCorners, btVector3(0, 0, 1.5*CM), 10, 15, 15, scene.env->bullet->softBodyWorldInfo);
-//  BulletSoftObject::Ptr sponge = makeTetraBox(newCorners, 2.5*CM, scene.env->bullet->softBodyWorldInfo);
+/*  newCorners[1] = newCorners[0] + (towelCorners[1] - towelCorners[0]).normalized() * 5.75 * INCHES;
+  newCorners[2] = newCorners[1] + (towelCorners[2] - towelCorners[1]).normalized() * 2.5 * INCHES;
+  newCorners[3] = newCorners[2] + (towelCorners[3] - towelCorners[2]).normalized() * 5.75 * INCHES;
+  BulletSoftObject::Ptr sponge = makeBoxFromGrid(newCorners, btVector3(0, 0, 7.5*INCHES), 5, 15, 15, scene.env->bullet->softBodyWorldInfo);
+  sponge->softBody->translate(btVector3(0, 0, -7.5*INCHES));*/
+  newCorners[1] = newCorners[0] + (towelCorners[1] - towelCorners[0]).normalized() * 5 * INCHES;
+  newCorners[2] = newCorners[1] + (towelCorners[2] - towelCorners[1]).normalized() * 8 * INCHES;
+  newCorners[3] = newCorners[2] + (towelCorners[3] - towelCorners[2]).normalized() * 5 * INCHES;
+  BulletSoftObject::Ptr sponge = makeBoxFromGrid(newCorners, btVector3(0, 0, 1.5*INCHES), 10, 15, 15, scene.env->bullet->softBodyWorldInfo);
+//  BulletSoftObject::Ptr sponge = makeTetraBox(newCorners, 2.5*INCHES, scene.env->bullet->softBodyWorldInfo);
 
   /// add stuff to scene
   scene.env->add(sponge);
