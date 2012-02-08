@@ -21,7 +21,6 @@
 #include "openrave_joints.h"
 #include "robot_geometry.h"
 #include "recording.h"
-
 #include <pcl/common/transforms.h>
 
 vector<double> interpolateBetween(vector<double> a, vector<double> b, float p) {
@@ -98,7 +97,6 @@ int main(int argc, char *argv[]) {
   kinectTrans.calibrate(btTransform(btQuaternion(0.669785, -0.668418, 0.222562, -0.234671), btVector3(0.263565, -0.038203, 1.762524)));
   CoordinateTransformer CT(kinectTrans.getKinectTrans());
 
-
   // load table
   /////////////// load table
   vector<btVector3> tableCornersCam = toBulletVectors(floatMatFromFile(onceFile("table_corners.txt").string()));
@@ -116,10 +114,12 @@ int main(int argc, char *argv[]) {
   CorrPlots corrPlots;
 
   // setup scene
-  scene.env->add(kinectPts);
-  scene.env->add(rope);
-  scene.env->add(table);
-  //scene.env->add(corrPlots.m_lines);
+  if (TrackingConfig::showKinect) scene.env->add(kinectPts);
+  if (TrackingConfig::showSim) {
+    scene.env->add(rope);
+    scene.env->add(table);
+  }
+  if (TrackingConfig:: showLines) scene.env->add(corrPlots.m_lines);
   scene.lMonitor.setBodies(rope->children);
   scene.rMonitor.setBodies(rope->children);
 

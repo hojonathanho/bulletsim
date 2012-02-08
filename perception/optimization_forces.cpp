@@ -36,12 +36,12 @@ MatrixXf calcCorrProb(const MatrixXf& estPts, const MatrixXf& obsPts, const Vect
 }
 
 
-SparseArray calcCorrOpt(const vector<btVector3>& estPts, const vector<btVector3>& obsPts, const vector<float>& pVis) {
-  // todo: use pvis
-  MatrixXf costs = pairwiseSquareDist(toEigenMatrix(estPts), toEigenMatrix(obsPts));
-  SparseArray corr = matchSoft(costs,1,0);
-  return corr;
-}
+// SparseArray calcCorrOpt(const vector<btVector3>& estPts, const vector<btVector3>& obsPts, const vector<float>& pVis) {
+//   // todo: use pvis
+//   MatrixXf costs = pairwiseSquareDist(toEigenMatrix(estPts), toEigenMatrix(obsPts));
+//   SparseArray corr = matchSoft(costs,1,0);
+//   return corr;
+// }
 
 vector<btVector3> calcImpulsesSimple(const vector<btVector3>& estPts, const vector<btVector3>& obsPts, const SparseArray& corr, float f) {
   int nEst = estPts.size();

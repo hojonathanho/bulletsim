@@ -67,5 +67,5 @@ struct OSGCamParams {
   osg::Vec3d eye;
   osg::Vec3d center;
   osg::Vec3d up;
-  OSGCamParams(const btTransform& toWorldFromCam);
+  OSGCamParams(const btTransform& toWorldFromCam, float scale);
 };

@@ -8,4 +8,5 @@ typedef pcl::PointCloud<pcl::PointXYZRGB>::Ptr ColorCloudPtr;
 
 ColorCloudPtr maskCloud(const ColorCloudPtr in, const cv::Mat& mask);
 ColorCloudPtr downsampleCloud(const ColorCloudPtr in, float voxelSizeMeters);
-ColorCloudPtr removeOutliers(const ColorCloudPtr in);
+ColorCloudPtr removeOutliers(const ColorCloudPtr in, float thresh=1, int k=15);
+ColorCloudPtr removeZRange(const ColorCloudPtr in, float minZ, float maxZ);

@@ -140,10 +140,10 @@ vector<btVector3> CoordinateTransformer::toCamFromWorldN(const vector<btVector3>
   return camVecs;
 }
 
-OSGCamParams::OSGCamParams(const btTransform& toWorldFromCam) {
+OSGCamParams::OSGCamParams(const btTransform& toWorldFromCam, float scale) {
     btMatrix3x3 rotation = toWorldFromCam.getBasis();
     btVector3 translation = toWorldFromCam.getOrigin();
-    eye = util::toOSGVector(translation);
+    eye = util::toOSGVector(translation*scale);
     center = util::toOSGVector(rotation.getColumn(2));
     up = util::toOSGVector(rotation.getColumn(1));
  }
