@@ -5,22 +5,27 @@
 #include "dist_math.h"
 #include "vector_io.h"
 #include <my_assert.h>
+#include <boost/timer.hpp>
 using namespace Eigen;
 using namespace std;
 
 void test_matching_equal_size() {
-  const int nPts = 10;
-  const int nDim = 2;
+boost::timer watch;
+    
+  const int nPts = 5;
+  const int nDim = 3;
 
   MatrixXf x(nPts,nDim);
   x.setRandom();
   MatrixXf y = 10+x.array();
     
   MatrixXf costs = pairwiseSquareDist(x,y);
-  vector<int> result = matchHardOneWay(costs);
+  VectorXi result = matchHardOneWay(costs);
   for (int i=0; i<result.size(); i++) ENSURE(result[i] == i);
 
+  cout << watch.elapsed() << "elapsed" << endl;
 }
+
 
 void test_matching_different_size() {
   MatrixXf costs(2,1);

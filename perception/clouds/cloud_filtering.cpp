@@ -46,13 +46,14 @@ ColorCloudPtr downsampleCloud(const ColorCloudPtr in, float sz) {
  return out;
 }
 
-ColorCloudPtr removeOutliers(const ColorCloudPtr in) {
+ColorCloudPtr removeOutliers(const ColorCloudPtr in, float thresh, int k) {
   ColorCloudPtr out(new ColorCloud());
   pcl::StatisticalOutlierRemoval<pcl::PointXYZRGB> sor;
   sor.setInputCloud (in);
-  sor.setMeanK (15);
-  sor.setStddevMulThresh (1);
+  sor.setMeanK (k);
+  sor.setStddevMulThresh (thresh);
   sor.filter (*out);
   cout << "removeOutliers: removed " << (in->size() - out->size()) << " of " << in->size() << endl;
   return out;
 }
+

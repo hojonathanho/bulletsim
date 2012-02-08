@@ -6,6 +6,8 @@
 #include "config.h"
 #include "vector_io.h"
 
+using namespace Eigen;
+
 MultiPointTrackerRigid::MultiPointTrackerRigid(vector< RigidBodyPtr >& bodies, btDynamicsWorld* world)
   : m_N(bodies.size()), m_bodies(bodies), m_active(bodies.size(), false), m_world(world) {
   BOOST_FOREACH(RigidBodyPtr body, bodies)
@@ -16,7 +18,7 @@ void MultiPointTrackerRigid::update(const vector<btVector3>& obsPts) {
   vector<btVector3> estPts(m_N);
   for (int iEst=0; iEst < m_N; iEst++) estPts[iEst] = m_bodies[iEst]->getCenterOfMassPosition();
   Eigen::MatrixXf costs = pairwiseSquareDist(toEigenMatrix(estPts), toEigenMatrix(obsPts));
-  vector<int> matches = matchHardMaximal(costs);
+  VectorXi matches = matchHard(costs, .3*METERS*.3*METERS); // don't bother matching more than a foot
   cout << costs << endl;
   cout << matches << endl;
   for (int iEst=0; iEst < m_N; iEst++) {
