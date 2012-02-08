@@ -46,12 +46,19 @@ int main(int argc, char *argv[]) {
 
   s.env->add(ropePtr);
   s.env->add(table);
-  table->setColor(0,1,0,1);
+  //table->setColor(0,1,0,1);
+
+  vector<BulletObject::Ptr> children =  ropePtr->getChildren();
+  for (int j=0; j<children.size(); j++) {
+    children[j]->setColor(1,0,0,1);
+  }
+
 
   vector< vector<double> > joints;
   vector< int > inds;
-  read_1d_array(inds, "../data/inds.txt");
-  read_2d_array(joints,"../data/vals.txt");
+
+  read_1d_array(inds, EXPAND(BULLETSIM_DATA_DIR) "/inds.txt");
+  read_2d_array(joints, EXPAND(BULLETSIM_DATA_DIR) "/vals.txt");
 
   int step = 0;
 

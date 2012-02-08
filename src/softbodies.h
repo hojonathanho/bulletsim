@@ -6,9 +6,14 @@
 
 class BulletSoftObject : public EnvironmentObject {
 protected:
-    osg::ref_ptr<osg::Geometry> geom;
-    osg::ref_ptr<osg::Vec3Array> vertices, normals;
+    osg::ref_ptr<osg::Geode> geode;
     osg::ref_ptr<osg::MatrixTransform> transform;
+
+    osg::ref_ptr<osg::Geometry> trigeom;
+    osg::ref_ptr<osg::Vec3Array> trivertices, trinormals;
+
+    osg::ref_ptr<osg::Geometry> quadgeom;
+    osg::ref_ptr<osg::Vec3Array> quadvertices, quadnormals;
 
 public:
     typedef boost::shared_ptr<BulletSoftObject> Ptr;
@@ -19,6 +24,8 @@ public:
     BulletSoftObject(btSoftBody *softBody_) : softBody(softBody_) { }
     virtual ~BulletSoftObject() { }
 
+    void setColor(float,float,float,float);
+
     EnvironmentObject::Ptr copy(Fork &f) const;
     void postCopy(EnvironmentObject::Ptr copy, Fork &f) const;
 
@@ -27,5 +34,6 @@ public:
     void preDraw();
     void destroy();
 };
+
 
 #endif // _SOFTBODIES_H_

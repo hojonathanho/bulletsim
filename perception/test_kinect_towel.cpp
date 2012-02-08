@@ -95,7 +95,8 @@ int main(int argc, char *argv[]) {
   verts2boxPars(corners_world,halfExtents,origin,.2*METERS);
   pcl::transformPointCloud(*cloud,*cloud,cam2world);
 
-  shared_ptr<btDefaultMotionState> ms(new btDefaultMotionState(btTransform(btQuaternion(0,0,0,1),origin)));  shared_ptr<BulletObject> table(new BoxObject(0,halfExtents,ms));
+  shared_ptr<btDefaultMotionState> ms(new btDefaultMotionState(btTransform(btQuaternion(0,0,0,1),origin)));  
+  shared_ptr<BulletObject> table(new BoxObject(0,halfExtents,ms));
   Scene scene;
   btVector3 offset(0,.1*METERS,.01*METERS);
 #define TWC towelCorners_world

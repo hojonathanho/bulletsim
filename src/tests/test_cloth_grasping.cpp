@@ -4,6 +4,7 @@
 #include "config_viewer.h"
 #include <BulletSoftBody/btSoftBodyHelpers.h>
 #include <openrave/kinbody.h>
+#include "pr2.h"
 
 // I've only tested this on the PR2 model
 class PR2SoftBodyGripperAction : public Action {
@@ -244,10 +245,12 @@ struct CustomScene : public Scene {
     BulletInstance::Ptr bullet2;
     OSGInstance::Ptr osg2;
     Fork::Ptr fork;
+    RaveRobotKinematicObject::Ptr tmpRobot;
 
 
     BulletSoftObject::Ptr createCloth(btScalar s, const btVector3 &center);
     void createFork();
+    void swapFork();
 
     void run();
 };
@@ -275,6 +278,9 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,osgGA::GUIActionA
             break;
         case 'f':
             scene.createFork();
+            break;
+        case 'g':
+            scene.swapFork();
             break;
         }
         break;
@@ -324,6 +330,26 @@ void CustomScene::createFork() {
     registerFork(fork);
 
     cout << "forked!" << endl;
+
+    EnvironmentObject::Ptr p = fork->forkOf(pr2);
+    if (!p) {
+        cout << "failed to get forked version of robot!" << endl;
+        return;
+    }
+    tmpRobot = boost::static_pointer_cast<RaveRobotKinematicObject>(p);
+    cout << (tmpRobot->getEnvironment() == env.get()) << endl;
+    cout << (tmpRobot->getEnvironment() == fork->env.get()) << endl;
+}
+
+void CustomScene::swapFork() {
+    // swaps the forked robot with the real one
+    cout << "swapping!" << endl;
+    vector<int> indices; vector<dReal> vals;
+    for (int i = 0; i < tmpRobot->robot->GetDOF(); ++i) {
+        indices.push_back(i);
+        vals.push_back(0);
+    }
+    tmpRobot->setDOFValues(indices, vals);
 }
 
 void CustomScene::run() {

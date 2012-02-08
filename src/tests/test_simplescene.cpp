@@ -14,7 +14,7 @@ int main(int argc, char *argv[]) {
     parser.read(argc, argv);
 
 
-    Parser().read(argc, argv);    
+    parser.read(argc, argv);    
     
     // construct the scene
     Scene scene;

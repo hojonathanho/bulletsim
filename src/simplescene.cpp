@@ -11,6 +11,7 @@ using namespace std;
 Scene::Scene() {
     osg.reset(new OSGInstance());
     bullet.reset(new BulletInstance());
+    cout << BulletConfig::gravity.z() << endl;
     bullet->setGravity(BulletConfig::gravity);
     if (SceneConfig::enableRobot)
         rave.reset(new RaveInstance());
@@ -34,7 +35,7 @@ Scene::Scene() {
 
     if (SceneConfig::enableRobot) {
       btTransform trans(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0));
-      pr2.reset(new RaveRobotKinematicObject(rave, "robots/pr2-beta-sim.robot.xml", trans, GeneralConfig::scale));
+      pr2.reset(new RaveRobotKinematicObject(rave, EXPAND(BULLETSIM_DATA_DIR) "/robot_model/pr2_with_kinect.dae", trans, GeneralConfig::scale));
       env->add(pr2);
       pr2->ignoreCollisionWith(ground->rigidBody.get()); // the robot's always touching the ground anyway
     }
@@ -65,6 +66,7 @@ void Scene::startViewer() {
     viewer.setCameraManipulator(manip);
     viewer.setSceneData(osg->root.get());
     viewer.realize();
+    step(0);
 }
 
 void Scene::processHaptics() {

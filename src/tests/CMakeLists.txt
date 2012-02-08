@@ -20,7 +20,16 @@ add_executable(test_rope test_rope.cpp)
 target_link_libraries(test_rope simulation)
 
 if (BUILD_PERCEPTION)
-  add_executable(test_plotting test_plotting.cpp plotting.cpp)
+  if (NOT DEFINED PCL)
+    find_package(PCL 1.3)
+  endif()
+  include_directories(${PCL_INCLUDE_DIRS})
+  link_directories(${PCL_LIBRARY_DIRS})
+  add_definitions(${PCL_DEFINITIONS})
+  set_property(
+    SOURCE plotting.cpp test_plotting.cpp
+    PROPERTY COMPILE_DEFINITIONS BUILD_PERCEPTION)
+  add_executable(test_plotting test_plotting.cpp)
   target_link_libraries(test_plotting simulation ${PCL_LIBRARIES})
 endif(BUILD_PERCEPTION)
 
@@ -38,3 +47,6 @@ target_link_libraries(test_collision_detection simulation)
 
 add_executable(test_action test_action.cpp)
 target_link_libraries(test_action simulation)
+
+add_executable(test_scene_record test_scene_record.cpp ../recording.cpp)
+target_link_libraries(test_scene_record simulation)

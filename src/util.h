@@ -3,20 +3,23 @@
 
 #include <LinearMath/btTransform.h>
 #include <osg/Vec3d>
+#include <osg/Geometry>
 #include <openrave/openrave.h>
 #include <string>
 #include <fstream>
 #include <iostream>
 #include <vector>
+#include <my_assert.h>
 using namespace std;
 
-namespace util {
+#define STRINGIFY(x) #x
+#define EXPAND(x) STRINGIFY(x)
 
+namespace util {
 
   // reads input from haptic devices (using getDeviceState),
   // and then transforms the rotations/coordinates to our coordinate system
   bool getHapticInput(btTransform &trans0, bool buttons0[2], btTransform &trans1, bool buttons1[2]);
-
 
 
   ///////////////// CONVERSIONS ////////////////////////////
@@ -44,9 +47,8 @@ namespace util {
     return OpenRAVE::Transform(toRaveQuaternion(t.getRotation()), toRaveVector(scale * t.getOrigin()));
   }
 
-#define CONVERT_VECTOR3(cls,v,w) cls v(w[0],w[1],w[2]);
-#define CONVERT_VECTOR4(cls,v,w) cls v(w[0],w[1],w[2],w[3]);
-
+  osg::ref_ptr<osg::Vec3Array> toVec3Array(const std::vector<btVector3>&);
+  osg::ref_ptr<osg::Vec4Array> toVec4Array(const std::vector<btVector4>&);
 
   ///////////////// FILE IO ////////////////////////////
 
@@ -81,78 +83,6 @@ namespace util {
     }
   }
 
-  template <class T>
-  void write_1d_array(const vector<T>& arr, string fname) {
-    ofstream outfile(fname.c_str());
-    for (int i=0; i < arr.size(); i++) {
-      outfile << arr[i] << " ";
-    }
-    outfile << "\n";
-    outfile.close();
-  }
-
-
-
-  template <class T>
-  void write_2d_array(const vector< vector<T> >& arr, string fname) {
-
-    ofstream outfile(fname.c_str());
-
-    for (int i=0; i < arr.size(); i++) {
-      vector<T> v = arr[i];
-      for (int j=0; j < v.size(); v++) {
-	outfile << v[j] << " ";
-      }
-      outfile << "\n";
-    }
-    outfile.close();
-  }
-
-  template <class T>
-  void write_vector(vector<T>& vec, string fname) {
-    ofstream outfile(fname.c_str());
-
-    for (int i=0; i < vec.size(); i++) {
-      outfile << vec[i] << endl;
-    }
-    outfile.close();
-  };
-
-
-  template <class T>
-  void read_vector(vector<T>& vec, string fname) {
-    vec.clear();
-    ifstream infile(fname.c_str());
-    T i;
-    while (infile) {
-      infile >>i;
-      vec.push_back(i);
-    }
-  }
-
-  template <class VecT, int n>
-  void print_vector(const VecT& vec) {
-    for (int i=0; i < n; i++) {
-      cout << vec[i] << " ";
-    }
-    cout << endl;
-  }
-
-  template <class MatT, int n>
-  void print_matrix(const MatT& mat) {
-    for (int i=0; i < n; i++) {
-      for (int j=0; j < n; j++) cout << mat[i][j] << " ";
-      cout << endl;
-    }
-  }
-
-
-  ///////////// PRINTING //////////////////
-
-
-
-#define DPRINT(EX) cout << #EX << ": " << EX << endl; 
-#define QQ << " " <<
 
 
 }

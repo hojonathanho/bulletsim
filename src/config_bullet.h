@@ -19,3 +19,5 @@ struct BulletConfig : Config {
   }
 
 };
+
+#define DT BulletConfig::dt

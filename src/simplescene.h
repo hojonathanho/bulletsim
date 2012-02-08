@@ -14,8 +14,6 @@ class EventHandler : public osgGA::TrackballManipulator {
 private:
   Scene *scene;
   float lastX, lastY, dx, dy;
-protected:
-  void getTransformation( osg::Vec3d& eye, osg::Vec3d& center, osg::Vec3d& up ) const;
 public:
   EventHandler(Scene *scene_) : scene(scene_), state() {}
   struct {
@@ -26,6 +24,7 @@ public:
          idling;
   } state;
   bool handle(const osgGA::GUIEventAdapter &ea, osgGA::GUIActionAdapter &aa);
+  void getTransformation( osg::Vec3d& eye, osg::Vec3d& center, osg::Vec3d& up ) const;
 };
 
 struct Scene {
@@ -70,9 +69,9 @@ struct Scene {
 
   // Steps physics and updates the display (if displayOn is true)
   // If syncTime is true, then these will block until the time interval passes on the system clock
-  void step(float dt, int maxsteps, float internaldt);
-  void step(float dt);
-  void stepFor(float dt, float time);
+  virtual void step(float dt, int maxsteps, float internaldt);
+  virtual void step(float dt);
+  virtual void stepFor(float dt, float time);
 
   // Blocks the caller and just runs the viewer for the specified
   // time interval. If either syncTime or displayOn is false, this does nothing.
@@ -94,12 +93,12 @@ struct Scene {
   void runAction(Action &a, float dt);
   void runAction(Action::Ptr a, float dt) { runAction(*a.get(), dt); }
 
-private:
+protected:
   void processHaptics();
 
   // Does debug drawing, updates the viewer window, and
   // processes OSG events
-  void draw();
+  virtual void draw();
 };
 
 struct SceneConfig : Config {

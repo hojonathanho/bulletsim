@@ -1,231 +1,137 @@
-#include "simplescene.h"
-#include "util.h"
-#include "rope.h"
-#include "plotting.h"
-#include "tracking.h"
+#include "basicobjects.h"
+#include "bullet_io.h"
+#include "clouds/comm_cv.h"
+#include "clouds/comm_pcl.h"
+#include "clouds/utils_cv.h"
+#include "clouds/utils_pcl.h"
+#include "comm/comm2.h"
 #include "config.h"
-
-#include "clouds/get_table.h"
-#include "clouds/geom.h"
+#include "config_bullet.h"
+#include "config_perception.h"
+#include "make_bodies.h"
+#include "rope.h"
+#include "trackers.h"
 #include "utils_perception.h"
-#include "comm/comm.h"
+#include "vector_io.h"
+#include "optimization_forces.h"
+#include "visibility.h"
+#include "apply_impulses.h"
+#include "recording.h"
 
-#include "unistd.h"
-#include <json/json.h>
-#include <math.h>
-#include <pcl/point_types.h>
-#include <pcl/io/pcd_io.h>
 #include <pcl/common/transforms.h>
-//#include "pcl/common/eigen.h"
-#include <boost/foreach.hpp>
-#include <Eigen/Core>
-#include <Eigen/Dense>
-#include <Eigen/Geometry>
-
-using boost::shared_ptr;
-using namespace Eigen;
-using namespace util;
-// make table and rope from kinect data
-
-float METERS;
-
-
-btVector3 jsonVec(Json::Value v) {
-  return btVector3(v[0u].asDouble(), v[1u].asDouble(), v[2u].asDouble());
-}
-
-
-struct EndInfo {
-  btPoint2PointConstraint* ptp0;
-  btPoint2PointConstraint* ptp1;
-  bool active0;
-  bool active1;
-};
-
-BulletObject::Ptr end0sphere;
-BulletObject::Ptr end1sphere;
-
-void updateEnds(const string jsonfile, btDynamicsWorld* world, EndInfo& endinfo, const btTransform& cam2world) {
-
-  std::stringstream buffer;
-  std::ifstream infile(jsonfile.c_str());
-  assert(!infile.fail());
-  buffer << infile.rdbuf();
-  Json::Reader reader;
-  Json::Value root;
-  bool parsedSuccess = reader.parse(buffer.str(), root, false);
-  assert(parsedSuccess);
-
-  btVector3 pivot0 = (cam2world*jsonVec(root["front"]["xyz"]))*METERS;
-  btVector3 pivot1 = (cam2world*jsonVec(root["back"]["xyz"]))*METERS;
-
-  cout << "end constraints" << endl;
-  btVector3 vec = pivot0;
-  cout << vec.getX() QQ vec.getY() QQ vec.getZ() << endl;
-  vec = pivot1;
-  cout << vec.getX() QQ vec.getY() QQ vec.getZ() << endl;
-
-  endinfo.ptp0->setPivotB(pivot0);
-  endinfo.ptp1->setPivotB(pivot1);
-
-  bool newActive0 = root["front"]["seen"].asBool();
-  bool newActive1 = root["back"]["seen"].asBool();
-  bool oldActive0 = endinfo.active0;
-  bool oldActive1 = endinfo.active1;
-
-  //hack to deal with case where we get an erroneous constraint
-
-  if (pivot0.getZ()/METERS > 1.1 || !isfinite(pivot0.getZ())) newActive0 = false;
-  if (pivot1.getZ()/METERS > 1.1 || !isfinite(pivot0.getZ())) newActive1 = false;
-
-  cout << newActive0 QQ newActive1 QQ oldActive0 QQ oldActive1 << endl;
-
-  if (newActive0 && !oldActive0) world->addConstraint(endinfo.ptp0);
-  if (newActive1 && !oldActive1) world->addConstraint(endinfo.ptp1);
-  if (!newActive0 && oldActive0) world->removeConstraint(endinfo.ptp0);
-  if (!newActive1 && oldActive1) world->removeConstraint(endinfo.ptp1);
-
-  endinfo.active0 = newActive0;
-  endinfo.active1 = newActive1;
-
-  end0sphere->rigidBody->setCenterOfMassTransform(btTransform(btQuaternion(0,0,0,1),pivot0));
-  end1sphere->rigidBody->setCenterOfMassTransform(btTransform(btQuaternion(0,0,0,1),pivot1));
-  if (newActive0) end0sphere->setColor(0,0,1,.25);
-  else end0sphere->setColor(1,1,1,.1);
-  if (newActive1) end1sphere->setColor(0,0,1,.25);
-  else end1sphere->setColor(1,1,1,.1);
-
-
-}
+#include <osgViewer/Viewer>
+#include <osgViewer/ViewerEventHandlers>
 
 
 
 int main(int argc, char *argv[]) {
 
-  Parser().read(argc, argv);
+  // command line options
+  GeneralConfig::scale = 10;
   SceneConfig::enableIK = SceneConfig::enableHaptics = SceneConfig::enableRobot = false;
-  METERS = GeneralConfig::scale;
+  
+  Parser parser;
+  parser.addGroup(TrackingConfig());
+  parser.addGroup(RecordingConfig());
+  parser.addGroup(GeneralConfig());
+  parser.addGroup(BulletConfig());
+  parser.addGroup(SceneConfig());
+  parser.read(argc,argv);
 
-  cout << "scale: " << METERS << endl;
-
-  string first_rope = comm::listenOnce("first_rope.txt");
-  string first_ends = comm::listenOnce("first_ends.txt");
-
-  comm::Listener rope_listener("rope");
-  comm::Listener pcd_listener("pcds");
-  comm::Listener ends_listener("ends");
-
-
-  pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud = readPCD(pcd_listener.next(MODE_NOUP));
-  vector<Vector3f> corners_cam;
-  Vector3f normal;
-  getTable(cloud,corners_cam,normal);
-  Affine3f cam2world = getCam2World(corners_cam,normal);
-  btTransform bt_cam2world = toBTTransform(cam2world);
-  cout << cam2world.matrix() << endl;
-
-  vector<btVector3> corners_world = transform_btVectors(toBTs(corners_cam),bt_cam2world);
-  vector<btVector3> ropePts = transform_btVectors(read_btVectors(first_rope),bt_cam2world);
-  btVector3 halfExtents;
-  btVector3 origin;
-
-  verts2boxPars(corners_world,halfExtents,origin,.2*METERS);
-
-  pcl::transformPointCloud(*cloud,*cloud,scaling(1*METERS)*cam2world);
-
-  shared_ptr<CapsuleRope> ropePtr(new CapsuleRope(ropePts*METERS,.0075*METERS));
-  vector<BulletObject::Ptr> children =  ropePtr->getChildren();
+  // comm stuff
+  initComm();
+  FileSubscriber pcSub("kinect","pcd");
+  CloudMessage cloudMsg;
+  FileSubscriber ropeSub("rope_pts","pcd");
+  CloudMessage ropeMsg;
+  FileSubscriber labelSub("labels","png");
+  ImageMessage labelMsg;
+  FileSubscriber endSub("rope_ends","txt");
+  VecVecMessage<float> endMsg;
+  // load table
+  /////////////// load table
+  vector<btVector3> tableCornersCam = toBulletVectors(floatMatFromFile(onceFile("table_corners.txt").string()));
+  CoordinateTransformer CT(getCamToWorldFromTable(tableCornersCam));
+  vector<btVector3> tableCornersWorld = CT.toWorldFromCamN(tableCornersCam);
+  BulletObject::Ptr table = makeTable(tableCornersWorld, .1*GeneralConfig::scale);
+  table->setColor(1,1,1,.25);
 
 
+  // load rope
+  vector<btVector3> ropePtsCam = toBulletVectors(floatMatFromFile(onceFile("init_rope.txt").string()));
+  CapsuleRope::Ptr rope(new CapsuleRope(CT.toWorldFromCamN(ropePtsCam), .0075*METERS));
 
-  shared_ptr<btDefaultMotionState> ms(new btDefaultMotionState(btTransform(btQuaternion(0,0,0,1),origin*METERS)));
-  shared_ptr<BulletObject> table(new BoxObject(0,halfExtents*METERS,ms));
-  Scene s;
+  // plots
+  PlotPoints::Ptr kinectPts(new PlotPoints(2));
+  CorrPlots corrPlots;
+  PlotPoints::Ptr obsPlot(new PlotPoints(4));
+  obsPlot->setDefaultColor(0,1,0,1);
 
-  initTrackingPlots();
-  shared_ptr<btDefaultMotionState> ms0(new btDefaultMotionState(btTransform(btQuaternion(0,0,0,1),btVector3(0,0,10))));
-  shared_ptr<btDefaultMotionState> ms1(new btDefaultMotionState(btTransform(btQuaternion(0,0,0,1),btVector3(0,0,10))));
-
-  end0sphere.reset(new SphereObject(0,METERS*.015,ms0));
-  end1sphere.reset(new SphereObject(0,METERS*.015,ms1));
-  end0sphere->rigidBody->setCollisionFlags(btRigidBody::CF_NO_CONTACT_RESPONSE);
-  end1sphere->rigidBody->setCollisionFlags(btRigidBody::CF_NO_CONTACT_RESPONSE);
-  end0sphere->rigidBody->setActivationState(DISABLE_DEACTIVATION); //why?
-  end1sphere->rigidBody->setActivationState(DISABLE_DEACTIVATION);
-
-  //s.manip->state.debugDraw = false;
-  PlotPoints::Ptr plot(new PlotPoints());
-  plot->setPoints(cloud);
-
-  s.env->add(plot);
-  s.env->add(table);
-  s.env->add(ropePtr);
-
-  s.env->add(plots::forcelines);
-  s.env->add(plots::targpts);
-  s.env->add(end0sphere);
-  s.env->add(end1sphere);
-  s.startViewer();
-  s.step(0);
-  s.idle(true);
-
-  int nSegs = ropePtr->bodies.size();
-  btPoint2PointConstraint* ptp0 = new btPoint2PointConstraint(*ropePtr->bodies[0].get(),(ropePts[0]-ropePts[1])/2);
-  btPoint2PointConstraint* ptp1 = new btPoint2PointConstraint(*ropePtr->bodies[nSegs-1].get(),(ropePts[nSegs-1]-ropePts[nSegs-2])/2);
-
-  vector<btVector3> forces(ropePts.size());
-  vector<btVector3> centers;
-  vector<btVector3> oldcenters;
-  EndInfo endinfo = {ptp0,ptp1,false,false};
-
-  for (int t=0; ; t++) {
-  cout << "flags: " << end0sphere->rigidBody->getFlags()  << endl;
-
-    string pcdfile = pcd_listener.next();
-    cout << "--------------- reading file " << pcdfile << "------------" << endl;
-    cloud = readPCD(pcdfile);
-    pcl::transformPointCloud(*cloud,*cloud,scaling(1*METERS)*cam2world);
-
-    string ropefile = rope_listener.next();
-    string endfile = ends_listener.next();
-
-    ropePts =   transform_btVectors(read_btVectors(ropefile),bt_cam2world);
-    ropePts = ropePts * METERS;
-
-    updateEnds(endfile, s.env->bullet->dynamicsWorld, endinfo, bt_cam2world);
-
-    plot->setPoints(cloud);
-    ropePtr->getPts(centers);
-    vector<bool> occs = checkOccluded(centers,cloud,cam2world);
-    cout << "occlusions:";
-    BOOST_FOREACH(bool occ, occs) cout << occ << " "; cout << endl;
-    oldcenters = centers;
-    for (int i=0; i < CFG2->nIter; i++) {
-
-      vector<bool> occs = checkOccluded(centers,cloud,cam2world);
-      vector<BulletObject::Ptr> children =  ropePtr->getChildren();
-      for (int j=0; j<occs.size(); j++) {
-	if (occs[j]) children[j]->setColor(0,0,0,1);
-	else children[j]->setColor(1,1,1,1);
-      }
+  // setup scene
+  Scene scene;
+  scene.env->add(kinectPts);
+  scene.env->add(rope);
+  scene.env->add(table);
+  scene.env->add(obsPlot);
+  scene.env->add(corrPlots.m_lines);
 
 
+  // recording
+  ScreenRecorder* rec;
+  if (RecordingConfig::record != DONT_RECORD){
+    rec = new ScreenRecorder(scene.viewer);
+  }
 
-      ropePtr->getPts(centers);
-      calcOptImpulses(centers, ropePts, oldcenters, forces,occs);
-      applyImpulses(ropePtr->bodies, forces, 1);
-      s.step(.01,1,.01);
+  // end tracker
+  vector<RigidBodyPtr> rope_ends;
+  rope_ends.push_back(rope->bodies[0]);
+  rope_ends.push_back(rope->bodies[rope->bodies.size()-1]);
+  //MultiPointTrackerRigid endTracker(rope_ends,scene.env->bullet->dynamicsWorld);
+  //TrackerPlotter trackerPlotter(endTracker);
+  //scene.env->add(trackerPlotter.m_fakeObjects[0]);
+  //scene.env->add(trackerPlotter.m_fakeObjects[1]);
 
+  scene.startViewer();
+  scene.setSyncTime(true);
+  scene.idle(true);
 
+  int count=0;
+  while (pcSub.recv(cloudMsg)) {
+    ColorCloudPtr cloudCam  = cloudMsg.m_data;
+    ColorCloudPtr cloudWorld(new ColorCloud());
+    pcl::transformPointCloud(*cloudCam, *cloudWorld, CT.worldFromCamEigen);
+    kinectPts->setPoints(cloudWorld);
+    cout << "loaded cloud " << count << endl;
+    count++;
 
-      
+    ENSURE(ropeSub.recv(ropeMsg));
+    vector<btVector3> obsPts = CT.toWorldFromCamN(toBulletVectors(ropeMsg.m_data));
+    obsPlot->setPoints(obsPts);
+    ENSURE(labelSub.recv(labelMsg));
+    cv::Mat labels = toSingleChannel(labelMsg.m_data);
+    ENSURE(endSub.recv(endMsg));
+    vector<btVector3> newEnds = CT.toWorldFromCamN(toBulletVectors(endMsg.m_data));
+    //endTracker.update(newEnds);
+    //trackerPlotter.update();
+    Eigen::MatrixXf depthImage = getDepthImage(cloudCam);
+    cv::Mat ropeMask = toSingleChannel(labels) == 1;
 
+    for (int iter=0; iter<TrackingConfig::nIter; iter++) {
+      cout << "iteration " << iter << endl;
+      vector<btVector3> estPts = rope->getNodes();
+      Eigen::MatrixXf ropePtsCam = toEigenMatrix(CT.toCamFromWorldN(estPts));
+      vector<float> pVis = calcVisibility(ropePtsCam, depthImage, ropeMask); 
+      colorByVisibility(rope, pVis);
+      SparseArray corr = toSparseArray(calcCorrProb(toEigenMatrix(estPts), toEigenMatrix(obsPts), toVectorXf(pVis), TrackingConfig::sigB, TrackingConfig::outlierParam), TrackingConfig::cutoff);
+      corrPlots.update(estPts, obsPts, corr);
+      vector<btVector3> impulses = calcImpulsesSimple(estPts, obsPts, corr, TrackingConfig::impulseSize);
+      applyImpulses(impulses, rope);
+      //usleep(1000*10);
+      if (RecordingConfig::record == EVERY_ITERATION || 
+	  RecordingConfig::record == FINAL_ITERATION && iter==TrackingConfig::nIter-1)
+	rec->snapshot();
+      scene.step(DT);
 
-      cout << "iteration " << i  << endl;
-      //     usleep(10*1000);
     }
-
-    // s.manip->toggleIdle();
   }
 }
-

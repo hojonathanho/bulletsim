@@ -2,10 +2,12 @@
 #include "util.h"
 
 #include <osg/LightModel>
+#include <osg/BlendFunc>
 #include <BulletSoftBody/btSoftBodyInternals.h>
 #include <BulletSoftBody/btSoftBodyHelpers.h>
 #include <BulletSoftBody/btSoftBodyData.h>
 #include <osgbCollision/Utils.h>
+#include <osgUtil/SmoothingVisitor>
 
 #define COPY_ARRAY(a, b) { (a).resize((b).size()); for (int z = 0; z < (b).size(); ++z) (a)[z] = (b)[z]; }
 
@@ -34,51 +36,102 @@ static void btSoftBody_appendFace(btSoftBody *psb, btSoftBody::Node *node0, btSo
 void BulletSoftObject::init() {
     getEnvironment()->bullet->dynamicsWorld->addSoftBody(softBody.get());
 
-    vertices = new osg::Vec3Array;
-    normals = new osg::Vec3Array;
-    geom = new osg::Geometry;
-    geom->setDataVariance(osg::Object::DYNAMIC);
-    geom->setUseDisplayList(false);
-    geom->setUseVertexBufferObjects(true);
-    geom->setVertexArray(vertices.get());
-    geom->setNormalArray(normals.get());
-    geom->setNormalBinding(osg::Geometry::BIND_PER_VERTEX);
+    trivertices = new osg::Vec3Array;
+    trinormals = new osg::Vec3Array;
+    trigeom = new osg::Geometry;
+    trigeom->setDataVariance(osg::Object::DYNAMIC);
+    trigeom->setUseDisplayList(false);
+    trigeom->setUseVertexBufferObjects(true);
+    trigeom->setVertexArray(trivertices.get());
+    trigeom->setNormalArray(trinormals.get());
+    trigeom->setNormalBinding(osg::Geometry::BIND_PER_VERTEX);
 
-    osg::ref_ptr<osg::Geode> geode = new osg::Geode;
-    geode->addDrawable(geom);
+    quadvertices = new osg::Vec3Array;
+    quadnormals = new osg::Vec3Array;
+    quadgeom = new osg::Geometry;
+    quadgeom->setDataVariance(osg::Object::DYNAMIC);
+    quadgeom->setUseDisplayList(false);
+    quadgeom->setUseVertexBufferObjects(true);
+    quadgeom->setVertexArray(quadvertices.get());
+    quadgeom->setNormalArray(quadnormals.get());
+    quadgeom->setNormalBinding(osg::Geometry::BIND_PER_VERTEX);
+
+    geode = new osg::Geode;
+    geode->addDrawable(trigeom);
+    geode->addDrawable(quadgeom);
 
     osg::ref_ptr<osg::LightModel> lightModel = new osg::LightModel;
     lightModel->setTwoSided(true);
-    geode->getOrCreateStateSet()->setAttributeAndModes(lightModel.get(), osg::StateAttribute::ON);
+    osg::StateSet* ss = geode->getOrCreateStateSet();
+    ss->setAttributeAndModes(lightModel.get(), osg::StateAttribute::ON);
 
     transform = new osg::MatrixTransform;
     transform->addChild(geode);
     getEnvironment()->osg->root->addChild(transform);
 }
 
+void BulletSoftObject::setColor(float r, float g, float b, float a) {
+  osg::Vec4Array* colors = new osg::Vec4Array;
+  colors->push_back(osg::Vec4(r,g,b,a));
+  trigeom->setColorArray(colors);
+  trigeom->setColorBinding(osg::Geometry::BIND_OVERALL);
+  quadgeom->setColorArray(colors);
+  quadgeom->setColorBinding(osg::Geometry::BIND_OVERALL);
+
+  if (a != 1.0f) { // precision problems?
+    osg::ref_ptr<osg::BlendFunc> blendFunc = new osg::BlendFunc;
+    blendFunc->setFunction(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    osg::StateSet *ss = geode->getOrCreateStateSet();
+    ss->setAttributeAndModes(blendFunc);
+    ss->setRenderingHint(osg::StateSet::TRANSPARENT_BIN);
+  }
+}
+
 void BulletSoftObject::preDraw() {
     transform->setMatrix(osgbCollision::asOsgMatrix(softBody->getWorldTransform()));
 
-    if (geom->getNumPrimitiveSets() > 0)
-        geom->removePrimitiveSet(0); // there should only be one
+    if (trigeom->getNumPrimitiveSets() > 0)
+        trigeom->removePrimitiveSet(0); // there should only be one
+    trivertices->clear();
+    trinormals->clear();
     const btSoftBody::tFaceArray &faces = softBody->m_faces;
-    vertices->clear();
-    normals->clear();
-
     for (int i = 0; i < faces.size(); ++i) {
-        vertices->push_back(util::toOSGVector(faces[i].m_n[0]->m_x));
-        normals->push_back(util::toOSGVector(faces[i].m_n[0]->m_n));
+        trivertices->push_back(util::toOSGVector(faces[i].m_n[0]->m_x));
+        trivertices->push_back(util::toOSGVector(faces[i].m_n[1]->m_x));
+        trivertices->push_back(util::toOSGVector(faces[i].m_n[2]->m_x));
 
-        vertices->push_back(util::toOSGVector(faces[i].m_n[1]->m_x));
-        normals->push_back(util::toOSGVector(faces[i].m_n[1]->m_n));
-
-        vertices->push_back(util::toOSGVector(faces[i].m_n[2]->m_x));
-        normals->push_back(util::toOSGVector(faces[i].m_n[2]->m_n));
+        trinormals->push_back(util::toOSGVector(faces[i].m_n[0]->m_n));
+        trinormals->push_back(util::toOSGVector(faces[i].m_n[1]->m_n));
+        trinormals->push_back(util::toOSGVector(faces[i].m_n[2]->m_n));
     }
-    vertices->dirty();
-    normals->dirty();
-    geom->dirtyBound();
-    geom->addPrimitiveSet(new osg::DrawArrays(GL_TRIANGLES, 0, vertices->size()));
+    trivertices->dirty();
+    trinormals->dirty();
+    trigeom->dirtyBound();
+    trigeom->addPrimitiveSet(new osg::DrawArrays(GL_TRIANGLES, 0, trivertices->size()));
+
+    if (quadgeom->getNumPrimitiveSets() > 0)
+        quadgeom->removePrimitiveSet(0);
+    quadvertices->clear();
+    quadnormals->clear();
+    const btSoftBody::tTetraArray &tetras = softBody->m_tetras;
+    for (int i = 0; i < tetras.size(); ++i) {
+        quadvertices->push_back(util::toOSGVector(tetras[i].m_n[0]->m_x));
+        quadvertices->push_back(util::toOSGVector(tetras[i].m_n[1]->m_x));
+        quadvertices->push_back(util::toOSGVector(tetras[i].m_n[2]->m_x));
+        quadvertices->push_back(util::toOSGVector(tetras[i].m_n[3]->m_x));
+/*
+        quadnormals->push_back(util::toOSGVector(tetras[i].m_n[0]->m_n));
+        quadnormals->push_back(util::toOSGVector(tetras[i].m_n[1]->m_n));
+        quadnormals->push_back(util::toOSGVector(tetras[i].m_n[2]->m_n));
+        quadnormals->push_back(util::toOSGVector(tetras[i].m_n[3]->m_n));*/
+    }
+    quadvertices->dirty();
+    quadnormals->dirty();
+    quadgeom->dirtyBound();
+    quadgeom->addPrimitiveSet(new osg::DrawArrays(GL_QUADS, 0, quadvertices->size()));
+
+/*    osgUtil::SmoothingVisitor sv;
+    sv.apply(*geode);*/
 }
 
 void BulletSoftObject::destroy() {

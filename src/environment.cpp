@@ -1,5 +1,4 @@
 #include "environment.h"
-#include "SetColorsVisitor.h"
 
 OSGInstance::OSGInstance() {
     root = new osg::Group;

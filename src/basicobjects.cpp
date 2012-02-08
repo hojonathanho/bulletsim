@@ -10,6 +10,10 @@
 #include <boost/scoped_array.hpp>
 #include "SetColorsVisitor.h"
 
+#include <osg/BlendFunc>
+#include <osg/AlphaFunc>
+
+
 #define MAX_RAYCAST_DISTANCE 100.0
 
 btRigidBody::btRigidBodyConstructionInfo getCI(btScalar mass, boost::shared_ptr<btCollisionShape> collisionShape, boost::shared_ptr<btDefaultMotionState> motionState) {
@@ -28,10 +32,31 @@ void BulletObject::init() {
     transform = new osg::MatrixTransform;
     transform->addChild(node.get());
     getEnvironment()->osg->root->addChild(transform.get());
+
+    osg::ref_ptr<osg::BlendFunc> blendFunc = new osg::BlendFunc;
+    blendFunc->setFunction(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    osg::StateSet *ss = node->getOrCreateStateSet();
+    ss->setAttributeAndModes(blendFunc);
+    setColorAfterInit();
 }
 
 osg::ref_ptr<osg::Node> BulletObject::createOSGNode() {
     return osg::ref_ptr<osg::Node>(osgbCollision::osgNodeFromBtCollisionShape(collisionShape.get()));
+}
+
+btScalar IDENTITY[] = {1,0,0,0,
+		       0,1,0,0,
+		       0,0,1,0,
+		       0,0,0,1};
+
+btScalar* identityIfBad(btScalar m[16]) { //doesn't fix segfaults, unfortunately.
+  for (int i=0; i<16; i++) {
+    if (m[i] > 1000 || m[i] < -1000 || !isfinite(m[i])) {
+      cout << "warning: bad values detected in transformation matrix. rendering at origin" << endl;
+      return IDENTITY;
+    }
+  }
+  return m;
 }
 
 void BulletObject::preDraw() {
@@ -42,8 +67,7 @@ void BulletObject::preDraw() {
 
     btScalar m[16];
     btTrans.getOpenGLMatrix(m);
-
-    transform->setMatrix(osg::Matrix(m));
+    transform->setMatrix(osg::Matrix(identityIfBad(m)));
 }
 
 void BulletObject::destroy() {
@@ -152,8 +176,19 @@ void BulletObject::MoveAction::step(float dt) {
 }
 
 void BulletObject::setColor(float r, float g, float b, float a) {
-  SetColorsVisitor visitor(r,g,b,a);
-  node->accept(visitor);
+  m_color.reset(new osg::Vec4f(r,g,b,a));
+  if (node) setColorAfterInit();
+}
+void BulletObject::setColorAfterInit() {
+  if (m_color) {
+    if (m_color->a() != 1.0f) {
+      osg::StateSet *ss = node->getOrCreateStateSet();
+      ss->setRenderingHint(osg::StateSet::TRANSPARENT_BIN);
+    }
+
+    SetColorsVisitor visitor(m_color->r(),m_color->g(),m_color->b(),m_color->a());
+    node->accept(visitor);
+  }
 }
 
 BulletKinematicObject::BulletKinematicObject(boost::shared_ptr<btCollisionShape> collisionShape_, const btTransform &trans) {
@@ -169,6 +204,9 @@ BulletKinematicObject::BulletKinematicObject(boost::shared_ptr<btCollisionShape>
     rigidBody->setCollisionFlags(rigidBody->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);
     rigidBody->setActivationState(DISABLE_DEACTIVATION);
 }
+
+//EnvironmentObject::Ptr BulletKinematicObject::copy(Fork &f) const {
+//}
 
 
 GrabberKinematicObject::GrabberKinematicObject(float radius_, float height_) :
