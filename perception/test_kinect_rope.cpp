@@ -69,11 +69,13 @@ int main(int argc, char *argv[]) {
 
   // setup scene
   Scene scene;
-  scene.env->add(kinectPts);
-  scene.env->add(rope);
-  scene.env->add(table);
-  scene.env->add(obsPlot);
-  scene.env->add(corrPlots.m_lines);
+  if (TrackingConfig::showKinect) scene.env->add(kinectPts);
+  if (TrackingConfig::showSim) {
+    scene.env->add(rope);
+    scene.env->add(table);
+  }
+  if (TrackingConfig::showObs) scene.env->add(obsPlot);
+  if (TrackingConfig::showLines) scene.env->add(corrPlots.m_lines);
 
 
   // recording

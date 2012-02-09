@@ -109,12 +109,14 @@ int main(int argc, char* argv[]) {
   /// add stuff to scene
   MotionStatePtr ms(new btDefaultMotionState(btTransform(btQuaternion(0,0,0,1), btVector3(0,0,2))));
 
-  scene.env->add(towel);
-  scene.env->add(table);
-  scene.env->add(kinectPts);
-  scene.env->add(towelEstPlot);
-  //scene.env->add(towelObsPlot);
-  //scene.env->add(corrPlots.m_lines);
+  if (TrackingConfig::showSim) {
+    scene.env->add(towel);
+    scene.env->add(table);
+  }
+  if (TrackingConfig::showKinect) scene.env->add(kinectPts);
+  if (TrackingConfig::showEst) scene.env->add(towelEstPlot);
+  if (TrackingConfig::showObs) scene.env->add(towelObsPlot);
+  if (TrackingConfig::showLines) scene.env->add(corrPlots.m_lines);
   scene.lMonitor.setTarget(towel->softBody.get());
   scene.rMonitor.setTarget(towel->softBody.get());
 
