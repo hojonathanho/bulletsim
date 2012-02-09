@@ -2,6 +2,7 @@
 #define __PR2_H__
 
 #include "openravesupport.h"
+#include "simplescene.h"
 
 // Special support for the OpenRAVE PR2 model
 class PR2SoftBodyGripper {
@@ -74,5 +75,31 @@ public:
     void setForkParams(Environment *env_, BulletInstance::Ptr newBullet_, OSGInstance::Ptr newOSG_);
 };
 
+class Scene;
+class PR2Manager {
+private:
+    Scene &scene;
+
+    struct {
+        bool moveManip0, moveManip1,
+             rotateManip0, rotateManip1,
+             startDragging;
+        float dx, dy, lastX, lastY;
+    } inputState;
+
+    void loadRobot();
+    void initIK();
+
+public:
+    RaveRobotKinematicObject::Ptr pr2;
+    RaveRobotKinematicObject::Manipulator::Ptr pr2Left, pr2Right;
+
+    PR2Manager(Scene &);
+    void registerSceneCallbacks();
+
+    void processHapticInput();
+    bool processKeyInput(const osgGA::GUIEventAdapter &ea);
+    bool processMouseInput(const osgGA::GUIEventAdapter &ea);
+};
 
 #endif // __PR2_H__

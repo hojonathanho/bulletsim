@@ -16,6 +16,7 @@
 #include "robot_geometry.h"
 #include "openrave_joints.h"
 #include "grabbing.h"
+#include "pr2.h"
 
 #include <pcl/common/transforms.h>
 #include <osgViewer/ViewerEventHandlers>
@@ -236,16 +237,18 @@ int main(int argc, char* argv[]) {
 
   ////////////// create scene
   CustomScene scene;
+  PR2Manager pr2m(scene);
+
   static PlotPoints::Ptr kinectPts(new PlotPoints(2));
   scene.env->add(kinectPts);
 
   vector<double> firstJoints = doubleVecFromFile(filePath("data000000000000.txt", "joint_states").string());
   ValuesInds vi = getValuesInds(firstJoints);
-  scene.pr2->setDOFValues(vi.second, vi.first);
+  pr2m.pr2->setDOFValues(vi.second, vi.first);
 
   // get kinect transform
-  KinectTrans kinectTrans(scene.pr2->robot);
-  kinectTrans.calibrate(getKinectToWorld(scene.pr2->robot));//btTransform(btQuaternion(-0.703407, 0.706030, -0.048280, 0.066401), btVector3(0.348212, -0.047753, 1.611060)));
+  KinectTrans kinectTrans(pr2m.pr2->robot);
+  kinectTrans.calibrate(getKinectToWorld(pr2m.pr2->robot));//btTransform(btQuaternion(-0.703407, 0.706030, -0.048280, 0.066401), btVector3(0.348212, -0.047753, 1.611060)));
   CoordinateTransformer CT(kinectTrans.getKinectTrans());
 
   TransformAdjuster ta(CT, scene);
@@ -261,7 +264,7 @@ int main(int argc, char* argv[]) {
 
     VectorMessage<double>* jointMsgPtr = retimer.msgAt(cloudMsg.getTime());
     ValuesInds vi = getValuesInds(jointMsgPtr->m_data);
-    scene.pr2->setDOFValues(vi.second, vi.first);
+    pr2m.pr2->setDOFValues(vi.second, vi.first);
 
     pcl::transformPointCloud(*cloudMsg.m_data, *cloudWorld, CT.worldFromCamEigen);
     kinectPts->setPoints(cloudWorld);

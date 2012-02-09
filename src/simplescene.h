@@ -10,21 +10,24 @@
 
 class Scene;
 
+#if 0
 class EventHandler : public osgGA::TrackballManipulator {
 private:
   Scene *scene;
   float lastX, lastY, dx, dy;
 public:
   EventHandler(Scene *scene_) : scene(scene_), state() {}
-  struct {
-    bool debugDraw,
-         moveManip0, moveManip1,
-         rotateManip0, rotateManip1,
-         startDragging,
-         idling;
-  } state;
   bool handle(const osgGA::GUIEventAdapter &ea, osgGA::GUIActionAdapter &aa);
   void getTransformation( osg::Vec3d& eye, osg::Vec3d& center, osg::Vec3d& up ) const;
+};
+#endif
+
+class EventHandler : public osgGA::TrackballManipulator {
+private:
+  Scene &scene;
+public:
+  EventHandler(Scene &scene_) : scene(scene_) {}
+  bool handle(const osgGA::GUIEventAdapter &ea, osgGA::GUIActionAdapter &aa);
 };
 
 struct Scene {
@@ -45,8 +48,28 @@ struct Scene {
   PlotLines::Ptr plotLines;
 
   PlaneStaticObject::Ptr ground;
-  RaveRobotKinematicObject::Ptr pr2;
-  RaveRobotKinematicObject::Manipulator::Ptr pr2Left, pr2Right;
+
+  // callbacks should return true if the default TrackballManipulator::handle behavior
+  // should be suppressed. if all callbacks return false, then it won't be suppressed
+  typedef boost::function<bool(const osgGA::GUIEventAdapter &)> Callback;
+
+  typedef multimap<char, Callback> KeyCallbackMap;
+  KeyCallbackMap keyCallbacks;
+
+  typedef multimap<osgGA::GUIEventAdapter::EventType, Callback> CallbackMap;
+  CallbackMap callbacks;
+
+  void addKeyCallback(char c, Callback cb);
+  void addCallback(osgGA::GUIEventAdapter::EventType t, Callback cb) { callbacks.insert(make_pair(t, cb)); }
+
+  struct {
+    bool debugDraw,
+         moveManip0, moveManip1,
+         rotateManip0, rotateManip1,
+         startDragging,
+         idling;
+    float dx, dy;
+  } eventState;
 
   Scene();
 
