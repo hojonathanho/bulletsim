@@ -2,14 +2,14 @@
 #include "clouds/comm_pcl.h"
 #include "clouds/geom.h"
 #include "comm/comm2.h"
-#include "config_bullet.h"
+#include "simulation/config_bullet.h"
 #include "config_perception.h"
 #include "make_bodies.h"
-#include "simplescene.h"
-#include "softbodies.h"
+#include "simulation/simplescene.h"
+#include "simulation/softbodies.h"
 #include "update_bodies.h"
 #include "utils_perception.h"
-#include "vector_io.h"
+#include "utils/vector_io.h"
 #include "visibility.h"
 
 

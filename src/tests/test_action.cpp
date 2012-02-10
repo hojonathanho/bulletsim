@@ -1,6 +1,5 @@
-#include "simplescene.h"
-#include "config.h"
-#include "config_bullet.h"
+#include "simulation/simplescene.h"
+#include "simulation/config_bullet.h"
 #include <boost/thread/thread.hpp>
 
 int main(int argc, char *argv[]) {

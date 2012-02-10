@@ -1,7 +1,7 @@
 #include "grabbing.h"
 #include <Eigen/Dense>
-#include "util.h"
-#include "config.h"
+#include "simulation/util.h"
+#include "utils/config.h"
 using namespace std;
 using namespace OpenRAVE;
 using namespace Eigen;

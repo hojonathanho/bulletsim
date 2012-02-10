@@ -3,7 +3,7 @@
 #include <vector>
 #include <btBulletDynamicsCommon.h>
 #include "sparse_array.h"
-#include "plotting.h"
+#include "simulation/plotting.h"
 using std::vector;
 
 

@@ -1,5 +1,5 @@
 #pragma once
-#include "config.h"
+#include "utils/config.h"
 
 struct TrackingConfig : Config {
   static int nIter;

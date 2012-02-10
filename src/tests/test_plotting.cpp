@@ -1,10 +1,9 @@
 // from osg galaxy example
 
-#include "plotting.h"
-#include "simplescene.h"
-#include "config.h"
+#include "simulation/plotting.h"
+#include "simulation/simplescene.h"
 #include <pcl/io/pcd_io.h>
-#include "config_bullet.h"
+#include "simulation/config_bullet.h"
 #include <pcl/point_types.h>
 using boost::shared_ptr;
 #include <iostream>

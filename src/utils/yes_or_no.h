@@ -1,2 +1,2 @@
-#pragma once;
-bool yesOrNo(char message[])
+#pragma once
+bool yesOrNo(char message[]);

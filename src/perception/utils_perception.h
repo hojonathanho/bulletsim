@@ -7,8 +7,8 @@
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
 #include <osg/Vec3d>
-#include <my_assert.h>
-#include "simplescene.h"
+#include "utils/my_assert.h"
+#include "simulation/simplescene.h"
 using namespace std;
 
 vector<btVector3> toBulletVectors(const vector< vector<float> >&);

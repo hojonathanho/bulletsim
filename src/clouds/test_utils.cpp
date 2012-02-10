@@ -1,7 +1,7 @@
-#include "utils_pcl.h"
-#include "testing.h"
 #include <cmath>
-#include "my_assert.h"
+#include "utils_pcl.h"
+#include "utils/testing.h"
+#include "utils/my_assert.h"
 using namespace Eigen;
 using namespace pcl;
 

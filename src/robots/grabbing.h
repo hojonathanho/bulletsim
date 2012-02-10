@@ -1,9 +1,9 @@
 #pragma once
 #include "btBulletDynamicsCommon.h"
 #include <openrave/openrave.h>
-#include "bullet_typedefs.h"
 #include <vector>
-#include "basicobjects.h"
+#include "simulation/basicobjects.h"
+#include "simulation/bullet_typedefs.h"
 #include "pr2.h"
 
 class Grab {

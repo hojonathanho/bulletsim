@@ -1,6 +1,10 @@
 #ifndef __ROBOT_GEOMETRY_H__
 #define __ROBOT_GEOMETRY_H__
 
+#include <openrave/openrave.h>
+#include <simulation/util.h>
+using namespace OpenRAVE;
+
 btTransform getKinectToWorld(RobotBasePtr robot);
 
 struct KinectTrans {

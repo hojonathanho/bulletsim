@@ -1,7 +1,7 @@
 #pragma once
-#include "basicobjects.h"
-#include "softbodies.h"
-#include "plotting.h"
+#include "simulation/basicobjects.h"
+#include "simulation/softbodies.h"
+#include "simulation/plotting.h"
 
 vector<btVector3> clothOptImpulses(BulletSoftObject::Ptr cloth, const vector<btVector3>& pts);
 void applyImpulses(const vector<btVector3>& impulses, BulletSoftObject::Ptr);

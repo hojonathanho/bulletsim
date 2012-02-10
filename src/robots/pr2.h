@@ -1,8 +1,8 @@
 #ifndef __PR2_H__
 #define __PR2_H__
 
-#include "openravesupport.h"
-#include "simplescene.h"
+#include "simulation/openravesupport.h"
+#include "simulation/simplescene.h"
 
 // Special support for the OpenRAVE PR2 model
 class PR2SoftBodyGripper {

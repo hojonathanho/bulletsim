@@ -29,6 +29,8 @@ Scene::Scene() {
     env->add(ground);
 
     // default callbacks
+    addVoidKeyCallback('p', boost::bind(&Scene::toggleIdle, this));
+    addVoidKeyCallback('d', boost::bind(&Scene::toggleDebugDraw, this));
 }
 
 void Scene::startViewer() {
@@ -48,6 +50,11 @@ void Scene::startViewer() {
     viewer.setSceneData(osg->root.get());
     viewer.realize();
     step(0);
+}
+
+void Scene::toggleDebugDraw() {
+    loopState.debugDraw = !loopState.debugDraw;
+    dbgDraw->setEnabled(loopState.debugDraw);
 }
 
 void Scene::step(float dt, int maxsteps, float internaldt) {
@@ -93,7 +100,7 @@ void Scene::idleFor(float time) {
 void Scene::draw() {
     if (!drawingOn)
         return;
-    if (eventState.debugDraw) {
+    if (loopState.debugDraw) {
         dbgDraw->BeginDraw();
         bullet->dynamicsWorld->debugDrawWorld();
         dbgDraw->EndDraw();
@@ -149,12 +156,19 @@ void Scene::addKeyCallback(char c, Callback cb) {
     keyCallbacks.insert(make_pair(c, cb));
 }
 
+void Scene::addVoidCallback(osgGA::GUIEventAdapter::EventType t, VoidCallback cb) {
+    addCallback(t, boost::bind<bool>(VoidCallbackWrapper(cb)));
+}
+void Scene::addVoidKeyCallback(char c, VoidCallback cb) {
+    addKeyCallback(c, boost::bind<bool>(VoidCallbackWrapper(cb)));
+}
+
 bool EventHandler::handle(const osgGA::GUIEventAdapter &ea, osgGA::GUIActionAdapter &aa) {
     bool suppressDefault = false;
     osgGA::GUIEventAdapter::EventType t = ea.getEventType();
 
     // keypress handlers (for convenience)
-    if (t == osgGA::GUIEventAdapter::KEYDOWN || t == osgGA::GUIEventAdapter::KEYUP) {
+    if (t == osgGA::GUIEventAdapter::KEYDOWN) {
         pair<Scene::KeyCallbackMap::const_iterator, Scene::KeyCallbackMap::const_iterator> range =
             scene.keyCallbacks.equal_range(ea.getKey());
         for (Scene::KeyCallbackMap::const_iterator i = range.first; i != range.second; ++i)

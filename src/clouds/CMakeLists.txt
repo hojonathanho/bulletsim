@@ -1,35 +1,11 @@
-cmake_minimum_required(VERSION 2.0)
-
-if (NOT DEFINED PCL_INCLUDE_DIRS)
-  set(WM_ROOT "~/Src/GeometricTools/WildMagic5")
-  find_package(PCL 1.4 REQUIRED)
-endif()
-
-if (DEFINED SURGICAL_PHYSICS_SOURCE_DIR)
-  message("this is a subdirectory")
-else()
-  set(BULLET_INCLUDE_DIR "../../lib/bullet-2.79/src")
-  set(EIGEN3_INCLUDE_DIR "/usr/include/eigen3")
-  set(JSON_INCLUDE_DIR "../../lib/json/include")
-  set(WM_ROOT "~/Src/GeometricTools/WildMagic5")
-  set(WM_INCLUDE_DIR "${WM_ROOT}/SDK/Include")
-  set(WM_LIBRARY_DIR "${WM_ROOT}/SDK/Library/Debug")
-  set(WM_LIBRARIES Wm5Core Wm5Imagics Wm5Mathematics Wm5Physics)
-  link_directories("~/usr/lib")
-  find_package(OpenCV REQUIRED)
-  link_directories(${OpenCV_LIBRARIES})
-endif()  
-
-
 include_directories(
-  ../../utils
-  ../comm
-  ..
-  ${PCL_INCLUDE_DIRS}
-  ${WM_INCLUDE_DIR}
-  ${BULLET_INCLUDE_DIR}
-  ${JSON_INCLUDE_DIR}
-  ${EIGEN3_INCLUDE_DIR}
+    ${PCL_INCLUDE_DIRS}
+    ${WM_INCLUDE_DIR}
+    ${BULLET_INCLUDE_DIR}
+    ${JSON_INCLUDE_DIR}
+    ${EIGEN3_INCLUDE_DIR}
+    ${BULLETSIM_SOURCE_DIR}/src
+    ${BULLET_DIR}/src
 )
 link_directories(
   ${PCL_LIBRARY_DIRS} 
@@ -75,12 +51,11 @@ target_link_libraries(comm_downsample_clouds clouds ${PCL_LIBRARIES} boost_progr
 add_executable(test_utils test_utils.cpp)
 target_link_libraries(test_utils ${PCL_LIBRARIES} clouds)
 
-add_executable(test_correction test_correction.cpp ../../utils/vector_io.cpp)
-target_link_libraries(test_correction ${PCL_LIBRARIES} clouds)
+add_executable(test_correction test_correction.cpp)
+target_link_libraries(test_correction ${PCL_LIBRARIES} clouds utils)
 
-
-add_executable(viz_curves viz_curves.cpp ../../utils/vector_io.cpp)
-target_link_libraries(viz_curves ${PCL_LIBRARIES} clouds boost_program_options)
+add_executable(viz_curves viz_curves.cpp)
+target_link_libraries(viz_curves ${PCL_LIBRARIES} clouds boost_program_options utils)
 
 INSTALL(TARGETS record_one_pcd comm_get_table comm_write_pcds DESTINATION "~/usr/bin")
 INSTALL(TARGETS clouds DESTINATION "~/usr/lib")

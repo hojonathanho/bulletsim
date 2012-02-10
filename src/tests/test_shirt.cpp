@@ -1,10 +1,10 @@
-#include "simplescene.h"
-#include "util.h"
-#include "config_bullet.h"
+#include "simulation/simplescene.h"
+#include "simulation/util.h"
+#include "simulation/config_bullet.h"
 #include <iostream>
 #include <fstream>
 #include <BulletSoftBody/btSoftBodyHelpers.h>
-#include "softbodies.h"
+#include "simulation/softbodies.h"
 //#include <boost/filesystem.hpp>
 
 //daniel's code for importing shirt

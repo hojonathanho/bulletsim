@@ -1,4 +1,4 @@
-#include "config.h"
+#include "utils/config.h"
 #include <btBulletDynamicsCommon.h>
 
 struct BulletConfig : Config {

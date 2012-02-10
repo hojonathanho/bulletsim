@@ -1,10 +1,10 @@
-#include "rope.h"
+#include "visibility.h"
 #include "utils_perception.h"
 #include "clouds/utils_pcl.h"
-#include "vector_io.h"
-#include "bullet_typedefs.h"
-#include "visibility.h"
-#include "config.h"
+#include "simulation/rope.h"
+#include "simulation/bullet_typedefs.h"
+#include "utils/vector_io.h"
+#include "utils/config.h"
 using namespace Eigen;
 using namespace pcl;
 

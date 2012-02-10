@@ -5,7 +5,7 @@
 #include <pcl/io/pcd_io.h>
 #include <pcl/visualization/cloud_viewer.h>
 #include <iostream>
-#include "my_exceptions.h"
+#include "utils/my_exceptions.h"
 #include "utils_pcl.h"
 using namespace std;
 

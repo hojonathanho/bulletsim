@@ -1,28 +1,26 @@
-#include "basicobjects.h"
+#include "simulation/basicobjects.h"
 #include "bullet_io.h"
 #include "clouds/comm_cv.h"
 #include "clouds/comm_pcl.h"
 #include "clouds/utils_cv.h"
 #include "clouds/utils_pcl.h"
 #include "comm/comm2.h"
-#include "config.h"
-#include "config_bullet.h"
+#include "utils/config.h"
+#include "simulation/config_bullet.h"
 #include "config_perception.h"
 #include "make_bodies.h"
-#include "rope.h"
+#include "simulation/rope.h"
 #include "trackers.h"
 #include "utils_perception.h"
-#include "vector_io.h"
+#include "utils/vector_io.h"
 #include "optimization_forces.h"
 #include "visibility.h"
 #include "apply_impulses.h"
-#include "recording.h"
+#include "simulation/recording.h"
 
 #include <pcl/common/transforms.h>
 #include <osgViewer/Viewer>
 #include <osgViewer/ViewerEventHandlers>
-
-
 
 int main(int argc, char *argv[]) {
 

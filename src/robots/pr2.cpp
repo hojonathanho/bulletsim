@@ -1,5 +1,5 @@
 #include "pr2.h"
-#include "environment.h"
+#include "simulation/environment.h"
 #include "thread_socket_interface.h"
 
 static const char LEFT_GRIPPER_LEFT_FINGER_NAME[] = "l_gripper_l_finger_tip_link";

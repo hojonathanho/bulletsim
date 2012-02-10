@@ -1,5 +1,5 @@
-#include "simplescene.h"
-#include "config_bullet.h"
+#include "simulation/simplescene.h"
+#include "simulation/config_bullet.h"
 
 int main(int argc, char *argv[]) {
     Parser parser;

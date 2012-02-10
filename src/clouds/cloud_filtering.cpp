@@ -5,7 +5,7 @@
 #include <pcl/filters/extract_indices.h>
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/filters/statistical_outlier_removal.h>
-#include "my_assert.h"
+#include "utils/my_assert.h"
 #include "utils_pcl.h"
 #include <iostream>
 

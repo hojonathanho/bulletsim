@@ -1,6 +1,6 @@
 #include <openrave/openrave.h>
 #include "btBulletDynamicsCommon.h"
-#include "util.h"
+#include "simulation/util.h"
 #include "bullet_io.h"
 using namespace OpenRAVE;
 

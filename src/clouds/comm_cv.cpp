@@ -1,6 +1,6 @@
 #include "comm_cv.h"
 #include <opencv2/highgui/highgui.hpp>
-#include "my_exceptions.h"
+#include "utils/my_exceptions.h"
 
 void ImageMessage::writeDataTo(path p) const {
   bool success = cv::imwrite(p.string(), m_data);

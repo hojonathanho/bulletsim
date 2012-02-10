@@ -3,8 +3,8 @@
 #include "dist_math.h"
 #include "utils_perception.h"
 #include <boost/foreach.hpp>
-#include "config.h"
-#include "vector_io.h"
+#include "utils/config.h"
+#include "utils/vector_io.h"
 
 using namespace Eigen;
 

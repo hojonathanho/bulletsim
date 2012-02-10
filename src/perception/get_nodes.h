@@ -1,5 +1,5 @@
-#include "softbodies.h"
-#include "basicobjects.h"
+#include "simulation/softbodies.h"
+#include "simulation/basicobjects.h"
 #include <vector>
 
 

@@ -1,10 +1,10 @@
 #include "make_bodies.h"
-#include "config.h"
 #include "bullet_io.h"
+#include "utils/config.h"
 #include <boost/shared_ptr.hpp>
 #include <boost/scoped_array.hpp>
 #include <BulletSoftBody/btSoftBodyHelpers.h>
-#include "tetgen.h"
+#include <tetgen.h>
 
 using boost::shared_ptr;
 

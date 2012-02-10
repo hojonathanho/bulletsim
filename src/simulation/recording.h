@@ -1,5 +1,5 @@
 #pragma once
-#include "config.h"
+#include "utils/config.h"
 #include <osgViewer/Viewer>
 #include <osgViewer/ViewerEventHandlers>
 

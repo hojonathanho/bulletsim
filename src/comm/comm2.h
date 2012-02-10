@@ -9,13 +9,14 @@
 #include <iomanip>
 #include <boost/filesystem.hpp>
 #include <json/json.h>
-#include "my_exceptions.h"
-#include "my_assert.h"
+#include "utils/my_exceptions.h"
+#include "utils/my_assert.h"
 
 using namespace std;
 namespace fs = boost::filesystem;
 using fs::path;
 using Json::Value;
+using namespace Json;
 typedef pair<path,path> PathPair;
 
 

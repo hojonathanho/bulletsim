@@ -1,6 +1,6 @@
 #include "utils_pcl.h"
 #include <pcl/io/pcd_io.h>
-#include "my_exceptions.h"
+#include "utils/my_exceptions.h"
 
 using namespace Eigen;
 using namespace pcl;

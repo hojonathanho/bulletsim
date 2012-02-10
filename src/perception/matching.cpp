@@ -1,7 +1,7 @@
 #include "matching.h"
 #include "my_matrix.h"
 #include <boost/foreach.hpp>
-#include <my_assert.h>
+#include "utils/my_assert.h"
 using namespace std;
 using namespace Eigen;
 

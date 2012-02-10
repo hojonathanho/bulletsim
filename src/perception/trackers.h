@@ -1,6 +1,6 @@
 #pragma once
-#include "bullet_typedefs.h"
-#include "basicobjects.h"
+#include "simulation/bullet_typedefs.h"
+#include "simulation/basicobjects.h"
 #include <boost/shared_ptr.hpp>
 #include <vector>
 using boost::shared_ptr;

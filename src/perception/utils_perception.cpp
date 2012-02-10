@@ -2,8 +2,8 @@
 #include <boost/foreach.hpp>
 #include <pcl/io/pcd_io.h>
 #include <algorithm>
-#include "config.h"
-#include "util.h"
+#include "utils/config.h"
+#include "simulation/util.h"
 
 using namespace Eigen;
 

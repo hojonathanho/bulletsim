@@ -1,11 +1,11 @@
 #include <pcl/visualization/cloud_viewer.h>
 #include <pcl/io/pcd_io.h>
-#include "geom.h"
 #include <boost/foreach.hpp>
-#include "get_table.h"
-#include <comm/comm2.h>
-#include <my_assert.h>
 #include <boost/program_options.hpp>
+#include "geom.h"
+#include "get_table.h"
+#include "comm/comm2.h"
+#include "utils/my_assert.h"
 
 using namespace pcl;
 using namespace std;

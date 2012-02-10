@@ -6,8 +6,8 @@
 #include "comm_pcl.h"
 #include "comm_cv.h"
 #include "cloud_filtering.h"
-#include "vector_io.h"
-#include "my_exceptions.h"
+#include "utils/vector_io.h"
+#include "utils/my_exceptions.h"
 #include <boost/program_options.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 

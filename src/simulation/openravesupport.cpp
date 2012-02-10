@@ -2,7 +2,7 @@
 #include <openrave-core.h>
 #include <BulletCollision/CollisionShapes/btShapeHull.h>
 #include "convexdecomp.h"
-#include "config.h"
+#include "utils/config.h"
 
 using namespace OpenRAVE;
 

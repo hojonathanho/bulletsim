@@ -1,7 +1,7 @@
 #include "recording.h"
 #include <boost/filesystem.hpp>
-#include "my_exceptions.h"
-#include "my_assert.h"
+#include "utils/my_exceptions.h"
+#include "utils/my_assert.h"
 namespace fs = boost::filesystem;
 
 int RecordingConfig::record = 0;

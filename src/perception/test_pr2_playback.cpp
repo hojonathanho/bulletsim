@@ -5,16 +5,17 @@
 
 #include "clouds/comm_pcl.h"
 #include "comm/comm2.h"
-#include "config_bullet.h"
+#include "simulation/config_bullet.h"
 #include "config_perception.h"
 #include "make_bodies.h"
-#include "simplescene.h"
+#include "simulation/simplescene.h"
 #include "utils_perception.h"
-#include "vector_io.h"
+#include "utils/vector_io.h"
 #include "bullet_io.h"
 #include "openrave_joints.h"
 #include "robot_geometry.h"
 #include "clouds/correction.h"
+#include "robots/pr2.h"
 
 using namespace std;
 using namespace Eigen;
@@ -43,14 +44,15 @@ int main(int argc, char *argv[]) {
 
   // create scene
   Scene scene;
+  PR2Manager pr2m(scene);
   PlotPoints::Ptr kinectPts(new PlotPoints(2));
 
   // get kinect transform
   vector<double> firstJoints = doubleVecFromFile(filePath("data000000000000.txt", "joint_states").string());
   ValuesInds vi = getValuesInds(firstJoints);
-  scene.pr2->setDOFValues(vi.second, vi.first);
+  pr2m.pr2->setDOFValues(vi.second, vi.first);
 
-  btTransform worldFromKinect = getKinectToWorld(scene.pr2->robot);
+  btTransform worldFromKinect = getKinectToWorld(pr2m.pr2->robot);
   CoordinateTransformer CT(worldFromKinect);
   cout << "world form kinect:" << worldFromKinect << endl;
 
@@ -89,7 +91,7 @@ int main(int argc, char *argv[]) {
 
     vector<double> currentJoints = jointMsgPtr->m_data;
     ValuesInds vi = getValuesInds(currentJoints);
-    scene.pr2->setDOFValues(vi.second, vi.first);
+    pr2m.pr2->setDOFValues(vi.second, vi.first);
 
   }
 

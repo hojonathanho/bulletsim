@@ -1,5 +1,5 @@
-#include "simplescene.h"
-#include "pr2.h"
+#include "simulation/simplescene.h"
+#include "robots/pr2.h"
 
 int main(int argc, char *argv[]) {
     // first read the configuration from the user

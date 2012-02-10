@@ -3,7 +3,7 @@
 #include <boost/foreach.hpp>
 #include <boost/program_options.hpp>
 #include "utils_pcl.h"
-#include "vector_io.h"
+#include "utils/vector_io.h"
 
 
 using namespace pcl;

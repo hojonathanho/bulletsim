@@ -1,8 +1,8 @@
 #include "correction.h"
 #include <iostream>
-#include "vector_io.h"
 #include "utils_pcl.h"
-#include "my_assert.h"
+#include "utils/vector_io.h"
+#include "utils/my_assert.h"
 #include <Eigen/Dense>
 using namespace Eigen;
 using namespace std;

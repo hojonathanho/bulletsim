@@ -5,22 +5,10 @@
 #include "environment.h"
 #include "basicobjects.h"
 #include "openravesupport.h"
-#include "config.h"
 #include "plotting.h"
+#include "utils/config.h"
 
 class Scene;
-
-#if 0
-class EventHandler : public osgGA::TrackballManipulator {
-private:
-  Scene *scene;
-  float lastX, lastY, dx, dy;
-public:
-  EventHandler(Scene *scene_) : scene(scene_), state() {}
-  bool handle(const osgGA::GUIEventAdapter &ea, osgGA::GUIActionAdapter &aa);
-  void getTransformation( osg::Vec3d& eye, osg::Vec3d& center, osg::Vec3d& up ) const;
-};
-#endif
 
 class EventHandler : public osgGA::TrackballManipulator {
 private:
@@ -52,24 +40,21 @@ struct Scene {
   // callbacks should return true if the default TrackballManipulator::handle behavior
   // should be suppressed. if all callbacks return false, then it won't be suppressed
   typedef boost::function<bool(const osgGA::GUIEventAdapter &)> Callback;
-
-  typedef multimap<char, Callback> KeyCallbackMap;
-  KeyCallbackMap keyCallbacks;
-
   typedef multimap<osgGA::GUIEventAdapter::EventType, Callback> CallbackMap;
   CallbackMap callbacks;
-
-  void addKeyCallback(char c, Callback cb);
   void addCallback(osgGA::GUIEventAdapter::EventType t, Callback cb) { callbacks.insert(make_pair(t, cb)); }
+  typedef multimap<char, Callback> KeyCallbackMap;
+  KeyCallbackMap keyCallbacks;
+  void addKeyCallback(char c, Callback cb);
 
-  struct {
-    bool debugDraw,
-         moveManip0, moveManip1,
-         rotateManip0, rotateManip1,
-         startDragging,
-         idling;
-    float dx, dy;
-  } eventState;
+  typedef boost::function<void(void)> VoidCallback;
+  void addVoidCallback(osgGA::GUIEventAdapter::EventType t, VoidCallback cb);
+  void addVoidKeyCallback(char c, VoidCallback cb);
+    struct VoidCallbackWrapper {
+        VoidCallback fn;
+        VoidCallbackWrapper(VoidCallback fn_) : fn(fn_) { }
+        bool operator()() { fn(); return false; }
+    };
 
   Scene();
 
@@ -88,6 +73,8 @@ struct Scene {
   // and after adding objects to the environment
   void startViewer();
 
+  void toggleDebugDraw();
+
   // TODO: remove all dt params and use CFG.bullet.dt instead
 
   // Steps physics and updates the display (if displayOn is true)
@@ -102,7 +89,7 @@ struct Scene {
 
   struct {
       float currTime, prevTime;
-      bool looping, paused;
+      bool looping, paused, debugDraw;
   } loopState;
   // Starts a viewer loop and blocks the caller.
   void startLoop(); // runs with a variable-rate dt that depends on the system speed

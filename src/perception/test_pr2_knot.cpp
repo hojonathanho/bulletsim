@@ -1,26 +1,25 @@
-#include "basicobjects.h"
+#include "simulation/basicobjects.h"
 #include "bullet_io.h"
 #include "clouds/comm_cv.h"
 #include "clouds/comm_pcl.h"
 #include "clouds/utils_cv.h"
 #include "clouds/utils_pcl.h"
 #include "comm/comm2.h"
-#include "config.h"
-#include "config_bullet.h"
+#include "simulation/config_bullet.h"
 #include "config_perception.h"
-#include "grabbing.h"
+#include "robots/grabbing.h"
 #include "make_bodies.h"
-#include "rope.h"
-#include "simplescene.h"
+#include "simulation/rope.h"
+#include "simulation/simplescene.h"
 #include "trackers.h"
 #include "utils_perception.h"
-#include "vector_io.h"
+#include "utils/vector_io.h"
 #include "optimization_forces.h"
 #include "visibility.h"
 #include "apply_impulses.h"
 #include "openrave_joints.h"
 #include "robot_geometry.h"
-#include "recording.h"
+#include "simulation/recording.h"
 #include <pcl/common/transforms.h>
 
 vector<double> interpolateBetween(vector<double> a, vector<double> b, float p) {
@@ -39,23 +38,6 @@ struct LocalConfig : Config {
   }
 };
 int LocalConfig::frameStep = 3;
-
-struct CustomScene : public Scene {
-  MonitorForGrabbing lMonitor;
-  MonitorForGrabbing rMonitor;
-
-  CustomScene() : 
-    Scene(), 
-    lMonitor(pr2->robot->GetManipulators()[5], env->bullet->dynamicsWorld),
-    rMonitor(pr2->robot->GetManipulators()[7], env->bullet->dynamicsWorld) {
-  };
-
-  void step(float dt) {
-    rMonitor.update();
-    lMonitor.update();
-    Scene::step(dt);
-  }
-};
 
 int main(int argc, char *argv[]) {
 
@@ -87,13 +69,17 @@ int main(int argc, char *argv[]) {
   Retimer<VectorMessage<double> > retimer(&jointSub);
 
 
-  // get kinect transform
-  CustomScene scene;
+  Scene scene;
+  PR2Manager pr2m(scene);
+  MonitorForGrabbing lMonitor(pr2m.pr2->robot->GetManipulators()[5], scene.env->bullet->dynamicsWorld);
+  MonitorForGrabbing rMonitor(pr2m.pr2->robot->GetManipulators()[7], scene.env->bullet->dynamicsWorld);
+
   vector<double> firstJoints = doubleVecFromFile(filePath("data000000000000.txt", "joint_states").string());
   ValuesInds vi = getValuesInds(firstJoints);
-  scene.pr2->setDOFValues(vi.second, vi.first);
+  pr2m.pr2->setDOFValues(vi.second, vi.first);
 
-  KinectTrans kinectTrans(scene.pr2->robot);
+  // get kinect transform
+  KinectTrans kinectTrans(pr2m.pr2->robot);
   kinectTrans.calibrate(btTransform(btQuaternion(0.669785, -0.668418, 0.222562, -0.234671), btVector3(0.263565, -0.038203, 1.762524)));
   CoordinateTransformer CT(kinectTrans.getKinectTrans());
 
@@ -103,7 +89,6 @@ int main(int argc, char *argv[]) {
   vector<btVector3> tableCornersWorld = CT.toWorldFromCamN(tableCornersCam);
   BulletObject::Ptr table = makeTable(tableCornersWorld, .1*GeneralConfig::scale);
   table->setColor(1,1,1,.25);
-
 
   // load rope
   vector<btVector3> ropePtsCam = toBulletVectors(floatMatFromFile(onceFile("init_rope.txt").string()));
@@ -120,8 +105,8 @@ int main(int argc, char *argv[]) {
     scene.env->add(table);
   }
   if (TrackingConfig:: showLines) scene.env->add(corrPlots.m_lines);
-  scene.lMonitor.setBodies(rope->children);
-  scene.rMonitor.setBodies(rope->children);
+  lMonitor.setBodies(rope->children);
+  rMonitor.setBodies(rope->children);
 
   // recording
   ScreenRecorder* rec;
@@ -182,7 +167,7 @@ int main(int argc, char *argv[]) {
     for (int iter=0; iter<TrackingConfig::nIter; iter++) {
       cout << "iteration " << iter << endl;
 
-      scene.pr2->setDOFValues(vi.second, interpolateBetween(oldvals, newvals, (iter+0.00001)/TrackingConfig::nIter));
+      pr2m.pr2->setDOFValues(vi.second, interpolateBetween(oldvals, newvals, (iter+0.00001)/TrackingConfig::nIter));
 
       vector<btVector3> estPts = rope->getNodes();
       Eigen::MatrixXf ropePtsCam = toEigenMatrix(CT.toCamFromWorldN(estPts));
@@ -192,11 +177,15 @@ int main(int argc, char *argv[]) {
       corrPlots.update(estPts, obsPts, corr);
       vector<btVector3> impulses = calcImpulsesSimple(estPts, obsPts, corr, TrackingConfig::impulseSize);
       applyImpulses(impulses, rope);
+
       if (RecordingConfig::record == EVERY_ITERATION || 
 	  RecordingConfig::record == FINAL_ITERATION && iter==TrackingConfig::nIter-1)
-	rec->snapshot();
-      scene.step(DT);
+	    rec->snapshot();
 
+      lMonitor.update();
+      rMonitor.update();
+
+      scene.step(DT);
     }
     oldvals = newvals;
 

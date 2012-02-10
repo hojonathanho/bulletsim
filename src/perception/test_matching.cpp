@@ -1,11 +1,11 @@
-#include <Eigen/Dense>
-#include <vector>
-#include "testing.h"
 #include "matching.h"
 #include "dist_math.h"
-#include "vector_io.h"
-#include <my_assert.h>
+#include "utils/testing.h"
+#include "utils/vector_io.h"
+#include "utils/my_assert.h"
 #include <boost/timer.hpp>
+#include <Eigen/Dense>
+#include <vector>
 using namespace Eigen;
 using namespace std;
 

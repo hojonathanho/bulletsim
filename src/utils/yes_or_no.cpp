@@ -1,3 +1,6 @@
+#include <iostream>
+#include <cstdlib>
+using namespace std;
 bool yesOrNo(char message[]) {
   cout << message << endl;
   while (true) {

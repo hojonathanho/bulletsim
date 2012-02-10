@@ -1,22 +1,28 @@
-#include "bullet_io.h"
-#include "bullet_typedefs.h"
-#include "clouds/comm_pcl.h"
-#include "clouds/geom.h"
-#include "comm/comm2.h"
-#include "config_bullet.h"
+#include "simulation/bullet_typedefs.h"
+#include "simulation/config_bullet.h"
+#include "simulation/simplescene.h"
+#include "simulation/softbodies.h"
+#include "simulation/recording.h"
+
 #include "config_perception.h"
 #include "get_nodes.h"
 #include "make_bodies.h"
-#include "simplescene.h"
 #include "optimization_forces.h"
-#include "softbodies.h"
-#include "utils_perception.h"
-#include "vector_io.h"
 #include "visibility.h"
 #include "robot_geometry.h"
 #include "openrave_joints.h"
-#include "grabbing.h"
-#include "recording.h"
+
+#include "utils_perception.h"
+#include "utils/vector_io.h"
+#include "bullet_io.h"
+
+#include "clouds/comm_pcl.h"
+#include "clouds/geom.h"
+#include "comm/comm2.h"
+
+#include "robots/grabbing.h"
+#include "robots/pr2.h"
+
 #include <pcl/common/transforms.h>
 #include <osgViewer/ViewerEventHandlers>
 
@@ -27,25 +33,6 @@ struct LocalConfig : Config {
   }
 };
 int LocalConfig::frameStep = 3;
-
-
-struct CustomScene : public Scene {
-  SoftMonitorForGrabbing lMonitor;
-  SoftMonitorForGrabbing rMonitor;
-
-  CustomScene() :
-    Scene(),
-    lMonitor(pr2, true),
-    rMonitor(pr2, false) {
-    // add the screen capture handler
-  };
-  void step(float dt) {
-    rMonitor.update();
-    lMonitor.update();
-    Scene::step(dt);
-  }
-};
-
 
 int main(int argc, char* argv[]) {
   //////////// get command line options
@@ -73,7 +60,11 @@ int main(int argc, char* argv[]) {
   Retimer<VectorMessage<double> > retimer(&jointSub);
 
   ////////////// create scene
-  CustomScene scene;
+  Scene scene;
+  PR2Manager pr2m(scene);
+  SoftMonitorForGrabbing lMonitor(pr2m.pr2, true);
+  SoftMonitorForGrabbing rMonitor(pr2m.pr2, false);
+
   static PlotPoints::Ptr kinectPts(new PlotPoints(2));
   CorrPlots corrPlots;
   static PlotPoints::Ptr towelEstPlot(new PlotPoints(3));
@@ -82,10 +73,10 @@ int main(int argc, char* argv[]) {
 
   vector<double> firstJoints = doubleVecFromFile(filePath("data000000000000.txt", "joint_states").string());
   ValuesInds vi = getValuesInds(firstJoints);
-  scene.pr2->setDOFValues(vi.second, vi.first);
+  pr2m.pr2->setDOFValues(vi.second, vi.first);
 
   // get kinect transform
-  KinectTrans kinectTrans(scene.pr2->robot);
+  KinectTrans kinectTrans(pr2m.pr2->robot);
   kinectTrans.calibrate(btTransform(btQuaternion(-0.703407, 0.706030, -0.048280, 0.066401), btVector3(0.348212, -0.047753, 1.611060)));
   CoordinateTransformer CT(kinectTrans.getKinectTrans());
 
@@ -107,16 +98,14 @@ int main(int argc, char* argv[]) {
   BulletSoftObject::Ptr towel = makeSelfCollidingTowel(towelCorners, scene.env->bullet->softBodyWorldInfo);
 
   /// add stuff to scene
-  MotionStatePtr ms(new btDefaultMotionState(btTransform(btQuaternion(0,0,0,1), btVector3(0,0,2))));
-
   scene.env->add(towel);
   scene.env->add(table);
   scene.env->add(kinectPts);
   scene.env->add(towelEstPlot);
   //scene.env->add(towelObsPlot);
   //scene.env->add(corrPlots.m_lines);
-  scene.lMonitor.setTarget(towel->softBody.get());
-  scene.rMonitor.setTarget(towel->softBody.get());
+  lMonitor.setTarget(towel->softBody.get());
+  rMonitor.setTarget(towel->softBody.get());
 
   scene.startViewer();
   towel->setColor(1,1,0,.5);
@@ -142,7 +131,7 @@ int main(int argc, char* argv[]) {
 
     VectorMessage<double>* jointMsgPtr = retimer.msgAt(cloudMsg.getTime());
     ValuesInds vi = getValuesInds(jointMsgPtr->m_data);
-    scene.pr2->setDOFValues(vi.second, vi.first);
+    pr2m.pr2->setDOFValues(vi.second, vi.first);
     CT.reset(kinectTrans.getKinectTrans());
 
     pcl::transformPointCloud(*cloudMsg.m_data, *cloudWorld, CT.worldFromCamEigen);
@@ -178,6 +167,9 @@ int main(int argc, char* argv[]) {
       if (RecordingConfig::record == EVERY_ITERATION || 
 	  RecordingConfig::record == FINAL_ITERATION && iter==TrackingConfig::nIter-1)
 	rec->snapshot();
+
+      rMonitor.update();
+      lMonitor.update();
       scene.step(.01);
     }
 
