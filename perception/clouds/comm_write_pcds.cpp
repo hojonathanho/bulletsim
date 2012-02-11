@@ -32,7 +32,14 @@ int main(int argc, char* argv[]) {
   po::notify(vm);    
 
   setDataRoot();
-  CloudGrabber pub(topic,doPause,downsample);
-  pub.run();
+
+  if (doPause) {
+    PausingCloudGrabber pub(topic);
+    pub.run();
+  }
+  else {
+    CloudGrabber pub(topic,downsample);
+    pub.run();
+  }
 
 }

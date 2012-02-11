@@ -26,13 +26,22 @@ struct CloudMessage : Message {
 
 class CloudGrabber {
 public:
-  bool m_doPause;
+  bool m_enabled;
   int m_downsample;
   int m_cbCount;
   FilePublisher m_pub;
+  string m_topic;
 
-  CloudGrabber(string topic, bool doPause, int downsample);
+  CloudGrabber(string topic, int downsample);
 
   void run();
-  void cloud_cb_(const ConstColorCloudPtr& cloud);
+  virtual void loop();
+  virtual void cloud_cb(const ConstColorCloudPtr& cloud);
+};
+
+class PausingCloudGrabber : public CloudGrabber {
+public:
+  PausingCloudGrabber(string topic);
+  void loop();
+  void cloud_cb(const ConstColorCloudPtr& cloud);
 };
