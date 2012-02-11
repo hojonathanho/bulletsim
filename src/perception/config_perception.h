@@ -15,6 +15,7 @@ struct TrackingConfig : Config {
   static bool showKinect;
   static bool showSim;
   static bool startIdle;
+  static float towelRes;
 
   TrackingConfig() : Config() {
     params.push_back(new Parameter<int>("nIter", &nIter, "nIter"));
@@ -30,6 +31,7 @@ struct TrackingConfig : Config {
     params.push_back(new Parameter<bool>("showKinect",&showKinect,"show kinect point cloud"));
     params.push_back(new Parameter<bool>("showSim",&showSim,"show simulated objects"));
     params.push_back(new Parameter<bool>("startIdle",&startIdle, "start idle"));
+    params.push_back(new Parameter<float>("towelRes",&towelRes, "towel resolution factor"));
   }
 };
 

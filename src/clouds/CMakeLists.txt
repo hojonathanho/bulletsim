@@ -11,9 +11,8 @@ link_directories(
   ${PCL_LIBRARY_DIRS} 
   ${WM_LIBRARY_DIR}
 )
-add_definitions(${PCL_DEFINITIONS})
 
-message("PCL INCLUDE: ${PCL_INCLUDE_DIRS}")
+add_definitions(${PCL_DEFINITIONS})
 
 add_library(clouds geom.cpp get_table.cpp utils_pcl.cpp cloud_filtering.cpp comm_cv.cpp comm_pcl.cpp utils_cv.cpp)
 target_link_libraries(clouds ${PCL_LIBRARIES} ${WM_LIBRARIES} ${OpenCV_LIBS})

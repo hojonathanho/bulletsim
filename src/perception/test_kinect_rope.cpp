@@ -17,6 +17,7 @@
 #include "visibility.h"
 #include "apply_impulses.h"
 #include "simulation/recording.h"
+#include "plotting_perception.h"
 
 #include <pcl/common/transforms.h>
 #include <osgViewer/Viewer>
@@ -61,9 +62,9 @@ int main(int argc, char *argv[]) {
   CapsuleRope::Ptr rope(new CapsuleRope(CT.toWorldFromCamN(ropePtsCam), .0075*METERS));
 
   // plots
-  PlotPoints::Ptr kinectPts(new PlotPoints(2));
+  PointCloudPlot::Ptr kinectPts(new PointCloudPlot(2));
   CorrPlots corrPlots;
-  PlotPoints::Ptr obsPlot(new PlotPoints(4));
+  PointCloudPlot::Ptr obsPlot(new PointCloudPlot(4));
   obsPlot->setDefaultColor(0,1,0,1);
 
   // setup scene
@@ -100,7 +101,7 @@ int main(int argc, char *argv[]) {
     ColorCloudPtr cloudWorld(new ColorCloud());
     if (TrackingConfig::showKinect) {
       pcl::transformPointCloud(*cloudCam, *cloudWorld, CT.worldFromCamEigen);
-      kinectPts->setPoints(cloudWorld);
+      kinectPts->setPoints1(cloudWorld);
     }
     cout << "loaded cloud " << count << endl;
     count++;

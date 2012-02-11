@@ -7,11 +7,6 @@
 #include <osg/StateSet>
 #include <btBulletDynamicsCommon.h>
 
-#if BUILD_PERCEPTION
-#include <pcl/point_types.h>
-#include <pcl/point_cloud.h>
-#endif //BUILD_PERCEPTION
-
 
 class PlotObject : public EnvironmentObject {
 protected:
@@ -43,9 +38,6 @@ public:
   void setPoints(const osg::ref_ptr<osg::Vec3Array>& osgPts);
   void setPoints(const std::vector<btVector3>& pts, const std::vector<btVector4>& cols);
   void setPoints(const std::vector<btVector3>& pts);
-#ifdef BUILD_PERCEPTION
-  void setPoints(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud);
-#endif
   void forceTransparency(float a);
 };
 

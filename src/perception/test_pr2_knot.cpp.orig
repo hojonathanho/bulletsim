@@ -116,7 +116,7 @@ int main(int argc, char *argv[]) {
   CapsuleRope::Ptr rope(new CapsuleRope(CT.toWorldFromCamN(ropePtsCam), .0075*METERS));
 
   // plots
-  PlotPoints::Ptr kinectPts(new PlotPoints(2));
+  PointCloudPlot::Ptr kinectPts(new PointCloudPlot(2));
   CorrPlots corrPlots;
 
   // setup scene
@@ -146,7 +146,7 @@ int main(int argc, char *argv[]) {
     ColorCloudPtr cloudCam  = cloudMsg.m_data;
     ColorCloudPtr cloudWorld(new ColorCloud());
     pcl::transformPointCloud(*cloudCam, *cloudWorld, CT.worldFromCamEigen);
-    kinectPts->setPoints(cloudWorld);
+    kinectPts->setPoints1(cloudWorld);
     cout << "loaded cloud " << count << endl;
     count++;
 

@@ -4,6 +4,7 @@
 #include <btBulletDynamicsCommon.h>
 #include "sparse_array.h"
 #include "simulation/plotting.h"
+#include "plotting_perception.h"
 using std::vector;
 
 
@@ -18,8 +19,8 @@ Eigen::MatrixXf calcCorrProb(const Eigen::MatrixXf& estPts, const Eigen::MatrixX
 class CorrPlots {
 public:
   PlotLines::Ptr m_lines;
-  PlotPoints::Ptr m_sources;
-  PlotPoints::Ptr m_targs;
+  PointCloudPlot::Ptr m_sources;
+  PointCloudPlot::Ptr m_targs;
 
   CorrPlots();
   void update(const vector<btVector3>&, const vector<btVector3>&, const SparseArray&);

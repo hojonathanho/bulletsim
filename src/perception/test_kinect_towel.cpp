@@ -125,7 +125,7 @@ int main(int argc, char *argv[]) {
   shared_ptr<btDefaultMotionState> ms0(new btDefaultMotionState(btTransform(btQuaternion(0,0,0,1),btVector3(0,0,10))));
   shared_ptr<btDefaultMotionState> ms1(new btDefaultMotionState(btTransform(btQuaternion(0,0,0,1),btVector3(0,0,10))));
 
-  PlotPoints::Ptr plot(new PlotPoints());
+  PointCloudPlot::Ptr plot(new PointCloudPlot());
   plot->setPoints(cloud);
 
   scene.env->add(plot);

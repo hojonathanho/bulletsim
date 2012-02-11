@@ -24,16 +24,8 @@ target_link_libraries(test_rigidbody_grasping simulation robots)
 add_executable(test_rope test_rope.cpp)
 target_link_libraries(test_rope simulation robots)
 
-if (BUILD_PERCEPTION)
-  include_directories(${PCL_INCLUDE_DIRS})
-  link_directories(${PCL_LIBRARY_DIRS})
-  add_definitions(${PCL_DEFINITIONS})
-  set_property(
-    SOURCE test_plotting.cpp
-    PROPERTY COMPILE_DEFINITIONS BUILD_PERCEPTION)
-  add_executable(test_plotting test_plotting.cpp)
-  target_link_libraries(test_plotting simulation ${PCL_LIBRARIES})
-endif(BUILD_PERCEPTION)
+add_executable(test_plotting test_plotting.cpp)
+target_link_libraries(test_plotting simulation)
 
 add_executable(test_fork test_fork.cpp)
 target_link_libraries(test_fork simulation)

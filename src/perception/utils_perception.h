@@ -9,6 +9,7 @@
 #include <osg/Vec3d>
 #include "utils/my_assert.h"
 #include "simulation/simplescene.h"
+#include "plotting_perception.h"
 using namespace std;
 
 vector<btVector3> toBulletVectors(const vector< vector<float> >&);

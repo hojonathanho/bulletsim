@@ -45,7 +45,7 @@ int main(int argc, char *argv[]) {
   // create scene
   Scene scene;
   PR2Manager pr2m(scene);
-  PlotPoints::Ptr kinectPts(new PlotPoints(2));
+  PointCloudPlot::Ptr kinectPts(new PointCloudPlot(2));
 
   // get kinect transform
   vector<double> firstJoints = doubleVecFromFile(filePath("data000000000000.txt", "joint_states").string());
@@ -87,7 +87,7 @@ int main(int argc, char *argv[]) {
     VectorMessage<double>* jointMsgPtr = retimer.msgAt(cloudMsg.getTime());
     ColorCloudPtr cloudCam = cloudMsg.m_data;
     transformPointCloud(*cloudCam, *cloudWorld, CT.worldFromCamEigen);
-    kinectPts->setPoints(cloudWorld);
+    kinectPts->setPoints1(cloudWorld);
 
     vector<double> currentJoints = jointMsgPtr->m_data;
     ValuesInds vi = getValuesInds(currentJoints);

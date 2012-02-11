@@ -2,9 +2,7 @@
 
 #include "simulation/plotting.h"
 #include "simulation/simplescene.h"
-#include <pcl/io/pcd_io.h>
 #include "simulation/config_bullet.h"
-#include <pcl/point_types.h>
 using boost::shared_ptr;
 #include <iostream>
 using namespace std;
@@ -71,22 +69,6 @@ int main(int argc, char* argv[]) {
 
 
   }  
-
-
-
-  else if (!strcmp(argv[1],"3")) {
-    shared_ptr<PlotPoints> plot3(new PlotPoints());
-    const string pcdfile = "../data/0003.pcd";
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGB>);
-    if (pcl::io::loadPCDFile<pcl::PointXYZRGB> (pcdfile, *cloud) == -1) {
-      PCL_ERROR(("couldn't read file " + pcdfile + "\n").c_str());
-      return -1;
-    }
-    plot3->setPoints(cloud);
-    s.env->add(plot3);
-  }
-
-
 
   s.startViewer();
   s.startLoop();

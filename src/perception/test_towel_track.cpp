@@ -42,10 +42,10 @@ int main(int argc, char* argv[]) {
 
   ////////////// create scene
   Scene scene;
-  static PlotPoints::Ptr kinectPts(new PlotPoints(2));
+  static PointCloudPlot::Ptr kinectPts(new PointCloudPlot(2));
   CorrPlots corrPlots;
-  static PlotPoints::Ptr towelEstPlot(new PlotPoints(4));
-  static PlotPoints::Ptr towelObsPlot(new PlotPoints(4));
+  static PointCloudPlot::Ptr towelEstPlot(new PointCloudPlot(4));
+  static PointCloudPlot::Ptr towelObsPlot(new PointCloudPlot(4));
   towelObsPlot->setDefaultColor(0,1,0,1);
 
   ///////////// recording
@@ -98,7 +98,7 @@ int main(int argc, char* argv[]) {
     ColorCloudPtr cloudWorld(new ColorCloud());
     if (TrackingConfig::showKinect) {
       pcl::transformPointCloud(*cloudCam, *cloudWorld, CT.worldFromCamEigen);
-      kinectPts->setPoints(cloudWorld);
+      kinectPts->setPoints1(cloudWorld);
     }
 
     vector<btVector3> towelObsPts =  CT.toWorldFromCamN(toBulletVectors(towelPtsMsg.m_data));

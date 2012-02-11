@@ -239,7 +239,7 @@ int main(int argc, char* argv[]) {
   CustomScene scene;
   PR2Manager pr2m(scene);
 
-  static PlotPoints::Ptr kinectPts(new PlotPoints(2));
+  PointCloudPlot::Ptr kinectPts(new PointCloudPlot(2));
   scene.env->add(kinectPts);
 
   vector<double> firstJoints = doubleVecFromFile(filePath("data000000000000.txt", "joint_states").string());
@@ -267,7 +267,7 @@ int main(int argc, char* argv[]) {
     pr2m.pr2->setDOFValues(vi.second, vi.first);
 
     pcl::transformPointCloud(*cloudMsg.m_data, *cloudWorld, CT.worldFromCamEigen);
-    kinectPts->setPoints(cloudWorld);
+    kinectPts->setPoints1(cloudWorld);
 
     scene.step(0.01);
   }

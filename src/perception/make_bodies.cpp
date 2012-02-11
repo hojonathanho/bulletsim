@@ -5,6 +5,7 @@
 #include <boost/scoped_array.hpp>
 #include <BulletSoftBody/btSoftBodyHelpers.h>
 #include <tetgen.h>
+#include "config_perception.h"
 
 using boost::shared_ptr;
 
@@ -52,7 +53,7 @@ BulletSoftObject::Ptr makeSelfCollidingTowel(const vector<btVector3>& points, bt
         points[1]+offset,
         points[3]+offset,
         points[2]+offset,
-        45, 31,
+        45*TrackingConfig::towelRes, 31*TrackingConfig::towelRes,
         0, true);
 
     psb->m_cfg.piterations = 2;

@@ -97,7 +97,7 @@ void colorByVisibility(CapsuleRope::Ptr rope, const vector<float>& pVis) {
   }
 }
 
-void colorByVisibility(btSoftBody* psb, const vector<float>& pVis, PlotPoints::Ptr plot) {
+void colorByVisibility(btSoftBody* psb, const vector<float>& pVis, PointCloudPlot::Ptr plot) {
   int nPts = pVis.size();
   vector<btVector3> pts(nPts);
   vector<btVector4> cols(nPts);

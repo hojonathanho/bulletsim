@@ -65,10 +65,11 @@ int main(int argc, char* argv[]) {
   SoftMonitorForGrabbing lMonitor(pr2m.pr2, true);
   SoftMonitorForGrabbing rMonitor(pr2m.pr2, false);
 
-  static PlotPoints::Ptr kinectPts(new PlotPoints(2));
+  PointCloudPlot::Ptr kinectPts(new PointCloudPlot(2));
+
   CorrPlots corrPlots;
-  static PlotPoints::Ptr towelEstPlot(new PlotPoints(3));
-  static PlotPoints::Ptr towelObsPlot(new PlotPoints(4));
+  static PointCloudPlot::Ptr towelEstPlot(new PointCloudPlot(3));
+  static PointCloudPlot::Ptr towelObsPlot(new PointCloudPlot(4));
   towelObsPlot->setDefaultColor(0,1,0,1);
 
   vector<double> firstJoints = doubleVecFromFile(filePath("data000000000000.txt", "joint_states").string());
@@ -136,7 +137,7 @@ int main(int argc, char* argv[]) {
     CT.reset(kinectTrans.getKinectTrans());
 
     pcl::transformPointCloud(*cloudMsg.m_data, *cloudWorld, CT.worldFromCamEigen);
-    kinectPts->setPoints(cloudWorld);
+    kinectPts->setPoints1(cloudWorld);
 
     vector<btVector3> towelObsPts =  CT.toWorldFromCamN(toBulletVectors(towelPtsMsg.m_data));
     towelObsPlot->setPoints(towelObsPts);

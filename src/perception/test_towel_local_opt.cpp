@@ -28,10 +28,10 @@ int main(int argc, char* argv[]) {
 
   ////////////// create scene
   Scene scene;
-  static PlotPoints::Ptr kinectPts(new PlotPoints(2));
-  static PlotPoints::Ptr towelEstPts(new PlotPoints(10));
+  static PointCloudPlot::Ptr kinectPts(new PointCloudPlot(2));
+  static PointCloudPlot::Ptr towelEstPts(new PointCloudPlot(10));
   towelEstPts->setDefaultColor(1,0,0,1);
-  static PlotPoints::Ptr towelObsPts(new PlotPoints(10));
+  static PointCloudPlot::Ptr towelObsPts(new PointCloudPlot(10));
   towelObsPts->setDefaultColor(0,1,0,1);
 
   /////////////// load table
