@@ -48,6 +48,7 @@ int main(int argc, char *argv[]) {
   ImageMessage labelMsg;
   FileSubscriber endSub("rope_ends","txt");
   VecVecMessage<float> endMsg;
+  FilePublisher ropePub("human_rope","txt");
   // load table
   /////////////// load table
   vector<btVector3> tableCornersCam = toBulletVectors(floatMatFromFile(onceFile("table_corners.txt").string()));
@@ -95,7 +96,7 @@ int main(int argc, char *argv[]) {
 
   scene.startViewer();
   scene.setSyncTime(true);
-  scene.idle(true);
+  if (TrackingConfig::startIdle) scene.idle(true);
 
   int count=0;
   while (pcSub.recv(cloudMsg)) {
@@ -111,7 +112,7 @@ int main(int argc, char *argv[]) {
     obsPlot->setPoints(obsPts);
     ENSURE(labelSub.recv(labelMsg));
     cv::Mat labels = toSingleChannel(labelMsg.m_data);
-    ENSURE(endSub.recv(endMsg));
+    //ENSURE(endSub.recv(endMsg));
     vector<btVector3> newEnds = CT.toWorldFromCamN(toBulletVectors(endMsg.m_data));
     //endTracker.update(newEnds);
     //trackerPlotter.update();
@@ -133,7 +134,11 @@ int main(int argc, char *argv[]) {
 	  RecordingConfig::record == FINAL_ITERATION && iter==TrackingConfig::nIter-1)
 	rec->snapshot();
       scene.step(DT);
-
+      if (iter==TrackingConfig::nIter-1) {
+	vector< vector<float> > vv = toVecVec(estPts);
+	ropePub.send(VecVecMessage<float>(vv));
+      }
     }
+
   }
 }

@@ -1,4 +1,5 @@
 #include "config_perception.h"
+
 int TrackingConfig::nIter = 20;
 float TrackingConfig::sigA = .025;
 float TrackingConfig::sigB = .025;
@@ -11,3 +12,4 @@ bool TrackingConfig::showObs = false;
 bool TrackingConfig::showEst = false;
 bool TrackingConfig::showKinect = true;
 bool TrackingConfig::showSim = true;
+bool TrackingConfig::startIdle = false;

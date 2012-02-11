@@ -36,6 +36,7 @@ int main(int argc, char* argv[]) {
   CloudMessage cloudMsg;
   FileSubscriber towelSub("towel_pts","pcd");
   CloudMessage towelPtsMsg; //first message
+  FilePublisher towelPub("human_towel","txt");
 
 
 
@@ -87,7 +88,7 @@ int main(int argc, char* argv[]) {
   if (TrackingConfig::showLines) scene.env->add(corrPlots.m_lines);
   scene.startViewer();
   towel->setColor(1,1,0,.5);
-  scene.idle(true);
+  if (TrackingConfig::startIdle) scene.idle(true);
 
   for (int t=0; ; t++) {
     cout << "time step " << t << endl;
@@ -120,7 +121,12 @@ int main(int argc, char* argv[]) {
       if (RecordingConfig::record == EVERY_ITERATION || 
 	  RecordingConfig::record == FINAL_ITERATION && iter==TrackingConfig::nIter-1)
 	rec->snapshot();
-      scene.step(.01);
+      scene.step(DT);
+      if (iter==TrackingConfig::nIter-1) {
+	vector< vector<float> > vv = toVecVec(towelEstPts);
+	towelPub.send(VecVecMessage<float>(vv));
+      }
+
     }
 
   }

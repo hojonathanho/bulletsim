@@ -14,6 +14,7 @@ using namespace std;
 vector<btVector3> toBulletVectors(const vector< vector<float> >&);
 vector<btVector3> toBulletVectors(const vector< Eigen::Vector3f >&);
 vector<btVector3> toBulletVectors(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr&);
+vector< vector<float> > toVecVec(const vector<btVector3>&);
 
 btTransform toBulletTransform(const Eigen::Affine3f&);
 Eigen::Affine3f toEigenTransform(const btTransform&);
