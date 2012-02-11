@@ -1,7 +1,6 @@
-#include "environment.h"
-#include "simplescene.h"
-#include "config.h"
-#include "config_bullet.h"
+#include "simulation/environment.h"
+#include "simulation/simplescene.h"
+#include "simulation/config_bullet.h"
 #include <boost/shared_ptr.hpp>
 
 int main(int argc, char **argv) {

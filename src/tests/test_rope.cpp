@@ -1,11 +1,9 @@
-#include "rope.h"
-#include "simplescene.h"
-#include "unistd.h"
-#include "util.h"
-#include "grabbing.h"
-#include "config_bullet.h"
-#include "config_viewer.h"
-
+#include "simulation/rope.h"
+#include "simulation/simplescene.h"
+#include "simulation/util.h"
+#include "simulation/config_bullet.h"
+#include "simulation/config_viewer.h"
+#include "robots/grabbing.h"
 
 using boost::shared_ptr;
 using namespace util;
@@ -42,6 +40,8 @@ int main(int argc, char *argv[]) {
   shared_ptr<CapsuleRope> ropePtr(new CapsuleRope(ctrlPts,.01));
 
   Scene s;
+  PR2Manager pr2m(s);
+
   s.env->bullet->setGravity(btVector3(0,0,-100.));
 
   s.env->add(ropePtr);
@@ -63,8 +63,8 @@ int main(int argc, char *argv[]) {
   int step = 0;
 
   //  btVector3 v = ropePtr->bodies[0]->getCenterOfMassPosition();
-  RobotBase::ManipulatorPtr rarm(s.pr2->robot->GetManipulators()[5]);
-  RobotBase::ManipulatorPtr larm(s.pr2->robot->GetManipulators()[7]);
+  RobotBase::ManipulatorPtr rarm(pr2m.pr2->robot->GetManipulators()[5]);
+  RobotBase::ManipulatorPtr larm(pr2m.pr2->robot->GetManipulators()[7]);
 
   Grab g;
   Grab g2;
@@ -74,7 +74,7 @@ int main(int argc, char *argv[]) {
   for (int i=0; i < joints.size() && !s.viewer.done(); i++) {
     cout << i << endl;
     vector<double> joint = joints[i];
-    s.pr2->setDOFValues(inds,joint);
+    pr2m.pr2->setDOFValues(inds,joint);
 
     
 

@@ -1,5 +1,5 @@
-#include "simplescene.h"
-#include "recording.h"
+#include "simulation/simplescene.h"
+#include "simulation/recording.h"
 
 int main(int argc, char *argv[]) {
     // first read the configuration from the user

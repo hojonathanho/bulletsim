@@ -1,10 +1,10 @@
-#include "simplescene.h"
-#include "softbodies.h"
-#include "config_bullet.h"
-#include "config_viewer.h"
+#include "simulation/simplescene.h"
+#include "simulation/softbodies.h"
+#include "simulation/config_bullet.h"
+#include "simulation/config_viewer.h"
 #include <BulletSoftBody/btSoftBodyHelpers.h>
 #include <openrave/kinbody.h>
-#include "pr2.h"
+#include "robots/pr2.h"
 
 // I've only tested this on the PR2 model
 class PR2SoftBodyGripperAction : public Action {
@@ -246,7 +246,9 @@ struct CustomScene : public Scene {
     OSGInstance::Ptr osg2;
     Fork::Ptr fork;
     RaveRobotKinematicObject::Ptr tmpRobot;
+    PR2Manager pr2m;
 
+    CustomScene() : pr2m(*this) { }
 
     BulletSoftObject::Ptr createCloth(btScalar s, const btVector3 &center);
     void createFork();
@@ -331,7 +333,7 @@ void CustomScene::createFork() {
 
     cout << "forked!" << endl;
 
-    EnvironmentObject::Ptr p = fork->forkOf(pr2);
+    EnvironmentObject::Ptr p = fork->forkOf(pr2m.pr2);
     if (!p) {
         cout << "failed to get forked version of robot!" << endl;
         return;
@@ -360,22 +362,22 @@ void CustomScene::run() {
     const float table_thickness = .05;
     boost::shared_ptr<btDefaultMotionState> ms(new btDefaultMotionState(
         btTransform(btQuaternion(0, 0, 0, 1),
-                    GeneralConfig::scale * btVector3(1.25, 0, table_height-table_thickness/2))));
+                    GeneralConfig::scale * btVector3(1.2, 0, table_height-table_thickness/2))));
     BoxObject::Ptr table(
         new BoxObject(0, GeneralConfig::scale * btVector3(.75,.75,table_thickness/2),ms));
-    table->rigidBody->setFriction(1e10);
+    table->rigidBody->setFriction(10);
 
     BulletSoftObject::Ptr cloth(
-            createCloth(GeneralConfig::scale * 0.2, GeneralConfig::scale * btVector3(1, 0, 1)));
+            createCloth(GeneralConfig::scale * 0.25, GeneralConfig::scale * btVector3(0.9, 0, table_height+0.01)));
     btSoftBody * const psb = cloth->softBody.get();
-    pr2->ignoreCollisionWith(psb);
+    pr2m.pr2->ignoreCollisionWith(psb);
 
     env->add(table);
     env->add(cloth);
 
-    leftAction.reset(new PR2SoftBodyGripperAction(pr2Left, "l_gripper_l_finger_tip_link", "l_gripper_r_finger_tip_link", 1));
+    leftAction.reset(new PR2SoftBodyGripperAction(pr2m.pr2Left, "l_gripper_l_finger_tip_link", "l_gripper_r_finger_tip_link", 1));
     leftAction->setTarget(psb);
-    rightAction.reset(new PR2SoftBodyGripperAction(pr2Right, "r_gripper_l_finger_tip_link", "r_gripper_r_finger_tip_link", 1));
+    rightAction.reset(new PR2SoftBodyGripperAction(pr2m.pr2Right, "r_gripper_l_finger_tip_link", "r_gripper_r_finger_tip_link", 1));
     rightAction->setTarget(psb);
 
     //setSyncTime(true);

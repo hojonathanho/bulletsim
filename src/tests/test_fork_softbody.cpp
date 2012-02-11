@@ -1,8 +1,8 @@
-#include "config_bullet.h"
-#include "config_viewer.h"
+#include "simulation/config_bullet.h"
+#include "simulation/config_viewer.h"
 
-#include "simplescene.h"
-#include "softbodies.h"
+#include "simulation/simplescene.h"
+#include "simulation/softbodies.h"
 #include <BulletSoftBody/btSoftBodyHelpers.h>
 
 struct CustomScene : public Scene {
