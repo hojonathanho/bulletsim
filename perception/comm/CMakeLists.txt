@@ -8,7 +8,7 @@ include_directories("../../utils")
 #link_directories("~/usr/lib")
 
 
-if (DEFINED SURGICAL_PHYSICS_SOURCE_DIR)
+if (DEFINED BULLETSIM_SOURCE_DIR)
   message("this is a subdirectory")
 else()
   set(EIGEN3_INCLUDE_DIR "/usr/include/eigen3")

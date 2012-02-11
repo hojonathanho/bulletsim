@@ -1,25 +1,24 @@
 cmake_minimum_required(VERSION 2.0)
 
+set(WM_ROOT "~/Src/GeometricTools/WildMagic5")
+set(WM_INCLUDE_DIR "${WM_ROOT}/SDK/Include")
+set(WM_LIBRARY_DIR "${WM_ROOT}/SDK/Library/Debug")
+set(WM_LIBRARIES Wm5Core Wm5Imagics Wm5Mathematics Wm5Physics)
+
 if (NOT DEFINED PCL_INCLUDE_DIRS)
-  set(WM_ROOT "~/Src/GeometricTools/WildMagic5")
-  find_package(PCL 1.4 REQUIRED)
+  find_package(PCL REQUIRED)
 endif()
 
-if (DEFINED SURGICAL_PHYSICS_SOURCE_DIR)
+if (DEFINED BULLETSIM_SOURCE_DIR)
   message("this is a subdirectory")
 else()
   set(BULLET_INCLUDE_DIR "../../lib/bullet-2.79/src")
   set(EIGEN3_INCLUDE_DIR "/usr/include/eigen3")
   set(JSON_INCLUDE_DIR "../../lib/json/include")
-  set(WM_ROOT "~/Src/GeometricTools/WildMagic5")
-  set(WM_INCLUDE_DIR "${WM_ROOT}/SDK/Include")
-  set(WM_LIBRARY_DIR "${WM_ROOT}/SDK/Library/Debug")
-  set(WM_LIBRARIES Wm5Core Wm5Imagics Wm5Mathematics Wm5Physics)
   link_directories("~/usr/lib")
   find_package(OpenCV REQUIRED)
   link_directories(${OpenCV_LIBRARIES})
 endif()  
-
 
 include_directories(
   ../../utils
@@ -37,9 +36,6 @@ link_directories(
   "~/usr/lib"
 )
 add_definitions(${PCL_DEFINITIONS})
-add_definitions("-DEIGEN_DEFAULT_TO_ROW_MAJOR")
-
-link_directories("/usr/local/lib")	
 
 
 add_library(clouds geom.cpp get_table.cpp utils_pcl.cpp cloud_filtering.cpp comm_cv.cpp comm_pcl.cpp utils_cv.cpp correction.cpp)
@@ -65,6 +61,7 @@ target_link_libraries(comm_get_table ${PCL_LIBRARIES} clouds comm2)
 
 add_executable(comm_write_pcds comm_write_pcds.cpp)
 target_link_libraries(comm_write_pcds clouds ${PCL_LIBRARIES} comm2)
+
 
 add_executable(test_cloud_filtering test_cloud_filtering.cpp)
 target_link_libraries(test_cloud_filtering clouds ${PCL_LIBRARIES} ${OpenCV_LIBS})

@@ -25,8 +25,8 @@ set_property(
   PROPERTY COMPILE_DEFINITIONS BULLETSIM_DATA_DIR=${BULLETSIM_SOURCE_DIR}/data)
 
 if (BUILD_PERCEPTION)
-  if (NOT DEFINED PCL)
-    find_package(PCL 1.3)
+  if (NOT DEFINED PCL_INCLUDE_DIRS)
+    find_package(PCL)
   endif()
   include_directories(${PCL_INCLUDE_DIRS})
   link_directories(${PCL_LIBRARY_DIRS})

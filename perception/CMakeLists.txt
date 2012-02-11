@@ -3,20 +3,15 @@ set(WM_INCLUDE_DIR "${WM_ROOT}/SDK/Include")
 set(WM_LIBRARY_DIR "${WM_ROOT}/SDK/Library/Debug")
 set(WM_LIBRARIES Wm5Core Wm5Imagics Wm5Mathematics Wm5Physics)
 set(JSON_INCLUDE_DIR "${JSON_DIR}/include")
-set(GUROBI_INCLUDE_DIR "$ENV{GUROBI_HOME}/include")
-set(GUROBI_LIBRARY_DIR "$ENV{GUROBI_HOME}/lib")
+# set(GUROBI_INCLUDE_DIR "$ENV{GUROBI_HOME}/include")
+# set(GUROBI_LIBRARY_DIR "$ENV{GUROBI_HOME}/lib")
 
 #set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -D_GLIBCXX_DEBUG")
 
 set_property(
   DIRECTORY
   PROPERTY COMPILE_DEFINITIONS BUILD_PERCEPTION BULLETSIM_DATA_DIR=${SURGICAL_PHYSICS_SOURCE_DIR}/data)
-
-add_definitions("-DEIGEN_DEFAULT_TO_ROW_MAJOR")
-
-if (NOT DEFINED PCL_INCLUDE_DIRS)
-  find_package(PCL 1.4 REQUIRED)
-endif()
+add_definitions(PCL_DEFINITIONS)
 
 include_directories(${BULLET_DIR}/src
                     ${OSGBULLET_DIR}
@@ -25,11 +20,11 @@ include_directories(${BULLET_DIR}/src
                     ${Boost_INCLUDE_DIRS}
 		    ${EIGEN3_INCLUDE_DIR}
 #		    ${WM_INCLUDE_DIR}
-                    ${SURGICAL_PHYSICS_SOURCE_DIR}/lib/haptics
+                    ${BULLETSIM_SOURCE_DIR}/lib/haptics
 		    ${PCL_INCLUDE_DIRS}
-		    ${SURGICAL_PHYSICS_SOURCE_DIR}/src
+		    ${BULLETSIM_SOURCE_DIR}/src
 		    ${JSON_INCLUDE_DIR}
-		    ${GUROBI_INCLUDE_DIR}
+#		    ${GUROBI_INCLUDE_DIR}
             ${TETGEN_DIR}
             ../utils
             clouds
@@ -41,10 +36,10 @@ set(BULLET_LIBS BulletSoftBody BulletDynamics BulletCollision LinearMath)
 link_directories(
   ${PCL_LIBRARY_DIRS} 
   ${WM_LIBRARY_DIR}
-  ${GUROBI_LIBRARY_DIR}
+#  ${GUROBI_LIBRARY_DIR}
   ${TETGEN_DIR}
 )
-add_definitions(${PCL_DEFINITIONS})
+
 
 # add_library(perception tracking.cpp utils_perception.cpp dist_math.cpp)
 # target_link_libraries(perception ${PCL_LIBRARIES} simulation)
@@ -60,10 +55,10 @@ add_definitions(${PCL_DEFINITIONS})
 # target_link_libraries(test_kinect_towel ${PCL_LIBRARIES} json simulation perception clouds comm)
 
 add_library(perception ../utils/vector_io.cpp config_perception.cpp utils_perception.cpp make_bodies.cpp bullet_io.cpp openrave_joints.cpp robot_geometry.cpp dist_math.cpp optimization_forces.cpp sparse_array.cpp apply_impulses.cpp visibility.cpp trackers.cpp matching.cpp)
-target_link_libraries(perception ${PCL_LIBRARIES} comm2 clouds simulation gurobi46 gurobi_c++ pthread tetgen)
+target_link_libraries(perception ${PCL_LIBRARIES} comm2 clouds simulation  tetgen)
 
 add_executable(test_matching test_matching.cpp matching.cpp)
-target_link_libraries(test_matching gurobi46 gurobi_c++ pthread perception)
+target_link_libraries(test_matching  perception)
 
 
 add_executable(test_prob_corr test_prob_corr.cpp)
