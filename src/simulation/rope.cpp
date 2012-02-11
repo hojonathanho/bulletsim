@@ -78,9 +78,8 @@ CapsuleRope::CapsuleRope(const vector<btVector3>& ctrlPoints, btScalar radius_, 
     bodies.push_back(bodyPtr);
     BulletObject::Ptr child(new BulletObject(shapePtr,bodyPtr));
     */
-    shared_ptr<btDefaultMotionState> ms(new btDefaultMotionState(trans));
 
-    CapsuleObject::Ptr child(new CapsuleObject(1,radius,len,ms));
+    CapsuleObject::Ptr child(new CapsuleObject(1,radius,len,trans));
     bodies.push_back(child->rigidBody);
     child->rigidBody->setDamping(linDamping,angDamping);
     child->rigidBody->setFriction(1);

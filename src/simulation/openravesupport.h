@@ -31,7 +31,7 @@ enum TrimeshMode {
     RAW // use btBvhTriangleMeshShape (not recommended, makes simulation very slow)
 };
 
-class RaveRobotKinematicObject : public CompoundObject<BulletKinematicObject> {
+class RaveRobotKinematicObject : public CompoundObject<BulletObject> {
 private:
     RaveInstance::Ptr rave;
     btTransform initialTransform;
@@ -42,16 +42,16 @@ private:
     std::vector<boost::shared_ptr<btCollisionShape> > subshapes;
 
     // for looking up the associated Bullet object for an OpenRAVE link
-    std::map<KinBody::LinkPtr, BulletKinematicObject::Ptr> linkMap;
+    std::map<KinBody::LinkPtr, BulletObject::Ptr> linkMap;
     std::map<btCollisionObject *, KinBody::LinkPtr> collisionObjMap;
 
     // maps a child to a position in the children array. used for copying
-    std::map<BulletKinematicObject::Ptr, int> childPosMap;
+    std::map<BulletObject::Ptr, int> childPosMap;
 
     // vector of objects to ignore collision with
     BulletInstance::CollisionObjectSet ignoreCollisionObjs;
 
-    // for the loaded robot, this will create BulletKinematicObjects
+    // for the loaded robot, this will create BulletObjects
     // and place them into the children vector
     void initRobotWithoutDynamics(const btTransform &initialTransform, TrimeshMode trimeshMode, float fmargin=0.0005);
 
@@ -64,7 +64,7 @@ public:
     RobotBasePtr robot;
     const btScalar scale;
 
-    // this class is actually a collection of BulletKinematicObjects,
+    // this class is actually a collection of BulletObjects,
     // each of which represents a link of the robot
     RaveRobotKinematicObject(RaveInstance::Ptr rave_,
             const std::string &uri,
@@ -78,9 +78,9 @@ public:
     void postCopy(EnvironmentObject::Ptr copy, Fork &f) const;
 
     // Gets equivalent rigid bodies in OpenRAVE and in Bullet
-    BulletKinematicObject::Ptr associatedObj(KinBody::LinkPtr link) const {
-        std::map<KinBody::LinkPtr, BulletKinematicObject::Ptr>::const_iterator i = linkMap.find(link);
-        return i == linkMap.end() ? BulletKinematicObject::Ptr() : i->second;
+    BulletObject::Ptr associatedObj(KinBody::LinkPtr link) const {
+        std::map<KinBody::LinkPtr, BulletObject::Ptr>::const_iterator i = linkMap.find(link);
+        return i == linkMap.end() ? BulletObject::Ptr() : i->second;
     }
     KinBody::LinkPtr associatedObj(btCollisionObject *obj) const {
         std::map<btCollisionObject *, KinBody::LinkPtr>::const_iterator i = collisionObjMap.find(obj);

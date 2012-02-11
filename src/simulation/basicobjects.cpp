@@ -26,6 +26,51 @@ btRigidBody::btRigidBodyConstructionInfo getCI(btScalar mass, boost::shared_ptr<
   return ci;
 }
 
+BulletObject::MotionState::Ptr BulletObject::MotionState::clone(BulletObject *newObj) {
+    btTransform t; getWorldTransform(t);
+    return Ptr(new MotionState(newObj, t));
+}
+
+BulletObject::BulletObject(CI ci, const btTransform &initTrans, bool isKinematic_) : isKinematic(isKinematic_) {
+    BOOST_ASSERT(ci.m_motionState == NULL);
+    if (isKinematic) {
+        ci.m_mass = 0;
+        ci.m_localInertia = btVector3(0, 0, 0);
+    }
+    motionState.reset(new MotionState(this, initTrans));
+    ci.m_motionState = motionState.get();
+    collisionShape.reset(ci.m_collisionShape);
+    rigidBody.reset(new btRigidBody(ci));
+    if (isKinematic)
+        rigidBody->setCollisionFlags(rigidBody->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);
+    rigidBody->setActivationState(DISABLE_DEACTIVATION);
+}
+
+BulletObject::BulletObject(btScalar mass, btCollisionShape *cs, const btTransform &initTrans, bool isKinematic_) : isKinematic(isKinematic_) {
+    motionState.reset(new MotionState(this, initTrans));
+    collisionShape.reset(cs);
+
+    btVector3 fallInertia(0,0,0);
+    if (!isKinematic)
+        collisionShape->calculateLocalInertia(mass, fallInertia);
+    CI ci(mass, cs, fallInertia);
+    ci.m_motionState = motionState.get();
+
+    rigidBody.reset(new btRigidBody(ci));
+    rigidBody->setActivationState(DISABLE_DEACTIVATION);
+}
+
+#if 0
+BulletObject::BulletObject(MotionState *ms, btCollisionShape *cs, btRigidBody *rb, bool isKinematic_=false) : motionState(ms), collisionShape(cs), rigidBody(rb), isKinematic(isKinematic_) { }
+
+BulletObject::BulletObject(btCollisionShape *cs, btScalar mass, const btTransform &initTrans, bool isKinematic_=false) {
+    motionState.reset(new MotionState(*this, initTrans));
+    collisionShape.reset(cs);
+    btRigidBody::btRigidBodyConstructionInfo ci(mass, motionState.get(), collisionShape.get());
+    rigidBody.reset(new btRigidBody(ci));
+}
+#endif
+
 void BulletObject::init() {
     getEnvironment()->bullet->dynamicsWorld->addRigidBody(rigidBody.get());
     node = createOSGNode();
@@ -74,7 +119,7 @@ void BulletObject::destroy() {
     getEnvironment()->bullet->dynamicsWorld->removeRigidBody(rigidBody.get());
 }
 
-BulletObject::BulletObject(const BulletObject &o) {
+BulletObject::BulletObject(const BulletObject &o) : isKinematic(o.isKinematic) {
     // we need to access lots of private members of btRigidBody and etc
     // the easiest way to do this is to use serialization
 
@@ -83,7 +128,7 @@ BulletObject::BulletObject(const BulletObject &o) {
     collisionShape = o.collisionShape;
 
     // then copy the motionstate
-    motionState.reset(new btDefaultMotionState(*o.motionState.get()));
+    motionState = o.motionState->clone(this);
 
     // then serialize the rigid body
     boost::shared_ptr<btDefaultSerializer> serializer(new btDefaultSerializer());
@@ -191,6 +236,7 @@ void BulletObject::setColorAfterInit() {
   }
 }
 
+#if 0
 BulletKinematicObject::BulletKinematicObject(boost::shared_ptr<btCollisionShape> collisionShape_, const btTransform &trans) {
     collisionShape = collisionShape_;
     motionState.reset(new MotionState(this, trans));
@@ -204,6 +250,7 @@ BulletKinematicObject::BulletKinematicObject(boost::shared_ptr<btCollisionShape>
     rigidBody->setCollisionFlags(rigidBody->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);
     rigidBody->setActivationState(DISABLE_DEACTIVATION);
 }
+#endif
 
 //EnvironmentObject::Ptr BulletKinematicObject::copy(Fork &f) const {
 //}
@@ -212,8 +259,8 @@ BulletKinematicObject::BulletKinematicObject(boost::shared_ptr<btCollisionShape>
 GrabberKinematicObject::GrabberKinematicObject(float radius_, float height_) :
     radius(radius_), height(height_),
     constraintPivot(0, 0, height), // this is where objects will attach to
-    BulletKinematicObject(boost::shared_ptr<btCollisionShape>(new btConeShapeZ(radius, height)),
-        btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0))) {
+    BulletObject(0, new btConeShapeZ(radius, height),
+            btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0)), true) {
 }
 
 osg::ref_ptr<osg::Node> GrabberKinematicObject::createOSGNode() {
@@ -278,16 +325,9 @@ void GrabberKinematicObject::releaseConstraint() {
     constraint.reset();
 }
 
-
-PlaneStaticObject::PlaneStaticObject(
-        const btVector3 &planeNormal_,
-        btScalar planeConstant_,
-        boost::shared_ptr<btDefaultMotionState> motionState_, btScalar drawHalfExtents_) :
-            planeNormal(planeNormal_), planeConstant(planeConstant_), drawHalfExtents(drawHalfExtents_) {
-    motionState = motionState_;
-    collisionShape.reset(new btStaticPlaneShape(planeNormal, planeConstant));
-    btRigidBody::btRigidBodyConstructionInfo ci(0., motionState.get(), collisionShape.get(), btVector3(0., 0., 0.));
-    rigidBody.reset(new btRigidBody(ci));
+PlaneStaticObject::PlaneStaticObject(const btVector3 &planeNormal_, btScalar planeConstant_, const btTransform &initTrans, btScalar drawHalfExtents_) :
+    planeNormal(planeNormal_), planeConstant(planeConstant_), drawHalfExtents(drawHalfExtents_),
+    BulletObject(0, new btStaticPlaneShape(planeNormal_, planeConstant_), initTrans) {
 }
 
 osg::ref_ptr<osg::Node> PlaneStaticObject::createOSGNode() {
@@ -311,53 +351,24 @@ osg::ref_ptr<osg::Node> PlaneStaticObject::createOSGNode() {
     return geode;
 }
 
-CylinderStaticObject::CylinderStaticObject(
-        btScalar mass_, btScalar radius_, btScalar height_,
-        boost::shared_ptr<btDefaultMotionState> motionState_) :
-            mass(mass_), radius(radius_), height(height_) {
-    motionState = motionState_;
-    collisionShape.reset(new btCylinderShapeZ(btVector3(radius, radius, height/2.)));
-    btRigidBody::btRigidBodyConstructionInfo ci(mass, motionState.get(),
-                                                collisionShape.get(), btVector3(0., 0., 0.));
-    rigidBody.reset(new btRigidBody(ci));
+CylinderStaticObject::CylinderStaticObject(btScalar mass_, btScalar radius_, btScalar height_, const btTransform &initTrans) :
+    mass(mass_), radius(radius_), height(height_),
+    BulletObject(mass_, new btCylinderShapeZ(btVector3(radius_, radius_, height_/2.)), initTrans) {
 }
 
-SphereObject::SphereObject(btScalar mass_, btScalar radius_, boost::shared_ptr<btDefaultMotionState> motionState_) :
-        mass(mass_), radius(radius_) {
-    motionState = motionState_; 
-    collisionShape.reset(new btSphereShape(radius));
-    btVector3 fallInertia(0, 0, 0);
-    collisionShape->calculateLocalInertia(mass, fallInertia);
-    btRigidBody::btRigidBodyConstructionInfo ci(mass, motionState.get(),
-                                                collisionShape.get(), fallInertia);
-    rigidBody.reset(new btRigidBody(ci));
-    rigidBody->setActivationState(DISABLE_DEACTIVATION);
+SphereObject::SphereObject(btScalar mass_, btScalar radius_, const btTransform &initTrans) :
+    mass(mass_), radius(radius_),
+    BulletObject(mass_, new btSphereShape(radius_), initTrans) {
 }
 
-
-BoxObject::BoxObject(btScalar mass_, btVector3 halfExtents_, boost::shared_ptr<btDefaultMotionState> motionState_) :
-  mass(mass_), halfExtents(halfExtents_) {
-  motionState = motionState_;
-  collisionShape.reset(new btBoxShape(halfExtents));
-  btVector3 fallInertia(0,0,0);
-  collisionShape->calculateLocalInertia(mass,fallInertia);
-  btRigidBody::btRigidBodyConstructionInfo ci(mass, motionState.get(),
-					      collisionShape.get(), fallInertia);
-  rigidBody.reset(new btRigidBody(ci));
-  rigidBody->setActivationState(DISABLE_DEACTIVATION);
+BoxObject::BoxObject(btScalar mass_, const btVector3 &halfExtents_, const btTransform &initTrans) :
+    mass(mass_), halfExtents(halfExtents_),
+    BulletObject(mass_, new btBoxShape(halfExtents_), initTrans) {
 }
 
-
-CapsuleObject::CapsuleObject(btScalar mass_, btScalar radius_, btScalar height_,
-          boost::shared_ptr<btDefaultMotionState> motionState_) : mass(mass_), radius(radius_), height(height_) {
-    motionState = motionState_;
-    collisionShape.reset(new btCapsuleShapeX(radius, height));
-    btVector3 fallInertia(0, 0, 0);
-    collisionShape->calculateLocalInertia(mass, fallInertia);
-    btRigidBody::btRigidBodyConstructionInfo ci(mass, motionState.get(),
-                                                collisionShape.get(), fallInertia);
-    rigidBody.reset(new btRigidBody(ci));
-    rigidBody->setActivationState(DISABLE_DEACTIVATION);
+CapsuleObject::CapsuleObject(btScalar mass_, btScalar radius_, btScalar height_, const btTransform &initTrans) :
+    mass(mass_), radius(radius_), height(height_),
+    BulletObject(mass, new btCapsuleShapeX(radius_, height_), initTrans) {
 }
 
 osg::ref_ptr<osg::Node> CapsuleObject::createOSGNode() {
