@@ -78,10 +78,8 @@ int main(int argc, char* argv[]) {
   /// add stuff to scene
   MotionStatePtr ms(new btDefaultMotionState(btTransform(btQuaternion(0,0,0,1), btVector3(0,0,2))));
 
-  if (TrackingConfig::showSim) {
-    scene.env->add(towel);
-    scene.env->add(table);
-  }
+  scene.env->add(towel);
+  scene.env->add(table);
   if (TrackingConfig::showKinect) scene.env->add(kinectPts);
   if (TrackingConfig::showEst) scene.env->add(towelEstPlot);
   if (TrackingConfig::showObs) scene.env->add(towelObsPlot);
@@ -98,8 +96,10 @@ int main(int argc, char* argv[]) {
 
     ColorCloudPtr cloudCam  = cloudMsg.m_data;
     ColorCloudPtr cloudWorld(new ColorCloud());
-    pcl::transformPointCloud(*cloudCam, *cloudWorld, CT.worldFromCamEigen);
-    kinectPts->setPoints(cloudWorld);
+    if (TrackingConfig::showKinect) {
+      pcl::transformPointCloud(*cloudCam, *cloudWorld, CT.worldFromCamEigen);
+      kinectPts->setPoints(cloudWorld);
+    }
 
     vector<btVector3> towelObsPts =  CT.toWorldFromCamN(toBulletVectors(towelPtsMsg.m_data));
     towelObsPlot->setPoints(towelObsPts);

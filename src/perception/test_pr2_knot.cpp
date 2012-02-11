@@ -100,10 +100,8 @@ int main(int argc, char *argv[]) {
 
   // setup scene
   if (TrackingConfig::showKinect) scene.env->add(kinectPts);
-  if (TrackingConfig::showSim) {
-    scene.env->add(rope);
-    scene.env->add(table);
-  }
+  scene.env->add(rope);
+  scene.env->add(table);
   if (TrackingConfig:: showLines) scene.env->add(corrPlots.m_lines);
   lMonitor.setBodies(rope->children);
   rMonitor.setBodies(rope->children);

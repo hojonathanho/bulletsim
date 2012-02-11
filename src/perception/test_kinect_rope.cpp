@@ -69,10 +69,8 @@ int main(int argc, char *argv[]) {
   // setup scene
   Scene scene;
   if (TrackingConfig::showKinect) scene.env->add(kinectPts);
-  if (TrackingConfig::showSim) {
-    scene.env->add(rope);
-    scene.env->add(table);
-  }
+  scene.env->add(rope);
+  scene.env->add(table);
   if (TrackingConfig::showObs) scene.env->add(obsPlot);
   if (TrackingConfig::showLines) scene.env->add(corrPlots.m_lines);
 
@@ -100,8 +98,10 @@ int main(int argc, char *argv[]) {
   while (pcSub.recv(cloudMsg)) {
     ColorCloudPtr cloudCam  = cloudMsg.m_data;
     ColorCloudPtr cloudWorld(new ColorCloud());
-    pcl::transformPointCloud(*cloudCam, *cloudWorld, CT.worldFromCamEigen);
-    kinectPts->setPoints(cloudWorld);
+    if (TrackingConfig::showKinect) {
+      pcl::transformPointCloud(*cloudCam, *cloudWorld, CT.worldFromCamEigen);
+      kinectPts->setPoints(cloudWorld);
+    }
     cout << "loaded cloud " << count << endl;
     count++;
 

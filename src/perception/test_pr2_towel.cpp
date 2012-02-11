@@ -99,10 +99,8 @@ int main(int argc, char* argv[]) {
 
   /// add stuff to scene
 
-  if (TrackingConfig::showSim) {
-    scene.env->add(towel);
-    scene.env->add(table);
-  }
+  scene.env->add(towel);
+  scene.env->add(table);
   if (TrackingConfig::showKinect) scene.env->add(kinectPts);
   if (TrackingConfig::showEst) scene.env->add(towelEstPlot);
   if (TrackingConfig::showObs) scene.env->add(towelObsPlot);

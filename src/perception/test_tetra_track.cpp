@@ -93,10 +93,8 @@ int main(int argc, char* argv[]) {
 //  BulletSoftObject::Ptr sponge = makeTetraBox(newCorners, 2.5*INCHES, scene.env->bullet->softBodyWorldInfo);
 
   /// add stuff to scene
-  if (TrackingConfig::showSim) {
-    scene.env->add(sponge);
-    scene.env->add(table);
-  }
+  scene.env->add(sponge);
+  scene.env->add(table);
   if (TrackingConfig::showKinect) scene.env->add(kinectPts);
   if (TrackingConfig::showEst) scene.env->add(towelEstPlot);
   if (TrackingConfig::showObs) scene.env->add(towelObsPlot);
