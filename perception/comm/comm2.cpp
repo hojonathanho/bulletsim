@@ -27,7 +27,7 @@ bool yesOrNo(char message[]) {
     char yn;
     cin >> yn;
     if (yn == 'y') return true;
-    else if (yn == 'n') exit(0);
+    else if (yn == 'n') exit(1);
   }
 }
 
@@ -102,9 +102,6 @@ void initComm() {
   if (maybeTimeout) TIMEOUT = boost::lexical_cast<float>(maybeTimeout);
 }
 
-path absPath(string path) {
-  return DATA_ROOT / path;
-}
 path topicPath(string topic) {
   return DATA_ROOT / topic;
 }
@@ -143,6 +140,29 @@ PathPair makePathPair(int id, string extension, string topic) {
   return PathPair(makeDataName(id,extension,topic),
 		  makeInfoName(id,topic));
 }
+
+bool waitIfLive(path p) {
+  // Checks if file exists. If LIVE, waits up to TIMEOUT if it doesn't exist
+  if (LIVE) {
+    double tStart = timeOfDay();
+    while(timeOfDay() - tStart < TIMEOUT) {
+      if (exists(p)) return true;
+      else usleep(1000);
+    }
+    return false;
+  }
+  else return exists(p);
+}
+void waitIfThrottled(string topic) {
+  path throttleFile = filePath("STOP", topic);
+  while (exists(throttleFile)) usleep(10000);
+}
+bool getThrottled(string topic) {
+  path throttleFile = filePath("STOP", topic);
+  return exists(throttleFile);
+}
+
+
 
 PathPair Names::getCur() const {
   return makePathPair(m_id, m_extension, m_topic);
@@ -209,19 +229,6 @@ FilePublisher::FilePublisher(string topic, string extension) : m_names(topic, ex
 void FilePublisher::send(const Message& message) {
   PathPair pair = m_names.getCurAndStep();
   message.toFiles(pair);
-}
-
-bool waitIfLive(path p) {
-  // Checks if file exists. If LIVE, waits up to TIMEOUT if it doesn't exist
-  if (LIVE) {
-    double tStart = timeOfDay();
-    while(timeOfDay() - tStart < TIMEOUT) {
-      if (exists(p)) return true;
-      else usleep(1000);
-    }
-    return false;
-  }
-  else return exists(p);
 }
 
 FileSubscriber::FileSubscriber(string topic, string extension) : m_names(topic, extension) {}

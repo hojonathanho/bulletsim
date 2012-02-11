@@ -35,9 +35,6 @@ void setTimeout(float timeout);
 
 void initComm();
 
-
-
-//void absPath(string rel);
 path topicPath(string topic);
 path filePath(string basename, string topic);
 path onceFile(string basename);
@@ -50,6 +47,9 @@ path makeDataName(int id, string extension, string topic);
 path makeInfoName(int id, string topic);
 PathPair makePathPair(int id, string extension, string topic);
 Value readJson(path p);
+bool waitIfLive(path p);
+void waitIfThrottled(string topic);
+bool getThrottled(string topic);
 
 class Names {
 public:
