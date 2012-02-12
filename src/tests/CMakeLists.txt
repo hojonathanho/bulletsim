@@ -7,6 +7,9 @@ target_link_libraries(test_basescene simulation)
 add_executable(test_scenecontrol test_scenecontrol.cpp)
 target_link_libraries(test_scenecontrol simulation)
 
+add_executable(test_choose_action test_choose_action.cpp)
+target_link_libraries(test_basescene simulation)
+
 add_executable(test_simplescene test_simplescene.cpp)
 target_link_libraries(test_simplescene simulation)
 
