@@ -17,13 +17,10 @@ int main(int argc, char *argv[]) {
 
     Scene scene;
 
-    boost::shared_ptr<btDefaultMotionState> ms;
-    ms.reset(new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 10))));
-    SphereObject::Ptr sphere(new SphereObject(1, 0.1, ms));
+    SphereObject::Ptr sphere(new SphereObject(1, 0.1, btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 10))));
     scene.env->add(sphere);
 
-    ms.reset(new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0.5, 1))));
-    BoxObject::Ptr box(new BoxObject(0.1, btVector3(0.1, 0.1, 0.1), ms));
+    BoxObject::Ptr box(new BoxObject(0.1, btVector3(0.1, 0.1, 0.1), btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0.5, 1))));
     scene.env->add(box);
 
     box->rigidBody->setCenterOfMassTransform(btTransform(btQuaternion(0, 0, 0, 1), btVector3(1, 0.5, 1)));

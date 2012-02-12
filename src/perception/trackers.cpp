@@ -43,8 +43,7 @@ void MultiPointTrackerRigid::updatePos(int iBody, const btVector3& newPos) {
 TrackerPlotter::TrackerPlotter(MultiPointTrackerRigid& tracker) : m_tracker(&tracker), m_N(tracker.m_N) {
   for (int i=0; i < m_tracker->m_N; i++) {
     btVector3 curPos = m_tracker->m_bodies[i]->getCenterOfMassPosition();
-    MotionStatePtr ms(new btDefaultMotionState(btTransform(btQuaternion(0,0,0,1),curPos)));
-    BulletObject::Ptr fakeObject(new SphereObject(0,.015*METERS, ms));
+    BulletObject::Ptr fakeObject(new SphereObject(0,.015*METERS, btTransform(btQuaternion(0,0,0,1),curPos)));
     fakeObject->rigidBody->setCollisionFlags(btRigidBody::CF_NO_CONTACT_RESPONSE);
     fakeObject->rigidBody->setActivationState(DISABLE_DEACTIVATION);
     m_fakeObjects.push_back(fakeObject);

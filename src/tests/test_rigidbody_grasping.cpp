@@ -169,16 +169,12 @@ struct CustomScene : public Scene {
         const float table_height = .5;
         const float table_thickness = .05;
 
-        boost::shared_ptr<btDefaultMotionState> ms(new btDefaultMotionState(
-            btTransform(btQuaternion(0, 0, 0, 1),
-                        GeneralConfig::scale * btVector3(1, 0, table_height-table_thickness/2))));
-        BoxObject::Ptr table(
-            new BoxObject(0, GeneralConfig::scale * btVector3(.75,.75,table_thickness/2),ms));
+        BoxObject::Ptr table(new BoxObject(0, GeneralConfig::scale * btVector3(.75,.75,table_thickness/2),
+                btTransform(btQuaternion(0, 0, 0, 1), GeneralConfig::scale * btVector3(1, 0, table_height-table_thickness/2))));
         env->add(table);
 
-        ms.reset(new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1),
-                 GeneralConfig::scale * btVector3(0.7, 0.188, table_height + 0.1/2))));
-        BoxObject::Ptr box(new BoxObject(1, GeneralConfig::scale * btVector3(.03, .03, .03), ms));
+        BoxObject::Ptr box(new BoxObject(1, GeneralConfig::scale * btVector3(.03, .03, .03),
+                btTransform(btQuaternion(0, 0, 0, 1), GeneralConfig::scale * btVector3(0.7, 0.188, table_height + 0.1/2))));
         env->add(box);
         pr2m.pr2->ignoreCollisionWith(box->rigidBody.get());
 

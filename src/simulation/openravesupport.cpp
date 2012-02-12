@@ -46,15 +46,15 @@ void RaveRobotKinematicObject::initRobotWithoutDynamics(const btTransform &initi
     for (std::vector<KinBody::LinkPtr>::const_iterator link = links.begin(); link != links.end(); ++link) {
         const std::list<KinBody::Link::GEOMPROPERTIES> &geometries = (*link)->GetGeometries();
         // sometimes the OpenRAVE link might not even have any geometry data associated with it
-        // (this is the case with the PR2 model). therefore just add an empty BulletKinematicObject
+        // (this is the case with the PR2 model). therefore just add an empty BulletObject
         // pointer so we know to skip it in the future
         if (geometries.empty()) {
-            getChildren().push_back(BulletKinematicObject::Ptr());
+            getChildren().push_back(BulletObject::Ptr());
             continue;
         }
 
         // each link is a compound of several btCollisionShapes
-        boost::shared_ptr<btCompoundShape> compound(new btCompoundShape());
+        btCompoundShape *compound = new btCompoundShape();
         compound->setMargin(fmargin);
 
         for (std::list<KinBody::Link::GEOMPROPERTIES>::const_iterator geom = geometries.begin();
@@ -141,7 +141,7 @@ void RaveRobotKinematicObject::initRobotWithoutDynamics(const btTransform &initi
         }
 
         btTransform childTrans = initialTransform * util::toBtTransform((*link)->GetTransform(), scale);
-        BulletKinematicObject::Ptr child(new BulletKinematicObject(compound, childTrans));
+        BulletObject::Ptr child(new BulletObject(0, compound, childTrans, true));
         getChildren().push_back(child);
         linkMap[*link] = child;
         collisionObjMap[child->rigidBody.get()] = *link;
@@ -158,7 +158,7 @@ bool RaveRobotKinematicObject::detectCollisions() {
 
     BulletInstance::CollisionObjectSet objs;
     for (int i = 0; i < getChildren().size(); ++i) {
-        BulletKinematicObject::Ptr child = getChildren()[i];
+        BulletObject::Ptr child = getChildren()[i];
         if (!child) continue;
         objs.clear();
         getEnvironment()->bullet->contactTest(child->rigidBody.get(),
@@ -186,31 +186,34 @@ void RaveRobotKinematicObject::setDOFValues(const vector<int> &indices, const ve
     vector<OpenRAVE::Transform> transforms;
     robot->GetLinkTransformations(transforms);
     BOOST_ASSERT(transforms.size() == getChildren().size());
-    for (int i = 0; i < getChildren().size(); ++i)
-        if (getChildren()[i])
-            getChildren()[i]->getKinematicMotionState().setKinematicPos(
-                initialTransform * util::toBtTransform(transforms[i], scale));
+    for (int i = 0; i < getChildren().size(); ++i) {
+        BulletObject::Ptr c = getChildren()[i];
+        if (!c) continue;
+        c->motionState->setKinematicPos(initialTransform * util::toBtTransform(transforms[i], scale));
+    }
 }
 
 EnvironmentObject::Ptr RaveRobotKinematicObject::copy(Fork &f) const {
     Ptr o(new RaveRobotKinematicObject(scale));
 
-    internalCopy(o, f);
+    internalCopy(o, f); // copies all children
 
-    o->rave.reset(new RaveInstance(*rave.get(), OpenRAVE::Clone_Bodies));
+    o->initialTransform = initialTransform;
+    o->rave.reset(new RaveInstance(*rave, OpenRAVE::Clone_Bodies));
 
-    for (std::map<KinBody::LinkPtr, BulletKinematicObject::Ptr>::const_iterator i = linkMap.begin();
+    // now we need to set up mappings in the copied robot
+    for (std::map<KinBody::LinkPtr, BulletObject::Ptr>::const_iterator i = linkMap.begin();
             i != linkMap.end(); ++i) {
         const KinBody::LinkPtr raveObj = o->rave->env->GetKinBody(i->first->GetParent()->GetName())->GetLink(i->first->GetName());
 
         const int j = childPosMap.find(i->second)->second;
-        const BulletKinematicObject::Ptr bulletObj = o->getChildren()[j];
+        const BulletObject::Ptr bulletObj = o->getChildren()[j];
 
         o->linkMap.insert(std::make_pair(raveObj, bulletObj));
         o->collisionObjMap.insert(std::make_pair(bulletObj->rigidBody.get(), raveObj));
     }
 
-    for (std::map<BulletKinematicObject::Ptr, int>::const_iterator i = childPosMap.begin();
+    for (std::map<BulletObject::Ptr, int>::const_iterator i = childPosMap.begin();
             i != childPosMap.end(); ++i) {
         const int j = childPosMap.find(i->first)->second;
         o->childPosMap.insert(std::make_pair(o->getChildren()[j], i->second));
@@ -240,7 +243,7 @@ RaveRobotKinematicObject::createManipulator(const std::string &manipName, bool u
     RaveRobotKinematicObject::Manipulator::Ptr m(new Manipulator(this));
     // initialize the ik module
     robot->SetActiveManipulator(manipName);
-    m->manip = robot->GetActiveManipulator();
+    m->manip = m->origManip = robot->GetActiveManipulator();
     m->ikmodule = RaveCreateModule(rave->env, "ikfast");
     rave->env->AddModule(m->ikmodule, "");
     stringstream ssin, ssout;
@@ -265,7 +268,7 @@ RaveRobotKinematicObject::createManipulator(const std::string &manipName, bool u
 void RaveRobotKinematicObject::Manipulator::updateGrabberPos() {
     // set the grabber right on top of the end effector
     if (useFakeGrabber)
-        grabber->getKinematicMotionState().setKinematicPos(getTransform());
+        grabber->motionState->setKinematicPos(getTransform());
 }
 
 bool RaveRobotKinematicObject::Manipulator::moveByIKUnscaled(
@@ -274,7 +277,9 @@ bool RaveRobotKinematicObject::Manipulator::moveByIKUnscaled(
 
     vector<dReal> vsolution;
     // TODO: lock environment?!?!
-    if (!manip->FindIKSolution(IkParameterization(targetTrans), vsolution, true)) {
+    // notice: we use origManip, which is the original manipulator (after cloning)
+    // this way we don't have to clone the iksolver, which is attached to the manipulator
+    if (!origManip->FindIKSolution(IkParameterization(targetTrans), vsolution, true)) {
         stringstream ss;
         ss << "failed to get solution for target transform for end effector: " << targetTrans << endl;
         RAVELOG_DEBUG(ss.str());
@@ -307,7 +312,9 @@ RaveRobotKinematicObject::Manipulator::copy(RaveRobotKinematicObject::Ptr newRob
     OpenRAVE::EnvironmentMutex::scoped_lock lock(newRobot->rave->env->GetMutex());
 
     Manipulator::Ptr o(new Manipulator(newRobot.get()));
-    o->ikmodule = ikmodule; // use same ik module
+
+    o->ikmodule = ikmodule;
+    o->origManip = origManip;
 
     newRobot->robot->SetActiveManipulator(manip->GetName());
     o->manip = newRobot->robot->GetActiveManipulator();

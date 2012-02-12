@@ -23,9 +23,7 @@ Scene::Scene() {
     env->add(plotLines);
 
     // populate the scene with some basic objects
-    boost::shared_ptr<btDefaultMotionState> ms;
-    ms.reset(new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0))));
-    ground.reset(new PlaneStaticObject(btVector3(0., 0., 1.), 0., ms));
+    ground.reset(new PlaneStaticObject(btVector3(0., 0., 1.), 0., btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0))));
     env->add(ground);
 
     // default callbacks

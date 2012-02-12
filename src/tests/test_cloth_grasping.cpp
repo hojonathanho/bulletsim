@@ -245,7 +245,7 @@ struct CustomScene : public Scene {
     BulletInstance::Ptr bullet2;
     OSGInstance::Ptr osg2;
     Fork::Ptr fork;
-    RaveRobotKinematicObject::Ptr tmpRobot;
+    RaveRobotKinematicObject::Ptr origRobot, tmpRobot;
     PR2Manager pr2m;
 
     CustomScene() : pr2m(*this) { }
@@ -333,6 +333,7 @@ void CustomScene::createFork() {
 
     cout << "forked!" << endl;
 
+    origRobot = pr2m.pr2;
     EnvironmentObject::Ptr p = fork->forkOf(pr2m.pr2);
     if (!p) {
         cout << "failed to get forked version of robot!" << endl;
@@ -346,12 +347,19 @@ void CustomScene::createFork() {
 void CustomScene::swapFork() {
     // swaps the forked robot with the real one
     cout << "swapping!" << endl;
-    vector<int> indices; vector<dReal> vals;
+    int leftidx = pr2m.pr2Left->index;
+    int rightidx = pr2m.pr2Right->index;
+    origRobot.swap(tmpRobot);
+    pr2m.pr2 = origRobot;
+    pr2m.pr2Left = pr2m.pr2->getManipByIndex(leftidx);
+    pr2m.pr2Right = pr2m.pr2->getManipByIndex(rightidx);
+
+/*    vector<int> indices; vector<dReal> vals;
     for (int i = 0; i < tmpRobot->robot->GetDOF(); ++i) {
         indices.push_back(i);
         vals.push_back(0);
     }
-    tmpRobot->setDOFValues(indices, vals);
+    tmpRobot->setDOFValues(indices, vals);*/
 }
 
 void CustomScene::run() {
@@ -360,11 +368,9 @@ void CustomScene::run() {
     const float dt = BulletConfig::dt;
     const float table_height = .5;
     const float table_thickness = .05;
-    boost::shared_ptr<btDefaultMotionState> ms(new btDefaultMotionState(
-        btTransform(btQuaternion(0, 0, 0, 1),
-                    GeneralConfig::scale * btVector3(1.2, 0, table_height-table_thickness/2))));
     BoxObject::Ptr table(
-        new BoxObject(0, GeneralConfig::scale * btVector3(.75,.75,table_thickness/2),ms));
+        new BoxObject(0, GeneralConfig::scale * btVector3(.75,.75,table_thickness/2),
+            btTransform(btQuaternion(0, 0, 0, 1), GeneralConfig::scale * btVector3(1.2, 0, table_height-table_thickness/2))));
     table->rigidBody->setFriction(10);
 
     BulletSoftObject::Ptr cloth(

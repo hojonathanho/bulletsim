@@ -64,19 +64,16 @@ void CustomScene::run() {
     const float dt = BulletConfig::dt;
     const float table_height = .5;
     const float table_thickness = .05;
-    boost::shared_ptr<btDefaultMotionState> ms(new btDefaultMotionState(
-        btTransform(btQuaternion(0, 0, 0, 1),
-                    GeneralConfig::scale * btVector3(1.25, 0, table_height-table_thickness/2))));
-    table.reset(new BoxObject(0, GeneralConfig::scale * btVector3(.75,.75,table_thickness/2),ms));
+    table.reset(new BoxObject(0, GeneralConfig::scale * btVector3(.75,.75,table_thickness/2),
+                btTransform(btQuaternion(0, 0, 0, 1), GeneralConfig::scale * btVector3(1.25, 0, table_height-table_thickness/2))));
     env->add(table);
 
     cloth = createCloth(GeneralConfig::scale * 0.25, GeneralConfig::scale * btVector3(1, 0, 1), 31);
     env->add(cloth);
 
     const float radius = 0.1;
-    ms.reset(new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1),
-                    GeneralConfig::scale * btVector3(1.1, 0, table_height + radius))));
-    sphere.reset(new SphereObject(1, GeneralConfig::scale * radius, ms));
+    sphere.reset(new SphereObject(1, GeneralConfig::scale * radius,
+                btTransform(btQuaternion(0, 0, 0, 1), GeneralConfig::scale * btVector3(1.1, 0, table_height + radius))));
     env->add(sphere);
 
     startViewer();
