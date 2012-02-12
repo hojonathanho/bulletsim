@@ -33,17 +33,17 @@ add_executable(pcd_picker pcd_picker.cpp)
 target_link_libraries(pcd_picker ${PCL_LIBRARIES})
 
 add_executable(comm_get_table comm_get_table.cpp)
-target_link_libraries(comm_get_table ${PCL_LIBRARIES} clouds comm2 boost_program_options)
+target_link_libraries(comm_get_table ${PCL_LIBRARIES} clouds comm boost_program_options)
 
 add_executable(comm_write_pcds comm_write_pcds.cpp)
-target_link_libraries(comm_write_pcds clouds ${PCL_LIBRARIES} comm2 boost_program_options)
+target_link_libraries(comm_write_pcds clouds ${PCL_LIBRARIES} comm boost_program_options)
 
 
 add_executable(test_cloud_filtering test_cloud_filtering.cpp)
 target_link_libraries(test_cloud_filtering clouds ${PCL_LIBRARIES} ${OpenCV_LIBS})
 
 add_executable(comm_downsample_clouds comm_downsample_clouds.cpp)
-target_link_libraries(comm_downsample_clouds clouds ${PCL_LIBRARIES} boost_program_options comm2 ${OpenCV_LIBS})
+target_link_libraries(comm_downsample_clouds clouds ${PCL_LIBRARIES} boost_program_options comm ${OpenCV_LIBS})
 
 add_executable(test_utils test_utils.cpp)
 target_link_libraries(test_utils ${PCL_LIBRARIES} clouds)

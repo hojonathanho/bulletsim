@@ -1,6 +1,6 @@
 #include <iostream>
 #include <string>
-#include "comm/comm2.h"
+#include "comm/comm.h"
 #include "comm/comm_eigen.h"
 
 #include "comm_pcl.h"

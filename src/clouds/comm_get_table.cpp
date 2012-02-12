@@ -4,7 +4,7 @@
 #include <boost/program_options.hpp>
 #include "geom.h"
 #include "get_table.h"
-#include "comm/comm2.h"
+#include "comm/comm.h"
 #include "utils/my_assert.h"
 
 using namespace pcl;

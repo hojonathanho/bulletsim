@@ -1,6 +1,6 @@
 #include <iostream>
 #include <string>
-#include "comm/comm2.h"
+#include "comm/comm.h"
 #include "comm_pcl.h"
 #include <boost/program_options.hpp>
 

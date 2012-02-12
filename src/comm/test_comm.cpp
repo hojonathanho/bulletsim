@@ -5,7 +5,7 @@
 #include <boost/foreach.hpp>
 #include <json/json.h>
 
-#include "comm2.h"
+#include "comm.h"
 #include "comm_eigen.h"
 #include "utils/testing.h"
 namespace fs = boost::filesystem;

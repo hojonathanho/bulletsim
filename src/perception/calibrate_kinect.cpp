@@ -2,7 +2,7 @@
 #include "simulation/bullet_typedefs.h"
 #include "clouds/comm_pcl.h"
 #include "clouds/geom.h"
-#include "comm/comm2.h"
+#include "comm/comm.h"
 #include "simulation/config_bullet.h"
 #include "config_perception.h"
 #include "get_nodes.h"

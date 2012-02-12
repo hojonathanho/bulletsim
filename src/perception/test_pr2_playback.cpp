@@ -4,7 +4,7 @@
 #include <pcl/common/transforms.h>
 
 #include "clouds/comm_pcl.h"
-#include "comm/comm2.h"
+#include "comm/comm.h"
 #include "simulation/config_bullet.h"
 #include "config_perception.h"
 #include "make_bodies.h"

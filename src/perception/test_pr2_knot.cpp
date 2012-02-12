@@ -4,7 +4,7 @@
 #include "clouds/comm_pcl.h"
 #include "clouds/utils_cv.h"
 #include "clouds/utils_pcl.h"
-#include "comm/comm2.h"
+#include "comm/comm.h"
 #include "simulation/config_bullet.h"
 #include "config_perception.h"
 #include "robots/grabbing.h"

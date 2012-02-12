@@ -18,7 +18,7 @@
 
 #include "clouds/comm_pcl.h"
 #include "clouds/geom.h"
-#include "comm/comm2.h"
+#include "comm/comm.h"
 
 #include "robots/grabbing.h"
 #include "robots/pr2.h"

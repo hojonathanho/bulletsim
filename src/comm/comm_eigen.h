@@ -1,4 +1,4 @@
-#include "comm2.h"
+#include "comm.h"
 #include <Eigen/Dense>
 
 struct EigenMessage : Message {
