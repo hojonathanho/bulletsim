@@ -14,3 +14,4 @@ bool TrackingConfig::showKinect = true;
 bool TrackingConfig::showSim = true;
 bool TrackingConfig::startIdle = false;
 float TrackingConfig::towelRes = 1;
+float TrackingConfig::towelStiffness = 1;
