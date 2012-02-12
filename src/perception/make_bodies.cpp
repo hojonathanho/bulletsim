@@ -19,9 +19,7 @@ BulletObject::Ptr makeTable(const vector<btVector3>& corners, float thickness) {
   cout << "origin: " << origin << endl;
   cout << "halfExtents: " << halfExtents << endl;
 
-  shared_ptr<btDefaultMotionState> ms(new btDefaultMotionState(btTransform(btQuaternion(0,0,0,1),origin)));  
-  return BulletObject::Ptr(new BoxObject(0,halfExtents,ms));
-
+  return BulletObject::Ptr(new BoxObject(0,halfExtents,btTransform(btQuaternion(0,0,0,1),origin)));
 }
 
 BulletSoftObject::Ptr makeTowel(const vector<btVector3>& points, btSoftBodyWorldInfo& worldInfo) {

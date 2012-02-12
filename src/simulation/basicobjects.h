@@ -8,28 +8,62 @@
 // (the OSG model will be created from the btRigidBody, and
 // will be added to the scene graph and the dynamics world, respectively)
 class BulletObject : public EnvironmentObject {
+protected:
+    struct MotionState : public btDefaultMotionState {
+        typedef boost::shared_ptr<MotionState> Ptr;
+        BulletObject &obj;
+
+        MotionState(BulletObject &obj_, const btTransform &trans) :
+            obj(obj_), btDefaultMotionState(trans) { }
+
+        void setWorldTransform(const btTransform &t) {
+            if (!obj.isKinematic)
+                btDefaultMotionState::setWorldTransform(t);
+        }
+
+        void setKinematicPos(const btTransform &pos) {
+            if (!obj.isKinematic) {
+                cout << "warning: calling setKinematicPos on the motionstate of a non-kinematic object" << endl;
+                return;
+            }
+            btDefaultMotionState::setWorldTransform(pos);
+            // if we want to do collision detection in between timesteps,
+            // we also have to directly set this
+            obj.rigidBody->setCenterOfMassTransform(pos);
+        }
+
+        Ptr clone(BulletObject &newObj);
+    };
+
 public:
     typedef boost::shared_ptr<BulletObject> Ptr;
 
-    // Bullet members
+    const bool isKinematic;
+
+    // BULLET MEMBERS
     boost::shared_ptr<btRigidBody> rigidBody;
     // the motionState and collisionShape actually don't matter; the ones
     // embedded in the rigidBody are used for simulation. However,
     // placing them here will have them automatically deallocated
     // on destruction of the BulletObject
-    boost::shared_ptr<btDefaultMotionState> motionState;
+    MotionState::Ptr motionState;
     boost::shared_ptr<btCollisionShape> collisionShape;
 
-    // OSG members
+    // OSG MEMBERS
     osg::ref_ptr<osg::Node> node;
     osg::ref_ptr<osg::MatrixTransform> transform;
 
-    BulletObject() { }
-    BulletObject(boost::shared_ptr<btCollisionShape> collisionShape_, boost::shared_ptr<btRigidBody> rigidBody_) :
-      collisionShape(collisionShape_), rigidBody(rigidBody_), motionState(new btDefaultMotionState()) { }
-    BulletObject(boost::shared_ptr<btCollisionShape> collisionShape_, boost::shared_ptr<btRigidBody> rigidBody_,
-            boost::shared_ptr<btDefaultMotionState> motionState_) :
-      collisionShape(collisionShape_), rigidBody(rigidBody_), motionState(motionState_) { }
+    // CONSTRUCTORS
+    // our own construction info class, which forces motionstate to be null
+    struct CI : public btRigidBody::btRigidBodyConstructionInfo {
+        CI(btScalar mass, btCollisionShape *collisionShape, const btVector3 &localInertia=btVector3(0,0,0)) :
+            btRigidBody::btRigidBodyConstructionInfo(mass, NULL, collisionShape, localInertia) { }
+    };
+    BulletObject(CI ci, const btTransform &initTrans, bool isKinematic_=false);
+
+    // this constructor computes a ConstructionInfo for you
+    BulletObject(btScalar mass, btCollisionShape *cs, const btTransform &initTrans, bool isKinematic_=false);
+
     BulletObject(const BulletObject &o); // copy constructor
     virtual ~BulletObject() { }
     EnvironmentObject::Ptr copy(Fork &f) const {
@@ -66,43 +100,7 @@ private:
   void setColorAfterInit();
 };
 
-class BulletKinematicObject : public BulletObject {
-public:
-    typedef boost::shared_ptr<BulletKinematicObject> Ptr;
-
-    // this is a motion state for kinematic objects, as described at
-    // http://bulletphysics.org/mediawiki-1.5.8/index.php/MotionStates
-    struct MotionState : public btDefaultMotionState {
-        typedef boost::shared_ptr<MotionState> Ptr;
-        BulletKinematicObject *obj;
-        MotionState(BulletKinematicObject *obj_, const btTransform &trans) :
-            obj(obj_), btDefaultMotionState(trans) { }
-        void setWorldTransform(const btTransform &) { }
-        void setKinematicPos(const btTransform &pos) {
-            btDefaultMotionState::setWorldTransform(pos);
-
-            // if we want to do collision detection in between timesteps,
-            // we also have to directly set this
-            obj->rigidBody->setCenterOfMassTransform(pos);
-        }
-    };
-
-    BulletKinematicObject(boost::shared_ptr<btCollisionShape> collisionShape_, const btTransform &trans);
-    EnvironmentObject::Ptr copy(Fork &f) const {
-        btTransform trans; motionState->getWorldTransform(trans);
-        Ptr o(new BulletKinematicObject(*this));
-        o->motionState.reset(new MotionState(o.get(), trans));
-        // FIXME: BROKEN!!!!!!!!!!!!
-        //  len = o.rigidBody->calculateSerializeBufferSize(); fails for some mysterious reason..
-        // I think the BulletObject copy constructor copies its own motion state already
-        internalCopy(o, f);
-        return o;
-    }
-
-    MotionState &getKinematicMotionState() { return *static_cast<MotionState *> (motionState.get()); }
-};
-
-class GrabberKinematicObject : public BulletKinematicObject {
+class GrabberKinematicObject : public BulletObject {
 private:
     float radius, height;
     btVector3 constraintPivot;
@@ -117,7 +115,7 @@ public:
         internalCopy(o, f);
         return o;
     }
-    void destroy() { releaseConstraint(); BulletKinematicObject::destroy(); }
+    void destroy() { releaseConstraint(); BulletObject::destroy(); }
 
     osg::ref_ptr<osg::Node> createOSGNode();
 
@@ -136,14 +134,12 @@ private:
 public:
     typedef boost::shared_ptr<PlaneStaticObject> Ptr;
 
-    PlaneStaticObject(const btVector3 &planeNormal_, btScalar planeConstant_,
-                      boost::shared_ptr<btDefaultMotionState> motionState_, btScalar drawHalfExtents_=50.);
+    PlaneStaticObject(const btVector3 &planeNormal_, btScalar planeConstant_, const btTransform &initTrans, btScalar drawHalfExtents_=50.);
     EnvironmentObject::Ptr copy(Fork &f) const {
         Ptr o(new PlaneStaticObject(*this));
         internalCopy(o, f);
         return o;
     }
-
 
     // must override this since osgBullet doesn't recognize btStaticPlaneShape
     osg::ref_ptr<osg::Node> createOSGNode();
@@ -157,8 +153,7 @@ private:
 public:
     typedef boost::shared_ptr<CylinderStaticObject> Ptr;
 
-    CylinderStaticObject(btScalar mass_, btScalar radius_, btScalar height_,
-                         boost::shared_ptr<btDefaultMotionState> motionState_);
+    CylinderStaticObject(btScalar mass_, btScalar radius_, btScalar height_, const btTransform &initTrans);
     EnvironmentObject::Ptr copy(Fork &f) const {
         Ptr o(new CylinderStaticObject(*this));
         internalCopy(o, f);
@@ -173,8 +168,7 @@ private:
 public:
     typedef boost::shared_ptr<SphereObject> Ptr;
 
-    SphereObject(btScalar mass_, btScalar radius_,
-                 boost::shared_ptr<btDefaultMotionState> motionState_);
+    SphereObject(btScalar mass_, btScalar radius_, const btTransform &initTrans);
     EnvironmentObject::Ptr copy(Fork &f) const {
         Ptr o(new SphereObject(*this));
         internalCopy(o, f);
@@ -191,8 +185,7 @@ private:
 public:
     typedef boost::shared_ptr<BoxObject> Ptr;
 
-    BoxObject(btScalar mass_, btVector3 halfExtents_,
-                 boost::shared_ptr<btDefaultMotionState> motionState_);
+    BoxObject(btScalar mass_, const btVector3 &halfExtents_, const btTransform &initTrans);
     EnvironmentObject::Ptr copy(Fork &f) const {
         Ptr o(new BoxObject(*this));
         internalCopy(o, f);
@@ -208,8 +201,7 @@ private:
 public:
     typedef boost::shared_ptr<CapsuleObject> Ptr;
 
-    CapsuleObject(btScalar mass_, btScalar radius_, btScalar height_,
-                  boost::shared_ptr<btDefaultMotionState> motionState_);
+    CapsuleObject(btScalar mass_, btScalar radius_, btScalar height_, const btTransform &initTrans);
     EnvironmentObject::Ptr copy(Fork &f) const {
         Ptr o(new CapsuleObject(*this));
         internalCopy(o, f);
