@@ -106,7 +106,7 @@ public:
     struct Manipulator {
         RaveRobotKinematicObject *robot;
         ModuleBasePtr ikmodule;
-        RobotBase::ManipulatorPtr manip;
+        RobotBase::ManipulatorPtr manip, origManip;
         int index; // id for this manipulator in this robot instance
 
         bool useFakeGrabber;

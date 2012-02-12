@@ -1,5 +1,6 @@
 #include "basicobjects.h"
 #include "config_bullet.h"
+#include <osg/BlendFunc>
 #include <osg/Geometry>
 #include <osg/Geode>
 #include <osg/Shape>
@@ -10,23 +11,9 @@
 #include <boost/scoped_array.hpp>
 #include "SetColorsVisitor.h"
 
-#include <osg/BlendFunc>
-#include <osg/AlphaFunc>
-
-
 #define MAX_RAYCAST_DISTANCE 100.0
 
-btRigidBody::btRigidBodyConstructionInfo getCI(btScalar mass, boost::shared_ptr<btCollisionShape> collisionShape, boost::shared_ptr<btDefaultMotionState> motionState) {
-  btVector3 inertia(0,0,0);
-  collisionShape->calculateLocalInertia(mass,inertia);
-  btRigidBody::btRigidBodyConstructionInfo ci(mass, motionState.get(),
-					      collisionShape.get(), inertia);
-  ci.m_restitution = BulletConfig::restitution;
-  ci.m_friction = BulletConfig::friction;
-  return ci;
-}
-
-BulletObject::MotionState::Ptr BulletObject::MotionState::clone(BulletObject *newObj) {
+BulletObject::MotionState::Ptr BulletObject::MotionState::clone(BulletObject &newObj) {
     btTransform t; getWorldTransform(t);
     return Ptr(new MotionState(newObj, t));
 }
@@ -37,7 +24,7 @@ BulletObject::BulletObject(CI ci, const btTransform &initTrans, bool isKinematic
         ci.m_mass = 0;
         ci.m_localInertia = btVector3(0, 0, 0);
     }
-    motionState.reset(new MotionState(this, initTrans));
+    motionState.reset(new MotionState(*this, initTrans));
     ci.m_motionState = motionState.get();
     collisionShape.reset(ci.m_collisionShape);
     rigidBody.reset(new btRigidBody(ci));
@@ -47,10 +34,10 @@ BulletObject::BulletObject(CI ci, const btTransform &initTrans, bool isKinematic
 }
 
 BulletObject::BulletObject(btScalar mass, btCollisionShape *cs, const btTransform &initTrans, bool isKinematic_) : isKinematic(isKinematic_) {
-    motionState.reset(new MotionState(this, initTrans));
+    motionState.reset(new MotionState(*this, initTrans));
     collisionShape.reset(cs);
 
-    btVector3 fallInertia(0,0,0);
+    btVector3 fallInertia(0, 0, 0);
     if (!isKinematic)
         collisionShape->calculateLocalInertia(mass, fallInertia);
     CI ci(mass, cs, fallInertia);
@@ -59,17 +46,6 @@ BulletObject::BulletObject(btScalar mass, btCollisionShape *cs, const btTransfor
     rigidBody.reset(new btRigidBody(ci));
     rigidBody->setActivationState(DISABLE_DEACTIVATION);
 }
-
-#if 0
-BulletObject::BulletObject(MotionState *ms, btCollisionShape *cs, btRigidBody *rb, bool isKinematic_=false) : motionState(ms), collisionShape(cs), rigidBody(rb), isKinematic(isKinematic_) { }
-
-BulletObject::BulletObject(btCollisionShape *cs, btScalar mass, const btTransform &initTrans, bool isKinematic_=false) {
-    motionState.reset(new MotionState(*this, initTrans));
-    collisionShape.reset(cs);
-    btRigidBody::btRigidBodyConstructionInfo ci(mass, motionState.get(), collisionShape.get());
-    rigidBody.reset(new btRigidBody(ci));
-}
-#endif
 
 void BulletObject::init() {
     getEnvironment()->bullet->dynamicsWorld->addRigidBody(rigidBody.get());
@@ -112,7 +88,8 @@ void BulletObject::preDraw() {
 
     btScalar m[16];
     btTrans.getOpenGLMatrix(m);
-    transform->setMatrix(osg::Matrix(identityIfBad(m)));
+    //transform->setMatrix(osg::Matrix(identityIfBad(m)));
+    transform->setMatrix(osg::Matrix(m));
 }
 
 void BulletObject::destroy() {
@@ -128,7 +105,7 @@ BulletObject::BulletObject(const BulletObject &o) : isKinematic(o.isKinematic) {
     collisionShape = o.collisionShape;
 
     // then copy the motionstate
-    motionState = o.motionState->clone(this);
+    motionState = o.motionState->clone(*this);
 
     // then serialize the rigid body
     boost::shared_ptr<btDefaultSerializer> serializer(new btDefaultSerializer());
@@ -235,26 +212,6 @@ void BulletObject::setColorAfterInit() {
     node->accept(visitor);
   }
 }
-
-#if 0
-BulletKinematicObject::BulletKinematicObject(boost::shared_ptr<btCollisionShape> collisionShape_, const btTransform &trans) {
-    collisionShape = collisionShape_;
-    motionState.reset(new MotionState(this, trans));
-    
-    // (the collisionShape is set by the constructor)
-    // all kinematic objects have zero mass and inertia
-    btRigidBody::btRigidBodyConstructionInfo ci(0., motionState.get(), collisionShape.get(), btVector3(0., 0., 0.));
-    rigidBody.reset(new btRigidBody(ci));
-
-    // special flags for kinematic objects
-    rigidBody->setCollisionFlags(rigidBody->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);
-    rigidBody->setActivationState(DISABLE_DEACTIVATION);
-}
-#endif
-
-//EnvironmentObject::Ptr BulletKinematicObject::copy(Fork &f) const {
-//}
-
 
 GrabberKinematicObject::GrabberKinematicObject(float radius_, float height_) :
     radius(radius_), height(height_),

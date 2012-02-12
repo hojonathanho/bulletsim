@@ -186,19 +186,22 @@ void RaveRobotKinematicObject::setDOFValues(const vector<int> &indices, const ve
     vector<OpenRAVE::Transform> transforms;
     robot->GetLinkTransformations(transforms);
     BOOST_ASSERT(transforms.size() == getChildren().size());
-    for (int i = 0; i < getChildren().size(); ++i)
-        if (getChildren()[i])
-            getChildren()[i]->motionState->setKinematicPos(
-                initialTransform * util::toBtTransform(transforms[i], scale));
+    for (int i = 0; i < getChildren().size(); ++i) {
+        BulletObject::Ptr c = getChildren()[i];
+        if (!c) continue;
+        c->motionState->setKinematicPos(initialTransform * util::toBtTransform(transforms[i], scale));
+    }
 }
 
 EnvironmentObject::Ptr RaveRobotKinematicObject::copy(Fork &f) const {
     Ptr o(new RaveRobotKinematicObject(scale));
 
-    internalCopy(o, f);
+    internalCopy(o, f); // copies all children
 
-    o->rave.reset(new RaveInstance(*rave.get(), OpenRAVE::Clone_Bodies));
+    o->initialTransform = initialTransform;
+    o->rave.reset(new RaveInstance(*rave, OpenRAVE::Clone_Bodies));
 
+    // now we need to set up mappings in the copied robot
     for (std::map<KinBody::LinkPtr, BulletObject::Ptr>::const_iterator i = linkMap.begin();
             i != linkMap.end(); ++i) {
         const KinBody::LinkPtr raveObj = o->rave->env->GetKinBody(i->first->GetParent()->GetName())->GetLink(i->first->GetName());
@@ -240,7 +243,7 @@ RaveRobotKinematicObject::createManipulator(const std::string &manipName, bool u
     RaveRobotKinematicObject::Manipulator::Ptr m(new Manipulator(this));
     // initialize the ik module
     robot->SetActiveManipulator(manipName);
-    m->manip = robot->GetActiveManipulator();
+    m->manip = m->origManip = robot->GetActiveManipulator();
     m->ikmodule = RaveCreateModule(rave->env, "ikfast");
     rave->env->AddModule(m->ikmodule, "");
     stringstream ssin, ssout;
@@ -274,7 +277,9 @@ bool RaveRobotKinematicObject::Manipulator::moveByIKUnscaled(
 
     vector<dReal> vsolution;
     // TODO: lock environment?!?!
-    if (!manip->FindIKSolution(IkParameterization(targetTrans), vsolution, true)) {
+    // notice: we use origManip, which is the original manipulator (after cloning)
+    // this way we don't have to clone the iksolver, which is attached to the manipulator
+    if (!origManip->FindIKSolution(IkParameterization(targetTrans), vsolution, true)) {
         stringstream ss;
         ss << "failed to get solution for target transform for end effector: " << targetTrans << endl;
         RAVELOG_DEBUG(ss.str());
@@ -307,7 +312,9 @@ RaveRobotKinematicObject::Manipulator::copy(RaveRobotKinematicObject::Ptr newRob
     OpenRAVE::EnvironmentMutex::scoped_lock lock(newRobot->rave->env->GetMutex());
 
     Manipulator::Ptr o(new Manipulator(newRobot.get()));
-    o->ikmodule = ikmodule; // use same ik module
+
+    o->ikmodule = ikmodule;
+    o->origManip = origManip;
 
     newRobot->robot->SetActiveManipulator(manip->GetName());
     o->manip = newRobot->robot->GetActiveManipulator();
