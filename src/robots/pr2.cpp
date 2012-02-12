@@ -295,7 +295,7 @@ bool PR2Manager::processMouseInput(const osgGA::GUIEventAdapter &ea) {
 
             // get our current view
             osg::Vec3d osgCenter, osgEye, osgUp;
-            scene.manip->getMatrix().getLookAt(osgEye, osgCenter, osgUp);
+            scene.manip->getTransformation(osgCenter, osgEye, osgUp);
             btVector3 from(util::toBtVector(osgEye));
             btVector3 to(util::toBtVector(osgCenter));
             btVector3 up(util::toBtVector(osgUp)); up.normalize();

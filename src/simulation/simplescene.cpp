@@ -163,6 +163,12 @@ void Scene::addVoidKeyCallback(char c, VoidCallback cb) {
     addKeyCallback(c, boost::bind<bool>(VoidCallbackWrapper(cb)));
 }
 
+void EventHandler::getTransformation(osg::Vec3d &eye, osg::Vec3d &center, osg::Vec3d &up) const {
+    center = _center;
+    eye = _center + _rotation * osg::Vec3d(0., 0., _distance);
+    up = _rotation * osg::Vec3d(0., 1., 0.);
+}
+
 bool EventHandler::handle(const osgGA::GUIEventAdapter &ea, osgGA::GUIActionAdapter &aa) {
     bool suppressDefault = false;
     osgGA::GUIEventAdapter::EventType t = ea.getEventType();

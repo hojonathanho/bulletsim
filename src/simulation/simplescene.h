@@ -16,6 +16,9 @@ private:
 public:
   EventHandler(Scene &scene_) : scene(scene_) {}
   bool handle(const osgGA::GUIEventAdapter &ea, osgGA::GUIActionAdapter &aa);
+
+  // for osg 2.8 - 3.x compatibility issues
+  void getTransformation(osg::Vec3d &eye, osg::Vec3d &center, osg::Vec3d &up) const;
 };
 
 struct Scene {
