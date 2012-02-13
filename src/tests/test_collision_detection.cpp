@@ -1,32 +1,24 @@
-#include "environment.h"
-#include "simplescene.h"
-#include "config.h"
-#include "config_bullet.h"
+#include "simulation/environment.h"
+#include "simulation/simplescene.h"
+#include "simulation/config_bullet.h"
 #include <boost/shared_ptr.hpp>
 
 int main(int argc, char **argv) {
     SceneConfig::enableRobot = false;
-    
 
     Parser parser;
-
     parser.addGroup(GeneralConfig());
     parser.addGroup(BulletConfig());
     parser.addGroup(SceneConfig());
     parser.read(argc, argv);
 
-
-
-Scene s;
+    Scene s;
     s.bullet->setGravity(btVector3(0, 0, 0));
 
-    boost::shared_ptr<btDefaultMotionState> ms (
-            new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 1+0.01))));
-    SphereObject::Ptr s1(new SphereObject(1, 1, ms));
+    SphereObject::Ptr s1(new SphereObject(1, 1, btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 1+0.01))));
     s.env->add(s1);
 
-    ms.reset(new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 2+0.001, 1+0.01))));
-    SphereObject::Ptr s2(new SphereObject(1, 1, ms));
+    SphereObject::Ptr s2(new SphereObject(1, 1, btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 2+0.001, 1+0.01))));
     s.env->add(s2);
 
     BulletInstance::CollisionObjectSet ignore, out;

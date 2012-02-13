@@ -12,7 +12,6 @@
 #include <Eigen/Core>
 
 // import most common Eigen types
-//USING_PART_OF_NAMESPACE_EIGEN
 using Eigen::Vector3d;
 using Eigen::Matrix3d;
 

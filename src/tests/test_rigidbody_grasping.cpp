@@ -1,8 +1,8 @@
-#include "simplescene.h"
-#include "config.h"
-#include "config_bullet.h"
-#include "config_viewer.h"
-#include "util.h"
+#include "simulation/simplescene.h"
+#include "simulation/config_bullet.h"
+#include "simulation/config_viewer.h"
+#include "simulation/util.h"
+#include "robots/pr2.h"
 #include <openrave/kinbody.h>
 
 class PR2RigidBodyGripperAction : public Action {
@@ -157,7 +157,10 @@ public:
 };
 
 struct CustomScene : public Scene {
+    PR2Manager pr2m;
     PR2RigidBodyGripperAction::Ptr leftAction, rightAction;
+
+    CustomScene() : pr2m(*this) { }
 
     void run() {
         viewer.addEventHandler(new CustomKeyHandler(*this));
@@ -166,28 +169,24 @@ struct CustomScene : public Scene {
         const float table_height = .5;
         const float table_thickness = .05;
 
-        boost::shared_ptr<btDefaultMotionState> ms(new btDefaultMotionState(
-            btTransform(btQuaternion(0, 0, 0, 1),
-                        GeneralConfig::scale * btVector3(1, 0, table_height-table_thickness/2))));
-        BoxObject::Ptr table(
-            new BoxObject(0, GeneralConfig::scale * btVector3(.75,.75,table_thickness/2),ms));
+        BoxObject::Ptr table(new BoxObject(0, GeneralConfig::scale * btVector3(.75,.75,table_thickness/2),
+                btTransform(btQuaternion(0, 0, 0, 1), GeneralConfig::scale * btVector3(1, 0, table_height-table_thickness/2))));
         env->add(table);
 
-        ms.reset(new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1),
-                 GeneralConfig::scale * btVector3(0.7, 0.188, table_height + 0.1/2))));
-        BoxObject::Ptr box(new BoxObject(1, GeneralConfig::scale * btVector3(.03, .03, .03), ms));
+        BoxObject::Ptr box(new BoxObject(1, GeneralConfig::scale * btVector3(.03, .03, .03),
+                btTransform(btQuaternion(0, 0, 0, 1), GeneralConfig::scale * btVector3(0.7, 0.188, table_height + 0.1/2))));
         env->add(box);
-        pr2->ignoreCollisionWith(box->rigidBody.get());
+        pr2m.pr2->ignoreCollisionWith(box->rigidBody.get());
 
-        leftAction.reset(new PR2RigidBodyGripperAction(pr2Left, "l_gripper_l_finger_tip_link", "l_gripper_r_finger_tip_link", 1));
+        leftAction.reset(new PR2RigidBodyGripperAction(pr2m.pr2Left, "l_gripper_l_finger_tip_link", "l_gripper_r_finger_tip_link", 1));
         leftAction->setTarget(box->rigidBody.get());
-        rightAction.reset(new PR2RigidBodyGripperAction(pr2Right, "r_gripper_l_finger_tip_link", "r_gripper_r_finger_tip_link", 1));
+        rightAction.reset(new PR2RigidBodyGripperAction(pr2m.pr2Right, "r_gripper_l_finger_tip_link", "r_gripper_r_finger_tip_link", 1));
         rightAction->setTarget(box->rigidBody.get());
 
         // open left gripper and set initial position
         leftAction->setOpenAction();
         runAction(leftAction, dt);
-        pr2Left->moveByIK(btTransform(btQuaternion(-0.250283, 0.967325, -0.00955494, 0.0393573),
+        pr2m.pr2Left->moveByIK(btTransform(btQuaternion(-0.250283, 0.967325, -0.00955494, 0.0393573),
                     GeneralConfig::scale * btVector3(13.9589/20, 3.6742/20, 10.4952/20)));
 
         startViewer();
@@ -195,12 +194,12 @@ struct CustomScene : public Scene {
     }
 
     void printInfo() {
-        btVector3 v = pr2Left->getTransform().getOrigin();
-        btQuaternion q = pr2Left->getTransform().getRotation();
+        btVector3 v = pr2m.pr2Left->getTransform().getOrigin();
+        btQuaternion q = pr2m.pr2Left->getTransform().getRotation();
         cout << "left gripper pos: " << v.x() << ' ' << v.y() << ' ' << v.z() << '\n';
         cout << "left gripper rot: " << q.x() << ' ' << q.y() << ' ' << q.z() << ' ' << q.w() << '\n';
-        v = pr2Right->getTransform().getOrigin();
-        q = pr2Right->getTransform().getRotation();
+        v = pr2m.pr2Right->getTransform().getOrigin();
+        q = pr2m.pr2Right->getTransform().getRotation();
         cout << "right gripper pos: " << v.x() << ' ' << v.y() << ' ' << v.z() << '\n';
         cout << "right gripper rot: " << q.x() << ' ' << q.y() << ' ' << q.z() << ' ' << q.w() << '\n';
     }

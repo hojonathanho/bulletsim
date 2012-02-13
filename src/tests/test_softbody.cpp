@@ -1,6 +1,6 @@
-#include "simplescene.h"
-#include "softbodies.h"
-#include "config_bullet.h"
+#include "simulation/simplescene.h"
+#include "simulation/softbodies.h"
+#include "simulation/config_bullet.h"
 #include <BulletSoftBody/btSoftBodyHelpers.h>
 
 void gen(Scene &scene, btScalar s, btScalar z) {

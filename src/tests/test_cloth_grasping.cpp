@@ -1,9 +1,10 @@
-#include "simplescene.h"
-#include "softbodies.h"
-#include "config_bullet.h"
-#include "config_viewer.h"
+#include "simulation/simplescene.h"
+#include "simulation/softbodies.h"
+#include "simulation/config_bullet.h"
+#include "simulation/config_viewer.h"
 #include <BulletSoftBody/btSoftBodyHelpers.h>
 #include <openrave/kinbody.h>
+#include "robots/pr2.h"
 
 // I've only tested this on the PR2 model
 class PR2SoftBodyGripperAction : public Action {
@@ -244,10 +245,14 @@ struct CustomScene : public Scene {
     BulletInstance::Ptr bullet2;
     OSGInstance::Ptr osg2;
     Fork::Ptr fork;
+    RaveRobotKinematicObject::Ptr origRobot, tmpRobot;
+    PR2Manager pr2m;
 
+    CustomScene() : pr2m(*this) { }
 
     BulletSoftObject::Ptr createCloth(btScalar s, const btVector3 &center);
     void createFork();
+    void swapFork();
 
     void run();
 };
@@ -275,6 +280,9 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,osgGA::GUIActionA
             break;
         case 'f':
             scene.createFork();
+            break;
+        case 'g':
+            scene.swapFork();
             break;
         }
         break;
@@ -304,7 +312,7 @@ BulletSoftObject::Ptr CustomScene::createCloth(btScalar s, const btVector3 &cent
     pm->m_kLST = 0.1;
     psb->generateBendingConstraints(2, pm);
     psb->randomizeConstraints();
-    psb->setTotalMass(100, true);
+    psb->setTotalMass(1, true);
     psb->generateClusters(0);
 
 /*    for (int i = 0; i < psb->m_clusters.size(); ++i) {
@@ -324,6 +332,34 @@ void CustomScene::createFork() {
     registerFork(fork);
 
     cout << "forked!" << endl;
+
+    origRobot = pr2m.pr2;
+    EnvironmentObject::Ptr p = fork->forkOf(pr2m.pr2);
+    if (!p) {
+        cout << "failed to get forked version of robot!" << endl;
+        return;
+    }
+    tmpRobot = boost::static_pointer_cast<RaveRobotKinematicObject>(p);
+    cout << (tmpRobot->getEnvironment() == env.get()) << endl;
+    cout << (tmpRobot->getEnvironment() == fork->env.get()) << endl;
+}
+
+void CustomScene::swapFork() {
+    // swaps the forked robot with the real one
+    cout << "swapping!" << endl;
+    int leftidx = pr2m.pr2Left->index;
+    int rightidx = pr2m.pr2Right->index;
+    origRobot.swap(tmpRobot);
+    pr2m.pr2 = origRobot;
+    pr2m.pr2Left = pr2m.pr2->getManipByIndex(leftidx);
+    pr2m.pr2Right = pr2m.pr2->getManipByIndex(rightidx);
+
+/*    vector<int> indices; vector<dReal> vals;
+    for (int i = 0; i < tmpRobot->robot->GetDOF(); ++i) {
+        indices.push_back(i);
+        vals.push_back(0);
+    }
+    tmpRobot->setDOFValues(indices, vals);*/
 }
 
 void CustomScene::run() {
@@ -332,24 +368,22 @@ void CustomScene::run() {
     const float dt = BulletConfig::dt;
     const float table_height = .5;
     const float table_thickness = .05;
-    boost::shared_ptr<btDefaultMotionState> ms(new btDefaultMotionState(
-        btTransform(btQuaternion(0, 0, 0, 1),
-                    GeneralConfig::scale * btVector3(1.25, 0, table_height-table_thickness/2))));
     BoxObject::Ptr table(
-        new BoxObject(0, GeneralConfig::scale * btVector3(.75,.75,table_thickness/2),ms));
-    table->rigidBody->setFriction(1e10);
+        new BoxObject(0, GeneralConfig::scale * btVector3(.75,.75,table_thickness/2),
+            btTransform(btQuaternion(0, 0, 0, 1), GeneralConfig::scale * btVector3(1.2, 0, table_height-table_thickness/2))));
+    table->rigidBody->setFriction(10);
 
     BulletSoftObject::Ptr cloth(
-            createCloth(GeneralConfig::scale * 0.2, GeneralConfig::scale * btVector3(1, 0, 1)));
+            createCloth(GeneralConfig::scale * 0.25, GeneralConfig::scale * btVector3(0.9, 0, table_height+0.01)));
     btSoftBody * const psb = cloth->softBody.get();
-    pr2->ignoreCollisionWith(psb);
+    pr2m.pr2->ignoreCollisionWith(psb);
 
     env->add(table);
     env->add(cloth);
 
-    leftAction.reset(new PR2SoftBodyGripperAction(pr2Left, "l_gripper_l_finger_tip_link", "l_gripper_r_finger_tip_link", 1));
+    leftAction.reset(new PR2SoftBodyGripperAction(pr2m.pr2Left, "l_gripper_l_finger_tip_link", "l_gripper_r_finger_tip_link", 1));
     leftAction->setTarget(psb);
-    rightAction.reset(new PR2SoftBodyGripperAction(pr2Right, "r_gripper_l_finger_tip_link", "r_gripper_r_finger_tip_link", 1));
+    rightAction.reset(new PR2SoftBodyGripperAction(pr2m.pr2Right, "r_gripper_l_finger_tip_link", "r_gripper_r_finger_tip_link", 1));
     rightAction->setTarget(psb);
 
     //setSyncTime(true);

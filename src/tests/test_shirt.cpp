@@ -1,17 +1,17 @@
-#include "simplescene.h"
-#include "util.h"
-#include "config_bullet.h"
+#include "simulation/simplescene.h"
+#include "simulation/util.h"
+#include "simulation/config_bullet.h"
 #include <iostream>
 #include <fstream>
 #include <BulletSoftBody/btSoftBodyHelpers.h>
-#include "softbodies.h"
+#include "simulation/softbodies.h"
 //#include <boost/filesystem.hpp>
 
 //daniel's code for importing shirt
 
 using namespace std;
 
-const string data_dir = "/home/joschu/Src/bulletsim/data/clothing/";
+const string data_dir = EXPAND(BULLETSIM_DATA_DIR)"/clothing/";
 #define DATA(str) (data_dir+str).c_str()
 
 int main(int argc, char* argv[]) {

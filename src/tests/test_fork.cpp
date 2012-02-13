@@ -1,5 +1,5 @@
-#include "simplescene.h"
-#include "config_bullet.h"
+#include "simulation/simplescene.h"
+#include "simulation/config_bullet.h"
 
 int main(int argc, char *argv[]) {
     Parser parser;
@@ -15,13 +15,12 @@ int main(int argc, char *argv[]) {
 
     Scene scene;
 
-    boost::shared_ptr<btDefaultMotionState> ms;
-    ms.reset(new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), GeneralConfig::scale * btVector3(0, 0, 5))));
-    SphereObject::Ptr sphere(new SphereObject(1, 0.1 * GeneralConfig::scale, ms));
+    SphereObject::Ptr sphere(new SphereObject(1, 0.1 * GeneralConfig::scale,
+                btTransform(btQuaternion(0, 0, 0, 1), GeneralConfig::scale * btVector3(0, 0, 5))));
     scene.env->add(sphere);
 
-    ms.reset(new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), GeneralConfig::scale * btVector3(0, 0.5, 1))));
-    BoxObject::Ptr box(new BoxObject(0.1, GeneralConfig::scale * btVector3(0.1, 0.1, 0.1), ms));
+    BoxObject::Ptr box(new BoxObject(0.1, GeneralConfig::scale * btVector3(0.1, 0.1, 0.1),
+                btTransform(btQuaternion(0, 0, 0, 1), GeneralConfig::scale * btVector3(0, 0.5, 1))));
     scene.env->add(box);
 
     scene.startViewer();
