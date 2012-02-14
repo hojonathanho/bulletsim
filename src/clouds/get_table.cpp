@@ -78,6 +78,9 @@ void getTable(PointCloud<PointXYZRGB>::Ptr cloud, vector<Vector3f>& corners, Vec
   ec.setInputCloud(cloud_plane2);
   ec.extract (cluster_indices);
   std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin();
+  cout << "warning in get_table--wtf?" << endl;
+  it++;
+
   for (std::vector<int>::const_iterator pit = it->indices.begin (); pit != it->indices.end (); pit++)
     cloud_cluster->push_back(cloud_plane2->points[*pit]);
   cloud_cluster->width = cloud_cluster->points.size ();

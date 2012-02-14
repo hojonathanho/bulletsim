@@ -4,7 +4,7 @@ include_directories(
     ${OSGWORKS_DIR}
     ${OpenRAVE_INCLUDE_DIRS}
     ${Boost_INCLUDE_DIRS}
-	${EIGEN3_INCLUDE_DIR}
+    ${EIGEN3_INCLUDE_DIR}
 #		    ${WM_INCLUDE_DIR}
     ${PCL_INCLUDE_DIRS}
     ${BULLETSIM_SOURCE_DIR}/src
@@ -71,3 +71,6 @@ target_link_libraries(calibrate_kinect clouds comm simulation perception robots 
 
 add_executable(test_tetgen test_tetgen.cpp ${TETGEN_DIR}/tetgen.h)
 target_link_libraries(test_tetgen tetgen)
+
+add_executable(test_new_towel_tracking test_new_towel_tracking.cpp vision.cpp)
+target_link_libraries(test_new_towel_tracking comm ${PCL_LIBRARIES} simulation clouds perception)

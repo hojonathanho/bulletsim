@@ -1,20 +1,20 @@
+
 #include "bullet_io.h"
-#include "simulation/bullet_typedefs.h"
 #include "clouds/comm_pcl.h"
 #include "clouds/geom.h"
 #include "comm/comm.h"
-#include "simulation/config_bullet.h"
 #include "config_perception.h"
 #include "get_nodes.h"
 #include "make_bodies.h"
-#include "simulation/simplescene.h"
 #include "optimization_forces.h"
-#include "simulation/softbodies.h"
-#include "utils_perception.h"
-#include "utils/vector_io.h"
-#include "visibility.h"
+#include "simulation/bullet_typedefs.h"
+#include "simulation/config_bullet.h"
 #include "simulation/recording.h"
-
+#include "simulation/simplescene.h"
+#include "simulation/softbodies.h"
+#include "utils/vector_io.h"
+#include "utils_perception.h"
+#include "visibility.h"
 #include <pcl/common/transforms.h>
 
 
@@ -72,12 +72,6 @@ int main(int argc, char* argv[]) {
   BOOST_FOREACH(btVector3& pt, towelCorners) pt += btVector3(.01*METERS,0,0);
   BulletSoftObject::Ptr towel = makeSelfCollidingTowel(towelCorners, scene.env->bullet->softBodyWorldInfo);
 
-
-
-
-  /// add stuff to scene
-  MotionStatePtr ms(new btDefaultMotionState(btTransform(btQuaternion(0,0,0,1), btVector3(0,0,2))));
-
   scene.env->add(towel);
   scene.env->add(table);
   if (TrackingConfig::showKinect) scene.env->add(kinectPts);
@@ -91,7 +85,7 @@ int main(int argc, char* argv[]) {
   for (int t=0; ; t++) {
     cout << "time step " << t << endl;
     bool success = pcSub.recv(cloudMsg);
-    if (!success) break;
+
     ENSURE(towelSub.recv(towelPtsMsg));
 
     ColorCloudPtr cloudCam  = cloudMsg.m_data;
@@ -106,7 +100,6 @@ int main(int argc, char* argv[]) {
 
     for (int iter=0; iter < TrackingConfig::nIter; iter++) {
       cout << "iteration " << iter << endl;
-      //scene.idle(true);
       vector<float> pVis = calcVisibility(towel->softBody.get(), scene.env->bullet->dynamicsWorld, CT.worldFromCamUnscaled.getOrigin()*METERS);
       colorByVisibility(towel->softBody.get(), pVis, towelEstPlot);
 
@@ -115,16 +108,14 @@ int main(int argc, char* argv[]) {
       corrPlots.update(towelEstPts, towelObsPts, corr);
 
       vector<btVector3> impulses = calcImpulsesSimple(towelEstPts, towelObsPts, corr, TrackingConfig::impulseSize);
-      for (int i=0; i<impulses.size(); i++)
-	towel->softBody->addForce(impulses[i],i);
+      for (int i=0; i<impulses.size(); i++) towel->softBody->addForce(impulses[i],i);
 
       if (RecordingConfig::record == EVERY_ITERATION || 
-	  RecordingConfig::record == FINAL_ITERATION && iter==TrackingConfig::nIter-1)
-	rec->snapshot();
+	  RecordingConfig::record == FINAL_ITERATION && iter==TrackingConfig::nIter-1) rec->snapshot();
       scene.step(DT);
       if (iter==TrackingConfig::nIter-1) {
-	vector< vector<float> > vv = toVecVec(towelEstPts);
-	towelPub.send(VecVecMessage<float>(vv));
+	     vector< vector<float> > vv = toVecVec(towelEstPts);
+	      towelPub.send(VecVecMessage<float>(vv));
       }
 
     }

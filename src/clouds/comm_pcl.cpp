@@ -51,7 +51,7 @@ void CloudGrabber::run ()  {
 void CloudGrabber::loop() {
   while (!wantsExit) {
     m_enabled = !getThrottled(m_topic);
-    sleep (.01);
+    sleep (.001);
   }
 }
 

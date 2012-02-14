@@ -14,7 +14,6 @@ using namespace cv;
 using boost::shared_ptr;
 
 ColorCloudPtr maskCloud(const ColorCloudPtr in, const cv::Mat& mask) {
-  cout << mask.elemSize() << endl;
   ENSURE(mask.elemSize() == 1);
   ENSURE(mask.rows == in->height);
   ENSURE(mask.cols == in->width);
@@ -37,7 +36,6 @@ ColorCloudPtr maskCloud(const ColorCloudPtr in, const cv::Mat& mask) {
 }
 
 ColorCloudPtr downsampleCloud(const ColorCloudPtr in, float sz) {
-  cout << "downsampling to voxel size " << sz << endl;
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr out(new pcl::PointCloud<pcl::PointXYZRGB>());
  pcl::VoxelGrid<pcl::PointXYZRGB> vg;
  vg.setInputCloud(in);

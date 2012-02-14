@@ -7,6 +7,7 @@
 #include "comm/comm.h"
 #include "utils/config.h"
 #include "simulation/config_bullet.h"
+#include "simulation/simplescene.h"
 #include "config_perception.h"
 #include "make_bodies.h"
 #include "simulation/rope.h"

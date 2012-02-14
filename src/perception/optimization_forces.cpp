@@ -30,8 +30,6 @@ MatrixXf calcCorrProb(const MatrixXf& estPts, const MatrixXf& obsPts, const Vect
   VectorXf pB_unnormed = pBandZ_unnormed.colwise().sum();
   VectorXf pBorOutlier_unnormed = (pB_unnormed.array() + pBandOutlier).inverse();
   MatrixXf pZgivenB = pBandZ_unnormed * pBorOutlier_unnormed.asDiagonal();
-  //cout << pZgivenB.row(0);
-  cout << stdev << endl;
   return pZgivenB;
 }
 
@@ -53,13 +51,12 @@ vector<btVector3> calcImpulsesSimple(const vector<btVector3>& estPts, const vect
 }
 
 vector<btVector3> calcImpulsesDamped(const vector<btVector3>& estPos, const vector<btVector3>& estVel, const vector<btVector3>& obsPts, const SparseArray& corr, vector<float> masses, float kp, float kd) {
-  SparseArray ncorr = normalizeRows(corr);
   int nEst = estPos.size();
   int nObs = obsPts.size();
   vector<btVector3> out(nEst);
   for (int iEst=0; iEst < nEst; iEst++) {
     btVector3 dv = -kd * estVel[iEst];
-    BOOST_FOREACH(IndVal& iv, ncorr[iEst])
+    BOOST_FOREACH(const IndVal& iv, corr[iEst])
       dv += (kp * iv.val) * (obsPts[iv.ind] - estPos[iEst]);
     out[iEst] = masses[iEst]*dv;
   }
@@ -81,3 +78,4 @@ void CorrPlots::update(const vector<btVector3>& aPts, const vector<btVector3>& b
   }
   m_lines->setPoints(linePoints);
 }
+             

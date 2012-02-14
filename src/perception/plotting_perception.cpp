@@ -19,3 +19,14 @@ void PointCloudPlot::setPoints1(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cl
   }
   PlotPoints::setPoints(osgPts,osgCols);
 }
+
+void drawCorrLines(PlotLines::Ptr lines, const vector<btVector3>& aPts, const vector<btVector3>& bPts, const SparseArray& corr) {
+  vector<btVector3> linePoints;
+  for (int iA=0; iA < aPts.size(); iA++) {
+    BOOST_FOREACH(const IndVal& iv, corr[iA]) {
+      linePoints.push_back(aPts[iA]);
+      linePoints.push_back(bPts[iv.ind]);
+    }
+  }
+  lines->setPoints(linePoints);
+}
