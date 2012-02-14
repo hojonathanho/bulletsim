@@ -33,7 +33,7 @@ link_directories(
 # add_executable(test_kinect_towel test_kinect_towel.cpp)
 # target_link_libraries(test_kinect_towel ${PCL_LIBRARIES} json simulation perception clouds comm)
 
-add_library(perception config_perception.cpp utils_perception.cpp make_bodies.cpp bullet_io.cpp openrave_joints.cpp robot_geometry.cpp dist_math.cpp optimization_forces.cpp sparse_array.cpp apply_impulses.cpp visibility.cpp trackers.cpp matching.cpp get_nodes.cpp plotting_perception.cpp)
+add_library(perception config_perception.cpp utils_perception.cpp make_bodies.cpp openrave_joints.cpp robot_geometry.cpp dist_math.cpp optimization_forces.cpp sparse_array.cpp apply_impulses.cpp visibility.cpp trackers.cpp matching.cpp get_nodes.cpp plotting_perception.cpp)
 target_link_libraries(perception ${PCL_LIBRARIES} comm clouds simulation tetgen utils)
 
 add_executable(test_matching test_matching.cpp matching.cpp)

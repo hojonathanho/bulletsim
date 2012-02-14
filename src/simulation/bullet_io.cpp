@@ -1,4 +1,4 @@
-#include "bullet_io.h"
+#include "simulation/bullet_io.h"
 
 ostream &operator<<(ostream &stream, btVector3& v) {
   // for some reason i have to do this, else i get a segfault

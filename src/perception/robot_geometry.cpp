@@ -1,7 +1,7 @@
 #include <openrave/openrave.h>
 #include "btBulletDynamicsCommon.h"
 #include "simulation/util.h"
-#include "bullet_io.h"
+#include "simulation/bullet_io.h"
 using namespace OpenRAVE;
 
 // btTransform getKinectToWorld(RobotBasePtr robot) {

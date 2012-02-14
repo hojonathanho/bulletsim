@@ -11,7 +11,7 @@
 #include "simulation/simplescene.h"
 #include "utils_perception.h"
 #include "utils/vector_io.h"
-#include "bullet_io.h"
+#include "simulation/bullet_io.h"
 #include "openrave_joints.h"
 #include "robot_geometry.h"
 #include "clouds/correction.h"

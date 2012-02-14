@@ -14,7 +14,7 @@
 
 #include "utils_perception.h"
 #include "utils/vector_io.h"
-#include "bullet_io.h"
+#include "simulation/bullet_io.h"
 
 #include "clouds/comm_pcl.h"
 #include "clouds/geom.h"
