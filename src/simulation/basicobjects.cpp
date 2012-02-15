@@ -325,7 +325,7 @@ BoxObject::BoxObject(btScalar mass_, const btVector3 &halfExtents_, const btTran
 
 CapsuleObject::CapsuleObject(btScalar mass_, btScalar radius_, btScalar height_, const btTransform &initTrans) :
     mass(mass_), radius(radius_), height(height_),
-    BulletObject(mass, new btCapsuleShapeX(radius_, height_), initTrans) {
+    BulletObject(mass_, new btCapsuleShapeX(radius_, height_), initTrans) {
 }
 
 osg::ref_ptr<osg::Node> CapsuleObject::createOSGNode() {
