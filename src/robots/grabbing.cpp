@@ -6,7 +6,7 @@ using namespace std;
 using namespace OpenRAVE;
 using namespace Eigen;
 
-Grab::Grab(btRigidBody* rb, btVector3 pos, btDynamicsWorld* world_) {
+Grab::Grab(btRigidBody* rb, const btVector3& pos, btDynamicsWorld* world_) {
   world = world_;
   cnt = new btGeneric6DofConstraint(*rb,btTransform(btQuaternion(0,0,0,1),btVector3(0,0,0)),true); // second parameter?
   cnt->setLinearLowerLimit(btVector3(0,0,0));
@@ -17,7 +17,7 @@ Grab::Grab(btRigidBody* rb, btVector3 pos, btDynamicsWorld* world_) {
   updatePosition(pos);
 }
 
-void Grab::updatePosition(btVector3 pos) {
+void Grab::updatePosition(const btVector3& pos) {
   cnt->getFrameOffsetA().setOrigin(pos);
 }
 

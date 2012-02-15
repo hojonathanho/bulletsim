@@ -67,18 +67,7 @@ CapsuleRope::CapsuleRope(const vector<btVector3>& ctrlPoints, btScalar radius_, 
   for (int i=0; i < nLinks; i++) {
     btTransform trans = transforms[i];
     btScalar len = lengths[i];
-    float mass = 1;//mass = 3.14*radius*radius*len;
-    //btCollisionShape* shape = new btCapsuleShapeX(radius,len);
-    
-    /*
-    shared_ptr<btCollisionShape> shapePtr(new btCylinderShapeX(btVector3(len/2,radius,radius)));
-    shared_ptr<btRigidBody> bodyPtr;
-    createRigidBody(bodyPtr,shapePtr,trans,mass);
-    bodyPtr->setFriction(10);
-    bodies.push_back(bodyPtr);
-    BulletObject::Ptr child(new BulletObject(shapePtr,bodyPtr));
-    */
-
+    float mass = 1;
     CapsuleObject::Ptr child(new CapsuleObject(1,radius,len,trans));
     bodies.push_back(child->rigidBody);
     child->rigidBody->setDamping(linDamping,angDamping);

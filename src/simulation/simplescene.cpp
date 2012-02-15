@@ -33,7 +33,7 @@ Scene::Scene() {
 
 void Scene::startViewer() {
     drawingOn = syncTime = true;
-    loopState.looping = loopState.paused = false;
+    loopState.looping = loopState.paused = loopState.debugDraw = false;
 
     dbgDraw.reset(new osgbCollision::GLDebugDrawer());
     dbgDraw->setDebugMode(btIDebugDraw::DBG_MAX_DEBUG_DRAW_MODE /*btIDebugDraw::DBG_DrawWireframe*/);
