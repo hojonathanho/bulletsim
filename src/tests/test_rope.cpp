@@ -4,6 +4,7 @@
 #include "simulation/config_bullet.h"
 #include "simulation/config_viewer.h"
 #include "robots/grabbing.h"
+#include "simulation/bullet_io.h"
 
 using boost::shared_ptr;
 using namespace util;
@@ -30,19 +31,17 @@ int main(int argc, char *argv[]) {
 
   vector<btVector3> ctrlPts;
   for (int i=0; i< nLinks; i++) {
-    ctrlPts.push_back(btVector3(.5+segment_len*i,0,table_height+5*rope_radius));
+    ctrlPts.push_back(METERS*btVector3(.5+segment_len*i,0,table_height+5*rope_radius));
   }
 
 
-  shared_ptr<BulletObject> table(new BoxObject(0,btVector3(.75,.75,table_thickness/2),
-              btTransform(btQuaternion(0, 0, 0, 1), btVector3(1,0,table_height-table_thickness/2))));
+  shared_ptr<BulletObject> table(new BoxObject(0,METERS*btVector3(.75,.75,table_thickness/2),
+              btTransform(btQuaternion(0, 0, 0, 1), METERS*btVector3(1,0,table_height-table_thickness/2))));
 
-  shared_ptr<CapsuleRope> ropePtr(new CapsuleRope(ctrlPts,.01));
+  shared_ptr<CapsuleRope> ropePtr(new CapsuleRope(ctrlPts,.01*METERS));
 
   Scene s;
   PR2Manager pr2m(s);
-
-  s.env->bullet->setGravity(btVector3(0,0,-100.));
 
   s.env->add(ropePtr);
   s.env->add(table);
@@ -66,8 +65,8 @@ int main(int argc, char *argv[]) {
   RobotBase::ManipulatorPtr rarm(pr2m.pr2->robot->GetManipulators()[5]);
   RobotBase::ManipulatorPtr larm(pr2m.pr2->robot->GetManipulators()[7]);
 
-  Grab g;
-  Grab g2;
+  Grab* g;
+  Grab* g2;
 
   s.startViewer();
   s.setSyncTime(true);
@@ -80,23 +79,25 @@ int main(int argc, char *argv[]) {
 
     if (i == 160) {
       btVector3 rhpos = util::toBtTransform(rarm->GetEndEffectorTransform()).getOrigin();
-      g = Grab(ropePtr->bodies[0].get(),rhpos,s.env->bullet->dynamicsWorld);
+      cout << rhpos << endl;
+      g = new Grab(ropePtr->bodies[0].get(),rhpos*METERS,s.env->bullet->dynamicsWorld);
     }
     if (i > 160) {
-      g.updatePosition(util::toBtTransform(rarm->GetEndEffectorTransform()).getOrigin());
+      g->updatePosition(util::toBtTransform(rarm->GetEndEffectorTransform()).getOrigin()*METERS);
     }
 
 
     if (i == 330) {
-      btVector3 lhpos = util::toBtTransform(larm->GetEndEffectorTransform()).getOrigin();
-      g2 = Grab(ropePtr->bodies[nLinks-2].get(),lhpos,s.env->bullet->dynamicsWorld);
+      btVector3 lhpos = util::toBtTransform(larm->GetEndEffectorTransform()).getOrigin()*METERS;
+      cout << lhpos << endl;
+      g2 = new Grab(ropePtr->bodies[nLinks-2].get(),lhpos*METERS,s.env->bullet->dynamicsWorld);
     }
     if (i > 330) {
-      g2.updatePosition(util::toBtTransform(larm->GetEndEffectorTransform()).getOrigin());
+      g2->updatePosition(util::toBtTransform(larm->GetEndEffectorTransform()).getOrigin()*METERS);
     }
 
-    s.step(.01,300,.001);
-    // usleep(10*1000);
+    s.step(1/30.,300,.001);
+    usleep(10*1000);
   }
 
 }
