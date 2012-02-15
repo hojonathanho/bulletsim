@@ -215,8 +215,8 @@ void BulletObject::setColorAfterInit() {
 
 GrabberKinematicObject::GrabberKinematicObject(float radius_, float height_) :
     radius(radius_), height(height_),
-    constraintPivot(0, 0, height), // this is where objects will attach to
-    BulletObject(0, new btConeShapeZ(radius, height),
+    constraintPivot(0, 0, height_), // this is where objects will attach to
+    BulletObject(0, new btConeShapeZ(radius_, height_),
             btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0)), true) {
 }
 
