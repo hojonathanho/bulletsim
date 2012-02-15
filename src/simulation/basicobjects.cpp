@@ -189,12 +189,14 @@ void BulletObject::MoveAction::step(float dt) {
     if (done()) return;
     stepTime(dt);
     const float a = fracElapsed();
-
     // linear interpolation of pos
     btVector3 newpos = (1-a)*start.getOrigin() + a*end.getOrigin();
     btQuaternion newrot = start.getRotation().slerp(end.getRotation(), a);
     btTransform newtrans(newrot, newpos);
-    obj->motionState->setWorldTransform(newtrans);
+    if (obj->isKinematic)
+        obj->motionState->setKinematicPos(newtrans);
+    else
+        obj->motionState->setWorldTransform(newtrans);
 }
 
 void BulletObject::setColor(float r, float g, float b, float a) {
@@ -313,9 +315,9 @@ CylinderStaticObject::CylinderStaticObject(btScalar mass_, btScalar radius_, btS
     BulletObject(mass_, new btCylinderShapeZ(btVector3(radius_, radius_, height_/2.)), initTrans) {
 }
 
-SphereObject::SphereObject(btScalar mass_, btScalar radius_, const btTransform &initTrans) :
+SphereObject::SphereObject(btScalar mass_, btScalar radius_, const btTransform &initTrans, bool isKinematic) :
     mass(mass_), radius(radius_),
-    BulletObject(mass_, new btSphereShape(radius_), initTrans) {
+    BulletObject(mass_, new btSphereShape(radius_), initTrans, isKinematic) {
 }
 
 BoxObject::BoxObject(btScalar mass_, const btVector3 &halfExtents_, const btTransform &initTrans) :
