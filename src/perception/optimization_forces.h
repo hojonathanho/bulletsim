@@ -15,7 +15,9 @@ vector<btVector3> calcImpulsesSimple(const vector<btVector3>& estPts, const vect
 vector<btVector3> calcImpulsesDamped(const vector<btVector3>& estPos, const vector<btVector3>& estVel, const vector<btVector3>& obsPts, const SparseArray& corr, vector<float> masses, float kp, float kd);
 
 // todo: normalization factor in likelihood
+Eigen::MatrixXf calcCorrProb(const Eigen::MatrixXf& estPts, const Eigen::VectorXf& sigs, const Eigen::MatrixXf& obsPts, const Eigen::VectorXf& pVis, float pBandOutlier);
 Eigen::MatrixXf calcCorrProb(const Eigen::MatrixXf& estPts, const Eigen::MatrixXf& obsPts, const Eigen::VectorXf& pVis, float stdev, float pBandOutlier);
+Eigen::VectorXf calcSigs(const SparseArray& corr, const Eigen::MatrixXf& estPts, const Eigen::MatrixXf& obsPts, float reg);
 
 class CorrPlots {
 public:

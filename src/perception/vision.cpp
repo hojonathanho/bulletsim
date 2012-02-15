@@ -13,6 +13,7 @@
 #include <boost/foreach.hpp>
 #include <pcl/common/transforms.h>
 #include "clouds/geom.h"
+using namespace Eigen;
 
 bool allTrue(const vector<bool>& x) {
   BOOST_FOREACH(bool b, x) if (!b) return false;
@@ -113,13 +114,25 @@ TowelVision::TowelVision() {
   setupScene(); 
 }
 
+float sq(float x) {return x*x;}
+
 void TowelVision::doIteration() {
   vector<float> pVis = calcVisibility(m_towel->softBody.get(), m_scene->env->bullet->dynamicsWorld, m_CT->worldFromCamUnscaled.getOrigin()*METERS);
   colorByVisibility(m_towel->softBody.get(), pVis, m_estPlot);
 
   vector<btVector3> m_towelEstPts = getNodes(m_towel);
   vector<btVector3> towelEstVels = getNodeVels(m_towel);
-  SparseArray corr = toSparseArray(calcCorrProb(toEigenMatrix(m_towelEstPts), toEigenMatrix(m_towelObsPts), toVectorXf(pVis), TrackingConfig::sigB, TrackingConfig::outlierParam), TrackingConfig::cutoff);
+
+  if (m_sigs.rows() == 0) {
+    m_sigs.resize(m_towelEstPts.size(), 1);
+    m_sigs.setConstant(.025*METERS);
+  }
+
+  MatrixXf estPtsEigen = toEigenMatrix(m_towelEstPts);
+  MatrixXf obsPtsEigen = toEigenMatrix(m_towelObsPts);
+
+  SparseArray corr = toSparseArray(calcCorrProb(estPtsEigen, m_sigs, obsPtsEigen, toVectorXf(pVis), TrackingConfig::outlierParam), TrackingConfig::cutoff);
+  m_sigs = calcSigs(corr, estPtsEigen, obsPtsEigen, sq(.05*METERS));
   if (TrackingConfig::showLines) drawCorrLines(m_corrLines, m_towelEstPts, m_towelObsPts, corr);
 
   vector<btVector3> impulses = calcImpulsesDamped(m_towelEstPts, towelEstVels, m_towelObsPts, corr,  getNodeMasses(m_towel), 300, 60);

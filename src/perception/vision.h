@@ -47,6 +47,7 @@ struct TowelVision : public Vision {
   TowelVision();
 
   BulletSoftObject::Ptr m_towel;
+  Eigen::VectorXf m_sigs;
   BulletObject::Ptr m_table;
   CloudMessage m_towelPtsMsg;
   vector<btVector3> m_towelObsPts;
