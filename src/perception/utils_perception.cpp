@@ -47,6 +47,11 @@ vector< vector<float> > toVecVec(const vector<btVector3>& in) {
   return out;
 }
 
+vector<float> toVec(const Eigen::VectorXf& in) {
+  vector<float> out(in.rows());
+  for (int i=0; i < out.size(); i++) out[i] = in[i];
+  return out;
+}
 
 VectorXf toVectorXf(const vector<float>& in) {
   VectorXf out(in.size());

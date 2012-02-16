@@ -26,6 +26,9 @@
 #include <pcl/common/transforms.h>
 #include <osgViewer/ViewerEventHandlers>
 
+using namespace Eigen;
+
+
 struct LocalConfig : Config {
   static int frameStep;
   LocalConfig() : Config() {
@@ -155,11 +158,11 @@ int main(int argc, char* argv[]) {
       }
       scene.plotLines->setPoints(p);
 
-      vector<float> pVis = calcVisibility(towel->softBody.get(), scene.env->bullet->dynamicsWorld, CT.worldFromCamUnscaled.getOrigin()*METERS);
+      VectorXf pVis = calcVisibility(towel->softBody.get(), scene.env->bullet->dynamicsWorld, CT.worldFromCamUnscaled.getOrigin()*METERS);
       colorByVisibility(towel->softBody.get(), pVis, towelEstPlot);
 
       vector<btVector3> towelEstPts = getNodes(towel);
-      SparseArray corr = toSparseArray(calcCorrProb(toEigenMatrix(towelEstPts), toEigenMatrix(towelObsPts), toVectorXf(pVis), TrackingConfig::sigB, TrackingConfig::outlierParam), TrackingConfig::cutoff);
+      SparseArray corr = toSparseArray(calcCorrProb(toEigenMatrix(towelEstPts), toEigenMatrix(towelObsPts), pVis, TrackingConfig::sigB, TrackingConfig::outlierParam), TrackingConfig::cutoff);
       corrPlots.update(towelEstPts, towelObsPts, corr);
 
       vector<btVector3> impulses = calcImpulsesSimple(towelEstPts, towelObsPts, corr, TrackingConfig::impulseSize);

@@ -1,3 +1,4 @@
+#pragma once
 #include <pcl/point_types.h>
 #include <pcl/point_cloud.h>
 #include <string>
@@ -21,3 +22,5 @@ typedef Eigen::Matrix<uint8_t,Eigen::Dynamic,Eigen::Dynamic> MatrixXb;
 MatrixXb toBGR(ColorCloudPtr);
 cv::Mat toCVMat(Eigen::MatrixXf);
 
+
+bool pointIsFinite(const pcl::PointXYZRGB& pt);

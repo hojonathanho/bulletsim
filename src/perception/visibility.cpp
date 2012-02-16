@@ -10,10 +10,10 @@ using namespace pcl;
 
 
 // todo: we should do a raycast
-std::vector<float> calcVisibility(const Eigen::MatrixXf& pts, const Eigen::MatrixXf& depth, const cv::Mat& ropeMask) {
+Eigen::VectorXf calcVisibility(const Eigen::MatrixXf& pts, const Eigen::MatrixXf& depth, const cv::Mat& ropeMask) {
   VectorXf ptDists = pts.rowwise().norm();
   MatrixXi uvs = xyz2uv(pts);
-  vector<float> vis(pts.rows(),true);
+  VectorXf vis(pts.rows(),true);
 
   for (int iPt=0; iPt<pts.rows(); iPt++) {
     int u = uvs(iPt,0);
@@ -23,10 +23,8 @@ std::vector<float> calcVisibility(const Eigen::MatrixXf& pts, const Eigen::Matri
     // see it if there's no non-rope pixel in front of it
     }
   }
-  cout << vis << endl;
   return vis;
 }
-
 
 vector<btVector3> calcCandPositions(const btVector3& center, float stdev, int nSamples) {
   vector<btVector3> out(nSamples);
@@ -67,17 +65,17 @@ float calcVisProbability(RigidBodyPtr body, const btVector3& cameraPos, btDynami
   return vis.sum()/nSamples;
 }
 
-std::vector<float> calcVisibility(const vector<RigidBodyPtr> bodies, btDynamicsWorld* world, const btVector3& cameraPos, float stdev, int nSamples) {
+Eigen::VectorXf calcVisibility(const vector<RigidBodyPtr> bodies, btDynamicsWorld* world, const btVector3& cameraPos, float stdev, int nSamples) {
   int nPts = bodies.size();
-  vector<float> vis(nPts);
+  VectorXf vis(nPts);
   for (int i=0; i < nPts; i++)
     vis[i] = calcVisProbability(bodies[i], cameraPos, world, stdev, nSamples);
   return vis;
 }
 
-std::vector<float> calcVisibility(btSoftBody* softBody, btDynamicsWorld* world, const btVector3& cameraPos) {
+Eigen::VectorXf calcVisibility(btSoftBody* softBody, btDynamicsWorld* world, const btVector3& cameraPos) {
   btAlignedObjectArray<btSoftBody::Node> nodes = softBody->m_nodes;
-  vector<float> vis(nodes.size());
+  VectorXf vis(nodes.size());
   for (int i=0; i < nodes.size(); i++) {
     btVector3 target = nodes[i].m_x + (cameraPos - nodes[i].m_x).normalized() * .005*METERS;
     btCollisionWorld::ClosestRayResultCallback rayCallback(cameraPos, target);
@@ -89,16 +87,16 @@ std::vector<float> calcVisibility(btSoftBody* softBody, btDynamicsWorld* world, 
 }
 
 
-void colorByVisibility(CapsuleRope::Ptr rope, const vector<float>& pVis) {
-  ENSURE(rope->children.size() == pVis.size());
-  for (int i=0; i<pVis.size(); i++) {
+void colorByVisibility(CapsuleRope::Ptr rope, const VectorXf& pVis) {
+  ENSURE(rope->children.size() == pVis.rows());
+  for (int i=0; i<pVis.rows(); i++) {
     float p = pVis[i];
     rope->children[i]->setColor(0,0,p,1);
   }
 }
 
-void colorByVisibility(btSoftBody* psb, const vector<float>& pVis, PointCloudPlot::Ptr plot) {
-  int nPts = pVis.size();
+void colorByVisibility(btSoftBody* psb, const VectorXf& pVis, PointCloudPlot::Ptr plot) {
+  int nPts = pVis.rows();
   vector<btVector3> pts(nPts);
   vector<btVector4> cols(nPts);
   for (int i=0; i<nPts; i++) {

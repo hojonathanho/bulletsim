@@ -7,8 +7,8 @@
 #include <opencv2/core/core.hpp>
 #include "plotting_perception.h"
 
-std::vector<float> calcVisibility(const Eigen::MatrixXf& pts, const Eigen::MatrixXf& depth, const cv::Mat& ropeMask);
-std::vector<float> calcVisibility(const vector<RigidBodyPtr> bodies, btDynamicsWorld* world, const btVector3& cameraPos, float stdev=0, int nSamples=1);
-std::vector<float> calcVisibility(btSoftBody* softBody, btDynamicsWorld* world, const btVector3& cameraPos);
-void colorByVisibility(CapsuleRope::Ptr rope, const vector<float>& pVis);
-void colorByVisibility(btSoftBody* psb, const vector<float>& pVis, PointCloudPlot::Ptr plot);
+Eigen::VectorXf calcVisibility(const Eigen::MatrixXf& pts, const Eigen::MatrixXf& depth, const cv::Mat& ropeMask);
+Eigen::VectorXf calcVisibility(const vector<RigidBodyPtr> bodies, btDynamicsWorld* world, const btVector3& cameraPos, float stdev=0, int nSamples=1);
+Eigen::VectorXf calcVisibility(btSoftBody* softBody, btDynamicsWorld* world, const btVector3& cameraPos);
+void colorByVisibility(CapsuleRope::Ptr rope, const Eigen::VectorXf& pVis);
+void colorByVisibility(btSoftBody* psb, const Eigen::VectorXf& pVis, PointCloudPlot::Ptr plot);

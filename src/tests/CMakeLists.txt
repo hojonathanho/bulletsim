@@ -24,9 +24,6 @@ target_link_libraries(test_rigidbody_grasping simulation robots)
 add_executable(test_rope test_rope.cpp)
 target_link_libraries(test_rope simulation robots)
 
-add_executable(test_plotting test_plotting.cpp)
-target_link_libraries(test_plotting simulation)
-
 add_executable(test_fork test_fork.cpp)
 target_link_libraries(test_fork simulation)
 

@@ -22,6 +22,8 @@
 #include "simulation/recording.h"
 #include <pcl/common/transforms.h>
 
+using namespace Eigen;
+
 vector<double> interpolateBetween(vector<double> a, vector<double> b, float p) {
   vector<double> out;
   for (int i=0; i < a.size(); i++) {
@@ -169,9 +171,9 @@ int main(int argc, char *argv[]) {
 
       vector<btVector3> estPts = rope->getNodes();
       Eigen::MatrixXf ropePtsCam = toEigenMatrix(CT.toCamFromWorldN(estPts));
-      vector<float> pVis = calcVisibility(rope->bodies, scene.env->bullet->dynamicsWorld, CT.worldFromCamUnscaled.getOrigin()*METERS, TrackingConfig::sigA*METERS, TrackingConfig::nSamples); 
+      VectorXf pVis = calcVisibility(rope->bodies, scene.env->bullet->dynamicsWorld, CT.worldFromCamUnscaled.getOrigin()*METERS, TrackingConfig::sigA*METERS, TrackingConfig::nSamples); 
       colorByVisibility(rope, pVis);
-      SparseArray corr = toSparseArray(calcCorrProb(toEigenMatrix(estPts), toEigenMatrix(obsPts), toVectorXf(pVis), TrackingConfig::sigB*METERS, TrackingConfig::outlierParam),TrackingConfig::cutoff);
+      SparseArray corr = toSparseArray(calcCorrProb(toEigenMatrix(estPts), toEigenMatrix(obsPts), pVis, TrackingConfig::sigB*METERS, TrackingConfig::outlierParam),TrackingConfig::cutoff);
       corrPlots.update(estPts, obsPts, corr);
       vector<btVector3> impulses = calcImpulsesSimple(estPts, obsPts, corr, TrackingConfig::impulseSize);
       applyImpulses(impulses, rope);

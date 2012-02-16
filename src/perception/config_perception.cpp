@@ -18,3 +18,5 @@ bool TrackingConfig::startIdle = false;
 
 float TrackingConfig::towelRes = 1;
 float TrackingConfig::towelStiffness = 1;
+
+string TrackingConfig::objType = "";
