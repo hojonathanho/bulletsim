@@ -1,11 +1,3 @@
-include_directories(
-    ${BULLET_DIR}/src
-    ${OpenRAVE_INCLUDE_DIRS}
-    ${BULLETSIM_SOURCE_DIR}/src
-    ${OSGBULLET_DIR}
-)
-link_directories(${BULLETSIM_BINARY_DIR}/src)
-
 add_executable(test_simplescene test_simplescene.cpp)
 target_link_libraries(test_simplescene simulation robots)
 

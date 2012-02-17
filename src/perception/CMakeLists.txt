@@ -1,14 +1,6 @@
 include_directories(
-    ${BULLET_DIR}/src
-    ${OSGBULLET_DIR}
-    ${OSGWORKS_DIR}
-    ${OpenRAVE_INCLUDE_DIRS}
-    ${Boost_INCLUDE_DIRS}
-    ${EIGEN3_INCLUDE_DIR}
-#		    ${WM_INCLUDE_DIR}
+#   ${WM_INCLUDE_DIR}
     ${PCL_INCLUDE_DIRS}
-    ${BULLETSIM_SOURCE_DIR}/src
-    ${JSON_INCLUDE_DIR}
     ${GUROBI_INCLUDE_DIR}
     ${TETGEN_DIR}
 )
