@@ -142,7 +142,7 @@ void TowelVision::doIteration() {
   SparseArray corr = toSparseArray(corrEigen, TrackingConfig::cutoff);
   m_sigs = calcSigs(corr, estPtsEigen, obsPtsEigen, .025*METERS, 1);
 
-  vector<btVector3> impulses = calcImpulsesDamped(m_towelEstPts, towelEstVels, m_towelObsPts, corr,  getNodeMasses(m_towel), 150, 30);
+  vector<btVector3> impulses = calcImpulsesDamped(m_towelEstPts, towelEstVels, m_towelObsPts, corr,  getNodeMasses(m_towel), TrackingConfig::kp, TrackingConfig::kd);
   vector<float> ms = getNodeMasses(m_towel);
   for (int node=0; node<impulses.size(); node++) m_towel->softBody->addForce(impulses[node],node);
 
@@ -266,7 +266,7 @@ void RopeVision::doIteration() {
   SparseArray corr = toSparseArray(corrEigen, TrackingConfig::cutoff);
   vector<float> masses = getNodeMasses(m_rope);
   vector<btVector3> ropeVel = getNodeVels(m_rope);
-  vector<btVector3> impulses = calcImpulsesDamped(m_ropeEstPts, ropeVel, m_ropeObsPts, corr, masses, .5, 0); // todo: use new version with damping
+  vector<btVector3> impulses = calcImpulsesDamped(m_ropeEstPts, ropeVel, m_ropeObsPts, corr, masses, TrackingConfig::kp, TrackingConfig::kd); // todo: use new version with damping
   m_sigs = calcSigs(corr, estPtsEigen, obsPtsEigen, .025*METERS, 1);
   applyImpulses(impulses, m_rope);
 

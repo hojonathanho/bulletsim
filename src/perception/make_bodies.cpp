@@ -56,8 +56,8 @@ BulletSoftObject::Ptr makeSelfCollidingTowel(const vector<btVector3>& points, bt
 
     psb->m_cfg.piterations = 2;
     psb->m_cfg.collisions = btSoftBody::fCollision::CL_SS
-        | btSoftBody::fCollision::CL_RS
-        | btSoftBody::fCollision::CL_SELF;
+         | btSoftBody::fCollision::CL_RS
+         | btSoftBody::fCollision::CL_SELF;
     psb->m_cfg.kDF = 1.0;
     psb->getCollisionShape()->setMargin(0.01*METERS);
     btSoftBody::Material *pm = psb->appendMaterial();
@@ -65,7 +65,7 @@ BulletSoftObject::Ptr makeSelfCollidingTowel(const vector<btVector3>& points, bt
     pm->m_kAST = 0.1*TrackingConfig::towelStiffness;
     psb->generateBendingConstraints(2, pm);
     psb->randomizeConstraints();
-    psb->setTotalMass(1, true);
+    psb->setTotalMass(1, false);
     psb->generateClusters(0);
 
     return BulletSoftObject::Ptr(new BulletSoftObject(psb));

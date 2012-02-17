@@ -54,14 +54,15 @@ void writeJson(const Value& v, path p) {
 }
 
 Value readJson(path jsonfile) {
-  std::stringstream buffer;
+  //std::stringstream buffer;
   std::ifstream infile(jsonfile.string().c_str());
   if(infile.fail()) throw FileOpenError(jsonfile.string());
-  buffer << infile.rdbuf();
+  //buffer << infile.rdbuf();
   Json::Reader reader;
   Value root;
-  bool parsedSuccess = reader.parse(buffer.str(), root, false);
-  if (!parsedSuccess) throw FileParseError(jsonfile.string());
+  infile >> root;
+  //bool parsedSuccess = reader.parse(buffer.str(), root, false);
+  //if (!parsedSuccess) throw FileParseError(jsonfile.string());
   return root;
 }
 
