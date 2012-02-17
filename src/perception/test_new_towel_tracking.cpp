@@ -19,6 +19,7 @@ int main(int argc, char* argv[]) {
     visionSystem = new TowelVision();
   else if (TrackingConfig::objType=="rope")
     visionSystem = new RopeVision();
+  else throw std::runtime_error("invalid objType");
   extern bool LIVE;
   if (LIVE) visionSystem->runOnline();
   else visionSystem->runOffline();

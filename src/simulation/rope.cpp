@@ -60,7 +60,7 @@ CapsuleRope::CapsuleRope(const vector<btVector3>& ctrlPoints, btScalar radius_, 
   angDamping = angDamping_;
   linDamping = linDamping_;
   angLimit = angLimit_;
-  int nLinks = ctrlPoints.size()-1;
+  nLinks = ctrlPoints.size()-1;
   vector<btTransform> transforms;
   vector<btScalar> lengths;
   createRopeTransforms(transforms,lengths,ctrlPoints);
