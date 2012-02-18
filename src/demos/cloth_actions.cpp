@@ -6,7 +6,7 @@
 #include <BulletSoftBody/btSoftBodyHelpers.h>
 
 static BulletSoftObject::Ptr createCloth(Scene &scene, btScalar s, const btVector3 &center) {
-    const int divs = 45;
+    const int divs = 25;
 
     btSoftBody *psb = btSoftBodyHelpers::CreatePatch(
         scene.env->bullet->softBodyWorldInfo,
@@ -37,42 +37,44 @@ static BulletSoftObject::Ptr createCloth(Scene &scene, btScalar s, const btVecto
 class NodeMoveAction : public Action {
 private:
     btSoftBody *psb;
+    Environment::Ptr env;
+
     int idx; // index of the node in psb
     btVector3 dir; // direction to move the node, magnitude signifies distance
-    bool activated;
-    Environment::Ptr env;
+
     SphereObject::Ptr anchorpt; // an object that we can attach an an anchor to
+    int anchoridx;
+    bool anchorAppended;
     BulletObject::MoveAction::Ptr moveaction;
 
+    void appendAnchor() {
+        if (anchorAppended) return;
+        psb->appendAnchor(idx, anchorpt->rigidBody.get());
+        anchoridx = psb->m_anchors.size() - 1;
+        anchorAppended = true;
+    }
+
 public:
-    NodeMoveAction(Environment::Ptr env_, btSoftBody *psb_) :
-            env(env_), psb(psb_), activated(true) {
-        anchorpt.reset(new SphereObject(0, 0.01*METERS, btTransform::getIdentity(), true));
+    typedef boost::shared_ptr<NodeMoveAction> Ptr;
+
+    NodeMoveAction(Environment::Ptr env_, btSoftBody *psb_, int nodeidx) :
+            env(env_), psb(psb_), idx(nodeidx), anchorAppended(false) {
+        anchorpt.reset(new SphereObject(0, 0.005*METERS, btTransform::getIdentity(), true));
+        anchorpt->rigidBody->setCollisionFlags(anchorpt->rigidBody->getCollisionFlags() | btCollisionObject::CF_NO_CONTACT_RESPONSE);
         env->add(anchorpt);
         moveaction = anchorpt->createMoveAction();
     }
 
-    void activate(bool a) {
-        // activation
-        if (!activated && a)
-            env->bullet->dynamicsWorld->addRigidBody(anchorpt->rigidBody.get());
-
-        // deactivation
-        if (activated && !a)
-            env->bullet->dynamicsWorld->removeRigidBody(anchorpt->rigidBody.get());
-
-        activated = a;
-    }
-
-    void setNode(int i) { idx = i; }
-
     void setMovement(const btVector3 &dir_) { dir = dir_; }
+
+    void disableAnchor() { if (anchorAppended) psb->m_anchors[anchoridx].m_influence = 0; }
+    void enableAnchor() { if (anchorAppended) psb->m_anchors[anchoridx].m_influence = 1; }
 
     void reset() {
         moveaction.reset();
         Action::reset();
-        activated = false;
-        psb->m_anchors.clear(); // assumes this is the only anchor in psb
+        disableAnchor();
+        //psb->m_anchors.clear(); // assumes this is the only anchor in psb
     }
 
     void step(float dt) {
@@ -85,7 +87,8 @@ public:
             btTransform endtrans(btQuaternion(0, 0, 0, 1), nodepos + dir);
 
             anchorpt->motionState->setKinematicPos(starttrans);
-            psb->appendAnchor(idx, anchorpt->rigidBody.get());
+            appendAnchor();
+            enableAnchor();
             moveaction->setEndpoints(starttrans, endtrans);
         }
 
@@ -100,10 +103,46 @@ public:
     }
 };
 
+class NodeActionList {
+    vector<NodeMoveAction::Ptr> actions;
+    btSoftBody *psb;
+    Environment::Ptr env;
+
+    void genActionsForNode(vector<NodeMoveAction::Ptr> &actions, int idx) {
+        NodeMoveAction::Ptr a(new NodeMoveAction(env, psb, idx));
+        a->setMovement(btVector3(0, 0, 0.1) * METERS);
+        a->setExecTime(1);
+        actions.push_back(a);
+    }
+
+    void generate() {
+        actions.clear();
+        for (int i = 0; i < psb->m_nodes.size(); ++i) {
+            genActionsForNode(actions, i);
+        }
+    }
+
+    // for iterating through actions
+    int nextActionPos;
+
+public:
+    NodeActionList(Environment::Ptr env_, btSoftBody *psb_) : env(env_), psb(psb_) {
+        generate();
+        nextActionPos = 0;
+    }
+
+    void reset() { nextActionPos = 0; }
+    NodeMoveAction::Ptr next() {
+        if (nextActionPos < actions.size())
+            return actions[nextActionPos++];
+        return NodeMoveAction::Ptr();
+    }
+};
+
 int main(int argc, char *argv[]) {
     GeneralConfig::scale = 20.;
     ViewerConfig::cameraHomePosition = btVector3(100, 0, 100);
-    BulletConfig::dt = BulletConfig::internalTimeStep = 0.01;
+    BulletConfig::dt = BulletConfig::internalTimeStep = 0.02;
     BulletConfig::maxSubSteps = 0;
 
     Parser parser;
@@ -128,16 +167,14 @@ int main(int argc, char *argv[]) {
 
     scene.startViewer();
 
-    NodeMoveAction a(scene.env, cloth->softBody.get());
-    a.setNode(0);
-    a.setMovement(btVector3(0, 0, 0.1) * METERS);
-    a.setExecTime(10);
+    NodeActionList actions(scene.env, cloth->softBody.get());
+    scene.setDrawing(true);
 
-    scene.setDrawing(false);
-
-    cout << "running action" << endl;
-    scene.runAction(a, BulletConfig::dt);
-    cout << "done running action" << endl;
+    cout << "running actions" << endl;
+    NodeMoveAction::Ptr a;
+    while (a = actions.next())
+        scene.runAction(a, BulletConfig::dt);
+    cout << "done running actions" << endl;
 
     return 0;
 }
