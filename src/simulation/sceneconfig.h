@@ -1,4 +1,5 @@
 #pragma once
+#include "utils/config.h"
 
 struct SceneConfig : Config {
   static bool enableIK;

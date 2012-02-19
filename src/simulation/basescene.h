@@ -4,7 +4,7 @@
 #include <osgGA/TrackballManipulator>
 #include "environment.h"
 #include "basicobjects.h"
-#include "config.h"
+#include "utils/config.h"
 #include "plotting.h"
 
 struct BaseScene;

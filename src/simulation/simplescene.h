@@ -7,7 +7,6 @@
 #include "openravesupport.h"
 #include "plotting.h"
 #include "sceneconfig.h"
-#include "utils/config.h"
 
 class Scene;
 

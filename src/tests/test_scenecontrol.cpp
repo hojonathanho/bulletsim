@@ -1,4 +1,4 @@
-#include "scenecontrol.h"
+#include "simulation/scenecontrol.h"
 
 int main(int argc, char *argv[]) {
     SceneControl controller;

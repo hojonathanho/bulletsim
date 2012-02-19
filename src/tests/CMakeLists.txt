@@ -13,7 +13,7 @@ add_executable(test_scenecontrol test_scenecontrol.cpp)
 target_link_libraries(test_scenecontrol simulation)
 
 add_executable(test_choose_action test_choose_action.cpp)
-target_link_libraries(test_basescene simulation)
+target_link_libraries(test_choose_action simulation)
 
 add_executable(test_simplescene test_simplescene.cpp)
 target_link_libraries(test_simplescene simulation robots)
@@ -51,5 +51,5 @@ target_link_libraries(test_collision_detection simulation)
 add_executable(test_action test_action.cpp)
 target_link_libraries(test_action simulation)
 
-add_executable(test_scene_record test_scene_record.cpp)
-target_link_libraries(test_scene_record simulation)
+#add_executable(test_scene_record test_scene_record.cpp)
+#target_link_libraries(test_scene_record simulation)
