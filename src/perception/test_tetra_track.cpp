@@ -14,8 +14,8 @@
 #include "utils/vector_io.h"
 #include "visibility.h"
 #include "simulation/recording.h"
-
 #include <pcl/common/transforms.h>
+using namespace Eigen;
 
 // WORKING PARAMS FOR SPONGE4:
 // test_tetra_track --sigB=0.1 --nIter=10 --friction=100000 --gravity=-0.5 --impulseSize=10
@@ -115,8 +115,7 @@ int main(int argc, char* argv[]) {
     ColorCloudPtr cloudCam  = cloudMsg.m_data;
     ColorCloudPtr cloudWorld(new ColorCloud());
     pcl::transformPointCloud(*cloudCam, *cloudWorld, CT.worldFromCamEigen);
-    kinectPts->setPoints1(cloudWorld);
-    kinectPts->forceTransparency(0.5);
+    kinectPts->setPoints1(cloudWorld,.5);
 
     vector<btVector3> towelObsPts =  CT.toWorldFromCamN(toBulletVectors(towelPtsMsg.m_data));
     towelObsPlot->setPoints(towelObsPts);
@@ -124,11 +123,11 @@ int main(int argc, char* argv[]) {
     for (int iter=0; iter < TrackingConfig::nIter; iter++) {
       cout << "iteration " << iter << endl;
 //      scene.idle(true);
-      vector<float> pVis = calcVisibility(sponge->softBody.get(), scene.env->bullet->dynamicsWorld, CT.worldFromCamUnscaled.getOrigin()*METERS);
+      VectorXf pVis = calcVisibility(sponge->softBody.get(), scene.env->bullet->dynamicsWorld, CT.worldFromCamUnscaled.getOrigin()*METERS);
       colorByVisibility(sponge->softBody.get(), pVis, towelEstPlot);
 
       vector<btVector3> towelEstPts = getNodes(sponge);
-      SparseArray corr = toSparseArray(calcCorrProb(toEigenMatrix(towelEstPts), toEigenMatrix(towelObsPts), toVectorXf(pVis), TrackingConfig::sigB, TrackingConfig::outlierParam), TrackingConfig::cutoff);
+      SparseArray corr = toSparseArray(calcCorrProb(toEigenMatrix(towelEstPts), toEigenMatrix(towelObsPts), pVis, TrackingConfig::sigB, TrackingConfig::outlierParam), TrackingConfig::cutoff);
       corrPlots.update(towelEstPts, towelObsPts, corr);
 
       vector<btVector3> impulses = calcImpulsesSimple(towelEstPts, towelObsPts, corr, TrackingConfig::impulseSize);

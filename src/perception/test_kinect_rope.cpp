@@ -24,6 +24,8 @@
 #include <osgViewer/Viewer>
 #include <osgViewer/ViewerEventHandlers>
 
+using namespace Eigen;
+
 int main(int argc, char *argv[]) {
 
   // command line options
@@ -85,8 +87,8 @@ int main(int argc, char *argv[]) {
 
   // end tracker
   vector<RigidBodyPtr> rope_ends;
-  rope_ends.push_back(rope->bodies[0]);
-  rope_ends.push_back(rope->bodies[rope->bodies.size()-1]);
+  rope_ends.push_back(rope->children[0]->rigidBody);
+  rope_ends.push_back(rope->children[rope->children.size()-1]->rigidBody);
   //MultiPointTrackerRigid endTracker(rope_ends,scene.env->bullet->dynamicsWorld);
   //TrackerPlotter trackerPlotter(endTracker);
   //scene.env->add(trackerPlotter.m_fakeObjects[0]);
@@ -123,9 +125,9 @@ int main(int argc, char *argv[]) {
       cout << "iteration " << iter << endl;
       vector<btVector3> estPts = rope->getNodes();
       Eigen::MatrixXf ropePtsCam = toEigenMatrix(CT.toCamFromWorldN(estPts));
-      vector<float> pVis = calcVisibility(ropePtsCam, depthImage, ropeMask); 
+      VectorXf pVis = calcVisibility(ropePtsCam, depthImage, ropeMask); 
       colorByVisibility(rope, pVis);
-      SparseArray corr = toSparseArray(calcCorrProb(toEigenMatrix(estPts), toEigenMatrix(obsPts), toVectorXf(pVis), TrackingConfig::sigB, TrackingConfig::outlierParam), TrackingConfig::cutoff);
+      SparseArray corr = toSparseArray(calcCorrProb(toEigenMatrix(estPts), toEigenMatrix(obsPts), pVis, TrackingConfig::sigB, TrackingConfig::outlierParam), TrackingConfig::cutoff);
       corrPlots.update(estPts, obsPts, corr);
       vector<btVector3> impulses = calcImpulsesSimple(estPts, obsPts, corr, TrackingConfig::impulseSize);
       applyImpulses(impulses, rope);

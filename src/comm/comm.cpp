@@ -1,5 +1,4 @@
 #include "comm.h"
-
 #include <algorithm>
 #include <string>
 #include <iostream>
@@ -237,8 +236,7 @@ bool FileSubscriber::recv(Message& message, bool enableWait)  {
   if (gotIt) {
     message.fromFiles(namePair);
     m_names.step();
-    cout << "got " << namePair.second << endl;
-  }
+      }
   if (!gotIt) {
     cout << "didn't get " << namePair.second << endl;
   }

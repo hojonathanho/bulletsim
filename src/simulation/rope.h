@@ -14,9 +14,8 @@ private:
   float angLimit;
 public:
   typedef shared_ptr<CapsuleRope> Ptr;
-  vector<shared_ptr<btRigidBody> > bodies;
   vector<shared_ptr<btCollisionShape> > shapes;
-  vector<shared_ptr<btTypedConstraint> > joints;
+  vector<BulletConstraint::Ptr> joints;
   btScalar radius;
   int nLinks;
 
@@ -24,9 +23,9 @@ public:
   void init();
   void destroy();
   vector<btVector3> getNodes() { 
-    vector<btVector3> out(bodies.size());
-    for (int i=0; i < bodies.size(); i++) 
-      out[i] = bodies[i]->getCenterOfMassPosition();
+    vector<btVector3> out(children.size());
+    for (int i=0; i < children.size(); i++)
+      out[i] = children[i]->rigidBody->getCenterOfMassPosition();
   return out;
   }
 };

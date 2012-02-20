@@ -60,3 +60,7 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr toPointCloud(const std::vector< std::vector<
   out->height=1;
   return out;
 }
+
+bool pointIsFinite(const pcl::PointXYZRGB& pt) {
+  return std::isfinite(pt.x) && std::isfinite(pt.y) && std::isfinite(pt.z);
+}

@@ -1,5 +1,9 @@
 #include "clouds/comm_pcl.h"
+#include "clouds/comm_cv.h"
+#include "clouds/utils_cv.h"
+#include "clouds/utils_pcl.h"
 #include "comm/comm.h"
+#include "perception/apply_impulses.h"
 #include "perception/config_perception.h"
 #include "perception/get_nodes.h"
 #include "perception/make_bodies.h"
@@ -13,6 +17,7 @@
 #include <boost/foreach.hpp>
 #include <pcl/common/transforms.h>
 #include "clouds/geom.h"
+using namespace Eigen;
 
 bool allTrue(const vector<bool>& x) {
   BOOST_FOREACH(bool b, x) if (!b) return false;
@@ -53,8 +58,8 @@ void Vision::setupScene() {
   m_scene = new Scene();
 
   m_kinectPts.reset(new PointCloudPlot(2));
-  m_estPlot.reset(new PointCloudPlot(4));
-  m_obsPlot.reset(new PointCloudPlot(4));
+  m_estPlot.reset(new PlotSpheres());
+  m_obsPlot.reset(new PointCloudPlot(5));
   m_corrLines.reset(new PlotLines(3));
 
   m_scene->env->add(m_kinectPts);
@@ -68,12 +73,12 @@ void Vision::setupScene() {
 
 void Vision::runOffline() {
   m_scene->startViewer();
+
   if (TrackingConfig::startIdle) m_scene->idle(true);
   for (int t=0; ; t++) {
+    int iter=0;
     m_gotEm = vector<bool>(m_msgs.size(), false);
     ENSURE(recvAll());
-    int iter=0;
-    m_gotEm = vector<bool>(m_msgs.size());
 
     beforeIterations();
     do {
@@ -113,18 +118,39 @@ TowelVision::TowelVision() {
   setupScene(); 
 }
 
+float sq(float x) {return x*x;}
+
 void TowelVision::doIteration() {
-  vector<float> pVis = calcVisibility(m_towel->softBody.get(), m_scene->env->bullet->dynamicsWorld, m_CT->worldFromCamUnscaled.getOrigin()*METERS);
-  colorByVisibility(m_towel->softBody.get(), pVis, m_estPlot);
+  VectorXf pVis = calcVisibility(m_towel->softBody.get(), m_scene->env->bullet->dynamicsWorld, m_CT->worldFromCamUnscaled.getOrigin()*METERS);
 
   vector<btVector3> m_towelEstPts = getNodes(m_towel);
   vector<btVector3> towelEstVels = getNodeVels(m_towel);
-  SparseArray corr = toSparseArray(calcCorrProb(toEigenMatrix(m_towelEstPts), toEigenMatrix(m_towelObsPts), toVectorXf(pVis), TrackingConfig::sigB, TrackingConfig::outlierParam), TrackingConfig::cutoff);
-  if (TrackingConfig::showLines) drawCorrLines(m_corrLines, m_towelEstPts, m_towelObsPts, corr);
 
-  vector<btVector3> impulses = calcImpulsesDamped(m_towelEstPts, towelEstVels, m_towelObsPts, corr,  getNodeMasses(m_towel), 300, 60);
+  if (m_sigs.rows() == 0) {
+    m_sigs.resize(m_towelEstPts.size(), 1);
+    m_sigs.setConstant(sq(.025*METERS));
+  }
+
+
+  MatrixXf estPtsEigen = toEigenMatrix(m_towelEstPts);
+  MatrixXf obsPtsEigen = toEigenMatrix(m_towelObsPts);
+
+  assert(isFinite(obsPtsEigen));
+  assert(isFinite(estPtsEigen));
+
+  Eigen::MatrixXf corrEigen = calcCorrProb(estPtsEigen, m_sigs, obsPtsEigen, pVis, TrackingConfig::outlierParam);
+  SparseArray corr = toSparseArray(corrEigen, TrackingConfig::cutoff);
+  m_sigs = calcSigs(corr, estPtsEigen, obsPtsEigen, .025*METERS, 1);
+
+  vector<btVector3> impulses = calcImpulsesDamped(m_towelEstPts, towelEstVels, m_towelObsPts, corr,  getNodeMasses(m_towel), 150, 30);
   vector<float> ms = getNodeMasses(m_towel);
   for (int node=0; node<impulses.size(); node++) m_towel->softBody->addForce(impulses[node],node);
+
+  if (TrackingConfig::showLines) drawCorrLines(m_corrLines, m_towelEstPts, m_towelObsPts, corr);
+  if (TrackingConfig::showObs) plotObs(corrEigen, m_towelObsPts, m_obsPlot);
+  if (TrackingConfig::showEst) plotNodesAsSpheres(m_towel->softBody.get(), pVis, m_sigs, m_estPlot);
+
+
   m_scene->env->step(.03,2,.015);
   m_scene->draw();
 }
@@ -152,7 +178,6 @@ void TowelVision::setupComm() {
   m_subs.push_back(m_towelSub);
   m_msgs.push_back(&m_towelPtsMsg);
   m_pub = new FilePublisher("towel_model", "txt");
-  m_gotEm = vector<bool>(m_subs.size(), false);
 }
 
 void TowelVision::setupScene() {
@@ -174,4 +199,89 @@ void TowelVision::setupScene() {
 
   m_scene->env->add(m_towel);
   m_scene->env->add(m_table);
+}
+
+RopeVision::RopeVision() {
+  setupComm();
+  setupScene();
+}
+
+void RopeVision::setupComm() {
+  m_ropeSub = new FileSubscriber("rope_pts","pcd");
+  m_subs.push_back(m_ropeSub);
+  m_msgs.push_back(&m_ropePtsMsg);
+  m_labelSub = new FileSubscriber("labels","png");
+  m_subs.push_back(m_labelSub);
+  m_msgs.push_back(&m_labelMsg);
+  m_pub = new FilePublisher("rope_model", "txt");
+}
+
+void RopeVision::setupScene() {
+  vector< vector<float> > vv = floatMatFromFile(onceFile("table_corners.txt").string());
+  vector<btVector3> tableCornersCam = toBulletVectors(vv);
+  m_CT = new CoordinateTransformer(getCamToWorldFromTable(tableCornersCam));
+
+  vector<btVector3> tableCornersWorld = m_CT->toWorldFromCamN(tableCornersCam);
+  m_table = makeTable(tableCornersWorld, .1*METERS);
+  m_table->setColor(0,0,1,.25);
+
+  vector<btVector3> ropePtsCam = toBulletVectors(floatMatFromFile(onceFile("init_rope.txt").string()));
+  m_rope.reset(new CapsuleRope(m_CT->toWorldFromCamN(ropePtsCam), .0075*METERS));
+
+  m_scene->env->add(m_rope);
+  m_scene->env->add(m_table);
+}
+
+void RopeVision::beforeIterations() {
+  ColorCloudPtr cloudCam  = m_kinectMsg.m_data;
+  ColorCloudPtr cloudWorld(new ColorCloud());
+  pcl::transformPointCloud(*cloudCam, *cloudWorld, m_CT->worldFromCamEigen);
+  if (TrackingConfig::showKinect) m_kinectPts->setPoints1(cloudWorld);
+
+  cv::Mat labels = toSingleChannel(m_labelMsg.m_data);
+  m_ropeMask = labels < 2;
+  m_depthImage = getDepthImage(cloudCam);
+  m_ropeObsPts = m_CT->toWorldFromCamN(toBulletVectors(m_ropePtsMsg.m_data));
+
+
+}
+
+void RopeVision::doIteration() {
+  m_ropeEstPts = m_rope->getNodes();
+  Eigen::MatrixXf ropePtsCam = toEigenMatrix(m_CT->toCamFromWorldN(m_ropeEstPts));
+  VectorXf pVis = calcVisibility(ropePtsCam, m_depthImage, m_ropeMask);
+  colorByVisibility(m_rope, pVis);
+
+
+  if (m_sigs.rows() == 0) {
+    m_sigs.resize(m_ropeEstPts.size(), 1);
+    m_sigs.setConstant(sq(.025*METERS));
+  }
+
+  MatrixXf estPtsEigen = toEigenMatrix(m_ropeEstPts);
+  MatrixXf obsPtsEigen = toEigenMatrix(m_ropeObsPts);
+
+  Eigen::MatrixXf corrEigen = calcCorrProb(estPtsEigen, m_sigs, obsPtsEigen, pVis, TrackingConfig::outlierParam); // todo: use new version with var est
+
+  SparseArray corr = toSparseArray(corrEigen, TrackingConfig::cutoff);
+  vector<float> masses = getNodeMasses(m_rope);
+  vector<btVector3> ropeVel = getNodeVels(m_rope);
+  vector<btVector3> impulses = calcImpulsesDamped(m_ropeEstPts, ropeVel, m_ropeObsPts, corr, masses, .5, 0); // todo: use new version with damping
+  m_sigs = calcSigs(corr, estPtsEigen, obsPtsEigen, .025*METERS, 1);
+  applyImpulses(impulses, m_rope);
+
+
+  if (TrackingConfig::showLines) drawCorrLines(m_corrLines, m_ropeEstPts, m_ropeObsPts, corr);
+  if (TrackingConfig::showObs) plotObs(corrEigen, m_ropeObsPts, m_obsPlot);
+  //if (TrackingConfig::showEst) plotNodesAsSpheres(m_rope->softBody.get(), pVis, m_sigs, m_estPlot);
+
+
+  m_scene->env->step(.03,2,.015);
+  m_scene->draw();
+
+}
+
+void RopeVision::afterIterations() {
+  vector< vector<float> > vv = toVecVec(m_ropeEstPts);
+  m_pub->send(VecVecMessage<float>(vv));
 }

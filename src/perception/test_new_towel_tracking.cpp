@@ -14,8 +14,13 @@ int main(int argc, char* argv[]) {
   parser.addGroup(BulletConfig());
   parser.read(argc, argv);
 
-  TowelVision tv;
+  Vision* visionSystem;
+  if (TrackingConfig::objType=="towel")
+    visionSystem = new TowelVision();
+  else if (TrackingConfig::objType=="rope")
+    visionSystem = new RopeVision();
+  else throw std::runtime_error("invalid objType");
   extern bool LIVE;
-  if (LIVE) tv.runOnline();
-  else tv.runOffline();
+  if (LIVE) visionSystem->runOnline();
+  else visionSystem->runOffline();
 }

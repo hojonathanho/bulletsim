@@ -1,3 +1,4 @@
+#pragma once
 #include "comm/comm.h"
 #include <Eigen/Dense>
 #include <opencv2/core/core.hpp>

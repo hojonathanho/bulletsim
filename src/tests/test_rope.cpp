@@ -80,7 +80,7 @@ int main(int argc, char *argv[]) {
     if (i == 160) {
       btVector3 rhpos = util::toBtTransform(rarm->GetEndEffectorTransform()).getOrigin();
       cout << rhpos << endl;
-      g = new Grab(ropePtr->bodies[0].get(),rhpos*METERS,s.env->bullet->dynamicsWorld);
+      g = new Grab(ropePtr->children[0]->rigidBody.get(),rhpos*METERS,s.env->bullet->dynamicsWorld);
     }
     if (i > 160) {
       g->updatePosition(util::toBtTransform(rarm->GetEndEffectorTransform()).getOrigin()*METERS);
@@ -90,7 +90,7 @@ int main(int argc, char *argv[]) {
     if (i == 330) {
       btVector3 lhpos = util::toBtTransform(larm->GetEndEffectorTransform()).getOrigin()*METERS;
       cout << lhpos << endl;
-      g2 = new Grab(ropePtr->bodies[nLinks-2].get(),lhpos*METERS,s.env->bullet->dynamicsWorld);
+      g2 = new Grab(ropePtr->children[nLinks-2]->rigidBody.get(),lhpos*METERS,s.env->bullet->dynamicsWorld);
     }
     if (i > 330) {
       g2->updatePosition(util::toBtTransform(larm->GetEndEffectorTransform()).getOrigin()*METERS);

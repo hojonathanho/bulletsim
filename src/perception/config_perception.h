@@ -20,6 +20,8 @@ struct TrackingConfig : Config {
 
   static float towelRes;
   static float towelStiffness;
+
+  static std::string objType;
   
   TrackingConfig() : Config() {
 
@@ -42,6 +44,7 @@ struct TrackingConfig : Config {
     params.push_back(new Parameter<float>("towelRes",&towelRes, "towel resolution factor"));
     params.push_back(new Parameter<float>("towelStiffness",&towelStiffness, "towel stiffness"));
 
+    params.push_back(new Parameter<std::string>("objType",&objType,"object type"));
   }
 };
 
