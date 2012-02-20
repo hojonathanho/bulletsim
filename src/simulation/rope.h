@@ -16,7 +16,7 @@ public:
   typedef shared_ptr<CapsuleRope> Ptr;
   vector<shared_ptr<btRigidBody> > bodies;
   vector<shared_ptr<btCollisionShape> > shapes;
-  vector<shared_ptr<btTypedConstraint> > joints;
+  vector<BulletConstraint::Ptr> joints;
   btScalar radius;
   int nLinks;
 

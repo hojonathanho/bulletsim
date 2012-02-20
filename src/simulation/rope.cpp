@@ -77,15 +77,11 @@ CapsuleRope::CapsuleRope(const vector<btVector3>& ctrlPoints, btScalar radius_, 
 
     if (i>0) {
       shared_ptr<btPoint2PointConstraint> jointPtr(new btPoint2PointConstraint(*bodies[i-1],*bodies[i],btVector3(len/2,0,0),btVector3(-len/2,0,0)));
-      joints.push_back(jointPtr);
-
+      joints.push_back(BulletConstraint::Ptr(new BulletConstraint(jointPtr, true)));
 
       shared_ptr<btGeneric6DofSpringConstraint> springPtr = createBendConstraint(len,bodies[i-1],bodies[i],angDamping,angStiffness,angLimit);
-      joints.push_back(springPtr);
-							  
+      joints.push_back(BulletConstraint::Ptr(new BulletConstraint(springPtr, true)));
     }
-
-
   }
 }
 
@@ -107,14 +103,14 @@ void CapsuleRope::init() {
 
 
   for (int i=0; i< joints.size(); i++) {
-       getEnvironment()->bullet->dynamicsWorld->addConstraint(joints[i].get(),true);
+       getEnvironment()->addConstraint(joints[i]);
   }
 }
 
 void CapsuleRope::destroy() {
-  for (int i = 0; i < joints.size(); i++) {
+/*  for (int i = 0; i < joints.size(); i++) {
        getEnvironment()->bullet->dynamicsWorld->removeConstraint(joints[i].get());
-  }
+  }*/
   CompoundObject<BulletObject>::destroy();
 }
 

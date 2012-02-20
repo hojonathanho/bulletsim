@@ -50,6 +50,8 @@ void BulletInstance::contactTest(btCollisionObject *obj,
 }
 
 Environment::~Environment() {
+    for (ConstraintList::iterator i = constraints.begin(); i != constraints.end(); ++i)
+        (*i)->destroy();
     for (ObjectList::iterator i = objects.begin(); i != objects.end(); ++i)
         (*i)->destroy();
 }
@@ -60,6 +62,22 @@ void Environment::add(EnvironmentObject::Ptr obj) {
     objects.push_back(obj);
     // objects are reponsible for adding themselves
     // to the dynamics world and the osg root
+}
+
+void Environment::addConstraint(EnvironmentObject::Ptr cnt) {
+    cnt->setEnvironment(this);
+    cnt->init();
+    constraints.push_back(cnt);
+}
+
+void Environment::removeConstraint(EnvironmentObject::Ptr cnt) {
+    for (ConstraintList::iterator i = constraints.begin(); i != constraints.end(); ++i) {
+        if (cnt == *i) {
+            (*i)->destroy();
+            constraints.erase(i);
+            return;
+        }
+    }
 }
 
 void Environment::step(btScalar dt, int maxSubSteps, btScalar fixedTimeStep) {
@@ -73,17 +91,25 @@ void Environment::step(btScalar dt, int maxSubSteps, btScalar fixedTimeStep) {
 }
 
 void Fork::copyObjects() {
+    // copy objects first
     Environment::ObjectList::const_iterator i;
-
     for (i = parentEnv->objects.begin(); i != parentEnv->objects.end(); ++i) {
         EnvironmentObject::Ptr copy = (*i)->copy(*this);
         env->add(copy);
         objMap[*i] = copy;
     }
-
     // some objects might need processing after all objects have been added
     // e.g. anchors and joints for soft bodies
-    for (i = parentEnv->objects.begin(); i != parentEnv->objects.end(); ++i) {
+    for (i = parentEnv->objects.begin(); i != parentEnv->objects.end(); ++i)
         (*i)->postCopy(objMap[*i], *this);
+
+    // copy constraints
+    Environment::ConstraintList::const_iterator j;
+    for (j = parentEnv->constraints.begin(); j != parentEnv->constraints.end(); ++j) {
+        EnvironmentObject::Ptr copy = (*j)->copy(*this);
+        env->addConstraint(copy);
+        objMap[*j] = copy;
     }
+    for (j = parentEnv->constraints.begin(); j != parentEnv->constraints.end(); ++j)
+        (*j)->postCopy(objMap[*j], *this);
 }

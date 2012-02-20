@@ -83,10 +83,17 @@ struct Environment {
     typedef std::vector<EnvironmentObject::Ptr> ObjectList;
     ObjectList objects;
 
+    typedef std::vector<EnvironmentObject::Ptr> ConstraintList;
+    ConstraintList constraints;
+
     Environment(BulletInstance::Ptr bullet_, OSGInstance::Ptr osg_) : bullet(bullet_), osg(osg_) { }
     ~Environment();
 
     void add(EnvironmentObject::Ptr obj);
+
+    void addConstraint(EnvironmentObject::Ptr cnt);
+    void removeConstraint(EnvironmentObject::Ptr cnt);
+
     void step(btScalar dt, int maxSubSteps, btScalar fixedTimeStep);
 };
 

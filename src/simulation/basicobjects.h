@@ -100,11 +100,32 @@ private:
   void setColorAfterInit();
 };
 
+class BulletConstraint : public EnvironmentObject {
+private:
+    BulletConstraint(const BulletConstraint &o);
+
+public:
+    typedef boost::shared_ptr<BulletConstraint> Ptr;
+
+    boost::shared_ptr<btTypedConstraint> cnt;
+    bool disableCollisionsBetweenLinkedBodies;
+
+    BulletConstraint(btTypedConstraint *cnt_, bool disableCollisionsBetweenLinkedBodies_=false) :
+        cnt(cnt_),
+        disableCollisionsBetweenLinkedBodies(disableCollisionsBetweenLinkedBodies_) { }
+    BulletConstraint(boost::shared_ptr<btTypedConstraint> cnt_, bool disableCollisionsBetweenLinkedBodies_=false) :
+        cnt(cnt_),
+        disableCollisionsBetweenLinkedBodies(disableCollisionsBetweenLinkedBodies_) { }
+    EnvironmentObject::Ptr copy(Fork &f) const;
+    void init();
+    void destroy();
+};
+
 class GrabberKinematicObject : public BulletObject {
 private:
     float radius, height;
     btVector3 constraintPivot;
-    boost::shared_ptr<btGeneric6DofConstraint> constraint;
+    BulletConstraint::Ptr constraint;
 
 public:
     typedef boost::shared_ptr<GrabberKinematicObject> Ptr;
