@@ -69,17 +69,16 @@ CapsuleRope::CapsuleRope(const vector<btVector3>& ctrlPoints, btScalar radius_, 
     btScalar len = lengths[i];
     float mass = 1;
     CapsuleObject::Ptr child(new CapsuleObject(1,radius,len,trans));
-    bodies.push_back(child->rigidBody);
     child->rigidBody->setDamping(linDamping,angDamping);
     child->rigidBody->setFriction(1);
 
     children.push_back(child);
 
     if (i>0) {
-      shared_ptr<btPoint2PointConstraint> jointPtr(new btPoint2PointConstraint(*bodies[i-1],*bodies[i],btVector3(len/2,0,0),btVector3(-len/2,0,0)));
+      shared_ptr<btPoint2PointConstraint> jointPtr(new btPoint2PointConstraint(*children[i-1]->rigidBody,*children[i]->rigidBody,btVector3(len/2,0,0),btVector3(-len/2,0,0)));
       joints.push_back(BulletConstraint::Ptr(new BulletConstraint(jointPtr, true)));
 
-      shared_ptr<btGeneric6DofSpringConstraint> springPtr = createBendConstraint(len,bodies[i-1],bodies[i],angDamping,angStiffness,angLimit);
+      shared_ptr<btGeneric6DofSpringConstraint> springPtr = createBendConstraint(len,children[i-1]->rigidBody,children[i]->rigidBody,angDamping,angStiffness,angLimit);
       joints.push_back(BulletConstraint::Ptr(new BulletConstraint(springPtr, true)));
     }
   }

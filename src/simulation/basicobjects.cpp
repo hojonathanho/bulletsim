@@ -181,7 +181,7 @@ BulletObject::BulletObject(const BulletObject &o) : isKinematic(o.isKinematic) {
         colObj->setRestitution(colObjData.m_restitution);
         colObj->setCollisionFlags(colObjData.m_collisionFlags);
         colObj->setHitFraction(colObjData.m_hitFraction);
-        // TODO: activation state
+        colObj->setActivationState(colObjData.m_activationState1);
     }
 }
 
