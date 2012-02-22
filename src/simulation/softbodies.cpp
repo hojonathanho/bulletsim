@@ -149,8 +149,7 @@ EnvironmentObject::Ptr BulletSoftObject::copy(Fork &f) const {
 
     // materials
     psb->m_materials.reserve(orig->m_materials.size());
-    for (i=0;i<orig->m_materials.size();i++)
-    {
+    for (i=0;i<orig->m_materials.size();i++) {
         const btSoftBody::Material *mat = orig->m_materials[i];
         btSoftBody::Material *newMat = psb->appendMaterial();
         newMat->m_flags = mat->m_flags;
@@ -262,16 +261,15 @@ EnvironmentObject::Ptr BulletSoftObject::copy(Fork &f) const {
     // solver state
     psb->m_sst = orig->m_sst;
 
-    //clusters
-    //psb->generateClusters(orig->m_clusters.size());
+    // clusters
     psb->m_clusters.resize(orig->m_clusters.size());
     for (i=0;i<orig->m_clusters.size();i++) {
         btSoftBody::Cluster *cl = orig->m_clusters[i];
-        //btSoftBody::Cluster *newcl = psb->m_clusters[i] = new btSoftBody::Cluster;
-        btSoftBody::Cluster *newcl = psb->m_clusters[i] = new(btAlignedAlloc(sizeof(btSoftBody::Cluster),16)) btSoftBody::Cluster();
+        btSoftBody::Cluster *newcl = psb->m_clusters[i] =
+            new(btAlignedAlloc(sizeof(btSoftBody::Cluster),16)) btSoftBody::Cluster();
 
         newcl->m_nodes.resize(cl->m_nodes.size());
-        for (int j = 0; j < cl->m_nodes.size(); ++j)
+        for (j = 0; j < cl->m_nodes.size(); ++j)
             newcl->m_nodes[j] = (btSoftBody::Node *) f.copyOf(cl->m_nodes[j]);
         COPY_ARRAY(newcl->m_masses, cl->m_masses);
         COPY_ARRAY(newcl->m_framerefs, cl->m_framerefs);
@@ -289,7 +287,7 @@ EnvironmentObject::Ptr BulletSoftObject::copy(Fork &f) const {
         newcl->m_ndimpulses = cl->m_ndimpulses;
         newcl->m_lv = cl->m_lv;
         newcl->m_av = cl->m_av;
-        newcl->m_leaf = 0; // ????
+        newcl->m_leaf = 0; // soft body code will set this automatically
         newcl->m_ndamping = cl->m_ndamping;
         newcl->m_ldamping = cl->m_ldamping;
         newcl->m_adamping = cl->m_adamping;

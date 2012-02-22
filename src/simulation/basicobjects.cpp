@@ -94,6 +94,7 @@ void BulletObject::preDraw() {
 
 void BulletObject::destroy() {
     getEnvironment()->bullet->dynamicsWorld->removeRigidBody(rigidBody.get());
+    getEnvironment()->osg->root->removeChild(transform.get());
 }
 
 BulletObject::BulletObject(const BulletObject &o) : isKinematic(o.isKinematic) {

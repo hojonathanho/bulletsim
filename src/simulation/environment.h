@@ -90,6 +90,7 @@ struct Environment {
     ~Environment();
 
     void add(EnvironmentObject::Ptr obj);
+    void remove(EnvironmentObject::Ptr obj);
 
     void addConstraint(EnvironmentObject::Ptr cnt);
     void removeConstraint(EnvironmentObject::Ptr cnt);

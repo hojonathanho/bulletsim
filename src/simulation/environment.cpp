@@ -64,6 +64,16 @@ void Environment::add(EnvironmentObject::Ptr obj) {
     // to the dynamics world and the osg root
 }
 
+void Environment::remove(EnvironmentObject::Ptr obj) {
+    for (ObjectList::iterator i = objects.begin(); i != objects.end(); ++i) {
+        if (obj == *i) {
+            (*i)->destroy();
+            objects.erase(i);
+            return;
+        }
+    }
+}
+
 void Environment::addConstraint(EnvironmentObject::Ptr cnt) {
     cnt->setEnvironment(this);
     cnt->init();
