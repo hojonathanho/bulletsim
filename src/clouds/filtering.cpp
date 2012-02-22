@@ -11,27 +11,49 @@
 
 using namespace std;
 using namespace cv;
+using namespace pcl;
 using boost::shared_ptr;
+using namespace Eigen;
 
 ColorCloudPtr maskCloud(const ColorCloudPtr in, const cv::Mat& mask) {
-  ENSURE(mask.elemSize() == 1);
-  ENSURE(mask.rows == in->height);
-  ENSURE(mask.cols == in->width);
-  ENSURE(in->isOrganized());
+  assert(mask.elemSize() == 1);
+  assert(mask.rows == in->height);
+  assert(mask.cols == in->width);
+  assert(in->isOrganized());
 
   shared_ptr< vector<int> > indicesPtr(new vector<int>());
 
   MatConstIterator_<bool> it = mask.begin<bool>(), it_end = mask.end<bool>();
-  for (int i=0; it != it_end; it++) {
+  for (int i=0; it != it_end; ++it, ++i) {
     if (*it > 0) indicesPtr->push_back(i);
-    i++;
   }
 
-  pcl::PointCloud<pcl::PointXYZRGB>::Ptr out(new pcl::PointCloud<pcl::PointXYZRGB>());
+  ColorCloudPtr out(new ColorCloud());
   pcl::ExtractIndices<pcl::PointXYZRGB> ei;
+  ei.setNegative(false);
   ei.setInputCloud(in);
   ei.setIndices(indicesPtr);
   ei.filter(*out);
+  return out;
+}
+
+
+ColorCloudPtr maskCloud(const ColorCloudPtr in, const VectorXb& mask) {
+
+  ColorCloudPtr out(new ColorCloud());
+  int nOut = mask.sum();
+  out->reserve(nOut);
+  out->header=in->header;
+  out->width = nOut;
+  out->height = 1;
+  out->is_dense = false;
+
+  int i = 0;
+  BOOST_FOREACH(const PointXYZRGB& pt, in->points) {
+    if (mask(i)) out->push_back(pt);
+    ++i;
+  }
+
   return out;
 }
 

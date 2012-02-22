@@ -85,13 +85,13 @@ vector<Vector3f> toEigenVectors(const vector<btVector3>& in) {
   return out;
 }
 
-MatrixX3f toEigenMatrix(const vector<btVector3>& in) {
-  MatrixX3f out(in.size(), 3);
+MatrixXf toEigenMatrix(const vector<btVector3>& in) {
+  MatrixXf out(in.size(), 3);
   for (int i=0; i<in.size(); i++) out.row(i) = toEigenVector(in[i]);
   return out;
 }
 
-MatrixX3f toEigenMatrix(const vector< vector<float> >& in) {
+MatrixXf toEigenMatrix(const vector< vector<float> >& in) {
   ENSURE(in.size() > 1) ;
   MatrixXf out(in.size(),in[0].size()); 
   for (int i=0; i<in.size(); i++) 

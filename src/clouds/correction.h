@@ -8,4 +8,4 @@ Eigen::MatrixXf quadFeats(const Eigen::MatrixXf& X);
 
 Eigen::MatrixXf correctPoints(const Eigen::MatrixXf& X, const Eigen::MatrixXf& coefs);
 
-ColorCloudPtr correctCloudXYZRGB(ColorCloudPtr in, const Eigen::MatrixXf& coefs);
+ColorCloudPtr correctCloudXYZRGBA(ColorCloudPtr in, const Eigen::MatrixXf& coefs);

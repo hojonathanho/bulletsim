@@ -20,18 +20,9 @@ link_directories(
   ${TETGEN_DIR}
 )
 
-# add_library(perception tracking.cpp utils_perception.cpp dist_math.cpp)
-# target_link_libraries(perception ${PCL_LIBRARIES} simulation)
 
-#add_executable(test_kinect_rope1 test_kinect_rope.cpp)
-#target_link_libraries(test_kinect_rope1 simulation perception clouds ${PCL_LIBRARIES} json comm)
-
-
-
-#add_executable(test_eigen_inc test_eigen_inc.cpp)
-
-# add_executable(test_kinect_towel test_kinect_towel.cpp)
-# target_link_libraries(test_kinect_towel ${PCL_LIBRARIES} json simulation perception clouds comm)
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
+SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fopenmp")
 
 add_library(perception config_perception.cpp utils_perception.cpp make_bodies.cpp openrave_joints.cpp robot_geometry.cpp dist_math.cpp optimization_forces.cpp sparse_array.cpp apply_impulses.cpp visibility.cpp trackers.cpp matching.cpp get_nodes.cpp plotting_perception.cpp)
 target_link_libraries(perception ${PCL_LIBRARIES} comm clouds simulation tetgen utils)
