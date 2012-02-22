@@ -4,7 +4,6 @@
 #include "btBulletDynamicsCommon.h"
 #include "vector"
 using namespace std;
-using boost::shared_ptr;
 
 class CapsuleRope : public CompoundObject<BulletObject> {
 private:
@@ -13,8 +12,8 @@ private:
   float linDamping;
   float angLimit;
 public:
-  typedef shared_ptr<CapsuleRope> Ptr;
-  vector<shared_ptr<btCollisionShape> > shapes;
+  typedef boost::shared_ptr<CapsuleRope> Ptr;
+  vector<boost::shared_ptr<btCollisionShape> > shapes;
   vector<BulletConstraint::Ptr> joints;
   btScalar radius;
   int nLinks;

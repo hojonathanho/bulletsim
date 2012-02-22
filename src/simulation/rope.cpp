@@ -3,22 +3,22 @@
 #include <iostream>
 using namespace std;
 
-shared_ptr<btRigidBody> createRigidBody(const shared_ptr<btCollisionShape> shapePtr, const btTransform& trans, btScalar mass) {
+boost::shared_ptr<btRigidBody> createRigidBody(const boost::shared_ptr<btCollisionShape> shapePtr, const btTransform& trans, btScalar mass) {
   bool isDynamic = (mass != 0.f);
   btVector3 localInertia(0,0,0);
   if (isDynamic) shapePtr->calculateLocalInertia(mass,localInertia);
   btDefaultMotionState* myMotionState = new btDefaultMotionState(trans);
   btRigidBody::btRigidBodyConstructionInfo cInfo(mass,myMotionState,shapePtr.get(),localInertia);
-  return shared_ptr<btRigidBody>(new btRigidBody(cInfo));
+  return boost::shared_ptr<btRigidBody>(new btRigidBody(cInfo));
 }
 
-shared_ptr<btGeneric6DofSpringConstraint>  createBendConstraint(btScalar len,
-			  const shared_ptr<btRigidBody> rbA, const shared_ptr<btRigidBody>& rbB, float damping, float stiffness, float limit) {
+boost::shared_ptr<btGeneric6DofSpringConstraint>  createBendConstraint(btScalar len,
+			  const boost::shared_ptr<btRigidBody> rbA, const boost::shared_ptr<btRigidBody>& rbB, float damping, float stiffness, float limit) {
 
   btTransform tA,tB;
   tA.setIdentity(); tB.setIdentity();
   tA.setOrigin(btVector3(len/2,0,0)); tB.setOrigin(btVector3(-len/2,0,0));
-  shared_ptr<btGeneric6DofSpringConstraint> springPtr = shared_ptr<btGeneric6DofSpringConstraint>(new btGeneric6DofSpringConstraint(*rbA,*rbB,tA,tB,false));
+  boost::shared_ptr<btGeneric6DofSpringConstraint> springPtr = boost::shared_ptr<btGeneric6DofSpringConstraint>(new btGeneric6DofSpringConstraint(*rbA,*rbB,tA,tB,false));
   for (int i=3; i<=5; i++) {
     springPtr->enableSpring(i,true);
     springPtr->setStiffness(i,stiffness);
@@ -75,10 +75,10 @@ CapsuleRope::CapsuleRope(const vector<btVector3>& ctrlPoints, btScalar radius_, 
     children.push_back(child);
 
     if (i>0) {
-      shared_ptr<btPoint2PointConstraint> jointPtr(new btPoint2PointConstraint(*children[i-1]->rigidBody,*children[i]->rigidBody,btVector3(len/2,0,0),btVector3(-len/2,0,0)));
+      boost::shared_ptr<btPoint2PointConstraint> jointPtr(new btPoint2PointConstraint(*children[i-1]->rigidBody,*children[i]->rigidBody,btVector3(len/2,0,0),btVector3(-len/2,0,0)));
       joints.push_back(BulletConstraint::Ptr(new BulletConstraint(jointPtr, true)));
 
-      shared_ptr<btGeneric6DofSpringConstraint> springPtr = createBendConstraint(len,children[i-1]->rigidBody,children[i]->rigidBody,angDamping,angStiffness,angLimit);
+      boost::shared_ptr<btGeneric6DofSpringConstraint> springPtr = createBendConstraint(len,children[i-1]->rigidBody,children[i]->rigidBody,angDamping,angStiffness,angLimit);
       joints.push_back(BulletConstraint::Ptr(new BulletConstraint(springPtr, true)));
     }
   }
