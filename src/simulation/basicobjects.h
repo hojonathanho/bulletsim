@@ -86,13 +86,18 @@ public:
     // actions (for the user)
     class MoveAction : public Action {
         BulletObject *obj;
-        const btTransform start, end;
+        btTransform start, end;
 
     public:
         typedef boost::shared_ptr<MoveAction> Ptr;
-        MoveAction(BulletObject *obj_, const btTransform &start_, const btTransform &end_, float time) : obj(obj_), start(start_), end(end_), Action(time) { }
+        MoveAction(BulletObject *obj_) : obj(obj_) { }
+        MoveAction(BulletObject *obj_, const btTransform &start_, const btTransform &end_, float execTime) : obj(obj_), start(start_), end(end_), Action(execTime) { }
+        void setEndpoints(const btTransform &start_, const btTransform &end_) {
+            start = start_; end = end_;
+        }
         void step(float dt);
     };
+    MoveAction::Ptr createMoveAction() { return MoveAction::Ptr(new MoveAction(this)); }
     MoveAction::Ptr createMoveAction(const btTransform &start, const btTransform &end, float time) { return MoveAction::Ptr(new MoveAction(this, start, end, time)); }
   void setColor(float r, float g, float b, float a);
 private:
@@ -100,11 +105,32 @@ private:
   void setColorAfterInit();
 };
 
+class BulletConstraint : public EnvironmentObject {
+private:
+    BulletConstraint(const BulletConstraint &o);
+
+public:
+    typedef boost::shared_ptr<BulletConstraint> Ptr;
+
+    boost::shared_ptr<btTypedConstraint> cnt;
+    bool disableCollisionsBetweenLinkedBodies;
+
+    BulletConstraint(btTypedConstraint *cnt_, bool disableCollisionsBetweenLinkedBodies_=false) :
+        cnt(cnt_),
+        disableCollisionsBetweenLinkedBodies(disableCollisionsBetweenLinkedBodies_) { }
+    BulletConstraint(boost::shared_ptr<btTypedConstraint> cnt_, bool disableCollisionsBetweenLinkedBodies_=false) :
+        cnt(cnt_),
+        disableCollisionsBetweenLinkedBodies(disableCollisionsBetweenLinkedBodies_) { }
+    EnvironmentObject::Ptr copy(Fork &f) const;
+    void init();
+    void destroy();
+};
+
 class GrabberKinematicObject : public BulletObject {
 private:
     float radius, height;
     btVector3 constraintPivot;
-    boost::shared_ptr<btGeneric6DofConstraint> constraint;
+    BulletConstraint::Ptr constraint;
 
 public:
     typedef boost::shared_ptr<GrabberKinematicObject> Ptr;
@@ -168,7 +194,7 @@ private:
 public:
     typedef boost::shared_ptr<SphereObject> Ptr;
 
-    SphereObject(btScalar mass_, btScalar radius_, const btTransform &initTrans);
+    SphereObject(btScalar mass_, btScalar radius_, const btTransform &initTrans, bool isKinematic=false);
     EnvironmentObject::Ptr copy(Fork &f) const {
         Ptr o(new SphereObject(*this));
         internalCopy(o, f);

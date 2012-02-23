@@ -87,8 +87,8 @@ int main(int argc, char *argv[]) {
 
   // end tracker
   vector<RigidBodyPtr> rope_ends;
-  rope_ends.push_back(rope->bodies[0]);
-  rope_ends.push_back(rope->bodies[rope->bodies.size()-1]);
+  rope_ends.push_back(rope->children[0]->rigidBody);
+  rope_ends.push_back(rope->children[rope->children.size()-1]->rigidBody);
   //MultiPointTrackerRigid endTracker(rope_ends,scene.env->bullet->dynamicsWorld);
   //TrackerPlotter trackerPlotter(endTracker);
   //scene.env->add(trackerPlotter.m_fakeObjects[0]);

@@ -83,10 +83,18 @@ struct Environment {
     typedef std::vector<EnvironmentObject::Ptr> ObjectList;
     ObjectList objects;
 
+    typedef std::vector<EnvironmentObject::Ptr> ConstraintList;
+    ConstraintList constraints;
+
     Environment(BulletInstance::Ptr bullet_, OSGInstance::Ptr osg_) : bullet(bullet_), osg(osg_) { }
     ~Environment();
 
     void add(EnvironmentObject::Ptr obj);
+    void remove(EnvironmentObject::Ptr obj);
+
+    void addConstraint(EnvironmentObject::Ptr cnt);
+    void removeConstraint(EnvironmentObject::Ptr cnt);
+
     void step(btScalar dt, int maxSubSteps, btScalar fixedTimeStep);
 };
 
@@ -195,22 +203,24 @@ public:
 class Action {
 protected:
     float timeElapsed;
-    const float totalTime;
+    float execTime;
     bool isDone;
-  int plotOnly;
+    int plotOnly;
 
     void setDone(bool b) { isDone = b; }
     void stepTime(float dt) { timeElapsed += dt; }
-    float fracElapsed() const { return min(timeElapsed / totalTime, 1.f); }
-  void setColor(float r, float g, float b, float a);
+    float fracElapsed() const { return min(timeElapsed / execTime, 1.f); }
+    void setColor(float r, float g, float b, float a);
 
 public:
     typedef boost::shared_ptr<Action> Ptr;
-    Action(float totalTime_) : isDone(false), timeElapsed(0.), totalTime(totalTime_) { }
+    Action() : isDone(false), timeElapsed(0.), execTime(0.) { }
+    Action(float execTime_) : isDone(false), timeElapsed(0.), execTime(execTime_) { }
 
-    bool done() const { return timeElapsed >= totalTime || isDone; }
+    bool done() const { return timeElapsed >= execTime || isDone; }
     virtual void step(float dt) = 0;
     virtual void reset() { timeElapsed = 0.; setDone(false); }
+    virtual void setExecTime(float t) { execTime = t; }
 };
 
 #endif // _ENVIRONMENT_H_

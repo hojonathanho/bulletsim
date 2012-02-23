@@ -17,7 +17,7 @@ vector<btVector3> getNodeVels(BulletSoftObject::Ptr psb) {
 
 vector<btVector3> getNodeVels(CapsuleRope::Ptr rope) {
   vector<btVector3> out(rope->nLinks);
-  for (int i=0; i < rope->nLinks; i++) out[i] = rope->bodies[i]->getLinearVelocity();
+  for (int i=0; i < rope->nLinks; i++) out[i] = rope->children[i]->rigidBody->getLinearVelocity();
   return out;
 }
 

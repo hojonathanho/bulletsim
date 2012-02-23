@@ -1,4 +1,16 @@
 add_definitions("-DBULLETSIM_DATA_DIR=${BULLETSIM_SOURCE_DIR}/data")
+include_directories(
+    ${BULLETSIM_SOURCE_DIR}/src
+
+    ${BULLET_DIR}/src
+    ${OSGBULLET_DIR}
+    ${OSGWORKS_DIR}
+    ${OpenRAVE_INCLUDE_DIRS}
+    ${Boost_INCLUDE_DIRS}
+    ${EIGEN3_INCLUDE_DIR}
+    ${JSON_INCLUDE_DIR}
+)
+link_directories(${BULLETSIM_BINARY_DIR}/src)
 
 add_subdirectory(simulation)
 add_subdirectory(robots)
@@ -9,4 +21,5 @@ if(BUILD_PERCEPTION)
     add_subdirectory(clouds)
 endif(BUILD_PERCEPTION)
 add_subdirectory(tests)
+add_subdirectory(demos)
 add_subdirectory(sandbox)
