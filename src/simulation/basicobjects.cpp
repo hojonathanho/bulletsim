@@ -134,7 +134,6 @@ BulletObject::BulletObject(const BulletObject &o) : isKinematic(o.isKinematic) {
         new bParse::btBulletFile(buf.get(), bufSize));
     bulletFile->parse(false);
     // create a new rigidBody with the data
-    printf("num rigidbodies: %d\n", bulletFile->m_rigidBodies.size());
     BOOST_ASSERT(bulletFile->m_rigidBodies.size() == 1);
     if (bulletFile->getFlags() & bParse::FD_DOUBLE_PRECISION) {
         // double precision not supported

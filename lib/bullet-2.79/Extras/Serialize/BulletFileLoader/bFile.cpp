@@ -156,7 +156,7 @@ void bFile::parseHeader()
 		if (littleEndian==0)
 			mFlags |= FD_ENDIAN_SWAP;
 
-
+#if 0
 	printf ("%s\n",header);
 	printf ("\nsizeof(void*) == %d\n",int(sizeof(void*)));
 	const char* endStr = ((mFlags & FD_ENDIAN_SWAP)!=0) ? "yes" : "no";
@@ -165,7 +165,7 @@ void bFile::parseHeader()
 	printf ("File format is %s\n",bitStr);
 	const char* varStr = (mFlags & FD_BITS_VARIES)!=0 ? "yes" : "no";
 	printf ("Varing pointer sizes? %s\n",varStr);
-
+#endif
 
 	mFlags |= FD_OK;
 }
@@ -285,7 +285,7 @@ void bFile::parseInternal(bool verboseDumpAllTypes, char* memDna,int memDnaLengt
 
 	updateOldPointers();
 
-	printf("numAllocs = %d\n",numallocs);
+	//printf("numAllocs = %d\n",numallocs);
 }
 
 
@@ -1053,7 +1053,7 @@ void bFile::resolvePointers(bool verboseDumpAllBlocks)
 {
 	bParse::bDNA* fileDna = mFileDNA ? mFileDNA : mMemoryDNA;
 
-	printf("resolvePointers start\n");
+//	printf("resolvePointers start\n");
 	//char *dataPtr = mFileBuffer+mDataStart;
 
 	if (1) //mFlags & (FD_BITS_VARIES | FD_VERSION_VARIES))
@@ -1086,7 +1086,7 @@ void bFile::resolvePointers(bool verboseDumpAllBlocks)
 		}
 	}
 	
-	printf("resolvePointers end\n");
+//	printf("resolvePointers end\n");
 }
 
 

@@ -5,16 +5,19 @@
 #include "simulation/config_viewer.h"
 #include <BulletSoftBody/btSoftBodyHelpers.h>
 
-static BulletSoftObject::Ptr createCloth(Scene &scene, btScalar s, const btVector3 &center) {
-    const int divs = 25;
+struct ClothSpec {
+    btSoftBody *psb;
+    int resx, resy;
+};
 
+static BulletSoftObject::Ptr createCloth(Scene &scene, btScalar s, int resx, int resy, const btVector3 &center) {
     btSoftBody *psb = btSoftBodyHelpers::CreatePatch(
         scene.env->bullet->softBodyWorldInfo,
         center + btVector3(-s,-s,0),
         center + btVector3(+s,-s,0),
         center + btVector3(-s,+s,0),
         center + btVector3(+s,+s,0),
-        divs, divs,
+        resx, resy,
         0, true);
 
     psb->m_cfg.piterations = 2;
@@ -33,14 +36,12 @@ static BulletSoftObject::Ptr createCloth(Scene &scene, btScalar s, const btVecto
     return BulletSoftObject::Ptr(new BulletSoftObject(psb));
 }
 
+
 // an action that moves a node
+// completely specified by ActionDesc
 class NodeMoveAction : public Action {
-private:
     btSoftBody *psb;
     Environment::Ptr env;
-
-    int idx; // index of the node in psb
-    btVector3 dir; // direction to move the node, magnitude signifies distance
 
     SphereObject::Ptr anchorpt; // an object that we can attach an an anchor to
     int anchoridx;
@@ -51,12 +52,13 @@ private:
         if (anchorAppended) return;
 
         anchorpt.reset(new SphereObject(0, 0.005*METERS, trans, true));
+        anchorpt->setColor(1, 0, 1, 1);
         anchorpt->rigidBody->setCollisionFlags(anchorpt->rigidBody->getCollisionFlags() | btCollisionObject::CF_NO_CONTACT_RESPONSE);
         env->add(anchorpt);
         moveaction = anchorpt->createMoveAction();
         moveaction->setExecTime(execTime);
 
-        psb->appendAnchor(idx, anchorpt->rigidBody.get());
+        psb->appendAnchor(spec.i, anchorpt->rigidBody.get());
         anchoridx = psb->m_anchors.size() - 1;
         if (anchoridx != 0) {
             cout << "WARNING: attaching multiple anchors to cloth in NodeMoveAction!" << endl;
@@ -84,16 +86,26 @@ private:
     }
 
 public:
-    typedef boost::shared_ptr<NodeMoveAction> Ptr;
+    struct Spec {
+        int i; // index of node on cloth
+        btVector3 v; // direction to move the node, magnitude signifies distance
+        float t; // execution time for the action
+        Spec() { }
+        Spec(int i_, const btVector3 &v_, float t_) : i(i_), v(v_), t(t_) { }
+    } spec;
 
-    NodeMoveAction(int nodeidx) : idx(nodeidx), anchorAppended(false) { }
+    NodeMoveAction() : anchorAppended(false) { }
+
+    // sets the environment and soft body to act on
     void setSoftBody(Environment::Ptr env_, btSoftBody *psb_) {
         env = env_; psb = psb_;
     }
-    void setMovement(const btVector3 &dir_) { dir = dir_; }
+
+    void readSpec() {
+        setExecTime(spec.t);
+    }
 
     void reset() {
-        moveaction->reset();
         Action::reset();
         removeAnchor();
     }
@@ -103,9 +115,9 @@ public:
 
         if (timeElapsed == 0) {
             // first step
-            const btVector3 &nodepos = psb->m_nodes[idx].m_x;
+            const btVector3 &nodepos = psb->m_nodes[spec.i].m_x;
             btTransform starttrans(btQuaternion(0, 0, 0, 1), nodepos);
-            btTransform endtrans(btQuaternion(0, 0, 0, 1), nodepos + dir);
+            btTransform endtrans(btQuaternion(0, 0, 0, 1), nodepos + spec.v);
             appendAnchor(starttrans);
             moveaction->setEndpoints(starttrans, endtrans);
         }
@@ -116,69 +128,78 @@ public:
     }
 };
 
+// a fake list
+// do NOT use two actions returned by at() at once! they will be
+// the same NodeMoveAction object, just with different specs
 class NodeActionList {
-    vector<NodeMoveAction::Ptr> actions;
-    btSoftBody *psb;
-    Environment::Ptr env;
-
-    void genSingle(int idx, const btVector3 &vec) {
-        NodeMoveAction::Ptr a(new NodeMoveAction(idx));
-        a->setSoftBody(env, psb);
-        a->setMovement(vec);
-        a->setExecTime(1);
-        actions.push_back(a);
-    }
-
-    void genActionsForNode(int idx) {
-        const btScalar d = 0.1*METERS;
-
-        genSingle(idx, btVector3(d, 0, 0));
-        genSingle(idx, btVector3(-d, 0, 0));
-        genSingle(idx, btVector3(0, d, 0));
-        genSingle(idx, btVector3(0, -d, 0));
-        genSingle(idx, btVector3(0, 0, d));
-        genSingle(idx, btVector3(0, 0, -d));
-
-        genSingle(idx, d * btVector3(1, 1, 0).normalized());
-        genSingle(idx, d * btVector3(-1, 1, 0).normalized());
-        genSingle(idx, d * btVector3(-1, -1, 0).normalized());
-        genSingle(idx, d * btVector3(1, -1, 0).normalized());
-
-        genSingle(idx, d * btVector3(1, 0, 1).normalized());
-        genSingle(idx, d * btVector3(-1, 0, 1).normalized());
-        genSingle(idx, d * btVector3(-1, 0, -1).normalized());
-        genSingle(idx, d * btVector3(1, 0, -1).normalized());
-
-        genSingle(idx, d * btVector3(0, 1, 1).normalized());
-        genSingle(idx, d * btVector3(0, -1, 1).normalized());
-        genSingle(idx, d * btVector3(0, -1, -1).normalized());
-        genSingle(idx, d * btVector3(0, 1, -1).normalized());
-    }
-
-    void generate() {
-        actions.clear();
-        for (int i = 0; i < psb->m_nodes.size(); ++i) {
-            genActionsForNode(i);
-        }
-        cout << "made " << actions.size() << " actions!" << endl;
-    }
-
-    // for iterating through actions
-    int nextActionPos;
+    NodeMoveAction ac;
+    vector<NodeMoveAction::Spec> specs;
 
 public:
-    NodeActionList(Environment::Ptr env_, btSoftBody *psb_) : env(env_), psb(psb_) {
-        generate();
-        nextActionPos = 0;
-    }
+    NodeActionList() { }
 
-    void reset() { nextActionPos = 0; }
-    NodeMoveAction::Ptr next() {
-        if (nextActionPos < actions.size())
-            return actions[nextActionPos++];
-        return NodeMoveAction::Ptr();
+    void add(const NodeMoveAction::Spec &s) { specs.push_back(s); }
+    void clear() { specs.clear(); }
+    int size() const { return specs.size(); }
+
+    NodeMoveAction &at(int i) {
+        ac.reset();
+        ac.spec = specs[i];
+        ac.readSpec();
+        return ac;
     }
+    NodeMoveAction &operator[](int i) { return at(i); }
 };
+
+// action spec generation helpers
+static void genCompleteSpecsForNode(NodeActionList &l, int idx, bool excludeNoOp=true) {
+    static float ACTION_TIME = 1.; // 1 sec
+    static btScalar d = 0.1*METERS;
+    for (int i = -1; i <= 1; ++i)
+        for (int j = -1; j <= 1; ++j)
+            for (int k = -1; k <= 1; ++k)
+                if (!excludeNoOp || i != 0 || j != 0 || k != 0)
+                    l.add(NodeMoveAction::Spec(idx, d * btVector3(i, j, k).normalized(), ACTION_TIME));
+}
+static void genSpecsForNodeWithoutCorners(NodeActionList &l, int idx) {
+    static float ACTION_TIME = 1.; // 1 sec
+    static btScalar d = 0.1*METERS;
+
+    l.add(NodeMoveAction::Spec(idx, d * btVector3(1, 0, 0), ACTION_TIME));
+    l.add(NodeMoveAction::Spec(idx, d * btVector3(0, 1, 0), ACTION_TIME));
+    l.add(NodeMoveAction::Spec(idx, d * btVector3(0, 0, 1), ACTION_TIME));
+
+    l.add(NodeMoveAction::Spec(idx, d * btVector3(-1, 0, 0), ACTION_TIME));
+    l.add(NodeMoveAction::Spec(idx, d * btVector3(0, -1, 0), ACTION_TIME));
+    l.add(NodeMoveAction::Spec(idx, d * btVector3(0, 0, -1), ACTION_TIME));
+
+    l.add(NodeMoveAction::Spec(idx, d * btVector3(1, 1, 0).normalized(), ACTION_TIME));
+    l.add(NodeMoveAction::Spec(idx, d * btVector3(-1, 1, 0).normalized(), ACTION_TIME));
+    l.add(NodeMoveAction::Spec(idx, d * btVector3(-1, -1, 0).normalized(), ACTION_TIME));
+    l.add(NodeMoveAction::Spec(idx, d * btVector3(1, -1, 0).normalized(), ACTION_TIME));
+
+    l.add(NodeMoveAction::Spec(idx, d * btVector3(1, 0, 1).normalized(), ACTION_TIME));
+    l.add(NodeMoveAction::Spec(idx, d * btVector3(-1, 0, 1).normalized(), ACTION_TIME));
+    l.add(NodeMoveAction::Spec(idx, d * btVector3(-1, 0, -1).normalized(), ACTION_TIME));
+    l.add(NodeMoveAction::Spec(idx, d * btVector3(1, 0, -1).normalized(), ACTION_TIME));
+
+    l.add(NodeMoveAction::Spec(idx, d * btVector3(0, 1, 1).normalized(), ACTION_TIME));
+    l.add(NodeMoveAction::Spec(idx, d * btVector3(0, -1, 1).normalized(), ACTION_TIME));
+    l.add(NodeMoveAction::Spec(idx, d * btVector3(0, -1, -1).normalized(), ACTION_TIME));
+    l.add(NodeMoveAction::Spec(idx, d * btVector3(0, 1, -1).normalized(), ACTION_TIME));
+}
+
+static void genSpecsForCloth(NodeActionList &l, int resx, int resy) {
+#define IDX(_x_, _y_) ((_y_)*resx+(_x_))
+
+    // just the 4 corners for now
+    genCompleteSpecsForNode(l, IDX(0, 0));
+    genCompleteSpecsForNode(l, IDX(resx-1, 0));
+    genCompleteSpecsForNode(l, IDX(0, resy-1));
+    genCompleteSpecsForNode(l, IDX(resx-1, resy-1));
+
+#undef IDX
+}
 
 int main(int argc, char *argv[]) {
     GeneralConfig::scale = 20.;
@@ -202,23 +223,41 @@ int main(int argc, char *argv[]) {
     table->rigidBody->setFriction(1);
     scene.env->add(table);
 
+    const int divs = 25;
     BulletSoftObject::Ptr cloth(
-        createCloth(scene, GeneralConfig::scale * 0.25, GeneralConfig::scale * btVector3(0.9, 0, table_height+0.01)));
+        createCloth(scene, GeneralConfig::scale * 0.25, divs, divs, GeneralConfig::scale * btVector3(0.9, 0, table_height+0.01)));
     scene.env->add(cloth);
-    cout << "STARTING WITH: " << cloth->softBody->m_anchors.size() << endl;
+    ClothSpec clothspec = { cloth->softBody.get(), divs, divs };
+
+    NodeActionList actions;
+    genSpecsForCloth(actions, clothspec.resx, clothspec.resy);
+
 
     scene.startViewer();
+    scene.stepFor(BulletConfig::dt, 1);
 
-    NodeActionList actions(scene.env, cloth->softBody.get());
-    scene.setDrawing(false);
+    for (int i = 0; i < actions.size(); ++i) {
+        NodeMoveAction &ac = actions[i];
 
-    cout << "running actions" << endl;
-    NodeMoveAction::Ptr a;
-    while (a = actions.next())
-        scene.runAction(a, BulletConfig::dt);
-    cout << "done running actions" << endl;
+        BulletInstance::Ptr bullet2(new BulletInstance);
+        bullet2->setGravity(BulletConfig::gravity);
+        OSGInstance::Ptr osg2(new OSGInstance);
+        scene.osg->root->addChild(osg2->root.get());
+        Fork::Ptr fork(new Fork(scene.env, bullet2, osg2));
+        scene.registerFork(fork);
+        BulletSoftObject::Ptr cloth2 = boost::static_pointer_cast<BulletSoftObject>(fork->forkOf(cloth));
 
-//    scene.startLoop();
+        ac.setSoftBody(fork->env, cloth2->softBody.get());
+
+        while (!ac.done()) {
+            ac.step(BulletConfig::dt);
+            fork->env->step(BulletConfig::dt, BulletConfig::maxSubSteps, BulletConfig::internalTimeStep);
+            scene.draw();
+        }
+        scene.osg->root->removeChild(osg2->root.get());
+        scene.unregisterFork(fork);
+        //scene.runAction(ac, BulletConfig::dt);
+    }
 
     return 0;
 }
