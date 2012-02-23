@@ -285,3 +285,91 @@ void RopeVision::afterIterations() {
   vector< vector<float> > vv = toVecVec(m_ropeEstPts);
   m_pub->send(VecVecMessage<float>(vv));
 }
+
+
+RopeVision2::RopeVision2() {
+  setupComm();
+  setupScene();
+}
+
+void RopeVision2::setupComm() {
+  m_ropeInitSub = new FileSubscriber("rope_init","txt"); // not adding stuff because it's not called every step
+
+  m_ropeSub = new FileSubscriber("rope_pts","pcd");
+  m_subs.push_back(m_ropeSub);
+  m_msgs.push_back(&m_ropePtsMsg);
+  m_labelSub = new FileSubscriber("labels","png");
+  m_subs.push_back(m_labelSub);
+  m_msgs.push_back(&m_labelMsg);
+  m_pub = new FilePublisher("rope_model", "txt");
+}
+
+void RopeVision2::setupScene() {
+  vector< vector<float> > vv = floatMatFromFile(onceFile("table_corners.txt").string());
+  vector<btVector3> tableCornersCam = toBulletVectors(vv);
+  m_CT = new CoordinateTransformer(getCamToWorldFromTable(tableCornersCam));
+
+  vector<btVector3> tableCornersWorld = m_CT->toWorldFromCamN(tableCornersCam);
+  m_table = makeTable(tableCornersWorld, .1*METERS);
+  m_table->setColor(0,0,1,.25);
+
+  m_scene->env->add(m_table);
+}
+
+void RopeVision2::beforeIterations() {
+  ColorCloudPtr cloudCam  = m_kinectMsg.m_data;
+  ColorCloudPtr cloudWorld(new ColorCloud());
+  pcl::transformPointCloud(*cloudCam, *cloudWorld, m_CT->worldFromCamEigen);
+  if (TrackingConfig::showKinect) m_kinectPts->setPoints1(cloudWorld);
+
+  cv::Mat labels = toSingleChannel(m_labelMsg.m_data);
+  m_ropeMask = labels < 2;
+  m_depthImage = getDepthImage(cloudCam);
+  m_ropeObsPts = m_CT->toWorldFromCamN(toBulletVectors(m_ropePtsMsg.m_data));
+
+  bool gotRope = m_ropeInitSub->recv(ropeInitMsg);
+  if (gotRope) {
+    CapsuleRope::Ptr rope = makeRope(toBulletVectors(ropeInitMsg.data));
+  }
+
+}
+
+void RopeVision2::doIteration() {
+  m_ropeEstPts = m_rope->getNodes();
+  Eigen::MatrixXf ropePtsCam = toEigenMatrix(m_CT->toCamFromWorldN(m_ropeEstPts));
+  VectorXf pVis = calcVisibility(ropePtsCam, m_depthImage, m_ropeMask);
+  colorByVisibility(m_rope, pVis);
+
+
+  if (m_sigs.rows() == 0) {
+    m_sigs.resize(m_ropeEstPts.size(), 1);
+    m_sigs.setConstant(sq(.025*METERS));
+  }
+
+  MatrixXf estPtsEigen = toEigenMatrix(m_ropeEstPts);
+  MatrixXf obsPtsEigen = toEigenMatrix(m_ropeObsPts);
+
+  Eigen::MatrixXf corrEigen = calcCorrProb(estPtsEigen, m_sigs, obsPtsEigen, pVis, TrackingConfig::outlierParam); // todo: use new version with var est
+
+  SparseArray corr = toSparseArray(corrEigen, TrackingConfig::cutoff);
+  vector<float> masses = getNodeMasses(m_rope);
+  vector<btVector3> ropeVel = getNodeVels(m_rope);
+  vector<btVector3> impulses = calcImpulsesDamped(m_ropeEstPts, ropeVel, m_ropeObsPts, corr, masses, TrackingConfig::kp, TrackingConfig::kd); // todo: use new version with damping
+  m_sigs = calcSigs(corr, estPtsEigen, obsPtsEigen, .025*METERS, 1);
+  applyImpulses(impulses, m_rope);
+
+
+  if (TrackingConfig::showLines) drawCorrLines(m_corrLines, m_ropeEstPts, m_ropeObsPts, corr);
+  if (TrackingConfig::showObs) plotObs(corrEigen, m_ropeObsPts, m_obsPlot);
+  //if (TrackingConfig::showEst) plotNodesAsSpheres(m_rope->softBody.get(), pVis, m_sigs, m_estPlot);
+
+
+  m_scene->env->step(.03,2,.015);
+  m_scene->draw();
+
+}
+
+void RopeVision2::afterIterations() {
+  vector< vector<float> > vv = toVecVec(m_ropeEstPts);
+  m_pub->send(VecVecMessage<float>(vv));
+}
