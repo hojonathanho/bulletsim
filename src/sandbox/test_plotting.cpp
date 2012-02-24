@@ -1,5 +1,3 @@
-// from osg galaxy example
-
 #include "simulation/plotting.h"
 #include "simulation/simplescene.h"
 #include "simulation/config_bullet.h"

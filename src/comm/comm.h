@@ -48,7 +48,7 @@ path makeDataName(int id, string extension, string topic);
 path makeInfoName(int id, string topic);
 PathPair makePathPair(int id, string extension, string topic);
 Value readJson(path p);
-bool waitIfLive(path p);
+bool waitFor(path p, bool enableWait);
 void waitIfThrottled(string topic);
 bool getThrottled(string topic);
 
@@ -94,7 +94,7 @@ public:
 
 class Subscriber {
 public:
-  virtual bool recv(Message& )=0;
+  virtual bool recv(Message&, bool enableWait=true)=0;
   virtual bool skip() = 0;
 };
 
@@ -102,7 +102,7 @@ class FileSubscriber : public Subscriber {
 public:
   Names m_names;
   FileSubscriber(string topic, string extension);
-  bool recv(Message& message);
+  bool recv(Message& message, bool enableWait=true);
   bool skip();
 };
 

@@ -1,5 +1,5 @@
 #include "make_bodies.h"
-#include "bullet_io.h"
+#include "simulation/bullet_io.h"
 #include "utils/config.h"
 #include <boost/shared_ptr.hpp>
 #include <boost/scoped_array.hpp>

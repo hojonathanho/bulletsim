@@ -1,10 +1,10 @@
 #include "simulation/basicobjects.h"
-#include "bullet_io.h"
+#include "simulation/bullet_io.h"
 #include "clouds/comm_cv.h"
 #include "clouds/comm_pcl.h"
 #include "clouds/utils_cv.h"
 #include "clouds/utils_pcl.h"
-#include "comm/comm2.h"
+#include "comm/comm.h"
 #include "simulation/config_bullet.h"
 #include "config_perception.h"
 #include "robots/grabbing.h"
@@ -21,6 +21,8 @@
 #include "robot_geometry.h"
 #include "simulation/recording.h"
 #include <pcl/common/transforms.h>
+
+using namespace Eigen;
 
 vector<double> interpolateBetween(vector<double> a, vector<double> b, float p) {
   vector<double> out;
@@ -112,11 +114,14 @@ int main(int argc, char *argv[]) {
     rec = new ScreenRecorder(scene.viewer);
   }
 
+  vector<RigidBodyPtr> ropebodies;
+  for (int i = 0; i < rope->children.size(); ++i)
+      ropebodies.push_back(rope->children[i]->rigidBody);
 
   // end tracker
   vector<RigidBodyPtr> rope_ends;
-  rope_ends.push_back(rope->bodies[0]);
-  rope_ends.push_back(rope->bodies[rope->bodies.size()-1]);
+  rope_ends.push_back(rope->children[0]->rigidBody);
+  rope_ends.push_back(rope->children[rope->children.size()-1]->rigidBody);
   MultiPointTrackerRigid endTracker(rope_ends,scene.env->bullet->dynamicsWorld);
   TrackerPlotter trackerPlotter(endTracker);
   //scene.env->add(trackerPlotter.m_fakeObjects[0]);
@@ -169,9 +174,9 @@ int main(int argc, char *argv[]) {
 
       vector<btVector3> estPts = rope->getNodes();
       Eigen::MatrixXf ropePtsCam = toEigenMatrix(CT.toCamFromWorldN(estPts));
-      vector<float> pVis = calcVisibility(rope->bodies, scene.env->bullet->dynamicsWorld, CT.worldFromCamUnscaled.getOrigin()*METERS, TrackingConfig::sigA*METERS, TrackingConfig::nSamples); 
+      VectorXf pVis = calcVisibility(ropebodies, scene.env->bullet->dynamicsWorld, CT.worldFromCamUnscaled.getOrigin()*METERS, TrackingConfig::sigA*METERS, TrackingConfig::nSamples);
       colorByVisibility(rope, pVis);
-      SparseArray corr = toSparseArray(calcCorrProb(toEigenMatrix(estPts), toEigenMatrix(obsPts), toVectorXf(pVis), TrackingConfig::sigB*METERS, TrackingConfig::outlierParam),TrackingConfig::cutoff);
+      SparseArray corr = toSparseArray(calcCorrProb(toEigenMatrix(estPts), toEigenMatrix(obsPts), pVis, TrackingConfig::sigB*METERS, TrackingConfig::outlierParam),TrackingConfig::cutoff);
       corrPlots.update(estPts, obsPts, corr);
       vector<btVector3> impulses = calcImpulsesSimple(estPts, obsPts, corr, TrackingConfig::impulseSize);
       applyImpulses(impulses, rope);

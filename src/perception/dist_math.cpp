@@ -4,8 +4,6 @@ using namespace Eigen;
 
 MatrixXf pairwiseSquareDist(const Eigen::MatrixX3f& x_m3, const Eigen::MatrixX3f& y_n3) {
   // vectors are rows of x and y
-  cout << x_m3.rows() << " " << x_m3.cols() << endl;
-  cout << y_n3.rows() << " " << y_n3.cols() << endl;
   MatrixXf dots_mn = x_m3 * y_n3.transpose();
   VectorXf xnorm_m = x_m3.rowwise().squaredNorm();
   VectorXf ynorm_n = y_n3.rowwise().squaredNorm(); 

@@ -11,10 +11,10 @@ public:
   btGeneric6DofConstraint* cnt;
   btDynamicsWorld* world;
   Grab(){}
-  Grab(btRigidBody* rb, btVector3 pos, btDynamicsWorld* world);
+  Grab(btRigidBody* rb, const btVector3& pos, btDynamicsWorld* world);
   ~Grab();
 
-  void updatePosition(btVector3 pos);
+  void updatePosition(const btVector3& pos);
 };
 
 class Monitor {

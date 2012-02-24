@@ -1,10 +1,10 @@
 #include "basicobjects.h"
-#include "bullet_io.h"
+#include "simulation/bullet_io.h"
 #include "clouds/comm_cv.h"
 #include "clouds/comm_pcl.h"
 #include "clouds/utils_cv.h"
 #include "clouds/utils_pcl.h"
-#include "comm/comm2.h"
+#include "comm/comm.h"
 #include "config.h"
 #include "config_bullet.h"
 #include "config_perception.h"
@@ -182,7 +182,7 @@ int main(int argc, char *argv[]) {
 
       vector<btVector3> estPts = rope->getNodes();
       Eigen::MatrixXf ropePtsCam = toEigenMatrix(CT.toCamFromWorldN(estPts));
-      vector<float> pVis = calcVisibility(rope->bodies, scene.env->bullet->dynamicsWorld, CT.worldFromCamUnscaled.getOrigin()*METERS, TrackingConfig::sigA*METERS, TrackingConfig::nSamples); 
+      VectorXf pVis = calcVisibility(rope->bodies, scene.env->bullet->dynamicsWorld, CT.worldFromCamUnscaled.getOrigin()*METERS, TrackingConfig::sigA*METERS, TrackingConfig::nSamples); 
       colorByVisibility(rope, pVis);
       SparseArray corr = toSparseArray(calcCorrProb(toEigenMatrix(estPts), toEigenMatrix(obsPts), toVectorXf(pVis), TrackingConfig::sigB*METERS, TrackingConfig::outlierParam),TrackingConfig::cutoff);
       corrPlots.update(estPts, obsPts, corr);

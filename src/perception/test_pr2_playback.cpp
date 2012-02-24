@@ -4,14 +4,14 @@
 #include <pcl/common/transforms.h>
 
 #include "clouds/comm_pcl.h"
-#include "comm/comm2.h"
+#include "comm/comm.h"
 #include "simulation/config_bullet.h"
 #include "config_perception.h"
 #include "make_bodies.h"
 #include "simulation/simplescene.h"
 #include "utils_perception.h"
 #include "utils/vector_io.h"
-#include "bullet_io.h"
+#include "simulation/bullet_io.h"
 #include "openrave_joints.h"
 #include "robot_geometry.h"
 #include "clouds/correction.h"

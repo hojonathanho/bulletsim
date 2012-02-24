@@ -27,23 +27,23 @@ target_link_libraries(clouds ${PCL_LIBRARIES} ${WM_LIBRARIES} ${OpenCV_LIBS})
 # target_link_libraries(get_focal_length ${PCL_LIBRARIES})
 
 add_executable(record_one_pcd record_one_pcd.cpp)
-target_link_libraries(record_one_pcd ${PCL_LIBRARIES} boost_program_options)
+target_link_libraries(record_one_pcd ${PCL_LIBRARIES} ${Boost_LIBRARIES})
 
 add_executable(pcd_picker pcd_picker.cpp)
 target_link_libraries(pcd_picker ${PCL_LIBRARIES})
 
 add_executable(comm_get_table comm_get_table.cpp)
-target_link_libraries(comm_get_table ${PCL_LIBRARIES} clouds comm2 boost_program_options)
+target_link_libraries(comm_get_table ${PCL_LIBRARIES} clouds comm boost_program_options)
 
 add_executable(comm_write_pcds comm_write_pcds.cpp)
-target_link_libraries(comm_write_pcds clouds ${PCL_LIBRARIES} comm2 boost_program_options)
+target_link_libraries(comm_write_pcds clouds ${PCL_LIBRARIES} comm boost_program_options)
 
 
 add_executable(test_cloud_filtering test_cloud_filtering.cpp)
 target_link_libraries(test_cloud_filtering clouds ${PCL_LIBRARIES} ${OpenCV_LIBS})
 
 add_executable(comm_downsample_clouds comm_downsample_clouds.cpp)
-target_link_libraries(comm_downsample_clouds clouds ${PCL_LIBRARIES} boost_program_options comm2 ${OpenCV_LIBS})
+target_link_libraries(comm_downsample_clouds clouds comm ${PCL_LIBRARIES} ${OpenCV_LIBS})
 
 add_executable(test_utils test_utils.cpp)
 target_link_libraries(test_utils ${PCL_LIBRARIES} clouds)

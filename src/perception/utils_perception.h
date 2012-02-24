@@ -8,7 +8,6 @@
 #include <Eigen/Geometry>
 #include <osg/Vec3d>
 #include "utils/my_assert.h"
-#include "simulation/simplescene.h"
 #include "plotting_perception.h"
 using namespace std;
 
@@ -16,6 +15,7 @@ vector<btVector3> toBulletVectors(const vector< vector<float> >&);
 vector<btVector3> toBulletVectors(const vector< Eigen::Vector3f >&);
 vector<btVector3> toBulletVectors(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr&);
 vector< vector<float> > toVecVec(const vector<btVector3>&);
+vector<float> toVec(const Eigen::VectorXf&);
 
 btTransform toBulletTransform(const Eigen::Affine3f&);
 Eigen::Affine3f toEigenTransform(const btTransform&);
@@ -71,3 +71,11 @@ struct OSGCamParams {
   osg::Vec3d up;
   OSGCamParams(const btTransform& toWorldFromCam, float scale);
 };
+
+
+inline bool isFinite(const Eigen::MatrixXf& x) {
+  for (int row=0; row < x.rows(); row++) for (int col=0; col<x.cols(); col++) if (!isfinite(x(row,col))) return false;
+  return true;
+}
+
+

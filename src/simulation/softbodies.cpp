@@ -149,8 +149,7 @@ EnvironmentObject::Ptr BulletSoftObject::copy(Fork &f) const {
 
     // materials
     psb->m_materials.reserve(orig->m_materials.size());
-    for (i=0;i<orig->m_materials.size();i++)
-    {
+    for (i=0;i<orig->m_materials.size();i++) {
         const btSoftBody::Material *mat = orig->m_materials[i];
         btSoftBody::Material *newMat = psb->appendMaterial();
         newMat->m_flags = mat->m_flags;
@@ -259,8 +258,49 @@ EnvironmentObject::Ptr BulletSoftObject::copy(Fork &f) const {
     COPY_ARRAY(psb->m_cfg.m_dsequence, orig->m_cfg.m_dsequence);
     psb->getCollisionShape()->setMargin(orig->getCollisionShape()->getMargin());
 
-    //clusters
-    psb->generateClusters(orig->m_clusters.size());
+    // solver state
+    psb->m_sst = orig->m_sst;
+
+    // clusters
+    psb->m_clusters.resize(orig->m_clusters.size());
+    for (i=0;i<orig->m_clusters.size();i++) {
+        btSoftBody::Cluster *cl = orig->m_clusters[i];
+        btSoftBody::Cluster *newcl = psb->m_clusters[i] =
+            new(btAlignedAlloc(sizeof(btSoftBody::Cluster),16)) btSoftBody::Cluster();
+
+        newcl->m_nodes.resize(cl->m_nodes.size());
+        for (j = 0; j < cl->m_nodes.size(); ++j)
+            newcl->m_nodes[j] = (btSoftBody::Node *) f.copyOf(cl->m_nodes[j]);
+        COPY_ARRAY(newcl->m_masses, cl->m_masses);
+        COPY_ARRAY(newcl->m_framerefs, cl->m_framerefs);
+        newcl->m_framexform = cl->m_framexform;
+        newcl->m_idmass = cl->m_idmass;
+        newcl->m_imass = cl->m_imass;
+        newcl->m_locii = cl->m_locii;
+        newcl->m_invwi = cl->m_invwi;
+        newcl->m_com = cl->m_com;
+        newcl->m_vimpulses[0] = cl->m_vimpulses[0];
+        newcl->m_vimpulses[1] = cl->m_vimpulses[1];
+        newcl->m_dimpulses[0] = cl->m_dimpulses[0];
+        newcl->m_dimpulses[1] = cl->m_dimpulses[1];
+        newcl->m_nvimpulses = cl->m_nvimpulses;
+        newcl->m_ndimpulses = cl->m_ndimpulses;
+        newcl->m_lv = cl->m_lv;
+        newcl->m_av = cl->m_av;
+        newcl->m_leaf = 0; // soft body code will set this automatically
+        newcl->m_ndamping = cl->m_ndamping;
+        newcl->m_ldamping = cl->m_ldamping;
+        newcl->m_adamping = cl->m_adamping;
+        newcl->m_matching = cl->m_matching;
+        newcl->m_maxSelfCollisionImpulse = cl->m_maxSelfCollisionImpulse;
+        newcl->m_selfCollisionImpulseFactor = cl->m_selfCollisionImpulseFactor;
+        newcl->m_containsAnchor = cl->m_containsAnchor;
+        newcl->m_collide = cl->m_collide;
+        newcl->m_clusterIndex = cl->m_clusterIndex;
+    }
+
+    // cluster connectivity
+    COPY_ARRAY(psb->m_clusterConnectivity, orig->m_clusterConnectivity);
 
     psb->updateConstants();
     return Ptr(new BulletSoftObject(psb));

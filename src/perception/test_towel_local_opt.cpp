@@ -1,7 +1,7 @@
-#include "bullet_io.h"
+#include "simulation/bullet_io.h"
 #include "clouds/comm_pcl.h"
 #include "clouds/geom.h"
-#include "comm/comm2.h"
+#include "comm/comm.h"
 #include "simulation/config_bullet.h"
 #include "config_perception.h"
 #include "make_bodies.h"
@@ -82,7 +82,7 @@ int main(int argc, char* argv[]) {
   for (int i=0; i < TrackingConfig::nIter; i++) {
     cout << i << endl;
     scene.idle(true);
-    vector<float> pVis = calcVisibility(towel->softBody.get(), scene.env->bullet->dynamicsWorld, CT.worldFromCamUnscaled.getOrigin()*METERS);
+    VectorXf pVis = calcVisibility(towel->softBody.get(), scene.env->bullet->dynamicsWorld, CT.worldFromCamUnscaled.getOrigin()*METERS);
     colorByVisibility(towel->softBody.get(), pVis, towelEstPts);
     vector<btVector3> impulses = clothOptImpulses(towel, newPts);
     applyImpulses(impulses, towel);

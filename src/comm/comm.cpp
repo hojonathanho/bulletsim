@@ -1,5 +1,4 @@
-#include "comm2.h"
-
+#include "comm.h"
 #include <algorithm>
 #include <string>
 #include <iostream>
@@ -140,9 +139,9 @@ PathPair makePathPair(int id, string extension, string topic) {
 		  makeInfoName(id,topic));
 }
 
-bool waitIfLive(path p) {
+bool waitFor(path p, bool enableWait) {
   // Checks if file exists. If LIVE, waits up to TIMEOUT if it doesn't exist
-  if (LIVE) {
+  if (enableWait) {
     double tStart = timeOfDay();
     while(timeOfDay() - tStart < TIMEOUT) {
       if (exists(p)) return true;
@@ -231,10 +230,16 @@ void FilePublisher::send(const Message& message) {
 }
 
 FileSubscriber::FileSubscriber(string topic, string extension) : m_names(topic, extension) {}
-bool FileSubscriber::recv(Message& message)  {
-  PathPair namePair = m_names.getCurAndStep();
-  bool gotIt = waitIfLive(namePair.second);
-  if (gotIt) message.fromFiles(namePair);
+bool FileSubscriber::recv(Message& message, bool enableWait)  {
+  PathPair namePair = m_names.getCur();
+  bool gotIt = waitFor(namePair.second, LIVE && enableWait);
+  if (gotIt) {
+    message.fromFiles(namePair);
+    m_names.step();
+      }
+  if (!gotIt) {
+    cout << "didn't get " << namePair.second << endl;
+  }
   return gotIt;
 }
 

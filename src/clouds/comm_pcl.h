@@ -9,7 +9,7 @@
 #include <pcl/io/openni_grabber.h>
 #include <pcl/common/time.h>
 
-#include "comm/comm2.h"
+#include "comm/comm.h"
 #include "utils_pcl.h"
 
 using namespace std;

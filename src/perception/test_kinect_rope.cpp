@@ -1,12 +1,13 @@
 #include "simulation/basicobjects.h"
-#include "bullet_io.h"
+#include "simulation/bullet_io.h"
 #include "clouds/comm_cv.h"
 #include "clouds/comm_pcl.h"
 #include "clouds/utils_cv.h"
 #include "clouds/utils_pcl.h"
-#include "comm/comm2.h"
+#include "comm/comm.h"
 #include "utils/config.h"
 #include "simulation/config_bullet.h"
+#include "simulation/simplescene.h"
 #include "config_perception.h"
 #include "make_bodies.h"
 #include "simulation/rope.h"
@@ -22,6 +23,8 @@
 #include <pcl/common/transforms.h>
 #include <osgViewer/Viewer>
 #include <osgViewer/ViewerEventHandlers>
+
+using namespace Eigen;
 
 int main(int argc, char *argv[]) {
 
@@ -84,8 +87,8 @@ int main(int argc, char *argv[]) {
 
   // end tracker
   vector<RigidBodyPtr> rope_ends;
-  rope_ends.push_back(rope->bodies[0]);
-  rope_ends.push_back(rope->bodies[rope->bodies.size()-1]);
+  rope_ends.push_back(rope->children[0]->rigidBody);
+  rope_ends.push_back(rope->children[rope->children.size()-1]->rigidBody);
   //MultiPointTrackerRigid endTracker(rope_ends,scene.env->bullet->dynamicsWorld);
   //TrackerPlotter trackerPlotter(endTracker);
   //scene.env->add(trackerPlotter.m_fakeObjects[0]);
@@ -122,9 +125,9 @@ int main(int argc, char *argv[]) {
       cout << "iteration " << iter << endl;
       vector<btVector3> estPts = rope->getNodes();
       Eigen::MatrixXf ropePtsCam = toEigenMatrix(CT.toCamFromWorldN(estPts));
-      vector<float> pVis = calcVisibility(ropePtsCam, depthImage, ropeMask); 
+      VectorXf pVis = calcVisibility(ropePtsCam, depthImage, ropeMask); 
       colorByVisibility(rope, pVis);
-      SparseArray corr = toSparseArray(calcCorrProb(toEigenMatrix(estPts), toEigenMatrix(obsPts), toVectorXf(pVis), TrackingConfig::sigB, TrackingConfig::outlierParam), TrackingConfig::cutoff);
+      SparseArray corr = toSparseArray(calcCorrProb(toEigenMatrix(estPts), toEigenMatrix(obsPts), pVis, TrackingConfig::sigB, TrackingConfig::outlierParam), TrackingConfig::cutoff);
       corrPlots.update(estPts, obsPts, corr);
       vector<btVector3> impulses = calcImpulsesSimple(estPts, obsPts, corr, TrackingConfig::impulseSize);
       applyImpulses(impulses, rope);

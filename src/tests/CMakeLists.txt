@@ -1,11 +1,3 @@
-include_directories(
-    ${BULLET_DIR}/src
-    ${OpenRAVE_INCLUDE_DIRS}
-    ${BULLETSIM_SOURCE_DIR}/src
-    ${OSGBULLET_DIR}
-)
-link_directories(${BULLETSIM_BINARY_DIR}/src)
-
 add_executable(test_basescene test_basescene.cpp)
 target_link_libraries(test_basescene simulation)
 
@@ -33,8 +25,8 @@ target_link_libraries(test_rigidbody_grasping simulation robots)
 add_executable(test_rope test_rope.cpp)
 target_link_libraries(test_rope simulation robots)
 
-add_executable(test_plotting test_plotting.cpp)
-target_link_libraries(test_plotting simulation)
+add_executable(test_rope_fork test_rope_fork.cpp)
+target_link_libraries(test_rope_fork simulation robots)
 
 add_executable(test_fork test_fork.cpp)
 target_link_libraries(test_fork simulation)

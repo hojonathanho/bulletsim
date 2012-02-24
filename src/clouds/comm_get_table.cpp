@@ -4,7 +4,7 @@
 #include <boost/program_options.hpp>
 #include "geom.h"
 #include "get_table.h"
-#include "comm/comm2.h"
+#include "comm/comm.h"
 #include "utils/my_assert.h"
 
 using namespace pcl;
@@ -15,11 +15,13 @@ namespace po = boost::program_options;
 int main(int argc, char* argv[]) {
 
   string infile="";
+  int skip=0;
 
   po::options_description opts("Allowed options");
   opts.add_options()
     ("help,h", "produce help message")
     ("infile,i", po::value< string >(&infile),"input file");
+    ("skip,s", po::value< int >(&skip),"skip");
   po::variables_map vm;        
   po::store(po::command_line_parser(argc, argv)
 	    .options(opts)
@@ -49,7 +51,7 @@ int main(int argc, char* argv[]) {
   }
   vector<Vector3f> corners; 
   Vector3f normal;
-  getTable(cloud,corners,normal);
+  getTable(cloud,corners,normal,skip);
 
   PointCloud<PointXYZ>::Ptr rectCloud(new PointCloud<PointXYZ>);
   BOOST_FOREACH(Vector3f w, corners) rectCloud->push_back(PointXYZ(w[0],w[1],w[2]));
