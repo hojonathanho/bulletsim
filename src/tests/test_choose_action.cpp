@@ -2,11 +2,27 @@
 #include "simulation/softbodies.h"
 #include "simulation/config_bullet.h"
 #include <BulletSoftBody/btSoftBodyHelpers.h>
+#include <fstream>
 
 struct ChooseActionScene : public BaseScene {
   ChooseActionScene();
   BulletSoftObject::Ptr cloth;
 };
+
+void saveNodes(btVector3* nodes, const char* fileName) {
+  ofstream nodeFile;
+  nodeFile.open(fileName);
+  int len = sizeof(nodes) / sizeof(nodes[0]);
+  for (int i = 0; i < len; i++) {
+    nodeFile << nodes[i].x();
+    nodeFile << " ";
+    nodeFile << nodes[i].y();
+    nodeFile << " ";
+    nodeFile << nodes[i].z();
+    nodeFile << "\n";
+  }
+  nodeFile.close();
+}
 
 btSoftBody* createPatch(btSoftBodyWorldInfo& worldInfo,
 			btVector3* x,
@@ -15,6 +31,7 @@ btSoftBody* createPatch(btSoftBodyWorldInfo& worldInfo,
 			int fixeds,
 			bool gendiags) {
 #define IDX(_x_,_y_) ((_y_)*rx+(_x_))
+  saveNodes(x, "testfile");
   /* Create nodes */
   if(sizeof(x) < 1) return(0);
   const int rx = resx;
@@ -89,7 +106,22 @@ btSoftBody* createPatch(btSoftBodyWorldInfo& worldInfo,
 ChooseActionScene::ChooseActionScene() {
   // create cloth
   btScalar s = 1;
-  btScalar z = .1;
+  btScalar z = 1;
+  btVector3* nodes = new btVector3[961];
+  for (int i = 0; i < 31; i++) {
+    for (int j = 0; j < 31; j++) {
+      if (j <= 15) {
+	nodes[i+31*j] = btVector3(i*s/30.0, j*s/30.0,z);
+      } else {
+	nodes[i+31*j] = btVector3(i*s/30.0,s-j*s/30.0,z+.01*(j-15)/30.0);
+      }
+    }
+  }
+
+  btSoftBody* psb = createPatch(env->bullet->softBodyWorldInfo,
+				nodes, 31, 31, 0, true);
+
+  /*
   btSoftBody* psb = createPatch(env->bullet->softBodyWorldInfo,
 				btVector3(-s,-s,z),
 				btVector3(+s,-s,z),
@@ -97,6 +129,7 @@ ChooseActionScene::ChooseActionScene() {
 				btVector3(+s,+s,z),
 				31, 31,
 				0, true);
+  */
   psb->getCollisionShape()->setMargin(0.4);
   btSoftBody::Material* pm=psb->appendMaterial();
   pm->m_kLST = 0.4;
@@ -186,7 +219,14 @@ int main(int argc, char *argv[]) {
 	btVector3 pos = psb->m_nodes[i].m_x;
 	btVector3 above = btVector3(pos.x(), pos.y(), pos.z() + 5);
 	btVector3 below = btVector3(pos.x(), pos.y(), pos.z() - 5);
+	
+	cout << i;
+	cout << " ";
+	cout << rayTest(psb, above, below);
+	cout << ", ";
+	
       }
+      cout << "\n";
     }
     step_count++;
     scene.step(.01);
