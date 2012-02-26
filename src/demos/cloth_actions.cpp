@@ -4,6 +4,8 @@
 #include "simulation/config_bullet.h"
 #include "simulation/config_viewer.h"
 #include <BulletSoftBody/btSoftBodyHelpers.h>
+#include <cstdlib>
+#include "boost/date_time/posix_time/posix_time.hpp"
 
 struct ClothSpec {
     btSoftBody *psb;
@@ -24,10 +26,12 @@ static BulletSoftObject::Ptr createCloth(Scene &scene, btScalar s, int resx, int
     psb->m_cfg.collisions = btSoftBody::fCollision::CL_SS
         | btSoftBody::fCollision::CL_RS
         | btSoftBody::fCollision::CL_SELF;
-    psb->m_cfg.kDF = 1.0;
+    psb->m_cfg.kDF = 0.8;
+    psb->m_cfg.kSSHR_CL = 1.0;
     psb->getCollisionShape()->setMargin(0.05);
     btSoftBody::Material *pm = psb->appendMaterial();
-    pm->m_kLST = 0.1;
+    pm->m_kLST = 0.5;
+    pm->m_kLST = 1.;
     psb->generateBendingConstraints(2, pm);
     psb->randomizeConstraints();
     psb->setTotalMass(1, true);
@@ -56,7 +60,7 @@ class NodeMoveAction : public Action {
         anchorpt->rigidBody->setCollisionFlags(anchorpt->rigidBody->getCollisionFlags() | btCollisionObject::CF_NO_CONTACT_RESPONSE);
         env->add(anchorpt);
         moveaction = anchorpt->createMoveAction();
-        moveaction->setExecTime(execTime);
+        moveaction->setExecTime(execTime * spec.movingFrac);
 
         psb->appendAnchor(spec.i, anchorpt->rigidBody.get());
         anchoridx = psb->m_anchors.size() - 1;
@@ -90,8 +94,9 @@ public:
         int i; // index of node on cloth
         btVector3 v; // direction to move the node, magnitude signifies distance
         float t; // execution time for the action
+        float movingFrac;
         Spec() { }
-        Spec(int i_, const btVector3 &v_, float t_) : i(i_), v(v_), t(t_) { }
+        Spec(int i_, const btVector3 &v_, float t_) : i(i_), v(v_), t(t_), movingFrac(0.05) { }
     } spec;
 
     NodeMoveAction() : anchorAppended(false) { }
@@ -121,6 +126,7 @@ public:
             appendAnchor(starttrans);
             moveaction->setEndpoints(starttrans, endtrans);
         }
+
         moveaction->step(dt);
         stepTime(dt);
 
@@ -153,8 +159,8 @@ public:
 
 // action spec generation helpers
 static void genCompleteSpecsForNode(NodeActionList &l, int idx, bool excludeNoOp=true) {
-    static float ACTION_TIME = 1.; // 1 sec
-    static btScalar d = 0.1*METERS;
+    static float ACTION_TIME = 0.5;
+    static btScalar d = 0.5*METERS;
     for (int i = -1; i <= 1; ++i)
         for (int j = -1; j <= 1; ++j)
             for (int k = -1; k <= 1; ++k)
@@ -162,8 +168,8 @@ static void genCompleteSpecsForNode(NodeActionList &l, int idx, bool excludeNoOp
                     l.add(NodeMoveAction::Spec(idx, d * btVector3(i, j, k).normalized(), ACTION_TIME));
 }
 static void genSpecsForNodeWithoutCorners(NodeActionList &l, int idx) {
-    static float ACTION_TIME = 1.; // 1 sec
-    static btScalar d = 0.1*METERS;
+    static float ACTION_TIME = 0.5;
+    static btScalar d = 0.5*METERS;
 
     l.add(NodeMoveAction::Spec(idx, d * btVector3(1, 0, 0), ACTION_TIME));
     l.add(NodeMoveAction::Spec(idx, d * btVector3(0, 1, 0), ACTION_TIME));
@@ -201,6 +207,154 @@ static void genSpecsForCloth(NodeActionList &l, int resx, int resy) {
 #undef IDX
 }
 
+// runs some random actions on a cloth
+static void randomizeCloth(Scene &scene, btSoftBody *psb, int resx, int resy, int numSteps=20) {
+    NodeActionList actions;
+    genSpecsForCloth(actions, resx, resy);
+    for (int i = 0; i < numSteps; ++i) {
+        NodeMoveAction &a = actions[rand() % actions.size()];
+        a.setSoftBody(scene.env, psb);
+        scene.runAction(a, BulletConfig::dt);
+    }
+}
+
+static void liftClothMiddle(Scene &scene, ClothSpec &cs, bool disableDrawing=true) {
+    bool d = scene.drawingOn;
+    scene.setDrawing(!disableDrawing);
+
+    // add forces
+    const int steps = 30;
+    const btVector3 force(0, 0, 0.5);
+    for (int i = 0; i < steps; ++i) {
+        for (int x = 0; x < cs.resx; ++x)
+            cs.psb->addForce(force, (cs.resy / 2)*cs.resx + x);
+        scene.step(BulletConfig::dt);
+    }
+
+    // let the cloth stabilize
+    const int restingsteps = 400;
+    for (int i = 0; i < restingsteps; ++i) {
+        scene.step(BulletConfig::dt);
+    }
+    //scene.stepFor(BulletConfig::dt, 10);
+
+    // clear velocities
+    for (int i = 0; i < cs.psb->m_nodes.size(); ++i) {
+        cs.psb->m_nodes[i].m_v.setZero();
+    }
+
+    scene.setDrawing(d);
+}
+
+static btVector3 softBodyCM(btSoftBody *psb) {
+    // assumes all node masses are the same..
+    btVector3 sum(0, 0, 0);
+    for (int i = 0; i < psb->m_nodes.size(); ++i)
+        sum += psb->m_nodes[i].m_x;
+    return sum * 1./psb->m_nodes.size();
+}
+
+static void greedy(Scene &scene, BulletSoftObject::Ptr initCloth, NodeActionList &candidateActions, int steps, NodeActionList &out) {
+    // greedily find a list of actions that flattens the cloth
+
+    struct {
+        BulletInstance::Ptr bullet;
+        OSGInstance::Ptr osg;
+        Fork::Ptr fork;
+        BulletSoftObject::Ptr cloth;
+    } stepState;
+
+    stepState.bullet.reset(new BulletInstance);
+    stepState.bullet->setGravity(BulletConfig::gravity);
+    stepState.osg.reset(new OSGInstance);
+    stepState.fork.reset(new Fork(scene.env, stepState.bullet, stepState.osg));
+    stepState.cloth = boost::static_pointer_cast<BulletSoftObject>(stepState.fork->forkOf(initCloth));
+    BOOST_ASSERT(stepState.cloth);
+
+    boost::posix_time::ptime begTick0(boost::posix_time::microsec_clock::local_time());
+    for (int step = 0; step < steps; ++step) {
+        cout << "step " << (step+1) << "/" << steps << '\n';
+
+        // at each step, try all actions and find the one that flattens the cloth
+        struct {
+            BulletInstance::Ptr bullet;
+            OSGInstance::Ptr osg;
+            Fork::Ptr fork;
+            BulletSoftObject::Ptr cloth;
+            NodeMoveAction::Spec actionspec;
+            float val;
+        } optimal;
+
+        int numActionsRun = 0;
+        btVector3 startingCM = softBodyCM(stepState.cloth->softBody.get());
+        cout << "starting cloth height: " << startingCM.z() << endl;
+
+        for (int i = 0; i < candidateActions.size(); ++i) {
+            cout << "\taction " << (i+1) << "/" << candidateActions.size() << '\n';
+
+            NodeMoveAction &ac = candidateActions[i];
+
+            // ignore actions that drag down the cloth (for now)
+            if (ac.spec.v.z() != 0) continue;
+            // ignore actions that drag a node toward the center
+            if (ac.spec.v.dot(stepState.cloth->softBody->m_nodes[ac.spec.i].m_x - startingCM) < 0) continue;
+
+            BulletInstance::Ptr bullet2(new BulletInstance);
+            bullet2->setGravity(BulletConfig::gravity);
+            OSGInstance::Ptr osg2(new OSGInstance);
+            scene.osg->root->addChild(osg2->root.get());
+            Fork::Ptr fork(new Fork(stepState.fork->env, bullet2, osg2));
+            scene.registerFork(fork);
+            BulletSoftObject::Ptr cloth2 = boost::static_pointer_cast<BulletSoftObject>(fork->forkOf(stepState.cloth));
+            BOOST_ASSERT(cloth2);
+
+            ac.setSoftBody(fork->env, cloth2->softBody.get());
+
+            while (!ac.done()) {
+                ac.step(BulletConfig::dt);
+                fork->env->step(BulletConfig::dt, BulletConfig::maxSubSteps, BulletConfig::internalTimeStep);
+                scene.draw();
+            }
+
+            float avgHeight = softBodyCM(cloth2->softBody.get()).z();
+            cout << "\t\taverage node height: " << avgHeight << '\n';
+
+            if (numActionsRun == 0 || avgHeight < optimal.val) {
+                optimal.val = avgHeight;
+
+                optimal.bullet = bullet2;
+                optimal.osg = osg2;
+                optimal.fork = fork;
+                optimal.cloth = cloth2;
+
+                optimal.actionspec = ac.spec;
+            }
+
+            scene.osg->root->removeChild(osg2->root.get());
+            scene.unregisterFork(fork);
+
+            ++numActionsRun;
+        }
+
+        cout << "optimal got cloth height: " << optimal.val << endl;
+        out.add(optimal.actionspec);
+/*
+
+        scene.idle(true);
+        out[out.size()-1].setSoftBody(scene.env, initCloth->softBody.get());
+        scene.runAction(out[out.size()-1], BulletConfig::dt);
+        scene.idle(true);
+        */
+
+        stepState.bullet = optimal.bullet;
+        stepState.osg = optimal.osg;
+        stepState.fork = optimal.fork;
+        stepState.cloth = optimal.cloth;
+    }
+    // keep the last step in the viewer
+    scene.osg->root->addChild(stepState.osg->root.get());
+}
+
 int main(int argc, char *argv[]) {
     GeneralConfig::scale = 20.;
     ViewerConfig::cameraHomePosition = btVector3(100, 0, 100);
@@ -220,7 +374,7 @@ int main(int argc, char *argv[]) {
     const float table_thickness = .05;
     BoxObject::Ptr table(new BoxObject(0, GeneralConfig::scale * btVector3(.75,.75,table_thickness/2),
         btTransform(btQuaternion(0, 0, 0, 1), GeneralConfig::scale * btVector3(1.2, 0, table_height-table_thickness/2))));
-    table->rigidBody->setFriction(1);
+    table->rigidBody->setFriction(0.5);
     scene.env->add(table);
 
     const int divs = 25;
@@ -232,12 +386,43 @@ int main(int argc, char *argv[]) {
     NodeActionList actions;
     genSpecsForCloth(actions, clothspec.resx, clothspec.resy);
 
-
     scene.startViewer();
     scene.stepFor(BulletConfig::dt, 1);
 
+    cout << "lifting..." << endl;
+    liftClothMiddle(scene, clothspec);
+    scene.idle(true);
+    cout << "done lifting."<< endl;
+//    randomizeCloth(scene, cloth->softBody.get(), clothspec.resx, clothspec.resy);
+
+    NodeActionList optimal;
+//    scene.setDrawing(false);
+    greedy(scene, cloth, actions, 15, optimal);
+    scene.setDrawing(true);
+    scene.idle(true);
+
+    // replay optimal actions on cloth
+    for (int i = 0; i < optimal.size(); ++i) {
+        NodeMoveAction &a = optimal[i];
+        a.setSoftBody(scene.env, cloth->softBody.get());
+        while (!a.done()) {
+            a.step(BulletConfig::dt);
+            scene.env->step(BulletConfig::dt, BulletConfig::maxSubSteps, BulletConfig::internalTimeStep);
+            scene.draw();
+        }
+    }
+    scene.idle(true);
+
+    return 0;
+#if 0
+    boost::posix_time::ptime begTick0(boost::posix_time::microsec_clock::local_time());
+    int numActionsRun = 0;
     for (int i = 0; i < actions.size(); ++i) {
         NodeMoveAction &ac = actions[i];
+
+        if (ac.spec.v.z() < 0) continue;
+
+        cout << "running action: " << ac.spec.v.x() << ' ' << ac.spec.v.y() << ' ' << ac.spec.v.z() << endl;
 
         BulletInstance::Ptr bullet2(new BulletInstance);
         bullet2->setGravity(BulletConfig::gravity);
@@ -249,15 +434,31 @@ int main(int argc, char *argv[]) {
 
         ac.setSoftBody(fork->env, cloth2->softBody.get());
 
+        boost::posix_time::ptime begTick(boost::posix_time::microsec_clock::local_time());
         while (!ac.done()) {
             ac.step(BulletConfig::dt);
             fork->env->step(BulletConfig::dt, BulletConfig::maxSubSteps, BulletConfig::internalTimeStep);
             scene.draw();
         }
+        cout << "average node height: " << softBodyCM(cloth2->softBody.get()).z() << endl;
+        boost::posix_time::ptime endTick(boost::posix_time::microsec_clock::local_time());
+        std::cout << boost::posix_time::to_simple_string(endTick - begTick) << std::endl;
+        /*
+        for (int z = 0; z < 400; ++z) {
+            fork->env->step(BulletConfig::dt, BulletConfig::maxSubSteps, BulletConfig::internalTimeStep);
+            scene.draw();
+        }*/
+//        scene.idle(true);
+
         scene.osg->root->removeChild(osg2->root.get());
         scene.unregisterFork(fork);
-        //scene.runAction(ac, BulletConfig::dt);
+
+        ++numActionsRun;
     }
+    boost::posix_time::ptime endTick0(boost::posix_time::microsec_clock::local_time());
+    std::cout << "total time: " << boost::posix_time::to_simple_string(endTick0 - begTick0) << std::endl;
+    std::cout << " (" << numActionsRun << " actions, " << boost::posix_time::to_simple_string((endTick0 - begTick0)/(float)numActionsRun) << " / action)" << std::endl;
 
     return 0;
+#endif
 }
