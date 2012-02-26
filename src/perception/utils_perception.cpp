@@ -35,6 +35,13 @@ vector<btVector3> toBulletVectors(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& 
   return out;
 }
 
+vector<btVector3> toBulletVectors(const MatrixXf& in) {
+  vector<btVector3> out(in.rows());
+  for (int row=0; row < in.rows(); row++)
+    out[row] = btVector3(in(row,0), in(row,1), in(row,2));      
+  return out;
+}
+
 vector< vector<float> > toVecVec(const vector<btVector3>& in) {
   vector< vector<float> > out(in.size());
   for (int i=0; i < in.size(); i++) {

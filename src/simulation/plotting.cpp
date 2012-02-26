@@ -18,6 +18,13 @@ void PlotObject::setDefaultColor(float r, float g, float b, float a) {
   m_defaultColor = osg::Vec4(r,g,b,a);
 }
 
+void PlotObject::clear() {
+  m_geom->getPrimitiveSetList().clear();
+  osg::ref_ptr<osg::Vec3Array> osgPts = new osg::Vec3Array;
+  osg::ref_ptr<osg::Vec4Array> osgCols = new osg::Vec4Array;
+  m_geom->setVertexArray(osgPts);
+  m_geom->setColorArray(osgCols);
+}
 
 PlotPoints::PlotPoints(float size) {
   m_geode = new osg::Geode();
@@ -136,12 +143,18 @@ PlotSpheres::PlotSpheres() {
 
 };
 
+void PlotSpheres::clear() {
+  m_geode->removeDrawables(0,m_nDrawables);
+}
+
 void PlotSpheres::plot(const osg::ref_ptr<osg::Vec3Array>& centers, const osg::ref_ptr<osg::Vec4Array>& cols, const vector<float>& radii) {
   m_geode->removeDrawables(0,m_nDrawables);
   m_nDrawables = centers->size();
   for (int i=0; i < centers->size(); i++) {
+    osg::TessellationHints* hints = new osg::TessellationHints;
+    hints->setDetailRatio(0.25f);
     osg::Sphere* sphere = new osg::Sphere( centers->at(i), radii.at(i));
-    osg::ShapeDrawable* sphereDrawable = new osg::ShapeDrawable(sphere);
+    osg::ShapeDrawable* sphereDrawable = new osg::ShapeDrawable(sphere,hints);
     sphereDrawable->setColor(cols->at(i));
     m_geode->addDrawable(sphereDrawable);
   }

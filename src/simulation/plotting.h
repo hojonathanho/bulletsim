@@ -16,7 +16,7 @@ protected:
 public:
   typedef boost::shared_ptr<PlotObject> Ptr;
 
-
+  void clear();
   EnvironmentObject::Ptr copy(Fork &f) const { return Ptr(new PlotObject(*this)); }
   void init(){
     getEnvironment()->osg->root->addChild(m_geode.get());
@@ -59,6 +59,8 @@ public:
     osg::ref_ptr<osg::Geode> m_geode;     
     int m_nDrawables;
     
+  void clear();
+
     EnvironmentObject::Ptr copy(Fork &f) const { return Ptr(new PlotSpheres(*this)); }    
     void init(){
       getEnvironment()->osg->root->addChild(m_geode.get());

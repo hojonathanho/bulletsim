@@ -8,6 +8,10 @@ vector<btVector3> getNodes(BulletSoftObject::Ptr psb) {
   return out;
 }
 
+vector<btVector3> getNodes(CapsuleRope::Ptr rope) {
+  return rope->getNodes();
+}
+
 vector<btVector3> getNodeVels(BulletSoftObject::Ptr psb) {
   btAlignedObjectArray<btSoftBody::Node> nodes = psb->softBody->m_nodes;
   vector<btVector3> out(nodes.size());

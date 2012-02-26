@@ -57,3 +57,6 @@ target_link_libraries(test_tetgen tetgen)
 
 add_executable(test_new_towel_tracking test_new_towel_tracking.cpp vision.cpp)
 target_link_libraries(test_new_towel_tracking comm ${PCL_LIBRARIES} simulation clouds perception)
+
+add_executable(test_new_tracking2 test_new_tracking2.cpp vision.cpp)
+target_link_libraries(test_new_tracking2 comm ${PCL_LIBRARIES} simulation clouds perception)

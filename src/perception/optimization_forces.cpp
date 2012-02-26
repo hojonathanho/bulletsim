@@ -35,7 +35,6 @@ MatrixXf calcCorrProb(const MatrixXf& estPts, const VectorXf& variances, const M
   MatrixXf pBandZ_unnormed = pVis.asDiagonal()*pBgivenZ_unnormed;
   VectorXf pB_unnormed = pBandZ_unnormed.colwise().sum();
   VectorXf pBorOutlier_unnormed = (pB_unnormed.array() + pBandOutlier);
-  cout << "outlier frac: " << (1 - pB_unnormed.array() / pBorOutlier_unnormed.array()).mean() << endl;
   MatrixXf pZgivenB = pBandZ_unnormed * pBorOutlier_unnormed.asDiagonal().inverse();
   assert(isFinite(pZgivenB));
   return pZgivenB;
@@ -57,8 +56,7 @@ VectorXf calcSigs(const SparseArray& corr, const Eigen::MatrixXf& estPts, const 
     BOOST_FOREACH(const IndVal& iv, corr[iA]) totalSqDist += iv.val * (estPts.row(iA) - obsPts.row(iv.ind)).squaredNorm();
     sigs[iA] = totalSqDist / (3*(vecSum(corr[iA])+priorCount));
   }
-  //cout << sigs.transpose().array().sqrt()/METERS << endl;
-  //sigs.setConstant(.025*METERS);
+
   return sigs;
 }
 

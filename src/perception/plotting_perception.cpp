@@ -40,7 +40,7 @@ void plotNodesAsSpheres(btSoftBody* psb, const VectorXf& pVis, const Eigen::Vect
   ref_ptr<Vec3Array> centers = new Vec3Array();
   ref_ptr<Vec4Array> colors = new Vec4Array();
   //vector<float> sizes = toVec(sigs.array().sqrt());
-  vector<float> sizes = toVec(sigs.array().sqrt()/2);
+  vector<float> sizes = toVec(sigs.array().sqrt());
   for (int i=0; i<nPts; i++) {
     const btVector3& v = psb->m_nodes[i].m_x;
     float p = pVis[i];
@@ -49,6 +49,22 @@ void plotNodesAsSpheres(btSoftBody* psb, const VectorXf& pVis, const Eigen::Vect
   }
   spheres->plot(centers, colors, sizes);
 }
+
+void plotNodesAsSpheres(const vector<btVector3>& nodes, const VectorXf& pVis, const Eigen::VectorXf& sigs, PlotSpheres::Ptr spheres) {
+  int nPts = pVis.rows();
+  using namespace osg;
+  ref_ptr<Vec3Array> centers = new Vec3Array();
+  ref_ptr<Vec4Array> colors = new Vec4Array();
+  //vector<float> sizes = toVec(sigs.array().sqrt());
+  vector<float> sizes = toVec(sigs.array().sqrt()/2);
+  for (int i=0; i<nPts; i++) {
+    float p = pVis[i];
+    centers->push_back(Vec3f(nodes[i].x(), nodes[i].y(), nodes[i].z()));
+    colors->push_back(Vec4f(p,p,p,.25));
+  }
+  spheres->plot(centers, colors, sizes);
+}
+
 
 void plotObs(const Eigen::MatrixXf& corr, const vector<btVector3>& obsPts, PointCloudPlot::Ptr plot) {
   Eigen::VectorXf inlierFrac = corr.colwise().sum();

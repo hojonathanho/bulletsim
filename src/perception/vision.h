@@ -5,11 +5,11 @@
 #include "comm/comm.h"
 #include "perception/utils_perception.h"
 #include <vector>
+#include <queue>
 #include "clouds/comm_pcl.h"
 #include "clouds/comm_cv.h"
 #include "simulation/rope.h"
 
-using namespace std; 
 const int BIGINT = 9999999;
 
 struct Vision {
@@ -52,8 +52,8 @@ struct TowelVision : public Vision {
   Eigen::VectorXf m_sigs;
   BulletObject::Ptr m_table;
   CloudMessage m_towelPtsMsg;
-  vector<btVector3> m_towelObsPts;
-  vector<btVector3> m_towelEstPts;
+  std::vector<btVector3> m_towelObsPts;
+  std::vector<btVector3> m_towelEstPts;
   FileSubscriber* m_towelSub;
 
   void doIteration();
@@ -71,8 +71,8 @@ struct RopeVision : public Vision {
   CapsuleRope::Ptr m_rope;
   Eigen::VectorXf m_sigs;
   BulletObject::Ptr m_table;
-  vector<btVector3> m_ropeObsPts;
-  vector<btVector3> m_ropeEstPts;
+  std::vector<btVector3> m_ropeObsPts;
+  std::vector<btVector3> m_ropeEstPts;
   FileSubscriber* m_ropeSub;
   CloudMessage m_ropePtsMsg;
   FileSubscriber* m_labelSub;
@@ -93,36 +93,69 @@ struct RopeVision : public Vision {
 
 struct TrackedObject {
   typedef boost::shared_ptr<TrackedObject> Ptr;
-  EnvironmentObject::Ptr sim; // simulated object
+  
   Eigen::VectorXf m_sigs;
-  float loglik;
-  virtual Eigen::MatrixXf featsFromCloud(ColorCloudPtr) = 0; // calculate appropriate features from point cloud
   virtual Eigen::MatrixXf featsFromSim() = 0;
-  virtual void applyEvidence(SparseMatrix corr, Eigen::MatrixXf obsPts) = 0; // add forces, update loglik
-  virtual Eigen::MatrixXf getNodes() = 0; // get surface nodes
+  virtual void applyEvidence(const SparseArray& corr, const Eigen::MatrixXf& obsPts) = 0; // add forces, update loglik
 };
 
-struct TrackedRope : public TrackedObject {
-  TrackedRope(const vector< vector<float> > nodes, const vector<int> labels);
-  Eigen::MatrixXf featsFromCloud(ColorCloudPtr);
+
+struct RopeInitMessage : public Message {
+  struct RopeInitData {
+    Eigen::VectorXf m_labels;
+    Eigen::MatrixXf m_positions;
+  };
+  RopeInitData m_data;
+  RopeInitMessage() : Message() {}
+  RopeInitMessage(RopeInitData& data) : Message(), m_data(data) {}
+  RopeInitMessage(RopeInitData& data, Value info) : Message(info), m_data(data) {}
+  void readDataFrom(path);
+  void writeDataTo(path);
+};
+
+class History {
+public:
+  History(int maxsize=10);
+  void put(float x);
+  float sum();
+  int size();
+  bool full();
+  
+  int m_maxsize;    
+
+private:
+  std::queue<float> m_data;
+  float m_sum;
+};
+
+struct TrackedRope : public TrackedObject { // TODO: visibility
+  typedef boost::shared_ptr<TrackedRope> Ptr;
+
+  CapsuleRope::Ptr m_sim;
+  Eigen::VectorXf m_labels;
+  History m_forceHistory;
+
+  TrackedRope(const RopeInitMessage&, CoordinateTransformer*);
+  static Eigen::MatrixXf featsFromCloud(ColorCloudPtr); // x,y,z,a=label
   Eigen::MatrixXf featsFromSim();
-  void applyEvidence(SparseMatrix corr, Eigen::MatrixXf obsPts);
-  Eigen::MatrixXf getNodes();
+  void applyEvidence(const SparseArray& corr, const Eigen::MatrixXf& obsPts); // add forces
+protected:
+  void init(const std::vector<btVector3>& nodes, const Eigen::VectorXf& labels);
 };
 
 struct TrackedTowel : public TrackedObject {
-  TrackedTowel(const vector< vector<float> > corners);
+  TrackedTowel(const std::vector< std::vector<float> > corners);
 };
 
 struct RopeVision2 : public Vision {
   RopeVision2();
-
-  vector<TrackedRope::Ptr> m_ropeHypoths
+  std::vector<TrackedRope::Ptr> m_ropeHypoths;
+  std::map<TrackedRope::Ptr, Fork::Ptr> m_rope2fork;
   BulletObject::Ptr m_table;
-  vector<btVector3> m_ropeObsPts;
-  vector<btVector3> m_ropeEstPts;
+  ColorCloudPtr m_obsCloud;
+  Eigen::MatrixXf m_obsFeats;
   FileSubscriber* m_ropeInitSub;
-  VecVecMessage<float> ropeInitMsg;
+  RopeInitMessage m_ropeInitMsg;
   FileSubscriber* m_ropeSub;
   CloudMessage m_ropePtsMsg;
   FileSubscriber* m_labelSub;
@@ -137,6 +170,9 @@ struct RopeVision2 : public Vision {
   void setupComm();
   void setupScene();
 
+  void addRopeHypoth(TrackedRope::Ptr rope);
+  void removeRopeHypoth(TrackedRope::Ptr rope);
+  void cullHypoths();
 
 
 };

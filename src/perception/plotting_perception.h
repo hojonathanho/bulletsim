@@ -14,4 +14,6 @@ public:
 
 void drawCorrLines(PlotLines::Ptr lines, const vector<btVector3>& est, const vector<btVector3>& obs, const SparseArray&);
 void plotNodesAsSpheres(btSoftBody* psb, const Eigen::VectorXf& pVis, const Eigen::VectorXf& sigs, PlotSpheres::Ptr spheres);
+void plotNodesAsSpheres(btSoftBody* psb, const Eigen::VectorXf& pVis, const Eigen::VectorXf& sigs, PlotSpheres::Ptr spheres);
+void plotNodesAsSpheres(const vector<btVector3>& nodes, const Eigen::VectorXf& pVis, const Eigen::VectorXf& sigs, PlotSpheres::Ptr spheres);
 void plotObs(const Eigen::MatrixXf& corr, const vector<btVector3>& obsPts, PointCloudPlot::Ptr plot);
