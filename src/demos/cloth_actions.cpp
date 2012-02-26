@@ -1,3 +1,5 @@
+#include <Wm5Core.h>
+#include <Wm5Mathematics.h>
 #include "simulation/simplescene.h"
 #include "simulation/basicobjects.h"
 #include "simulation/softbodies.h"
@@ -5,7 +7,7 @@
 #include "simulation/config_viewer.h"
 #include <BulletSoftBody/btSoftBodyHelpers.h>
 #include <cstdlib>
-#include "boost/date_time/posix_time/posix_time.hpp"
+#include <boost/date_time/posix_time/posix_time.hpp>
 
 struct ClothSpec {
     btSoftBody *psb;
@@ -26,12 +28,12 @@ static BulletSoftObject::Ptr createCloth(Scene &scene, btScalar s, int resx, int
     psb->m_cfg.collisions = btSoftBody::fCollision::CL_SS
         | btSoftBody::fCollision::CL_RS
         | btSoftBody::fCollision::CL_SELF;
-    psb->m_cfg.kDF = 0.8;
-    psb->m_cfg.kSSHR_CL = 1.0;
+    psb->m_cfg.kDF = 0.6;
+    psb->m_cfg.kSSHR_CL = 1.0; // so the cloth doesn't penetrate itself
     psb->getCollisionShape()->setMargin(0.05);
     btSoftBody::Material *pm = psb->appendMaterial();
-    pm->m_kLST = 0.5;
-    pm->m_kLST = 1.;
+    pm->m_kLST = 1;
+    pm->m_kAST = 1;
     psb->generateBendingConstraints(2, pm);
     psb->randomizeConstraints();
     psb->setTotalMass(1, true);
@@ -223,7 +225,8 @@ static void liftClothMiddle(Scene &scene, ClothSpec &cs, bool disableDrawing=tru
     scene.setDrawing(!disableDrawing);
 
     // add forces
-    const int steps = 30;
+//    const int steps = 30;
+    const int steps = 50;
     const btVector3 force(0, 0, 0.5);
     for (int i = 0; i < steps; ++i) {
         for (int x = 0; x < cs.resx; ++x)
@@ -252,6 +255,30 @@ static btVector3 softBodyCM(btSoftBody *psb) {
     for (int i = 0; i < psb->m_nodes.size(); ++i)
         sum += psb->m_nodes[i].m_x;
     return sum * 1./psb->m_nodes.size();
+}
+
+static btScalar projectedConvexHullArea(btSoftBody *psb) {
+    // projects onto the xy-plane
+    Wm5::Vector2f *vertices = new Wm5::Vector2f[psb->m_nodes.size()];
+    for (int i = 0; i < psb->m_nodes.size(); ++i) {
+        vertices[i].X() = psb->m_nodes[i].m_x.x();
+        vertices[i].Y() = psb->m_nodes[i].m_x.y();
+    }
+
+    Wm5::ConvexHullf *hull = new Wm5::ConvexHull2f(psb->m_nodes.size(), vertices, 0.001f, false, Wm5::Query::QT_REAL);
+    const int nSimplices = hull->GetNumSimplices();
+    const int *indices = hull->GetIndices();
+    Wm5::Vector2f *hullvertices = new Wm5::Vector2f[nSimplices];
+    for (int i = 0; i < nSimplices; ++i)
+        hullvertices[i] = vertices[indices[i]];
+
+    btScalar area = (btScalar) Wm5::Polygon2f(nSimplices, hullvertices).ComputeArea();
+
+//    delete [] hullvertices;
+    delete hull;
+    delete [] vertices;
+
+    return area;
 }
 
 static void greedy(Scene &scene, BulletSoftObject::Ptr initCloth, NodeActionList &candidateActions, int steps, NodeActionList &out) {
@@ -289,15 +316,22 @@ static void greedy(Scene &scene, BulletSoftObject::Ptr initCloth, NodeActionList
         btVector3 startingCM = softBodyCM(stepState.cloth->softBody.get());
         cout << "starting cloth height: " << startingCM.z() << endl;
 
+#if 0
+        optimal.bullet = stepState.bullet;
+        optimal.osg = stepState.osg;
+        optimal.fork = stepState.fork;
+        optimal.cloth = stepState.cloth;
+        optimal.actionspec = candidateActions[rand() % candidateActions.size()].spec;
+#endif
         for (int i = 0; i < candidateActions.size(); ++i) {
-            cout << "\taction " << (i+1) << "/" << candidateActions.size() << '\n';
-
             NodeMoveAction &ac = candidateActions[i];
 
             // ignore actions that drag down the cloth (for now)
             if (ac.spec.v.z() != 0) continue;
             // ignore actions that drag a node toward the center
             if (ac.spec.v.dot(stepState.cloth->softBody->m_nodes[ac.spec.i].m_x - startingCM) < 0) continue;
+
+            cout << "\taction " << (i+1) << "/" << candidateActions.size() << '\n';
 
             BulletInstance::Ptr bullet2(new BulletInstance);
             bullet2->setGravity(BulletConfig::gravity);
@@ -306,7 +340,6 @@ static void greedy(Scene &scene, BulletSoftObject::Ptr initCloth, NodeActionList
             Fork::Ptr fork(new Fork(stepState.fork->env, bullet2, osg2));
             scene.registerFork(fork);
             BulletSoftObject::Ptr cloth2 = boost::static_pointer_cast<BulletSoftObject>(fork->forkOf(stepState.cloth));
-            BOOST_ASSERT(cloth2);
 
             ac.setSoftBody(fork->env, cloth2->softBody.get());
 
@@ -318,9 +351,13 @@ static void greedy(Scene &scene, BulletSoftObject::Ptr initCloth, NodeActionList
 
             float avgHeight = softBodyCM(cloth2->softBody.get()).z();
             cout << "\t\taverage node height: " << avgHeight << '\n';
+            float hullArea = projectedConvexHullArea(cloth2->softBody.get());
+            cout << "\t\tarea of convex hull of projected vertices: " << hullArea << '\n';
 
-            if (numActionsRun == 0 || avgHeight < optimal.val) {
-                optimal.val = avgHeight;
+            float val = -hullArea;
+
+            if (numActionsRun == 0 || val < optimal.val) {
+                optimal.val = val;
 
                 optimal.bullet = bullet2;
                 optimal.osg = osg2;
@@ -336,7 +373,8 @@ static void greedy(Scene &scene, BulletSoftObject::Ptr initCloth, NodeActionList
             ++numActionsRun;
         }
 
-        cout << "optimal got cloth height: " << optimal.val << endl;
+        //cout << "optimal got cloth height: " << optimal.val << endl;
+        cout << "optimal val: " << optimal.val << endl;
         out.add(optimal.actionspec);
 /*
 
@@ -377,7 +415,7 @@ int main(int argc, char *argv[]) {
     table->rigidBody->setFriction(0.5);
     scene.env->add(table);
 
-    const int divs = 25;
+    const int divs = 31;
     BulletSoftObject::Ptr cloth(
         createCloth(scene, GeneralConfig::scale * 0.25, divs, divs, GeneralConfig::scale * btVector3(0.9, 0, table_height+0.01)));
     scene.env->add(cloth);
@@ -397,7 +435,7 @@ int main(int argc, char *argv[]) {
 
     NodeActionList optimal;
 //    scene.setDrawing(false);
-    greedy(scene, cloth, actions, 15, optimal);
+    greedy(scene, cloth, actions, 10, optimal);
     scene.setDrawing(true);
     scene.idle(true);
 
@@ -409,6 +447,7 @@ int main(int argc, char *argv[]) {
             a.step(BulletConfig::dt);
             scene.env->step(BulletConfig::dt, BulletConfig::maxSubSteps, BulletConfig::internalTimeStep);
             scene.draw();
+            scene.idle(true);
         }
     }
     scene.idle(true);
