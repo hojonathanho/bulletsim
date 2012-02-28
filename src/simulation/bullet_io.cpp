@@ -36,3 +36,19 @@ ostream &operator<<(ostream &stream, const btMatrix3x3& m) {
   stream << m.getRow(2);
   return stream;
 }
+
+istream &operator>>(istream &stream, btVector3& v) {
+  btScalar x,y,z;
+  stream >> x >> y >> z;
+  v = btVector3(x, y, z);
+  return stream;
+}
+
+istream &operator>>(istream &stream, btMatrix3x3& m) {
+  btVector3 r1,r2,r3;
+  stream >> r1 >> r2 >> r3;
+  m = btMatrix3x3(r1.x(), r1.y(), r1.z(),
+		  r2.x(), r2.y(), r2.z(),
+		  r3.x(), r3.y(), r3.z());
+  return stream;
+}
