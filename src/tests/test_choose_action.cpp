@@ -216,13 +216,13 @@ void saveSoftBody(const btSoftBody* orig, const char* fileName) {
   // cluster connectivity
   saveFile << orig->m_clusterConnectivity.size() << endl;
   for (i = 0; i < orig->m_clusterConnectivity.size(); i++) {
-    saveFile << orig->m_clusterConnectivity[i] << endl;
+    saveFile << orig->m_clusterConnectivity[i] << " ";
   }
   
   saveFile.close();
 }
 
-void loadSoftBody(btSoftBodyWorldInfo& worldInfo, const char* fileName) {
+btSoftBody* loadSoftBody(btSoftBodyWorldInfo& worldInfo, const char* fileName) {
   int i, j, size;
   ifstream loadFile;
   loadFile.open(fileName);
@@ -313,12 +313,12 @@ void loadSoftBody(btSoftBodyWorldInfo& worldInfo, const char* fileName) {
   loadFile >> psb->m_pose.m_bframe;
   loadFile >> psb->m_pose.m_volume;
   loadFile >> size;
-  psb->m_pose.m_pos.reserve(size);
+  psb->m_pose.m_pos.resize(size);
   for (i = 0; i < size; i++) {
     loadFile >> psb->m_pose.m_pos[i];
   }
   loadFile >> size;
-  psb->m_pose.m_wgh.reserve(size);
+  psb->m_pose.m_wgh.resize(size);
   for (i = 0; i < size; i++) {
     loadFile >> psb->m_pose.m_wgh[i];
   }
@@ -357,21 +357,21 @@ void loadSoftBody(btSoftBodyWorldInfo& worldInfo, const char* fileName) {
   loadFile >> psb->m_cfg.citerations;
   loadFile >> psb->m_cfg.collisions;
   loadFile >> size;
-  psb->m_cfg.m_vsequence.reserve(size);
+  psb->m_cfg.m_vsequence.resize(size);
   for (i = 0; i < size; i++) {
     int v;
     loadFile >> v;
     psb->m_cfg.m_vsequence[i] = (btSoftBody::eVSolver::_) v;
   }
   loadFile >> size;
-  psb->m_cfg.m_psequence.reserve(size);
+  psb->m_cfg.m_psequence.resize(size);
   for (i = 0; i < size; i++) {
     int p;
     loadFile >> p;
     psb->m_cfg.m_psequence[i] = (btSoftBody::ePSolver::_) p;
   }
   loadFile >> size;
-  psb->m_cfg.m_dsequence.reserve(size);
+  psb->m_cfg.m_dsequence.resize(size);
   for (i = 0; i < size; i++) {
     int p;
     loadFile >> p;
@@ -388,16 +388,68 @@ void loadSoftBody(btSoftBodyWorldInfo& worldInfo, const char* fileName) {
   loadFile >> psb->m_sst.updmrg;
   loadFile >> psb->m_sst.velmrg;
 
-  saveSoftBody(psb, "testfile2.txt");
-  loadFile.close();
-}
+  // clusters
+  loadFile >> size;
+  psb->m_clusters.resize(size);
+  for (i = 0; i < size; i++) {
+    btSoftBody::Cluster *newcl = psb->m_clusters[i] =
+      new(btAlignedAlloc(sizeof(btSoftBody::Cluster),16)) btSoftBody::Cluster();
+    
+    int size2;
+    loadFile >> size2;
+    newcl->m_nodes.resize(size2);
+    for (j = 0; j < size2; j++) {
+      int n;
+      loadFile >> n;
+      newcl->m_nodes[j] = &psb->m_nodes[n];
+    }
+    loadFile >> size2;
+    newcl->m_masses.resize(size2);
+    for (j = 0; j < size2; j++) {
+      loadFile >> newcl->m_masses[j];
+    }
+    loadFile >> size2;
+    newcl->m_framerefs.resize(size2);
+    for (j = 0; j < size2; j++) {
+      loadFile >> newcl->m_framerefs[j];
+    }
+    loadFile >> newcl->m_framexform;
+    loadFile >> newcl->m_idmass;
+    loadFile >> newcl->m_imass;
+    loadFile >> newcl->m_locii;
+    loadFile >> newcl->m_invwi;
+    loadFile >> newcl->m_com;
+    loadFile >> newcl->m_vimpulses[0];
+    loadFile >> newcl->m_vimpulses[1];
+    loadFile >> newcl->m_dimpulses[0];
+    loadFile >> newcl->m_dimpulses[1];
+    loadFile >> newcl->m_nvimpulses;
+    loadFile >> newcl->m_ndimpulses;
+    loadFile >> newcl->m_lv;
+    loadFile >> newcl->m_av;
+    newcl->m_leaf = 0; // soft body code will set this automatically
+    loadFile >> newcl->m_ndamping;
+    loadFile >> newcl->m_ldamping;
+    loadFile >> newcl->m_adamping;
+    loadFile >> newcl->m_matching;
+    loadFile >> newcl->m_maxSelfCollisionImpulse;
+    loadFile >> newcl->m_selfCollisionImpulseFactor;
+    loadFile >> newcl->m_containsAnchor;
+    loadFile >> newcl->m_collide;
+    loadFile >> newcl->m_clusterIndex;
+  }
 
-btSoftBody* loadSoftBody(const char* fileName) {
-  ifstream loadFile;
-  loadFile.open(fileName);
-  loadFile.close();
-}
+  // cluster connectivity
+  loadFile >> size;
+  psb->m_clusterConnectivity.resize(size);
+  for (i = 0; i < size; i++) {
+    loadFile >> psb->m_clusterConnectivity[i];
+  }
 
+  loadFile.close();
+  return psb;
+}
+/*
 btSoftBody* createPatch(btSoftBodyWorldInfo& worldInfo,
 			btVector3* x,
 			int resx,
@@ -405,7 +457,6 @@ btSoftBody* createPatch(btSoftBodyWorldInfo& worldInfo,
 			int fixeds,
 			bool gendiags) {
 #define IDX(_x_,_y_) ((_y_)*rx+(_x_))
-  /* Create nodes */
   if(sizeof(x) < 1) return(0);
   const int rx = resx;
   const int ry = resy;
@@ -421,7 +472,6 @@ btSoftBody* createPatch(btSoftBodyWorldInfo& worldInfo,
   if(fixeds&8) psb->setMass(IDX(rx-1,ry-1),0);
   delete[] x;
   delete[] m;
-  /* Create links and faces */
   for(int iy=0;iy<ry;++iy) {
     for(int ix=0;ix<rx;++ix) {
       const int idx=IDX(ix,iy);
@@ -447,7 +497,6 @@ btSoftBody* createPatch(btSoftBodyWorldInfo& worldInfo,
       }
     }
   }
-  /* Finished */
 #undef IDX
   return(psb);
 }
@@ -461,7 +510,6 @@ btSoftBody* createPatch(btSoftBodyWorldInfo& worldInfo,
 			int resy,
 			int fixeds,
 			bool gendiags) {
-  /* Create node array */
   if((resx<2)||(resy<2)) return(0);
   btVector3* x = new btVector3[resx*resy];
   for (int iy=0; iy < resy; ++iy) {
@@ -475,42 +523,40 @@ btSoftBody* createPatch(btSoftBodyWorldInfo& worldInfo,
   }
   return createPatch(worldInfo, x, resx, resy, fixeds, gendiags);
 }
-
+*/
 ChooseActionScene::ChooseActionScene() {
   // create cloth
   btScalar s = 1;
-  btScalar z = 1;
-  btVector3* nodes = new btVector3[961];
-  for (int i = 0; i < 31; i++) {
-    for (int j = 0; j < 31; j++) {
-      if (j <= 15) {
-	nodes[i+31*j] = btVector3(i*s/30.0, j*s/30.0,z);
-      } else {
-	nodes[i+31*j] = btVector3(i*s/30.0,s-j*s/30.0,z+.01*(j-15)/30.0);
-      }
-    }
-  }
+  btScalar z = .1;
+  btSoftBody* psb = btSoftBodyHelpers::CreatePatch(env->bullet->softBodyWorldInfo,
+						   btVector3(-s,-s,z),
+						   btVector3(+s,-s,z),
+						   btVector3(-s,+s,z),
+						   btVector3(+s,+s,z),
+						   31, 31,
+						   0, true);
   /*
-  btSoftBody* psb = createPatch(env->bullet->softBodyWorldInfo,
-				nodes, 31, 31, 0, true);
-
+  psb->m_cfg.piterations = 2;
+  psb->m_cfg.collisions = btSoftBody::fCollision::CL_SS
+    | btSoftBody::fCollision::CL_RS
+    | btSoftBody::fCollision::CL_SELF;
+  psb->m_cfg.kDF = 1.0;
+  psb->getCollisionShape()->setMargin(0.05);
+  btSoftBody::Material *pm = psb->appendMaterial();
+  pm->m_kLST = 0.1;
+  psb->generateBendingConstraints(2, pm);
+  psb->randomizeConstraints();
+  psb->setTotalMass(1, true);
+  psb->generateClusters(0);
   */
-  btSoftBody* psb = createPatch(env->bullet->softBodyWorldInfo,
-				btVector3(-s,-s,z),
-				btVector3(+s,-s,z),
-				btVector3(-s,+s,z),
-				btVector3(+s,+s,z),
-				31, 31,
-				0, true);
-
   psb->getCollisionShape()->setMargin(0.4);
   btSoftBody::Material* pm=psb->appendMaterial();
   pm->m_kLST = 0.4;
   //pm->m_flags -= btSoftBody::fMaterial::DebugDraw;
   psb->generateBendingConstraints(2, pm);
   psb->setTotalMass(150);
-  saveSoftBody(psb, "testfile.txt");
-  cloth = BulletSoftObject::Ptr(new BulletSoftObject(psb));
+  //cloth = BulletSoftObject::Ptr(new BulletSoftObject(psb));
+  cloth = BulletSoftObject::Ptr(new BulletSoftObject(loadSoftBody(env->bullet->softBodyWorldInfo, "testfile.txt")));
   env->add(cloth);
 }
 
@@ -583,13 +629,16 @@ int main(int argc, char *argv[]) {
   parser.read(argc, argv);
 
   ChooseActionScene scene;
-  loadSoftBody(scene.env->bullet->softBodyWorldInfo, "testfile.txt");
 
   scene.startViewer();
   int step_count = 0;
   while (!scene.viewer.done()) {
-    if (step_count % 300 == 0) {
+    if (step_count == 300) {
       btSoftBody * const psb = scene.cloth->softBody.get();
+      /*
+      cout << "saving softbody\n";
+      saveSoftBody(psb, "testfile.txt");
+      */
       for (int i = 0; i < psb->m_nodes.size(); i++) {
 	btVector3 pos = psb->m_nodes[i].m_x;
 	btVector3 above = btVector3(pos.x(), pos.y(), pos.z() + 5);

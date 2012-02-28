@@ -18,4 +18,8 @@ ostream &operator<<(ostream &stream, const btMatrix3x3& m);
 
 istream &operator>>(istream &stream, btVector3& v);
 
+istream &operator>>(istream &stream, btQuaternion& v);
+
+istream &operator>>(istream &stream, btTransform& v);
+
 istream &operator>>(istream &stream, btMatrix3x3& v);
