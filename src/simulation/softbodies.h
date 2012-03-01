@@ -33,7 +33,11 @@ public:
     void init();
     void preDraw();
     void destroy();
+
 };
 
+// for saving and loading softbodies
+void saveSoftBody(const btSoftBody* orig, const char* fileName);
+btSoftBody* loadSoftBody(btSoftBodyWorldInfo& worldInfo, const char* fileName);
 
 #endif // _SOFTBODIES_H_
