@@ -47,5 +47,8 @@ private:
     map<AnchorHandle, int> anchormap;
 };
 
+// for saving and loading softbodies (text format)
+void saveSoftBody(const btSoftBody* orig, const char* fileName);
+btSoftBody* loadSoftBody(btSoftBodyWorldInfo& worldInfo, const char* fileName);
 
 #endif // _SOFTBODIES_H_
