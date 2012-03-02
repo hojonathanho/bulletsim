@@ -8,4 +8,5 @@ include_directories(
 link_directories(${BULLETSIM_BINARY_DIR}/src ${WM_LIBRARY_DIR})
 
 add_executable(cloth_actions cloth_actions.cpp)
-target_link_libraries(cloth_actions simulation ${WM_LIBRARIES})
+SET_SOURCE_FILES_PROPERTIES(cloth_actions.cpp PROPERTIES COMPILE_FLAGS -fopenmp)
+target_link_libraries(cloth_actions simulation ${WM_LIBRARIES} gomp)

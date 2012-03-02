@@ -8,6 +8,11 @@
 #include <BulletSoftBody/btSoftBodyHelpers.h>
 #include <cstdlib>
 #include <boost/date_time/posix_time/posix_time.hpp>
+#include <boost/scoped_array.hpp>
+
+#include <omp.h>
+#include <limits>
+using std::numeric_limits;
 
 struct ClothSpec {
     btSoftBody *psb;
@@ -30,6 +35,9 @@ static BulletSoftObject::Ptr createCloth(Scene &scene, btScalar s, int resx, int
         | btSoftBody::fCollision::CL_SELF;
     psb->m_cfg.kDF = 0.6;
     psb->m_cfg.kSSHR_CL = 1.0; // so the cloth doesn't penetrate itself
+    psb->m_cfg.kSRHR_CL = 1.0;
+    psb->m_cfg.kSKHR_CL = 1.0;
+
     psb->getCollisionShape()->setMargin(0.05);
     btSoftBody::Material *pm = psb->appendMaterial();
     pm->m_kLST = 1;
@@ -220,17 +228,18 @@ static void randomizeCloth(Scene &scene, btSoftBody *psb, int resx, int resy, in
     }
 }
 
-static void liftClothMiddle(Scene &scene, ClothSpec &cs, bool disableDrawing=true) {
+static void liftClothMiddle2(Scene &scene, ClothSpec &cs, bool disableDrawing=true) {
     bool d = scene.drawingOn;
     scene.setDrawing(!disableDrawing);
 
-    // add forces
-//    const int steps = 30;
-    const int steps = 50;
+    const int steps = 20;
+//    const int steps = 50;
     const btVector3 force(0, 0, 0.5);
     for (int i = 0; i < steps; ++i) {
-        for (int x = 0; x < cs.resx; ++x)
-            cs.psb->addForce(force, (cs.resy / 2)*cs.resx + x);
+        for (int y = 0; y < cs.resy; ++y) {
+            cs.psb->addForce(force, y*cs.resx + 0);
+            cs.psb->addForce(force, y*cs.resx + cs.resx-1);
+        }
         scene.step(BulletConfig::dt);
     }
 
@@ -247,6 +256,34 @@ static void liftClothMiddle(Scene &scene, ClothSpec &cs, bool disableDrawing=tru
     }
 
     scene.setDrawing(d);
+}
+static void liftClothMiddle(Scene &scene, ClothSpec &cs, bool disableDrawing=true) {
+    bool d = scene.drawingOn;
+    scene.setDrawing(!disableDrawing);
+
+    // add forces
+    const int steps = 30;
+//    const int steps = 50;
+    const btVector3 force(0, 0, 0.5);
+    for (int i = 0; i < steps; ++i) {
+        for (int x = 0; x < cs.resx; ++x)
+            cs.psb->addForce(force, (cs.resy / 2)*cs.resx + x);
+        scene.step(BulletConfig::dt);
+    }
+
+    // let the cloth stabilize
+    const int restingsteps = 400;
+    for (int i = 0; i < restingsteps; ++i) {
+        scene.step(BulletConfig::dt);
+    }
+
+    // clear velocities
+    for (int i = 0; i < cs.psb->m_nodes.size(); ++i) {
+        cs.psb->m_nodes[i].m_v.setZero();
+    }
+    scene.setDrawing(d);
+
+    //liftClothMiddle2(scene, cs, disableDrawing);
 }
 
 static btVector3 softBodyCM(btSoftBody *psb) {
@@ -284,7 +321,11 @@ static btScalar projectedConvexHullArea(btSoftBody *psb) {
 static void greedy(Scene &scene, BulletSoftObject::Ptr initCloth, NodeActionList &candidateActions, int steps, NodeActionList &out) {
     // greedily find a list of actions that flattens the cloth
 
-    struct {
+    vector<NodeMoveAction::Spec> candspecs;
+    for (int i = 0; i < candidateActions.size(); ++i)
+        candspecs.push_back(candidateActions[i].spec);
+
+    struct StepState {
         BulletInstance::Ptr bullet;
         OSGInstance::Ptr osg;
         Fork::Ptr fork;
@@ -300,97 +341,110 @@ static void greedy(Scene &scene, BulletSoftObject::Ptr initCloth, NodeActionList
 
     boost::posix_time::ptime begTick0(boost::posix_time::microsec_clock::local_time());
     for (int step = 0; step < steps; ++step) {
+        boost::posix_time::ptime begTick(boost::posix_time::microsec_clock::local_time());
         cout << "step " << (step+1) << "/" << steps << '\n';
+        scene.osg->root->removeChild(stepState.osg->root.get());
 
         // at each step, try all actions and find the one that flattens the cloth
-        struct {
-            BulletInstance::Ptr bullet;
-            OSGInstance::Ptr osg;
-            Fork::Ptr fork;
-            BulletSoftObject::Ptr cloth;
+        struct OptimalSpec {
+            StepState state;
             NodeMoveAction::Spec actionspec;
             float val;
-        } optimal;
+        };
 
-        int numActionsRun = 0;
         btVector3 startingCM = softBodyCM(stepState.cloth->softBody.get());
-        cout << "starting cloth height: " << startingCM.z() << endl;
 
-#if 0
-        optimal.bullet = stepState.bullet;
-        optimal.osg = stepState.osg;
-        optimal.fork = stepState.fork;
-        optimal.cloth = stepState.cloth;
-        optimal.actionspec = candidateActions[rand() % candidateActions.size()].spec;
-#endif
-        for (int i = 0; i < candidateActions.size(); ++i) {
-            NodeMoveAction &ac = candidateActions[i];
+        // do a manual reduction over the array
+        // each thread t sets threadoptimal[t] to be the optimal in its share of work
+        // then at the end we take the optimal of threadoptimal[t] over all t
+        OptimalSpec *threadoptimal = NULL;
+        int numthreads;
 
-            // ignore actions that drag down the cloth (for now)
-            if (ac.spec.v.z() != 0) continue;
-            // ignore actions that drag a node toward the center
-            if (ac.spec.v.dot(stepState.cloth->softBody->m_nodes[ac.spec.i].m_x - startingCM) < 0) continue;
-
-            cout << "\taction " << (i+1) << "/" << candidateActions.size() << '\n';
-
-            BulletInstance::Ptr bullet2(new BulletInstance);
-            bullet2->setGravity(BulletConfig::gravity);
-            OSGInstance::Ptr osg2(new OSGInstance);
-            scene.osg->root->addChild(osg2->root.get());
-            Fork::Ptr fork(new Fork(stepState.fork->env, bullet2, osg2));
-            scene.registerFork(fork);
-            BulletSoftObject::Ptr cloth2 = boost::static_pointer_cast<BulletSoftObject>(fork->forkOf(stepState.cloth));
-
-            ac.setSoftBody(fork->env, cloth2->softBody.get());
-
-            while (!ac.done()) {
-                ac.step(BulletConfig::dt);
-                fork->env->step(BulletConfig::dt, BulletConfig::maxSubSteps, BulletConfig::internalTimeStep);
-                scene.draw();
+        #pragma omp parallel shared(threadoptimal, stepState, numthreads)
+        {
+            #pragma omp single
+            {
+                numthreads = omp_get_num_threads();
+                threadoptimal = new OptimalSpec[numthreads];
+                for (int i = 0; i < numthreads; ++i) {
+                    threadoptimal[i].val = numeric_limits<float>::infinity();
+                }
             }
 
-            float avgHeight = softBodyCM(cloth2->softBody.get()).z();
-            cout << "\t\taverage node height: " << avgHeight << '\n';
-            float hullArea = projectedConvexHullArea(cloth2->softBody.get());
-            cout << "\t\tarea of convex hull of projected vertices: " << hullArea << '\n';
+            NodeMoveAction ac;
 
-            float val = -hullArea;
+            // try out each action in candspecs
+            #pragma omp for
+            for (int i = 0; i < candspecs.size(); ++i) {
+                ac.reset();
+                ac.spec = candspecs[i];
+                ac.readSpec();
 
-            if (numActionsRun == 0 || val < optimal.val) {
-                optimal.val = val;
+                // ignore actions that drag down the cloth (for now)
+                if (ac.spec.v.z() != 0) continue;
+                // ignore actions that drag a node toward the center
+                if (ac.spec.v.dot(stepState.cloth->softBody->m_nodes[ac.spec.i].m_x - startingCM) < 0) continue;
 
-                optimal.bullet = bullet2;
-                optimal.osg = osg2;
-                optimal.fork = fork;
-                optimal.cloth = cloth2;
+                //cout << "\taction " << (i+1) << "/" << candspecs.size() << '\n';
 
-                optimal.actionspec = ac.spec;
-            }
+                // to try the current action, fork off the stepState
+                StepState innerstate;
+                innerstate.bullet.reset(new BulletInstance);
+                innerstate.bullet->setGravity(BulletConfig::gravity);
+                innerstate.osg.reset(new OSGInstance);
+                innerstate.fork.reset(new Fork(stepState.fork->env, innerstate.bullet, innerstate.osg));
+                innerstate.cloth = boost::static_pointer_cast<BulletSoftObject>(
+                        innerstate.fork->forkOf(stepState.cloth));
 
-            scene.osg->root->removeChild(osg2->root.get());
-            scene.unregisterFork(fork);
+                // now run the action on the innerstate
+                ac.setSoftBody(innerstate.fork->env, innerstate.cloth->softBody.get());
+                while (!ac.done()) {
+                    ac.step(BulletConfig::dt);
+                    innerstate.fork->env->step(BulletConfig::dt,
+                            BulletConfig::maxSubSteps, BulletConfig::internalTimeStep);
+                }
 
-            ++numActionsRun;
-        }
+                float avgHeight = softBodyCM(innerstate.cloth->softBody.get()).z();
+                //cout << "\t\taverage node height: " << avgHeight << '\n';
+                float hullArea = projectedConvexHullArea(innerstate.cloth->softBody.get());
+                //cout << "\t\tarea of convex hull of projected vertices: " << hullArea << '\n';
+
+                float val = -hullArea;
+
+                OptimalSpec &inneroptimal = threadoptimal[omp_get_thread_num()];
+                if (val < inneroptimal.val) {
+                    inneroptimal.val = val;
+                    inneroptimal.actionspec = ac.spec;
+                    inneroptimal.state = innerstate;
+                }
+            } // end omp for
+        } // end omp parallel
+
+        OptimalSpec optimal;
+        optimal.val = numeric_limits<float>::infinity();
+        for (int i = 0; i < numthreads; ++i)
+            if (i == 0 || threadoptimal[i].val < optimal.val)
+                optimal = threadoptimal[i];
+        delete [] threadoptimal;
 
         //cout << "optimal got cloth height: " << optimal.val << endl;
         cout << "optimal val: " << optimal.val << endl;
         out.add(optimal.actionspec);
-/*
 
-        scene.idle(true);
-        out[out.size()-1].setSoftBody(scene.env, initCloth->softBody.get());
-        scene.runAction(out[out.size()-1], BulletConfig::dt);
-        scene.idle(true);
-        */
+        stepState = optimal.state;
 
-        stepState.bullet = optimal.bullet;
-        stepState.osg = optimal.osg;
-        stepState.fork = optimal.fork;
-        stepState.cloth = optimal.cloth;
+        scene.osg->root->addChild(stepState.osg->root.get());
+        scene.draw();
+
+        boost::posix_time::ptime endTick(boost::posix_time::microsec_clock::local_time());
+        std::cout << "\ttime: " << boost::posix_time::to_simple_string(endTick - begTick) << std::endl;
     }
     // keep the last step in the viewer
     scene.osg->root->addChild(stepState.osg->root.get());
+
+    boost::posix_time::ptime endTick0(boost::posix_time::microsec_clock::local_time());
+    cout << "time per step: " << boost::posix_time::to_simple_string((endTick0 - begTick0)/steps) << endl;
+    cout << "total time: " << boost::posix_time::to_simple_string(endTick0 - begTick0) << endl;
 }
 
 int main(int argc, char *argv[]) {
@@ -429,9 +483,8 @@ int main(int argc, char *argv[]) {
 
     cout << "lifting..." << endl;
     liftClothMiddle(scene, clothspec);
-    scene.idle(true);
     cout << "done lifting."<< endl;
-//    randomizeCloth(scene, cloth->softBody.get(), clothspec.resx, clothspec.resy);
+    scene.idle(true);
 
     NodeActionList optimal;
 //    scene.setDrawing(false);
@@ -447,8 +500,8 @@ int main(int argc, char *argv[]) {
             a.step(BulletConfig::dt);
             scene.env->step(BulletConfig::dt, BulletConfig::maxSubSteps, BulletConfig::internalTimeStep);
             scene.draw();
-            scene.idle(true);
         }
+        scene.idle(true);
     }
     scene.idle(true);
 
