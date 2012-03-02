@@ -13,7 +13,7 @@ struct ChooseActionScene : public BaseScene {
 ChooseActionScene::ChooseActionScene() {
   // create cloth
   btScalar s = 1;
-  btScalar z = 1;
+  btScalar z = .1;
   btSoftBody* psb = btSoftBodyHelpers::CreatePatch(env->bullet->softBodyWorldInfo,
 						   btVector3(-s,-s,z),
 						   btVector3(+s,-s,z),
@@ -21,7 +21,7 @@ ChooseActionScene::ChooseActionScene() {
 						   btVector3(+s,+s,z),
 						   31, 31,
 						   0, true);
-  
+  /*
   psb->m_cfg.piterations = 2;
   psb->m_cfg.collisions = btSoftBody::fCollision::CL_SS
     | btSoftBody::fCollision::CL_RS
@@ -34,16 +34,16 @@ ChooseActionScene::ChooseActionScene() {
   psb->randomizeConstraints();
   psb->setTotalMass(1, true);
   psb->generateClusters(0);
-  /*
+  */
   psb->getCollisionShape()->setMargin(0.4);
   btSoftBody::Material* pm=psb->appendMaterial();
   pm->m_kLST = 0.4;
   //pm->m_flags -= btSoftBody::fMaterial::DebugDraw;
   psb->generateBendingConstraints(2, pm);
   psb->setTotalMass(150);
-  */
-  //cloth = BulletSoftObject::Ptr(new BulletSoftObject(psb));
-  cloth = BulletSoftObject::Ptr(new BulletSoftObject(loadSoftBody(env->bullet->softBodyWorldInfo, "testfile.txt")));
+  
+  cloth = BulletSoftObject::Ptr(new BulletSoftObject(psb));
+  //cloth = BulletSoftObject::Ptr(new BulletSoftObject(loadSoftBody(env->bullet->softBodyWorldInfo, "testfile.txt")));
   
   //cout << "saving softbody\n";
   //saveSoftBody(psb, "testfile.txt");
@@ -128,8 +128,11 @@ int main(int argc, char *argv[]) {
   Fork::Ptr fork;
   */
   while (!scene.viewer.done()) {
-    if (step_count == 150) {
+    if (step_count == 300) {
       btSoftBody * const psb = scene.cloth->softBody.get();
+      //cout << "saving softbody\n";
+      //saveSoftBody(psb, "testfile.txt");
+
       /*
       bullet2.reset(new BulletInstance);
       bullet2->setGravity(BulletConfig::gravity);
@@ -140,17 +143,23 @@ int main(int argc, char *argv[]) {
       //scene.registerFork(fork);
       */
       for (int i = 0; i < psb->m_nodes.size(); i++) {
-	btVector3 pos = psb->m_nodes[i].m_x;
-	btVector3 above = btVector3(pos.x(), pos.y(), pos.z() + 5);
-	btVector3 below = btVector3(pos.x(), pos.y(), pos.z() - 5);
-	/*
+	const btVector3& pos = psb->m_nodes[i].m_x;
+	const btVector3& above = btVector3(pos.x(), pos.y(), pos.z() + 1);
+	const btVector3& below = btVector3(pos.x(), pos.y(), pos.z() + .0001);
+	int layersAbove = rayTest(psb, above, below);
 	cout << i;
 	cout << " ";
-	cout << rayTest(psb, above, below);
+	cout << layersAbove;
 	cout << ", ";
-	*/
+	if (layersAbove == 0) {
+	  SphereObject::Ptr sphere(new SphereObject(0, 0.01, btTransform(btQuaternion(0, 0, 0, 1), above)));
+	  scene.env->add(sphere);
+	} else {
+	  BoxObject::Ptr box(new BoxObject(0, btVector3(0.01, 0.01, 0.01), btTransform(btQuaternion(0, 0, 0, 1), above)));
+	  scene.env->add(box);
+	}
       }
-      //cout << "\n";
+      cout << "\n";
     }
     step_count++;
     scene.step(.01);
