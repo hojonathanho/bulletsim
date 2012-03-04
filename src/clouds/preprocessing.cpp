@@ -62,61 +62,58 @@ VectorXb getPointsOnTable(ColorCloudPtr cloudCam, const Affine3f& camToWorld, co
   return out;
 }
 
-VectorXi getLabels(ColorCloudPtr cloud,  const MatrixXf& coeffs, const VectorXf& intercepts) {
+VectorXi getLabels(ColorCloudPtr cloud,  const MatrixXf& coeffs, const VectorXf& intercepts, float scale) {
   int nPts = cloud->size();
-  // cout << nPts << " points" << endl;
-  // cout << cloud->width << " " << cloud->height << endl;
   MatrixXb bgr = toBGR(cloud);
-  // cout << (float)cloud->at(0).r << " "  << (float)cloud->at(0).g << " "  << (float)cloud->at(0).b << endl;
-  // cout << "bgr" << endl;
-  // cout << bgr.block(0,0,10,3).cast<float>() << endl;
-  // cout << "done" << endl;
   cv::Mat cvmat(cv::Size(nPts,1), CV_8UC3, bgr.data());
-  //    cv2eigen(cvmat, bgr);
-  // cout << "rgb in mat " << (int)cvmat.at<cv::Vec3b>(0,0)[0] << " " <<  (int)cvmat.at<cv::Vec3b>(0,0)[1] << " " << (int)cvmat.at<cv::Vec3b>(0,0)[2] << " " << endl;
   cv::cvtColor(cvmat, cvmat, CV_BGR2Lab);
-  // cout << "lab in mat " << (int)cvmat.at<cv::Vec3b>(0,0)[0] << " " <<  (int)cvmat.at<cv::Vec3b>(0,0)[1] << " " << (int)cvmat.at<cv::Vec3b>(0,0)[2] << " " << endl;
   Map<MatrixXb>lab(cvmat.data,nPts, 3);
-  //  eigen2cv(lab, cvmat);
-  // cout << lab.block(0,0,10,3).cast<float>() << endl;
   ArrayXXf feats(nPts,6);
   feats.block(0,0,nPts,3) = lab.cast<float>().array()/256.;
   feats.block(0,3,nPts,3) = feats.block(0,0,nPts,3).square();
     
   MatrixXf results = feats.matrix()*coeffs.transpose();
-
   MatrixXf results1 = results.rowwise() + intercepts.transpose();
-  // cout << feats.block(0,0,10,6).cast<float>() << endl;
-  // cout << results.block(0,0,10,4).cast<float>() << endl;
-  // cout << results1.block(0,0,10,5).cast<float>() << endl;
+  
   VectorXi out(nPts);
   for (int i=0; i < results.rows(); ++i) results1.row(i).maxCoeff(&out(i));
   return out;
 
 }
 
-ColorCloudPtr labelCloud(ColorCloudPtr cloudCam, const MatrixXf& coeffs, const MatrixXf& tableCam, const Affine3f& camToWorld) {
-  Eigen::MatrixXf pts = toEigenMatrix(cloudCam);
-    
-  // // transform point cloud
-  // VectorXb pointsOnTable = getPointsOnTable(cloudCam, camToWorld, tableCam);
-    
-  // MatrixXb bgr = toBGR(pointsOnTable);
-  // cv::Mat cvmat = cv::eigen2cv(bgr);
-  // cv::cvtColor(cvmat, cvmat, CV_BGR2LAB);
-    
-  // Eigen::ArrayXXf lab;
-  // cv::cv2eigen(cvmat, lab.block(0,0, nPts, 3));
-  // lab.block(0,3, nPts,3) = lab.block(0,0,nPts,3).cwiseSquare();
+class TowelPreprocessor {
+public:
+  
+  MatrixXf m_coeffs;
+  VectorXf m_intercepts;
+  MatrixXf m_corners;
+  Affine3f m_camToWorld;
+  
+  TowelPreprocessor() {
 
-  // results = lab.matrix() * coeffs;
+    vector<Vector3f> corners; 
+    Vector3f normal;
+    getTable(cloud,corners,normal);
+    Affine3f m_camToWorld = getCamToWorldFromTable(corners);
+        
+    m_corners = MatrixXf(4,3);
+    for (int i=0; i < 4; i++) m_corners.row(i) = corners[i];
+
+    vector< vector<float> > coeffs_tmp = floatMatFromFile(onceFile("coeffs.txt"));
+    vector<float> intercepts_tmp = floatVecFromFile(onceFile("intercepts.txt"));
+    m_coeffs = toEigenMatrix(coeffs_tmp);
+    m_intercepts = toVectorXf(intercepts_tmp);
     
-  // get stuff on table
-    
-  // mat mult for svm
-    
-  // label stuff
-    
-  // downsample it
-    
-}
+  }
+  
+  
+  ColorCloudPtr void processCloud(ColorCloudPtr cloud) {
+    VectorXb mask = getPointsOnTable(cloud, m_camToWorld, m_corners,0,1);
+    ColorCloudPtr cloudOnTable = maskCloud(cloud, mask);
+    VectorXi labels = getLabels(cloudOnTable, m_coeffs, m_intercepts);
+    ColorCloudPtr towelCloud = maskCloud(cloudOnTable, labels.array()==0);
+    ColorCloudPtr downedTowelCloud = removeOutliers(downsampleCloud(ropeCloud,.02));
+    return downedTowelCloud;
+  }  
+  
+};
