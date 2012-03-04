@@ -53,9 +53,40 @@ void createRopeTransforms(vector<btTransform>& transforms, vector<btScalar>& len
   }
 }
 
-
 CapsuleRope::CapsuleRope(const vector<btVector3>& ctrlPoints, btScalar radius_, float angStiffness_, float angDamping_, float linDamping_, float angLimit_) {
   radius = radius_;
+  angStiffness = angStiffness_;
+  angDamping = angDamping_;
+  linDamping = linDamping_;
+  angLimit = angLimit_;
+  nLinks = ctrlPoints.size()-1;
+  mass = nLinks;
+  vector<btTransform> transforms;
+  vector<btScalar> lengths;
+  createRopeTransforms(transforms,lengths,ctrlPoints);
+  for (int i=0; i < nLinks; i++) {
+    btTransform trans = transforms[i];
+    btScalar len = lengths[i];
+    float m = mass/nLinks;
+    CapsuleObject::Ptr child(new CapsuleObject(m,radius,len,trans));
+    child->rigidBody->setDamping(linDamping,angDamping);
+    child->rigidBody->setFriction(1);
+
+    children.push_back(child);
+
+    if (i>0) {
+      boost::shared_ptr<btPoint2PointConstraint> jointPtr(new btPoint2PointConstraint(*children[i-1]->rigidBody,*children[i]->rigidBody,btVector3(len/2,0,0),btVector3(-len/2,0,0)));
+      joints.push_back(BulletConstraint::Ptr(new BulletConstraint(jointPtr, true)));
+
+      boost::shared_ptr<btGeneric6DofSpringConstraint> springPtr = createBendConstraint(len,children[i-1]->rigidBody,children[i]->rigidBody,angDamping,angStiffness,angLimit);
+      joints.push_back(BulletConstraint::Ptr(new BulletConstraint(springPtr, true)));
+    }
+  }
+}
+
+CapsuleRope::CapsuleRope(const vector<btVector3>& ctrlPoints, btScalar radius_, btScalar mass_, float angStiffness_, float angDamping_, float linDamping_, float angLimit_) {
+  radius = radius_;
+  mass = mass_;
   angStiffness = angStiffness_;
   angDamping = angDamping_;
   linDamping = linDamping_;
@@ -67,8 +98,8 @@ CapsuleRope::CapsuleRope(const vector<btVector3>& ctrlPoints, btScalar radius_, 
   for (int i=0; i < nLinks; i++) {
     btTransform trans = transforms[i];
     btScalar len = lengths[i];
-    float mass = 1;
-    CapsuleObject::Ptr child(new CapsuleObject(1,radius,len,trans));
+    float m = mass/nLinks;
+    CapsuleObject::Ptr child(new CapsuleObject(m,radius,len,trans));
     child->rigidBody->setDamping(linDamping,angDamping);
     child->rigidBody->setFriction(1);
 

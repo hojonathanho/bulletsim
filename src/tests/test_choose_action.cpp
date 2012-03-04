@@ -13,7 +13,7 @@ struct ChooseActionScene : public BaseScene {
 ChooseActionScene::ChooseActionScene() {
   // create cloth
   btScalar s = 1;
-  btScalar z = .1;
+  btScalar z = 1;
   btSoftBody* psb = btSoftBodyHelpers::CreatePatch(env->bullet->softBodyWorldInfo,
 						   btVector3(-s,-s,z),
 						   btVector3(+s,-s,z),
@@ -21,27 +21,27 @@ ChooseActionScene::ChooseActionScene() {
 						   btVector3(+s,+s,z),
 						   31, 31,
 						   0, true);
-  /*
+  
   psb->m_cfg.piterations = 2;
   psb->m_cfg.collisions = btSoftBody::fCollision::CL_SS
     | btSoftBody::fCollision::CL_RS
     | btSoftBody::fCollision::CL_SELF;
   psb->m_cfg.kDF = 1.0;
-  psb->getCollisionShape()->setMargin(0.05);
+  psb->getCollisionShape()->setMargin(0.01);
   btSoftBody::Material *pm = psb->appendMaterial();
   pm->m_kLST = 0.1;
   psb->generateBendingConstraints(2, pm);
   psb->randomizeConstraints();
   psb->setTotalMass(1, true);
   psb->generateClusters(0);
-  */
+  /*
   psb->getCollisionShape()->setMargin(0.4);
   btSoftBody::Material* pm=psb->appendMaterial();
   pm->m_kLST = 0.4;
   //pm->m_flags -= btSoftBody::fMaterial::DebugDraw;
   psb->generateBendingConstraints(2, pm);
   psb->setTotalMass(150);
-  
+  */
   cloth = BulletSoftObject::Ptr(new BulletSoftObject(psb));
   //cloth = BulletSoftObject::Ptr(new BulletSoftObject(loadSoftBody(env->bullet->softBodyWorldInfo, "testfile.txt")));
   
