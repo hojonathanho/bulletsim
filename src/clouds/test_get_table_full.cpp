@@ -10,9 +10,9 @@ using namespace Eigen;
 
 
 int main() {
-  PointCloud<PointXYZRGB>::Ptr cloud (new PointCloud<PointXYZRGB>);
+  PointCloud<PointXYZRGBA>::Ptr cloud (new PointCloud<PointXYZRGBA>);
   const string pcdfile = "/home/joschu/Data/comm_towel/kinect/data000000000000.pcd";
-  if (pcl::io::loadPCDFile<pcl::PointXYZRGB> (pcdfile, *cloud) == -1) {
+  if (pcl::io::loadPCDFile<pcl::PointXYZRGBA> (pcdfile, *cloud) == -1) {
     PCL_ERROR(("couldn't read file " + pcdfile + "\n").c_str());
     return -1;
   }

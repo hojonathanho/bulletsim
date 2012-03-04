@@ -26,7 +26,7 @@ string& ensureSlash(string& s) {
 
 
 
-void cloud_cb_ (const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr &cloud)
+void cloud_cb_ (const pcl::PointCloud<pcl::PointXYZRGBA>::ConstPtr &cloud)
 {
   static double last = pcl::getTime ();
   if (counter == 0) {
@@ -45,7 +45,7 @@ void run ()
   pcl::Grabber* interface = new pcl::OpenNIGrabber();
 
   // make callback function from member function
-  boost::function<void (const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr&)> f =
+  boost::function<void (const pcl::PointCloud<pcl::PointXYZRGBA>::ConstPtr&)> f =
     boost::bind (&cloud_cb_,  _1);
 
   // connect callback function for desired signal. In this case its a point cloud with color values
