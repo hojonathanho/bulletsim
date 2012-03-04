@@ -5,5 +5,5 @@
 class PointCloudPlot : public PlotPoints {
 public:
   PointCloudPlot(float size=5) : PlotPoints(size) {}
-  void setPoints1(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud);
+  void setPoints1(const pcl::PointCloud<pcl::PointXYZRGBA>::Ptr& cloud);
 };

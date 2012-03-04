@@ -5,9 +5,9 @@
 using namespace Eigen;
 using namespace pcl;
 
-pcl::PointCloud<pcl::PointXYZRGB>::Ptr readPCD(const std::string& pcdfile) {
-  pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
-  if (pcl::io::loadPCDFile<pcl::PointXYZRGB> (pcdfile, *cloud) == -1) {
+pcl::PointCloud<pcl::PointXYZRGBA>::Ptr readPCD(const std::string& pcdfile) {
+  pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZRGBA>);
+  if (pcl::io::loadPCDFile<pcl::PointXYZRGBA> (pcdfile, *cloud) == -1) {
     throw FileOpenError(pcdfile);
     }
   return cloud;
@@ -61,6 +61,6 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr toPointCloud(const std::vector< std::vector<
   return out;
 }
 
-bool pointIsFinite(const pcl::PointXYZRGB& pt) {
+bool pointIsFinite(const pcl::PointXYZRGBA& pt) {
   return std::isfinite(pt.x) && std::isfinite(pt.y) && std::isfinite(pt.z);
 }

@@ -29,7 +29,7 @@ ColorCloudPtr maskCloud(const ColorCloudPtr in, const cv::Mat& mask) {
   }
 
   ColorCloudPtr out(new ColorCloud());
-  pcl::ExtractIndices<pcl::PointXYZRGB> ei;
+  pcl::ExtractIndices<pcl::PointXYZRGBA> ei;
   ei.setNegative(false);
   ei.setInputCloud(in);
   ei.setIndices(indicesPtr);
@@ -49,7 +49,7 @@ ColorCloudPtr maskCloud(const ColorCloudPtr in, const VectorXb& mask) {
   out->is_dense = false;
 
   int i = 0;
-  BOOST_FOREACH(const PointXYZRGB& pt, in->points) {
+  BOOST_FOREACH(const PointXYZRGBA& pt, in->points) {
     if (mask(i)) out->push_back(pt);
     ++i;
   }
@@ -58,8 +58,8 @@ ColorCloudPtr maskCloud(const ColorCloudPtr in, const VectorXb& mask) {
 }
 
 ColorCloudPtr downsampleCloud(const ColorCloudPtr in, float sz) {
-  pcl::PointCloud<pcl::PointXYZRGB>::Ptr out(new pcl::PointCloud<pcl::PointXYZRGB>());
- pcl::VoxelGrid<pcl::PointXYZRGB> vg;
+  pcl::PointCloud<pcl::PointXYZRGBA>::Ptr out(new pcl::PointCloud<pcl::PointXYZRGBA>());
+ pcl::VoxelGrid<pcl::PointXYZRGBA> vg;
  vg.setInputCloud(in);
  vg.setLeafSize(sz,sz,sz);
  vg.filter(*out);
@@ -68,12 +68,19 @@ ColorCloudPtr downsampleCloud(const ColorCloudPtr in, float sz) {
 
 ColorCloudPtr removeOutliers(const ColorCloudPtr in, float thresh, int k) {
   ColorCloudPtr out(new ColorCloud());
-  pcl::StatisticalOutlierRemoval<pcl::PointXYZRGB> sor;
+  pcl::StatisticalOutlierRemoval<pcl::PointXYZRGBA> sor;
   sor.setInputCloud (in);
   sor.setMeanK (k);
   sor.setStddevMulThresh (thresh);
   sor.filter (*out);
   cout << "removeOutliers: removed " << (in->size() - out->size()) << " of " << in->size() << endl;
   return out;
+}
+
+void labelCloud(ColorCloudPtr in, const cv::Mat& labels) {
+  ColorCloudPtr out(new ColorCloud());
+  MatrixXi uv = xyz2uv(toEigenMatrix(in));
+  for (int i=0; i < in->size(); i++)
+    in->points[i]._unused = labels.at<uint8_t>(uv(i,0), uv(i,1));
 }
 

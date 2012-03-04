@@ -28,6 +28,8 @@ if(BUILD_PERCEPTION)
   find_package(OpenCV REQUIRED)
   find_package(PCL REQUIRED)
   add_definitions(${PCL_DEFINITIONS})
+  add_definitions("-DEIGEN_DEFAULT_TO_ROW_MAJOR")
+message("PCL DEFS: ${PCL_DEFINITIONS}")
 endif(BUILD_PERCEPTION)
 
 # directories for libraries packaged in this tree

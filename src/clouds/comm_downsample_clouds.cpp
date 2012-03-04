@@ -52,7 +52,7 @@ int main(int argc, char* argv[]) {
   CloudMessage cloudMsg;
   ImageMessage labelMsg;
   FileSubscriber cloudSub(cloudTopic,"pcd");
-  FileSubscriber labelSub(labelTopic,"png");
+  FileSubscriber labelSub(labelTopic,"bmp");
   FilePublisher cloudPub(outTopic,"pcd");
 
   while (true) { 
@@ -61,14 +61,14 @@ int main(int argc, char* argv[]) {
 
     ENSURE(labelSub.recv(labelMsg));
 
-    vector<cv::Mat> channels;
-    cv::split(labelMsg.m_data,channels);
-    cv::Mat mask = (channels[0] == labels[0]);
-    for (int i = 1; i < labels.size(); i++) mask += (channels[0] == labels[i]);
+    cv::Mat& labelImg = labelMsg.m_data;
+    cv::Mat mask = (labelImg == labels[0]);
+    for (int i = 1; i < labels.size(); i++) mask += (labelImg == labels[i]);
 
     ColorCloudPtr maskedCloud = maskCloud(cloudMsg.m_data, mask);
     ColorCloudPtr downedCloud = downsampleCloud(maskedCloud, voxelSize);
     ColorCloudPtr finalCloud = removeOutliers(downedCloud);
+    labelCloud(finalCloud, labelImg);
 
     cloudPub.send(CloudMessage(finalCloud));
 

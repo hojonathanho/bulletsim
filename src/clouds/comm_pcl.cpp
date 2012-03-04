@@ -29,12 +29,17 @@ CloudGrabber::CloudGrabber(string topic, int downsample)
 
 void CloudGrabber::cloud_cb(const ConstColorCloudPtr& cloud) {
   if (!m_enabled || wantsExit) {
-    cout << "cloub_cb: not writing" << endl;
     return;
   }
-  if (m_cbCount % m_downsample == 0) m_pub.send(CloudMessage(boost::const_pointer_cast< pcl::PointCloud<pcl::PointXYZRGB> >(cloud)));
+  if (m_cbCount % m_downsample == 0) {
+    processCloud(boost::const_pointer_cast< pcl::PointCloud<pcl::PointXYZRGBA> >(cloud));
+  }
     // not nice to use a pointer cast but i don't know a way around it since callback signature is const but class member isn't
   m_cbCount++;       
+}
+
+void CloudGrabber::processCloud(ColorCloudPtr cloud) {
+  m_pub.send(CloudMessage(cloud));
 }
 
 
@@ -73,11 +78,10 @@ void PausingCloudGrabber::cloud_cb(const ConstColorCloudPtr& cloud) {
     return;
   }
   else {
-    m_pub.send(CloudMessage(boost::const_pointer_cast< pcl::PointCloud<pcl::PointXYZRGB> >(cloud))); 
+    processCloud(boost::const_pointer_cast< pcl::PointCloud<pcl::PointXYZRGBA> >(cloud));
     m_enabled=false;
   }
 }
-
 
 void CloudMessage::writeDataTo(path p) const {
   pcl::io::savePCDFileBinary(p.string().c_str(), *m_data);

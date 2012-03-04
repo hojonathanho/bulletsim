@@ -25,10 +25,10 @@ vector<btVector3> toBulletVectors(const vector< Vector3f >& in) {
   return out;
 }
 
-vector<btVector3> toBulletVectors(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud) {
+vector<btVector3> toBulletVectors(const pcl::PointCloud<pcl::PointXYZRGBA>::Ptr& cloud) {
   vector<btVector3> out(cloud->size());
   int i=0;
-  BOOST_FOREACH(pcl::PointXYZRGB& point, *cloud) {
+  BOOST_FOREACH(pcl::PointXYZRGBA& point, *cloud) {
     out[i] = btVector3(point.x, point.y, point.z);
     i++;
   }

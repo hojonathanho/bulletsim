@@ -63,7 +63,7 @@ int main(int argc, char *argv[]) {
   CloudMessage cloudMsg;
   FileSubscriber ropeSub("rope_pts","pcd");
   CloudMessage ropeMsg;
-  FileSubscriber labelSub("labels","png");
+  FileSubscriber labelSub("labels","bmp");
   ImageMessage labelMsg;
   FileSubscriber endSub("rope_ends","txt");
   VecVecMessage<float> endMsg;

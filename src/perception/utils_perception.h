@@ -8,13 +8,12 @@
 #include <Eigen/Geometry>
 #include <osg/Vec3d>
 #include "utils/my_assert.h"
-#include "plotting_perception.h"
 using namespace std;
 
 vector<btVector3> toBulletVectors(const vector< vector<float> >&);
 vector<btVector3> toBulletVectors(const vector< Eigen::Vector3f >&);
 vector<btVector3> toBulletVectors(const Eigen::MatrixXf&);
-vector<btVector3> toBulletVectors(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr&);
+vector<btVector3> toBulletVectors(const pcl::PointCloud<pcl::PointXYZRGBA>::Ptr&);
 vector< vector<float> > toVecVec(const vector<btVector3>&);
 vector<float> toVec(const Eigen::VectorXf&);
 
@@ -23,7 +22,7 @@ Eigen::Affine3f toEigenTransform(const btTransform&);
 
 vector<Eigen::Vector3f> toEigenVectors(const vector< vector<float> >&);
 vector<Eigen::Vector3f> toEigenVectors(const vector<btVector3>&);
-vector<Eigen::Vector3f> toEigenVectors(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr&);
+vector<Eigen::Vector3f> toEigenVectors(const pcl::PointCloud<pcl::PointXYZRGBA>::Ptr&);
 Eigen::VectorXf toVectorXf(const vector<float>&);
 
 Eigen::MatrixXf toEigenMatrix(const vector< vector<float> >&);
