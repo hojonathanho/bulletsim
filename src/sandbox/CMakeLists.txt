@@ -26,8 +26,11 @@ add_executable(eigen_threads eigen_threads.cpp)
 add_executable(test_plotting2 test_plotting2.cpp)
 target_link_libraries(test_plotting2 simulation)
 
+add_executable(kb_control kb_control.cpp)
+target_link_libraries(kb_control simulation robots)
+
+
 if(BUILD_PERCEPTION)
-  add_definitions(${PCL_DEFINITIONS})
 
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
   SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fopenmp")
@@ -41,6 +44,12 @@ if(BUILD_PERCEPTION)
   
   add_executable(cloudptr_share cloudptr_share.cpp)
   target_link_libraries(cloudptr_share clouds comm)
+
+  add_executable(depth_image depth_image.cpp)
+  target_link_libraries(depth_image clouds simulation robots)
+
+  add_executable(downsample downsample.cpp)
+  target_link_libraries(downsample perception)
   
 #   add_executable(distance_benchmark distance_benchmark.cpp)
 #   target_link_libraries(distance_benchmark perception simulation)
