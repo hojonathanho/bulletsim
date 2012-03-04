@@ -9,26 +9,29 @@
 #include "clouds/comm_pcl.h"
 #include "clouds/comm_cv.h"
 #include "simulation/rope.h"
+#include "perception/plotting_perception.h"
 
 const int BIGINT = 9999999;
 
 struct Vision {
     
+
+  // simulation
   Scene* m_scene;    
   CoordinateTransformer* m_CT;
 
+  // plots
   PointCloudPlot::Ptr m_kinectPts;
   PlotSpheres::Ptr m_estPlot;
   PointCloudPlot::Ptr m_obsPlot;
   PlotLines::Ptr m_corrLines;
     
+  // comm
   std::vector<Message*> m_msgs;
   CloudMessage m_kinectMsg;
   std::vector<FileSubscriber*> m_subs;
   FilePublisher* m_pub;
   std::vector<bool> m_gotEm;
-    
-  ScreenRecorder* m_rec;
     
   Vision();
   ~Vision();
@@ -41,8 +44,11 @@ struct Vision {
   virtual void setupComm(); // create subs, pub, msgs
   virtual void setupScene(); // create scene, add objects to it, recorder
   bool recvAll(); // recv all messages that haven't been received
+  
+  void updateAllPlots(const std::vector<btVector3>& obsPts, const std::vector<btVector3>& estPts, const Eigen::VectorXf& sigs, const Eigen::VectorXf& pVis, const SparseArray& corr, const Eigen::VectorXf& inlierFrac);
     
 };
+
 
 struct TowelVision : public Vision {
 
@@ -94,9 +100,14 @@ struct RopeVision : public Vision {
 struct TrackedObject {
   typedef boost::shared_ptr<TrackedObject> Ptr;
   
+  TrackedObject();
+
   Eigen::VectorXf m_sigs;
+  float m_loglik;
+  int m_age;
+
   virtual Eigen::MatrixXf featsFromSim() = 0;
-  virtual void applyEvidence(const SparseArray& corr, const Eigen::MatrixXf& obsPts) = 0; // add forces, update loglik
+  virtual void applyEvidence(const SparseArray& corr, const Eigen::MatrixXf& obsPts) = 0;
 };
 
 
@@ -113,27 +124,11 @@ struct RopeInitMessage : public Message {
   void writeDataTo(path);
 };
 
-class History {
-public:
-  History(int maxsize=10);
-  void put(float x);
-  float sum();
-  int size();
-  bool full();
-  
-  int m_maxsize;    
-
-private:
-  std::queue<float> m_data;
-  float m_sum;
-};
-
 struct TrackedRope : public TrackedObject { // TODO: visibility
   typedef boost::shared_ptr<TrackedRope> Ptr;
 
   CapsuleRope::Ptr m_sim;
   Eigen::VectorXf m_labels;
-  History m_forceHistory;
 
   TrackedRope(const RopeInitMessage&, CoordinateTransformer*);
   static Eigen::MatrixXf featsFromCloud(ColorCloudPtr); // x,y,z,a=label
@@ -141,10 +136,6 @@ struct TrackedRope : public TrackedObject { // TODO: visibility
   void applyEvidence(const SparseArray& corr, const Eigen::MatrixXf& obsPts); // add forces
 protected:
   void init(const std::vector<btVector3>& nodes, const Eigen::VectorXf& labels);
-};
-
-struct TrackedTowel : public TrackedObject {
-  TrackedTowel(const std::vector< std::vector<float> > corners);
 };
 
 struct RopeVision2 : public Vision {
@@ -176,3 +167,110 @@ struct RopeVision2 : public Vision {
 
 
 };
+
+
+struct TrackedObject2 {
+  typedef boost::shared_ptr<TrackedObject> Ptr;
+
+  Eigen::VectorXf m_sigs;
+
+  TrackedObject2() {}
+  ~TrackedObject2() {}  
+
+
+  virtual Eigen::MatrixXf featsFromSim() = 0;
+  virtual void applyEvidence(const SparseArray& corr, const vector<btVector3>& obsPts) = 0;
+
+};
+
+struct TrackedTowel : public TrackedObject2 {
+  typedef boost::shared_ptr<TrackedTowel> Ptr;
+
+  BulletSoftObject::Ptr m_sim;
+  vector<int> m_nodeInds;
+  vector<float> m_masses;
+
+  TrackedTowel(BulletSoftObject::Ptr, int xres, int yres);
+  static Eigen::MatrixXf featsFromCloud(ColorCloudPtr); // x,y,z,a=label
+  Eigen::MatrixXf featsFromSim();
+  void applyEvidence(const SparseArray& corr, const vector<btVector3>& obsPts); // add forces
+  vector<btVector3> getNodes();
+  vector<btVector3> getNodes(vector<btVector3>& vel);
+  vector<float> getNodeMasses();
+  vector<int> getNodeInds();
+};
+
+struct Vision2 {
+
+  // simulation
+  CoordinateTransformer* m_CT;
+  Scene* m_scene;
+
+  // plots
+  PointCloudPlot::Ptr m_kinectPts;
+  PlotSpheres::Ptr m_estPlot;
+  PointCloudPlot::Ptr m_obsPlot;
+  PlotLines::Ptr m_corrLines;
+    
+  MultiSubscriber m_multisub;  
+  FilePublisher m_pub;
+    
+  Vision2();
+  ~Vision2();
+  void runOnline(); // update loop. when live, iterates until next message
+  void runOffline(); 
+  virtual void doIteration() = 0; // correspondence update and physics update
+  virtual void beforeIterations() = 0; // e.g. joint updates, coordinate transforms, make depth image
+  virtual void afterIterations() = 0; // e.g. send output message, take snapshot
+    
+  void updateAllPlots(const std::vector<btVector3>& obsPts, const std::vector<btVector3>& estPts, const Eigen::VectorXf& sigs, const Eigen::VectorXf& pVis, const SparseArray& corr, const Eigen::VectorXf& inlierFrac);
+
+
+};
+
+
+struct TowelVision2 : public Vision2 {
+  
+  struct TowelSubs : public MultiSubscriber {
+    CloudMessage m_kinectMsg;        
+    CloudMessage m_towelPtsMsg;
+    FileSubscriber m_kinectSub;
+    FileSubscriber m_towelSub;
+    TowelSubs() : m_kinectSub("kinect","pcd"), m_towelSub("towel_pts", "pcd") {
+      m_msgs.push_back(&m_kinectMsg);
+      m_msgs.push_back(&m_towelPtsMsg);
+      m_subs.push_back(&m_kinectSub);
+      m_subs.push_back(&m_towelSub);
+    }
+  };
+  
+  BulletObject::Ptr m_table;
+  TrackedTowel::Ptr m_towel;
+  TowelSubs m_multisub;
+  
+  struct ObsData {
+    ColorCloudPtr m_obsCloud;
+    Eigen::MatrixXf m_obsFeats;
+    vector<btVector3> m_obsPts;
+  };
+  ObsData m_obsData;
+  
+  // struct EstData {
+  //   
+  //   m_nodePos;
+  //   m_nodeVel;
+  //   m_nodeMasses;
+  // };
+  // EstData m_estData;  
+  
+  float m_loglik;
+
+  
+  TowelVision2();
+
+  void doIteration(); // correspondence update and physics update
+  void beforeIterations(); // e.g. joint updates, coordinate transforms, make depth image
+  void afterIterations(); // e.g. send output message, take snapshot
+  
+};
+

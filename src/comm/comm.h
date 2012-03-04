@@ -226,10 +226,14 @@ public:
   }
 };
 
-// class Synchronizer {
-// public:
-//   Subscriber m_leader;
-//   vector<Retimer> m_retimers;
-//   Synchronizer(Subscriber m_leader&, vector<Retimer> retimers);  
-//   void recvMulti(Message& leaderMsg, vector<Message>& followerMsgs);
-// };
+struct MultiSubscriber {
+  
+  std::vector<Message*> m_msgs;
+  std::vector<FileSubscriber*> m_subs;
+  std::vector<bool> m_gotEm;
+    
+  bool recvAll();
+  void prepare();
+};
+
+

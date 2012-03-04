@@ -15,5 +15,11 @@ int main(int argc, char* argv[]) {
   parser.read(argc, argv);
 
   initComm();
-  RopeVision2().runOffline();
+  RopeVision2 visionSystem;
+
+  extern bool LIVE;
+  if (LIVE) visionSystem.runOnline();
+  else visionSystem.runOffline();
+
+
 }

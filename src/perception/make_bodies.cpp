@@ -43,7 +43,8 @@ BulletSoftObject::Ptr makeTowel(const vector<btVector3>& points, btSoftBodyWorld
   return BulletSoftObject::Ptr(new BulletSoftObject(psb));
 }
 
-BulletSoftObject::Ptr makeSelfCollidingTowel(const vector<btVector3>& points, btSoftBodyWorldInfo& worldInfo) {
+
+BulletSoftObject::Ptr makeSelfCollidingTowel(const vector<btVector3>& points, btSoftBodyWorldInfo& worldInfo, int xres, int yres) {
   btVector3 offset(0,0,.01*METERS);
     btSoftBody *psb = btSoftBodyHelpers::CreatePatch(
         worldInfo,
@@ -51,7 +52,7 @@ BulletSoftObject::Ptr makeSelfCollidingTowel(const vector<btVector3>& points, bt
         points[1]+offset,
         points[3]+offset,
         points[2]+offset,
-        45*TrackingConfig::towelRes, 31*TrackingConfig::towelRes,
+        xres, yres,
         0, true);
 
     psb->m_cfg.piterations = 2;

@@ -21,10 +21,15 @@
 using namespace std;
 using namespace Eigen;
 
+static const float LABEL_MULTIPLIER = 100;
+static const int MIN_CULL_AGE = 5;
+
 bool allTrue(const vector<bool>& x) {
-  BOOST_FOREACH(bool b, x) if (!b) return false;
-  return true;
+  bool out = true;
+  BOOST_FOREACH(bool b, x) out &= b;
+  return out;
 }
+
 
 void toggleKinect() {TrackingConfig::showKinect = !TrackingConfig::showKinect;}
 void toggleEst() {TrackingConfig::showEst = !TrackingConfig::showEst;}
@@ -32,7 +37,6 @@ void toggleObs() {TrackingConfig::showObs = !TrackingConfig::showObs;}
 void toggleLines() {TrackingConfig::showLines = !TrackingConfig::showLines;}
 
 Vision::Vision() {
-  cout << "Vision::Vision" << endl;
   setupScene();
   setupComm();
 }
@@ -42,13 +46,8 @@ Vision::~Vision() {
 }
 
 bool Vision::recvAll() {
-  for (int i=0; i < m_subs.size(); i++) {
-    if (!m_gotEm[i]) {
-      m_gotEm[i] = m_subs[i]->recv(*m_msgs[i], false);
-    }
-  }
-  BOOST_FOREACH(bool b, m_gotEm) cout << b << " ";
-  cout << endl;
+  for (int i=0; i < m_subs.size(); i++)
+    if (!m_gotEm[i]) m_gotEm[i] = m_subs[i]->recv(*m_msgs[i], false);
   return allTrue(m_gotEm);
 }
 
@@ -93,12 +92,14 @@ void Vision::runOffline() {
     ENSURE(recvAll());
 
     beforeIterations();
+    cout << "iteration";
     do {
-      cout << "iteration " << iter << endl;
+      cout << " " << iter;
       doIteration();
       iter++;
     }
     while (iter < TrackingConfig::nIter);
+    cout << endl;
     afterIterations();
   }
 }
@@ -120,6 +121,16 @@ void Vision::runOnline() {
     while (!recvAll());
     afterIterations();
   }
+}
+
+
+void Vision::updateAllPlots(const vector<btVector3>& obsPts, const vector<btVector3>& estPts, const VectorXf& sigs, const VectorXf& pVis, const SparseArray& corr, const VectorXf& inlierFrac) {
+  if (TrackingConfig::showLines) drawCorrLines(m_corrLines, estPts, obsPts, corr);
+  else m_corrLines->clear();
+  if (TrackingConfig::showObs) plotObs(obsPts, inlierFrac, m_obsPlot);
+  else m_obsPlot->clear();
+  if (TrackingConfig::showEst) plotNodesAsSpheres(estPts, pVis, sigs, m_estPlot);
+  else m_estPlot->clear();      
 }
 
 
@@ -159,7 +170,7 @@ void TowelVision::doIteration() {
   for (int node=0; node<impulses.size(); node++) m_towel->softBody->addForce(impulses[node],node);
 
   if (TrackingConfig::showLines) drawCorrLines(m_corrLines, m_towelEstPts, m_towelObsPts, corr);
-  if (TrackingConfig::showObs) plotObs(corrEigen, m_towelObsPts, m_obsPlot);
+  // if (TrackingConfig::showObs) plotObs(corrEigen, m_towelObsPts, m_obsPlot);
   if (TrackingConfig::showEst) plotNodesAsSpheres(m_towel->softBody.get(), pVis, m_sigs, m_estPlot);
 
 
@@ -222,7 +233,7 @@ void RopeVision::setupComm() {
   m_ropeSub = new FileSubscriber("rope_pts","pcd");
   m_subs.push_back(m_ropeSub);
   m_msgs.push_back(&m_ropePtsMsg);
-  m_labelSub = new FileSubscriber("labels","png");
+  m_labelSub = new FileSubscriber("labels","bmp");
   m_subs.push_back(m_labelSub);
   m_msgs.push_back(&m_labelMsg);
   m_pub = new FilePublisher("rope_model", "txt");
@@ -284,7 +295,7 @@ void RopeVision::doIteration() {
 
 
   if (TrackingConfig::showLines) drawCorrLines(m_corrLines, m_ropeEstPts, m_ropeObsPts, corr);
-  if (TrackingConfig::showObs) plotObs(corrEigen, m_ropeObsPts, m_obsPlot);
+  // if (TrackingConfig::showObs) plotObs(corrEigen, m_ropeObsPts, m_obsPlot);
   //if (TrackingConfig::showEst) plotNodesAsSpheres(m_rope->softBody.get(), pVis, m_sigs, m_estPlot);
 
 
@@ -324,28 +335,16 @@ void RopeInitMessage::writeDataTo(path p) {
   throw runtime_error("not implemented");
 }
 
-History::History(int maxsize) : m_maxsize(maxsize), m_sum(0) {}
-void History::put(float x) { 
-  if (size() == m_maxsize) {
-    m_sum -= m_data.front();
-    m_data.pop();
-  }
-  m_sum += x;
-  m_data.push(x);
-}
-float History::sum() {return m_sum;}
-int History::size() {return m_data.size();}
-bool History::full() {return m_data.size() == m_maxsize;}
-
+TrackedObject::TrackedObject() : m_age(0) {}
 
 MatrixXf TrackedRope::featsFromCloud(ColorCloudPtr cloud) {
   MatrixXf out(cloud->size(), 4);
   for (int i=0; i < cloud->points.size(); i++) {
-    pcl::PointXYZRGB& pt = cloud->points[i];
+    pcl::PointXYZRGBA& pt = cloud->points[i];
     out(i,0) = pt.x;
     out(i,1) = pt.y;
     out(i,2) = pt.z;
-    out(i,3) = 1;
+    out(i,3) = pt._unused*LABEL_MULTIPLIER;
   }
   return out;
 }
@@ -357,20 +356,17 @@ MatrixXf TrackedRope::featsFromSim() {
     out(i,0) = pos.x();
     out(i,1) = pos.y();
     out(i,2) = pos.z();
-    out(i,3) = m_labels[i];
+    out(i,3) = m_labels[i]*LABEL_MULTIPLIER;
   }
   return out;
 }
 
 void TrackedRope::applyEvidence(const SparseArray& corr, const MatrixXf& obsPts) {
   vector<float> masses = getNodeMasses(m_sim);
-  vector<btVector3> ropePos = m_sim->getNodes();
+  vector<btVector3> ropePos = getNodes(m_sim);
   vector<btVector3> ropeVel = getNodeVels(m_sim);
   vector<btVector3> impulses = calcImpulsesDamped(ropePos, ropeVel, toBulletVectors(obsPts), corr, masses, TrackingConfig::kp, TrackingConfig::kd);
   m_sigs = calcSigs(corr, toEigenMatrix(ropePos), obsPts, .025*METERS, 1);
-
-  VectorXf forceNorms = toEigenMatrix(impulses).rowwise().norm();
-  m_forceHistory.put(forceNorms.lpNorm<1>());
   applyImpulses(impulses, m_sim);  
 }
 
@@ -381,16 +377,13 @@ TrackedRope::TrackedRope(const RopeInitMessage& message, CoordinateTransformer* 
 }
 
 void TrackedRope::init(const vector<btVector3>& nodes, const VectorXf& labels) {
+  cout << labels.transpose() << endl;
   m_labels = labels;
   m_sim.reset(new CapsuleRope(nodes,.0075*METERS));
   m_sigs.resize(m_labels.rows(),1);
   m_sigs.setConstant(sq(.025*METERS));
 }
 
-RopeVision2::RopeVision2() {
-  setupComm();
-  setupScene();
-}
 
 osg::Vec4f hyp_colors[6] = {osg::Vec4f(1,0,0,.3),
 			    osg::Vec4f(0,1,0,.3),
@@ -399,7 +392,19 @@ osg::Vec4f hyp_colors[6] = {osg::Vec4f(1,0,0,.3),
 			    osg::Vec4f(0,1,1,.3),
 			    osg::Vec4f(1,0,1,.3)
 };
+int COLOR_IND=0;
+osg::Vec4f getColor() {
+  COLOR_IND = (COLOR_IND + 1) % 6;
+  return hyp_colors[COLOR_IND];
+}
 
+
+
+RopeVision2::RopeVision2() {
+  Eigen::internal::setNbThreads(2);
+  setupComm();
+  setupScene();
+}
 
 void RopeVision2::setupComm() {
   // not each frame
@@ -411,7 +416,7 @@ void RopeVision2::setupComm() {
   m_subs.push_back(m_ropeSub);
   m_msgs.push_back(&m_ropePtsMsg);
   
-  m_labelSub = new FileSubscriber("labels","png");
+  m_labelSub = new FileSubscriber("labels","bmp");
   m_subs.push_back(m_labelSub);
   m_msgs.push_back(&m_labelMsg);
   // ----------------
@@ -439,8 +444,8 @@ void RopeVision2::beforeIterations() {
   ColorCloudPtr cloudWorld(new ColorCloud());
   pcl::transformPointCloud(*cloudCam, *cloudWorld, m_CT->worldFromCamEigen);
   if (TrackingConfig::showKinect) m_kinectPts->setPoints1(cloudWorld);
-  else {m_kinectPts->clear(); cout << "hihihih" << endl;}
-  cv::Mat labels = toSingleChannel(m_labelMsg.m_data);
+  else {m_kinectPts->clear();}
+  cv::Mat labels = m_labelMsg.m_data;
   m_ropeMask = labels < 2;
   m_depthImage = getDepthImage(cloudCam);
   pcl::transformPointCloud(*m_ropePtsMsg.m_data, *m_obsCloud, m_CT->worldFromCamEigen);
@@ -450,69 +455,57 @@ void RopeVision2::beforeIterations() {
   bool gotRope = m_ropeInitSub->recv(m_ropeInitMsg,false);
   if (gotRope) {
     TrackedRope::Ptr trackedRope(new TrackedRope(m_ropeInitMsg, m_CT));
-    cout << "currently " << m_ropeHypoths.size() << " hypotheses" << endl;
-    osg::Vec4f color = hyp_colors[m_ropeHypoths.size()];
+    osg::Vec4f color = getColor();
     BOOST_FOREACH(BulletObject::Ptr bo, trackedRope->m_sim->children) bo->setColor(color[0], color[1], color[2], color[3]);
     addRopeHypoth(trackedRope);
   }
 }
 
+
 void RopeVision2::doIteration() {
   BOOST_FOREACH(TrackedRope::Ptr hyp, m_ropeHypoths) {
     VectorXf pVis = VectorXf::Ones(hyp->m_sim->nLinks,1); // TODO
-    Eigen::MatrixXf corrEigen = calcCorrProb(hyp->featsFromSim(), hyp->m_sigs, m_obsFeats, pVis, TrackingConfig::outlierParam);
+    Eigen::MatrixXf corrEigen = calcCorrProb(hyp->featsFromSim(), hyp->m_sigs, m_obsFeats, pVis, TrackingConfig::outlierParam, hyp->m_loglik);
     SparseArray corr = toSparseArray(corrEigen, TrackingConfig::cutoff);
     hyp->applyEvidence(corr, toEigenMatrix(m_obsCloud));
-
-    if (hyp==m_ropeHypoths[0]) {
+    
+    
+    if (hyp==m_ropeHypoths[0]) {      
+      
       vector<btVector3> obsPts = toBulletVectors(m_obsCloud);
       vector<btVector3> estPts = getNodes(hyp->m_sim);
-      if (TrackingConfig::showLines) drawCorrLines(m_corrLines, estPts, obsPts, corr);
-      else m_corrLines->clear();
-      if (TrackingConfig::showObs) plotObs(corrEigen, obsPts, m_obsPlot);
-      else m_obsPlot->clear();
-      if (TrackingConfig::showEst) plotNodesAsSpheres(estPts, pVis, hyp->m_sigs, m_estPlot);
-      else m_estPlot->clear();
-    }
+      Eigen::VectorXf inlierFrac = corrEigen.colwise().sum();
+      updateAllPlots(obsPts, estPts, hyp->m_sigs, pVis, corr, inlierFrac);
 
+    }
   }
 
   BOOST_FOREACH(Fork::Ptr f, m_scene->forks)
     f->env->step(.03,2,.015);
   m_scene->draw();
 
-
-
 }
 
 void RopeVision2::afterIterations() {
   vector< vector<float> > vv; 
   m_pub->send(VecVecMessage<float>(vv));
-  //cullHypoths();
+  BOOST_FOREACH(TrackedRope::Ptr hyp, m_ropeHypoths) hyp->m_age++;
+  cullHypoths();
 }
 
 void RopeVision2::cullHypoths() {  
-  
-  if (m_ropeHypoths.size() == 0) return;
-
-  vector<TrackedRope::Ptr> comparableHypoths;
-  BOOST_FOREACH(TrackedRope::Ptr hyp, m_ropeHypoths) {
-    if (hyp->m_forceHistory.full()) comparableHypoths.push_back(hyp);
+  if (m_ropeHypoths.size() > 1 && m_ropeHypoths[0]->m_age >= MIN_CULL_AGE && m_ropeHypoths[1]->m_age >= MIN_CULL_AGE) {
+    cout << "log likelihoods: " << m_ropeHypoths[0]->m_loglik << " " << m_ropeHypoths[1]->m_loglik << endl;
+    if (m_ropeHypoths[0]->m_loglik > m_ropeHypoths[1]->m_loglik) {
+      cout << "removing alternate hypoth" << endl;
+      removeRopeHypoth(m_ropeHypoths[1]);
+    }
+    else {
+      cout << "removing original hypoth" << endl;
+      removeRopeHypoth(m_ropeHypoths[0]);
+    }
   }
-  
-  vector<float> costs(comparableHypoths.size());
-  for (int i=0; i < m_ropeHypoths.size(); ++i) costs[i] = m_ropeHypoths[i]->m_forceHistory.sum();
-  float minCost = *min_element(costs.begin(), costs.end());
-  
-  vector<TrackedRope::Ptr> forDeletion;
-  for (int i=0; i < m_ropeHypoths.size(); ++i) if (costs[i] > 2*minCost) {
-    cout << "deleting hypothesis " << i << endl;
-    forDeletion.push_back(comparableHypoths[i]);
-  }
-  
-  BOOST_FOREACH(TrackedRope::Ptr hyp, forDeletion) removeRopeHypoth(hyp);
 }
-
 
 void RopeVision2::addRopeHypoth(TrackedRope::Ptr ropeHypoth) {
 
@@ -522,20 +515,240 @@ void RopeVision2::addRopeHypoth(TrackedRope::Ptr ropeHypoth) {
   m_scene->osg->root->addChild(osg2->root.get());
   Fork::Ptr fork(new Fork(m_scene->env, bullet2, osg2));
   m_scene->registerFork(fork);
-  cout << (bool)ropeHypoth->m_sim << endl;
   fork->env->add(ropeHypoth->m_sim);
   m_ropeHypoths.push_back(ropeHypoth);
+  m_rope2fork[ropeHypoth]=fork;
+  
 
 }
 
 void RopeVision2::removeRopeHypoth(TrackedRope::Ptr ropeHypoth) {
+  Fork::Ptr fork = m_rope2fork[ropeHypoth];
+  m_scene->unregisterFork(fork);
+  m_rope2fork.erase(ropeHypoth);
+  m_scene->osg->root->removeChild(fork->env->osg->root.get());
+    
   for (vector<TrackedRope::Ptr>::iterator it=m_ropeHypoths.begin(); it < m_ropeHypoths.end(); ++it) {
     if (*it == ropeHypoth) {
       m_ropeHypoths.erase(it);
-      m_scene->unregisterFork(m_rope2fork[ropeHypoth]);
-      m_rope2fork.erase(ropeHypoth);
       return;
     }
   }
   throw std::runtime_error("rope hypothesis not found");
 }
+
+    
+Vision2::Vision2() : m_pub("rope_model", "txt") {
+  
+  m_scene = new Scene();
+
+  m_kinectPts.reset(new PointCloudPlot(2));
+  m_estPlot.reset(new PlotSpheres());
+  m_obsPlot.reset(new PointCloudPlot(5));
+  m_corrLines.reset(new PlotLines(3));
+
+  m_scene->env->add(m_kinectPts);
+  m_scene->env->add(m_estPlot);
+  m_scene->env->add(m_obsPlot);
+  m_scene->env->add(m_corrLines);
+
+  m_obsPlot->setDefaultColor(0,1,0,.5);
+  m_corrLines->setDefaultColor(1,1,0,.33);
+
+  m_scene->addVoidKeyCallback('L',&toggleLines);
+  m_scene->addVoidKeyCallback('E',&toggleEst);
+  m_scene->addVoidKeyCallback('O',&toggleObs);
+  m_scene->addVoidKeyCallback('K',&toggleKinect);
+      
+}
+
+Vision2::~Vision2() {}
+
+void Vision2::runOnline() {
+  m_multisub.prepare();
+  ENSURE(m_multisub.recvAll()); // get first messages
+  for (int t=0; ; t++) {
+      int iter=0;
+      beforeIterations();
+      m_multisub.prepare();
+      do {
+        doIteration();
+      } while (!m_multisub.recvAll());
+      afterIterations();
+  }
+}
+
+void Vision2::runOffline() {  
+  for (int t=0; ; t++) {
+    int iter=0;
+    ENSURE(m_multisub.recvAll());
+
+    beforeIterations();
+    do {
+      doIteration();
+    }
+    while (iter < TrackingConfig::nIter);
+    afterIterations();
+  }
+}
+
+void Vision2::updateAllPlots(const std::vector<btVector3>& obsPts, const std::vector<btVector3>& estPts, const Eigen::VectorXf& sigs, const Eigen::VectorXf& pVis, const SparseArray& corr, const Eigen::VectorXf& inlierFrac) {
+
+  if (TrackingConfig::showLines) drawCorrLines(m_corrLines, estPts, obsPts, corr);
+  else m_corrLines->clear();
+  if (TrackingConfig::showObs) plotObs(obsPts, inlierFrac, m_obsPlot);
+  else m_obsPlot->clear();
+  if (TrackingConfig::showEst) plotNodesAsSpheres(estPts, pVis, sigs, m_estPlot);
+  else m_estPlot->clear();      
+}
+    
+    
+CoordinateTransformer* loadTable(Scene& scene) { // load table from standard location and add it to the scene
+  vector< vector<float> > vv = floatMatFromFile(onceFile("table_corners.txt").string());
+  vector<btVector3> tableCornersCam = toBulletVectors(vv);
+  CoordinateTransformer* CT = new CoordinateTransformer(getCamToWorldFromTable(tableCornersCam));
+
+  vector<btVector3> tableCornersWorld = CT->toWorldFromCamN(tableCornersCam);
+  BulletObject::Ptr table = makeTable(tableCornersWorld, .1*METERS);
+  table->setColor(0,0,1,.25);
+  scene.env->add(table);  
+  
+  return CT;
+  
+}    
+    
+TrackedTowel::TrackedTowel(BulletSoftObject::Ptr sim, int xres, int yres) {
+
+  int decimation = 2;
+  for (int row = 0; row < yres; row += decimation) 
+    for (int col = 0; col < xres; col += decimation) 
+      m_nodeInds.push_back(col + row*xres);
+
+  m_sim = sim;
+  m_masses = getNodeMasses();
+
+}
+
+MatrixXf TrackedTowel::featsFromCloud(ColorCloudPtr cloud) {
+  MatrixXf out(cloud->size(), 3);
+  for (int i=0; i < cloud->points.size(); i++) {
+    pcl::PointXYZRGBA& pt = cloud->points[i];
+    out(i,0) = pt.x;
+    out(i,1) = pt.y;
+    out(i,2) = pt.z;
+  }
+  return out;
+}
+
+MatrixXf TrackedTowel::featsFromSim() {
+  return toEigenMatrix(getNodes());
+}
+
+vector<btVector3> TrackedTowel::getNodes() {
+  const btAlignedObjectArray<btSoftBody::Node>& nodes = m_sim->softBody->m_nodes;
+
+  vector<btVector3> pos;
+  pos.reserve(m_nodeInds.size());
+  
+  BOOST_FOREACH(int ind, m_nodeInds) pos.push_back(nodes[ind].m_x);
+
+  return pos;
+}
+
+vector<btVector3> TrackedTowel::getNodes(vector<btVector3>& vel) {
+  const btAlignedObjectArray<btSoftBody::Node>& nodes = m_sim->softBody->m_nodes;
+
+  vector<btVector3> pos;
+  vel.clear();
+  pos.reserve(m_nodeInds.size());
+  vel.reserve(m_nodeInds.size());
+
+  BOOST_FOREACH(int ind, m_nodeInds) {
+    const btSoftBody::Node& node = nodes[ind];
+    pos.push_back(node.m_x);
+    vel.push_back(node.m_v);
+  }
+  return pos;
+}
+
+vector<float> TrackedTowel::getNodeMasses() {
+
+  vector<float> masses;
+  masses.reserve(m_nodeInds.size());
+  
+  const btAlignedObjectArray<btSoftBody::Node>& nodes = m_sim->softBody->m_nodes;
+  BOOST_FOREACH(int ind, m_nodeInds)
+    masses.push_back(1/nodes[ind].m_im);
+  
+  return masses;
+}
+
+
+vector<int> TrackedTowel::getNodeInds() {
+  return m_nodeInds;
+}
+
+void TrackedTowel::applyEvidence(const SparseArray& corr, const vector<btVector3>& obsPts) {
+  vector<btVector3> estPos, estVel;
+  estPos = getNodes(estVel);
+
+  vector<btVector3> impulses = calcImpulsesDamped(estPos, estVel, obsPts, corr, m_masses, TrackingConfig::kp, TrackingConfig::kd);
+
+  m_sigs = calcSigs(corr, toEigenMatrix(obsPts), toEigenMatrix(getNodes()), .025*METERS, 1);
+  applyImpulses(impulses, m_sim);
+}
+
+
+
+TowelVision2::TowelVision2() {
+
+  m_CT = loadTable(*m_scene);
+
+  m_multisub.m_towelPtsMsg.fromFiles(m_multisub.m_towelSub.m_names.getCur());
+  vector<btVector3> towelPtsCam = toBulletVectors(m_multisub.m_towelPtsMsg.m_data);
+  vector<btVector3> towelPtsWorld = m_CT->toWorldFromCamN(towelPtsCam);
+  vector<btVector3> towelCorners = toBulletVectors(getCorners(toEigenVectors(towelPtsWorld)));
+  BOOST_FOREACH(btVector3& pt, towelCorners) pt += btVector3(.01*METERS,0,0);
+
+
+  BulletSoftObject::Ptr towel = makeSelfCollidingTowel(towelCorners, m_scene->env->bullet->softBodyWorldInfo, 45, 31);
+  m_towel.reset(new TrackedTowel(towel, 45, 31));
+
+  m_scene->env->add(m_towel->m_sim);
+
+}
+
+
+void TowelVision2::doIteration() {
+  
+
+  MatrixXf estFeats = m_towel->featsFromSim();
+  VectorXf pVis = VectorXf::Ones(estFeats.rows(),1); // TODO
+  
+  Eigen::MatrixXf corrEigen = calcCorrProb(estFeats, m_towel->m_sigs, m_obsData.m_obsFeats, pVis, TrackingConfig::outlierParam, m_loglik);
+  Eigen::VectorXf inlierFrac = corrEigen.colwise().sum();
+  SparseArray corr = toSparseArray(corrEigen, TrackingConfig::cutoff);
+  
+  m_towel->applyEvidence(corr, m_obsData.m_obsPts);
+
+  updateAllPlots(m_obsData.m_obsPts, m_towel->getNodes(), m_towel->m_sigs, pVis, corr, inlierFrac);
+
+  m_scene->env->step(.03,2,.015);
+  m_scene->draw();
+  
+}
+
+void TowelVision2::beforeIterations() {
+  m_obsData.m_obsCloud.reset(new ColorCloud());
+  pcl::transformPointCloud(*m_multisub.m_towelPtsMsg.m_data, *m_obsData.m_obsCloud, m_CT->worldFromCamEigen);
+  m_obsData.m_obsPts = toBulletVectors(m_obsData.m_obsCloud);
+  m_obsData.m_obsFeats = TrackedTowel::featsFromCloud(m_obsData.m_obsCloud);  
+}
+
+void TowelVision2::afterIterations() {
+  vector< vector<float> > towelPts = toVecVec(m_towel->getNodes());  
+  m_pub.send(VecVecMessage<float>(towelPts));
+}
+  
+  
+
