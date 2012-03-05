@@ -1,9 +1,15 @@
+#include "simulation/environment.h"
 #include "simulation/config_viewer.h"
 #include "clouds/utils_pcl.h"
+#include "clouds/comm_pcl.h"
 #include <pcl/io/pcd_io.h>
 #include<GL/gl.h>
 #include<GL/glx.h>
 #include<GL/glu.h>
+#include <Eigen/Dense>
+#include "fake_kinect.h"
+#include "utils/my_assert.h"
+using namespace Eigen;
 
 void computeRangeData( osg::Camera* camera , osg::ref_ptr<osg::Image> depthbufferimg, MatrixXf& Ximg, MatrixXf& Yimg, MatrixXf& Zimg) {
   // from https://svn.lcsr.jhu.edu/cisst/trunk/saw/components/sawOpenSceneGraph/code/osaOSGCamera.cpp
@@ -110,63 +116,61 @@ MatrixXf computeDepthImage( osg::Camera* camera, osg::ref_ptr<osg::Image> depthb
   return depthimage;
 }
 
-class KinectCallback : public osg::Camera::DrawCallback {
-    
-public:
+KinectCallback::KinectCallback( osg::Camera* camera ) {
+  const osg::Viewport* viewport    = camera->getViewport();
+  osg::Viewport::value_type width  = viewport->width();
+  osg::Viewport::value_type height = viewport->height();
+  cout << "viewport w/h: " << width << " " << height << endl;
+  depthbufferimg = new osg::Image;
+  depthbufferimg->allocateImage(width, height, 1, GL_DEPTH_COMPONENT, GL_FLOAT);
+  colorbufferimg = new osg::Image;
+  colorbufferimg->allocateImage(width, height, 1, GL_RGBA, GL_UNSIGNED_BYTE);
+  camera->attach(osg::Camera::DEPTH_BUFFER, depthbufferimg.get(), 0, 0);
+  camera->attach(osg::Camera::COLOR_BUFFER, colorbufferimg.get(), 0, 0); 
+  m_done = false;
+}
 
-  int width;
-  int height;
+void KinectCallback::operator () ( osg::RenderInfo& info ) const  {
+  if (!m_done) {
+    osg::Camera* camera = info.getCurrentCamera();
+    double start = timeOfDay();
+    ColorCloudPtr cloud = computePointCloud(camera, depthbufferimg.get(), colorbufferimg.get());
+    cout << timeOfDay() - start << endl;
 
-  bool m_done;
+    KinectCallback* this2 = const_cast<KinectCallback*>(this);
+    this2->m_done = true;
+    this2->m_cloud = cloud;
 
-  osg::ref_ptr<osg::Image> depthbufferimg;
-  osg::ref_ptr<osg::Image> colorbufferimg;
-
-    
-  KinectCallback( osg::Camera* camera ) {
-    const osg::Viewport* viewport    = camera->getViewport();
-    osg::Viewport::value_type width  = viewport->width();
-    osg::Viewport::value_type height = viewport->height();
-    cout << "viewport w/h: " << width << " " << height << endl;
-    depthbufferimg = new osg::Image;
-    depthbufferimg->allocateImage(width, height, 1, GL_DEPTH_COMPONENT, GL_FLOAT);
-    colorbufferimg = new osg::Image;
-    colorbufferimg->allocateImage(width, height, 1, GL_RGBA, GL_UNSIGNED_BYTE);
-    camera->attach(osg::Camera::DEPTH_BUFFER, depthbufferimg.get(), 0, 0);
-    camera->attach(osg::Camera::COLOR_BUFFER, colorbufferimg.get(), 0, 0); 
-    done = false;
   }
+}
 
-  void operator () ( osg::RenderInfo& info ) const  {
-    if (!m_done) {
-      osg::Camera* camera = info.getCurrentCamera();
-      ColorCloudPtr cloud = computePointCloud(camera, depthbufferimg.get(), colorbufferimg.get());
-
-      KinectCallback* this2 = const_cast<KinectCallback*>(this);
-      this2->m_done = true;
-      m_cloud = cloud;
-
-    }
-  }
-    
-};
+#include "simulation/util.h"
+#include <osgGA/TrackballManipulator>
 
 
 FakeKinect::FakeKinect(OSGInstance::Ptr osg, Affine3f worldFromCam) : m_pub("kinect", "pcd") {
   m_viewer.setUpViewInWindow(0, 0, 640, 480);
-  m_viewer.setSceneData(scene.osg->root.get());
-  m_viewer->setThreadingModel(osgViewer::Viewer::SingleThreaded);
-  
-  osg::ref_ptr<osg::Camera> m_cam = viewer.getCamera(); 
+  m_viewer.setSceneData(osg->root.get());
+  m_viewer.setThreadingModel(osgViewer::Viewer::SingleThreaded);
 
-  osg::ref_ptr<KinectCallback> m_cb = new KinectCallback(osgCam.get());
+  osg::ref_ptr<osgGA::TrackballManipulator> manip = new osgGA::TrackballManipulator();
+  manip->setHomePosition(util::toOSGVector(ViewerConfig::cameraHomePosition), osg::Vec3(), osg::Z_AXIS);
+  m_viewer.setCameraManipulator(manip);
+
+
+  
+  m_cam = m_viewer.getCamera(); 
+
+  m_cb = new KinectCallback(m_cam.get());
   m_cam->setFinalDrawCallback(m_cb);
 
 
 }
 
-FakeKinect::sendMessage() {
-  m_viewer->frame();
+void FakeKinect::sendMessage() {
+  m_cb->m_done = false;
+  m_viewer.frame();
+  ENSURE(m_cb->m_cloud != NULL);
   CloudMessage msg(m_cb->m_cloud);
-  msg.send();
+  m_pub.send(msg);
 }

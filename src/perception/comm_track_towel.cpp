@@ -2,7 +2,9 @@
 #include "perception/config_perception.h"
 #include "simulation/config_bullet.h"
 
+
 int main(int argc, char* argv[]) {
+  Eigen::internal::setNbThreads(3);
 
   Parser parser;
   GeneralConfig::scale = 10;
@@ -14,9 +16,12 @@ int main(int argc, char* argv[]) {
   parser.addGroup(BulletConfig());
   parser.read(argc, argv);
 
+
   initComm();
   TowelVision2 tv;
-  tv.runOffline();
+  extern bool LIVE;
+  if (LIVE) tv.runOnline();
+  else tv.runOffline();
 
   // extern bool LIVE;
   // if (LIVE) visionSystem.runOnline();

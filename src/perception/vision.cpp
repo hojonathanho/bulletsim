@@ -64,7 +64,7 @@ void Vision::setupScene() {
 
   m_kinectPts.reset(new PointCloudPlot(2));
   m_estPlot.reset(new PlotSpheres());
-  m_obsPlot.reset(new PointCloudPlot(5));
+  m_obsPlot.reset(new PointCloudPlot(10));
   m_corrLines.reset(new PlotLines(3));
 
   m_scene->env->add(m_kinectPts);
@@ -568,28 +568,32 @@ Vision2::Vision2() {
 Vision2::~Vision2() {}
 
 void Vision2::runOnline() {
-  m_multisub.prepare();
-  ENSURE(m_multisub.recvAll()); // get first messages
+  m_multisub->prepare();
+  ENSURE(m_multisub->recvAll()); // get first messages
   for (int t=0; ; t++) {
       int iter=0;
       beforeIterations();
-      m_multisub.prepare();
+      m_multisub->prepare();
       do {
+	cout << iter++ << endl;
         doIteration();
-      } while (!m_multisub.recvAll());
+      } 
+      while (!m_multisub->recvAll());
       afterIterations();
   }
 }
 
 void Vision2::runOffline() {  
   for (int t=0; ; t++) {
+    cout << "t=" << t << endl;
     int iter=0;
-    ENSURE(m_multisub.recvAll());
+    m_multisub->prepare();
+    ENSURE(m_multisub->recvAll());
 
     beforeIterations();
     do {
-      cout << iter++ << endl;
       doIteration();
+      cout << iter++ << endl;
     }
     while (iter < TrackingConfig::nIter);
     afterIterations();
@@ -708,12 +712,14 @@ void TrackedTowel::applyEvidence(const SparseArray& corr, const vector<btVector3
 
 
 
-TowelVision2::TowelVision2() : m_pub("towel_model", "txt") {
+TowelVision2::TowelVision2() : m_pub("towel_model", "txt"), m_multisub(new TowelSubs()) {
+
+  Vision2::m_multisub = m_multisub; // sorry, that's a little ugly
 
   m_CT = loadTable(*m_scene);
 
-  m_multisub.m_towelPtsMsg.fromFiles(m_multisub.m_towelSub.m_names.getCur());
-  vector<btVector3> towelPtsCam = toBulletVectors(m_multisub.m_towelPtsMsg.m_data);
+  m_multisub->m_towelPtsMsg.fromFiles(m_multisub->m_towelSub.m_names.getCur());
+  vector<btVector3> towelPtsCam = toBulletVectors(m_multisub->m_towelPtsMsg.m_data);
   vector<btVector3> towelPtsWorld = m_CT->toWorldFromCamN(towelPtsCam);
   vector<btVector3> towelCorners = toBulletVectors(getCorners(toEigenVectors(towelPtsWorld)));
   BOOST_FOREACH(btVector3& pt, towelCorners) pt += btVector3(.01*METERS,0,0);
@@ -748,9 +754,15 @@ void TowelVision2::doIteration() {
 
 void TowelVision2::beforeIterations() {
   m_obsData.m_obsCloud.reset(new ColorCloud());
-  pcl::transformPointCloud(*m_multisub.m_towelPtsMsg.m_data, *m_obsData.m_obsCloud, m_CT->worldFromCamEigen);
+  pcl::transformPointCloud(*m_multisub->m_towelPtsMsg.m_data, *m_obsData.m_obsCloud, m_CT->worldFromCamEigen);
   m_obsData.m_obsPts = toBulletVectors(m_obsData.m_obsCloud);
   m_obsData.m_obsFeats = TrackedTowel::featsFromCloud(m_obsData.m_obsCloud);  
+  if (TrackingConfig::showKinect)  {
+    ColorCloudPtr cloudWorld(new ColorCloud());
+    pcl::transformPointCloud(*m_multisub->m_kinectMsg.m_data, *cloudWorld, m_CT->worldFromCamEigen);
+    m_kinectPts->setPoints1(cloudWorld);
+  }
+  else m_kinectPts->clear();
 }
 
 void TowelVision2::afterIterations() {
