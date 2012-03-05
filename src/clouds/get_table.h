@@ -1,3 +1,4 @@
+#pragma once
 #include <vector>
 #include <pcl/common/eigen.h>
 #include <pcl/point_types.h>

@@ -16,6 +16,7 @@
 #include "robot_geometry.h"
 #include "clouds/correction.h"
 #include "robots/pr2.h"
+#include "perception/plotting_perception.h"
 
 using namespace std;
 using namespace Eigen;

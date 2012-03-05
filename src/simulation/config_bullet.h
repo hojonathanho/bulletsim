@@ -1,3 +1,4 @@
+#pragma once
 #include "utils/config.h"
 #include <btBulletDynamicsCommon.h>
 

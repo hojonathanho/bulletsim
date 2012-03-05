@@ -58,8 +58,9 @@ VectorXf calcSigs(const SparseArray& corr, const Eigen::MatrixXf& estPts, const 
 
   for (int iA=0; iA < corr.size(); iA++) {
     float totalSqDist = 3*priorDist*priorDist*priorCount;
-    BOOST_FOREACH(const IndVal& iv, corr[iA]) totalSqDist += iv.val * (estPts.row(iA) - obsPts.row(iv.ind)).squaredNorm();
-    sigs[iA] = totalSqDist / (3*(vecSum(corr[iA])+priorCount));
+    BOOST_FOREACH(const IndVal& iv, corr[iA])
+      totalSqDist += iv.val * (estPts.row(iA) - obsPts.row(iv.ind)).squaredNorm();
+      sigs[iA] = totalSqDist / (3*(vecSum(corr[iA])+priorCount));
   }
 
   return sigs;

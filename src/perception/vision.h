@@ -213,7 +213,6 @@ struct Vision2 {
   PlotLines::Ptr m_corrLines;
     
   MultiSubscriber m_multisub;  
-  FilePublisher m_pub;
     
   Vision2();
   ~Vision2();
@@ -247,6 +246,7 @@ struct TowelVision2 : public Vision2 {
   BulletObject::Ptr m_table;
   TrackedTowel::Ptr m_towel;
   TowelSubs m_multisub;
+  FilePublisher m_pub;
   
   struct ObsData {
     ColorCloudPtr m_obsCloud;

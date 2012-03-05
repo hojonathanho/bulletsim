@@ -1,3 +1,4 @@
+#pragma once
 #include <osg/Transform>
 #include <osg/Geometry>
 #include <osg/Geode>

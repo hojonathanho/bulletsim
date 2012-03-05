@@ -71,7 +71,7 @@ Value readJson(path jsonfile) {
       usleep(1000);
     }
   }
-  throw std::runtime_error("tried 10 times but failed to read json file " + jsonfile.string())
+  throw std::runtime_error("tried 10 times but failed to read json file " + jsonfile.string());
 }
 
 void setDataRoot(path newDataRoot) {

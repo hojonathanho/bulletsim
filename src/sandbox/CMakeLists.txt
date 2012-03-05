@@ -35,11 +35,11 @@ if(BUILD_PERCEPTION)
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
   SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fopenmp")
 
-  add_executable(test_preproc test_preproc.cpp ../clouds/preprocessing.cpp)
-  target_link_libraries(test_preproc clouds gomp comm)
+  # add_executable(test_preproc test_preproc.cpp ../clouds/preprocessing.cpp)
+  # target_link_libraries(test_preproc clouds gomp comm)
 
-  add_executable(test_preproc2 test_preproc2.cpp ../clouds/preprocessing.cpp)
-  target_link_libraries(test_preproc2 clouds comm perception simulation gomp)
+  # add_executable(test_preproc2 test_preproc2.cpp ../clouds/preprocessing.cpp)
+  # target_link_libraries(test_preproc2 clouds comm perception simulation gomp)
 
   
   add_executable(cloudptr_share cloudptr_share.cpp)
@@ -48,9 +48,6 @@ if(BUILD_PERCEPTION)
   add_executable(depth_image depth_image.cpp)
   target_link_libraries(depth_image clouds simulation robots)
 
-  add_executable(downsample downsample.cpp)
-  target_link_libraries(downsample perception)
-  
 #   add_executable(distance_benchmark distance_benchmark.cpp)
 #   target_link_libraries(distance_benchmark perception simulation)
 endif(BUILD_PERCEPTION)

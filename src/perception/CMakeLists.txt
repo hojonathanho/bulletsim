@@ -16,7 +16,7 @@ link_directories(
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
 SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fopenmp")
 
-add_library(perception config_perception.cpp utils_perception.cpp make_bodies.cpp openrave_joints.cpp robot_geometry.cpp dist_math.cpp optimization_forces.cpp sparse_array.cpp apply_impulses.cpp visibility.cpp trackers.cpp matching.cpp get_nodes.cpp plotting_perception.cpp)
+add_library(perception config_perception.cpp utils_perception.cpp make_bodies.cpp openrave_joints.cpp robot_geometry.cpp dist_math.cpp optimization_forces.cpp sparse_array.cpp apply_impulses.cpp visibility.cpp trackers.cpp matching.cpp get_nodes.cpp plotting_perception.cpp vision.cpp)
 target_link_libraries(perception ${PCL_LIBRARIES} comm clouds simulation tetgen utils)
 
 add_executable(test_matching test_matching.cpp matching.cpp)
@@ -27,9 +27,6 @@ target_link_libraries(test_prob_corr perception)
 
 add_executable(test_pr2_playback test_pr2_playback.cpp)
 target_link_libraries(test_pr2_playback ${PCL_LIBRARIES} simulation comm clouds perception robots)
-
-#add_executable(test_towel_local_opt test_towel_local_opt.cpp update_bodies.cpp)
-#target_link_libraries(test_towel_local_opt comm ${PCL_LIBRARIES} simulation clouds perception)
 
 add_executable(test_towel_track test_towel_track.cpp)
 target_link_libraries(test_towel_track comm ${PCL_LIBRARIES} simulation clouds perception)
@@ -58,6 +55,8 @@ target_link_libraries(test_tetgen tetgen)
 # add_executable(test_new_towel_tracking test_new_towel_tracking.cpp vision.cpp)
 # target_link_libraries(test_new_towel_tracking comm ${PCL_LIBRARIES} simulation clouds perception)
 
-add_executable(test_new_tracking2 test_new_tracking2.cpp vision.cpp)
-target_link_libraries(test_new_tracking2 comm ${PCL_LIBRARIES} simulation clouds perception)
+# add_executable(test_new_tracking2 test_new_tracking2.cpp vision.cpp)
+# target_link_libraries(test_new_tracking2 comm ${PCL_LIBRARIES} simulation clouds perception)
 
+add_executable(comm_track_towel comm_track_towel.cpp)
+target_link_libraries(comm_track_towel perception clouds simulation utils comm)

@@ -1,3 +1,4 @@
+#pragma once
 #include "simulation/softbodies.h"
 #include "simulation/basicobjects.h"
 #include "simulation/rope.h"

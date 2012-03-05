@@ -538,7 +538,7 @@ void RopeVision2::removeRopeHypoth(TrackedRope::Ptr ropeHypoth) {
 }
 
     
-Vision2::Vision2() : m_pub("rope_model", "txt") {
+Vision2::Vision2() {
   
   m_scene = new Scene();
 
@@ -560,6 +560,9 @@ Vision2::Vision2() : m_pub("rope_model", "txt") {
   m_scene->addVoidKeyCallback('O',&toggleObs);
   m_scene->addVoidKeyCallback('K',&toggleKinect);
       
+  m_scene->startViewer();
+
+
 }
 
 Vision2::~Vision2() {}
@@ -585,6 +588,7 @@ void Vision2::runOffline() {
 
     beforeIterations();
     do {
+      cout << iter++ << endl;
       doIteration();
     }
     while (iter < TrackingConfig::nIter);
@@ -626,6 +630,10 @@ TrackedTowel::TrackedTowel(BulletSoftObject::Ptr sim, int xres, int yres) {
 
   m_sim = sim;
   m_masses = getNodeMasses();
+
+  m_sigs.resize(m_masses.size(),1);
+  m_sigs.setConstant(sq(.025*METERS));
+
 
 }
 
@@ -694,13 +702,13 @@ void TrackedTowel::applyEvidence(const SparseArray& corr, const vector<btVector3
 
   vector<btVector3> impulses = calcImpulsesDamped(estPos, estVel, obsPts, corr, m_masses, TrackingConfig::kp, TrackingConfig::kd);
 
-  m_sigs = calcSigs(corr, toEigenMatrix(obsPts), toEigenMatrix(getNodes()), .025*METERS, 1);
+  m_sigs = calcSigs(corr, toEigenMatrix(estPos), toEigenMatrix(obsPts), .025*METERS, 1);
   applyImpulses(impulses, m_sim);
 }
 
 
 
-TowelVision2::TowelVision2() {
+TowelVision2::TowelVision2() : m_pub("towel_model", "txt") {
 
   m_CT = loadTable(*m_scene);
 
