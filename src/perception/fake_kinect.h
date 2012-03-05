@@ -3,6 +3,28 @@
 #include "clouds/utils_pcl.h"
 #include "simulation/environment.h"
 #include "comm/comm.h"
+#include <Eigen/Geometry>
+#include <Eigen/Dense>
+#include <osgViewer/Viewer>
+
+class KinectCallback : public osg::Camera::DrawCallback {
+    
+public:
+
+  int width;
+  int height;
+
+  bool m_done;
+
+  osg::ref_ptr<osg::Image> depthbufferimg;
+  osg::ref_ptr<osg::Image> colorbufferimg;
+
+  ColorCloudPtr m_cloud;
+
+  KinectCallback( osg::Camera* camera ) ;
+  void operator () ( osg::RenderInfo& info ) const;    
+};
+
 
 class FakeKinect {
 
@@ -11,7 +33,7 @@ public:
   osgViewer::Viewer m_viewer;
   osg::ref_ptr<KinectCallback> m_cb;
   FilePublisher m_pub;
-  FakeKinect(OSGInstance::Ptr, Affine3f worldFromCam);
+  FakeKinect(OSGInstance::Ptr, Eigen::Affine3f worldFromCam);
   void sendMessage();
 
 };
