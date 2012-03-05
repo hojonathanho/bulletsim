@@ -19,8 +19,7 @@ public:
   btScalar mass;
   int nLinks;
 
-  CapsuleRope(const vector<btVector3>& ctrlPoints, float radius_, float mass_, float angStiffness_, float angDamping_, float linDamping_, float angLimit_);
-  CapsuleRope(const vector<btVector3>& ctrlPoints, float radius_, float angStiffness_=.1, float angDamping_=1, float linDamping_=.75, float angLimit_=.4);
+  CapsuleRope(const vector<btVector3>& ctrlPoints, float radius_, float mass_=-1, float angStiffness_=.1, float angDamping_=1, float linDamping_=.75, float angLimit_=.4);
   void init();
   void destroy();
   vector<btVector3> getNodes() { 

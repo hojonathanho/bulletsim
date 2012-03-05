@@ -60,10 +60,10 @@ int main(int argc, char *argv[]) {
   btScalar segment_len = .01;
   int nLinks = 200;
   vector<btVector3> ctrlPts;
-  for (int i=0; i< nLinks; i++) {
+  for (int i = 0; i < nLinks; i++) {
     ctrlPts.push_back(METERS*btVector3(-1+.5+segment_len*i,0,1));
   }
-  shared_ptr<CapsuleRope> ropePtr(new CapsuleRope(ctrlPts, METERS*rope_radius, rope_mass, .1, 1, .75, .4));
+  shared_ptr<CapsuleRope> ropePtr(new CapsuleRope(ctrlPts, METERS*rope_radius, rope_mass));
   vector<BulletObject::Ptr> children =  ropePtr->getChildren();
   for (int j=0; j<children.size(); j++) {
     children[j]->setColor(1,0,0,1);
