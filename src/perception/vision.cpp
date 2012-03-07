@@ -173,7 +173,6 @@ void TowelVision::doIteration() {
   // if (TrackingConfig::showObs) plotObs(corrEigen, m_towelObsPts, m_obsPlot);
   if (TrackingConfig::showEst) plotNodesAsSpheres(m_towel->softBody.get(), pVis, m_sigs, m_estPlot);
 
-
   m_scene->env->step(.03,2,.015);
   m_scene->draw();
 }
@@ -561,6 +560,8 @@ Vision2::Vision2() {
   m_scene->addVoidKeyCallback('K',&toggleKinect);
       
   m_scene->startViewer();
+  OSGCamParams cp(m_CT->worldFromCamUnscaled, GeneralConfig::scale);
+  m_scene->manip->setHomePosition(cp.eye, cp.center, cp.up);
 
 
 }
@@ -571,15 +572,15 @@ void Vision2::runOnline() {
   m_multisub->prepare();
   ENSURE(m_multisub->recvAll()); // get first messages
   for (int t=0; ; t++) {
-      int iter=0;
-      beforeIterations();
-      m_multisub->prepare();
-      do {
-	cout << iter++ << endl;
-        doIteration();
-      } 
-      while (!m_multisub->recvAll());
-      afterIterations();
+    int iter=0;
+    beforeIterations();
+    m_multisub->prepare();
+    do {
+      cout << iter++ << endl;
+      doIteration();
+    } 
+    while (!m_multisub->recvAll());
+    afterIterations();
   }
 }
 
@@ -625,12 +626,34 @@ CoordinateTransformer* loadTable(Scene& scene) { // load table from standard loc
   
 }    
     
+inline int idx(int row,int col,int xres) {return col+row*xres;}
+typedef pair<int, int> intpair;
+
 TrackedTowel::TrackedTowel(BulletSoftObject::Ptr sim, int xres, int yres) {
 
+  set<intpair> knots;
+  node2knots = vector< vector<int> >(xres*yres);
+
   int decimation = 2;
-  for (int row = 0; row < yres; row += decimation) 
-    for (int col = 0; col < xres; col += decimation) 
-      m_nodeInds.push_back(col + row*xres);
+  for (int row = 0; row < yres; row += decimation) {
+    for (int col = 0; col < xres; col += decimation) {
+      knots.insert(intpair(row,col));
+      m_nodeInds.push_back(idx(row,col,xres));
+    }
+  }
+
+  for (int row = 0; row < yres; row++) 
+    for (int col = 0; col < xres; col++) 
+      for (int dy = -1; dy <= 1; dy++)
+	for (int dx = -1; dx <= 1; dx++)
+	  if (knots.find(intpair(row+dy, col+dx)) != knots.end()) 
+	    node2knots[idx(row,col,xres)].push_back(idx(row+dy, col+dx, xres));
+
+  for (int row=0; row < yres; row++) {
+    for (int col = 0; col < xres; col++)
+      cout << node2knots[row][col] << " ";
+    cout << endl;
+  }
 
   m_sim = sim;
   m_masses = getNodeMasses();
@@ -707,14 +730,23 @@ void TrackedTowel::applyEvidence(const SparseArray& corr, const vector<btVector3
   vector<btVector3> impulses = calcImpulsesDamped(estPos, estVel, obsPts, corr, m_masses, TrackingConfig::kp, TrackingConfig::kd);
 
   m_sigs = calcSigs(corr, toEigenMatrix(estPos), toEigenMatrix(obsPts), .025*METERS, 1);
-  applyImpulses(impulses, m_sim);
+
+  int nNodes = node2knots.size();
+  vector<btVector3> allImpulses(nNodes, btVector3(0,0,0));
+  for (int i=0; i < m_nodeInds.size(); i++) allImpulses[m_nodeInds[i]] = impulses[i];
+  for (int i=0; i < nNodes; i++) {
+    BOOST_FOREACH(int j, node2knots[i]) allImpulses[i] += allImpulses[j];
+    allImpulses[i] /= node2knots[i].size();
+  }
+  applyImpulses(allImpulses, m_sim);
 }
 
 
 
-TowelVision2::TowelVision2() : m_pub("towel_model", "txt"), m_multisub(new TowelSubs()) {
+TowelVision2::TowelVision2() : m_pub("towel_model", "txt") {
 
-  Vision2::m_multisub = m_multisub; // sorry, that's a little ugly
+  Vision2::m_multisub = m_multisub = new TowelSubs();
+  // sorry, unfortunate c++ behavior
 
   m_CT = loadTable(*m_scene);
 
@@ -735,9 +767,9 @@ TowelVision2::TowelVision2() : m_pub("towel_model", "txt"), m_multisub(new Towel
 
 void TowelVision2::doIteration() {
   
+  VectorXf pVis = calcVisibility(m_towel->m_sim->softBody.get(), m_scene->env->bullet->dynamicsWorld, m_CT->worldFromCamUnscaled.getOrigin()*METERS, m_towel->m_nodeInds);
 
   MatrixXf estFeats = m_towel->featsFromSim();
-  VectorXf pVis = VectorXf::Ones(estFeats.rows(),1); // TODO
   
   Eigen::MatrixXf corrEigen = calcCorrProb(estFeats, m_towel->m_sigs, m_obsData.m_obsFeats, pVis, TrackingConfig::outlierParam, m_loglik);
   Eigen::VectorXf inlierFrac = corrEigen.colwise().sum();
@@ -747,7 +779,9 @@ void TowelVision2::doIteration() {
 
   updateAllPlots(m_obsData.m_obsPts, m_towel->getNodes(), m_towel->m_sigs, pVis, corr, inlierFrac);
 
+  double start = timeOfDay();
   m_scene->env->step(.03,2,.015);
+  cout << timeOfDay() - start << endl;
   m_scene->draw();
   
 }

@@ -86,6 +86,19 @@ Eigen::VectorXf calcVisibility(btSoftBody* softBody, btDynamicsWorld* world, con
   return vis;
 }
 
+Eigen::VectorXf calcVisibility(btSoftBody* softBody, btDynamicsWorld* world, const btVector3& cameraPos, const vector<int>& nodeInds) {
+  btAlignedObjectArray<btSoftBody::Node> nodes = softBody->m_nodes;
+  VectorXf vis(nodeInds.size());
+  for (int i=0; i < nodeInds.size(); i++) {
+    btVector3 target = nodes[nodeInds[i]].m_x + (cameraPos - nodes[nodeInds[i]].m_x).normalized() * .005*METERS;
+    btCollisionWorld::ClosestRayResultCallback rayCallback(cameraPos, target);
+    world->rayTest(cameraPos, target, rayCallback);
+    btCollisionObject* hitBody = rayCallback.m_collisionObject;
+    vis[i] = (hitBody==NULL);
+  }
+  return vis;
+}
+
 
 void colorByVisibility(CapsuleRope::Ptr rope, const VectorXf& pVis) {
   ENSURE(rope->children.size() == pVis.rows());

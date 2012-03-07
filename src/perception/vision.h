@@ -188,6 +188,8 @@ struct TrackedTowel : public TrackedObject2 {
 
   BulletSoftObject::Ptr m_sim;
   vector<int> m_nodeInds;
+  vector< vector<int> > node2knots;
+
   vector<float> m_masses;
 
   TrackedTowel(BulletSoftObject::Ptr, int xres, int yres);
