@@ -90,7 +90,7 @@ PlotLines::PlotLines(float width) {
   osg::ref_ptr<osg::StateSet> stateset = new osg::StateSet();
   osg::LineWidth *linewidth = new osg::LineWidth();
   linewidth->setWidth(width);
-  //m_stateset->setAttributeAndModes(linewidth,osg::StateAttribute::ON);
+  stateset->setAttributeAndModes(linewidth,osg::StateAttribute::ON);
   stateset->setMode(GL_LIGHTING, osg::StateAttribute::OFF);
   stateset->setAttribute(linewidth);
 

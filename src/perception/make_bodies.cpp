@@ -67,7 +67,7 @@ BulletSoftObject::Ptr makeSelfCollidingTowel(const vector<btVector3>& points, bt
     psb->generateBendingConstraints(2, pm);
     psb->randomizeConstraints();
     psb->setTotalMass(1, false);
-    psb->generateClusters(100);
+    psb->generateClusters(512);
 
     return BulletSoftObject::Ptr(new BulletSoftObject(psb));
 }

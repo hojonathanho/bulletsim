@@ -1,11 +1,13 @@
 #include "environment.h"
+#include "utils/config.h"
 
 OSGInstance::OSGInstance() {
     root = new osg::Group;
 }
 
 BulletInstance::BulletInstance() {
-    broadphase = new btDbvtBroadphase();
+  broadphase = new btDbvtBroadphase();
+  //    broadphase = new btAxisSweep3(btVector3(-2*METERS, -2*METERS, -1*METERS), btVector3(2*METERS, 2*METERS, 3*METERS));
     collisionConfiguration = new btSoftBodyRigidBodyCollisionConfiguration();
     dispatcher = new btCollisionDispatcher(collisionConfiguration);
     solver = new btSequentialImpulseConstraintSolver;

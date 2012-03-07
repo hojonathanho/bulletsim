@@ -6,11 +6,11 @@
 #include <iostream>
 using namespace std;
 
-ostream &operator<<(ostream &stream, btVector3& v);
+ostream &operator<<(ostream &stream, const btVector3& v);
 
-ostream &operator<<(ostream &stream, btQuaternion& v);
+ostream &operator<<(ostream &stream, const btQuaternion& v);
 
-ostream &operator<<(ostream &stream, btTransform& v);
+ostream &operator<<(ostream &stream, const btTransform& v);
 
-ostream &operator<<(ostream &stream, vector<btVector3>& vs);
+ostream &operator<<(ostream &stream, const vector<btVector3>& vs);
 
