@@ -160,3 +160,30 @@ void PlotSpheres::plot(const osg::ref_ptr<osg::Vec3Array>& centers, const osg::r
   }
 }
 
+PlotAxes::PlotAxes(osg::Vec3f origin, osg::Vec3f x, osg::Vec3f y, osg::Vec3f z, float size) {
+
+    osg::ref_ptr<osg::Vec4Array> cols = new osg::Vec4Array();
+    osg::ref_ptr<osg::Vec3Array> pts = new osg::Vec3Array();
+
+    pts->push_back(origin);
+    pts->push_back(origin+x*(size/x.length()));
+    pts->push_back(origin);
+    pts->push_back(origin+y*(size/y.length()));
+    pts->push_back(origin);
+    pts->push_back(origin+z*(size/z.length()));
+
+    cols->push_back(osg::Vec4f(1,0,0,1));
+    cols->push_back(osg::Vec4f(0,1,0,1));
+    cols->push_back(osg::Vec4f(0,0,1,1));
+
+    PlotLines::setPoints(pts, cols);
+
+    m_ends.reset(new PlotSpheres());
+    osg::ref_ptr<osg::Vec3Array> endpts = new osg::Vec3Array();
+    endpts->push_back(origin+x*(size/x.length()));
+    endpts->push_back(origin+y*(size/y.length()));
+    endpts->push_back(origin+z*(size/z.length()));
+    vector<float> radii(3,.1);
+    m_ends->plot(endpts, cols, radii);
+  }
+

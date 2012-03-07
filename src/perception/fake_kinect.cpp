@@ -145,21 +145,24 @@ void KinectCallback::operator () ( osg::RenderInfo& info ) const  {
 }
 
 #include "simulation/util.h"
-#include <osgGA/TrackballManipulator>
-
+//#include <osgGA/TrackballManipulator>
+osg::Vec3f toOSGVector(Eigen::Vector3f v) { return osg::Vec3f(v.x(), v.y(), v.z());}
 
 FakeKinect::FakeKinect(OSGInstance::Ptr osg, Affine3f worldFromCam) : m_pub("kinect", "pcd") {
   m_viewer.setUpViewInWindow(0, 0, 640, 480);
   m_viewer.setSceneData(osg->root.get());
   m_viewer.setThreadingModel(osgViewer::Viewer::SingleThreaded);
-
-  osg::ref_ptr<osgGA::TrackballManipulator> manip = new osgGA::TrackballManipulator();
-  manip->setHomePosition(util::toOSGVector(ViewerConfig::cameraHomePosition), osg::Vec3(), osg::Z_AXIS);
-  m_viewer.setCameraManipulator(manip);
-
-
-  
   m_cam = m_viewer.getCamera(); 
+
+  m_cam->setProjectionMatrixAsPerspective(49,640./480., .2*METERS, 10*METERS);
+
+  Vector3f eye, center, up;
+  Matrix3f rot;
+  rot = worldFromCam.linear();
+  eye = worldFromCam.translation();
+  center = rot.col(2);
+  up = -rot.col(1);
+  m_cam->setViewMatrixAsLookAt(toOSGVector(eye), toOSGVector(center+eye), toOSGVector(up));
 
   m_cb = new KinectCallback(m_cam.get());
   m_cam->setFinalDrawCallback(m_cb);
