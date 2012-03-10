@@ -5,9 +5,10 @@
 #include <BulletSoftBody/btSoftBodyHelpers.h>
 #include <cstdlib>
 
-#include "clothmanip.h"
+#include "clothutil.h"
 #include "nodeactions.h"
 #include "search.h"
+#include "make_bodies.h"
 
 static BulletSoftObject::Ptr createCloth(Scene &scene, btScalar s, int resx, int resy, const btVector3 &center) {
     btSoftBody *psb = btSoftBodyHelpers::CreatePatch(
@@ -36,6 +37,7 @@ static BulletSoftObject::Ptr createCloth(Scene &scene, btScalar s, int resx, int
     psb->randomizeConstraints();
     psb->setTotalMass(1, true);
     psb->generateClusters(0);
+    cout << "number of clusters: " << psb->m_clusters.size() << endl;
 
     return BulletSoftObject::Ptr(new BulletSoftObject(psb));
 }
@@ -43,7 +45,7 @@ static BulletSoftObject::Ptr createCloth(Scene &scene, btScalar s, int resx, int
 int main(int argc, char *argv[]) {
     GeneralConfig::scale = 20.;
     ViewerConfig::cameraHomePosition = btVector3(100, 0, 100);
-    BulletConfig::dt = BulletConfig::internalTimeStep = 0.02;
+    BulletConfig::dt = BulletConfig::internalTimeStep = 0.01;
     BulletConfig::maxSubSteps = 0;
 
     Parser parser;
@@ -63,8 +65,15 @@ int main(int argc, char *argv[]) {
     scene.env->add(table);
 
     const int divs = 31;
+    /*
     BulletSoftObject::Ptr cloth(
         createCloth(scene, GeneralConfig::scale * 0.25, divs, divs, GeneralConfig::scale * btVector3(0.9, 0, table_height+0.01)));
+    */
+    BulletSoftObject::Ptr cloth =
+        makeSelfCollidingTowel(GeneralConfig::scale * btVector3(0.9, 0, table_height+0.01),
+                GeneralConfig::scale * 0.5, GeneralConfig::scale * 0.5,
+                divs, divs,
+                scene.env->bullet->softBodyWorldInfo);
     scene.env->add(cloth);
     ClothSpec clothspec = { cloth->softBody.get(), divs, divs };
 
@@ -75,7 +84,7 @@ int main(int argc, char *argv[]) {
     scene.stepFor(BulletConfig::dt, 1);
 
     cout << "lifting..." << endl;
-    liftClothMiddle(scene, clothspec);
+    liftClothMiddle(scene, clothspec, false);
     cout << "done lifting."<< endl;
     scene.idle(true);
 

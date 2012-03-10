@@ -1,4 +1,4 @@
-#include "clothmanip.h"
+#include "clothutil.h"
 
 #include "simulation/simplescene.h"
 #include "simulation/config_bullet.h"
@@ -39,8 +39,9 @@ void liftClothMiddle(Scene &scene, ClothSpec &cs, bool disableDrawing) {
     scene.setDrawing(!disableDrawing);
 
     // add forces
-    const int steps = 30;
-//    const int steps = 50;
+//    const int steps = 30;
+    const int steps = 60;
+//    const btVector3 force(0, 0, 0.5);
     const btVector3 force(0, 0, 0.5);
     for (int i = 0; i < steps; ++i) {
         for (int x = 0; x < cs.resx; ++x)
