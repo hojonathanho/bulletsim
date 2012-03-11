@@ -50,6 +50,7 @@ public:
                         RaveRobotObject::Manipulator::Ptr manip_) :
         robot(robot_), manip(manip_), RobotInterpAction(robot_) { }
 
+    // sets the manipulator transform
     void setTargetTrans(const btTransform &t) {
         setIndices(manip->manip->GetArmIndices());
 
@@ -71,6 +72,13 @@ public:
                 newvals[i] = normJointVal(currvals[i], newvals[i]);
             setEndVals(newvals);
         }
+    }
+
+    // sets the transform of the tip of the fingers
+    void setPR2TipTargetTrans(const btTransform &t) {
+        static const btTransform TIP_TO_MANIP =
+            btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, -0.02)*METERS);
+        setTargetTrans(TIP_TO_MANIP * t);
     }
 };
 

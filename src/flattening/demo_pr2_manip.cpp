@@ -10,6 +10,9 @@
 #include "clothgrasping.h"
 
 class CustomScene : Scene {
+    BulletSoftObject::Ptr cloth;
+    PR2Manager::Ptr pr2m;
+
     void runGripperAction(PR2SoftBodyGripperAction &a) {
         a.reset();
         a.toggleAction();
@@ -20,11 +23,25 @@ class CustomScene : Scene {
     void saveManipTrans(RaveRobotObject::Manipulator::Ptr manip) {
         savedTrans = manip->getTransform();
         cout << "saved!" << endl;
+
+        vector<btVector3> pts;
+
+        OpenRAVE::Transform asdf = pr2m->pr2Left->manip->GetLocalToolTransform();
+        cout << "local tool trans: " << asdf.trans.x << ' ' << asdf.trans.y << ' ' << asdf.trans.z << endl;
+
+        pts.push_back(btVector3(0, 0, 0));
+
+        btTransform t = manip->getTransform();
+        btTransform s = btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0.02)*METERS);
+        btTransform final = t * s;
+        pts.push_back(final.getOrigin());
+        plotLines->setPoints(pts);
     }
     void moveArmToSaved(RaveRobotObject::Ptr robot, RaveRobotObject::Manipulator::Ptr manip) {
         ManipIKInterpAction a(robot, manip);
         a.setExecTime(1);
-        a.setTargetTrans(savedTrans);
+        savedTrans.setOrigin(cloth->softBody->m_nodes[cloth->softBody->m_nodes.size()-10].m_x);
+        a.setPR2TipTargetTrans(savedTrans);
         cout << "moving arm to saved trans" << endl;
         runAction(a, BulletConfig::dt);
         cout << "done." << endl;
@@ -43,20 +60,19 @@ public:
         const int resx = 45, resy = 31;
         const btScalar lenx = GeneralConfig::scale * 0.7, leny = GeneralConfig::scale * 0.5;
         const btVector3 clothcenter = GeneralConfig::scale * btVector3(0.5, 0, table_height+0.01);
-        BulletSoftObject::Ptr cloth =
-            makeSelfCollidingTowel(clothcenter, lenx, leny, resx, resy, env->bullet->softBodyWorldInfo);
+        cloth = makeSelfCollidingTowel(clothcenter, lenx, leny, resx, resy, env->bullet->softBodyWorldInfo);
         env->add(cloth);
         ClothSpec clothspec = { cloth->softBody.get(), resx, resy };
 
-        PR2Manager pr2m(*this);
+        pr2m.reset(new PR2Manager(*this));
 
-        PR2SoftBodyGripperAction leftAction(pr2m.pr2, pr2m.pr2Left->manip, true);
+        PR2SoftBodyGripperAction leftAction(pr2m->pr2, pr2m->pr2Left->manip, true);
         leftAction.setTarget(cloth->softBody.get());
         leftAction.setExecTime(1.);
         addVoidKeyCallback('a', boost::bind(&CustomScene::runGripperAction, this, leftAction));
 
-        addVoidKeyCallback('z', boost::bind(&CustomScene::saveManipTrans, this, pr2m.pr2Left));
-        addVoidKeyCallback('x', boost::bind(&CustomScene::moveArmToSaved, this, pr2m.pr2, pr2m.pr2Left));
+        addVoidKeyCallback('z', boost::bind(&CustomScene::saveManipTrans, this, pr2m->pr2Left));
+        addVoidKeyCallback('x', boost::bind(&CustomScene::moveArmToSaved, this, pr2m->pr2, pr2m->pr2Left));
 
         startViewer();
         startFixedTimestepLoop(BulletConfig::dt);

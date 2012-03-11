@@ -93,6 +93,8 @@ private:
     void initIK();
 
 public:
+    typedef boost::shared_ptr<PR2Manager> Ptr;
+
     RaveRobotKinematicObject::Ptr pr2;
     RaveRobotKinematicObject::Manipulator::Ptr pr2Left, pr2Right;
 
