@@ -214,7 +214,7 @@ protected:
 
 public:
     typedef boost::shared_ptr<Action> Ptr;
-    Action() : isDone(false), timeElapsed(0.), execTime(0.) { }
+    Action() : isDone(false), timeElapsed(0.), execTime(1.) { }
     Action(float execTime_) : isDone(false), timeElapsed(0.), execTime(execTime_) { }
 
     bool done() const { return timeElapsed >= execTime || isDone; }

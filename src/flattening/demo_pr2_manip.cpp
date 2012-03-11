@@ -9,41 +9,25 @@
 #include "nodeactions.h"
 #include "clothgrasping.h"
 
-class RobotInterpAction : public Action {
-    RaveRobotKinematicObject::Ptr robot;
-    vector<int> indices;
-    vector<dReal> startvals, endvals;
-
-public:
-    RobotInterpAction(RaveRobotKinematicObject::Ptr robot_) : robot(robot_) { }
-
-    void setIndices(const vector<int> &v) {
-        indices.assign(v.begin(), v.end());
-    }
-    void setStartVals(const vector<dReal> &v) {
-        startvals.assign(v.begin(), v.end());
-    }
-    void setEndVals(const vector<dReal> &v) {
-        endvals.assign(v.begin(), v.end());
-    }
-
-    void step(float dt) {
-        if (done()) return;
-        stepTime(dt);
-        const float a = fracElapsed();
-        // interpolate each joint value
-        vector<dReal> interpvals(startvals.size());
-        for (int i = 0; i < interpvals.size(); ++i)
-            interpvals[i] = (1.-a)*startvals[i] + a*endvals[i];
-        robot->setDOFValues(indices, interpvals);
-    }
-};
-
 class CustomScene : Scene {
     void runGripperAction(PR2SoftBodyGripperAction &a) {
         a.reset();
         a.toggleAction();
         runAction(a, BulletConfig::dt);
+    }
+
+    btTransform savedTrans;
+    void saveManipTrans(RaveRobotObject::Manipulator::Ptr manip) {
+        savedTrans = manip->getTransform();
+        cout << "saved!" << endl;
+    }
+    void moveArmToSaved(RaveRobotObject::Ptr robot, RaveRobotObject::Manipulator::Ptr manip) {
+        ManipIKInterpAction a(robot, manip);
+        a.setExecTime(1);
+        a.setTargetTrans(savedTrans);
+        cout << "moving arm to saved trans" << endl;
+        runAction(a, BulletConfig::dt);
+        cout << "done." << endl;
     }
 
 public:
@@ -70,6 +54,9 @@ public:
         leftAction.setTarget(cloth->softBody.get());
         leftAction.setExecTime(1.);
         addVoidKeyCallback('a', boost::bind(&CustomScene::runGripperAction, this, leftAction));
+
+        addVoidKeyCallback('z', boost::bind(&CustomScene::saveManipTrans, this, pr2m.pr2Left));
+        addVoidKeyCallback('x', boost::bind(&CustomScene::moveArmToSaved, this, pr2m.pr2, pr2m.pr2Left));
 
         startViewer();
         startFixedTimestepLoop(BulletConfig::dt);

@@ -66,6 +66,8 @@ public:
 
     PR2SoftBodyGripper(RaveRobotKinematicObject::Ptr robot_, OpenRAVE::RobotBase::ManipulatorPtr manip_, bool leftGripper);
 
+    void setGrabOnlyOnContact(bool b) { grabOnlyOnContact = b; }
+
     // Must be called before the action is run!
     void setTarget(btSoftBody *psb_) { psb = psb_; }
 

@@ -31,7 +31,8 @@ enum TrimeshMode {
     RAW // use btBvhTriangleMeshShape (not recommended, makes simulation very slow)
 };
 
-class RaveRobotKinematicObject : public CompoundObject<BulletObject> {
+#define RaveRobotKinematicObject RaveRobotObject
+class RaveRobotObject : public CompoundObject<BulletObject> {
 private:
     RaveInstance::Ptr rave;
     btTransform initialTransform;
@@ -118,6 +119,14 @@ public:
 
         btTransform getTransform() const {
             return util::toBtTransform(manip->GetTransform(), robot->scale);
+        }
+
+        bool solveIKUnscaled(const OpenRAVE::Transform &targetTrans,
+                vector<dReal> &vsolution);
+        bool solveIK(const btTransform &targetTrans, vector<dReal> &vsolution) {
+            return solveIKUnscaled(
+                    util::toRaveTransform(targetTrans, 1./robot->scale),
+                    vsolution);
         }
 
         // Moves the manipulator with IK to targetTrans in unscaled coordinates
