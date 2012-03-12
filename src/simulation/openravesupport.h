@@ -121,6 +121,7 @@ public:
             return util::toBtTransform(manip->GetTransform(), robot->scale);
         }
 
+        // Gets one IK solution closest to the current position in joint space
         bool solveIKUnscaled(const OpenRAVE::Transform &targetTrans,
                 vector<dReal> &vsolution);
         bool solveIK(const btTransform &targetTrans, vector<dReal> &vsolution) {
@@ -128,6 +129,17 @@ public:
                     util::toRaveTransform(targetTrans, 1./robot->scale),
                     vsolution);
         }
+
+        // Gets all IK solutions
+        bool solveAllIKUnscaled(const OpenRAVE::Transform &targetTrans,
+                vector<vector<dReal> > &vsolutions);
+        bool solveAllIK(const btTransform &targetTrans,
+                vector<vector<dReal> > &vsolutions) {
+            return solveAllIKUnscaled(
+                    util::toRaveTransform(targetTrans, 1./robot->scale),
+                    vsolutions);
+        }
+
 
         // Moves the manipulator with IK to targetTrans in unscaled coordinates
         // Returns false if IK cannot find a solution

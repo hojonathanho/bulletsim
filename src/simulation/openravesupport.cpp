@@ -288,6 +288,21 @@ bool RaveRobotKinematicObject::Manipulator::solveIKUnscaled(
     return true;
 }
 
+bool RaveRobotKinematicObject::Manipulator::solveAllIKUnscaled(
+        const OpenRAVE::Transform &targetTrans,
+        vector<vector<dReal> > &vsolutions) {
+
+    vsolutions.clear();
+    // see comments for solveIKUnscaled
+    if (!origManip->FindIKSolutions(IkParameterization(targetTrans), vsolutions, true)) {
+        stringstream ss;
+        ss << "failed to get solutions for target transform for end effector: " << targetTrans << endl;
+        RAVELOG_DEBUG(ss.str());
+        return false;
+    }
+    return true;
+}
+
 bool RaveRobotKinematicObject::Manipulator::moveByIKUnscaled(
         const OpenRAVE::Transform &targetTrans,
         bool checkCollisions, bool revertOnCollision) {

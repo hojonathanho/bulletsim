@@ -87,6 +87,7 @@ private:
              rotateManip0, rotateManip1,
              startDragging;
         float dx, dy, lastX, lastY;
+        int ikSolnNum0, ikSolnNum1;
     } inputState;
 
     void loadRobot();
@@ -101,6 +102,7 @@ public:
     PR2Manager(Scene &);
     void registerSceneCallbacks();
 
+    void cycleIKSolution(int manipNum); // manipNum == 0 for left, 1 for right
     void processHapticInput();
     bool processKeyInput(const osgGA::GUIEventAdapter &ea);
     bool processMouseInput(const osgGA::GUIEventAdapter &ea);
