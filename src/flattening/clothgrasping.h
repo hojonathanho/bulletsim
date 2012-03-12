@@ -76,9 +76,9 @@ public:
 
     // sets the transform of the tip of the fingers
     void setPR2TipTargetTrans(const btTransform &t) {
-        static const btTransform TIP_TO_MANIP =
+        static const btTransform MANIP_TO_TIP =
             btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, -0.02)*METERS);
-        setTargetTrans(TIP_TO_MANIP * t);
+        setTargetTrans(t * MANIP_TO_TIP);
     }
 };
 

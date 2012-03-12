@@ -26,9 +26,6 @@ class CustomScene : Scene {
 
         vector<btVector3> pts;
 
-        OpenRAVE::Transform asdf = pr2m->pr2Left->manip->GetLocalToolTransform();
-        cout << "local tool trans: " << asdf.trans.x << ' ' << asdf.trans.y << ' ' << asdf.trans.z << endl;
-
         pts.push_back(btVector3(0, 0, 0));
 
         btTransform t = manip->getTransform();
