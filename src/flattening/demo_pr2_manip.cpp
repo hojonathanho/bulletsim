@@ -37,10 +37,16 @@ class CustomScene : Scene {
     void moveArmToSaved(RaveRobotObject::Ptr robot, RaveRobotObject::Manipulator::Ptr manip) {
         ManipIKInterpAction a(robot, manip);
         a.setExecTime(1);
-        savedTrans.setOrigin(cloth->softBody->m_nodes[cloth->softBody->m_nodes.size()-10].m_x);
+//        savedTrans.setOrigin(cloth->softBody->m_nodes[cloth->softBody->m_nodes.size()-10].m_x);
         a.setPR2TipTargetTrans(savedTrans);
         cout << "moving arm to saved trans" << endl;
         runAction(a, BulletConfig::dt);
+        cout << "done." << endl;
+    }
+
+    void doStuff() {
+//        savedTrans.setOrigin(cloth->softBody->m_nodes[cloth->softBody->m_nodes.size()-10].m_x);
+        runAction(Action::Ptr(new GraspClothNodeAction(pr2m->pr2, pr2m->pr2Left, cloth->softBody.get(), cloth->softBody->m_nodes.size()-10, btVector3(1, -1, 0))), BulletConfig::dt);
         cout << "done." << endl;
     }
 
@@ -70,6 +76,7 @@ public:
 
         addVoidKeyCallback('z', boost::bind(&CustomScene::saveManipTrans, this, pr2m->pr2Left));
         addVoidKeyCallback('x', boost::bind(&CustomScene::moveArmToSaved, this, pr2m->pr2, pr2m->pr2Left));
+        addVoidKeyCallback('c', boost::bind(&CustomScene::doStuff, this));
 
         startViewer();
         startFixedTimestepLoop(BulletConfig::dt);

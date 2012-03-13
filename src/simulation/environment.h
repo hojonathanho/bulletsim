@@ -217,7 +217,7 @@ public:
     Action() : isDone(false), timeElapsed(0.), execTime(1.) { }
     Action(float execTime_) : isDone(false), timeElapsed(0.), execTime(execTime_) { }
 
-    bool done() const { return timeElapsed >= execTime || isDone; }
+    virtual bool done() const { return timeElapsed >= execTime || isDone; }
     virtual void step(float dt) = 0;
     virtual void reset() { timeElapsed = 0.; setDone(false); }
     virtual void setExecTime(float t) { execTime = t; }
