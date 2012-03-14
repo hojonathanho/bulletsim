@@ -257,6 +257,10 @@ bool PR2Manager::processKeyInput(const osgGA::GUIEventAdapter &ea) {
             inputState.rotateManip0 = true; break;
         case 'w':
             inputState.rotateManip1 = true; break;
+        case '!':
+            cycleIKSolution(0); break;
+        case '@':
+            cycleIKSolution(1); break;
         }
         break;
     case osgGA::GUIEventAdapter::KEYUP:
@@ -273,6 +277,20 @@ bool PR2Manager::processKeyInput(const osgGA::GUIEventAdapter &ea) {
         break;
     }
     return false;
+}
+
+void PR2Manager::cycleIKSolution(int manipNum) {
+    BOOST_ASSERT(manipNum == 0 || manipNum == 1);
+    RaveRobotObject::Manipulator::Ptr manip =
+        manipNum == 0 ? pr2Left : pr2Right;
+    int &ikSolnNum = manipNum == 0 ? inputState.ikSolnNum0 : inputState.ikSolnNum1;
+
+    vector<vector<dReal> > solns;
+    if (!manip->solveAllIK(manip->getTransform(), solns)) return;
+    if (ikSolnNum >= solns.size()) ikSolnNum = 0;
+    cout << "arm " << manipNum << ": setting ik solution number " << ikSolnNum << endl;
+    pr2->setDOFValues(manip->manip->GetArmIndices(), solns[ikSolnNum]);
+    ++ikSolnNum;
 }
 
 bool PR2Manager::processMouseInput(const osgGA::GUIEventAdapter &ea) {

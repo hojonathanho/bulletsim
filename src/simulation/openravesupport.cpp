@@ -271,11 +271,11 @@ void RaveRobotKinematicObject::Manipulator::updateGrabberPos() {
         grabber->motionState->setKinematicPos(getTransform());
 }
 
-bool RaveRobotKinematicObject::Manipulator::moveByIKUnscaled(
+bool RaveRobotKinematicObject::Manipulator::solveIKUnscaled(
         const OpenRAVE::Transform &targetTrans,
-        bool checkCollisions, bool revertOnCollision) {
+        vector<dReal> &vsolution) {
 
-    vector<dReal> vsolution;
+    vsolution.clear();
     // TODO: lock environment?!?!
     // notice: we use origManip, which is the original manipulator (after cloning)
     // this way we don't have to clone the iksolver, which is attached to the manipulator
@@ -285,6 +285,31 @@ bool RaveRobotKinematicObject::Manipulator::moveByIKUnscaled(
         RAVELOG_DEBUG(ss.str());
         return false;
     }
+    return true;
+}
+
+bool RaveRobotKinematicObject::Manipulator::solveAllIKUnscaled(
+        const OpenRAVE::Transform &targetTrans,
+        vector<vector<dReal> > &vsolutions) {
+
+    vsolutions.clear();
+    // see comments for solveIKUnscaled
+    if (!origManip->FindIKSolutions(IkParameterization(targetTrans), vsolutions, true)) {
+        stringstream ss;
+        ss << "failed to get solutions for target transform for end effector: " << targetTrans << endl;
+        RAVELOG_DEBUG(ss.str());
+        return false;
+    }
+    return true;
+}
+
+bool RaveRobotKinematicObject::Manipulator::moveByIKUnscaled(
+        const OpenRAVE::Transform &targetTrans,
+        bool checkCollisions, bool revertOnCollision) {
+
+    vector<dReal> vsolution;
+    if (!solveIKUnscaled(targetTrans, vsolution))
+        return false;
 
     // save old manip pose if we might want to revert
     vector<dReal> oldVals(0);

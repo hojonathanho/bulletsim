@@ -114,9 +114,11 @@ btBulletFile::~btBulletFile()
 // ----------------------------------------------------- //
 void btBulletFile::parseData()
 {
+#if 0
 	printf ("Building datablocks");
 	printf ("Chunk size = %d",CHUNK_HEADER_LEN);
 	printf ("File chunk size = %d",ChunkUtils::getOffset(mFlags));
+#endif
 
 	const bool brokenDNA = (mFlags&FD_BROKEN_DNA)!=0;
 

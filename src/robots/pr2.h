@@ -66,6 +66,8 @@ public:
 
     PR2SoftBodyGripper(RaveRobotKinematicObject::Ptr robot_, OpenRAVE::RobotBase::ManipulatorPtr manip_, bool leftGripper);
 
+    void setGrabOnlyOnContact(bool b) { grabOnlyOnContact = b; }
+
     // Must be called before the action is run!
     void setTarget(btSoftBody *psb_) { psb = psb_; }
 
@@ -85,18 +87,22 @@ private:
              rotateManip0, rotateManip1,
              startDragging;
         float dx, dy, lastX, lastY;
+        int ikSolnNum0, ikSolnNum1;
     } inputState;
 
     void loadRobot();
     void initIK();
 
 public:
+    typedef boost::shared_ptr<PR2Manager> Ptr;
+
     RaveRobotKinematicObject::Ptr pr2;
     RaveRobotKinematicObject::Manipulator::Ptr pr2Left, pr2Right;
 
     PR2Manager(Scene &);
     void registerSceneCallbacks();
 
+    void cycleIKSolution(int manipNum); // manipNum == 0 for left, 1 for right
     void processHapticInput();
     bool processKeyInput(const osgGA::GUIEventAdapter &ea);
     bool processMouseInput(const osgGA::GUIEventAdapter &ea);
