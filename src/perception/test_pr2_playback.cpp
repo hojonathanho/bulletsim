@@ -12,7 +12,7 @@
 #include "utils_perception.h"
 #include "utils/vector_io.h"
 #include "simulation/bullet_io.h"
-#include "openrave_joints.h"
+#include "robots/ros2rave.h"
 #include "robot_geometry.h"
 #include "clouds/correction.h"
 #include "robots/pr2.h"

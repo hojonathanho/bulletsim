@@ -17,7 +17,7 @@
 #include "optimization_forces.h"
 #include "visibility.h"
 #include "apply_impulses.h"
-#include "openrave_joints.h"
+#include "robots/ros2rave.h"
 #include "robot_geometry.h"
 #include "simulation/recording.h"
 #include <pcl/common/transforms.h>

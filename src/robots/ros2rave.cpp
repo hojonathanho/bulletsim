@@ -1,4 +1,4 @@
-#include "openrave_joints.h"
+#include "robots/ros2rave.h"
 // rosnames = np.load("/home/joschu/Data/knot_kinect2/joint_names.npy") 
 // (obtained from a joint_states message)
 // ros2rave = [pr2.GetJointIndex(name) for name in rosnames]

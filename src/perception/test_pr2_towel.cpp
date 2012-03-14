@@ -10,7 +10,7 @@
 #include "optimization_forces.h"
 #include "visibility.h"
 #include "robot_geometry.h"
-#include "openrave_joints.h"
+#include "robots/ros2rave.h"
 
 #include "utils_perception.h"
 #include "utils/vector_io.h"
