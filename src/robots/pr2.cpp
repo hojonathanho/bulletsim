@@ -165,8 +165,7 @@ void PR2SoftBodyGripper::grab() {
 PR2Manager::PR2Manager(Scene &s) : scene(s), inputState() {
     loadRobot();
     initIK();
-    if (SceneConfig::enableHaptics)
-        connectionInit(); // socket connection for haptics
+    initHaptics();
     registerSceneCallbacks();
 }
 
@@ -178,6 +177,9 @@ void PR2Manager::registerSceneCallbacks() {
     Scene::Callback keycb = boost::bind(&PR2Manager::processKeyInput, this, _1);
     scene.addCallback(osgGA::GUIEventAdapter::KEYDOWN, keycb);
     scene.addCallback(osgGA::GUIEventAdapter::KEYUP, keycb);
+
+    if (SceneConfig::enableRobot && SceneConfig::enableHaptics)
+        scene.addPreStepCallback(boost::bind(&PR2Manager::processHapticInput, this));
 }
 
 void PR2Manager::loadRobot() {
@@ -201,19 +203,64 @@ void PR2Manager::initIK() {
         scene.env->add(pr2Left->grabber);
         scene.env->add(pr2Right->grabber);
     }
+    leftInitTrans = pr2Left->getTransform();
+    rightInitTrans = pr2Right->getTransform();
+}
+
+void PR2Manager::initHaptics() {
+    if (!SceneConfig::enableHaptics) return;
+
+    connectionInit(); // socket connection for haptics
+
+    hapTrackerLeft.reset(new SphereObject(0, 1, btTransform::getIdentity(), true));
+    hapTrackerLeft->rigidBody->setCollisionFlags(
+            hapTrackerLeft->rigidBody->getCollisionFlags()
+            | btRigidBody::CF_NO_CONTACT_RESPONSE);
+    hapTrackerLeft->setColor(1, 0, 0, 0.5);
+    scene.env->add(hapTrackerLeft);
+
+    hapTrackerRight.reset(new SphereObject(0, 1, btTransform::getIdentity(), true));
+    hapTrackerRight->rigidBody->setCollisionFlags(
+            hapTrackerRight->rigidBody->getCollisionFlags()
+            | btRigidBody::CF_NO_CONTACT_RESPONSE);
+    hapTrackerRight->setColor(0, 1, 0, 0.5);
+    scene.env->add(hapTrackerRight);
+
+    setHapticPollRate(10); // default 10 hz
 }
 
 void PR2Manager::processHapticInput() {
     if (!SceneConfig::enableRobot || !SceneConfig::enableHaptics)
         return;
 
+    // throttle
+    float currTime = scene.viewer.getFrameStamp()->getSimulationTime();
+    if (currTime - inputState.lastHapticReadTime < 1./hapticPollRate)
+        return;
+    inputState.lastHapticReadTime = currTime;
+
     // read the haptic controllers
     btTransform trans0, trans1;
     bool buttons0[2], buttons1[2];
     static bool lastButton[2] = { false, false };
-    if (!util::getHapticInput(trans0, buttons0, trans1, buttons1))
+    if (!util::getHapticInput(trans0, buttons0, trans1, buttons1)) {
+        cout << "failed to read haptic input" << endl;
         return;
+    }
 
+    // adjust the transforms
+    static const btVector3 HAPTIC_OFFSET(-0.2, 0, 0);
+    static const btScalar HAPTIC_SCALE = 1. / 200.;
+    trans0.setOrigin(trans0.getOrigin()*HAPTIC_SCALE*METERS + leftInitTrans.getOrigin()
+            + HAPTIC_OFFSET*METERS);
+    trans1.setOrigin(trans1.getOrigin()*HAPTIC_SCALE*METERS + rightInitTrans.getOrigin()
+            + HAPTIC_OFFSET*METERS);
+
+    // set marker positions
+    hapTrackerLeft->motionState->setKinematicPos(trans0);
+    hapTrackerRight->motionState->setKinematicPos(trans1);
+
+    // set manip positions by ik
     pr2Left->moveByIK(trans0, SceneConfig::enableRobotCollision, true);
     if (buttons0[0] && !lastButton[0]) {
         if (SceneConfig::useFakeGrabber)
@@ -229,7 +276,7 @@ void PR2Manager::processHapticInput() {
     }
     lastButton[0] = buttons0[0];
 
-    pr2Right->moveByIK(trans0, SceneConfig::enableRobotCollision, true);
+    pr2Right->moveByIK(trans1, SceneConfig::enableRobotCollision, true);
     if (buttons1[0] && !lastButton[1]) {
         if (SceneConfig::useFakeGrabber)
             pr2Right->grabber->grabNearestObjectAhead();

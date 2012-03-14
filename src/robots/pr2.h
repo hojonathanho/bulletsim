@@ -2,6 +2,7 @@
 #define __PR2_H__
 
 #include "simulation/openravesupport.h"
+#include "simulation/basicobjects.h"
 #include "simulation/simplescene.h"
 
 // Special support for the OpenRAVE PR2 model
@@ -85,10 +86,18 @@ private:
              rotateManip0, rotateManip1,
              startDragging;
         float dx, dy, lastX, lastY;
+
+        float lastHapticReadTime;
     } inputState;
 
     void loadRobot();
     void initIK();
+    void initHaptics();
+
+    float hapticPollRate;
+
+    btTransform leftInitTrans, rightInitTrans;
+    SphereObject::Ptr hapTrackerLeft, hapTrackerRight;
 
 public:
     RaveRobotKinematicObject::Ptr pr2;
@@ -96,6 +105,8 @@ public:
 
     PR2Manager(Scene &);
     void registerSceneCallbacks();
+
+    void setHapticPollRate(float hz) { hapticPollRate = hz; }
 
     void processHapticInput();
     bool processKeyInput(const osgGA::GUIEventAdapter &ea);

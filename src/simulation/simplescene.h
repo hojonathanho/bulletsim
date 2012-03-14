@@ -59,6 +59,9 @@ struct Scene {
         bool operator()() { fn(); return false; }
     };
 
+  vector<VoidCallback> prestepCallbacks;
+  void addPreStepCallback(VoidCallback cb);
+
   Scene();
 
   void showWindow(bool showWindow, bool realtime);

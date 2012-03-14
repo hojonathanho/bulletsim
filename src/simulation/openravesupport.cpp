@@ -283,6 +283,7 @@ bool RaveRobotKinematicObject::Manipulator::moveByIKUnscaled(
         stringstream ss;
         ss << "failed to get solution for target transform for end effector: " << targetTrans << endl;
         RAVELOG_DEBUG(ss.str());
+        cout << ss.str() << endl;
         return false;
     }
 
