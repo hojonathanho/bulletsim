@@ -95,9 +95,15 @@ private:
     void initHaptics();
 
     float hapticPollRate;
-
     btTransform leftInitTrans, rightInitTrans;
     SphereObject::Ptr hapTrackerLeft, hapTrackerRight;
+
+    boost::function<void()> lopencb, lclosecb, ropencb, rclosecb;
+
+    void actionWrapper(Action::Ptr a, float dt) {
+        a->reset();
+        scene.runAction(a, dt);
+    }
 
 public:
     RaveRobotKinematicObject::Ptr pr2;
@@ -107,6 +113,16 @@ public:
     void registerSceneCallbacks();
 
     void setHapticPollRate(float hz) { hapticPollRate = hz; }
+
+    void setLGripperOpenCb(boost::function<void()> cb) { lopencb = cb; }
+    void setLGripperCloseCb(boost::function<void()> cb) { lclosecb = cb; }
+    void setRGripperOpenCb(boost::function<void()> cb) { ropencb = cb; }
+    void setRGripperCloseCb(boost::function<void()> cb) { rclosecb = cb; }
+    // convenience methods for calling actions as callbacks
+    void setLGripperOpenCb(Action::Ptr a, float dt) { setLGripperOpenCb(boost::bind(&PR2Manager::actionWrapper, this, a, dt)); }
+    void setLGripperCloseCb(Action::Ptr a, float dt) { setLGripperCloseCb(boost::bind(&PR2Manager::actionWrapper, this, a, dt)); }
+    void setRGripperOpenCb(Action::Ptr a, float dt) { setRGripperOpenCb(boost::bind(&PR2Manager::actionWrapper, this, a, dt)); }
+    void setRGripperCloseCb(Action::Ptr a, float dt) { setRGripperCloseCb(boost::bind(&PR2Manager::actionWrapper, this, a, dt)); }
 
     void processHapticInput();
     bool processKeyInput(const osgGA::GUIEventAdapter &ea);

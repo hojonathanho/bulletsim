@@ -212,14 +212,14 @@ void PR2Manager::initHaptics() {
 
     connectionInit(); // socket connection for haptics
 
-    hapTrackerLeft.reset(new SphereObject(0, 1, btTransform::getIdentity(), true));
+    hapTrackerLeft.reset(new SphereObject(0, 0.05*METERS, btTransform::getIdentity(), true));
     hapTrackerLeft->rigidBody->setCollisionFlags(
             hapTrackerLeft->rigidBody->getCollisionFlags()
             | btRigidBody::CF_NO_CONTACT_RESPONSE);
     hapTrackerLeft->setColor(1, 0, 0, 0.5);
     scene.env->add(hapTrackerLeft);
 
-    hapTrackerRight.reset(new SphereObject(0, 1, btTransform::getIdentity(), true));
+    hapTrackerRight.reset(new SphereObject(0, 0.05*METERS, btTransform::getIdentity(), true));
     hapTrackerRight->rigidBody->setCollisionFlags(
             hapTrackerRight->rigidBody->getCollisionFlags()
             | btRigidBody::CF_NO_CONTACT_RESPONSE);
@@ -265,14 +265,14 @@ void PR2Manager::processHapticInput() {
     if (buttons0[0] && !lastButton[0]) {
         if (SceneConfig::useFakeGrabber)
             pr2Left->grabber->grabNearestObjectAhead();
-        else
-            cout << "not implemented" << endl;
+        else if (lclosecb)
+            lclosecb();
     }
     else if (!buttons0[0] && lastButton[0]) {
         if (SceneConfig::useFakeGrabber)
             pr2Left->grabber->releaseConstraint();
-        else
-            cout << "not implemented" << endl;
+        else if (lopencb)
+            lopencb();
     }
     lastButton[0] = buttons0[0];
 
@@ -280,14 +280,14 @@ void PR2Manager::processHapticInput() {
     if (buttons1[0] && !lastButton[1]) {
         if (SceneConfig::useFakeGrabber)
             pr2Right->grabber->grabNearestObjectAhead();
-        else
-            cout << "not implemented" << endl;
+        else if (rclosecb)
+            rclosecb();
     }
     else if (!buttons1[0] && lastButton[1]) {
         if (SceneConfig::useFakeGrabber)
             pr2Right->grabber->releaseConstraint();
-        else
-            cout << "not implemented" << endl;
+        else if (ropencb)
+            ropencb();
     }
     lastButton[1] = buttons1[0];
 }
