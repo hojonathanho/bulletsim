@@ -292,7 +292,7 @@ public:
 static const btQuaternion PR2_GRIPPER_INIT_ROT(0., 0.7071, 0., 0.7071);
 static const btQuaternion GRIPPER_TO_VERTICAL_ROT(btVector3(1, 0, 0), M_PI/2);
 static const btVector3 PR2_GRIPPER_INIT_ROT_DIR(1, 0, 0);
-static const btScalar MOVE_BEHIND_DIST = 0.00;
+static const btScalar MOVE_BEHIND_DIST = 0.02;
 static const btVector3 OFFSET(0, 0, 0.05); // don't sink through table
 static const btScalar ANGLE_DOWN_HEIGHT = 0.05;
 static const btScalar LOWER_INTO_TABLE = -0.02;
@@ -329,14 +329,21 @@ public:
             ManipIKInterpAction *positionGrasp = new ManipIKInterpAction(robot, manip);
             btVector3 v(cloth->m_nodes[node].m_x);
             // move the gripper a few cm behind node, angled slightly down
-            dir.setZ(ANGLE_DOWN_HEIGHT * METERS);
-            dir.normalize();
-            positionGrasp->setPR2TipTargetTrans(transFromDir(dir, v - dir*MOVE_BEHIND_DIST*METERS + OFFSET*METERS));
+            btVector3 dir2 = btVector3(dir.x(), dir.y(), ANGLE_DOWN_HEIGHT * METERS).normalize();
+            positionGrasp->setPR2TipTargetTrans(transFromDir(dir2, v - dir2*MOVE_BEHIND_DIST*METERS + OFFSET*METERS));
 
             ManipIKInterpAction *lowerIntoTable = new ManipIKInterpAction(robot, manip);
             lowerIntoTable->setRelativeTrans(btTransform(btQuaternion(0,0,0,1), btVector3(0, 0, LOWER_INTO_TABLE*METERS)));
 
-            *this << openGripper << positionGrasp << lowerIntoTable << closeGripper;
+            ManipIKInterpAction *moveForward = new ManipIKInterpAction(robot, manip);
+            moveForward->setRelativeTrans(btTransform(btQuaternion(0, 0, 0, 1),
+                       -dir * MOVE_BEHIND_DIST*2 * METERS));
+
+            PR2SoftBodyGripper sbgripper(robot, manip->manip, true); // TODO: leftGripper flag
+            sbgripper.setGrabOnlyOnContact(true);
+            sbgripper.setTarget(cloth);
+            FunctionAction *setAnchors = new FunctionAction(boost::bind(&PR2SoftBodyGripper::grab, sbgripper));
+            *this << openGripper << positionGrasp << lowerIntoTable << moveForward << closeGripper << setAnchors;
         }
     }
 };

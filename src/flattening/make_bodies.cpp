@@ -60,7 +60,8 @@ BulletSoftObject::Ptr makeSelfCollidingTowel(const btVector3& center, btScalar l
     psb->m_cfg.kSSHR_CL = 1.0; // so the cloth doesn't penetrate itself
     psb->m_cfg.kSRHR_CL = 1.0;
     psb->m_cfg.kSKHR_CL = 1.0;
-    psb->m_cfg.kDP = 0.005;
+    psb->m_cfg.kDP = 0.01;
+//    psb->m_cfg.kDP = 1;
 
     psb->getCollisionShape()->setMargin(0.05);
 
