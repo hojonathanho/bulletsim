@@ -20,7 +20,7 @@ public:
 class Monitor {
 protected:
     bool m_wasClosed;
-    OpenRAVE::RobotBase::ManipulatorPtr m_manip;
+  RaveRobotObject::Manipulator::Ptr m_manip;
 
     //static const float PR2_CLOSED_VAL = 0.03f, PR2_OPEN_VAL = 0.54f;
     static const float PR2_CLOSED_VAL = 0.1f, PR2_OPEN_VAL = 0.54f;
@@ -29,7 +29,7 @@ protected:
 
 public:
     Monitor(); // must call setManip if using this constructor
-    Monitor(OpenRAVE::RobotBase::ManipulatorPtr);
+  Monitor(RaveRobotObject::Manipulator::Ptr);
 
     void setClosedThreshold(float t) { closedThreshold = t; }
 
@@ -38,7 +38,7 @@ public:
     virtual void release() = 0;
     virtual void updateGrabPos() = 0;
 
-    void setManip(OpenRAVE::RobotBase::ManipulatorPtr);
+  void setManip(RaveRobotObject::Manipulator::Ptr);
 };
 
 class MonitorForGrabbing : public Monitor {
@@ -47,7 +47,7 @@ public:
   btDynamicsWorld* m_world;
   Grab* m_grab;
 
-  MonitorForGrabbing(OpenRAVE::RobotBase::ManipulatorPtr, btDynamicsWorld*);
+  MonitorForGrabbing(RaveRobotObject::Manipulator::Ptr, btDynamicsWorld*);
   void setBodies(std::vector<BulletObject::Ptr>& bodies);
   void grab();
   void release();
@@ -59,11 +59,7 @@ class SoftMonitorForGrabbing : public Monitor {
 public:
     PR2SoftBodyGripper::Ptr gripper;
 
-    SoftMonitorForGrabbing(RaveRobotKinematicObject::Ptr robot, OpenRAVE::RobotBase::ManipulatorPtr manip, bool leftGripper) :
-        Monitor(manip),
-        gripper(new PR2SoftBodyGripper(robot, manip, leftGripper)) { }
-    SoftMonitorForGrabbing(RaveRobotKinematicObject::Ptr robot, bool leftGripper);
-
+  SoftMonitorForGrabbing(RaveRobotKinematicObject::Ptr robot, OpenRAVE::RobotBase::ManipulatorPtr manip, bool leftGripper);
     void setTarget(btSoftBody *psb) { gripper->setTarget(psb); }
     void grab() { gripper->grab(); }
     void release() { gripper->releaseAllAnchors(); }

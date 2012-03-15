@@ -102,6 +102,7 @@ public:
     // Positions the robot according to DOF values in the OpenRAVE model
     // and copy link positions to the Bullet rigid bodies.
     void setDOFValues(const vector<int> &indices, const vector<dReal> &vals);
+    vector<double> getDOFValues(const vector<int> &indices);
 
     // IK support
     struct Manipulator {
@@ -155,6 +156,9 @@ public:
             return moveByIKUnscaled(util::toRaveTransform(targetTrans, 1./robot->scale),
                 checkCollisions, revertOnCollision);
         }
+
+        float getGripperAngle();
+        void setGripperAngle(float);
 
         Manipulator::Ptr copy(RaveRobotKinematicObject::Ptr newRobot, Fork &f);
     };

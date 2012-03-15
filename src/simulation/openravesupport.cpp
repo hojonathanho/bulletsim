@@ -130,7 +130,7 @@ void RaveRobotKinematicObject::initRobotWithoutDynamics(const btTransform &initi
             }
 
             if (!subshape) {
-                RAVELOG_WARN("did not create geom type %d\n", geom->GetType());
+	      cout << "did not create geom type %d\n", geom->GetType();
                 continue;
             }
 
@@ -193,6 +193,13 @@ void RaveRobotKinematicObject::setDOFValues(const vector<int> &indices, const ve
     }
 }
 
+vector<double> RaveRobotKinematicObject::getDOFValues(const vector<int>& indices) {
+  robot->SetActiveDOFs(indices);
+  vector<double> out;
+  robot->GetActiveDOFValues(out);
+  return out;
+}
+
 EnvironmentObject::Ptr RaveRobotKinematicObject::copy(Fork &f) const {
     Ptr o(new RaveRobotKinematicObject(scale));
 
@@ -249,7 +256,7 @@ RaveRobotKinematicObject::createManipulator(const std::string &manipName, bool u
     stringstream ssin, ssout;
     ssin << "LoadIKFastSolver " << robot->GetName() << " " << (int)IkParameterization::Type_Transform6D;
     if (!m->ikmodule->SendCommand(ssout, ssin)) {
-        RAVELOG_ERROR("failed to load iksolver\n");
+      cout << "failed to load iksolver\n";
         return Manipulator::Ptr(); // null
     }
 
@@ -281,8 +288,7 @@ bool RaveRobotKinematicObject::Manipulator::solveIKUnscaled(
     // this way we don't have to clone the iksolver, which is attached to the manipulator
     if (!origManip->FindIKSolution(IkParameterization(targetTrans), vsolution, true)) {
         stringstream ss;
-        ss << "failed to get solution for target transform for end effector: " << targetTrans << endl;
-        RAVELOG_DEBUG(ss.str());
+        cout << "failed to get solution for target transform for end effector: " << targetTrans << endl;
         return false;
     }
     return true;
@@ -295,9 +301,7 @@ bool RaveRobotKinematicObject::Manipulator::solveAllIKUnscaled(
     vsolutions.clear();
     // see comments for solveIKUnscaled
     if (!origManip->FindIKSolutions(IkParameterization(targetTrans), vsolutions, true)) {
-        stringstream ss;
-        ss << "failed to get solutions for target transform for end effector: " << targetTrans << endl;
-        RAVELOG_DEBUG(ss.str());
+	std::cout << "failed to get solutions for target transform for end effector: " << targetTrans << endl;
         return false;
     }
     return true;
@@ -331,6 +335,25 @@ bool RaveRobotKinematicObject::Manipulator::moveByIKUnscaled(
 
     return true;
 }
+
+
+
+float RaveRobotKinematicObject::Manipulator::getGripperAngle() {
+  vector<int> inds = manip->GetGripperIndices();
+  assert(inds.size() ==1 );
+  vector<double> vals = robot->getDOFValues(inds);
+  return vals[0];
+}
+
+void RaveRobotKinematicObject::Manipulator::setGripperAngle(float x) {
+  vector<int> inds = manip->GetGripperIndices();
+  assert(inds.size() ==1 );
+  vector<double> vals;
+  vals.push_back(x);
+  robot->setDOFValues(inds, vals);
+}
+
+
 
 RaveRobotKinematicObject::Manipulator::Ptr
 RaveRobotKinematicObject::Manipulator::copy(RaveRobotKinematicObject::Ptr newRobot, Fork &f) {

@@ -39,8 +39,9 @@ target_link_libraries(test_kinect_rope clouds comm simulation comm clouds percep
 add_executable(test_pr2_knot test_pr2_knot.cpp)
 target_link_libraries(test_pr2_knot clouds comm simulation comm clouds perception robots)
 
-add_executable(test_pr2_towel test_pr2_towel.cpp)
-target_link_libraries(test_pr2_towel clouds comm simulation perception robots ${PCL_LIBRARIES})
+# add_executable(test_pr2_towel test_pr2_towel.cpp)
+# target_link_libraries(test_pr2_towel clouds comm simulation perception robots ${PCL_LIBRARIES})
+# commented for Monitor refactoring
 
 add_executable(test_tetgen test_tetgen.cpp ${TETGEN_DIR}/tetgen.h)
 target_link_libraries(test_tetgen tetgen)

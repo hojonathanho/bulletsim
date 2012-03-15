@@ -27,14 +27,8 @@ Grab::~Grab() {
 }
 
 
-static bool isClosed(RobotBase::ManipulatorPtr manip, float closedThreshold) {
-  vector<int> gripperInds = manip->GetGripperIndices();
-  manip->GetRobot()->SetActiveDOFs(gripperInds);
-  vector<double> dof_values;
-  manip->GetRobot()->GetActiveDOFValues(dof_values);
-  bool out  =dof_values[0] < closedThreshold;
-  cout << "isclosed: " << out << endl;
-  return out;
+static bool isClosed(RaveRobotKinematicObject::Manipulator::Ptr manip, float closedThreshold) {
+  return manip->getGripperAngle() < closedThreshold;
 }
 
 static BulletObject::Ptr getNearestBody(vector<BulletObject::Ptr> bodies, btVector3 pos) {
@@ -45,9 +39,9 @@ static BulletObject::Ptr getNearestBody(vector<BulletObject::Ptr> bodies, btVect
   return bodies[argmin];
 }
 
-Monitor::Monitor() : closedThreshold(PR2_CLOSED_VAL) { cout << "blah" << endl;}
+Monitor::Monitor() : closedThreshold(PR2_CLOSED_VAL) {}
 
-Monitor::Monitor(OpenRAVE::RobotBase::ManipulatorPtr manip) :
+Monitor::Monitor(RaveRobotKinematicObject::Manipulator::Ptr manip) :
     m_manip(manip),
     closedThreshold(PR2_CLOSED_VAL),
     m_wasClosed(isClosed(manip, PR2_CLOSED_VAL))
@@ -63,12 +57,12 @@ void Monitor::update() {
   m_wasClosed = nowClosed;
 }
 
-void Monitor::setManip(OpenRAVE::RobotBase::ManipulatorPtr m) {
+void Monitor::setManip(RaveRobotObject::Manipulator::Ptr m) {
     m_manip = m;
     m_wasClosed = isClosed(m_manip, closedThreshold);
 }
 
-MonitorForGrabbing::MonitorForGrabbing(OpenRAVE::RobotBase::ManipulatorPtr manip, btDynamicsWorld *dynamicsWorld) :
+MonitorForGrabbing::MonitorForGrabbing(RaveRobotObject::Manipulator::Ptr manip, btDynamicsWorld *dynamicsWorld) :
   Monitor(manip),
   m_world(dynamicsWorld),
   m_bodies(),
@@ -82,7 +76,7 @@ void MonitorForGrabbing::setBodies(vector<BulletObject::Ptr>& bodies) {m_bodies 
 void MonitorForGrabbing::grab() {
   // grabs nearest object
   cout << "grabbing nearest object" << endl;
-  btVector3 curPos = util::toBtVector(m_manip->GetTransform().trans)*METERS;
+  btVector3 curPos = m_manip->getTransform().getOrigin();
   cout << "curPos: " << curPos.x() << " " << curPos.y() << " " << curPos.z() << endl;
   BulletObject::Ptr nearestObj = getNearestBody(m_bodies, curPos);
   m_grab = new Grab(nearestObj->rigidBody.get(), curPos, m_world);
@@ -97,11 +91,5 @@ void MonitorForGrabbing::release() {
 void MonitorForGrabbing::updateGrabPos() {
     if (!m_grab) return;
     cout << "updating constraint position" << endl;
-    m_grab->updatePosition(util::toBtVector(m_manip->GetTransform().trans)*METERS);
-}
-
-SoftMonitorForGrabbing::SoftMonitorForGrabbing(RaveRobotKinematicObject::Ptr robot, bool leftGripper) {
-    robot->robot->SetActiveManipulator(leftGripper ? "leftarm" : "rightarm");
-    gripper.reset(new PR2SoftBodyGripper(robot, robot->robot->GetActiveManipulator(), leftGripper));
-    setManip(robot->robot->GetActiveManipulator());
+    m_grab->updatePosition(m_manip->getTransform().getOrigin());
 }
