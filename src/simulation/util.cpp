@@ -4,24 +4,20 @@
 
 namespace util {
 
-  osg::ref_ptr<osg::Vec3Array> toVec3Array(const std::vector<btVector3>& in) {
+osg::ref_ptr<osg::Vec3Array> toVec3Array(const std::vector<btVector3>& in) {
     osg::ref_ptr<osg::Vec3Array> out = new osg::Vec3Array();
     out->reserve(in.size());
     BOOST_FOREACH(const btVector3& pt, in) out->push_back(osg::Vec3(pt.x(),pt.y(),pt.z()));
     return out;
-  }
+}
 
-  osg::ref_ptr<osg::Vec4Array> toVec4Array(const std::vector<btVector4>& in) {
+osg::ref_ptr<osg::Vec4Array> toVec4Array(const std::vector<btVector4>& in) {
     osg::ref_ptr<osg::Vec4Array> out = new osg::Vec4Array();
     out->reserve(in.size());
     BOOST_FOREACH(const btVector3& pt, in) out->push_back(osg::Vec4(pt.x(),pt.y(),pt.z(),pt.w()));
     return out;
-  }
+}
 
-
-static const btScalar HAPTIC_TRANS_SCALE = 1./40.;
-static const btVector3 HAPTIC_OFFSET0(0., -2., 1.);
-static const btVector3 HAPTIC_OFFSET1(0., 2., 1.);
 static const btMatrix3x3 HAPTIC_ROTATION(btQuaternion(-M_PI/2., 0., 0.));
 static inline btMatrix3x3 toHapticBtMatrix(const Matrix3d &m) {
     // note: the rows are permuted
@@ -40,9 +36,9 @@ bool getHapticInput(btTransform &trans0, bool buttons0[2], btTransform &trans1, 
                         end_proxy_pos, end_proxy_rot, buttons1))
         return false;
     trans0 = btTransform(toHapticBtMatrix(start_proxy_rot) * HAPTIC_ROTATION,
-                         HAPTIC_TRANS_SCALE*toHapticBtVector(start_proxy_pos) + HAPTIC_OFFSET0);
+                         toHapticBtVector(start_proxy_pos));
     trans1 = btTransform(toHapticBtMatrix(end_proxy_rot) * HAPTIC_ROTATION,
-                         HAPTIC_TRANS_SCALE*toHapticBtVector(end_proxy_pos) + HAPTIC_OFFSET1);
+                         toHapticBtVector(end_proxy_pos));
     return true;
 }
 

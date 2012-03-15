@@ -2,6 +2,7 @@
 #define __PR2_H__
 
 #include "simulation/openravesupport.h"
+#include "simulation/basicobjects.h"
 #include "simulation/simplescene.h"
 
 // Special support for the OpenRAVE PR2 model
@@ -88,10 +89,24 @@ private:
              startDragging;
         float dx, dy, lastX, lastY;
         int ikSolnNum0, ikSolnNum1;
+
+        float lastHapticReadTime;
     } inputState;
 
     void loadRobot();
     void initIK();
+    void initHaptics();
+
+    float hapticPollRate;
+    btTransform leftInitTrans, rightInitTrans;
+    SphereObject::Ptr hapTrackerLeft, hapTrackerRight;
+
+    boost::function<void()> lopencb, lclosecb, ropencb, rclosecb;
+
+    void actionWrapper(Action::Ptr a, float dt) {
+        a->reset();
+        scene.runAction(a, dt);
+    }
 
 public:
     typedef boost::shared_ptr<PR2Manager> Ptr;
@@ -103,6 +118,19 @@ public:
     void registerSceneCallbacks();
 
     void cycleIKSolution(int manipNum); // manipNum == 0 for left, 1 for right
+
+    void setHapticPollRate(float hz) { hapticPollRate = hz; }
+
+    void setLGripperOpenCb(boost::function<void()> cb) { lopencb = cb; }
+    void setLGripperCloseCb(boost::function<void()> cb) { lclosecb = cb; }
+    void setRGripperOpenCb(boost::function<void()> cb) { ropencb = cb; }
+    void setRGripperCloseCb(boost::function<void()> cb) { rclosecb = cb; }
+    // convenience methods for calling actions as callbacks
+    void setLGripperOpenCb(Action::Ptr a, float dt) { setLGripperOpenCb(boost::bind(&PR2Manager::actionWrapper, this, a, dt)); }
+    void setLGripperCloseCb(Action::Ptr a, float dt) { setLGripperCloseCb(boost::bind(&PR2Manager::actionWrapper, this, a, dt)); }
+    void setRGripperOpenCb(Action::Ptr a, float dt) { setRGripperOpenCb(boost::bind(&PR2Manager::actionWrapper, this, a, dt)); }
+    void setRGripperCloseCb(Action::Ptr a, float dt) { setRGripperCloseCb(boost::bind(&PR2Manager::actionWrapper, this, a, dt)); }
+
     void processHapticInput();
     bool processKeyInput(const osgGA::GUIEventAdapter &ea);
     bool processMouseInput(const osgGA::GUIEventAdapter &ea);

@@ -287,7 +287,6 @@ bool RaveRobotKinematicObject::Manipulator::solveIKUnscaled(
     // notice: we use origManip, which is the original manipulator (after cloning)
     // this way we don't have to clone the iksolver, which is attached to the manipulator
     if (!origManip->FindIKSolution(IkParameterization(targetTrans), vsolution, true)) {
-        stringstream ss;
         cout << "failed to get solution for target transform for end effector: " << targetTrans << endl;
         return false;
     }
@@ -301,7 +300,7 @@ bool RaveRobotKinematicObject::Manipulator::solveAllIKUnscaled(
     vsolutions.clear();
     // see comments for solveIKUnscaled
     if (!origManip->FindIKSolutions(IkParameterization(targetTrans), vsolutions, true)) {
-	std::cout << "failed to get solutions for target transform for end effector: " << targetTrans << endl;
+	      std::cout << "failed to get solutions for target transform for end effector: " << targetTrans << endl;
         return false;
     }
     return true;
