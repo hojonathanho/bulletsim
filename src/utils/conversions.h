@@ -5,11 +5,17 @@
 #include <btBulletDynamicsCommon.h>
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
+#include <osg/Geometry>
+
 
 inline btVector3 toBulletVector(const std::vector<float>& vec) {return btVector3(vec[0],vec[1],vec[2]);}
 inline btVector3 toBulletVector(const Eigen::Vector3f& vec) {return btVector3(vec[0],vec[1],vec[2]);}
+inline btVector3 toBulletVector(const osg::Vec3d &v) { return btVector3(v.x(), v.y(), v.z()); }
+
 inline Eigen::Vector3f toEigenVector(const std::vector<float>& vec) {return Eigen::Vector3f(vec[0],vec[1],vec[2]);}
 inline Eigen::Vector3f toEigenVector(const btVector3& vec) {return Eigen::Vector3f(vec.x(),vec.y(),vec.z());}
+
+inline osg::Vec3f toOSGVector(const btVector3 &v) { return osg::Vec3f(v.x(), v.y(), v.z()); }
 
 inline std::vector<btVector3> toBulletVectors(const std::vector< std::vector<float> >& in) {
   std::vector<btVector3> out(in.size());

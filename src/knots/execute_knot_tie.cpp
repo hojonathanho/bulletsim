@@ -1,38 +1,75 @@
 #include "simulation/simplescene.h"
 #include "robots/grabbing.h"
+#include <fstream>
+#include <iostream>
+#include "simulation/bullet_io.h"
+#include "utils/vector_io.h"
+#include "utils/conversions.h"
+#include "simulation/config_bullet.h"
+#include "simulation/rope.h"
+#include "knots/grabbing_scene.h"
+#include "perception/robot_geometry.h"
+#include "perception/utils_perception.h"
+#include "perception/make_bodies.h"
+#include "robots/ros2rave.h"
 
-class GrabbingScene : public Scene {
-  MonitorForGrabbing m_lMonitor;
-  MonitorForGrabbing m_rMonitor;
+using namespace std;
+using boost::shared_ptr;
 
-  GrabbingScene() :
-    m_lMonitor(pr2m.pr2->robot->GetManipulators()[5], scene.env->bullet->dynamicsWorld),
-    m_rMonitor(pr2m.pr2->robot->GetManipulators()[7], scene.env->bullet->dynamicsWorld)
-  {}
 
-  void step(float dt, int maxsteps, float internaldt) {
-    m_lMonitor.update();
-    m_rMonitor.update();
-    Scene::step(dt, maxsteps, internaldt);
-  }
-
-  void setGrabBodies(vector<BulletObject::Ptr> bodies) {
-    m_lMonitor.setBodies(bodies);
-    m_rMonitor.seBodies(bodies);
-  }
-
-};
+#define KNOT_DATA EXPAND(BULLETSIM_DATA_DIR) "/knots"
 
 int main(int argc, char* argv[]) {
   GrabbingScene scene;
-  PR2Manager pr2m(scene);
 
+  vector<double> firstJoints = doubleVecFromFile(KNOT_DATA "/init_joints_train.txt");
+  ValuesInds vi = getValuesInds(firstJoints);
+  scene.pr2m->pr2->setDOFValues(vi.second, vi.first);
+
+  KinectTrans kinectTrans(scene.pr2m->pr2->robot);
+  kinectTrans.calibrate(btTransform(btQuaternion(0.669785, -0.668418, 0.222562, -0.234671), btVector3(0.263565, -0.038203, 1.762524)));
+  CoordinateTransformer CT(kinectTrans.getKinectTrans());
+  vector<btVector3> tableCornersCam = toBulletVectors(floatMatFromFile(KNOT_DATA "/table_corners_train.txt"));
+  vector<btVector3> tableCornersWorld = CT.toWorldFromCamN(tableCornersCam);
+  BulletObject::Ptr table = makeTable(tableCornersWorld, .1*GeneralConfig::scale);
+  vector<btVector3> ropePtsCam = toBulletVectors(floatMatFromFile(KNOT_DATA "/init_rope_test.txt"));
+  CapsuleRope::Ptr rope(new CapsuleRope(CT.toWorldFromCamN(ropePtsCam), .0075*METERS));
+  scene.env->add(rope);
+  scene.env->add(table);
   scene.setGrabBodies(rope->children);
 
-  while (true) {
+  ifstream poseFile(KNOT_DATA "/poses_warped.txt");
 
+  scene.startViewer();
+  scene.setSyncTime(true);
+  scene.idle(true);
+
+  PlotAxes::Ptr axesLeft(new PlotAxes());
+  PlotAxes::Ptr axesRight(new PlotAxes());
+
+  scene.env->add(axesLeft);
+  scene.env->add(axesRight);
+
+  while (poseFile.good()) {
+    
+    btTransform leftPose, rightPose;
+    float leftGrip, rightGrip;
+
+    poseFile >> leftPose
+            >> leftGrip
+            >> rightPose
+            >> rightGrip;
+
+    axesLeft->setup(leftPose, .1*METERS);
+    axesRight->setup(rightPose, .1*METERS);
+
+    scene.pr2m->pr2Left->moveByIK(leftPose);
+    scene.pr2m->pr2Right->moveByIK(rightPose);
+    scene.pr2m->pr2Left->setGripperAngle(leftGrip);
+    scene.pr2m->pr2Right->setGripperAngle(rightGrip);
+    
     scene.step(DT);
 
   }
-
+  cout << "done with playback" << endl;
 }

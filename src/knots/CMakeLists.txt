@@ -13,4 +13,6 @@ link_directories(
 )
 
 add_executable(record_knot_tie record_knot_tie.cpp)
-target_link_libraries(record_knot_tie simulation comm clouds robots)
+target_link_libraries(record_knot_tie simulation comm clouds robots perception)
+add_executable(execute_knot_tie execute_knot_tie.cpp)
+target_link_libraries(execute_knot_tie simulation comm clouds robots perception)

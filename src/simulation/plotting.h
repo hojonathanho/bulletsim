@@ -86,7 +86,10 @@ public:
     getEnvironment()->osg->root->addChild(m_ends->m_geode.get());
   }
 
+  PlotAxes() {  m_ends.reset(new PlotSpheres());}
   PlotAxes(osg::Vec3f origin, osg::Vec3f x, osg::Vec3f y, osg::Vec3f z, float size);
+  void setup(osg::Vec3f origin, osg::Vec3f x, osg::Vec3f y, osg::Vec3f z, float size);
+  void setup(btTransform tf, float size);
 
 };
 
