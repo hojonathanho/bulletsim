@@ -1,27 +1,38 @@
-Click on a file, or type the corresponding digit key, to open it.
-Click on Cancel or type `q' to cancel.
+#include "simulation/simplescene.h"
+#include "robots/grabbing.h"
 
-  [1] /home/joschu/bulletsim/src/knot_tying/execute_knot_tie.cpp
-  [2] /home/joschu/bulletsim/src/perception/test_pr2_knot.cpp
-  [3] /home/joschu/bulletsim/src/simulation/bullet_io.cpp
-  [4] /home/joschu/Proj/nb2012.org
-  [5] /etc/apt/sources.list
-  [6] /usr/lib/python2.6/dist-packages/scipy/interpolate/rbf.py
-  [7] /home/joschu/Proj/Raven/collada/ravenII_2arm.xml
-  [8] /home/joschu/Proj/Raven/raven_mods/ravenII_2arm.xml
-  [9] /home/joschu/bulletsim/src/perception/make_bodies.cpp
-  [0] /home/joschu/python/comm/vision_pipeline.py
-  /home/joschu/bulletsim/src/perception/vision.cpp
-  /home/joschu/Src/bullet/Demos/ParticlesOpenCL/Intel/CMakeLists.txt
-  /home/joschu/bulletsim/src/perception/visibility.cpp
-  /home/joschu/bulletsim/src/perception/test_kinect_rope.cpp
-  /home/joschu/Proj/demo_procedure.txt
-  /home/joschu/bulletsim/src/perception/CMakeLists.txt
-  /home/joschu/python/comm/scripts/run_pipeline.py
-  /home/joschu/bulletsim/src/simulation/basicobjects.cpp
-  /home/joschu/python/comm/comm.py
-  /home/joschu/python/comm/scripts/run_pipeline2.py
-  /home/joschu/bulletsim/src/simulation/simplescene.cpp
-  /home/joschu/bulletsim/src/simulation/simplescene.h
+class GrabbingScene : public Scene {
+  MonitorForGrabbing m_lMonitor;
+  MonitorForGrabbing m_rMonitor;
 
-[Cancel]
+  GrabbingScene() :
+    m_lMonitor(pr2m.pr2->robot->GetManipulators()[5], scene.env->bullet->dynamicsWorld),
+    m_rMonitor(pr2m.pr2->robot->GetManipulators()[7], scene.env->bullet->dynamicsWorld)
+  {}
+
+  void step(float dt, int maxsteps, float internaldt) {
+    m_lMonitor.update();
+    m_rMonitor.update();
+    Scene::step(dt, maxsteps, internaldt);
+  }
+
+  void setGrabBodies(vector<BulletObject::Ptr> bodies) {
+    m_lMonitor.setBodies(bodies);
+    m_rMonitor.seBodies(bodies);
+  }
+
+};
+
+int main(int argc, char* argv[]) {
+  GrabbingScene scene;
+  PR2Manager pr2m(scene);
+
+  scene.setGrabBodies(rope->children);
+
+  while (true) {
+
+    scene.step(DT);
+
+  }
+
+}
