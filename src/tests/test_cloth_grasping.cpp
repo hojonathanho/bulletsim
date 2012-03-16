@@ -8,7 +8,7 @@
 
 // I've only tested this on the PR2 model
 class PR2SoftBodyGripperAction : public Action {
-    RaveRobotKinematicObject::Manipulator::Ptr manip;
+    RaveRobotObject::Manipulator::Ptr manip;
     dReal startVal, endVal;
     vector<int> indices;
     vector<dReal> vals;
@@ -176,7 +176,7 @@ class PR2SoftBodyGripperAction : public Action {
 
 public:
     typedef boost::shared_ptr<PR2SoftBodyGripperAction> Ptr;
-    PR2SoftBodyGripperAction(RaveRobotKinematicObject::Manipulator::Ptr manip_,
+    PR2SoftBodyGripperAction(RaveRobotObject::Manipulator::Ptr manip_,
                   const string &leftFingerName,
                   const string &rightFingerName,
                   float time) :
@@ -245,7 +245,7 @@ struct CustomScene : public Scene {
     BulletInstance::Ptr bullet2;
     OSGInstance::Ptr osg2;
     Fork::Ptr fork;
-    RaveRobotKinematicObject::Ptr origRobot, tmpRobot;
+    RaveRobotObject::Ptr origRobot, tmpRobot;
     PR2Manager pr2m;
 
     CustomScene() : pr2m(*this) { }
@@ -339,7 +339,7 @@ void CustomScene::createFork() {
         cout << "failed to get forked version of robot!" << endl;
         return;
     }
-    tmpRobot = boost::static_pointer_cast<RaveRobotKinematicObject>(p);
+    tmpRobot = boost::static_pointer_cast<RaveRobotObject>(p);
     cout << (tmpRobot->getEnvironment() == env.get()) << endl;
     cout << (tmpRobot->getEnvironment() == fork->env.get()) << endl;
 }

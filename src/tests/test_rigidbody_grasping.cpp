@@ -6,7 +6,7 @@
 #include <openrave/kinbody.h>
 
 class PR2RigidBodyGripperAction : public Action {
-    RaveRobotKinematicObject::Manipulator::Ptr manip;
+    RaveRobotObject::Manipulator::Ptr manip;
     dReal startVal, endVal;
     vector<int> indices;
     vector<dReal> vals;
@@ -85,7 +85,7 @@ class PR2RigidBodyGripperAction : public Action {
 
 public:
     typedef boost::shared_ptr<PR2RigidBodyGripperAction> Ptr;
-    PR2RigidBodyGripperAction(RaveRobotKinematicObject::Manipulator::Ptr manip_,
+    PR2RigidBodyGripperAction(RaveRobotObject::Manipulator::Ptr manip_,
                   const string &leftFingerName,
                   const string &rightFingerName,
                   float time) :

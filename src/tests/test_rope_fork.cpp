@@ -11,7 +11,7 @@ using boost::static_pointer_cast;
 using namespace util;
 
 void singleStep(int i, vector<vector<double> > &joints, vector<int> &inds,
-        RaveRobotKinematicObject::Ptr pr2, RobotBase::ManipulatorPtr rarm, RobotBase::ManipulatorPtr larm,
+        RaveRobotObject::Ptr pr2, RobotBase::ManipulatorPtr rarm, RobotBase::ManipulatorPtr larm,
         int nLinks, shared_ptr<CapsuleRope> ropePtr,
         Grab *&g, Grab *&g2,
         btDiscreteDynamicsWorld *dynamicsWorld) {
@@ -106,8 +106,8 @@ int main(int argc, char *argv[]) {
   Fork::Ptr fork(new Fork(s.env, bullet2, osg2));
   s.registerFork(fork);
   Grab* fork_g, *fork_g2;
-  RaveRobotKinematicObject::Ptr fork_pr2 =
-      static_pointer_cast<RaveRobotKinematicObject>(fork->forkOf(pr2m.pr2));
+  RaveRobotObject::Ptr fork_pr2 =
+      static_pointer_cast<RaveRobotObject>(fork->forkOf(pr2m.pr2));
   if (!fork_pr2) {
       cout << "oh no" << endl;
       return 0;

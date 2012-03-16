@@ -27,7 +27,7 @@ Grab::~Grab() {
 }
 
 
-static bool isClosed(RaveRobotKinematicObject::Manipulator::Ptr manip, float closedThreshold) {
+static bool isClosed(RaveRobotObject::Manipulator::Ptr manip, float closedThreshold) {
   return manip->getGripperAngle() < closedThreshold;
 }
 
@@ -41,7 +41,7 @@ static BulletObject::Ptr getNearestBody(vector<BulletObject::Ptr> bodies, btVect
 
 Monitor::Monitor() : closedThreshold(PR2_CLOSED_VAL) {}
 
-Monitor::Monitor(RaveRobotKinematicObject::Manipulator::Ptr manip) :
+Monitor::Monitor(RaveRobotObject::Manipulator::Ptr manip) :
     m_manip(manip),
     closedThreshold(PR2_CLOSED_VAL),
     m_wasClosed(isClosed(manip, PR2_CLOSED_VAL))

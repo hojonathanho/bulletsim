@@ -7,7 +7,7 @@
 
 // Special support for the OpenRAVE PR2 model
 class PR2SoftBodyGripper {
-    RaveRobotKinematicObject::Ptr robot;
+    RaveRobotObject::Ptr robot;
     OpenRAVE::RobotBase::ManipulatorPtr manip;
 
     float grabOnlyOnContact;
@@ -65,7 +65,7 @@ class PR2SoftBodyGripper {
 public:
     typedef boost::shared_ptr<PR2SoftBodyGripper> Ptr;
 
-    PR2SoftBodyGripper(RaveRobotKinematicObject::Ptr robot_, OpenRAVE::RobotBase::ManipulatorPtr manip_, bool leftGripper);
+    PR2SoftBodyGripper(RaveRobotObject::Ptr robot_, OpenRAVE::RobotBase::ManipulatorPtr manip_, bool leftGripper);
 
     void setGrabOnlyOnContact(bool b) { grabOnlyOnContact = b; }
 
@@ -111,8 +111,8 @@ private:
 public:
     typedef boost::shared_ptr<PR2Manager> Ptr;
 
-    RaveRobotKinematicObject::Ptr pr2;
-    RaveRobotKinematicObject::Manipulator::Ptr pr2Left, pr2Right;
+    RaveRobotObject::Ptr pr2;
+    RaveRobotObject::Manipulator::Ptr pr2Left, pr2Right;
 
     PR2Manager(Scene &);
     void registerSceneCallbacks();

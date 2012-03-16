@@ -100,7 +100,7 @@ static void getContactPointsWith(btSoftBody *psb, btCollisionObject *pco, btSoft
     psb->m_ndbvt.collideTV(psb->m_ndbvt.m_root,volume,docollide);
 }
 
-PR2SoftBodyGripper::PR2SoftBodyGripper(RaveRobotKinematicObject::Ptr robot_, OpenRAVE::RobotBase::ManipulatorPtr manip_, bool leftGripper) :
+PR2SoftBodyGripper::PR2SoftBodyGripper(RaveRobotObject::Ptr robot_, OpenRAVE::RobotBase::ManipulatorPtr manip_, bool leftGripper) :
         robot(robot_), manip(manip_),
         leftFinger(robot->robot->GetLink(leftGripper ? LEFT_GRIPPER_LEFT_FINGER_NAME : RIGHT_GRIPPER_LEFT_FINGER_NAME)),
         rightFinger(robot->robot->GetLink(leftGripper ? LEFT_GRIPPER_RIGHT_FINGER_NAME : RIGHT_GRIPPER_RIGHT_FINGER_NAME)),
@@ -186,7 +186,7 @@ void PR2Manager::loadRobot() {
     if (!SceneConfig::enableRobot) return;
     btTransform trans(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0));
     static const char ROBOT_MODEL_FILE[] = EXPAND(BULLETSIM_DATA_DIR) "/robot_model/pr2_with_kinect.dae";
-    pr2.reset(new RaveRobotKinematicObject(scene.rave, ROBOT_MODEL_FILE, trans, GeneralConfig::scale));
+    pr2.reset(new RaveRobotObject(scene.rave, ROBOT_MODEL_FILE, trans, GeneralConfig::scale));
     scene.env->add(pr2);
 //    pr2->ignoreCollisionWith(ground->rigidBody.get()); // the robot's always touching the ground anyway
 }
@@ -372,7 +372,7 @@ bool PR2Manager::processMouseInput(const osgGA::GUIEventAdapter &ea) {
             btVector3 xVec = normal.cross(yVec);
             btVector3 dragVec = SceneConfig::mouseDragScale * (inputState.dx*xVec + inputState.dy*yVec);
 
-            RaveRobotKinematicObject::Manipulator::Ptr manip;
+            RaveRobotObject::Manipulator::Ptr manip;
             if (inputState.moveManip0 || inputState.rotateManip0)
                 manip = pr2Left;
             else
