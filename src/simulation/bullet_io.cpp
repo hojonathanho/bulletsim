@@ -21,7 +21,7 @@ ostream &operator<<(ostream &stream, const btQuaternion& v) {
 ostream &operator<<(ostream &stream, const btTransform& v) {
   btQuaternion rotation = v.getRotation();
   btVector3 origin = v.getOrigin();
-  stream << rotation << " " << origin << endl;
+  stream << rotation << " " << origin;
   return stream;
 }
 

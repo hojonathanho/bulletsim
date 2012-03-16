@@ -20,6 +20,9 @@ using boost::shared_ptr;
 #define KNOT_DATA EXPAND(BULLETSIM_DATA_DIR) "/knots"
 
 int main(int argc, char* argv[]) {
+  GeneralConfig::scale = 10;
+
+
   GrabbingScene scene;
 
   vector<double> firstJoints = doubleVecFromFile(KNOT_DATA "/init_joints_train.txt");
@@ -33,7 +36,8 @@ int main(int argc, char* argv[]) {
   vector<btVector3> tableCornersWorld = CT.toWorldFromCamN(tableCornersCam);
   BulletObject::Ptr table = makeTable(tableCornersWorld, .1*GeneralConfig::scale);
   vector<btVector3> ropePtsCam = toBulletVectors(floatMatFromFile(KNOT_DATA "/init_rope_test.txt"));
-  CapsuleRope::Ptr rope(new CapsuleRope(CT.toWorldFromCamN(ropePtsCam), .0075*METERS));
+  //  CapsuleRope::Ptr rope(new CapsuleRope(CT.toWorldFromCamN(ropePtsCam), .0075*METERS));
+  CapsuleRope::Ptr rope(new CapsuleRope(ropePtsCam, .0075*METERS));
   scene.env->add(rope);
   scene.env->add(table);
   scene.setGrabBodies(rope->children);
@@ -41,7 +45,7 @@ int main(int argc, char* argv[]) {
   ifstream poseFile(KNOT_DATA "/poses_warped.txt");
 
   scene.startViewer();
-  scene.setSyncTime(true);
+  scene.setSyncTime(false);
   scene.idle(true);
 
   PlotAxes::Ptr axesLeft(new PlotAxes());
@@ -59,6 +63,7 @@ int main(int argc, char* argv[]) {
             >> leftGrip
             >> rightPose
             >> rightGrip;
+    if (poseFile.eof()) break;
 
     axesLeft->setup(leftPose, .1*METERS);
     axesRight->setup(rightPose, .1*METERS);

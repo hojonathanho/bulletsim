@@ -26,6 +26,11 @@ void printOneLine(ostream &stream, const vector<btVector3>& vs) {
 
 int main(int argc, char* argv[]) {
 
+  SceneConfig::enableHaptics = true;
+  GeneralConfig::scale = 10;
+  Parser parser;
+  parser.read(argc, argv);
+
   GrabbingScene scene;
 
   vector<double> firstJoints = doubleVecFromFile(KNOT_DATA "/init_joints_train.txt");
