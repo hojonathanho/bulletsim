@@ -104,8 +104,8 @@ class ManipIKInterpAction : public RobotInterpAction {
 
     float normJointVal(dReal f, dReal g) {
         if (g < f)
-            return g + M_PI*round((f - g) / M_PI);
-        return g - M_PI*round((g - f) / M_PI);
+            return g + 2*M_PI*round((f - g) / 2/M_PI);
+        return g - 2*M_PI*round((g - f) / 2/M_PI);
     }
 
     btTransform targetTrans;
@@ -293,7 +293,7 @@ static const btQuaternion PR2_GRIPPER_INIT_ROT(0., 0.7071, 0., 0.7071);
 static const btQuaternion GRIPPER_TO_VERTICAL_ROT(btVector3(1, 0, 0), M_PI/2);
 static const btVector3 PR2_GRIPPER_INIT_ROT_DIR(1, 0, 0);
 static const btScalar MOVE_BEHIND_DIST = 0.02;
-static const btVector3 OFFSET(0, 0, 0.05); // don't sink through table
+static const btVector3 OFFSET(0, 0, 0.0/*5*/); // don't sink through table
 static const btScalar ANGLE_DOWN_HEIGHT = 0.05;
 static const btScalar LOWER_INTO_TABLE = -0.02;
 class GraspClothNodeAction : public ActionChain {
@@ -304,14 +304,11 @@ class GraspClothNodeAction : public ActionChain {
     btVector3 dir;
 
     btTransform transFromDir(const btVector3 &dir, const btVector3 &pos) {
-        btVector3 cross = dir.cross(PR2_GRIPPER_INIT_ROT_DIR);
+        btVector3 cross = PR2_GRIPPER_INIT_ROT_DIR.cross(dir);
         btScalar angle = dir.angle(PR2_GRIPPER_INIT_ROT_DIR);
         if (cross.length2() < 0.0001)
             cross = btVector3(1, 0, 0); // arbitrary axis
-        cout << "cross " << cross.x() << ' ' << cross.y() << ' ' << cross.z() << endl;
-        cout << "angle " << dir.angle(PR2_GRIPPER_INIT_ROT_DIR);
         btQuaternion q(cross, angle);
-        cout << "q " << q.x() << ' ' << q.y() << ' ' << q.z() << ' ' << q.w() << endl;
         return btTransform(q * GRIPPER_TO_VERTICAL_ROT * PR2_GRIPPER_INIT_ROT, pos);
     }
 
@@ -329,7 +326,7 @@ public:
             ManipIKInterpAction *positionGrasp = new ManipIKInterpAction(robot, manip);
             btVector3 v(cloth->m_nodes[node].m_x);
             // move the gripper a few cm behind node, angled slightly down
-            btVector3 dir2 = btVector3(dir.x(), dir.y(), ANGLE_DOWN_HEIGHT * METERS).normalize();
+            btVector3 dir2 = btVector3(dir.x(), dir.y(), -ANGLE_DOWN_HEIGHT * METERS).normalize();
             positionGrasp->setPR2TipTargetTrans(transFromDir(dir2, v - dir2*MOVE_BEHIND_DIST*METERS + OFFSET*METERS));
 
             ManipIKInterpAction *lowerIntoTable = new ManipIKInterpAction(robot, manip);
@@ -337,7 +334,7 @@ public:
 
             ManipIKInterpAction *moveForward = new ManipIKInterpAction(robot, manip);
             moveForward->setRelativeTrans(btTransform(btQuaternion(0, 0, 0, 1),
-                       -dir * MOVE_BEHIND_DIST*2 * METERS));
+                       dir * MOVE_BEHIND_DIST*2 * METERS));
 
             PR2SoftBodyGripper sbgripper(robot, manip->manip, true); // TODO: leftGripper flag
             sbgripper.setGrabOnlyOnContact(true);

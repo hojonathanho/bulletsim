@@ -58,8 +58,8 @@ BulletSoftObject::Ptr makeSelfCollidingTowel(const btVector3& center, btScalar l
     //psb->m_cfg.kDF = 0.1;
     psb->m_cfg.kAHR = 1; // anchor hardness
     psb->m_cfg.kSSHR_CL = 1.0; // so the cloth doesn't penetrate itself
-    psb->m_cfg.kSRHR_CL = 1.0;
-    psb->m_cfg.kSKHR_CL = 1.0;
+    psb->m_cfg.kSRHR_CL = 0.7;
+    psb->m_cfg.kSKHR_CL = 0.7;
     psb->m_cfg.kDP = 0.01;
 //    psb->m_cfg.kDP = 1;
 
@@ -75,12 +75,12 @@ BulletSoftObject::Ptr makeSelfCollidingTowel(const btVector3& center, btScalar l
     btScalar avgDist = 0;
     for (int i = 0; i < psb->m_links.size(); ++i) {
         btSoftBody::Link &l = psb->m_links[i];
-        avgDist += l.m_n[0]->m_x.distance2(l.m_n[1]->m_x);
+        avgDist += l.m_n[0]->m_x.distance(l.m_n[1]->m_x);
     }
     avgDist /= psb->m_links.size();
     for (int i = 0; i < psb->m_links.size(); ++i) {
         btSoftBody::Link &l = psb->m_links[i];
-        btScalar d = l.m_n[0]->m_x.distance2(l.m_n[1]->m_x);
+        btScalar d = l.m_n[0]->m_x.distance(l.m_n[1]->m_x);
         if (d > avgDist)
             l.m_material->m_kLST = 0.005;
     }

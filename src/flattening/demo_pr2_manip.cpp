@@ -46,7 +46,11 @@ class CustomScene : Scene {
 
     void doStuff() {
 //        savedTrans.setOrigin(cloth->softBody->m_nodes[cloth->softBody->m_nodes.size()-10].m_x);
-        runAction(Action::Ptr(new GraspClothNodeAction(pr2m->pr2, pr2m->pr2Left, cloth->softBody.get(), cloth->softBody->m_nodes.size()-10, btVector3(1, 1, 0))), BulletConfig::dt);
+        runAction(Action::Ptr(new GraspClothNodeAction(
+                        pr2m->pr2, pr2m->pr2Left, cloth->softBody.get(),
+                        cloth->softBody->m_nodes.size() - 10,
+                        btVector3(1, -1, 0))),
+                BulletConfig::dt);
         cout << "done." << endl;
     }
 
