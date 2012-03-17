@@ -8,10 +8,16 @@
 #include "clothutil.h"
 #include "nodeactions.h"
 #include "clothgrasping.h"
+#include "edges.h"
+#include "simulation/plotting.h"
 
 class CustomScene : Scene {
     BulletSoftObject::Ptr cloth;
+    ClothSpec clothspec;
     PR2Manager::Ptr pr2m;
+
+    PlotPoints::Ptr edgeplot;
+    PlotLines::Ptr linkplot;
 
     void runGripperAction(PR2SoftBodyGripperAction &a) {
         a.reset();
@@ -54,8 +60,26 @@ class CustomScene : Scene {
         cout << "done." << endl;
     }
 
+    void markEdges() {
+        vector<int> vec;
+        clothspec.updateAccel();
+        calcDiscontNodes(clothspec, vec);
+        cout << "got " << vec.size() << " discontinuous node points" << endl;
+
+        vector<btVector3> pts;
+        for (int i = 0; i < vec.size(); ++i)
+            pts.push_back(clothspec.psb->m_nodes[vec[i]].m_x);
+        edgeplot->setPoints(pts);
+    }
+
+    void markLinks() {
+    }
+
 public:
     void run() {
+        edgeplot.reset(new PlotPoints());
+        env->add(edgeplot);
+
         const float table_height = .5;
         const float table_thickness = .05;
         BoxObject::Ptr table(new BoxObject(0, GeneralConfig::scale * btVector3(.75,.75,table_thickness/2),
@@ -69,7 +93,8 @@ public:
         const btVector3 clothcenter = GeneralConfig::scale * btVector3(0.5, 0, table_height+0.01);
         cloth = makeSelfCollidingTowel(clothcenter, lenx, leny, resx, resy, env->bullet->softBodyWorldInfo);
         env->add(cloth);
-        ClothSpec clothspec = { cloth->softBody.get(), resx, resy };
+        ClothSpec cs(cloth->softBody.get(), resx, resy, lenx, leny);
+        clothspec = cs;
 
         pr2m.reset(new PR2Manager(*this));
 
@@ -81,6 +106,7 @@ public:
         addVoidKeyCallback('z', boost::bind(&CustomScene::saveManipTrans, this, pr2m->pr2Left));
         addVoidKeyCallback('x', boost::bind(&CustomScene::moveArmToSaved, this, pr2m->pr2, pr2m->pr2Left));
         addVoidKeyCallback('c', boost::bind(&CustomScene::doStuff, this));
+        addVoidKeyCallback('e', boost::bind(&CustomScene::markEdges, this));
 
         startViewer();
         startFixedTimestepLoop(BulletConfig::dt);

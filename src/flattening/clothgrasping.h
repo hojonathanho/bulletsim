@@ -295,7 +295,7 @@ static const btVector3 PR2_GRIPPER_INIT_ROT_DIR(1, 0, 0);
 static const btScalar MOVE_BEHIND_DIST = 0.02;
 static const btVector3 OFFSET(0, 0, 0.0/*5*/); // don't sink through table
 static const btScalar ANGLE_DOWN_HEIGHT = 0.05;
-static const btScalar LOWER_INTO_TABLE = -0.02;
+static const btScalar LOWER_INTO_TABLE = -0.01;
 class GraspClothNodeAction : public ActionChain {
     RaveRobotObject::Ptr robot;
     RaveRobotObject::Manipulator::Ptr manip;
@@ -303,10 +303,12 @@ class GraspClothNodeAction : public ActionChain {
     const int node;
     btVector3 dir;
 
+    // pos = desired manip transform origin
+    // dir = direction vector that the manipulator should point to
     btTransform transFromDir(const btVector3 &dir, const btVector3 &pos) {
         btVector3 cross = PR2_GRIPPER_INIT_ROT_DIR.cross(dir);
         btScalar angle = dir.angle(PR2_GRIPPER_INIT_ROT_DIR);
-        if (cross.length2() < 0.0001)
+        if (btFuzzyZero(cross.length2()))
             cross = btVector3(1, 0, 0); // arbitrary axis
         btQuaternion q(cross, angle);
         return btTransform(q * GRIPPER_TO_VERTICAL_ROT * PR2_GRIPPER_INIT_ROT, pos);
@@ -317,7 +319,7 @@ public:
         robot(robot_), manip(manip_), cloth(cloth_), node(node_), dir(dir_) {
 
         dir.setZ(0); // only look at vector on the x-y plane
-        if (dir.length2() > 0.0001) {
+        if (!btFuzzyZero(dir.length2())) {
             dir.normalize();
 
             GripperOpenCloseAction *openGripper = new GripperOpenCloseAction(robot, manip->manip, true);
