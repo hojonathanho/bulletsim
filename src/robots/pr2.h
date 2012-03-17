@@ -4,6 +4,24 @@
 #include "simulation/openravesupport.h"
 #include "simulation/basicobjects.h"
 #include "simulation/simplescene.h"
+#include <map>
+
+enum HapticEvent {
+  hapticLeft0Up,
+  hapticLeft0Down,
+  hapticLeft0Hold,
+  hapticLeft1Up,
+  hapticLeft1Down,
+  hapticLeft1Hold,
+  hapticLeftBoth,
+  hapticRight0Up,
+  hapticRight0Down,
+  hapticRight0Hold,
+  hapticRight1Up,
+  hapticRight1Down,
+  hapticRight1Hold,
+  hapticRightBoth
+};
 
 // Special support for the OpenRAVE PR2 model
 class PR2SoftBodyGripper {
@@ -92,6 +110,8 @@ private:
 
         float lastHapticReadTime;
     } inputState;
+    bool lEngaged, rEngaged; // only accept haptic input if engaged
+
 
     void loadRobot();
     void initIK();
@@ -101,8 +121,8 @@ private:
     btTransform leftInitTrans, rightInitTrans;
     SphereObject::Ptr hapTrackerLeft, hapTrackerRight;
 
-    boost::function<void()> lopencb, lclosecb, ropencb, rclosecb;
-
+    map<HapticEvent, boost::function<void()> > hapticEvent2Func;
+  
     void actionWrapper(Action::Ptr a, float dt) {
         a->reset();
         scene.runAction(a, dt);
@@ -121,15 +141,11 @@ public:
 
     void setHapticPollRate(float hz) { hapticPollRate = hz; }
 
-    void setLGripperOpenCb(boost::function<void()> cb) { lopencb = cb; }
-    void setLGripperCloseCb(boost::function<void()> cb) { lclosecb = cb; }
-    void setRGripperOpenCb(boost::function<void()> cb) { ropencb = cb; }
-    void setRGripperCloseCb(boost::function<void()> cb) { rclosecb = cb; }
-    // convenience methods for calling actions as callbacks
-    void setLGripperOpenCb(Action::Ptr a, float dt) { setLGripperOpenCb(boost::bind(&PR2Manager::actionWrapper, this, a, dt)); }
-    void setLGripperCloseCb(Action::Ptr a, float dt) { setLGripperCloseCb(boost::bind(&PR2Manager::actionWrapper, this, a, dt)); }
-    void setRGripperOpenCb(Action::Ptr a, float dt) { setRGripperOpenCb(boost::bind(&PR2Manager::actionWrapper, this, a, dt)); }
-    void setRGripperCloseCb(Action::Ptr a, float dt) { setRGripperCloseCb(boost::bind(&PR2Manager::actionWrapper, this, a, dt)); }
+    void setHapticCb(HapticEvent h, boost::function<void()> cb) {hapticEvent2Func[h] = cb;}
+    void setHapticCb(HapticEvent h, Action::Ptr a, float dt) { setHapticCb(h, boost::bind(&PR2Manager::actionWrapper, this, a, dt));}
+    void handleButtons(bool left[], bool right[]);
+    void toggleLeftEngaged() {lEngaged = !lEngaged;}
+    void toggleRightEngaged() {rEngaged = !rEngaged;}
 
     void processHapticInput();
     bool processKeyInput(const osgGA::GUIEventAdapter &ea);

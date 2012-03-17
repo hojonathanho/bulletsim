@@ -227,9 +227,9 @@ void RaveRobotObject::initRobot(const btTransform &initialTransform, TrimeshMode
           KinBody::LinkPtr plink0 = (itjoint)->GetFirstAttached(), plink1 = (itjoint)->GetSecondAttached();
           int minindex = min(plink0->GetIndex(), plink1->GetIndex());
           int maxindex = max(plink0->GetIndex(), plink1->GetIndex());
-          bool bIgnoreCollision = pbody->GetAdjacentLinks().find(minindex|(maxindex<<16)) != pbody->GetAdjacentLinks().end() || plink0->IsRigidlyAttached(plink0);
+          bool bIgnoreCollision = robot->GetAdjacentLinks().find(minindex|(maxindex<<16)) != robot->GetAdjacentLinks().end() || plink0->IsRigidlyAttached(plink0);
           // not sure what's logic behind bIgnoreCollision
-          dynamicsWorld->addConstraint(joint, bIgnoreCollision);
+          getEnvironment()->bullet->dynamicsWorld->addConstraint(joint, bIgnoreCollision);
         }
       }
     }

@@ -90,6 +90,5 @@ void MonitorForGrabbing::release() {
 
 void MonitorForGrabbing::updateGrabPos() {
     if (!m_grab) return;
-    cout << "updating constraint position" << endl;
     m_grab->updatePosition(m_manip->getTransform().getOrigin());
 }
