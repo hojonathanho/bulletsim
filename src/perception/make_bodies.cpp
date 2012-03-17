@@ -43,7 +43,8 @@ BulletSoftObject::Ptr makeTowel(const vector<btVector3>& points, btSoftBodyWorld
   return BulletSoftObject::Ptr(new BulletSoftObject(psb));
 }
 
-BulletSoftObject::Ptr makeSelfCollidingTowel(const vector<btVector3>& points, btSoftBodyWorldInfo& worldInfo) {
+
+BulletSoftObject::Ptr makeSelfCollidingTowel(const vector<btVector3>& points, btSoftBodyWorldInfo& worldInfo, int xres, int yres) {
   btVector3 offset(0,0,.01*METERS);
     btSoftBody *psb = btSoftBodyHelpers::CreatePatch(
         worldInfo,
@@ -51,13 +52,13 @@ BulletSoftObject::Ptr makeSelfCollidingTowel(const vector<btVector3>& points, bt
         points[1]+offset,
         points[3]+offset,
         points[2]+offset,
-        45*TrackingConfig::towelRes, 31*TrackingConfig::towelRes,
+        xres, yres,
         0, true);
 
     psb->m_cfg.piterations = 2;
     psb->m_cfg.collisions = btSoftBody::fCollision::CL_SS
-        | btSoftBody::fCollision::CL_RS
-        | btSoftBody::fCollision::CL_SELF;
+         | btSoftBody::fCollision::CL_RS
+         | btSoftBody::fCollision::CL_SELF;
     psb->m_cfg.kDF = 1.0;
     psb->getCollisionShape()->setMargin(0.01*METERS);
     btSoftBody::Material *pm = psb->appendMaterial();
@@ -65,8 +66,8 @@ BulletSoftObject::Ptr makeSelfCollidingTowel(const vector<btVector3>& points, bt
     pm->m_kAST = 0.1*TrackingConfig::towelStiffness;
     psb->generateBendingConstraints(2, pm);
     psb->randomizeConstraints();
-    psb->setTotalMass(1, true);
-    psb->generateClusters(0);
+    psb->setTotalMass(1, false);
+    psb->generateClusters(512);
 
     return BulletSoftObject::Ptr(new BulletSoftObject(psb));
 }

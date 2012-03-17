@@ -7,6 +7,7 @@
 #include <sys/time.h>
 #include <unistd.h>
 #include <boost/lexical_cast.hpp>
+#include <boost/foreach.hpp>
 using namespace std;
 
 path DATA_ROOT = "/dont/forget/to/set";
@@ -53,16 +54,24 @@ void writeJson(const Value& v, path p) {
   outfile.close();
 }
 
-Value readJson(path jsonfile) {
-  std::stringstream buffer;
-  std::ifstream infile(jsonfile.string().c_str());
-  if(infile.fail()) throw FileOpenError(jsonfile.string());
-  buffer << infile.rdbuf();
-  Json::Reader reader;
-  Value root;
-  bool parsedSuccess = reader.parse(buffer.str(), root, false);
-  if (!parsedSuccess) throw FileParseError(jsonfile.string());
-  return root;
+Value readJson(path jsonfile) { 
+  // occasionally it fails, presumably when the json isn't done being written. so repeat 10 times
+  for (int i_try = 0; i_try < 10; i_try++) {
+    try {
+
+      std::ifstream infile(jsonfile.string().c_str());
+      if(infile.fail()) throw FileOpenError(jsonfile.string());
+
+      Json::Reader reader;
+      Value root;
+      infile >> root;
+      return root;
+    }
+    catch (std::runtime_error e) {
+      usleep(1000);
+    }
+  }
+  throw std::runtime_error("tried 10 times but failed to read json file " + jsonfile.string());
 }
 
 void setDataRoot(path newDataRoot) {
@@ -296,6 +305,21 @@ Message* AbstractRetimer::closerMsg(double time) {
 }
 
 
+bool allTrue(const vector<bool>& x) {
+  bool out = true;
+  BOOST_FOREACH(bool b, x) out &= b;
+  return out;
+}
+
+bool MultiSubscriber::recvAll() {
+    for (int i=0; i < m_subs.size(); i++)
+      if (!m_gotEm[i]) m_gotEm[i] = m_subs[i]->recv(*m_msgs[i], false);
+    return allTrue(m_gotEm);
+};
+
+void MultiSubscriber::prepare() {
+  m_gotEm = vector<bool>(m_msgs.size(), false);
+}
 
 // Synchronizer::Synchronizer(vector<Subscriber>& subs) {
 //   m_leader = subs[0];

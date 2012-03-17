@@ -8,6 +8,6 @@ void ImageMessage::writeDataTo(path p) const {
 }
 
 void ImageMessage::readDataFrom(path p) {
-  m_data = cv::imread(p.string());
+  m_data = cv::imread(p.string(),0);
   if (m_data.data == NULL) throw FileOpenError(p.string());
 }

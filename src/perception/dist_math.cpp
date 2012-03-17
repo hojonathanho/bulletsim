@@ -2,7 +2,7 @@
 #include "utils_perception.h"
 using namespace Eigen;
 
-MatrixXf pairwiseSquareDist(const Eigen::MatrixX3f& x_m3, const Eigen::MatrixX3f& y_n3) {
+MatrixXf pairwiseSquareDist(const Eigen::MatrixXf& x_m3, const Eigen::MatrixXf& y_n3) {
   // vectors are rows of x and y
   MatrixXf dots_mn = x_m3 * y_n3.transpose();
   VectorXf xnorm_m = x_m3.rowwise().squaredNorm();

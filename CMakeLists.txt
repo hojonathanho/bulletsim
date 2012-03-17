@@ -28,7 +28,13 @@ if(BUILD_PERCEPTION)
   find_package(OpenCV REQUIRED)
   find_package(PCL REQUIRED)
   add_definitions(${PCL_DEFINITIONS})
+  add_definitions("-DEIGEN_DEFAULT_TO_ROW_MAJOR")
+message("PCL DEFS: ${PCL_DEFINITIONS}")
 endif(BUILD_PERCEPTION)
+
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
+SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fopenmp")
+
 
 # directories for libraries packaged in this tree
 set(BULLET_DIR ${BULLETSIM_SOURCE_DIR}/lib/bullet-2.79)

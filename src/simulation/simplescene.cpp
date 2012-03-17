@@ -61,6 +61,10 @@ void Scene::step(float dt, int maxsteps, float internaldt) {
     if (syncTime && drawingOn)
         endTime = viewer.getFrameStamp()->getSimulationTime();
 
+    // run pre-step callbacks
+    for (int i = 0; i < prestepCallbacks.size(); ++i)
+        prestepCallbacks[i]();
+
     env->step(dt, maxsteps, internaldt);
     for (std::set<Fork::Ptr>::iterator i = forks.begin(); i != forks.end(); ++i)
         (*i)->env->step(dt, maxsteps, internaldt);
@@ -91,8 +95,10 @@ void Scene::idleFor(float time) {
     if (!drawingOn || !syncTime || time <= 0.f)
         return;
     float endTime = time + viewer.getFrameStamp()->getSimulationTime();
-    while (viewer.getFrameStamp()->getSimulationTime() < endTime && !viewer.done())
-        draw();
+    while (viewer.getFrameStamp()->getSimulationTime() < endTime && !viewer.done()) {
+      draw();
+      sleep(1/60.);
+    }
 }
 
 void Scene::draw() {
@@ -132,8 +138,10 @@ void Scene::stopLoop() {
 
 void Scene::idle(bool b) {
     loopState.paused = b;
-    while (loopState.paused && drawingOn && !viewer.done())
-        draw();
+    while (loopState.paused && drawingOn && !viewer.done()) {
+      draw();
+      sleep(1/60.);
+    }
     loopState.prevTime = loopState.currTime = viewer.getFrameStamp()->getSimulationTime();
 }
 
@@ -159,6 +167,10 @@ void Scene::addVoidCallback(osgGA::GUIEventAdapter::EventType t, VoidCallback cb
 }
 void Scene::addVoidKeyCallback(char c, VoidCallback cb) {
     addKeyCallback(c, boost::bind<bool>(VoidCallbackWrapper(cb)));
+}
+
+void Scene::addPreStepCallback(VoidCallback cb) {
+    prestepCallbacks.push_back(cb);
 }
 
 void EventHandler::getTransformation(osg::Vec3d &eye, osg::Vec3d &center, osg::Vec3d &up) const {

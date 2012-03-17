@@ -16,6 +16,7 @@
 #include "robot_geometry.h"
 #include "clouds/correction.h"
 #include "robots/pr2.h"
+#include "perception/plotting_perception.h"
 
 using namespace std;
 using namespace Eigen;
@@ -76,7 +77,7 @@ int main(int argc, char *argv[]) {
 
   // indices of joint angles
   // see /home/joschu/pr2/rope_manipulation/rope_vision/test/write_joint_stuff_to_files.py
-  ColorCloudPtr cloudWorld(new pcl::PointCloud<pcl::PointXYZRGB>());
+  ColorCloudPtr cloudWorld(new pcl::PointCloud<pcl::PointXYZRGBA>());
 
   int count = 0;
   while ( pcSub.recv(cloudMsg) ) {

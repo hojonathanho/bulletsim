@@ -7,99 +7,6 @@
 
 using namespace Eigen;
 
-
-inline btVector3 toBulletVector(const vector<float>& vec) {return btVector3(vec[0],vec[1],vec[2]);}
-inline btVector3 toBulletVector(const Vector3f& vec) {return btVector3(vec[0],vec[1],vec[2]);}
-inline Vector3f toEigenVector(const vector<float>& vec) {return Vector3f(vec[0],vec[1],vec[2]);}
-inline Vector3f toEigenVector(const btVector3& vec) {return Vector3f(vec.x(),vec.y(),vec.z());}
-
-vector<btVector3> toBulletVectors(const vector< vector<float> >& in) {
-  vector<btVector3> out(in.size());
-  for (int i=0; i<in.size(); i++) out[i] = toBulletVector(in[i]);
-  return out;
-}
-
-vector<btVector3> toBulletVectors(const vector< Vector3f >& in) {
-  vector<btVector3> out(in.size());
-  for (int i=0; i<in.size(); i++) out[i] = toBulletVector(in[i]);
-  return out;
-}
-
-vector<btVector3> toBulletVectors(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud) {
-  vector<btVector3> out(cloud->size());
-  int i=0;
-  BOOST_FOREACH(pcl::PointXYZRGB& point, *cloud) {
-    out[i] = btVector3(point.x, point.y, point.z);
-    i++;
-  }
-  return out;
-}
-
-vector< vector<float> > toVecVec(const vector<btVector3>& in) {
-  vector< vector<float> > out(in.size());
-  for (int i=0; i < in.size(); i++) {
-    vector<float> row(3);
-      for (int j=0; j<3; j++) {
-	row[j] = in[i].m_floats[j];
-      }
-    out[i] = row;
-  }
-  return out;
-}
-
-vector<float> toVec(const Eigen::VectorXf& in) {
-  vector<float> out(in.rows());
-  for (int i=0; i < out.size(); i++) out[i] = in[i];
-  return out;
-}
-
-VectorXf toVectorXf(const vector<float>& in) {
-  VectorXf out(in.size());
-  for (int i=0; i<in.size(); i++) out[i] = in[i];
-  return out;
-}
-
-btTransform toBulletTransform(const Eigen::Affine3f& affine) {
-  Vector3f transEig = affine.translation();
-  Matrix3f rotEig = affine.rotation();
-  Quaternionf quatEig = Quaternionf(rotEig);
-  btVector3 transBullet = toBulletVector(transEig);
-  btQuaternion quatBullet = btQuaternion(quatEig.x(), quatEig.y(), quatEig.z(), quatEig.w());
-  return btTransform(quatBullet,transBullet);
-}
-
-Affine3f toEigenTransform(const btTransform& transform) {
-  btVector3 transBullet = transform.getOrigin();
-  btQuaternion quatBullet = transform.getRotation();
-  Translation3f transEig = Translation3f(toEigenVector(transBullet));
-  Matrix3f rotEig = Quaternionf(quatBullet.w(),quatBullet.x(),quatBullet.y(),quatBullet.z()).toRotationMatrix();
-  Affine3f out = transEig*rotEig;
-  return out;
-}
-
-
-vector<Vector3f> toEigenVectors(const vector< vector<float> >&);
-vector<Vector3f> toEigenVectors(const vector<btVector3>& in) {
-  vector<Vector3f> out(in.size());
-  for (int i=0; i<in.size(); i++) out[i] = toEigenVector(in[i]);
-  return out;
-}
-
-MatrixX3f toEigenMatrix(const vector<btVector3>& in) {
-  MatrixX3f out(in.size(), 3);
-  for (int i=0; i<in.size(); i++) out.row(i) = toEigenVector(in[i]);
-  return out;
-}
-
-MatrixX3f toEigenMatrix(const vector< vector<float> >& in) {
-  ENSURE(in.size() > 1) ;
-  MatrixXf out(in.size(),in[0].size()); 
-  for (int i=0; i<in.size(); i++) 
-    for (int j=0; j<in[0].size(); j++)
-      out(i,j) = in[i][j];
-  return out;
-}
-
 vector<btVector3> operatorTimes(const btTransform& t, const vector<btVector3>& in) {
   vector<btVector3> out(in.size()); 
   for (int i=0; i<in.size(); i++) out[i] = t*in[i];
@@ -159,12 +66,12 @@ vector<btVector3> CoordinateTransformer::toCamFromWorldN(const vector<btVector3>
 }
 
 OSGCamParams::OSGCamParams(const btTransform& toWorldFromCam, float scale) {
-    btMatrix3x3 rotation = toWorldFromCam.getBasis();
-    btVector3 translation = toWorldFromCam.getOrigin();
-    eye = util::toOSGVector(translation*scale);
-    center = util::toOSGVector(rotation.getColumn(2));
-    up = util::toOSGVector(rotation.getColumn(1));
- }
+  btMatrix3x3 rotation = toWorldFromCam.getBasis();
+  btVector3 translation = toWorldFromCam.getOrigin();
+  eye = util::toOSGVector(translation*scale);
+  center = util::toOSGVector(rotation.getColumn(2));
+  up = -util::toOSGVector(rotation.getColumn(1));
+}
 // Affine3f getCamToWorldFromTable(const vector<Vector3f>& corners) {
 //   btVector3 newY = corners[1] - corners[0];
 //   btVector3 newX = corners[3] - corners[0];

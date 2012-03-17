@@ -6,11 +6,14 @@
 #include <opencv2/core/core.hpp>
 
 
-typedef pcl::PointCloud<pcl::PointXYZRGB> ColorCloud;
-typedef pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr ConstColorCloudPtr;
-typedef pcl::PointCloud<pcl::PointXYZRGB>::Ptr ColorCloudPtr;
+typedef pcl::PointCloud<pcl::PointXYZRGBA> ColorCloud;
+typedef pcl::PointCloud<pcl::PointXYZRGBA>::ConstPtr ConstColorCloudPtr;
+typedef pcl::PointCloud<pcl::PointXYZRGBA>::Ptr ColorCloudPtr;
 
-pcl::PointCloud<pcl::PointXYZRGB>::Ptr readPCD(const std::string& pcdfile);
+typedef Eigen::Matrix<bool,Eigen::Dynamic,1> VectorXb;
+typedef Eigen::Matrix<uint8_t,Eigen::Dynamic,Eigen::Dynamic> MatrixXb;
+
+pcl::PointCloud<pcl::PointXYZRGBA>::Ptr readPCD(const std::string& pcdfile);
 
 Eigen::MatrixXi xyz2uv(const Eigen::MatrixXf& xyz);
 
@@ -18,9 +21,8 @@ Eigen::MatrixXf toEigenMatrix(ColorCloudPtr);
 Eigen::MatrixXf getDepthImage(ColorCloudPtr);
 pcl::PointCloud<pcl::PointXYZ>::Ptr toPointCloud(const std::vector< std::vector<float> >&);
 
-typedef Eigen::Matrix<uint8_t,Eigen::Dynamic,Eigen::Dynamic> MatrixXb;
 MatrixXb toBGR(ColorCloudPtr);
 cv::Mat toCVMat(Eigen::MatrixXf);
 
 
-bool pointIsFinite(const pcl::PointXYZRGB& pt);
+bool pointIsFinite(const pcl::PointXYZRGBA& pt);

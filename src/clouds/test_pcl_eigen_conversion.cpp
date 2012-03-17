@@ -24,10 +24,10 @@ int main() {
     MatrixXi bgr2 = bgr1.cast<int>();
     // cout << bgr2.transpose() << endl;
     
-    BOOST_FOREACH(PointXYZRGB& pt, *cloud) printf("%i %i %i\n", pt.r, pt.g, pt.b);
+    BOOST_FOREACH(PointXYZRGBA& pt, *cloud) printf("%i %i %i\n", pt.r, pt.g, pt.b);
     
     for (int i=0; i < bgr2.cols(); i++) {        
-        PointXYZRGB& pt = cloud->at(i);
+        PointXYZRGBA& pt = cloud->at(i);
         printf("%i %i %i, %i %i %i\n",pt.b, pt.g, pt.r, bgr2(0,i),bgr2(1,i),bgr2(2,i));        
     }
     

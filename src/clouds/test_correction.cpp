@@ -38,10 +38,10 @@ int main() {
 
   MatrixXf coefs = toEigenMatrix(floatMatFromFile("/home/joschu/cpp/clouds/kinect_correction_identity.txt"));
   ColorCloudPtr cloud1 = readPCD("/home/joschu/cpp/clouds/test.pcd");
-  ColorCloudPtr cloud2 = correctCloudXYZRGB(cloud1,coefs);
+  ColorCloudPtr cloud2 = correctCloudXYZRGBA(cloud1,coefs);
   for (int i=0; i < cloud1->size(); i++) {
-    PointXYZRGB& pt1 = cloud1->at(i);
-    PointXYZRGB& pt2 = cloud2->at(i);
+    PointXYZRGBA& pt1 = cloud1->at(i);
+    PointXYZRGBA& pt2 = cloud2->at(i);
     ENSURE(pt1.x == pt2.x);
     ENSURE(pt1.y == pt2.y);
     ENSURE(pt1.z == pt2.z);

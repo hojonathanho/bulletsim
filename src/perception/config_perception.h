@@ -10,6 +10,8 @@ struct TrackingConfig : Config {
   static int nSamples;
   static float outlierParam;
   static int stepsPerM;
+  static float kp;
+  static float kd;
 
   static bool showLines;
   static bool showObs;
@@ -33,6 +35,8 @@ struct TrackingConfig : Config {
     params.push_back(new Parameter<float>("outlierParam", &cutoff, "p(outlier) * density"));
     params.push_back(new Parameter<int>("nSamples", &nSamples, "smallest correspondence value"));
     params.push_back(new Parameter<int>("stepsPerM",&stepsPerM,"number of physics steps in M step of algorithm"));
+    params.push_back(new Parameter<float>("kp",&kp,"kp"));
+    params.push_back(new Parameter<float>("kd",&kd,"kd"));
 
     params.push_back(new Parameter<bool>("showLines",&showLines,"show force lines"));
     params.push_back(new Parameter<bool>("showObs",&showObs,"show downsampled cloud"));

@@ -11,7 +11,7 @@ ColorCloudPtr cloud = readPCD("/home/joschu/cpp/clouds/test.pcd");
  ENSURE(xyz.rows()==cloud->size());
  ENSURE(xyz.cols()==3);
  for (int i=0; i<cloud->size(); i++) {
-    PointXYZRGB& pt = cloud->at(i);
+    PointXYZRGBA& pt = cloud->at(i);
     ENSURE(pt.x == xyz(i,0));
     ENSURE(pt.y == xyz(i,1));
     ENSURE(pt.z == xyz(i,2));
@@ -25,7 +25,7 @@ void test_toBGR() {
   ENSURE(bgr.rows() == cloud->size());
   ENSURE(bgr.cols() == 3);
   for (int i=0; i<cloud->size(); i++) {
-    PointXYZRGB& pt = cloud->at(i);
+    PointXYZRGBA& pt = cloud->at(i);
     ENSURE(pt.b == bgr(i,0));
     ENSURE(pt.g == bgr(i,1));
     ENSURE(pt.r == bgr(i,2));
@@ -37,7 +37,7 @@ void test_getDepthImage() {
   MatrixXf depths = getDepthImage(cloud);
   depths.resize(depths.rows()*depths.cols(),1);
   for (int i=0; i<cloud->size(); i++){
-      PointXYZRGB& pt = cloud->at(i);
+      PointXYZRGBA& pt = cloud->at(i);
       float d = sqrtf(pow(pt.x,2)+pow(pt.y,2)+pow(pt.z,2));
       ENSURE(d == depths(i));
   }

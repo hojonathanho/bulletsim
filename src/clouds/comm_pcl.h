@@ -16,7 +16,7 @@ using namespace std;
 
 struct CloudMessage : Message {
   ColorCloudPtr m_data;
-  CloudMessage() : Message(), m_data(new pcl::PointCloud<pcl::PointXYZRGB>) {}
+  CloudMessage() : Message(), m_data(new pcl::PointCloud<pcl::PointXYZRGBA>) {}
   CloudMessage(ColorCloudPtr cloud) : Message(), m_data(cloud) {}
   CloudMessage(ColorCloudPtr cloud, Value info) : Message(info), m_data(cloud) {}
   void writeDataTo(path) const;
@@ -37,6 +37,7 @@ public:
   void run();
   virtual void loop();
   virtual void cloud_cb(const ConstColorCloudPtr& cloud);
+  virtual void processCloud(ColorCloudPtr cloud);
 };
 
 class PausingCloudGrabber : public CloudGrabber {

@@ -15,3 +15,5 @@ void minRot(const btVector3& v1, const btVector3& v2, btMatrix3x3& m);
 void minRot(const Eigen::Vector3f& v1, const Eigen::Vector3f& v2, Eigen::Matrix3f& m);
 
 std::vector<Eigen::Vector3f>  getCorners(const std::vector<Eigen::Vector3f>& pts);
+
+Eigen::Affine3f camToWorldFromTable(const std::vector< std::vector<float> >& corners);

@@ -20,7 +20,7 @@ int main(int argc, char* argv[]) {
   po::options_description opts("Allowed options");
   opts.add_options()
     ("help,h", "produce help message")
-    ("infile,i", po::value< string >(&infile),"input file");
+    ("infile,i", po::value< string >(&infile),"input file")
     ("skip,s", po::value< int >(&skip),"skip");
   po::variables_map vm;        
   po::store(po::command_line_parser(argc, argv)
@@ -28,7 +28,7 @@ int main(int argc, char* argv[]) {
 	    .run()
 	    , vm);
   if (vm.count("help")) {
-    cout << "usage: comm_downsample_clouds [options]" << endl;
+    cout << "usage: comm_get_table [options]" << endl;
     cout << opts << endl;
     return 0;
   }
@@ -38,11 +38,11 @@ int main(int argc, char* argv[]) {
 
 
 
-  PointCloud<PointXYZRGB>::Ptr cloud (new PointCloud<PointXYZRGB>);
+  PointCloud<PointXYZRGBA>::Ptr cloud (new PointCloud<PointXYZRGBA>);
   if (infile.size() == 0)
     infile = Names("kinect","pcd").getCur().first.string();
   cout << "reading " << infile << endl;
-  if (pcl::io::loadPCDFile<pcl::PointXYZRGB> (infile, *cloud) == -1) {
+  if (pcl::io::loadPCDFile<pcl::PointXYZRGBA> (infile, *cloud) == -1) {
     PCL_ERROR(("couldn't read file " + infile + "\n").c_str());
     return -1;
   }
