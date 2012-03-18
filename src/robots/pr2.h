@@ -6,6 +6,10 @@
 #include "simulation/simplescene.h"
 
 // Special support for the OpenRAVE PR2 model
+
+#define PR2_GRIPPER_OPEN_VAL 0.54f
+#define PR2_GRIPPER_CLOSED_VAL 0.03f
+
 class PR2SoftBodyGripper {
     RaveRobotKinematicObject::Ptr robot;
     OpenRAVE::RobotBase::ManipulatorPtr manip;

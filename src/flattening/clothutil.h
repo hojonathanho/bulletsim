@@ -28,6 +28,10 @@ struct ClothSpec {
 #define CLOTHIDX_X(cs,i) ((i) % (cs).resx)
 #define CLOTHIDX_Y(cs,i) ((i) / (cs).resx)
 
+#define CLOTHCOORDS_OOB(cs,x,y) \
+    ((x) < 0 || (x) >= (cs).resx \
+     || (y) < 0 || (y) >= (cs).resy)
+
 // utility functions for manipulating cloth
 void liftClothEdges(Scene &scene, ClothSpec &cs, bool disableDrawing=true);
 void liftClothMiddle(Scene &scene, ClothSpec &cs, bool disableDrawing=true);

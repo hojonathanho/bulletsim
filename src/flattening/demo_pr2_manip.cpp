@@ -64,7 +64,6 @@ class CustomScene : Scene {
         vector<int> vec;
         clothspec.updateAccel();
         calcDiscontNodes(clothspec, vec);
-        cout << "got " << vec.size() << " discontinuous node points" << endl;
 
         vector<btVector3> pts;
         for (int i = 0; i < vec.size(); ++i)
@@ -73,12 +72,36 @@ class CustomScene : Scene {
     }
 
     void markLinks() {
+        return;
+        vector<btVector3> pts;
+        vector<btVector4> colors;
+        btScalar minval = SIMD_INFINITY, maxval = -SIMD_INFINITY;
+        vector<btScalar> vals;
+        for (int i = 0; i < clothspec.psb->m_links.size(); ++i) {
+            const btSoftBody::Link &l = clothspec.psb->m_links[i];
+            pts.push_back(l.m_n[0]->m_x);
+            pts.push_back(l.m_n[1]->m_x);
+            btScalar a = l.m_c3.length() / l.m_rl;
+            minval = min(minval, a); maxval = max(maxval, a);
+            vals.push_back(a);
+        }
+        for (int i = 0; i < vals.size(); ++i) {
+            btScalar s = (vals[i]-minval)/(maxval-minval);
+            if (s > 0.9) {
+                colors.push_back(btVector4(s, 0, 0, 1));
+            } else {
+                colors.push_back(btVector4(1, 1, 1, 0));
+            }
+        }
+        linkplot->setPoints(pts, colors);
     }
 
 public:
     void run() {
         edgeplot.reset(new PlotPoints());
         env->add(edgeplot);
+        linkplot.reset(new PlotLines(3));
+        env->add(linkplot);
 
         const float table_height = .5;
         const float table_thickness = .05;
@@ -102,11 +125,13 @@ public:
         leftAction.setTarget(cloth->softBody.get());
         leftAction.setExecTime(1.);
         addVoidKeyCallback('a', boost::bind(&CustomScene::runGripperAction, this, leftAction));
-
         addVoidKeyCallback('z', boost::bind(&CustomScene::saveManipTrans, this, pr2m->pr2Left));
         addVoidKeyCallback('x', boost::bind(&CustomScene::moveArmToSaved, this, pr2m->pr2, pr2m->pr2Left));
         addVoidKeyCallback('c', boost::bind(&CustomScene::doStuff, this));
-        addVoidKeyCallback('e', boost::bind(&CustomScene::markEdges, this));
+        //addVoidKeyCallback('e', boost::bind(&CustomScene::markEdges, this));
+        addPreDrawCallback(boost::bind(&CustomScene::markEdges, this));
+
+        //addPreDrawCallback(boost::bind(&CustomScene::markLinks, this));
 
         startViewer();
         startFixedTimestepLoop(BulletConfig::dt);

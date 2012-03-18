@@ -178,9 +178,6 @@ class PR2SoftBodyGripperAction : public Action {
     vector<int> indices;
     vector<dReal> vals;
 
-    // min/max gripper dof vals
-    static const float CLOSED_VAL = 0.03f, OPEN_VAL = 0.54f;
-
     // the target softbody
     btSoftBody *psb;
 
@@ -204,12 +201,12 @@ public:
         robot->robot->GetDOFValues(v);
         return v[indices[0]];
     }
-    void setOpenAction() { setEndpoints(getCurrDOFVal(), OPEN_VAL); }
-    void setCloseAction() { setEndpoints(getCurrDOFVal(), CLOSED_VAL); }
+    void setOpenAction() { setEndpoints(getCurrDOFVal(), PR2_GRIPPER_OPEN_VAL); }
+    void setCloseAction() { setEndpoints(getCurrDOFVal(), PR2_GRIPPER_CLOSED_VAL); }
     void toggleAction() {
-        if (endVal == CLOSED_VAL)
+        if (endVal == PR2_GRIPPER_CLOSED_VAL)
             setOpenAction();
-        else if (endVal == OPEN_VAL)
+        else if (endVal == PR2_GRIPPER_OPEN_VAL)
             setCloseAction();
     }
 
@@ -236,7 +233,7 @@ public:
         vals[0] = (1.f - frac)*startVal + frac*endVal;
         robot->setDOFValues(indices, vals);
 
-        if (vals[0] == CLOSED_VAL)
+        if (vals[0] == PR2_GRIPPER_CLOSED_VAL)
             sbgripper.grab();
     }
 };
@@ -248,9 +245,6 @@ class GripperOpenCloseAction : public Action {
     dReal startVal, endVal;
     vector<int> indices;
     vector<dReal> vals;
-
-    // min/max gripper dof vals
-    static const float CLOSED_VAL = 0.03f, OPEN_VAL = 0.54f;
 
     dReal getCurrDOFVal() const {
         vector<dReal> v;
@@ -267,7 +261,7 @@ public:
     {
         if (indices.size() != 1)
             cout << "WARNING: more than one gripper DOF; just choosing first one" << endl;
-        endVal = open ? OPEN_VAL : CLOSED_VAL;
+        endVal = open ? PR2_GRIPPER_OPEN_VAL : PR2_GRIPPER_CLOSED_VAL;
     }
 
     void step(float dt) {

@@ -69,6 +69,10 @@ void Scene::step(float dt, int maxsteps, float internaldt) {
     for (std::set<Fork::Ptr>::iterator i = forks.begin(); i != forks.end(); ++i)
         (*i)->env->step(dt, maxsteps, internaldt);
 
+    // run pre-draw callbacks
+    for (int i = 0; i < predrawCallbacks.size(); ++i)
+        predrawCallbacks[i]();
+
     draw();
 
     if (syncTime && drawingOn) {
@@ -171,6 +175,10 @@ void Scene::addVoidKeyCallback(char c, VoidCallback cb) {
 
 void Scene::addPreStepCallback(VoidCallback cb) {
     prestepCallbacks.push_back(cb);
+}
+
+void Scene::addPreDrawCallback(VoidCallback cb) {
+    predrawCallbacks.push_back(cb);
 }
 
 void EventHandler::getTransformation(osg::Vec3d &eye, osg::Vec3d &center, osg::Vec3d &up) const {
