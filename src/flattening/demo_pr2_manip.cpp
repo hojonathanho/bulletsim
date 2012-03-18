@@ -16,8 +16,8 @@ class CustomScene : Scene {
     ClothSpec clothspec;
     PR2Manager::Ptr pr2m;
 
-    PlotPoints::Ptr edgeplot;
-    PlotLines::Ptr linkplot;
+    PlotPoints::Ptr foldnodeplot;
+    PlotLines::Ptr folddirplot;
 
     void runGripperAction(PR2SoftBodyGripperAction &a) {
         a.reset();
@@ -60,48 +60,35 @@ class CustomScene : Scene {
         cout << "done." << endl;
     }
 
-    void markEdges() {
+    void markFolds() {
         vector<int> vec;
         clothspec.updateAccel();
-        calcDiscontNodes(clothspec, vec);
+        calcFoldNodes(clothspec, vec);
 
-        vector<btVector3> pts;
-        for (int i = 0; i < vec.size(); ++i)
-            pts.push_back(clothspec.psb->m_nodes[vec[i]].m_x);
-        edgeplot->setPoints(pts);
-    }
-
-    void markLinks() {
-        return;
         vector<btVector3> pts;
         vector<btVector4> colors;
-        btScalar minval = SIMD_INFINITY, maxval = -SIMD_INFINITY;
-        vector<btScalar> vals;
-        for (int i = 0; i < clothspec.psb->m_links.size(); ++i) {
-            const btSoftBody::Link &l = clothspec.psb->m_links[i];
-            pts.push_back(l.m_n[0]->m_x);
-            pts.push_back(l.m_n[1]->m_x);
-            btScalar a = l.m_c3.length() / l.m_rl;
-            minval = min(minval, a); maxval = max(maxval, a);
-            vals.push_back(a);
+        for (int i = 0; i < vec.size(); ++i) {
+            pts.push_back(clothspec.psb->m_nodes[vec[i]].m_x);
+            colors.push_back(btVector4(0, 0, 0, 1));
         }
-        for (int i = 0; i < vals.size(); ++i) {
-            btScalar s = (vals[i]-minval)/(maxval-minval);
-            if (s > 0.9) {
-                colors.push_back(btVector4(s, 0, 0, 1));
-            } else {
-                colors.push_back(btVector4(1, 1, 1, 0));
-            }
+        foldnodeplot->setPoints(pts, colors);
+
+        pts.clear();
+        for (int i = 0; i < vec.size(); ++i) {
+            btVector3 dir = calcFoldLineDir(clothspec, vec[i], vec);
+            btVector3 c = clothspec.psb->m_nodes[vec[i]].m_x;
+            btScalar l = 0.01*METERS;
+            pts.push_back(c - l*dir); pts.push_back(c + l*dir);
         }
-        linkplot->setPoints(pts, colors);
+        folddirplot->setPoints(pts);
     }
 
 public:
     void run() {
-        edgeplot.reset(new PlotPoints());
-        env->add(edgeplot);
-        linkplot.reset(new PlotLines(3));
-        env->add(linkplot);
+        foldnodeplot.reset(new PlotPoints());
+        env->add(foldnodeplot);
+        folddirplot.reset(new PlotLines(3));
+        env->add(folddirplot);
 
         const float table_height = .5;
         const float table_thickness = .05;
@@ -128,10 +115,8 @@ public:
         addVoidKeyCallback('z', boost::bind(&CustomScene::saveManipTrans, this, pr2m->pr2Left));
         addVoidKeyCallback('x', boost::bind(&CustomScene::moveArmToSaved, this, pr2m->pr2, pr2m->pr2Left));
         addVoidKeyCallback('c', boost::bind(&CustomScene::doStuff, this));
-        //addVoidKeyCallback('e', boost::bind(&CustomScene::markEdges, this));
-        addPreDrawCallback(boost::bind(&CustomScene::markEdges, this));
 
-        //addPreDrawCallback(boost::bind(&CustomScene::markLinks, this));
+        addPreDrawCallback(boost::bind(&CustomScene::markFolds, this));
 
         startViewer();
         startFixedTimestepLoop(BulletConfig::dt);

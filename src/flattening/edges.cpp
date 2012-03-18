@@ -1,6 +1,7 @@
 #include "edges.h"
+#include <pcl/common/pca.h>
 
-static const btScalar distSqIfFlat(const ClothSpec &cs, int n1, int n2) {
+static btScalar distSqIfFlat(const ClothSpec &cs, int n1, int n2) {
     int x1 = CLOTHIDX_X(cs, n1);
     int y1 = CLOTHIDX_Y(cs, n1);
     int x2 = CLOTHIDX_X(cs, n2);
@@ -27,7 +28,7 @@ static bool isBent(const ClothSpec &cs, const btVector3 &center,
 }
 
 //static const btScalar FLATDIST_SCALE = 1.2;
-void calcDiscontNodes(const ClothSpec &cs, vector<int> &out) {
+void calcFoldNodes(const ClothSpec &cs, vector<int> &out) {
     // get "usual" node distance (as if the cloth were flat)
     const btScalar flatdist = max(cs.lenx/cs.resx, cs.leny/cs.resy);
     for (int i = 0; i < cs.psb->m_nodes.size(); ++i) {
@@ -46,11 +47,47 @@ void calcDiscontNodes(const ClothSpec &cs, vector<int> &out) {
 
         // check if the cloth is bent at the current node
         // by looking at nodes distance 2 away
-        const int d = 2;
+        static const int d = 2;
         if (isBent(cs, n.m_x, x-d, y, x+d, y)
                 || isBent(cs, n.m_x, x, y-d, x, y+d)
                 || isBent(cs, n.m_x, x-d, y-d, x+d, y+d)
                 || isBent(cs, n.m_x, x+d, y-d, x-d, y+d))
             out.push_back(i);
     }
+}
+
+btVector3 calcFoldLineDir(const ClothSpec &cs, int node, const vector<int> &foldnodes, bool zeroZ) {
+    // get a bunch of nodes in some neighborhood of the given node
+    vector<int> nearnodes;
+    btScalar searchradius = 2*max(cs.lenx/cs.resx, cs.leny/cs.resy);
+    const btVector3 &p = cs.psb->m_nodes[node].m_x;
+    pcl::PointXYZ searchpt(p.x(), p.y(), p.z());
+    vector<int> pointIdxRadiusSearch;
+    vector<float> pointRadiusSquaredDistance;
+    if (cs.kdtree->radiusSearch(
+                searchpt, searchradius,
+                pointIdxRadiusSearch,
+                pointRadiusSquaredDistance) > 0) {
+        for (int i = 0; i < pointIdxRadiusSearch.size(); ++i)
+            nearnodes.push_back(pointIdxRadiusSearch[i]);
+    }
+
+    cout << nearnodes.size() << endl;
+    // not enough nodes for pca
+    if (nearnodes.size() < 3)
+        return btVector3(0, 0, 0);
+
+    // return the first principal component of the nearnodes
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
+    cloud->points.resize(nearnodes.size());
+    for (int i = 0; i < cloud->points.size(); ++i) {
+        const btVector3 &p = cs.psb->m_nodes[nearnodes[i]].m_x;
+        cloud->points[i].x = p.x();
+        cloud->points[i].y = p.y();
+        cloud->points[i].z = zeroZ ? 0 : p.z();
+    }
+    pcl::PCA<pcl::PointXYZ> pca;
+    pca.setInputCloud(cloud);
+    Eigen::VectorXf comp0 = pca.getEigenVectors().col(0);
+    return btVector3(comp0(0), comp0(1), comp0(2));
 }

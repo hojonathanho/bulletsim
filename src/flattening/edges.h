@@ -4,6 +4,8 @@
 #include "clothutil.h"
 
 // out is populated with node indices that could serve as grasp edges
-void calcDiscontNodes(const ClothSpec &cs, vector<int> &out);
+void calcFoldNodes(const ClothSpec &cs, vector<int> &out);
+
+btVector3 calcFoldLineDir(const ClothSpec &cs, int node, const vector<int> &foldnodes, bool zeroZ=true);
 
 #endif // __FL_EDGES_H__
