@@ -26,7 +26,7 @@ bool yesOrNo(char message[]) {
     char yn;
     cin >> yn;
     if (yn == 'y') return true;
-    else if (yn == 'n') exit(1);
+    else if (yn == 'n') return false;
   }
 }
 
