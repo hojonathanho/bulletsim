@@ -2,7 +2,14 @@
 #include "simulation/simplescene.h"
 #include "robots/grabbing.h"
 #include <boost/bind.hpp>
+#include <boost/filesystem.hpp>
+#include "utils/vector_io.h"
+#include "perception/make_bodies.h"
+
 using boost::shared_ptr;
+namespace fs = boost::filesystem;
+
+fs::path KNOT_DATA  = fs::path(EXPAND(BULLETSIM_DATA_DIR) "/knots");
 
 struct GrabbingScene : public Scene {
 public:
@@ -45,4 +52,30 @@ public:
     pr2m->pr2Right->setGripperAngle(pr2m->pr2Right->getGripperAngle() + .02);
   }
 
+};
+
+struct TableRopeScene : public GrabbingScene {
+  CapsuleRope::Ptr m_rope;
+  BulletObject::Ptr m_table;
+  
+  TableRopeScene(fs::path ropeFile) : GrabbingScene() {
+    vector<double> firstJoints = doubleVecFromFile((KNOT_DATA / "init_joints_train.txt").string());
+    ValuesInds vi = getValuesInds(firstJoints);
+    pr2m->pr2->setDOFValues(vi.second, vi.first);
+    
+    vector<btVector3> tableCornersWorld = toBulletVectors(floatMatFromFile((KNOT_DATA / "table_corners.txt").string()));
+    vector<btVector3> controlPointsWorld = toBulletVectors(floatMatFromFile(ropeFile.string()));
+
+    PlotPoints::Ptr corners(new PlotPoints(20));
+    corners->setPoints(tableCornersWorld);
+    env->add(corners);
+
+    m_table = makeTable(tableCornersWorld, .1*GeneralConfig::scale);
+    m_rope.reset(new CapsuleRope(controlPointsWorld, .0075*METERS));
+    env->add(m_rope);
+    env->add(m_table);
+    setGrabBodies(m_rope->children);
+    
+  }
+  
 };

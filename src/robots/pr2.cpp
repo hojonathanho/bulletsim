@@ -254,8 +254,8 @@ void PR2Manager::processHapticInput() {
     }
 
     // adjust the transforms
-    btVector3 HAPTIC_OFFSET = btVector3(-0.2, 0, -0.8)*METERS + util::toBtVector(pr2->robot->GetLink("torso_lift_link")->GetTransform().trans)*METERS;
-    static const btScalar HAPTIC_SCALE = 1. / 200. * METERS;
+    btVector3 HAPTIC_OFFSET = btVector3(-0.2, 0, -1)*METERS + util::toBtVector(pr2->robot->GetLink("torso_lift_link")->GetTransform().trans)*METERS;
+    static const btScalar HAPTIC_SCALE = 1. / 150. * METERS;
     trans0.setOrigin(trans0.getOrigin()*HAPTIC_SCALE + leftInitTrans.getOrigin() + HAPTIC_OFFSET);
     trans1.setOrigin(trans1.getOrigin()*HAPTIC_SCALE + rightInitTrans.getOrigin()+ HAPTIC_OFFSET);
 

@@ -7,42 +7,42 @@
 #include "utils/conversions.h"
 #include "simulation/config_bullet.h"
 #include "simulation/rope.h"
-#include "knots/grabbing_scene.h"
 #include "perception/robot_geometry.h"
 #include "perception/utils_perception.h"
 #include "perception/make_bodies.h"
 #include "robots/ros2rave.h"
+#include "knots/knots.h"
 
 using namespace std;
 using boost::shared_ptr;
 
+extern fs::path KNOT_DATA;
 
-#define KNOT_DATA EXPAND(BULLETSIM_DATA_DIR) "/knots"
+struct LocalConfig : Config {
+  static string initRope;
+  static string poses;
+  LocalConfig() : Config() {
+    params.push_back(new Parameter<string>("initRope", &initRope, "file specifying initial rope")); 
+    params.push_back(new Parameter<string>("poses", &poses, "file with poses")); 
+  }
+
+};
+string LocalConfig::initRope="";
+string LocalConfig::poses="";
 
 int main(int argc, char* argv[]) {
-  GeneralConfig::scale = 10;
+  GeneralConfig::scale = 10;  
+  
+  Parser parser;
+  parser.addGroup(LocalConfig());
+  parser.addGroup(GeneralConfig());
+  parser.addGroup(SceneConfig());
+  parser.read(argc, argv);
+  if (LocalConfig::initRope == "") throw std::runtime_error("must specify a rope file (--initRope=...)");
+  if (LocalConfig::poses == "") throw std::runtime_error("must specify a pose file (--poses=...)");
 
 
-  GrabbingScene scene;
-
-  vector<double> firstJoints = doubleVecFromFile(KNOT_DATA "/init_joints_train.txt");
-  ValuesInds vi = getValuesInds(firstJoints);
-  scene.pr2m->pr2->setDOFValues(vi.second, vi.first);
-
-  KinectTrans kinectTrans(scene.pr2m->pr2->robot);
-  kinectTrans.calibrate(btTransform(btQuaternion(0.669785, -0.668418, 0.222562, -0.234671), btVector3(0.263565, -0.038203, 1.762524)));
-  CoordinateTransformer CT(kinectTrans.getKinectTrans());
-  vector<btVector3> tableCornersCam = toBulletVectors(floatMatFromFile(KNOT_DATA "/table_corners_train.txt"));
-  vector<btVector3> tableCornersWorld = CT.toWorldFromCamN(tableCornersCam);
-  BulletObject::Ptr table = makeTable(tableCornersWorld, .1*GeneralConfig::scale);
-  vector<btVector3> ropePtsCam = toBulletVectors(floatMatFromFile(KNOT_DATA "/init_rope_test.txt"));
-  //  CapsuleRope::Ptr rope(new CapsuleRope(CT.toWorldFromCamN(ropePtsCam), .0075*METERS));
-  CapsuleRope::Ptr rope(new CapsuleRope(ropePtsCam, .0075*METERS));
-  scene.env->add(rope);
-  scene.env->add(table);
-  scene.setGrabBodies(rope->children);
-
-  ifstream poseFile(KNOT_DATA "/poses_warped.txt");
+  TableRopeScene scene(KNOT_DATA / LocalConfig::initRope);
 
   scene.startViewer();
   scene.setSyncTime(false);
@@ -53,6 +53,9 @@ int main(int argc, char* argv[]) {
 
   scene.env->add(axesLeft);
   scene.env->add(axesRight);
+  
+  
+  ifstream poseFile( (KNOT_DATA / LocalConfig::poses).string().c_str() );
 
   while (poseFile.good()) {
     
@@ -76,5 +79,5 @@ int main(int argc, char* argv[]) {
     scene.step(DT);
 
   }
-  cout << "done with playback" << endl;
+
 }
