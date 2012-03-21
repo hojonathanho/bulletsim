@@ -32,6 +32,16 @@ struct ClothSpec {
     ((x) < 0 || (x) >= (cs).resx \
      || (y) < 0 || (y) >= (cs).resy)
 
+#define CLOTHIDX_ON_TOP_EDGE(cs, i) \
+    ((i) < CLOTHIDX((cs), 0, 1))
+#define CLOTHIDX_ON_BOTTOM_EDGE(cs, i) \
+     ((i) >= CLOTHIDX((cs), 0, (cs).resy-1) \
+      && (i) <= CLOTHIDX((cs), (cs).resx-1, (cs).resy-1))
+#define CLOTHIDX_ON_LEFT_EDGE(cs, i) \
+     (CLOTHIDX_X((cs), (i)) == 0)
+#define CLOTHIDX_ON_RIGHT_EDGE(cs, i) \
+     (CLOTHIDX_X((cs), (i)) == (cs).resx-1)
+
 // utility functions for manipulating cloth
 void liftClothEdges(Scene &scene, ClothSpec &cs, bool disableDrawing=true);
 void liftClothMiddle(Scene &scene, ClothSpec &cs, bool disableDrawing=true);

@@ -36,11 +36,10 @@ void calcFoldNodes(const ClothSpec &cs, vector<int> &out) {
         int x = CLOTHIDX_X(cs, i), y = CLOTHIDX_Y(cs, i);
 
         // if this is an edge node, then add this to out
-        if (i < CLOTHIDX(cs, 0, 1)
-                || (i >= CLOTHIDX(cs, 0, cs.resy-1)
-                    && i <= CLOTHIDX(cs, cs.resx-1, cs.resy-1))
-                || x == 0
-                || x == cs.resx-1) {
+        if (CLOTHIDX_ON_TOP_EDGE(cs, i)
+                || CLOTHIDX_ON_BOTTOM_EDGE(cs, i)
+                || CLOTHIDX_ON_LEFT_EDGE(cs, i)
+                || CLOTHIDX_ON_RIGHT_EDGE(cs, i)) {
             out.push_back(i);
             continue;
         }
@@ -57,6 +56,27 @@ void calcFoldNodes(const ClothSpec &cs, vector<int> &out) {
 }
 
 btVector3 calcFoldLineDir(const ClothSpec &cs, int node, const vector<int> &foldnodes, bool zeroZ) {
+    // if the node is an edge node, then give the direction of the edge
+    btVector3 ret(0, 0, 0);
+    int othernode = -1;
+    if (CLOTHIDX_ON_TOP_EDGE(cs, node)
+            || CLOTHIDX_ON_BOTTOM_EDGE(cs, node)) {
+        if (CLOTHIDX_X(cs, node) < cs.resx - 1)
+            othernode = node + 1;
+        else
+            othernode = node - 1;
+    } else if (CLOTHIDX_ON_LEFT_EDGE(cs, node)
+            || CLOTHIDX_ON_RIGHT_EDGE(cs, node)) {
+        if (CLOTHIDX_Y(cs, node) < cs.resy - 1)
+            othernode = node + cs.resx;
+        else
+            othernode = node - cs.resx;
+    }
+    if (othernode != -1)
+        return (cs.psb->m_nodes[node].m_x
+                - cs.psb->m_nodes[othernode].m_x).normalized();
+
+    // otherwise:
     // get a bunch of nodes in some neighborhood of the given node
     vector<int> nearnodes;
     btScalar searchradius = 2*max(cs.lenx/cs.resx, cs.leny/cs.resy);
