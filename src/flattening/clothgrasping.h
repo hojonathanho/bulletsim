@@ -216,13 +216,9 @@ public:
         sbgripper.setTarget(psb_);
     }
 
-    void releaseAllAnchors() {
-        psb->m_anchors.clear();
-    }
-
     void reset() {
         Action::reset();
-        releaseAllAnchors();
+        sbgripper.releaseAllAnchors();
     }
 
     void step(float dt) {
@@ -253,7 +249,7 @@ class GripperOpenCloseAction : public Action {
     }
 
 public:
-    typedef boost::shared_ptr<PR2SoftBodyGripperAction> Ptr;
+    typedef boost::shared_ptr<GripperOpenCloseAction> Ptr;
     GripperOpenCloseAction(RaveRobotObject::Ptr robot_, OpenRAVE::RobotBase::ManipulatorPtr manip, bool open) :
         robot(robot_),
         indices(manip->GetGripperIndices()),
@@ -266,6 +262,10 @@ public:
 
     void step(float dt) {
         if (done()) return;
+        if (startVal == endVal) {
+            setDone(true);
+            return;
+        }
 
         if (timeElapsed == 0)
             startVal = getCurrDOFVal();
@@ -286,9 +286,11 @@ public:
 static const btQuaternion PR2_GRIPPER_INIT_ROT(0., 0.7071, 0., 0.7071);
 static const btQuaternion GRIPPER_TO_VERTICAL_ROT(btVector3(1, 0, 0), M_PI/2);
 static const btVector3 PR2_GRIPPER_INIT_ROT_DIR(1, 0, 0);
-static const btScalar MOVE_BEHIND_DIST = 0.02;
+static const btScalar MOVE_BEHIND_DIST = 0;//0.02;
+static const btScalar MOVE_FORWARD_DIST = 0.04;
 static const btVector3 OFFSET(0, 0, 0.0/*5*/); // don't sink through table
-static const btScalar ANGLE_DOWN_HEIGHT = 0.05;
+//static const btScalar ANGLE_DOWN_HEIGHT = 0.03;
+static const btQuaternion ANGLE_DOWN_ROT(btVector3(0, 1, 0), 45*M_PI/180);
 static const btScalar LOWER_INTO_TABLE = -0.01;
 class GraspClothNodeAction : public ActionChain {
     RaveRobotObject::Ptr robot;
@@ -296,6 +298,7 @@ class GraspClothNodeAction : public ActionChain {
     btSoftBody *cloth;
     const int node;
     btVector3 dir;
+    PR2SoftBodyGripper::Ptr sbgripper;
 
     // pos = desired manip transform origin
     // dir = direction vector that the manipulator should point to
@@ -305,7 +308,7 @@ class GraspClothNodeAction : public ActionChain {
         if (btFuzzyZero(cross.length2()))
             cross = btVector3(1, 0, 0); // arbitrary axis
         btQuaternion q(cross, angle);
-        return btTransform(q * GRIPPER_TO_VERTICAL_ROT * PR2_GRIPPER_INIT_ROT, pos);
+        return btTransform(q * ANGLE_DOWN_ROT * GRIPPER_TO_VERTICAL_ROT * PR2_GRIPPER_INIT_ROT, pos);
     }
 
 public:
@@ -322,21 +325,31 @@ public:
             ManipIKInterpAction *positionGrasp = new ManipIKInterpAction(robot, manip);
             btVector3 v(cloth->m_nodes[node].m_x);
             // move the gripper a few cm behind node, angled slightly down
-            btVector3 dir2 = btVector3(dir.x(), dir.y(), -ANGLE_DOWN_HEIGHT * METERS).normalize();
-            positionGrasp->setPR2TipTargetTrans(transFromDir(dir2, v - dir2*MOVE_BEHIND_DIST*METERS + OFFSET*METERS));
+//            btVector3 dir2 = btVector3(dir.x(), dir.y(), -ANGLE_DOWN_HEIGHT * METERS).normalize();
+//            positionGrasp->setPR2TipTargetTrans(transFromDir(dir2, v - dir2*MOVE_BEHIND_DIST*METERS + OFFSET*METERS));
+            positionGrasp->setPR2TipTargetTrans(transFromDir(dir, v - dir*MOVE_BEHIND_DIST*METERS + OFFSET*METERS));
 
+            ManipIKInterpAction *moveUp = new ManipIKInterpAction(robot, manip);
+            moveUp->setRelativeTrans(btTransform(btQuaternion(0, 0, 0, 1),
+                        btVector3(0, 0, 0.1*METERS)));
+            /*
             ManipIKInterpAction *lowerIntoTable = new ManipIKInterpAction(robot, manip);
             lowerIntoTable->setRelativeTrans(btTransform(btQuaternion(0,0,0,1), btVector3(0, 0, LOWER_INTO_TABLE*METERS)));
-
+*/
             ManipIKInterpAction *moveForward = new ManipIKInterpAction(robot, manip);
             moveForward->setRelativeTrans(btTransform(btQuaternion(0, 0, 0, 1),
-                       dir * MOVE_BEHIND_DIST*2 * METERS));
+                       dir * (MOVE_BEHIND_DIST+MOVE_FORWARD_DIST) * METERS));
 
-            PR2SoftBodyGripper sbgripper(robot, manip->manip, true); // TODO: leftGripper flag
-            sbgripper.setGrabOnlyOnContact(true);
-            sbgripper.setTarget(cloth);
+            sbgripper.reset(new PR2SoftBodyGripper(robot, manip->manip, true)); // TODO: leftGripper flag
+            sbgripper->setGrabOnlyOnContact(true);
+            sbgripper->setTarget(cloth);
+            FunctionAction *releaseAnchors = new FunctionAction(boost::bind(&PR2SoftBodyGripper::releaseAllAnchors, sbgripper));
             FunctionAction *setAnchors = new FunctionAction(boost::bind(&PR2SoftBodyGripper::grab, sbgripper));
-            *this << openGripper << positionGrasp << lowerIntoTable << moveForward << closeGripper << setAnchors;
+
+            *this << releaseAnchors << openGripper
+                << moveUp
+                << positionGrasp << /*lowerIntoTable <<*/ moveForward
+                << closeGripper << setAnchors;
         }
     }
 };

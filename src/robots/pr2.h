@@ -17,11 +17,6 @@ class PR2SoftBodyGripper {
     float grabOnlyOnContact;
 
     KinBody::LinkPtr leftFinger, rightFinger;
-    const btTransform origLeftFingerInvTrans, origRightFingerInvTrans;
-
-    // the point right where the fingers meet when the gripper is closed
-    // (in the robot's initial pose)
-    const btVector3 centerPt;
 
     // vector normal to the direction that the gripper fingers move in the manipulator frame
     // (on the PR2 this points back into the arm)
@@ -48,12 +43,9 @@ class PR2SoftBodyGripper {
     // Finds some innermost point on the gripper
     btVector3 getInnerPt(bool left) const {
         btTransform trans(robot->getLinkTransform(left ? leftFinger : rightFinger));
-        // this assumes that the gripper is symmetric when it is closed
         // we get an innermost point on the gripper by transforming a point
         // on the center of the gripper when it is closed
-        const btTransform &origInv = left ? origLeftFingerInvTrans : origRightFingerInvTrans;
-        return trans * origInv * centerPt;
-        // actually above, we can just cache origInv * centerPt
+        return trans * (METERS/20.*btVector3(0.234402, -0.299, 0));
     }
 
     // Returns true is pt is on the inner side of the specified finger of the gripper
@@ -77,9 +69,7 @@ public:
     void setTarget(btSoftBody *psb_) { psb = psb_; }
 
     void grab();
-    void releaseAllAnchors() { psb->m_anchors.clear(); }
-
-    void setForkParams(Environment *env_, BulletInstance::Ptr newBullet_, OSGInstance::Ptr newOSG_);
+    void releaseAllAnchors();
 };
 
 class Scene;

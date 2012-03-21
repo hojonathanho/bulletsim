@@ -72,7 +72,6 @@ btVector3 calcFoldLineDir(const ClothSpec &cs, int node, const vector<int> &fold
             nearnodes.push_back(pointIdxRadiusSearch[i]);
     }
 
-    cout << nearnodes.size() << endl;
     // not enough nodes for pca
     if (nearnodes.size() < 3)
         return btVector3(0, 0, 0);

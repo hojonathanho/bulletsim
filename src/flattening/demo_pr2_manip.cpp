@@ -19,6 +19,8 @@ class CustomScene : Scene {
     PlotPoints::Ptr foldnodeplot;
     PlotLines::Ptr folddirplot;
 
+    vector<int> foldnodes;
+
     void runGripperAction(PR2SoftBodyGripperAction &a) {
         a.reset();
         a.toggleAction();
@@ -50,33 +52,80 @@ class CustomScene : Scene {
         cout << "done." << endl;
     }
 
+    int tryGrasp(int node, const btVector3 &gripperdir) {
+        BulletInstance::Ptr fork_bullet(new BulletInstance);
+        fork_bullet->setGravity(BulletConfig::gravity);
+        OSGInstance::Ptr fork_osg(new OSGInstance);
+        Fork::Ptr fork(new Fork(env, fork_bullet, fork_osg));
+        RaveRobotObject::Ptr fork_pr2 =
+            boost::static_pointer_cast<RaveRobotObject>(
+                fork->forkOf(pr2m->pr2));
+        BulletSoftObject::Ptr fork_cloth =
+            boost::static_pointer_cast<BulletSoftObject>(
+                    fork->forkOf(cloth));
+        RaveRobotObject::Manipulator::Ptr fork_pr2Left =
+            fork_pr2->getManipByIndex(pr2m->pr2Left->index);
+        osg->root->addChild(fork_osg->root);
+
+        Action::Ptr a(new GraspClothNodeAction(
+                    fork_pr2, fork_pr2Left, fork_cloth->softBody.get(),
+                    node, gripperdir));
+        while (!a->done()) {
+            a->step(BulletConfig::dt);
+            fork->env->step(BulletConfig::dt,
+                    BulletConfig::maxSubSteps, BulletConfig::internalTimeStep);
+            draw();
+        }
+        osg->root->removeChild(fork_osg->root);
+
+        return fork_cloth->softBody->m_anchors.size();
+    }
+
     void doStuff() {
 //        savedTrans.setOrigin(cloth->softBody->m_nodes[cloth->softBody->m_nodes.size()-10].m_x);
+
+        const int node = cloth->softBody->m_nodes.size() - 10;
+
+        btVector3 folddir = calcFoldLineDir(clothspec, node, foldnodes);
+        folddir.setZ(0);
+        btVector3 gripperdir = folddir.cross(btVector3(0, 0, 1));
+
+        // now there's ambiguity in the gripper direction
+        // (either gripperdir or -gripperdir)
+        // choose the one that attaches the most anchors to the softbody
+        int nforward = tryGrasp(node, gripperdir);
+        int nbackward = tryGrasp(node, -gripperdir);
+        cout << "forward: " << nforward << " backward: " << nbackward << endl;
+
+        if (nbackward > nforward)
+            gripperdir = -gripperdir;
+
         runAction(Action::Ptr(new GraspClothNodeAction(
                         pr2m->pr2, pr2m->pr2Left, cloth->softBody.get(),
                         cloth->softBody->m_nodes.size() - 10,
-                        btVector3(1, -1, 0))),
+                        gripperdir
+                        /*btVector3(1, -1, 0)*/)),
                 BulletConfig::dt);
         cout << "done." << endl;
     }
 
     void markFolds() {
-        vector<int> vec;
         clothspec.updateAccel();
-        calcFoldNodes(clothspec, vec);
+        foldnodes.clear();
+        calcFoldNodes(clothspec, foldnodes);
 
         vector<btVector3> pts;
         vector<btVector4> colors;
-        for (int i = 0; i < vec.size(); ++i) {
-            pts.push_back(clothspec.psb->m_nodes[vec[i]].m_x);
+        for (int i = 0; i < foldnodes.size(); ++i) {
+            pts.push_back(clothspec.psb->m_nodes[foldnodes[i]].m_x);
             colors.push_back(btVector4(0, 0, 0, 1));
         }
         foldnodeplot->setPoints(pts, colors);
 
         pts.clear();
-        for (int i = 0; i < vec.size(); ++i) {
-            btVector3 dir = calcFoldLineDir(clothspec, vec[i], vec);
-            btVector3 c = clothspec.psb->m_nodes[vec[i]].m_x;
+        for (int i = 0; i < foldnodes.size(); ++i) {
+            btVector3 dir = calcFoldLineDir(clothspec, foldnodes[i], foldnodes);
+            btVector3 c = clothspec.psb->m_nodes[foldnodes[i]].m_x;
             btScalar l = 0.01*METERS;
             pts.push_back(c - l*dir); pts.push_back(c + l*dir);
         }

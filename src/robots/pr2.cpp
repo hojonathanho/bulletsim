@@ -33,7 +33,7 @@ static void getContactPointsWith(btSoftBody *psb, btCollisionObject *pco, btSoft
         void DoNode(btSoftBody::Node& n) {
             const btScalar m=n.m_im>0?dynmargin:stamargin;
             btSoftBody::RContact c;
-            if (!n.m_battach && psb->checkContact(m_colObj1,n.m_x,m,c.m_cti)) {
+            if (/*!n.m_battach &&*/ psb->checkContact(m_colObj1,n.m_x,m,c.m_cti)) {
                 const btScalar  ima=n.m_im;
                 const btScalar  imb= m_rigidBody? m_rigidBody->getInvMass() : 0.f;
                 const btScalar  ms=ima+imb;
@@ -104,15 +104,19 @@ PR2SoftBodyGripper::PR2SoftBodyGripper(RaveRobotKinematicObject::Ptr robot_, Ope
         robot(robot_), manip(manip_),
         leftFinger(robot->robot->GetLink(leftGripper ? LEFT_GRIPPER_LEFT_FINGER_NAME : RIGHT_GRIPPER_LEFT_FINGER_NAME)),
         rightFinger(robot->robot->GetLink(leftGripper ? LEFT_GRIPPER_RIGHT_FINGER_NAME : RIGHT_GRIPPER_RIGHT_FINGER_NAME)),
-        origLeftFingerInvTrans(robot->getLinkTransform(leftFinger).inverse()),
-        origRightFingerInvTrans(robot->getLinkTransform(rightFinger).inverse()),
-        centerPt(util::toBtTransform(manip->GetTransform(), robot->scale).getOrigin()),
         closingNormal(manip->GetClosingDirection()[0],
                       manip->GetClosingDirection()[1],
                       manip->GetClosingDirection()[2]),
         toolDirection(util::toBtVector(manip->GetLocalToolDirection())), // don't bother scaling
         grabOnlyOnContact(false)
 {
+}
+
+void PR2SoftBodyGripper::releaseAllAnchors() {
+    cout << "releasing" << endl;
+    for (int i = 0; i < psb->m_anchors.size(); ++i)
+        psb->m_anchors[i].m_node->m_battach = 0;
+    psb->m_anchors.clear();
 }
 
 void PR2SoftBodyGripper::attach(bool left) {
@@ -122,6 +126,7 @@ void PR2SoftBodyGripper::attach(bool left) {
     getContactPointsWith(psb, rigidBody, rcontacts);
     cout << "got " << rcontacts.size() << " contacts\n";
     int nAppended = 0;
+
     for (int i = 0; i < rcontacts.size(); ++i) {
         const btSoftBody::RContact &c = rcontacts[i];
         KinBody::LinkPtr colLink = robot->associatedObj(c.m_cti.m_colObj);
