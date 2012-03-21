@@ -93,3 +93,15 @@ public:
 
 };
 
+class PlotCurve : public osg::Geode {
+
+public:
+  osg::Vec4 m_defaultColor;
+  osg::ref_ptr<osg::Geometry> m_geom;
+
+  PlotCurve(float width=5);
+  void setPoints(const std::vector<btVector3>& pts, const std::vector<btVector4>& cols);
+  void setPoints(const std::vector<btVector3>& pts);
+  void setPoints(const osg::ref_ptr<osg::Vec3Array>& pts, const osg::ref_ptr<osg::Vec4Array>& cols);
+  void setPoints(const osg::ref_ptr<osg::Vec3Array>& pts);
+};

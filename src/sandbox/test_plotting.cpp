@@ -68,6 +68,18 @@ int main(int argc, char* argv[]) {
 
   }  
 
+  if (!strcmp(argv[1],"3")) {
+    osg::ref_ptr<PlotCurve> curve = new PlotCurve(4);
+    vector<btVector3> pts;
+    pts.push_back(btVector3(0,0,0));
+    pts.push_back(btVector3(1,0,0));
+    pts.push_back(btVector3(1,1,0));
+    curve->setPoints(pts);
+    s.env->osg->root->addChild(curve.get());
+
+  }
+
   s.startViewer();
   s.startLoop();
+
 }

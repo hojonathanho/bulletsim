@@ -199,3 +199,43 @@ void PlotAxes::setup(osg::Vec3f origin, osg::Vec3f x, osg::Vec3f y, osg::Vec3f z
   m_ends->plot(endpts, cols, radii);
 }
 
+
+PlotCurve::PlotCurve(float width) : osg::Geode(), m_defaultColor(1,0,0,1) {
+
+  m_geom = new osg::Geometry();
+  addDrawable(m_geom);
+
+  osg::ref_ptr<osg::StateSet> stateset = new osg::StateSet();
+  osg::LineWidth *linewidth = new osg::LineWidth();
+  linewidth->setWidth(width);
+  stateset->setAttributeAndModes(linewidth,osg::StateAttribute::ON);
+  stateset->setMode(GL_LIGHTING, osg::StateAttribute::OFF);
+  stateset->setAttribute(linewidth);
+
+  osg::ref_ptr<osg::BlendFunc> blendFunc = new osg::BlendFunc;
+  blendFunc->setFunction(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+  stateset->setAttributeAndModes(blendFunc);
+  stateset->setRenderingHint(osg::StateSet::TRANSPARENT_BIN);
+
+  setStateSet(stateset);
+}
+
+void PlotCurve::setPoints(const vector<btVector3>& pts, const vector<btVector4>& cols) {
+  setPoints(toVec3Array(pts),  toVec4Array(cols));
+}
+
+void PlotCurve::setPoints(const vector<btVector3>& pts) {
+  osg::ref_ptr<osg::Vec4Array> osgCols = new osg::Vec4Array(pts.size());
+  BOOST_FOREACH(osg::Vec4& col, *osgCols) col = m_defaultColor;
+  setPoints(toVec3Array(pts),  osgCols);
+}
+
+
+void PlotCurve::setPoints(const osg::ref_ptr<osg::Vec3Array>& osgPts, const osg::ref_ptr<osg::Vec4Array>& osgCols) {
+  int nPts = osgPts->getNumElements();
+  m_geom->setColorArray(osgCols);
+  m_geom->setColorBinding(osg::Geometry::BIND_PER_PRIMITIVE);
+  m_geom->setVertexArray(osgPts);
+  m_geom->getPrimitiveSetList().clear();
+  m_geom->addPrimitiveSet(new osg::DrawArrays(osg::PrimitiveSet::LINE_STRIP,0,nPts));
+}
