@@ -20,6 +20,7 @@ add_library(clothmanip
     make_bodies.cpp
     clothgrasping.cpp
     edges.cpp
+    nodepicker.cpp
 )
 set_source_files_properties(search.cpp PROPERTIES COMPILE_FLAGS -fopenmp)
 target_link_libraries(clothmanip

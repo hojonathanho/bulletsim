@@ -57,7 +57,6 @@ void calcFoldNodes(const ClothSpec &cs, vector<int> &out) {
 
 btVector3 calcFoldLineDir(const ClothSpec &cs, int node, const vector<int> &foldnodes, bool zeroZ) {
     // if the node is an edge node, then give the direction of the edge
-    btVector3 ret(0, 0, 0);
     int othernode = -1;
     if (CLOTHIDX_ON_TOP_EDGE(cs, node)
             || CLOTHIDX_ON_BOTTOM_EDGE(cs, node)) {

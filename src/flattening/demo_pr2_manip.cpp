@@ -1,6 +1,7 @@
 #include "simulation/simplescene.h"
 #include "simulation/config_bullet.h"
 #include "simulation/config_viewer.h"
+#include "simulation/plotting.h"
 #include "robots/pr2.h"
 #include <cstdlib>
 
@@ -9,7 +10,7 @@
 #include "nodeactions.h"
 #include "clothgrasping.h"
 #include "edges.h"
-#include "simulation/plotting.h"
+#include "nodepicker.h"
 
 class CustomScene : Scene {
     BulletSoftObject::Ptr cloth;
@@ -18,6 +19,8 @@ class CustomScene : Scene {
 
     PlotPoints::Ptr foldnodeplot;
     PlotLines::Ptr folddirplot;
+    PlotSpheres::Ptr pickplot;
+    SoftBodyNodePicker::Ptr nodepicker;
 
     vector<int> foldnodes;
 
@@ -25,6 +28,24 @@ class CustomScene : Scene {
         a.reset();
         a.toggleAction();
         runAction(a, BulletConfig::dt);
+    }
+
+    btSoftBody::Node *pickedNode;
+    void pickCallback(btSoftBody::Node *node) {
+        pickedNode = node;
+    }
+    void drawPick() {
+        if (!pickedNode) return;
+
+        btVector3 p = pickedNode->m_x;
+
+        osg::ref_ptr<osg::Vec3Array> centers(new osg::Vec3Array);
+        centers->push_back(osg::Vec3(p.x(), p.y(), p.z()));
+        osg::ref_ptr<osg::Vec4Array> cols(new osg::Vec4Array);
+        cols->push_back(osg::Vec4(1, 0, 0, 0.5));
+        std::vector<float> radii;
+        radii.push_back(0.01*METERS);
+        pickplot->plot(centers, cols, radii);
     }
 
     btTransform savedTrans;
@@ -81,10 +102,9 @@ class CustomScene : Scene {
         return fork_cloth->softBody->m_anchors.size();
     }
 
-    void doStuff() {
-//        savedTrans.setOrigin(cloth->softBody->m_nodes[cloth->softBody->m_nodes.size()-10].m_x);
-
-        const int node = cloth->softBody->m_nodes.size() - 10;
+    void graspPickedNode() {
+        if (!pickedNode) return;
+        const int node = pickedNode - &cloth->softBody->m_nodes[0];
 
         btVector3 folddir = calcFoldLineDir(clothspec, node, foldnodes);
         folddir.setZ(0);
@@ -102,9 +122,7 @@ class CustomScene : Scene {
 
         runAction(Action::Ptr(new GraspClothNodeAction(
                         pr2m->pr2, pr2m->pr2Left, cloth->softBody.get(),
-                        cloth->softBody->m_nodes.size() - 10,
-                        gripperdir
-                        /*btVector3(1, -1, 0)*/)),
+                        node, gripperdir)),
                 BulletConfig::dt);
         cout << "done." << endl;
     }
@@ -138,6 +156,9 @@ public:
         env->add(foldnodeplot);
         folddirplot.reset(new PlotLines(3));
         env->add(folddirplot);
+        pickplot.reset(new PlotSpheres());
+        env->add(pickplot);
+        pickedNode = NULL;
 
         const float table_height = .5;
         const float table_thickness = .05;
@@ -155,6 +176,9 @@ public:
         ClothSpec cs(cloth->softBody.get(), resx, resy, lenx, leny);
         clothspec = cs;
 
+        nodepicker.reset(new SoftBodyNodePicker(*this, viewer.getCamera(), cloth->softBody.get()));
+        nodepicker->setPickCallback(boost::bind(&CustomScene::pickCallback, this, _1));
+
         pr2m.reset(new PR2Manager(*this));
 
         PR2SoftBodyGripperAction leftAction(pr2m->pr2, pr2m->pr2Left->manip, true);
@@ -163,9 +187,10 @@ public:
         addVoidKeyCallback('a', boost::bind(&CustomScene::runGripperAction, this, leftAction));
         addVoidKeyCallback('z', boost::bind(&CustomScene::saveManipTrans, this, pr2m->pr2Left));
         addVoidKeyCallback('x', boost::bind(&CustomScene::moveArmToSaved, this, pr2m->pr2, pr2m->pr2Left));
-        addVoidKeyCallback('c', boost::bind(&CustomScene::doStuff, this));
+        addVoidKeyCallback('c', boost::bind(&CustomScene::graspPickedNode, this));
 
         addPreDrawCallback(boost::bind(&CustomScene::markFolds, this));
+        addPreDrawCallback(boost::bind(&CustomScene::drawPick, this));
 
         startViewer();
         startFixedTimestepLoop(BulletConfig::dt);
