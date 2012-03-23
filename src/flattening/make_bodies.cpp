@@ -40,7 +40,7 @@ BulletSoftObject::Ptr makeTowel(const vector<btVector3>& points, btSoftBodyWorld
   return BulletSoftObject::Ptr(new BulletSoftObject(psb));
 }
 
-BulletSoftObject::Ptr makeSelfCollidingTowel(const btVector3& center, btScalar lenx, btScalar leny, int resx, int resy, btSoftBodyWorldInfo& worldInfo) {
+btSoftBody *makeSelfCollidingTowel(const btVector3& center, btScalar lenx, btScalar leny, int resx, int resy, btSoftBodyWorldInfo& worldInfo) {
     btSoftBody *psb = btSoftBodyHelpers::CreatePatch(
         worldInfo,
         center + btVector3(-lenx/2,-leny/2,0),
@@ -96,7 +96,7 @@ BulletSoftObject::Ptr makeSelfCollidingTowel(const btVector3& center, btScalar l
 
     cout << "number of clusters: " << psb->m_clusters.size() << endl;
 
-    return BulletSoftObject::Ptr(new BulletSoftObject(psb));
+    return psb;
 }
 
 // adapted from btSoftBodyHelpers::CreatePatch

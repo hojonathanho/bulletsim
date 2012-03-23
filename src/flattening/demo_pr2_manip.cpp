@@ -10,17 +10,16 @@
 #include "nodeactions.h"
 #include "clothgrasping.h"
 #include "edges.h"
-#include "nodepicker.h"
+#include "facepicker.h"
 
 class CustomScene : Scene {
-    BulletSoftObject::Ptr cloth;
-    ClothSpec clothspec;
+    Cloth::Ptr cloth;
     PR2Manager::Ptr pr2m;
 
     PlotPoints::Ptr foldnodeplot;
     PlotLines::Ptr folddirplot;
     PlotSpheres::Ptr pickplot;
-    SoftBodyNodePicker::Ptr nodepicker;
+    SoftBodyFacePicker::Ptr facepicker;
 
     vector<int> foldnodes;
 
@@ -31,8 +30,8 @@ class CustomScene : Scene {
     }
 
     btSoftBody::Node *pickedNode;
-    void pickCallback(btSoftBody::Node *node) {
-        pickedNode = node;
+    void pickCallback(int faceidx) {
+        pickedNode = cloth->psb()->m_faces[faceidx].m_n[0];
     }
     void drawPick() {
         if (!pickedNode) return;
@@ -106,7 +105,7 @@ class CustomScene : Scene {
         if (!pickedNode) return;
         const int node = pickedNode - &cloth->softBody->m_nodes[0];
 
-        btVector3 folddir = calcFoldLineDir(clothspec, node, foldnodes);
+        btVector3 folddir = calcFoldLineDir(*cloth, node, foldnodes);
         folddir.setZ(0);
         btVector3 gripperdir = folddir.cross(btVector3(0, 0, 1));
 
@@ -121,29 +120,29 @@ class CustomScene : Scene {
             gripperdir = -gripperdir;
 
         runAction(Action::Ptr(new GraspClothNodeAction(
-                        pr2m->pr2, pr2m->pr2Left, cloth->softBody.get(),
+                        pr2m->pr2, pr2m->pr2Left, cloth->psb(),
                         node, gripperdir)),
                 BulletConfig::dt);
         cout << "done." << endl;
     }
 
     void markFolds() {
-        clothspec.updateAccel();
+        cloth->updateAccel();
         foldnodes.clear();
-        calcFoldNodes(clothspec, foldnodes);
+        calcFoldNodes(*cloth, foldnodes);
 
         vector<btVector3> pts;
         vector<btVector4> colors;
         for (int i = 0; i < foldnodes.size(); ++i) {
-            pts.push_back(clothspec.psb->m_nodes[foldnodes[i]].m_x);
+            pts.push_back(cloth->psb()->m_nodes[foldnodes[i]].m_x);
             colors.push_back(btVector4(0, 0, 0, 1));
         }
         foldnodeplot->setPoints(pts, colors);
 
         pts.clear();
         for (int i = 0; i < foldnodes.size(); ++i) {
-            btVector3 dir = calcFoldLineDir(clothspec, foldnodes[i], foldnodes);
-            btVector3 c = clothspec.psb->m_nodes[foldnodes[i]].m_x;
+            btVector3 dir = calcFoldLineDir(*cloth, foldnodes[i], foldnodes);
+            btVector3 c = cloth->psb()->m_nodes[foldnodes[i]].m_x;
             btScalar l = 0.01*METERS;
             pts.push_back(c - l*dir); pts.push_back(c + l*dir);
         }
@@ -171,18 +170,17 @@ public:
         const int resx = 45, resy = 31;
         const btScalar lenx = GeneralConfig::scale * 0.7, leny = GeneralConfig::scale * 0.5;
         const btVector3 clothcenter = GeneralConfig::scale * btVector3(0.5, 0, table_height+0.01);
-        cloth = makeSelfCollidingTowel(clothcenter, lenx, leny, resx, resy, env->bullet->softBodyWorldInfo);
+//        cloth = makeSelfCollidingTowel(clothcenter, lenx, leny, resx, resy, env->bullet->softBodyWorldInfo);
+        cloth.reset(new Cloth(resx, resy, lenx, leny, clothcenter, env->bullet->softBodyWorldInfo));
         env->add(cloth);
-        ClothSpec cs(cloth->softBody.get(), resx, resy, lenx, leny);
-        clothspec = cs;
 
-        nodepicker.reset(new SoftBodyNodePicker(*this, viewer.getCamera(), cloth->softBody.get()));
-        nodepicker->setPickCallback(boost::bind(&CustomScene::pickCallback, this, _1));
+        facepicker.reset(new SoftBodyFacePicker(*this, viewer.getCamera(), cloth->softBody.get()));
+        facepicker->setPickCallback(boost::bind(&CustomScene::pickCallback, this, _1));
 
         pr2m.reset(new PR2Manager(*this));
 
         PR2SoftBodyGripperAction leftAction(pr2m->pr2, pr2m->pr2Left->manip, true);
-        leftAction.setTarget(cloth->softBody.get());
+        leftAction.setTarget(cloth->psb());
         leftAction.setExecTime(1.);
         addVoidKeyCallback('a', boost::bind(&CustomScene::runGripperAction, this, leftAction));
         addVoidKeyCallback('z', boost::bind(&CustomScene::saveManipTrans, this, pr2m->pr2Left));

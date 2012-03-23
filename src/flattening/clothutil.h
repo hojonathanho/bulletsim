@@ -24,6 +24,7 @@ struct ClothSpec {
     void updateAccel(); // update acceleration structures (kdtree, etc)
 };
 
+#if 0
 #define CLOTHIDX(cs,x,y) ((y)*(cs).resx+(x))
 #define CLOTHIDX_X(cs,i) ((i) % (cs).resx)
 #define CLOTHIDX_Y(cs,i) ((i) / (cs).resx)
@@ -41,6 +42,7 @@ struct ClothSpec {
      (CLOTHIDX_X((cs), (i)) == 0)
 #define CLOTHIDX_ON_RIGHT_EDGE(cs, i) \
      (CLOTHIDX_X((cs), (i)) == (cs).resx-1)
+#endif
 
 // utility functions for manipulating cloth
 void liftClothEdges(Scene &scene, ClothSpec &cs, bool disableDrawing=true);
