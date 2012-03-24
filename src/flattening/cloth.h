@@ -34,10 +34,12 @@ struct Cloth : public BulletSoftObject {
     bool coordsOOB(int x, int y) const {
         return x < 0 || x >= resx || y < 0 || y >= resy;
     }
+    bool idxOOB(int i) const { return coordsOOB(coordX(i), coordY(i)); }
     bool idxOnTopEdge(int i) const { return i < idx(0, 1); }
     bool idxOnBottomEdge(int i) const { return i >= idx(0, resy-1) && i <= idx(resx-1, resy-1); }
     bool idxOnLeftEdge(int i) const { return coordX(i) == 0; }
     bool idxOnRightEdge(int i) const { return coordX(i) == resx-1; }
+    bool idxOnEdge(int i) const { return idxOnTopEdge(i) || idxOnBottomEdge(i) || idxOnLeftEdge(i) || idxOnRightEdge(i); }
 
 private:
     void initAccel();

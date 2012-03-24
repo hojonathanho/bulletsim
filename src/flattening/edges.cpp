@@ -109,3 +109,22 @@ btVector3 calcFoldLineDir(const Cloth &cloth, int node, const vector<int> &foldn
     Eigen::VectorXf comp0 = pca.getEigenVectors().col(0);
     return btVector3(comp0(0), comp0(1), comp0(2));
 }
+
+btVector3 calcGraspDir(const Cloth &cloth, int node) {
+    // if the node is an edge node, then point straight out
+    int othernode = -1;
+    if (cloth.idxOnTopEdge(node))
+        othernode = node + cloth.resx;
+    else if (cloth.idxOnBottomEdge(node))
+        othernode = node - cloth.resx;
+    else if (cloth.idxOnLeftEdge(node))
+        othernode = node + 1;
+    else if (cloth.idxOnRightEdge(node))
+        othernode = node - 1;
+    if (othernode != -1 && !cloth.idxOOB(othernode))
+        return (cloth.psb()->m_nodes[othernode].m_x
+                - cloth.psb()->m_nodes[node].m_x).normalized();
+
+    // if not an edge, just return the normal
+    return cloth.psb()->m_nodes[node].m_n;
+}

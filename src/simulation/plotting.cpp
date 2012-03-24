@@ -160,6 +160,27 @@ void PlotSpheres::plot(const osg::ref_ptr<osg::Vec3Array>& centers, const osg::r
   }
 }
 
+PlotBoxes::PlotBoxes() {
+  m_geode = new osg::Geode();
+  osg::ref_ptr<osg::StateSet> stateset = new osg::StateSet();
+  osg::ref_ptr<osg::BlendFunc> blendFunc = new osg::BlendFunc;
+  blendFunc->setFunction(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+  stateset->setAttributeAndModes(blendFunc);
+  stateset->setRenderingHint(osg::StateSet::TRANSPARENT_BIN);
+  m_geode->setStateSet(stateset);
+}
+
+void PlotBoxes::clear() {
+  while (m_geode->removeDrawables(0, 1)) ;
+}
+
+void PlotBoxes::addBox(const osg::Vec3 &center, float lenx, float leny, float lenz, const osg::Vec4 &color) {
+  osg::Box *box = new osg::Box(center, lenx, leny, lenz);
+  osg::ShapeDrawable *boxDrawable = new osg::ShapeDrawable(box);
+  boxDrawable->setColor(color);
+  m_geode->addDrawable(boxDrawable);
+}
+
 PlotAxes::PlotAxes(osg::Vec3f origin, osg::Vec3f x, osg::Vec3f y, osg::Vec3f z, float size) {
 
     osg::ref_ptr<osg::Vec4Array> cols = new osg::Vec4Array();

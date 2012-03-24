@@ -33,7 +33,7 @@ static void getContactPointsWith(btSoftBody *psb, btCollisionObject *pco, btSoft
         void DoNode(btSoftBody::Node& n) {
             const btScalar m=n.m_im>0?dynmargin:stamargin;
             btSoftBody::RContact c;
-            if (/*!n.m_battach &&*/ psb->checkContact(m_colObj1,n.m_x,m,c.m_cti)) {
+            if (!n.m_battach && psb->checkContact(m_colObj1,n.m_x,m,c.m_cti)) {
                 const btScalar  ima=n.m_im;
                 const btScalar  imb= m_rigidBody? m_rigidBody->getInvMass() : 0.f;
                 const btScalar  ms=ima+imb;
@@ -119,6 +119,10 @@ void PR2SoftBodyGripper::releaseAllAnchors() {
     psb->m_anchors.clear();
 }
 
+bool PR2SoftBodyGripper::inGraspRegion(const btVector3 &pt) const {
+    return onInnerSide(pt, true) && onInnerSide(pt, false);
+}
+
 void PR2SoftBodyGripper::attach(bool left) {
     btRigidBody *rigidBody =
         robot->associatedObj(left ? leftFinger : rightFinger)->rigidBody.get();
@@ -132,12 +136,13 @@ void PR2SoftBodyGripper::attach(bool left) {
         KinBody::LinkPtr colLink = robot->associatedObj(c.m_cti.m_colObj);
         if (!colLink) continue;
         const btVector3 &contactPt = c.m_node->m_x;
-        if (onInnerSide(contactPt, left)) {
+        //if (onInnerSide(contactPt, left)) {
+        if (inGraspRegion(contactPt)) {
             btSoftBody_appendAnchor(psb, c.m_node, rigidBody);
             ++nAppended;
         }
     }
-    cout << "appended " << nAppended << " anchors\n";
+    cout << "appended " << nAppended << " anchors to " << (left ? "left" : "right") << endl;
 }
 
 void PR2SoftBodyGripper::grab() {

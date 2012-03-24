@@ -45,7 +45,7 @@ class PR2SoftBodyGripper {
         btTransform trans(robot->getLinkTransform(left ? leftFinger : rightFinger));
         // we get an innermost point on the gripper by transforming a point
         // on the center of the gripper when it is closed
-        return trans * (METERS/20.*btVector3(0.234402, -0.299, 0));
+        return trans * (METERS/20.*btVector3(0.234402, (left ? 1 : -1) * -0.299, 0));
     }
 
     // Returns true is pt is on the inner side of the specified finger of the gripper
@@ -53,6 +53,8 @@ class PR2SoftBodyGripper {
         // then the innerPt and the closing direction define the plane
         return (getManipRot() * getClosingDirection(left)).dot(pt - getInnerPt(left)) > 0;
     }
+
+    bool inGraspRegion(const btVector3 &pt) const;
 
     // Checks if psb is touching the inside of the gripper fingers
     // If so, attaches anchors to every contact point

@@ -5,6 +5,11 @@
 #include "simulation/openravesupport.h"
 #include "robots/pr2.h"
 
+#undef PR2_GRIPPER_OPEN_VAL
+#undef PR2_GRIPPER_CLOSED_VAL
+#define PR2_GRIPPER_OPEN_VAL 0.54f
+#define PR2_GRIPPER_CLOSED_VAL 0.03f
+
 // an action that just runs a given function once
 class FunctionAction : public Action {
 private:
@@ -257,18 +262,23 @@ public:
     {
         if (indices.size() != 1)
             cout << "WARNING: more than one gripper DOF; just choosing first one" << endl;
+        setOpen(open);
+    }
+
+    void setOpen(bool open) {
         endVal = open ? PR2_GRIPPER_OPEN_VAL : PR2_GRIPPER_CLOSED_VAL;
     }
 
     void step(float dt) {
         if (done()) return;
+
+        if (timeElapsed == 0)
+            startVal = getCurrDOFVal();
+
         if (startVal == endVal) {
             setDone(true);
             return;
         }
-
-        if (timeElapsed == 0)
-            startVal = getCurrDOFVal();
 
         stepTime(dt);
 
@@ -287,7 +297,7 @@ static const btQuaternion PR2_GRIPPER_INIT_ROT(0., 0.7071, 0., 0.7071);
 static const btQuaternion GRIPPER_TO_VERTICAL_ROT(btVector3(1, 0, 0), M_PI/2);
 static const btVector3 PR2_GRIPPER_INIT_ROT_DIR(1, 0, 0);
 static const btScalar MOVE_BEHIND_DIST = 0;//0.02;
-static const btScalar MOVE_FORWARD_DIST = 0.04;
+static const btScalar MOVE_FORWARD_DIST = 0.01;
 static const btVector3 OFFSET(0, 0, 0.0/*5*/); // don't sink through table
 //static const btScalar ANGLE_DOWN_HEIGHT = 0.03;
 static const btQuaternion ANGLE_DOWN_ROT(btVector3(0, 1, 0), 45*M_PI/180);
@@ -307,8 +317,10 @@ class GraspClothNodeAction : public ActionChain {
         btScalar angle = dir.angle(PR2_GRIPPER_INIT_ROT_DIR);
         if (btFuzzyZero(cross.length2()))
             cross = btVector3(1, 0, 0); // arbitrary axis
-        btQuaternion q(cross, angle);
-        return btTransform(q * ANGLE_DOWN_ROT * GRIPPER_TO_VERTICAL_ROT * PR2_GRIPPER_INIT_ROT, pos);
+        btQuaternion q(btQuaternion(cross, angle) * ANGLE_DOWN_ROT * GRIPPER_TO_VERTICAL_ROT * PR2_GRIPPER_INIT_ROT);
+        //q * PR2_GRIPPER_INIT_ROT_DIR
+        //pos += OFFSET;
+        return btTransform(q, pos);
     }
 
 public:
@@ -327,7 +339,7 @@ public:
             // move the gripper a few cm behind node, angled slightly down
 //            btVector3 dir2 = btVector3(dir.x(), dir.y(), -ANGLE_DOWN_HEIGHT * METERS).normalize();
 //            positionGrasp->setPR2TipTargetTrans(transFromDir(dir2, v - dir2*MOVE_BEHIND_DIST*METERS + OFFSET*METERS));
-            positionGrasp->setPR2TipTargetTrans(transFromDir(dir, v - dir*MOVE_BEHIND_DIST*METERS + OFFSET*METERS));
+            positionGrasp->setPR2TipTargetTrans(transFromDir(dir, v - dir*MOVE_BEHIND_DIST*METERS /*+ OFFSET*METERS*/));
 
             ManipIKInterpAction *moveUp = new ManipIKInterpAction(robot, manip);
             moveUp->setRelativeTrans(btTransform(btQuaternion(0, 0, 0, 1),
@@ -348,7 +360,8 @@ public:
 
             *this << releaseAnchors << openGripper
                 << moveUp
-                << positionGrasp << /*lowerIntoTable <<*/ moveForward
+                << positionGrasp //<< lowerIntoTable
+                << moveForward
                 << closeGripper << setAnchors;
         }
     }

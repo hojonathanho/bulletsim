@@ -31,8 +31,18 @@ class CustomScene : Scene {
 
     btSoftBody::Node *pickedNode;
     void pickCallback(int faceidx) {
-        pickedNode = cloth->psb()->m_faces[faceidx].m_n[0];
+        // we have to pick 1 of the 3 nodes on the face
+        // just choose one that is a foldnode
+        for (int i = 0; i < 3; ++i) {
+            int n = cloth->psb()->m_faces[faceidx].m_n[i] - &cloth->psb()->m_nodes[0];
+            if (std::find(foldnodes.begin(), foldnodes.end(), n) != foldnodes.end()) {
+                pickedNode = cloth->psb()->m_faces[faceidx].m_n[i];
+                return;
+            }
+        }
+        pickedNode = cloth->psb()->m_faces[faceidx].m_n[0]; // arbitrary
     }
+
     void drawPick() {
         if (!pickedNode) return;
 
@@ -105,19 +115,23 @@ class CustomScene : Scene {
         if (!pickedNode) return;
         const int node = pickedNode - &cloth->softBody->m_nodes[0];
 
+        /*
         btVector3 folddir = calcFoldLineDir(*cloth, node, foldnodes);
         folddir.setZ(0);
         btVector3 gripperdir = folddir.cross(btVector3(0, 0, 1));
+        */
+        btVector3 gripperdir = calcGraspDir(*cloth, node);
+        if (!cloth->idxOnEdge(node)) {
+            // if not an edge node, there's ambiguitiy in the gripper direction
+            // (either gripperdir or -gripperdir)
+            // choose the one that attaches the most anchors to the softbody
+            int nforward = tryGrasp(node, gripperdir);
+            int nbackward = tryGrasp(node, -gripperdir);
+            cout << "forward: " << nforward << " backward: " << nbackward << endl;
 
-        // now there's ambiguity in the gripper direction
-        // (either gripperdir or -gripperdir)
-        // choose the one that attaches the most anchors to the softbody
-        int nforward = tryGrasp(node, gripperdir);
-        int nbackward = tryGrasp(node, -gripperdir);
-        cout << "forward: " << nforward << " backward: " << nbackward << endl;
-
-        if (nbackward > nforward)
-            gripperdir = -gripperdir;
+            if (nbackward > nforward)
+                gripperdir = -gripperdir;
+        }
 
         runAction(Action::Ptr(new GraspClothNodeAction(
                         pr2m->pr2, pr2m->pr2Left, cloth->psb(),
@@ -165,6 +179,7 @@ public:
             btTransform(btQuaternion(0, 0, 0, 1), GeneralConfig::scale * btVector3(0.8, 0, table_height-table_thickness/2))));
         table->rigidBody->setFriction(0.1);
         env->add(table);
+        cout << "table margin: " << table->rigidBody->getCollisionShape()->getMargin() << endl;
 
         //const int resx = (int)(45*1.5), resy = (int)(31*1.5);
         const int resx = 45, resy = 31;

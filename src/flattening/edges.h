@@ -8,4 +8,6 @@ void calcFoldNodes(const Cloth &cloth, vector<int> &out);
 
 btVector3 calcFoldLineDir(const Cloth &cloth, int node, const vector<int> &foldnodes, bool zeroZ=true);
 
+btVector3 calcGraspDir(const Cloth &cloth, int node);
+
 #endif // __FL_EDGES_H__
