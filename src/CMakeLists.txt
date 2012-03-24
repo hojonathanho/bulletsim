@@ -10,7 +10,7 @@ include_directories(
     ${EIGEN3_INCLUDE_DIR}
     ${JSON_INCLUDE_DIR}
 )
-link_directories(${BULLETSIM_BINARY_DIR}/src)
+link_directories(${BULLETSIM_BINARY_DIR}/src ${OpenRAVE_LIBRARY_DIRS})
 
 add_subdirectory(simulation)
 add_subdirectory(robots)

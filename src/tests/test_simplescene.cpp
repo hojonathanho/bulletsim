@@ -14,9 +14,6 @@ int main(int argc, char *argv[]) {
     parser.addGroup(SceneConfig());
     parser.read(argc, argv);
 
-
-    parser.read(argc, argv);    
-    
     // construct the scene
     Scene scene;
     // manipulate the scene or add more objects, if desired
