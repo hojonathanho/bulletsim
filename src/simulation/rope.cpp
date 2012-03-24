@@ -1,6 +1,7 @@
 #include "rope.h"
 #include "basicobjects.h"
 #include <iostream>
+#include "bullet_io.h"
 using namespace std;
 
 boost::shared_ptr<btRigidBody> createRigidBody(const boost::shared_ptr<btCollisionShape> shapePtr, const btTransform& trans, btScalar mass) {
@@ -29,6 +30,23 @@ boost::shared_ptr<btGeneric6DofSpringConstraint>  createBendConstraint(btScalar 
   return springPtr;
 }
 
+const float SMALL_FLOAT = 1e-7;
+static btMatrix3x3 makePerpBasis(const btVector3& a0) {
+  btVector3 a = a0.normalized();
+  if ((a.x() == 0) && (a.y() == 0)) {
+    return btMatrix3x3(0,0,1,0,1,0,0,0,1);
+  }
+  else {
+    btVector3 b = btVector3(a0.y(), -a0.x(), 0);
+    b.normalize();
+    btVector3 c = a.cross(b);
+    return btMatrix3x3(a.x(), a.y(), a.z(),
+		       b.x(), b.y(), b.z(),
+		       c.x(), c.y(), c.z());
+  }
+}
+
+
 void createRopeTransforms(vector<btTransform>& transforms, vector<btScalar>& lengths, const vector<btVector3>& ctrlPoints) {
   int nLinks = ctrlPoints.size()-1;
   for (int i=0; i < nLinks; i++) {
@@ -36,21 +54,17 @@ void createRopeTransforms(vector<btTransform>& transforms, vector<btScalar>& len
     btVector3 pt1 = ctrlPoints[i+1];
     btVector3 midpt = (pt0+pt1)/2;
     btVector3 diff = (pt1-pt0);
-    btQuaternion q;
-    btScalar ang = diff.angle(btVector3(1,0,0));
-    if (ang*ang > 1e-4) {
-      btVector3 ax = diff.cross(btVector3(1,0,0));
-      q = btQuaternion(ax,-ang);
-    }
-    else {
-      q = btQuaternion(0,0,0,1);
-    }
-    btTransform trans(q,midpt);
+
+    btMatrix3x3 rotation = makePerpBasis(diff);
+
+
+    btTransform trans(rotation,midpt);
 
     float len = diff.length();
     transforms.push_back(trans);
     lengths.push_back(len);
   }
+
 }
 
 
