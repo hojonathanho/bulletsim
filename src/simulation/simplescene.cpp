@@ -29,6 +29,7 @@ Scene::Scene() {
     // default callbacks
     addVoidKeyCallback('p', boost::bind(&Scene::toggleIdle, this));
     addVoidKeyCallback('d', boost::bind(&Scene::toggleDebugDraw, this));
+    
 }
 
 void Scene::startViewer() {
@@ -156,7 +157,7 @@ void Scene::runAction(Action &a, float dt) {
     }
 }
 
-void Scene::addKeyCallback(char c, Callback cb) {
+void Scene::addKeyCallback(int c, Callback cb) {
     if (keyCallbacks.count(c) != 0)
         cout << "warning: key " << c << " is bound to multiple callbacks" << endl;
     keyCallbacks.insert(make_pair(c, cb));
@@ -165,7 +166,7 @@ void Scene::addKeyCallback(char c, Callback cb) {
 void Scene::addVoidCallback(osgGA::GUIEventAdapter::EventType t, VoidCallback cb) {
     addCallback(t, boost::bind<bool>(VoidCallbackWrapper(cb)));
 }
-void Scene::addVoidKeyCallback(char c, VoidCallback cb) {
+void Scene::addVoidKeyCallback(int c, VoidCallback cb) {
     addKeyCallback(c, boost::bind<bool>(VoidCallbackWrapper(cb)));
 }
 

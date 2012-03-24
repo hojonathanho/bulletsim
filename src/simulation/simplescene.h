@@ -46,13 +46,13 @@ struct Scene {
   typedef multimap<osgGA::GUIEventAdapter::EventType, Callback> CallbackMap;
   CallbackMap callbacks;
   void addCallback(osgGA::GUIEventAdapter::EventType t, Callback cb) { callbacks.insert(make_pair(t, cb)); }
-  typedef multimap<char, Callback> KeyCallbackMap;
+  typedef multimap<int, Callback> KeyCallbackMap;
   KeyCallbackMap keyCallbacks;
-  void addKeyCallback(char c, Callback cb);
+  void addKeyCallback(int c, Callback cb);
 
   typedef boost::function<void(void)> VoidCallback;
   void addVoidCallback(osgGA::GUIEventAdapter::EventType t, VoidCallback cb);
-  void addVoidKeyCallback(char c, VoidCallback cb);
+  void addVoidKeyCallback(int c, VoidCallback cb);
     struct VoidCallbackWrapper {
         VoidCallback fn;
         VoidCallbackWrapper(VoidCallback fn_) : fn(fn_) { }
