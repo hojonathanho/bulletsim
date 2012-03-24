@@ -92,8 +92,8 @@ int main(int argc, char* argv[]) {
 
     leftPose = scaleTransform(leftPose);
     rightPose = scaleTransform(rightPose);
-    scene.m_lPos = leftPose.getOrigin();
-    scene.m_rPos = rightPose.getOrigin();
+    
+    scene.setFakeHandPoses(leftPose, rightPose);
 
     axesLeft->setup(leftPose, .1*METERS);
     axesRight->setup(rightPose, .1*METERS);
