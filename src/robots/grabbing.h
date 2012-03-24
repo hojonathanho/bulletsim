@@ -46,6 +46,7 @@ public:
   std::vector<BulletObject::Ptr> m_bodies;
   btDynamicsWorld* m_world;
   Grab* m_grab;
+  int m_i;
 
   MonitorForGrabbing(RaveRobotObject::Manipulator::Ptr, btDynamicsWorld*);
   void setBodies(std::vector<BulletObject::Ptr>& bodies);

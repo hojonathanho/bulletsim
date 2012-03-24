@@ -13,7 +13,6 @@
 #include "robots/ros2rave.h"
 #include "knots/knots.h"
 #include "simulation/plotting.h"
-#include "arm_base_traj.h"
 
 using namespace std;
 using boost::shared_ptr;
@@ -51,8 +50,6 @@ string LocalConfig::poses="";
 string LocalConfig::warpedRopes="";
 
 int main(int argc, char* argv[]) {
-  setup_python();
-
   GeneralConfig::scale = 10;  
   
   Parser parser;
@@ -67,7 +64,8 @@ int main(int argc, char* argv[]) {
 
   scene.startViewer();
   scene.setSyncTime(false);
-  scene.idle(true);
+
+  scene.m_grabHackEnabled = true;
 
   PlotAxes::Ptr axesLeft(new PlotAxes());
   PlotAxes::Ptr axesRight(new PlotAxes());
@@ -81,56 +79,34 @@ int main(int argc, char* argv[]) {
   ifstream poseFile( (KNOT_DATA / LocalConfig::poses).string().c_str() );
   ifstream warpedRopeFile( (KNOT_DATA / LocalConfig::warpedRopes).string().c_str());
 
-  vector<RobotState> states;
-  vector<btTransform> leftPoses;
-  
   while (poseFile.good()) {
     
     btTransform leftPose, rightPose;
     float leftGrip, rightGrip;
 
-
-    RobotState rs;
-    poseFile >> rs.leftPose
-            >> rs.leftGrip
-            >> rs.rightPose
-            >> rs.rightGrip;
+    poseFile >> leftPose
+            >> leftGrip
+            >> rightPose
+            >> rightGrip;
     if (poseFile.eof()) break;
-    states.push_back(rs);
-    leftPoses.push_back(rs.leftPose);
-  }
-  
 
-  vector<btTransform> basePoses;
-  vector<double> curJoints;
-  scene.pr2m->pr2->robot->GetDOFValues(curJoints);
-  try {
-    basePoses = findBasePoses1(scene.pr2m->pr2Left->manip, leftPoses);
-  }
-  catch (...) {
-    cout << "got a python exception, exiting" << endl;
-    PyErr_Print();
-    PyErr_Clear();    
-    return 1;
-  }  
+    leftPose = scaleTransform(leftPose);
+    rightPose = scaleTransform(rightPose);
+    scene.m_lPos = leftPose.getOrigin();
+    scene.m_rPos = rightPose.getOrigin();
 
-  
-  for (int i=0; i < states.size(); i++) {
-    axesLeft->setup(scaleTransform(states[i].leftPose), .1*METERS);
-    axesRight->setup(scaleTransform(states[i].rightPose), .1*METERS);
+    axesLeft->setup(leftPose, .1*METERS);
+    axesRight->setup(rightPose, .1*METERS);
 
-    scene.pr2m->pr2Left->moveByIK(scaleTransform(states[i].leftPose));
-    scene.pr2m->pr2Right->moveByIK(scaleTransform(states[i].rightPose));
-    scene.pr2m->pr2Left->setGripperAngle(states[i].leftGrip);
-    scene.pr2m->pr2Right->setGripperAngle(states[i].rightGrip);
+    scene.pr2m->pr2Left->moveByIK(leftPose);
+    scene.pr2m->pr2Right->moveByIK(rightPose);
+    scene.pr2m->pr2Left->setGripperAngle(leftGrip);
+    scene.pr2m->pr2Right->setGripperAngle(rightGrip);
     
-    scene.driveTo(basePoses[i]);
-    
-    vector<btVector3> warpedRopePoints = readRopeLine(warpedRopeFile);
+    vector<btVector3> warpedRopePoints = scaleVectors(readRopeLine(warpedRopeFile));
     warpedRopePlot->setPoints(warpedRopePoints);
 
     scene.step(DT);
-
 
   }
 
