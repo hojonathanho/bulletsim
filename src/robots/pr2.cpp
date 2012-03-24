@@ -185,7 +185,7 @@ void PR2Manager::registerSceneCallbacks() {
 void PR2Manager::loadRobot() {
     if (!SceneConfig::enableRobot) return;
     btTransform trans(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0));
-    static const char ROBOT_MODEL_FILE[] = EXPAND(BULLETSIM_DATA_DIR) "/robot_model/pr2_with_kinect.dae";
+    static const char ROBOT_MODEL_FILE[] = "robots/pr2-beta-static.zae";
     pr2.reset(new RaveRobotObject(scene.rave, ROBOT_MODEL_FILE, trans, GeneralConfig::scale));
     scene.env->add(pr2);
 //    pr2->ignoreCollisionWith(ground->rigidBody.get()); // the robot's always touching the ground anyway
