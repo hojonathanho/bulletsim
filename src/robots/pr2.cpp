@@ -19,7 +19,7 @@ static void btSoftBody_appendAnchor(btSoftBody *psb, btSoftBody::Node *node, btR
     psb->m_anchors.push_back(a);
 }
 
-// Fills in the rcontacs array with contact information between psb and pco
+// Fills in the rcontacts array with contact information between psb and pco
 static void getContactPointsWith(btSoftBody *psb, btCollisionObject *pco, btSoftBody::tRContactArray &rcontacts) {
     // custom contact checking adapted from btSoftBody.cpp and btSoftBodyInternals.h
     struct Custom_CollideSDF_RS : btDbvt::ICollide {
@@ -120,7 +120,16 @@ void PR2SoftBodyGripper::releaseAllAnchors() {
 }
 
 bool PR2SoftBodyGripper::inGraspRegion(const btVector3 &pt) const {
-    return onInnerSide(pt, true) && onInnerSide(pt, false);
+    // check that pt is between the fingers
+    if (!onInnerSide(pt, true) || !onInnerSide(pt, false)) return false;
+
+    // check that pt is behind the gripper tip
+    btTransform manipTrans(util::toBtTransform(manip->GetTransform(), robot->scale));
+    btVector3 x = manipTrans.inverse() * pt;
+    cout << "asdf: " << x.x() << ' ' << x.y() << ' ' << x.z() << endl;
+    if (x.x() < 0) return false;
+
+    return true;
 }
 
 void PR2SoftBodyGripper::attach(bool left) {
