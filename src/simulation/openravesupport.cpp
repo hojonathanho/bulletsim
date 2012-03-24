@@ -263,7 +263,10 @@ void RaveRobotObject::setDOFValues(const vector<int> &indices, const vector<dRea
         robot->SetActiveDOFValues(vals);
         rave->env->UpdatePublishedBodies();
     }
+    updateBullet();
+}
 
+void RaveRobotObject::updateBullet() {
     // update bullet structures
     // we gave OpenRAVE the DOFs, now ask it for the equivalent transformations
     // which are easy to feed into Bullet
@@ -275,6 +278,7 @@ void RaveRobotObject::setDOFValues(const vector<int> &indices, const vector<dRea
         if (!c) continue;
         c->motionState->setKinematicPos(initialTransform * util::toBtTransform(transforms[i], scale));
     }
+
 }
 
 vector<double> RaveRobotObject::getDOFValues(const vector<int>& indices) {
@@ -337,12 +341,12 @@ RaveRobotObject::createManipulator(const std::string &manipName, bool useFakeGra
     m->manip = m->origManip = robot->GetActiveManipulator();
     m->ikmodule = RaveCreateModule(rave->env, "ikfast");
     rave->env->AddModule(m->ikmodule, "");
-    stringstream ssin, ssout;
-    ssin << "LoadIKFastSolver " << robot->GetName() << " " << (int)IkParameterization::Type_Transform6D;
-    if (!m->ikmodule->SendCommand(ssout, ssin)) {
-      cout << "failed to load iksolver\n";
-        return Manipulator::Ptr(); // null
-    }
+    // stringstream ssin, ssout;
+    // ssin << "LoadIKFastSolver " << robot->GetName() << " " << (int)IkParameterization::Type_Transform6D;
+    // if (!m->ikmodule->SendCommand(ssout, ssin)) {
+    //   cout << "failed to load iksolver\n";
+    //     return Manipulator::Ptr(); // null
+    // }
 
     m->useFakeGrabber = useFakeGrabber;
     if (useFakeGrabber) {

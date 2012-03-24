@@ -102,6 +102,8 @@ public:
     // Positions the robot according to DOF values in the OpenRAVE model
     // and copy link positions to the Bullet rigid bodies.
     void setDOFValues(const vector<int> &indices, const vector<dReal> &vals);
+    void updateBullet();
+
     vector<double> getDOFValues(const vector<int> &indices);
 
     // IK support
