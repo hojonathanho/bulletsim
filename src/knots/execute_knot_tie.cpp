@@ -116,11 +116,11 @@ int main(int argc, char* argv[]) {
 
   
   for (int i=0; i < states.size(); i++) {
-    axesLeft->setup(scaleTransform(states[i].leftPose), .1*METERS);
-    axesRight->setup(scaleTransform(states[i].rightPose), .1*METERS);
+    axesLeft->setup(states[i].leftPose*METERS, .1*METERS);
+    axesRight->setup(states[i].rightPose*METERS, .1*METERS);
 
-    scene.pr2m->pr2Left->moveByIK(scaleTransform(states[i].leftPose));
-    scene.pr2m->pr2Right->moveByIK(scaleTransform(states[i].rightPose));
+    scene.pr2m->pr2Left->moveByIK(states[i].leftPose*METERS);
+    scene.pr2m->pr2Right->moveByIK(states[i].rightPose*METERS);
     scene.pr2m->pr2Left->setGripperAngle(states[i].leftGrip);
     scene.pr2m->pr2Right->setGripperAngle(states[i].rightGrip);
     

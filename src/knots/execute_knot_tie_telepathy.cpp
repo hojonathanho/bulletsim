@@ -90,8 +90,8 @@ int main(int argc, char* argv[]) {
             >> rightGrip;
     if (poseFile.eof()) break;
 
-    leftPose = scaleTransform(leftPose);
-    rightPose = scaleTransform(rightPose);
+    leftPose = leftPose*METERS;
+    rightPose = rightPose*METERS;
     
     scene.setFakeHandPoses(leftPose, rightPose);
 
@@ -103,7 +103,7 @@ int main(int argc, char* argv[]) {
     scene.pr2m->pr2Left->setGripperAngle(leftGrip);
     scene.pr2m->pr2Right->setGripperAngle(rightGrip);
     
-    vector<btVector3> warpedRopePoints = scaleVectors(readRopeLine(warpedRopeFile));
+    vector<btVector3> warpedRopePoints = readRopeLine(warpedRopeFile)*METERS;
     warpedRopePlot->setPoints(warpedRopePoints);
 
     scene.step(DT);

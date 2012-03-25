@@ -4,8 +4,6 @@
 #include <boost/bind.hpp>
 #include <boost/filesystem.hpp>
 #include "utils/vector_io.h"
-#include "perception/make_bodies.h"
-#include "robots/ros2rave.h"
 #include "robots/pr2.h"
 #include "simulation/rope.h"
 #include "utils/conversions.h"
@@ -15,13 +13,7 @@ namespace fs = boost::filesystem;
 
 extern fs::path KNOT_DATA;
 
-btTransform unscaleTransform(const btTransform& in);
-
-vector<btVector3> unscaleVectors(const vector<btVector3>& in);
-
-btTransform scaleTransform(const btTransform& in);
-
-vector<btVector3> scaleVectors(const vector<btVector3>& in);
+static const int N_CTRL_PTS = 100;
 
 struct RobotState{
   btTransform leftPose, rightPose;
@@ -35,16 +27,27 @@ struct RobotAndRopeState {
   vector<btVector3> ctrlPts;
 };
 
+struct MonitorForGrabbingWithTelepathy : public MonitorForGrabbing {
+  btTransform m_telePose;
+  bool m_telepathy;
+
+  MonitorForGrabbingWithTelepathy(RaveRobotObject::Manipulator::Ptr manip, btDynamicsWorld* dynamicsWorld, bool telepathy)
+    : m_telepathy(telepathy), m_telePose(btTransform::getIdentity()), MonitorForGrabbing(manip, dynamicsWorld) {}
+
+  void grab();
+
+  void updateGrabPose();
+
+};
+
+
 struct GrabbingScene : public Scene {
 public:
   shared_ptr<PR2Manager> pr2m;
-  shared_ptr<MonitorForGrabbing> m_lMonitor;
-  shared_ptr<MonitorForGrabbing> m_rMonitor;
-  btVector3 m_lPos;
-  btVector3 m_rPos;
+  shared_ptr<MonitorForGrabbingWithTelepathy> m_lMonitor, m_rMonitor;
   bool m_grabHackEnabled;
 
-  GrabbingScene();
+  GrabbingScene(bool telepathy=false);
 
   void step(float dt);
 
@@ -77,19 +80,19 @@ public:
     pr2m->pr2->updateBullet();
   }
   void setFakeHandPoses(btTransform leftPose, btTransform rightPose) {
-    m_lPos = leftPose.getOrigin();
-    m_rPos = rightPose.getOrigin();    
+    m_lMonitor->m_telePose = leftPose;
+    m_rMonitor->m_telePose = rightPose;
   }
-  
 };
 
-vector<btVector3> operator*(const vector<btVector3>& in, float a);
+std::vector<btVector3> operator*(const std::vector<btVector3>& in, float a);
+btTransform operator*(const btTransform& in, float a);
 
 struct TableRopeScene : public GrabbingScene {
   CapsuleRope::Ptr m_rope;
   BulletObject::Ptr m_table;
   
-  TableRopeScene(fs::path ropeFile);
+  TableRopeScene(fs::path ropeFile, bool telepathy=false);
   
 };
 

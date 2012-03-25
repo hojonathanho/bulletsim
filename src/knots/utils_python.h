@@ -10,8 +10,12 @@ typedef numpy_boost<float, 2> npMatrixf;
 typedef numpy_boost<double, 1> npVectord;
 typedef numpy_boost<double, 2> npMatrixd;
 
-static py::object main_module;
-static py::object main_namespace;
+struct PyGlobals {
+  static py::object main_module;
+  static py::object main_namespace;
+  static py::object builtin_module;
+};
+
 void setup_python();
 
 template <class npArrayType>

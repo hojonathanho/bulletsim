@@ -1,5 +1,8 @@
 #include "numpy_boost.hpp"
 
+namespace detail {
+
+
 template<>
 const int numpy_type_map<float>::typenum = NPY_FLOAT;
 
@@ -41,3 +44,5 @@ const int numpy_type_map<boost::int64_t>::typenum = NPY_INT64;
 
 template<>
 const int numpy_type_map<boost::uint64_t>::typenum = NPY_UINT64;
+
+}

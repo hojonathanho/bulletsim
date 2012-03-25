@@ -75,11 +75,11 @@ int main(int argc, char* argv[]) {
 
   while (!wantsExit) {
     if (recording) {
-      poseFile << unscaleTransform(scene.pr2m->pr2Left->getTransform()) << " " 
+      poseFile << scene.pr2m->pr2Left->getTransform()*(1/METERS) << " " 
               << scene.pr2m->pr2Left->getGripperAngle() << " "
-              << unscaleTransform(scene.pr2m->pr2Right->getTransform()) << " "
+              << scene.pr2m->pr2Right->getTransform()*(1/METERS) << " "
               << scene.pr2m->pr2Right->getGripperAngle() << endl;
-      printOneLine(ropeFile, unscaleVectors(scene.m_rope->getControlPoints()));
+      printOneLine(ropeFile, scene.m_rope->getControlPoints()*METERS);
     }
     scene.step(DT);
   }
