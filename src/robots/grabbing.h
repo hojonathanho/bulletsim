@@ -12,10 +12,15 @@ public:
   btDynamicsWorld* world;
   Grab(){}
   Grab(btRigidBody* rb, const btVector3& pos, btDynamicsWorld* world);
+  Grab(btRigidBody* rb, const btTransform& pose, btDynamicsWorld* world);
   ~Grab();
 
   void updatePosition(const btVector3& pos);
+  void updatePose(const btTransform& pose);
+
 };
+
+BulletObject::Ptr getNearestBody(vector<BulletObject::Ptr> bodies, btVector3 pos, int argmin);
 
 class Monitor {
 protected:
@@ -36,7 +41,7 @@ public:
     virtual void update();
     virtual void grab() = 0;
     virtual void release() = 0;
-    virtual void updateGrabPos() = 0;
+    virtual void updateGrabPose() = 0;
 
   void setManip(RaveRobotObject::Manipulator::Ptr);
 };
@@ -50,9 +55,9 @@ public:
 
   MonitorForGrabbing(RaveRobotObject::Manipulator::Ptr, btDynamicsWorld*);
   void setBodies(std::vector<BulletObject::Ptr>& bodies);
-  void grab();
-  void release();
-  void updateGrabPos();
+  virtual void grab();
+  virtual void release();
+  virtual void updateGrabPose();
 };
 
 // softbody grabbing monitor

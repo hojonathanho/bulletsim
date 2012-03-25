@@ -17,8 +17,23 @@ Grab::Grab(btRigidBody* rb, const btVector3& pos, btDynamicsWorld* world_) {
   updatePosition(pos);
 }
 
+Grab::Grab(btRigidBody* rb, const btTransform& pose, btDynamicsWorld* world_) {
+  world = world_;
+  cnt = new btGeneric6DofConstraint(*rb,btTransform(btQuaternion(0,0,0,1),btVector3(0,0,0)),true); // second parameter?
+  cnt->setLinearLowerLimit(btVector3(0,0,0));
+  cnt->setLinearUpperLimit(btVector3(0,0,0));
+  cnt->setAngularLowerLimit(btVector3(0,0,0));
+  cnt->setAngularUpperLimit(btVector3(0,0,0));
+  world->addConstraint(cnt);
+  updatePose(pose);
+}
+
 void Grab::updatePosition(const btVector3& pos) {
   cnt->getFrameOffsetA().setOrigin(pos);
+}
+
+void Grab::updatePose(const btTransform& tf) {
+  cnt->getFrameOffsetA() = tf;
 }
 
 Grab::~Grab() {
@@ -27,23 +42,24 @@ Grab::~Grab() {
 }
 
 
+
 static bool isClosed(RaveRobotObject::Manipulator::Ptr manip, float closedThreshold) {
   return manip->getGripperAngle() < closedThreshold;
 }
 
-static BulletObject::Ptr getNearestBody(vector<BulletObject::Ptr> bodies, btVector3 pos, int argmin) {
+BulletObject::Ptr getNearestBody(vector<BulletObject::Ptr> bodies, btVector3 pos, int argmin) {
   VectorXf dists(bodies.size());
   for (int i=0; i < bodies.size(); i++) dists[i] = (bodies[i]->rigidBody->getCenterOfMassPosition() - pos).length();
   dists.minCoeff(&argmin);
   return bodies[argmin];
 }
 
-Monitor::Monitor() : closedThreshold(PR2_CLOSED_VAL) {}
+Monitor::Monitor() : closedThreshold(.2) {}
 
 Monitor::Monitor(RaveRobotObject::Manipulator::Ptr manip) :
     m_manip(manip),
-    closedThreshold(PR2_CLOSED_VAL),
-    m_wasClosed(isClosed(manip, PR2_CLOSED_VAL))
+    closedThreshold(.2),
+    m_wasClosed(isClosed(manip, .2))
 {
   cout << "monitor init: " << m_wasClosed << " " << isClosed(manip, closedThreshold) << endl;
 }
@@ -52,7 +68,7 @@ void Monitor::update() {
   bool nowClosed = isClosed(m_manip, closedThreshold);
   if (nowClosed && !m_wasClosed) grab();
   else if (m_wasClosed && !nowClosed) release();
-  else if (m_wasClosed && nowClosed) updateGrabPos();
+  else if (m_wasClosed && nowClosed) updateGrabPose();
   m_wasClosed = nowClosed;
 }
 
@@ -75,10 +91,9 @@ void MonitorForGrabbing::setBodies(vector<BulletObject::Ptr>& bodies) {m_bodies 
 void MonitorForGrabbing::grab() {
   // grabs nearest object
   cout << "grabbing nearest object" << endl;
-  btVector3 curPos = m_manip->getTransform().getOrigin();
-  cout << "curPos: " << curPos.x() << " " << curPos.y() << " " << curPos.z() << endl;
-  BulletObject::Ptr nearestObj = getNearestBody(m_bodies, curPos, m_i);
-  m_grab = new Grab(nearestObj->rigidBody.get(), curPos, m_world);
+  btTransform curPose = m_manip->getTransform();
+  BulletObject::Ptr nearestObj = getNearestBody(m_bodies, curPose.getOrigin(), m_i);
+  m_grab = new Grab(nearestObj->rigidBody.get(), curPose, m_world);
   nearestObj->setColor(0,0,1,1);
 }
 
@@ -91,7 +106,7 @@ void MonitorForGrabbing::release() {
   }
 }
 
-void MonitorForGrabbing::updateGrabPos() {
+void MonitorForGrabbing::updateGrabPose() {
     if (!m_grab) return;
-    m_grab->updatePosition(m_manip->getTransform().getOrigin());
+    m_grab->updatePose(m_manip->getTransform());
 }
