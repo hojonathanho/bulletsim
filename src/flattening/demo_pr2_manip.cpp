@@ -98,7 +98,7 @@ class CustomScene : Scene {
         osg->root->addChild(fork_osg->root);
 
         Action::Ptr a(new GraspClothNodeAction(
-                    fork_pr2, fork_pr2Left, fork_cloth->softBody.get(),
+                    fork_pr2, fork_pr2Left, fork_cloth,
                     node, gripperdir));
         while (!a->done()) {
             a->step(BulletConfig::dt);
@@ -134,7 +134,7 @@ class CustomScene : Scene {
         }
 
         runAction(Action::Ptr(new GraspClothNodeAction(
-                        pr2m->pr2, pr2m->pr2Left, cloth->psb(),
+                        pr2m->pr2, pr2m->pr2Left, cloth,
                         node, gripperdir)),
                 BulletConfig::dt);
         cout << "done." << endl;
@@ -195,7 +195,7 @@ public:
         pr2m.reset(new PR2Manager(*this));
 
         PR2SoftBodyGripperAction leftAction(pr2m->pr2, pr2m->pr2Left->manip, true);
-        leftAction.setTarget(cloth->psb());
+        leftAction.setTarget(cloth);
         leftAction.setExecTime(1.);
         addVoidKeyCallback('a', boost::bind(&CustomScene::runGripperAction, this, leftAction));
         addVoidKeyCallback('z', boost::bind(&CustomScene::saveManipTrans, this, pr2m->pr2Left));

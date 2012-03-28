@@ -32,6 +32,10 @@ class PR2SoftBodyGripperAction : public Action {
 
     // the target softbody
     btSoftBody *psb;
+    BulletSoftObject::Ptr softBody;
+
+    // appended anchors
+    vector<BulletSoftObject::AnchorHandle> anchors;
 
     btTransform getManipRot() const {
         btTransform trans(manip->getTransform());
@@ -143,17 +147,6 @@ class PR2SoftBodyGripperAction : public Action {
         psb->m_ndbvt.collideTV(psb->m_ndbvt.m_root,volume,docollide);
     }
 
-    // adapted from btSoftBody.cpp (btSoftBody::appendAnchor)
-    static void appendAnchor(btSoftBody *psb, btSoftBody::Node *node, btRigidBody *body, btScalar influence=1) {
-        btSoftBody::Anchor a;
-        a.m_node = node;
-        a.m_body = body;
-        a.m_local = body->getWorldTransform().inverse()*a.m_node->m_x;
-        a.m_node->m_battach = 1;
-        a.m_influence = influence;
-        psb->m_anchors.push_back(a);
-    }
-
     // Checks if psb is touching the inside of the gripper fingers
     // If so, attaches anchors to every contact point
     void attach(bool left) {
@@ -168,8 +161,8 @@ class PR2SoftBodyGripperAction : public Action {
             if (!colLink) continue;
             const btVector3 &contactPt = c.m_node->m_x;
             if (onInnerSide(contactPt, left)) {
-                appendAnchor(psb, c.m_node, rigidBody);
                 cout << "\tappending anchor\n";
+                anchors.push_back(softBody->addAnchor(c.m_node, rigidBody));
             }
         }
     }
@@ -213,10 +206,15 @@ public:
     }
 
     // Must be called before the action is run!
-    void setTarget(btSoftBody *psb_) { psb = psb_; }
+    void setTarget(BulletSoftObject::Ptr sb) {
+        softBody = sb;
+        psb = sb->softBody.get();
+    }
 
     void releaseAllAnchors() {
-        psb->m_anchors.clear();
+        for (int i = 0; i < anchors.size(); ++i)
+            softBody->removeAnchor(anchors[i]);
+        anchors.clear();
     }
 
     void reset() {
@@ -382,9 +380,9 @@ void CustomScene::run() {
     env->add(cloth);
 
     leftAction.reset(new PR2SoftBodyGripperAction(pr2m.pr2Left, "l_gripper_l_finger_tip_link", "l_gripper_r_finger_tip_link", 1));
-    leftAction->setTarget(psb);
+    leftAction->setTarget(cloth);
     rightAction.reset(new PR2SoftBodyGripperAction(pr2m.pr2Right, "r_gripper_l_finger_tip_link", "r_gripper_r_finger_tip_link", 1));
-    rightAction->setTarget(psb);
+    rightAction->setTarget(cloth);
 
     //setSyncTime(true);
     startViewer();

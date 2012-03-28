@@ -8,17 +8,6 @@ static const char LEFT_GRIPPER_RIGHT_FINGER_NAME[] = "l_gripper_r_finger_tip_lin
 static const char RIGHT_GRIPPER_LEFT_FINGER_NAME[] = "r_gripper_l_finger_tip_link";
 static const char RIGHT_GRIPPER_RIGHT_FINGER_NAME[] = "r_gripper_r_finger_tip_link";
 
-// adapted from btSoftBody.cpp (btSoftBody::appendAnchor)
-static void btSoftBody_appendAnchor(btSoftBody *psb, btSoftBody::Node *node, btRigidBody *body, btScalar influence=1) {
-    btSoftBody::Anchor a = { 0 };
-    a.m_node = node;
-    a.m_body = body;
-    a.m_local = body->getWorldTransform().inverse()*a.m_node->m_x;
-    a.m_node->m_battach = 1;
-    a.m_influence = influence;
-    psb->m_anchors.push_back(a);
-}
-
 // Fills in the rcontacts array with contact information between psb and pco
 static void getContactPointsWith(btSoftBody *psb, btCollisionObject *pco, btSoftBody::tRContactArray &rcontacts) {
     // custom contact checking adapted from btSoftBody.cpp and btSoftBodyInternals.h
@@ -114,9 +103,9 @@ PR2SoftBodyGripper::PR2SoftBodyGripper(RaveRobotKinematicObject::Ptr robot_, Ope
 
 void PR2SoftBodyGripper::releaseAllAnchors() {
     cout << "releasing" << endl;
-    for (int i = 0; i < psb->m_anchors.size(); ++i)
-        psb->m_anchors[i].m_node->m_battach = 0;
-    psb->m_anchors.clear();
+    for (int i = 0; i < anchors.size(); ++i)
+        sb->removeAnchor(anchors[i]);
+    anchors.clear();
 }
 
 bool PR2SoftBodyGripper::inGraspRegion(const btVector3 &pt) const {
@@ -136,7 +125,7 @@ void PR2SoftBodyGripper::attach(bool left) {
     btRigidBody *rigidBody =
         robot->associatedObj(left ? leftFinger : rightFinger)->rigidBody.get();
     btSoftBody::tRContactArray rcontacts;
-    getContactPointsWith(psb, rigidBody, rcontacts);
+    getContactPointsWith(sb->softBody.get(), rigidBody, rcontacts);
     cout << "got " << rcontacts.size() << " contacts\n";
     int nAppended = 0;
 
@@ -147,7 +136,7 @@ void PR2SoftBodyGripper::attach(bool left) {
         const btVector3 &contactPt = c.m_node->m_x;
         //if (onInnerSide(contactPt, left)) {
         if (inGraspRegion(contactPt)) {
-            btSoftBody_appendAnchor(psb, c.m_node, rigidBody);
+            anchors.push_back(sb->addAnchor(c.m_node, rigidBody));
             ++nAppended;
         }
     }
@@ -163,7 +152,7 @@ void PR2SoftBodyGripper::grab() {
         const btVector3 midpt = 0.5 * (getInnerPt(false) + getInnerPt(true));
         // get point on cloth closest to midpt, and attach an anchor there
         // (brute-force iteration through every cloth node)
-        btSoftBody::tNodeArray &nodes = psb->m_nodes;
+        btSoftBody::tNodeArray &nodes = sb->softBody->m_nodes;
         btSoftBody::Node *closestNode = NULL;
         btScalar closestDist;
         for (int i = 0; i < nodes.size(); ++i) {
@@ -176,7 +165,7 @@ void PR2SoftBodyGripper::grab() {
         }
         // attach to left finger (arbitrary choice)
         if (closestNode)
-            btSoftBody_appendAnchor(psb, closestNode, robot->associatedObj(leftFinger)->rigidBody.get());
+            anchors.push_back(sb->addAnchor(closestNode, robot->associatedObj(leftFinger)->rigidBody.get()));
     }
 }
 

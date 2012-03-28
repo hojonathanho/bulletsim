@@ -89,6 +89,7 @@ void liftClothMiddle(Scene &scene, ClothSpec &cs, bool disableDrawing) {
     //liftClothMiddle2(scene, cs, disableDrawing);
 }
 
+#if 0
 // runs some random actions on a cloth
 void randomizeCloth(Scene &scene, btSoftBody *psb, int resx, int resy, int numSteps) {
     NodeActionList actions;
@@ -99,6 +100,7 @@ void randomizeCloth(Scene &scene, btSoftBody *psb, int resx, int resy, int numSt
         scene.runAction(a, BulletConfig::dt);
     }
 }
+#endif
 
 static btScalar rayFromToTriangle(const btVector3& rayFrom,
                const btVector3& rayTo,

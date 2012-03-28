@@ -118,7 +118,7 @@ static NodeMoveAction::Spec flattenCloth_greedy_single_internal(const StepState 
             }
 
             // now run the action on the innerstate
-            ac.setSoftBody(innerstate.fork->env, innerstate.cloth->softBody.get());
+            ac.setSoftBody(innerstate.fork->env, innerstate.cloth);
             while (!ac.done()) {
                 ac.step(BulletConfig::dt);
                 innerstate.fork->env->step(BulletConfig::dt,
@@ -204,7 +204,7 @@ void flattenCloth_greedy(Scene &scene, BulletSoftObject::Ptr initCloth, NodeActi
         if (actOnInputEnv) {
             // replay?
             NodeMoveAction &a = out[step];
-            a.setSoftBody(scene.env, initCloth->softBody.get());
+            a.setSoftBody(scene.env, initCloth);
             while (!a.done()) {
                 a.step(BulletConfig::dt);
                 scene.env->step(BulletConfig::dt, BulletConfig::maxSubSteps, BulletConfig::internalTimeStep);

@@ -303,7 +303,12 @@ EnvironmentObject::Ptr BulletSoftObject::copy(Fork &f) const {
     COPY_ARRAY(psb->m_clusterConnectivity, orig->m_clusterConnectivity);
 
     psb->updateConstants();
-    return Ptr(new BulletSoftObject(psb));
+
+    Ptr p(new BulletSoftObject(psb));
+    p->nextAnchorHandle = nextAnchorHandle;
+    p->anchormap = anchormap;
+
+    return p;
 }
 
 void BulletSoftObject::postCopy(EnvironmentObject::Ptr copy, Fork &f) const {
@@ -382,4 +387,46 @@ void BulletSoftObject::postCopy(EnvironmentObject::Ptr copy, Fork &f) const {
         }
     }
 #endif
+}
+
+BulletSoftObject::AnchorHandle BulletSoftObject::addAnchor(btSoftBody::Node *node, btRigidBody *body, btScalar influence) {
+    // make the anchor and add to the soft body
+    btSoftBody::Anchor a = { 0 };
+    a.m_node = node;
+    a.m_body = body;
+    a.m_local = body->getWorldTransform().inverse()*a.m_node->m_x;
+    a.m_node->m_battach = 1;
+    a.m_influence = influence;
+    softBody->m_anchors.push_back(a);
+
+    // make the anchor handle
+    AnchorHandle h = nextAnchorHandle++;
+    BOOST_ASSERT(getAnchorIdx(h) == -1);
+    anchormap.insert(make_pair(h, softBody->m_anchors.size()-1));
+    return h;
+}
+
+BulletSoftObject::AnchorHandle BulletSoftObject::addAnchor(int nodeidx, btRigidBody *body, btScalar influence) {
+    return addAnchor(&softBody->m_nodes[nodeidx], body, influence);
+}
+
+void BulletSoftObject::removeAnchor(BulletSoftObject::AnchorHandle h) {
+    // make anchor node re-attachable
+    int idx = getAnchorIdx(h);
+    if (idx == -1) { BOOST_ASSERT(false); return; }
+    softBody->m_anchors[idx].m_node->m_battach = 0;
+    // remove the anchor from m_anchors
+    softBody->m_anchors.swap(idx, softBody->m_anchors.size() - 1);
+    softBody->m_anchors.pop_back();
+    // clean up and adjust pointers in anchormap
+    anchormap.erase(h);
+    for (map<AnchorHandle, int>::iterator i = anchormap.begin(); i != anchormap.end(); ++i) {
+        if (i->second > idx)
+            --i->second;
+    }
+}
+
+int BulletSoftObject::getAnchorIdx(AnchorHandle h) const {
+    map<AnchorHandle, int>::const_iterator i = anchormap.find(h);
+    return i == anchormap.end() ? -1 : i->second;
 }

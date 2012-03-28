@@ -184,7 +184,7 @@ class PR2SoftBodyGripperAction : public Action {
     vector<dReal> vals;
 
     // the target softbody
-    btSoftBody *psb;
+    BulletSoftObject::Ptr sb;
 
 public:
     typedef boost::shared_ptr<PR2SoftBodyGripperAction> Ptr;
@@ -216,9 +216,9 @@ public:
     }
 
     // Must be called before the action is run!
-    void setTarget(btSoftBody *psb_) {
-        psb = psb_;
-        sbgripper.setTarget(psb_);
+    void setTarget(BulletSoftObject::Ptr sb_) {
+        sb = sb_;
+        sbgripper.setTarget(sb_);
     }
 
     void reset() {
@@ -305,7 +305,7 @@ static const btScalar LOWER_INTO_TABLE = -0.01;
 class GraspClothNodeAction : public ActionChain {
     RaveRobotObject::Ptr robot;
     RaveRobotObject::Manipulator::Ptr manip;
-    btSoftBody *cloth;
+    BulletSoftObject::Ptr sb;
     const int node;
     btVector3 dir;
     PR2SoftBodyGripper::Ptr sbgripper;
@@ -324,8 +324,8 @@ class GraspClothNodeAction : public ActionChain {
     }
 
 public:
-    GraspClothNodeAction(RaveRobotObject::Ptr robot_, RaveRobotObject::Manipulator::Ptr manip_, btSoftBody *cloth_, int node_, const btVector3 &dir_) :
-        robot(robot_), manip(manip_), cloth(cloth_), node(node_), dir(dir_) {
+    GraspClothNodeAction(RaveRobotObject::Ptr robot_, RaveRobotObject::Manipulator::Ptr manip_, BulletSoftObject::Ptr sb_, int node_, const btVector3 &dir_) :
+        robot(robot_), manip(manip_), sb(sb_), node(node_), dir(dir_) {
 
         dir.setZ(0); // only look at vector on the x-y plane
         if (!btFuzzyZero(dir.length2())) {
@@ -335,7 +335,7 @@ public:
             GripperOpenCloseAction *closeGripper = new GripperOpenCloseAction(robot, manip->manip, false);
 
             ManipIKInterpAction *positionGrasp = new ManipIKInterpAction(robot, manip);
-            btVector3 v(cloth->m_nodes[node].m_x);
+            btVector3 v(sb->softBody->m_nodes[node].m_x);
             // move the gripper a few cm behind node, angled slightly down
 //            btVector3 dir2 = btVector3(dir.x(), dir.y(), -ANGLE_DOWN_HEIGHT * METERS).normalize();
 //            positionGrasp->setPR2TipTargetTrans(transFromDir(dir2, v - dir2*MOVE_BEHIND_DIST*METERS + OFFSET*METERS));
@@ -354,7 +354,7 @@ public:
 
             sbgripper.reset(new PR2SoftBodyGripper(robot, manip->manip, true)); // TODO: leftGripper flag
             sbgripper->setGrabOnlyOnContact(true);
-            sbgripper->setTarget(cloth);
+            sbgripper->setTarget(sb);
             FunctionAction *releaseAnchors = new FunctionAction(boost::bind(&PR2SoftBodyGripper::releaseAllAnchors, sbgripper));
             FunctionAction *setAnchors = new FunctionAction(boost::bind(&PR2SoftBodyGripper::grab, sbgripper));
 

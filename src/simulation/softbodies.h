@@ -26,6 +26,13 @@ public:
 
     void setColor(float,float,float,float);
 
+    // custom anchor management
+    typedef int AnchorHandle;
+    AnchorHandle addAnchor(btSoftBody::Node *node, btRigidBody *body, btScalar influence=1);
+    AnchorHandle addAnchor(int nodeidx, btRigidBody *body, btScalar influence=1);
+    void removeAnchor(AnchorHandle a);
+    int getAnchorIdx(AnchorHandle h) const;
+
     EnvironmentObject::Ptr copy(Fork &f) const;
     void postCopy(EnvironmentObject::Ptr copy, Fork &f) const;
 
@@ -33,6 +40,10 @@ public:
     void init();
     void preDraw();
     void destroy();
+
+private:
+    AnchorHandle nextAnchorHandle;
+    map<AnchorHandle, int> anchormap;
 };
 
 

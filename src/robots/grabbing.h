@@ -64,7 +64,7 @@ public:
         gripper(new PR2SoftBodyGripper(robot, manip, leftGripper)) { }
     SoftMonitorForGrabbing(RaveRobotKinematicObject::Ptr robot, bool leftGripper);
 
-    void setTarget(btSoftBody *psb) { gripper->setTarget(psb); }
+    void setTarget(BulletSoftObject::Ptr sb) { gripper->setTarget(sb); }
     void grab() { gripper->grab(); }
     void release() { gripper->releaseAllAnchors(); }
     void updateGrabPos() { }

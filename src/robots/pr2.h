@@ -4,6 +4,7 @@
 #include "simulation/openravesupport.h"
 #include "simulation/basicobjects.h"
 #include "simulation/simplescene.h"
+#include "simulation/softbodies.h"
 
 // Special support for the OpenRAVE PR2 model
 
@@ -26,7 +27,7 @@ class PR2SoftBodyGripper {
     const btVector3 toolDirection;
 
     // the target softbody
-    btSoftBody *psb;
+    BulletSoftObject::Ptr sb;
 
     btTransform getManipRot() const {
         btTransform trans(util::toBtTransform(manip->GetTransform(), robot->scale));
@@ -60,6 +61,8 @@ class PR2SoftBodyGripper {
     // If so, attaches anchors to every contact point
     void attach(bool left);
 
+    vector<BulletSoftObject::AnchorHandle> anchors;
+
 public:
     typedef boost::shared_ptr<PR2SoftBodyGripper> Ptr;
 
@@ -68,7 +71,7 @@ public:
     void setGrabOnlyOnContact(bool b) { grabOnlyOnContact = b; }
 
     // Must be called before the action is run!
-    void setTarget(btSoftBody *psb_) { psb = psb_; }
+    void setTarget(BulletSoftObject::Ptr sb_) { sb = sb_; }
 
     void grab();
     void releaseAllAnchors();

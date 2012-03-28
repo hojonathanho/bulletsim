@@ -51,15 +51,15 @@ btSoftBody *makeSelfCollidingTowel(const btVector3& center, btScalar lenx, btSca
         0, true);
 
     psb->m_cfg.piterations = 2;
-    psb->m_cfg.collisions = btSoftBody::fCollision::SDF_RS
+    psb->m_cfg.collisions = btSoftBody::fCollision::CL_RS
         | btSoftBody::fCollision::CL_SS
         | btSoftBody::fCollision::CL_SELF;
     psb->m_cfg.kDF = 0.6;
     //psb->m_cfg.kDF = 0.1;
     psb->m_cfg.kAHR = 1; // anchor hardness
     psb->m_cfg.kSSHR_CL = 1.0; // so the cloth doesn't penetrate itself
-    psb->m_cfg.kSRHR_CL = 1;
-    psb->m_cfg.kSKHR_CL = 1;
+    psb->m_cfg.kSRHR_CL = 0.6;
+    psb->m_cfg.kSKHR_CL = 0.6;
     psb->m_cfg.kDP = 0.01;
 //    psb->m_cfg.kDP = 1;
 
