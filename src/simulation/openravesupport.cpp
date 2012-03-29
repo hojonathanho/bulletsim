@@ -246,12 +246,14 @@ RaveRobotKinematicObject::createManipulator(const std::string &manipName, bool u
     m->manip = m->origManip = robot->GetActiveManipulator();
     m->ikmodule = RaveCreateModule(rave->env, "ikfast");
     rave->env->AddModule(m->ikmodule, "");
+/*
     stringstream ssin, ssout;
     ssin << "LoadIKFastSolver " << robot->GetName() << " " << (int)IkParameterization::Type_Transform6D;
     if (!m->ikmodule->SendCommand(ssout, ssin)) {
         RAVELOG_ERROR("failed to load iksolver\n");
         return Manipulator::Ptr(); // null
     }
+*/
 
     m->useFakeGrabber = useFakeGrabber;
     if (useFakeGrabber) {

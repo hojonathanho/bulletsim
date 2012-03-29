@@ -16,6 +16,7 @@
 class CustomScene : Scene {
     Cloth::Ptr cloth;
     PR2Manager::Ptr pr2m;
+    PR2SoftBodyGripper::Ptr sbgripperleft;
 
     PlotPoints::Ptr foldnodeplot;
     PlotLines::Ptr folddirplot;
@@ -98,9 +99,12 @@ class CustomScene : Scene {
             fork_pr2->getManipByIndex(pr2m->pr2Left->index);
         osg->root->addChild(fork_osg->root);
 
+        PR2SoftBodyGripper::Ptr sbgripper(new PR2SoftBodyGripper(fork_pr2, fork_pr2Left->manip, true)); // TODO: leftGripper flag
+        sbgripper->setGrabOnlyOnContact(true);
+        sbgripper->setTarget(fork_cloth);
         Action::Ptr a(new GraspClothNodeAction(
-                    fork_pr2, fork_pr2Left, fork_cloth,
-                    node, gripperdir));
+                    fork_pr2, fork_pr2Left, sbgripper,
+                    fork_cloth, node, gripperdir));
         while (!a->done()) {
             a->step(BulletConfig::dt);
             fork->env->step(BulletConfig::dt,
@@ -135,8 +139,8 @@ class CustomScene : Scene {
         }
 
         runAction(Action::Ptr(new GraspClothNodeAction(
-                        pr2m->pr2, pr2m->pr2Left, cloth,
-                        node, gripperdir)),
+                        pr2m->pr2, pr2m->pr2Left, sbgripperleft,
+                        cloth, node, gripperdir)),
                 BulletConfig::dt);
         cout << "done." << endl;
     }
@@ -212,8 +216,11 @@ public:
         facepicker.reset(new SoftBodyFacePicker(*this, viewer.getCamera(), cloth->softBody.get()));
         facepicker->setPickCallback(boost::bind(&CustomScene::pickCallback, this, _1));
 
+        sbgripperleft.reset(new PR2SoftBodyGripper(pr2m->pr2, pr2m->pr2Left->manip, true));
+        sbgripperleft->setGrabOnlyOnContact(true);
+        sbgripperleft->setTarget(cloth);
 
-        PR2SoftBodyGripperAction leftAction(pr2m->pr2, pr2m->pr2Left->manip, true);
+        PR2SoftBodyGripperAction leftAction(pr2m->pr2, pr2m->pr2Left->manip, sbgripperleft);
         leftAction.setTarget(cloth);
         leftAction.setExecTime(1.);
         addVoidKeyCallback('a', boost::bind(&CustomScene::runGripperAction, this, leftAction));

@@ -20,8 +20,8 @@ public:
 
     boost::shared_ptr<btSoftBody> softBody;
 
-    BulletSoftObject(boost::shared_ptr<btSoftBody> softBody_) : softBody(softBody_) { }
-    BulletSoftObject(btSoftBody *softBody_) : softBody(softBody_) { }
+    BulletSoftObject(boost::shared_ptr<btSoftBody> softBody_) : softBody(softBody_), nextAnchorHandle(0) { }
+    BulletSoftObject(btSoftBody *softBody_) : softBody(softBody_), nextAnchorHandle(0) { }
     virtual ~BulletSoftObject() { }
 
     void setColor(float,float,float,float);

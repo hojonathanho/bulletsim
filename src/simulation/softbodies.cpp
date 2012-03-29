@@ -389,6 +389,13 @@ void BulletSoftObject::postCopy(EnvironmentObject::Ptr copy, Fork &f) const {
 #endif
 }
 
+static void printAnchors(const map<BulletSoftObject::AnchorHandle, int> &anchormap) {
+    cout << "=======" << endl;
+    for (map<BulletSoftObject::AnchorHandle, int>::const_iterator i = anchormap.begin(); i != anchormap.end(); ++i)
+        cout << i->first << " -> " << i->second << '\n';
+    cout << "=======" << endl;
+}
+
 BulletSoftObject::AnchorHandle BulletSoftObject::addAnchor(btSoftBody::Node *node, btRigidBody *body, btScalar influence) {
     // make the anchor and add to the soft body
     btSoftBody::Anchor a = { 0 };
@@ -399,10 +406,12 @@ BulletSoftObject::AnchorHandle BulletSoftObject::addAnchor(btSoftBody::Node *nod
     a.m_influence = influence;
     softBody->m_anchors.push_back(a);
 
+    cout << "before: "; printAnchors(anchormap);
     // make the anchor handle
     AnchorHandle h = nextAnchorHandle++;
     BOOST_ASSERT(getAnchorIdx(h) == -1);
     anchormap.insert(make_pair(h, softBody->m_anchors.size()-1));
+    cout << "after: "; printAnchors(anchormap);
     return h;
 }
 
@@ -412,10 +421,7 @@ BulletSoftObject::AnchorHandle BulletSoftObject::addAnchor(int nodeidx, btRigidB
 
 void BulletSoftObject::removeAnchor(BulletSoftObject::AnchorHandle h) {
     cout << "removing anchor " << h << endl;
-    cout << "======= before" << endl;
-    for (map<AnchorHandle, int>::const_iterator i = anchormap.begin(); i != anchormap.end(); ++i)
-        cout << i->first << " -> " << i->second << '\n';
-    cout << "=======" << endl;
+    cout << "before: "; printAnchors(anchormap);
     // make anchor node re-attachable
     int idx = getAnchorIdx(h);
     if (idx == -1) { BOOST_ASSERT(false); return; }
@@ -433,10 +439,7 @@ void BulletSoftObject::removeAnchor(BulletSoftObject::AnchorHandle h) {
         }
     }
 
-    cout << "======= after" << endl;
-    for (map<AnchorHandle, int>::const_iterator i = anchormap.begin(); i != anchormap.end(); ++i)
-        cout << i->first << " -> " << i->second << '\n';
-    cout << "=======" << endl;
+    cout << "after: "; printAnchors(anchormap);
 }
 
 int BulletSoftObject::getAnchorIdx(AnchorHandle h) const {
