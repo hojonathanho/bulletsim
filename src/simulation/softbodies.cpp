@@ -411,19 +411,32 @@ BulletSoftObject::AnchorHandle BulletSoftObject::addAnchor(int nodeidx, btRigidB
 }
 
 void BulletSoftObject::removeAnchor(BulletSoftObject::AnchorHandle h) {
+    cout << "removing anchor " << h << endl;
+    cout << "======= before" << endl;
+    for (map<AnchorHandle, int>::const_iterator i = anchormap.begin(); i != anchormap.end(); ++i)
+        cout << i->first << " -> " << i->second << '\n';
+    cout << "=======" << endl;
     // make anchor node re-attachable
     int idx = getAnchorIdx(h);
     if (idx == -1) { BOOST_ASSERT(false); return; }
     softBody->m_anchors[idx].m_node->m_battach = 0;
     // remove the anchor from m_anchors
-    softBody->m_anchors.swap(idx, softBody->m_anchors.size() - 1);
+    int swappedidx = softBody->m_anchors.size() - 1;
+    softBody->m_anchors.swap(idx, swappedidx);
     softBody->m_anchors.pop_back();
     // clean up and adjust pointers in anchormap
     anchormap.erase(h);
     for (map<AnchorHandle, int>::iterator i = anchormap.begin(); i != anchormap.end(); ++i) {
-        if (i->second > idx)
-            --i->second;
+        if (i->second == swappedidx) {
+            i->second = idx;
+            break;
+        }
     }
+
+    cout << "======= after" << endl;
+    for (map<AnchorHandle, int>::const_iterator i = anchormap.begin(); i != anchormap.end(); ++i)
+        cout << i->first << " -> " << i->second << '\n';
+    cout << "=======" << endl;
 }
 
 int BulletSoftObject::getAnchorIdx(AnchorHandle h) const {

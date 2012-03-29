@@ -279,7 +279,7 @@ bool RaveRobotKinematicObject::Manipulator::solveIKUnscaled(
     // TODO: lock environment?!?!
     // notice: we use origManip, which is the original manipulator (after cloning)
     // this way we don't have to clone the iksolver, which is attached to the manipulator
-    if (!origManip->FindIKSolution(IkParameterization(targetTrans), vsolution, true)) {
+    if (!origManip->FindIKSolution(IkParameterization(targetTrans), vsolution, IKFO_CheckEnvCollisions | IKFO_IgnoreEndEffectorCollisions)) {
         stringstream ss;
         ss << "failed to get solution for target transform for end effector: " << targetTrans << endl;
         RAVELOG_DEBUG(ss.str());
@@ -295,7 +295,7 @@ bool RaveRobotKinematicObject::Manipulator::solveAllIKUnscaled(
 
     vsolutions.clear();
     // see comments for solveIKUnscaled
-    if (!origManip->FindIKSolutions(IkParameterization(targetTrans), vsolutions, true)) {
+    if (!origManip->FindIKSolutions(IkParameterization(targetTrans), vsolutions, IKFO_CheckEnvCollisions | IKFO_IgnoreEndEffectorCollisions)) {
         stringstream ss;
         ss << "failed to get solutions for target transform for end effector: " << targetTrans << endl;
         RAVELOG_DEBUG(ss.str());

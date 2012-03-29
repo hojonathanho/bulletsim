@@ -140,7 +140,6 @@ public:
                     vsolutions);
         }
 
-
         // Moves the manipulator with IK to targetTrans in unscaled coordinates
         // Returns false if IK cannot find a solution
         // If checkCollisions is true, then this will return false if the new

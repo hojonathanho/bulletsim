@@ -2,6 +2,7 @@
 #include "simulation/config_bullet.h"
 #include "simulation/config_viewer.h"
 #include "simulation/plotting.h"
+#include "simulation/util.h"
 #include "robots/pr2.h"
 #include <cstdlib>
 
@@ -173,13 +174,32 @@ public:
         env->add(pickplot);
         pickedNode = NULL;
 
+        // load the robot
+        pr2m.reset(new PR2Manager(*this));
+
+        // create the table
         const float table_height = .5;
         const float table_thickness = .05;
-        BoxObject::Ptr table(new BoxObject(0, GeneralConfig::scale * btVector3(.75,.75,table_thickness/2),
-            btTransform(btQuaternion(0, 0, 0, 1), GeneralConfig::scale * btVector3(0.8, 0, table_height-table_thickness/2))));
+        const btVector3 table_extents = GeneralConfig::scale * btVector3(.75,.75,table_thickness/2);
+        const btTransform table_trans = btTransform(btQuaternion(0, 0, 0, 1), GeneralConfig::scale * btVector3(0.8, 0, table_height-table_thickness/2));
+        BoxObject::Ptr table(new BoxObject(0, table_extents, table_trans));
         table->rigidBody->setFriction(0.1);
         env->add(table);
         cout << "table margin: " << table->rigidBody->getCollisionShape()->getMargin() << endl;
+
+        // put the table in openrave
+        OpenRAVE::KinBodyPtr raveTable = OpenRAVE::RaveCreateKinBody(rave->env);
+        raveTable->SetName("table");
+        vector<OpenRAVE::AABB> v;
+        v.push_back(OpenRAVE::AABB(util::toRaveTransform(table_trans, 1./pr2m->pr2->scale).trans, 1./pr2m->pr2->scale * util::toRaveVector(table_extents)));
+        raveTable->InitFromBoxes(v, true);
+        rave->env->AddKinBody(raveTable);
+
+#if 0
+        OpenRAVE::ViewerBasePtr raveViewer = OpenRAVE::RaveCreateViewer(rave->env, "qtcoin");
+        rave->env->AddViewer(raveViewer);
+        raveViewer->main(true);
+#endif
 
         //const int resx = (int)(45*1.5), resy = (int)(31*1.5);
         const int resx = 45, resy = 31;
@@ -192,7 +212,6 @@ public:
         facepicker.reset(new SoftBodyFacePicker(*this, viewer.getCamera(), cloth->softBody.get()));
         facepicker->setPickCallback(boost::bind(&CustomScene::pickCallback, this, _1));
 
-        pr2m.reset(new PR2Manager(*this));
 
         PR2SoftBodyGripperAction leftAction(pr2m->pr2, pr2m->pr2Left->manip, true);
         leftAction.setTarget(cloth);
