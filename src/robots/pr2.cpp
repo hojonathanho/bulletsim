@@ -115,7 +115,6 @@ bool PR2SoftBodyGripper::inGraspRegion(const btVector3 &pt) const {
     // check that pt is behind the gripper tip
     btTransform manipTrans(util::toBtTransform(manip->GetTransform(), robot->scale));
     btVector3 x = manipTrans.inverse() * pt;
-    cout << "asdf: " << x.x() << ' ' << x.y() << ' ' << x.z() << endl;
     if (x.x() < 0) return false;
 
     return true;
