@@ -1,26 +1,23 @@
 #pragma once
-#include "numpy_boost.hpp"
 #include <boost/python.hpp>
 #include <iostream>
 #include <string>
 using namespace std;
 namespace py = boost::python;
-typedef numpy_boost<float, 1> npVectorf;
-typedef numpy_boost<float, 2> npMatrixf;
-typedef numpy_boost<double, 1> npVectord;
-typedef numpy_boost<double, 2> npMatrixd;
+
+
 
 struct PyGlobals {
   static py::object main_module;
   static py::object main_namespace;
   static py::object builtin_module;
+  static py::object numpy_module;
 };
 
-void setup_python();
+static inline float ff(py::object o) {return py::extract<float>(o);}
+static inline int ii(py::object o) {return py::extract<int>(PyGlobals::builtin_module.attr("int")(o));}
 
-template <class npArrayType>
-py::object toObject(npArrayType array) {
-    PyObject* ptr = array.py_ptr();
-    py::object arrayobj(py::handle<>(py::borrowed(ptr)));
-    return arrayobj;
-}
+
+#define NP PyGlobals::numpy_module
+
+void setup_python();

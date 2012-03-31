@@ -2,15 +2,17 @@
 #include "utils_python.h"
 #include "utils/interpolation.h"
 #include "simulation/util.h"
+#include "knots.h"
 using namespace OpenRAVE;
 using namespace std;
 using namespace Eigen;
 
+static inline float f(py::object o) {return py::extract<float>(o);}
+
 vector<btTransform> findBasePoses(const vector<btTransform>& leftPoses, const vector<double>& curJoints) {
   int nPoses = leftPoses.size();
 
-  py::object np = py::import("numpy");
-  py::object poses = np.attr("empty")(py::make_tuple(nPoses, 7));
+  py::object poses = NP.attr("empty")(py::make_tuple(nPoses, 7));
   for (int i=0; i < nPoses; i++) {
     btQuaternion quat = leftPoses[i].getRotation();
     btVector3 pos = leftPoses[i].getOrigin();
@@ -24,17 +26,16 @@ vector<btTransform> findBasePoses(const vector<btTransform>& leftPoses, const ve
   }
 
 
-  py::object npCurJoints = np.attr("empty")(curJoints.size());
+  py::object npCurJoints = NP.attr("empty")(curJoints.size());
   for (int i=0; i < curJoints.size(); i++)  npCurJoints[i] = curJoints[i];
 
   py::object reachability = py::import("knot_tying.reachability");
-  py::object pyResult = reachability.attr("get_base_positions")(poses,npCurJoints);
-  npMatrixf result(pyResult.ptr());
+  py::object result = reachability.attr("get_base_positions")(poses,npCurJoints);
   
   vector<btTransform> out;
   for (int i=0; i < nPoses; i++) {
     btTransform tf;
-    tf.setOrigin(btVector3(result[i][0],result[i][1],0));
+    tf.setOrigin(btVector3(f(result[i][0]),f(result[i][1]),0));
     tf.setRotation(btQuaternion(0,0,0,1));
     out.push_back(tf);
   }
@@ -46,9 +47,10 @@ const int DOWNSAMPLE_TRAJ = 100;
 const float INFEAS_COST = 100;
 
 vector<btTransform> findBasePoses1(OpenRAVE::RobotBase::ManipulatorPtr manip, const vector<btTransform>& leftPoses) {
+  cout << manip->GetName() << endl;
   int nPosesOrig = leftPoses.size();
 
-  vector<btTransform> downsampledPoses = decimate(leftPoses, 50);
+  vector<btTransform> downsampledPoses = decimate(leftPoses, 20);
 
   const int N_DX = 1;
   const float DX[N_DX] = {0};//{-.2, -.1, 0, .1, .2};
@@ -61,8 +63,8 @@ vector<btTransform> findBasePoses1(OpenRAVE::RobotBase::ManipulatorPtr manip, co
   int count=0;
   for (int i=0; i < N_DX; i++) {
     for (int j=0; j < N_DY; j++) {
-      OFFSETS[count][0] = DX[i]*3;
-      OFFSETS[count][1] = DY[j]*3;
+      OFFSETS[count][0] = DX[i];
+      OFFSETS[count][1] = DY[j];
       count++;
     }
   }
@@ -88,7 +90,7 @@ vector<btTransform> findBasePoses1(OpenRAVE::RobotBase::ManipulatorPtr manip, co
     }
   }
 
-  for (int k=1; k < nOffsets; k++) nodeCost_nk[0][k] = 100*INFEAS_COST;
+  // for (int k=1; k < nOffsets; k++) nodeCost_nk[0][k] = 100*INFEAS_COST;
 
   py::object reachability = py::import("knot_tying.reachability");
   py::object pyresult = reachability.attr("shortest_path")(nodeCost_nk, edgeCost_nkk);
@@ -110,4 +112,28 @@ vector<btTransform> findBasePoses1(OpenRAVE::RobotBase::ManipulatorPtr manip, co
   }
   return basePoses;
 
+}
+
+extern py::object toNumpy1(const vector<RobotAndRopeState>& rars);
+
+vector<btTransform> findBasePoses2(const vector<RobotAndRopeState>& states, vector<double> curJoints) {
+  int nPoses = states.size();
+
+  py::object npCurJoints = NP.attr("empty")(curJoints.size());
+  for (int i=0; i < curJoints.size(); i++)  npCurJoints[i] = curJoints[i];
+
+  py::object reachability = py::import("knot_tying.reachability2");
+  py::object pystates = toNumpy1(states);
+  reachability.attr("init")(0);
+  py::object result = reachability.attr("get_base_positions_bimanual_resampled")(pystates, npCurJoints); 
+ 
+  vector<btTransform> out;
+  for (int i=0; i < nPoses; i++) {
+    btTransform tf;
+    tf.setOrigin(btVector3(f(result[i][0]),f(result[i][1]),0));
+    tf.setRotation(btQuaternion(0,0,0,1));
+    out.push_back(tf);
+  }
+
+  return out;
 }

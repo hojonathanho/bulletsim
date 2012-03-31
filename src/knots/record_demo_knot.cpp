@@ -12,6 +12,7 @@
 #include "utils_python.h"
 #include "utils/yes_or_no.h"
 #include "trajectory_library.h"
+#include "rope_scenes.h"
 
 using namespace std;
 namespace fs = boost::filesystem;
@@ -33,14 +34,16 @@ void setWantsExit() {
 struct LocalConfig : Config {
   static string initRope;
   static string dbname;
+  static bool telekinesis;
   LocalConfig() : Config() {
     params.push_back(new Parameter<string>("initRope", &initRope, "file specifying initial rope")); 
     params.push_back(new Parameter<string>("dbname", &dbname, "database to save file")); 
+    params.push_back(new Parameter<bool>("telekinesis", &telekinesis, "use telekinesis")); 
   }
 };
 string LocalConfig::initRope = "";
 string LocalConfig::dbname = "";
-
+bool LocalConfig::telekinesis = false;
 
 
 int main(int argc, char* argv[]) {
@@ -49,7 +52,7 @@ int main(int argc, char* argv[]) {
 
   SceneConfig::enableHaptics = true;
   GeneralConfig::scale = 10;
-  
+  BulletConfig::gravity.m_floats[2] = -30;
   
   Parser parser;
   parser.addGroup(LocalConfig());
@@ -59,7 +62,7 @@ int main(int argc, char* argv[]) {
   if (LocalConfig::initRope == "") throw std::runtime_error("must specify a rope file (--initRope=...)");
   if (LocalConfig::dbname == "") throw std::runtime_error("must specify a db name --dbname=)");
 
-  TableRopeScene scene(KNOT_DATA / LocalConfig::initRope);
+  TableRopeScene scene(KNOT_DATA / LocalConfig::initRope, LocalConfig::telekinesis);
 
   scene.startViewer();
   scene.setSyncTime(true);
@@ -72,17 +75,33 @@ int main(int argc, char* argv[]) {
   cout << "meters " << METERS << " " << (1/METERS) << endl;
 
   while (!wantsExit) {
+
+    if (LocalConfig::telekinesis) {
+      if (scene.pr2m->lEngaged) scene.setFakeLeft(scene.pr2m->hapTrackerLeft->rigidBody->getCenterOfMassTransform());
+      if (scene.pr2m->rEngaged) scene.setFakeRight(scene.pr2m->hapTrackerRight->rigidBody->getCenterOfMassTransform());
+    }
+
+
+
     if (recording) {
       RobotAndRopeState rar;
-      rar.leftPose = scene.pr2m->pr2Left->getTransform()*(1/METERS);
+      if (LocalConfig::telekinesis) {
+	rar.leftPose = scene.pr2m->hapTrackerLeft->rigidBody->getCenterOfMassTransform()*(1/METERS);
+	rar.rightPose = scene.pr2m->hapTrackerRight->rigidBody->getCenterOfMassTransform()*(1/METERS);
+      }
+      else {
+	rar.leftPose = scene.pr2m->pr2Left->getTransform()*(1/METERS);
+	rar.rightPose = scene.pr2m->pr2Right->getTransform()*(1/METERS);
+      }
       rar.leftGrip = scene.pr2m->pr2Left->getGripperAngle();
       rar.leftGrab = scene.m_lMonitor->m_i;
-      rar.rightPose = scene.pr2m->pr2Right->getTransform()*(1/METERS);
       rar.rightGrip = scene.pr2m->pr2Right->getGripperAngle();
       rar.rightGrab = scene.m_rMonitor->m_i;
       rar.ctrlPts = scene.m_rope->getControlPoints()*(1/METERS);
       rars.push_back(rar);
     }
+
+
     scene.step(DT);
   }
 
