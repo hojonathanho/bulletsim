@@ -31,7 +31,7 @@ int main(int argc, char* argv[]) {
   Scene scene;
 
   scene.startViewer();
-  scene.setSyncTime(true);
+  scene.setSyncTime(false);
  
   
   vector<Environment::Ptr> envs;
@@ -48,7 +48,7 @@ int main(int argc, char* argv[]) {
     OSGInstance::Ptr osg(new OSGInstance());    
     Environment::Ptr env(new Environment(bullet, osg));    
     
-    const char ROBOT_MODEL_FILE[] = EXPAND(BULLETSIM_DATA_DIR) "/robot_model/pr2_with_kinect.dae";
+    const char ROBOT_MODEL_FILE[] = "robots/pr2-beta-sim.dae";
     RaveRobotObject::Ptr pr2(new RaveRobotObject(rave, ROBOT_MODEL_FILE, btTransform::getIdentity(), GenetalConfig::scale, CONVEX_HULL, true));
 
 

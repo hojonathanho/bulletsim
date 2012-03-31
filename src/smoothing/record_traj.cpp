@@ -1,6 +1,6 @@
 #include "simulation/simplescene.h"
 #include "smoothing/smoothing.h"
-#incude <iostream>
+#include <iostream>
 using namespace std;
 
 bool recording = false;
