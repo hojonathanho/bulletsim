@@ -96,6 +96,7 @@ public:
 class PlotCurve : public osg::Geode {
 
 public:
+  typedef osg::ref_ptr<PlotCurve> Ptr;
   osg::Vec4 m_defaultColor;
   osg::ref_ptr<osg::Geometry> m_geom;
 

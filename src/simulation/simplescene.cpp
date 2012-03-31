@@ -44,7 +44,7 @@ void Scene::startViewer() {
 
     viewer.setUpViewInWindow(0, 0, ViewerConfig::windowWidth, ViewerConfig::windowHeight);
     manip = new EventHandler(*this);
-    manip->setHomePosition(util::toOSGVector(ViewerConfig::cameraHomePosition), osg::Vec3(), osg::Z_AXIS);
+    manip->setHomePosition(util::toOSGVector(ViewerConfig::cameraHomePosition)*METERS, osg::Vec3(), osg::Z_AXIS);
     viewer.setCameraManipulator(manip);
     viewer.setSceneData(osg->root.get());
     viewer.realize();

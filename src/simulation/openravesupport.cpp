@@ -374,7 +374,7 @@ bool RaveRobotObject::Manipulator::solveIKUnscaled(
     // TODO: lock environment?!?!
     // notice: we use origManip, which is the original manipulator (after cloning)
     // this way we don't have to clone the iksolver, which is attached to the manipulator
-    if (!origManip->FindIKSolution(IkParameterization(targetTrans), vsolution, true)) {
+    if (!origManip->FindIKSolution(IkParameterization(targetTrans), vsolution, IKFO_IgnoreSelfCollisions | IKFO_IgnoreEndEffectorCollisions)) {
         cout << "failed to get solution for target transform for end effector: " << targetTrans << endl;
         return false;
     }
@@ -440,7 +440,9 @@ void RaveRobotObject::Manipulator::setGripperAngle(float x) {
   robot->setDOFValues(inds, vals);
 }
 
-
+vector<double> RaveRobotObject::Manipulator::getDOFValues() {
+  return robot->getDOFValues(manip->GetArmIndices());
+}
 
 RaveRobotObject::Manipulator::Ptr
 RaveRobotObject::Manipulator::copy(RaveRobotObject::Ptr newRobot, Fork &f) {

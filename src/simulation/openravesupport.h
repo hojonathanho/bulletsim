@@ -142,7 +142,7 @@ public:
                     util::toRaveTransform(targetTrans, 1./robot->scale),
                     vsolutions);
         }
-
+      vector<double> getDOFValues();
 
         // Moves the manipulator with IK to targetTrans in unscaled coordinates
         // Returns false if IK cannot find a solution

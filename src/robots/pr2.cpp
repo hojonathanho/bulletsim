@@ -230,6 +230,7 @@ void PR2Manager::initHaptics() {
 
     lEngaged = false;
     rEngaged = false;
+    armsDisabled = false;
     setHapticCb(hapticLeftBoth, boost::bind(&PR2Manager::toggleLeftEngaged, this));
     setHapticCb(hapticRightBoth, boost::bind(&PR2Manager::toggleRightEngaged, this));
 
@@ -255,7 +256,7 @@ void PR2Manager::processHapticInput() {
 
     // adjust the transforms
     btVector3 HAPTIC_OFFSET = btVector3(-0.2, 0, -1)*METERS + util::toBtVector(pr2->robot->GetLink("torso_lift_link")->GetTransform().trans)*METERS;
-    static const btScalar HAPTIC_SCALE = 1. / 150. * METERS;
+    static const btScalar HAPTIC_SCALE = 1. / 100. * METERS;
     trans0.setOrigin(trans0.getOrigin()*HAPTIC_SCALE + leftInitTrans.getOrigin() + HAPTIC_OFFSET);
     trans1.setOrigin(trans1.getOrigin()*HAPTIC_SCALE + rightInitTrans.getOrigin()+ HAPTIC_OFFSET);
 
@@ -265,11 +266,15 @@ void PR2Manager::processHapticInput() {
     hapTrackerLeft->motionState->setKinematicPos(trans0);
     hapTrackerRight->motionState->setKinematicPos(trans1);
 
+    // fakeLeft->setTransform(trans0);
+    // fakeRight->setTransform(trans1);
     // set manip positions by ik
 
     handleButtons(buttons0, buttons1);
-    if (lEngaged) pr2Left->moveByIK(trans0, SceneConfig::enableRobotCollision, true);
-    if (rEngaged) pr2Right->moveByIK(trans1, SceneConfig::enableRobotCollision, true);
+    if (!armsDisabled) {
+      if (lEngaged) pr2Left->moveByIK(trans0, SceneConfig::enableRobotCollision, true);
+      if (rEngaged) pr2Right->moveByIK(trans1, SceneConfig::enableRobotCollision, true);
+    }
 
 }
 

@@ -4,6 +4,7 @@
 #include "simulation/openravesupport.h"
 #include "simulation/basicobjects.h"
 #include "simulation/simplescene.h"
+#include "simulation/fake_gripper.h"
 #include <map>
 
 enum HapticEvent {
@@ -110,7 +111,6 @@ private:
 
         float lastHapticReadTime;
     } inputState;
-    bool lEngaged, rEngaged; // only accept haptic input if engaged
 
 
     void loadRobot();
@@ -119,7 +119,6 @@ private:
 
     float hapticPollRate;
     btTransform leftInitTrans, rightInitTrans;
-    SphereObject::Ptr hapTrackerLeft, hapTrackerRight;
 
     map<HapticEvent, boost::function<void()> > hapticEvent2Func;
   
@@ -133,6 +132,9 @@ public:
 
     RaveRobotObject::Ptr pr2;
     RaveRobotObject::Manipulator::Ptr pr2Left, pr2Right;
+    SphereObject::Ptr hapTrackerLeft, hapTrackerRight;
+    bool lEngaged, rEngaged; // only accept haptic input if engaged
+    bool armsDisabled; // hack so I can do demonstrations with fake gripper but still use haptics stuff
 
     PR2Manager(Scene &);
     void registerSceneCallbacks();
