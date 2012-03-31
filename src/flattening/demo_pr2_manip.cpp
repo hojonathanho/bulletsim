@@ -9,7 +9,8 @@
 #include "make_bodies.h"
 #include "clothutil.h"
 #include "nodeactions.h"
-#include "clothgrasping.h"
+#include "graspingactions.h"
+#include "graspingactions_impl.h"
 #include "edges.h"
 #include "facepicker.h"
 
@@ -102,9 +103,11 @@ class CustomScene : Scene {
         PR2SoftBodyGripper::Ptr sbgripper(new PR2SoftBodyGripper(fork_pr2, fork_pr2Left->manip, true)); // TODO: leftGripper flag
         sbgripper->setGrabOnlyOnContact(true);
         sbgripper->setTarget(fork_cloth);
-        Action::Ptr a(new GraspClothNodeAction(
-                    fork_pr2, fork_pr2Left, sbgripper,
-                    fork_cloth, node, gripperdir));
+
+        GraspingActionContext ctx = { fork_pr2, fork_pr2Left, sbgripper, fork_cloth };
+        stringstream ss; ss << "grab " << node << ' ' << gripperdir.x() << ' ' << gripperdir.y() << ' ' << gripperdir.z();
+        Action::Ptr a = GraspingActionSpec(ss.str(), ctx).createAction();
+
         while (!a->done()) {
             a->step(BulletConfig::dt);
             fork->env->step(BulletConfig::dt,
@@ -138,10 +141,10 @@ class CustomScene : Scene {
                 gripperdir = -gripperdir;
         }
 
-        runAction(Action::Ptr(new GraspClothNodeAction(
-                        pr2m->pr2, pr2m->pr2Left, sbgripperleft,
-                        cloth, node, gripperdir)),
-                BulletConfig::dt);
+        GraspingActionContext ctx = { pr2m->pr2, pr2m->pr2Left, sbgripperleft, cloth };
+        stringstream ss; ss << "grab " << node << ' ' << gripperdir.x() << ' ' << gripperdir.y() << ' ' << gripperdir.z();
+        Action::Ptr a = GraspingActionSpec(ss.str(), ctx).createAction();
+        runAction(a, BulletConfig::dt);
         cout << "done." << endl;
     }
 

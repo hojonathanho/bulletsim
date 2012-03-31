@@ -1,5 +1,5 @@
-#ifndef __CLOTHGRASPING_H__
-#define __CLOTHGRASPING_H__
+#ifndef __FL_GRASPINGACTIONS_IMPL_H__
+#define __FL_GRASPINGACTIONS_IMPL_H__
 
 #include "simulation/environment.h"
 #include "simulation/openravesupport.h"
@@ -16,6 +16,8 @@ private:
     boost::function<void(void)> fn;
 
 public:
+    typedef boost::shared_ptr<FunctionAction> Ptr;
+
     FunctionAction(boost::function<void(void)> fn_) : fn(fn_) { }
 
     void step(float) {
@@ -31,6 +33,8 @@ private:
     vector<Action::Ptr> actions;
 
 public:
+    typedef boost::shared_ptr<ActionChain> Ptr;
+
     ActionChain() { }
     ActionChain(vector<Action::Ptr> &actions_) : actions(actions_) { }
 
@@ -79,6 +83,8 @@ class RobotInterpAction : public Action {
     vector<dReal> startvals, endvals;
 
 public:
+    typedef boost::shared_ptr<RobotInterpAction> Ptr;
+
     RobotInterpAction(RaveRobotObject::Ptr robot_) : robot(robot_) { }
 
     void setIndices(const vector<int> &v) {
@@ -155,6 +161,8 @@ class ManipIKInterpAction : public RobotInterpAction {
     }
 
 public:
+    typedef boost::shared_ptr<ManipIKInterpAction> Ptr;
+
     ManipIKInterpAction(RaveRobotObject::Ptr robot_,
                         RaveRobotObject::Manipulator::Ptr manip_) :
         robot(robot_), manip(manip_),
@@ -213,6 +221,7 @@ class PR2SoftBodyGripperAction : public Action {
 
 public:
     typedef boost::shared_ptr<PR2SoftBodyGripperAction> Ptr;
+
     PR2SoftBodyGripperAction(RaveRobotObject::Ptr robot_, OpenRAVE::RobotBase::ManipulatorPtr manip, PR2SoftBodyGripper::Ptr sbgripper_) :
         robot(robot_),
         sbgripper(sbgripper_),
@@ -279,6 +288,7 @@ class GripperOpenCloseAction : public Action {
 
 public:
     typedef boost::shared_ptr<GripperOpenCloseAction> Ptr;
+
     GripperOpenCloseAction(RaveRobotObject::Ptr robot_, OpenRAVE::RobotBase::ManipulatorPtr manip, bool open) :
         robot(robot_),
         indices(manip->GetGripperIndices()),
@@ -345,6 +355,8 @@ class GraspClothNodeAction : public ActionChain {
     }
 
 public:
+    typedef boost::shared_ptr<GraspClothNodeAction> Ptr;
+
     GraspClothNodeAction(RaveRobotObject::Ptr robot_, RaveRobotObject::Manipulator::Ptr manip_,
             PR2SoftBodyGripper::Ptr sbgripper_,
             BulletSoftObject::Ptr sb_, int node_,
@@ -409,4 +421,4 @@ public:
     }
 };
 
-#endif // __CLOTHGRASPING_H__
+#endif // __FL_GRASPINGACTIONS_IMPL_H__

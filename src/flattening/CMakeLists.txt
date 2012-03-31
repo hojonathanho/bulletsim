@@ -19,9 +19,9 @@ add_library(clothmanip
     clothutil.cpp
     cloth.cpp
     make_bodies.cpp
-    clothgrasping.cpp
     edges.cpp
     facepicker.cpp
+    graspingactions.cpp
 )
 set_source_files_properties(search.cpp PROPERTIES COMPILE_FLAGS -fopenmp)
 target_link_libraries(clothmanip
