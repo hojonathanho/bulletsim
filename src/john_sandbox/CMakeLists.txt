@@ -48,4 +48,8 @@ target_link_libraries(kb_control simulation robots)
 add_executable(ik_benchmark ik_benchmark.cpp)
 target_link_libraries(ik_benchmark simulation robots)
 
-add_executable(interp interp.cpp)
+add_executable(numerical_ik numerical_ik.cpp)
+target_link_libraries(numerical_ik simulation robots)
+
+add_executable(fake_gripper fake_gripper.cpp)
+target_link_libraries(fake_gripper simulation robots)
