@@ -1,7 +1,5 @@
 #pragma once
 #include <boost/foreach.hpp>
-#include <pcl/point_types.h>
-#include <pcl/point_cloud.h>
 #include <btBulletDynamicsCommon.h>
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
@@ -18,6 +16,28 @@ inline Eigen::Vector3f toEigenVector(const btVector3& vec) {return Eigen::Vector
 
 inline osg::Vec3f toOSGVector(const btVector3 &v) { return osg::Vec3f(v.x(), v.y(), v.z()); }
 
+inline osg::Matrix toOsgMatrix( const btTransform& t )
+{
+    btScalar ogl[ 16 ];
+    t.getOpenGLMatrix( ogl );
+    osg::Matrix m( ogl );
+    return m;
+}
+
+inline btTransform toBtTransform( const osg::Matrix& m )
+{
+    const osg::Matrix::value_type* oPtr = m.ptr();
+    btScalar bPtr[ 16 ];
+    int idx;
+    for (idx=0; idx<16; idx++)
+        bPtr[ idx ] = oPtr[ idx ];
+    btTransform t;
+    t.setFromOpenGLMatrix( bPtr );
+    return t;
+}
+
+
+
 inline std::vector<btVector3> toBulletVectors(const std::vector< std::vector<float> >& in) {
   std::vector<btVector3> out(in.size());
   for (int i=0; i<in.size(); i++) out[i] = toBulletVector(in[i]);
@@ -30,15 +50,6 @@ inline std::vector<btVector3> toBulletVectors(const std::vector< Eigen::Vector3f
   return out;
 }
 
-inline std::vector<btVector3> toBulletVectors(const pcl::PointCloud<pcl::PointXYZRGBA>::Ptr& cloud) {
-  std::vector<btVector3> out(cloud->size());
-  int i=0;
-  BOOST_FOREACH(pcl::PointXYZRGBA& point, *cloud) {
-    out[i] = btVector3(point.x, point.y, point.z);
-    i++;
-  }
-  return out;
-}
 
 inline std::vector<btVector3> toBulletVectors(const Eigen::MatrixXf& in) {
   std::vector<btVector3> out(in.rows());
