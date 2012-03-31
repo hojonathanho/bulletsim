@@ -93,8 +93,8 @@ class CustomScene : Scene {
         RaveRobotObject::Ptr fork_pr2 =
             boost::static_pointer_cast<RaveRobotObject>(
                 fork->forkOf(pr2m->pr2));
-        BulletSoftObject::Ptr fork_cloth =
-            boost::static_pointer_cast<BulletSoftObject>(
+        Cloth::Ptr fork_cloth =
+            boost::static_pointer_cast<Cloth>(
                     fork->forkOf(cloth));
         RaveRobotObject::Manipulator::Ptr fork_pr2Left =
             fork_pr2->getManipByIndex(pr2m->pr2Left->index);
@@ -104,9 +104,9 @@ class CustomScene : Scene {
         sbgripper->setGrabOnlyOnContact(true);
         sbgripper->setTarget(fork_cloth);
 
-        GraspingActionContext ctx = { fork_pr2, fork_pr2Left, sbgripper, fork_cloth };
+        GraspingActionContext ctx = { fork->env, fork_pr2, fork_pr2Left, sbgripper, fork_cloth };
         stringstream ss; ss << "grab " << node << ' ' << gripperdir.x() << ' ' << gripperdir.y() << ' ' << gripperdir.z();
-        Action::Ptr a = GraspingActionSpec(ss.str(), ctx).createAction();
+        Action::Ptr a = GraspingActionSpec(ss.str()).createAction(ctx);
 
         while (!a->done()) {
             a->step(BulletConfig::dt);
@@ -130,7 +130,7 @@ class CustomScene : Scene {
         */
         btVector3 gripperdir = calcGraspDir(*cloth, node);
         if (!cloth->idxOnEdge(node)) {
-            // if not an edge node, there's ambiguitiy in the gripper direction
+            // if not an edge node, there's ambiguity in the gripper direction
             // (either gripperdir or -gripperdir)
             // choose the one that attaches the most anchors to the softbody
             int nforward = tryGrasp(node, gripperdir);
@@ -141,9 +141,9 @@ class CustomScene : Scene {
                 gripperdir = -gripperdir;
         }
 
-        GraspingActionContext ctx = { pr2m->pr2, pr2m->pr2Left, sbgripperleft, cloth };
+        GraspingActionContext ctx = { env, pr2m->pr2, pr2m->pr2Left, sbgripperleft, cloth };
         stringstream ss; ss << "grab " << node << ' ' << gripperdir.x() << ' ' << gripperdir.y() << ' ' << gripperdir.z();
-        Action::Ptr a = GraspingActionSpec(ss.str(), ctx).createAction();
+        Action::Ptr a = GraspingActionSpec(ss.str()).createAction(ctx);
         runAction(a, BulletConfig::dt);
         cout << "done." << endl;
     }

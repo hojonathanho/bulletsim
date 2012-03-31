@@ -5,14 +5,15 @@
 
 #include "simulation/environment.h"
 #include "simulation/openravesupport.h"
-#include "simulation/softbodies.h"
 #include "robots/pr2.h"
+#include "cloth.h"
 
 struct GraspingActionContext {
+    Environment::Ptr env;
     RaveRobotObject::Ptr robot;
     RaveRobotObject::Manipulator::Ptr manip;
     PR2SoftBodyGripper::Ptr sbgripper;
-    BulletSoftObject::Ptr sb;
+    Cloth::Ptr cloth;
 };
 
 struct GraspingActionSpec {
@@ -26,23 +27,17 @@ struct GraspingActionSpec {
         MOVE_ABSOLUTE
     } type;
 
-    const string specstr;
-    GraspingActionContext ctx;
+    string specstr;
 
     GraspingActionSpec(const string &s) : specstr(s) { readType(); }
-    GraspingActionSpec(const string &s, const GraspingActionContext &c) : specstr(s), ctx(c) { readType(); }
-    void setContext(const GraspingActionContext &ctx_) { ctx = ctx_; }
 
-    Action::Ptr createAction();
-//    void getSuccessors(vector<GraspingActionSpec> &out);
+    Action::Ptr createAction(GraspingActionContext &ctx);
+
+    void genSuccessors(const GraspingActionContext &ctx, vector<GraspingActionSpec> &out);
+    vector<GraspingActionSpec> genSuccessors(const GraspingActionContext &ctx);
 
 private:
     void readType();
-
-    Action::Ptr createGrabAction(stringstream &ss);
-    Action::Ptr createReleaseAction(stringstream &ss);
-    Action::Ptr createMoveAction(stringstream &ss);
 };
-
 
 #endif // __FL_GRASPINGACTIONS_H__

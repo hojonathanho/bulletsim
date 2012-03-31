@@ -1,26 +1,50 @@
 #include "graspingactions.h"
-#include "graspingactions_impl.h"
 
-Action::Ptr GraspingActionSpec::createAction() {
+#include "graspingactions_impl.h"
+#include "edges.h"
+#include "simulation/environment.h"
+#include "simulation/config_bullet.h"
+
+static Action::Ptr createGrabAction(GraspingActionContext &ctx, stringstream &ss) {
+    // format: grab <node index> <approach vec x> <approach vec y> <approach vec z>
+    int nodeidx; ss >> nodeidx;
+    btScalar vx, vy, vz; ss >> vx >> vy >> vz;
+    return GraspClothNodeAction::Ptr(new GraspClothNodeAction(
+                ctx.robot, ctx.manip, ctx.sbgripper, ctx.cloth,
+                nodeidx, btVector3(vx, vy, vz)));
+}
+
+static Action::Ptr createReleaseAction(GraspingActionContext &ctx, stringstream &ss) {
+    // format: release
+    FunctionAction::Ptr releaseAnchors(new FunctionAction(
+                boost::bind(&PR2SoftBodyGripper::releaseAllAnchors, ctx.sbgripper)));
+    GripperOpenCloseAction::Ptr openGripper(new GripperOpenCloseAction(
+                ctx.robot, ctx.manip->manip, true));
+    ActionChain::Ptr a(new ActionChain);
+    *a << releaseAnchors << openGripper;
+    return a;
+}
+
+static Action::Ptr createMoveAction(GraspingActionContext &ctx, stringstream &ss) {
+    // format: move dx dy dz
+    btScalar dx, dy, dz; ss >> dx >> dy >> dz;
+    ManipIKInterpAction::Ptr a(new ManipIKInterpAction(ctx.robot, ctx.manip));
+    a->setRelativeTrans(btTransform(btQuaternion::getIdentity(), btVector3(dx, dy, dz)));
+    return a;
+}
+
+Action::Ptr GraspingActionSpec::createAction(GraspingActionContext &ctx) {
+    cout << "creating action: " << specstr << endl;
     stringstream ss;
     ss << specstr;
     string op; ss >> op; // consume type
     switch (type) {
-    case GRAB: return createGrabAction(ss); break;
-    case RELEASE: return createReleaseAction(ss); break;
-    case MOVE: return createMoveAction(ss); break;
+    case GRAB: return createGrabAction(ctx, ss); break;
+    case RELEASE: return createReleaseAction(ctx, ss); break;
+    case MOVE: return createMoveAction(ctx, ss); break;
     }
     return Action::Ptr();
 };
-
-/*
-void GraspingActionSpec::getSuccessors(vector<GraspingActionSpec> &out) {
-    switch (type) {
-    case GRAB: return succGrabAction(out); break;
-    case RELEASE: return succReleaseAction(out); break;
-    case MOVE: return succMoveAction(out); break;
-    }
-}*/
 
 void GraspingActionSpec::readType() {
     stringstream ss;
@@ -40,30 +64,112 @@ void GraspingActionSpec::readType() {
     }
 }
 
-Action::Ptr GraspingActionSpec::createGrabAction(stringstream &ss) {
-    // format: grab <node index> <approach vec x> <approach vec y> <approach vec z>
-    int nodeidx; ss >> nodeidx;
-    btScalar vx, vy, vz; ss >> vx >> vy >> vz;
-    return GraspClothNodeAction::Ptr(new GraspClothNodeAction(
-                ctx.robot, ctx.manip, ctx.sbgripper, ctx.sb,
-                nodeidx, btVector3(vx, vy, vz)));
+static void genMoveSpecs(vector<GraspingActionSpec> &out) {
+    // move in horizontal plane, in 8 possible directions
+    stringstream ss;
+    const btScalar d = 0.1 * METERS;
+    for (int i = -1; i <= 1; ++i) {
+        for (int j = -1; j <= 1; ++j) {
+            if (i == 0 && j == 0) continue;
+            ss.str(""); // clear out ss
+            ss << "move " << i*d << ' ' << j*d << ' ' << 0;
+            out.push_back(GraspingActionSpec(ss.str()));
+        }
+    }
 }
 
-Action::Ptr GraspingActionSpec::createReleaseAction(stringstream &ss) {
-    // format: release
-    FunctionAction::Ptr releaseAnchors(new FunctionAction(
-                boost::bind(&PR2SoftBodyGripper::releaseAllAnchors, ctx.sbgripper)));
-    GripperOpenCloseAction::Ptr openGripper(new GripperOpenCloseAction(
-                ctx.robot, ctx.manip->manip, true));
-    ActionChain::Ptr a(new ActionChain);
-    *a << releaseAnchors << openGripper;
-    return a;
+static int tryGrasp(const GraspingActionContext &ctx, int node, const btVector3 &gripperdir) {
+    BulletInstance::Ptr fork_bullet(new BulletInstance);
+    fork_bullet->setGravity(BulletConfig::gravity);
+    OSGInstance::Ptr fork_osg(new OSGInstance);
+    Fork::Ptr fork(new Fork(ctx.env, fork_bullet, fork_osg));
+    RaveRobotObject::Ptr fork_robot =
+        boost::static_pointer_cast<RaveRobotObject>(fork->forkOf(ctx.robot));
+    Cloth::Ptr fork_cloth =
+        boost::static_pointer_cast<Cloth>(fork->forkOf(ctx.cloth));
+    RaveRobotObject::Manipulator::Ptr fork_manip =
+        fork_robot->getManipByIndex(ctx.manip->index);
+
+    PR2SoftBodyGripper::Ptr sbgripper(new PR2SoftBodyGripper(fork_robot, fork_manip->manip, true)); // TODO: leftGripper flag
+    sbgripper->setGrabOnlyOnContact(true);
+    sbgripper->setTarget(fork_cloth);
+
+    GraspingActionContext forkctx = { fork->env, fork_robot, fork_manip, sbgripper, fork_cloth };
+    stringstream ss; ss << "grab " << node << ' ' << gripperdir.x() << ' ' << gripperdir.y() << ' ' << gripperdir.z();
+    Action::Ptr a = GraspingActionSpec(ss.str()).createAction(forkctx);
+
+    while (!a->done()) {
+        a->step(BulletConfig::dt);
+        fork->env->step(BulletConfig::dt,
+                BulletConfig::maxSubSteps, BulletConfig::internalTimeStep);
+    }
+
+    return fork_cloth->softBody->m_anchors.size();
 }
 
-Action::Ptr GraspingActionSpec::createMoveAction(stringstream &ss) {
-    // format: move dx dy dz
-    btScalar dx, dy, dz; ss >> dx >> dy >> dz;
-    ManipIKInterpAction::Ptr a(new ManipIKInterpAction(ctx.robot, ctx.manip));
-    a->setRelativeTrans(btTransform(btQuaternion::getIdentity(), btVector3(dx, dy, dz)));
-    return a;
+static btVector3 calcGraspDir(const GraspingActionContext &ctx, int node) {
+    btVector3 dir = calcGraspDir(*ctx.cloth, node);
+    if (!ctx.cloth->idxOnEdge(node)) {
+        // if not an edge node, there's ambiguity in the gripper direction
+        // (either dir or -dir)
+        // choose the one that attaches the most anchors to the softbody
+        int nforward = tryGrasp(ctx, node, dir);
+        int nbackward = tryGrasp(ctx, node, -dir);
+        cout << "forward: " << nforward << " backward: " << nbackward << endl;
+        if (nbackward > nforward)
+            dir = -dir;
+    }
+    return dir;
+}
+
+static void genGrabSpecs(const GraspingActionContext &ctx, vector<GraspingActionSpec> &out) {
+    // for now: only try to grab the 4 corners of the cloth
+    vector<int> nodes;
+    nodes.push_back(0);
+    nodes.push_back(ctx.cloth->idx(ctx.cloth->resx-1, 0));
+    nodes.push_back(ctx.cloth->idx(0, ctx.cloth->resy-1));
+    nodes.push_back(ctx.cloth->idx(ctx.cloth->resx-1, ctx.cloth->resy-1));
+
+    stringstream ss;
+    for (int i = 0; i < nodes.size(); ++i) {
+        ss.str("");
+        btVector3 dir = calcGraspDir(ctx, nodes[i]);
+        ss << "grab " << nodes[i] << ' ' << dir.x() << ' ' << dir.y() << ' ' << dir.z();
+        out.push_back(GraspingActionSpec(ss.str()));
+    }
+}
+
+static void genReleaseSpecs(vector<GraspingActionSpec> &out) {
+    out.push_back(GraspingActionSpec("release"));
+}
+
+static void succGrabAction(const GraspingActionContext &ctx, vector<GraspingActionSpec> &out) {
+    // after grabbing, we can release or move
+    genReleaseSpecs(out);
+    genMoveSpecs(out);
+}
+
+static void succReleaseAction(const GraspingActionContext &ctx, vector<GraspingActionSpec> &out) {
+    // after releasing, we can only grab
+    genGrabSpecs(ctx, out);
+}
+
+static void succMoveAction(const GraspingActionContext &ctx, vector<GraspingActionSpec> &out) {
+    // after moving, we can release or move again
+    genReleaseSpecs(out);
+    genMoveSpecs(out);
+}
+
+void GraspingActionSpec::genSuccessors(const GraspingActionContext &ctx, vector<GraspingActionSpec> &out) {
+    switch (type) {
+    case GRAB: return succGrabAction(ctx, out); break;
+    case RELEASE: return succReleaseAction(ctx, out); break;
+    case MOVE: return succMoveAction(ctx, out); break;
+    }
+}
+
+vector<GraspingActionSpec> GraspingActionSpec::genSuccessors(const GraspingActionContext &ctx) {
+    vector<GraspingActionSpec> v;
+    genSuccessors(ctx, v);
+    return v;
 }
