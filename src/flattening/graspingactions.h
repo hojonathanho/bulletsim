@@ -31,10 +31,10 @@ struct GraspingActionSpec {
 
     GraspingActionSpec(const string &s) : specstr(s) { readType(); }
 
-    Action::Ptr createAction(GraspingActionContext &ctx);
+    Action::Ptr createAction(GraspingActionContext &ctx) const;
 
-    void genSuccessors(const GraspingActionContext &ctx, vector<GraspingActionSpec> &out);
-    vector<GraspingActionSpec> genSuccessors(const GraspingActionContext &ctx);
+    void genSuccessors(const GraspingActionContext &ctx, vector<GraspingActionSpec> &out) const;
+    vector<GraspingActionSpec> genSuccessors(const GraspingActionContext &ctx) const;
 
 private:
     void readType();

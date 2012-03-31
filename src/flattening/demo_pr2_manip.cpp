@@ -119,6 +119,14 @@ class CustomScene : Scene {
         return fork_cloth->softBody->m_anchors.size();
     }
 
+    void printSuccs(const GraspingActionContext &ctx, const GraspingActionSpec &s) {
+        vector<GraspingActionSpec> v;
+        s.genSuccessors(ctx, v);
+        cout << "successors to: " << s.specstr << '\n';
+        for (int i = 0; i < v.size(); ++i)
+            cout << '\t' << v[i].specstr << '\n';
+    }
+
     void graspPickedNode() {
         if (!pickedNode) return;
         const int node = pickedNode - &cloth->softBody->m_nodes[0];
@@ -143,9 +151,15 @@ class CustomScene : Scene {
 
         GraspingActionContext ctx = { env, pr2m->pr2, pr2m->pr2Left, sbgripperleft, cloth };
         stringstream ss; ss << "grab " << node << ' ' << gripperdir.x() << ' ' << gripperdir.y() << ' ' << gripperdir.z();
-        Action::Ptr a = GraspingActionSpec(ss.str()).createAction(ctx);
+        GraspingActionSpec spec(ss.str());
+        Action::Ptr a = spec.createAction(ctx);
+        printSuccs(ctx, spec);
         runAction(a, BulletConfig::dt);
         cout << "done." << endl;
+
+        GraspingActionSpec spec2("release");
+        runAction(spec2.createAction(ctx), BulletConfig::dt);
+        printSuccs(ctx, spec2);
     }
 
     void markFolds() {

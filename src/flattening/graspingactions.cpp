@@ -33,7 +33,7 @@ static Action::Ptr createMoveAction(GraspingActionContext &ctx, stringstream &ss
     return a;
 }
 
-Action::Ptr GraspingActionSpec::createAction(GraspingActionContext &ctx) {
+Action::Ptr GraspingActionSpec::createAction(GraspingActionContext &ctx) const {
     cout << "creating action: " << specstr << endl;
     stringstream ss;
     ss << specstr;
@@ -78,6 +78,7 @@ static void genMoveSpecs(vector<GraspingActionSpec> &out) {
     }
 }
 
+// tries out a grasp and returns the number of anchors attached
 static int tryGrasp(const GraspingActionContext &ctx, int node, const btVector3 &gripperdir) {
     BulletInstance::Ptr fork_bullet(new BulletInstance);
     fork_bullet->setGravity(BulletConfig::gravity);
@@ -89,12 +90,13 @@ static int tryGrasp(const GraspingActionContext &ctx, int node, const btVector3 
         boost::static_pointer_cast<Cloth>(fork->forkOf(ctx.cloth));
     RaveRobotObject::Manipulator::Ptr fork_manip =
         fork_robot->getManipByIndex(ctx.manip->index);
-
     PR2SoftBodyGripper::Ptr sbgripper(new PR2SoftBodyGripper(fork_robot, fork_manip->manip, true)); // TODO: leftGripper flag
     sbgripper->setGrabOnlyOnContact(true);
     sbgripper->setTarget(fork_cloth);
-
     GraspingActionContext forkctx = { fork->env, fork_robot, fork_manip, sbgripper, fork_cloth };
+
+    int startNumAnchors = ctx.cloth->softBody->m_anchors.size();
+
     stringstream ss; ss << "grab " << node << ' ' << gripperdir.x() << ' ' << gripperdir.y() << ' ' << gripperdir.z();
     Action::Ptr a = GraspingActionSpec(ss.str()).createAction(forkctx);
 
@@ -104,7 +106,7 @@ static int tryGrasp(const GraspingActionContext &ctx, int node, const btVector3 
                 BulletConfig::maxSubSteps, BulletConfig::internalTimeStep);
     }
 
-    return fork_cloth->softBody->m_anchors.size();
+    return fork_cloth->softBody->m_anchors.size() - startNumAnchors;
 }
 
 static btVector3 calcGraspDir(const GraspingActionContext &ctx, int node) {
@@ -160,7 +162,7 @@ static void succMoveAction(const GraspingActionContext &ctx, vector<GraspingActi
     genMoveSpecs(out);
 }
 
-void GraspingActionSpec::genSuccessors(const GraspingActionContext &ctx, vector<GraspingActionSpec> &out) {
+void GraspingActionSpec::genSuccessors(const GraspingActionContext &ctx, vector<GraspingActionSpec> &out) const {
     switch (type) {
     case GRAB: return succGrabAction(ctx, out); break;
     case RELEASE: return succReleaseAction(ctx, out); break;
@@ -168,7 +170,7 @@ void GraspingActionSpec::genSuccessors(const GraspingActionContext &ctx, vector<
     }
 }
 
-vector<GraspingActionSpec> GraspingActionSpec::genSuccessors(const GraspingActionContext &ctx) {
+vector<GraspingActionSpec> GraspingActionSpec::genSuccessors(const GraspingActionContext &ctx) const {
     vector<GraspingActionSpec> v;
     genSuccessors(ctx, v);
     return v;
