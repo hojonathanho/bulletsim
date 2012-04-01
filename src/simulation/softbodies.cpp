@@ -406,12 +406,10 @@ BulletSoftObject::AnchorHandle BulletSoftObject::addAnchor(btSoftBody::Node *nod
     a.m_influence = influence;
     softBody->m_anchors.push_back(a);
 
-    cout << "before: "; printAnchors(anchormap);
     // make the anchor handle
     AnchorHandle h = nextAnchorHandle++;
     BOOST_ASSERT(getAnchorIdx(h) == -1);
     anchormap.insert(make_pair(h, softBody->m_anchors.size()-1));
-    cout << "after: "; printAnchors(anchormap);
     return h;
 }
 
@@ -420,8 +418,6 @@ BulletSoftObject::AnchorHandle BulletSoftObject::addAnchor(int nodeidx, btRigidB
 }
 
 void BulletSoftObject::removeAnchor(BulletSoftObject::AnchorHandle h) {
-    cout << "removing anchor " << h << endl;
-    cout << "before: "; printAnchors(anchormap);
     // make anchor node re-attachable
     int idx = getAnchorIdx(h);
     if (idx == -1) { BOOST_ASSERT(false); return; }
@@ -438,8 +434,6 @@ void BulletSoftObject::removeAnchor(BulletSoftObject::AnchorHandle h) {
             break;
         }
     }
-
-    cout << "after: "; printAnchors(anchormap);
 }
 
 int BulletSoftObject::getAnchorIdx(AnchorHandle h) const {

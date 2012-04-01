@@ -16,6 +16,7 @@ add_definitions(${PCL_DEFINITIONS})
 add_library(clothmanip
     nodeactions.cpp
     search.cpp
+    search_general.cpp
     clothutil.cpp
     cloth.cpp
     make_bodies.cpp

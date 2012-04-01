@@ -58,8 +58,8 @@ btSoftBody *makeSelfCollidingTowel(const btVector3& center, btScalar lenx, btSca
     //psb->m_cfg.kDF = 0.1;
     psb->m_cfg.kAHR = 1; // anchor hardness
     psb->m_cfg.kSSHR_CL = 1.0; // so the cloth doesn't penetrate itself
-    psb->m_cfg.kSRHR_CL = 0.8;
-    psb->m_cfg.kSKHR_CL = 0.8;
+    psb->m_cfg.kSRHR_CL = 0.7;
+    psb->m_cfg.kSKHR_CL = 0.7;
     psb->m_cfg.kDP = 0.01;
 //    psb->m_cfg.kDP = 1;
 
@@ -87,7 +87,7 @@ btSoftBody *makeSelfCollidingTowel(const btVector3& center, btScalar lenx, btSca
 
     psb->randomizeConstraints();
 
-    psb->setTotalMass(1, true);
+    psb->setTotalMass(100, true);
     psb->generateClusters(2048);
 
     /*for (int i = 0; i < psb->m_clusters.size(); ++i) {

@@ -13,6 +13,7 @@
 #include "graspingactions_impl.h"
 #include "edges.h"
 #include "facepicker.h"
+#include "search_general.h"
 
 class CustomScene : Scene {
     Cloth::Ptr cloth;
@@ -29,7 +30,9 @@ class CustomScene : Scene {
     void runGripperAction(PR2SoftBodyGripperAction &a) {
         a.reset();
         a.toggleAction();
-        runAction(a, BulletConfig::dt);
+        try {
+            runAction(a, BulletConfig::dt);
+        } catch (...) { }
     }
 
     btSoftBody::Node *pickedNode;
@@ -81,7 +84,7 @@ class CustomScene : Scene {
 //        savedTrans.setOrigin(cloth->softBody->m_nodes[cloth->softBody->m_nodes.size()-10].m_x);
         a.setPR2TipTargetTrans(savedTrans);
         cout << "moving arm to saved trans" << endl;
-        runAction(a, BulletConfig::dt);
+        try { runAction(a, BulletConfig::dt); } catch (...) { }
         cout << "done." << endl;
     }
 
@@ -154,12 +157,45 @@ class CustomScene : Scene {
         GraspingActionSpec spec(ss.str());
         Action::Ptr a = spec.createAction(ctx);
         printSuccs(ctx, spec);
-        runAction(a, BulletConfig::dt);
+        try { runAction(a, BulletConfig::dt); } catch (...) { }
         cout << "done." << endl;
 
         GraspingActionSpec spec2("release");
-        runAction(spec2.createAction(ctx), BulletConfig::dt);
+        try { runAction(spec2.createAction(ctx), BulletConfig::dt); } catch(...) { }
         printSuccs(ctx, spec2);
+    }
+
+    GraspingActionSpec prevActionSpec;
+    void greedyFlattenSingle() {
+        GraspingActionContext ctx = { env, pr2m->pr2, pr2m->pr2Left, sbgripperleft, cloth };
+        GraspingActionSpec spec = flattenCloth_greedy_single(ctx, prevActionSpec);
+        try { runAction(spec.createAction(ctx), BulletConfig::dt);} catch (...) { }
+        prevActionSpec = spec;
+    }
+
+    void liftCloth() {
+        const int steps = 20;
+    //    const int steps = 50;
+        const btVector3 force(0, 0, 0.5*100);
+        for (int i = 0; i < steps; ++i) {
+            for (int y = 0; y < cloth->resy; ++y) {
+                //cloth->psb()->addForce(force, y*cloth->resx + 0);
+                cloth->psb()->addForce(force, y*cloth->resx + cloth->resx-1);
+            }
+            step(BulletConfig::dt);
+        }
+
+        // let the cloth stabilize
+        const int restingsteps = 400;
+        for (int i = 0; i < restingsteps; ++i) {
+            step(BulletConfig::dt);
+        }
+        //scene.stepFor(BulletConfig::dt, 10);
+
+        // clear velocities
+        for (int i = 0; i < cloth->psb()->m_nodes.size(); ++i) {
+            cloth->psb()->m_nodes[i].m_v.setZero();
+        }
     }
 
     void markFolds() {
@@ -209,12 +245,14 @@ public:
         cout << "table margin: " << table->rigidBody->getCollisionShape()->getMargin() << endl;
 
         // put the table in openrave
+        /*
         OpenRAVE::KinBodyPtr raveTable = OpenRAVE::RaveCreateKinBody(rave->env);
         raveTable->SetName("table");
         vector<OpenRAVE::AABB> v;
         v.push_back(OpenRAVE::AABB(util::toRaveTransform(table_trans, 1./pr2m->pr2->scale).trans, 1./pr2m->pr2->scale * util::toRaveVector(table_extents)));
         raveTable->InitFromBoxes(v, true);
         rave->env->AddKinBody(raveTable);
+        */
 
 #if 0
         OpenRAVE::ViewerBasePtr raveViewer = OpenRAVE::RaveCreateViewer(rave->env, "qtcoin");
@@ -222,10 +260,11 @@ public:
         raveViewer->main(true);
 #endif
 
-        //const int resx = (int)(45*1.5), resy = (int)(31*1.5);
-        const int resx = 45, resy = 31;
-        const btScalar lenx = GeneralConfig::scale * 0.7, leny = GeneralConfig::scale * 0.5;
-        const btVector3 clothcenter = GeneralConfig::scale * btVector3(0.5, 0, table_height+0.01);
+        const int resx = 45/2, resy = 31/2;
+//        const btScalar lenx = GeneralConfig::scale * 0.7, leny = GeneralConfig::scale * 0.5;
+        const btScalar lenx = GeneralConfig::scale * 0.7/2, leny = GeneralConfig::scale * 0.5/2;
+//        const btVector3 clothcenter = GeneralConfig::scale * btVector3(0.5, 0, table_height+0.01);
+        const btVector3 clothcenter = GeneralConfig::scale * btVector3(0.5, 0.1, table_height+0.01);
 //        cloth = makeSelfCollidingTowel(clothcenter, lenx, leny, resx, resy, env->bullet->softBodyWorldInfo);
         cloth.reset(new Cloth(resx, resy, lenx, leny, clothcenter, env->bullet->softBodyWorldInfo));
         env->add(cloth);
@@ -244,6 +283,8 @@ public:
         addVoidKeyCallback('z', boost::bind(&CustomScene::saveManipTrans, this, pr2m->pr2Left));
         addVoidKeyCallback('x', boost::bind(&CustomScene::moveArmToSaved, this, pr2m->pr2, pr2m->pr2Left));
         addVoidKeyCallback('c', boost::bind(&CustomScene::graspPickedNode, this));
+        addVoidKeyCallback('f', boost::bind(&CustomScene::greedyFlattenSingle, this));
+        addVoidKeyCallback('g', boost::bind(&CustomScene::liftCloth, this));
 
         addPreDrawCallback(boost::bind(&CustomScene::markFolds, this));
         addPreDrawCallback(boost::bind(&CustomScene::drawPick, this));

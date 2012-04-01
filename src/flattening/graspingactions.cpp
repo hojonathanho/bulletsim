@@ -5,6 +5,31 @@
 #include "simulation/environment.h"
 #include "simulation/config_bullet.h"
 
+GraspingActionContext GraspingActionContext::fork() const {
+    BulletInstance::Ptr fork_bullet(new BulletInstance);
+    fork_bullet->setGravity(BulletConfig::gravity);
+    OSGInstance::Ptr fork_osg(new OSGInstance);
+    Fork::Ptr fork(new Fork(env, fork_bullet, fork_osg));
+    RaveRobotObject::Ptr fork_robot =
+        boost::static_pointer_cast<RaveRobotObject>(fork->forkOf(robot));
+    Cloth::Ptr fork_cloth =
+        boost::static_pointer_cast<Cloth>(fork->forkOf(cloth));
+    RaveRobotObject::Manipulator::Ptr fork_manip =
+        fork_robot->getManipByIndex(manip->index);
+    PR2SoftBodyGripper::Ptr sbgripper(new PR2SoftBodyGripper(fork_robot, fork_manip->manip, true)); // TODO: leftGripper flag
+    sbgripper->setGrabOnlyOnContact(true);
+    sbgripper->setTarget(fork_cloth);
+    GraspingActionContext forkctx = { fork->env, fork_robot, fork_manip, sbgripper, fork_cloth };
+    return forkctx;
+}
+
+void GraspingActionContext::runAction(Action::Ptr a) {
+    while (!a->done()) {
+        a->step(BulletConfig::dt);
+        env->step(BulletConfig::dt, BulletConfig::maxSubSteps, BulletConfig::internalTimeStep);
+    }
+}
+
 static Action::Ptr createGrabAction(GraspingActionContext &ctx, stringstream &ss) {
     // format: grab <node index> <approach vec x> <approach vec y> <approach vec z>
     int nodeidx; ss >> nodeidx;
@@ -33,6 +58,20 @@ static Action::Ptr createMoveAction(GraspingActionContext &ctx, stringstream &ss
     return a;
 }
 
+static Action::Ptr createGrabAndMoveAction(GraspingActionContext &ctx, stringstream &ss) {
+    // format: grab_and_move <grabstr> <movestr>
+    string op;
+    ss >> op; BOOST_ASSERT(op == "grab");
+    cout << "parsed: " << op << endl;
+    Action::Ptr grabaction = createGrabAction(ctx, ss);
+    ss >> op; BOOST_ASSERT(op == "move");
+    cout << "parsed: " << op << endl;
+    Action::Ptr moveaction = createMoveAction(ctx, ss);
+    ActionChain::Ptr chain(new ActionChain);
+    *chain << grabaction << moveaction;
+    return chain;
+}
+
 Action::Ptr GraspingActionSpec::createAction(GraspingActionContext &ctx) const {
     cout << "creating action: " << specstr << endl;
     stringstream ss;
@@ -42,6 +81,7 @@ Action::Ptr GraspingActionSpec::createAction(GraspingActionContext &ctx) const {
     case GRAB: return createGrabAction(ctx, ss); break;
     case RELEASE: return createReleaseAction(ctx, ss); break;
     case MOVE: return createMoveAction(ctx, ss); break;
+    case GRAB_AND_MOVE: return createGrabAndMoveAction(ctx, ss); break;
     }
     return Action::Ptr();
 };
@@ -58,6 +98,8 @@ void GraspingActionSpec::readType() {
         type = MOVE;
     else if (op == "none")
         type = NONE;
+    else if (op == "grab_and_move")
+        type = GRAB_AND_MOVE;
     else {
         cout << "error: unknown action op " << op << " (spec:" << specstr << ")" << endl;
         type = NONE;
@@ -71,6 +113,7 @@ static void genMoveSpecs(vector<GraspingActionSpec> &out) {
     for (int i = -1; i <= 1; ++i) {
         for (int j = -1; j <= 1; ++j) {
             if (i == 0 && j == 0) continue;
+            if (i != 0 && j != 0) continue; // ignore diagonals for now
             ss.str(""); // clear out ss
             ss << "move " << i*d << ' ' << j*d << ' ' << 0;
             out.push_back(GraspingActionSpec(ss.str()));
@@ -127,10 +170,16 @@ static btVector3 calcGraspDir(const GraspingActionContext &ctx, int node) {
 static void genGrabSpecs(const GraspingActionContext &ctx, vector<GraspingActionSpec> &out) {
     // for now: only try to grab the 4 corners of the cloth
     vector<int> nodes;
+    /*
     nodes.push_back(0);
     nodes.push_back(ctx.cloth->idx(ctx.cloth->resx-1, 0));
     nodes.push_back(ctx.cloth->idx(0, ctx.cloth->resy-1));
     nodes.push_back(ctx.cloth->idx(ctx.cloth->resx-1, ctx.cloth->resy-1));
+    */
+    nodes.push_back(0+2);
+    nodes.push_back(ctx.cloth->idx(ctx.cloth->resx-1-2, 0));
+    nodes.push_back(ctx.cloth->idx(0, ctx.cloth->resy-1-2));
+    nodes.push_back(ctx.cloth->idx(ctx.cloth->resx-1, ctx.cloth->resy-1-2));
 
     stringstream ss;
     for (int i = 0; i < nodes.size(); ++i) {
@@ -145,15 +194,28 @@ static void genReleaseSpecs(vector<GraspingActionSpec> &out) {
     out.push_back(GraspingActionSpec("release"));
 }
 
+static void genGrabAndMoveSpecs(const GraspingActionContext &ctx, vector<GraspingActionSpec> &out) {
+    stringstream ss;
+    vector<GraspingActionSpec> grabout, moveout;
+    genGrabSpecs(ctx, grabout);
+    genMoveSpecs(moveout);
+    for (int i = 0; i < grabout.size(); ++i) {
+        for (int j = 0; j < moveout.size(); ++j) {
+            ss.str("");
+            ss << "grab_and_move " << grabout[i].specstr << ' ' << moveout[j].specstr;
+            out.push_back(ss.str());
+        }
+    }
+}
+
 static void succGrabAction(const GraspingActionContext &ctx, vector<GraspingActionSpec> &out) {
-    // after grabbing, we can release or move
-    genReleaseSpecs(out);
+    // after grabbing, we can only move
     genMoveSpecs(out);
 }
 
 static void succReleaseAction(const GraspingActionContext &ctx, vector<GraspingActionSpec> &out) {
-    // after releasing, we can only grab
-    genGrabSpecs(ctx, out);
+    // after releasing, we can only grab & move
+    genGrabAndMoveSpecs(ctx, out);
 }
 
 static void succMoveAction(const GraspingActionContext &ctx, vector<GraspingActionSpec> &out) {
@@ -162,11 +224,23 @@ static void succMoveAction(const GraspingActionContext &ctx, vector<GraspingActi
     genMoveSpecs(out);
 }
 
+static void succGrabAndMoveAction(const GraspingActionContext &ctx, vector<GraspingActionSpec> &out) {
+    // after grabbing and moving, we can do whatever we do after just moving
+    succMoveAction(ctx, out);
+}
+
+static void succNoneAction(const GraspingActionContext &ctx, vector<GraspingActionSpec> &out) {
+    // after a "none" action (a dummy action that does nothing), we can only grab a node
+    genGrabAndMoveSpecs(ctx, out);
+}
+
 void GraspingActionSpec::genSuccessors(const GraspingActionContext &ctx, vector<GraspingActionSpec> &out) const {
     switch (type) {
     case GRAB: return succGrabAction(ctx, out); break;
     case RELEASE: return succReleaseAction(ctx, out); break;
     case MOVE: return succMoveAction(ctx, out); break;
+    case GRAB_AND_MOVE: return succGrabAndMoveAction(ctx, out); break;
+    case NONE: return succNoneAction(ctx, out); break;
     }
 }
 

@@ -8,27 +8,38 @@
 #include "robots/pr2.h"
 #include "cloth.h"
 
+#include <stdexcept>
+
+class GraspingActionFailed : public std::runtime_error {
+public:
+    GraspingActionFailed(const string &msg) : std::runtime_error(msg) { }
+};
+
 struct GraspingActionContext {
     Environment::Ptr env;
     RaveRobotObject::Ptr robot;
     RaveRobotObject::Manipulator::Ptr manip;
     PR2SoftBodyGripper::Ptr sbgripper;
     Cloth::Ptr cloth;
+
+    GraspingActionContext fork() const;
+    void runAction(Action::Ptr a);
 };
 
 struct GraspingActionSpec {
     typedef boost::shared_ptr<GraspingActionSpec> Ptr;
 
     enum Type {
-        NONE = 0,
-        GRAB,
-        RELEASE,
-        MOVE, // relative movement
-        MOVE_ABSOLUTE
+        NONE = 0, // format: none
+        GRAB, // format: grab <node idx> <direction vec x> <direction vec y> <direction vec z>
+        RELEASE, // format: release
+        MOVE, // relative movement; format: move <dx> <dy> <dz>
+        GRAB_AND_MOVE, // format: grab_and_move <grabstr> <movestr>
     } type;
 
     string specstr;
 
+    GraspingActionSpec() : specstr("none"), type(NONE) { }
     GraspingActionSpec(const string &s) : specstr(s) { readType(); }
 
     Action::Ptr createAction(GraspingActionContext &ctx) const;
