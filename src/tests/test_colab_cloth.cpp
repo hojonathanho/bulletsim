@@ -7,8 +7,6 @@
 #include "robots/pr2.h"
 
 //#define USE_PR2
-GrabberKinematicObject::Ptr global_grabptr;
-
 
 class RigidMover
 {
@@ -447,7 +445,7 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,osgGA::GUIActionA
                 btVector3 yVec = (up - (up.dot(normal))*normal).normalized(); //FIXME: is this necessary with osg?
                 btVector3 xVec = normal.cross(yVec);
                 btVector3 dragVec = SceneConfig::mouseDragScale*10 * (scene.inputState.dx*xVec + scene.inputState.dy*yVec);
-                printf("dx: %f dy: %f\n",scene.inputState.dx,scene.inputState.dy);
+                //printf("dx: %f dy: %f\n",scene.inputState.dx,scene.inputState.dy);
 
                 btTransform origTrans;
                 if (scene.inputState.transGrabber0 || scene.inputState.rotateGrabber0)
@@ -456,7 +454,7 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,osgGA::GUIActionA
                 else
                     scene.right_grabber->motionState->getWorldTransform(origTrans);
 
-                printf("origin: %f %f %f\n",origTrans.getOrigin()[0],origTrans.getOrigin()[1],origTrans.getOrigin()[2]);
+                //printf("origin: %f %f %f\n",origTrans.getOrigin()[0],origTrans.getOrigin()[1],origTrans.getOrigin()[2]);
 
                 btTransform newTrans(origTrans);
 
@@ -475,7 +473,7 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,osgGA::GUIActionA
                     if (rot.length() > 0.99f && rot.length() < 1.01f)
                         newTrans.setRotation(rot * origTrans.getRotation());
                 }
-                printf("newtrans: %f %f %f\n",newTrans.getOrigin()[0],newTrans.getOrigin()[1],newTrans.getOrigin()[2]);
+                //printf("newtrans: %f %f %f\n",newTrans.getOrigin()[0],newTrans.getOrigin()[1],newTrans.getOrigin()[2]);
 
                 if (scene.inputState.transGrabber0 || scene.inputState.rotateGrabber0)
                 {
@@ -619,8 +617,7 @@ void CustomScene::run() {
     psb->appendAnchor(0,left_grabber->rigidBody.get());
     psb->appendAnchor(1,left_grabber->rigidBody.get());
     psb->appendAnchor(2,left_grabber->rigidBody.get());
-    global_grabptr = left_grabber;
-//    btSoftBody::Anchor a;
+    //    btSoftBody::Anchor a;
 //    a.m_node = &psb->m_nodes[0];
 //    a.m_body = left_grabber->rigidBody.get();
 //    a.m_local = left_grabber->rigidBody.get()->getWorldTransform().inverse()*a.m_node->m_x;

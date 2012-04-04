@@ -36,3 +36,6 @@ target_link_libraries(test_action simulation)
 
 add_executable(test_scene_record test_scene_record.cpp)
 target_link_libraries(test_scene_record simulation)
+
+add_executable(test_colab_cloth test_colab_cloth.cpp)
+target_link_libraries(test_colab_cloth simulation robots)
