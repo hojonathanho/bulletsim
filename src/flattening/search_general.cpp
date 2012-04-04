@@ -45,12 +45,12 @@ static float calcValue(Cloth::Ptr cloth) {
 }
 
 struct SearchContext {
-    GraspingActionSpec spec;
-    GraspingActionContext ctx;
-    float val;
+    GraspingActionSpec spec; // the last action run
+    GraspingActionContext ctx; // the context after the action was run
+    float val; // value function output
 
     SearchContext() : spec(), ctx(), val(-1e99) { }
-    SearchContext(const GraspingActionSpec &spec_, const GraspingActionContext &ctx_, float val_) : spec(spec_), ctx(ctx_), val(val_) { }
+    SearchContext(const GraspingActionSpec &spec_, const GraspingActionContext &ctx_, float val_=-1e99) : spec(spec_), ctx(ctx_), val(val_) { }
 };
 
 static SearchContext tryAction(const GraspingActionContext &ctx, const GraspingActionSpec &spec) {
@@ -75,12 +75,13 @@ static SearchContext flattenCloth_greedy_single_internal(const GraspingActionCon
         // (a grab on its own is useless)
         // this won't be infinitely recursive since grabs' successors don't contain grabs
         SearchContext local;
-        if (spec.type == GraspingActionSpec::GRAB) {
+/*        if (spec.type == GraspingActionSpec::GRAB) {
             SearchContext internalsc = tryAction(initCtx, spec);
             local = flattenCloth_greedy_single_internal(internalsc.ctx, internalsc.spec);
         } else {
+            */
             local = tryAction(initCtx, spec);
-        }
+       // }
 
         if (local.val > best.val)
             best = local;
@@ -91,4 +92,30 @@ static SearchContext flattenCloth_greedy_single_internal(const GraspingActionCon
 
 GraspingActionSpec flattenCloth_greedy_single(const GraspingActionContext &initCtx, const GraspingActionSpec &prevAction) {
     return flattenCloth_greedy_single_internal(initCtx, prevAction).spec;
+}
+
+static SearchContext flattenCloth_single_internal(const SearchContext &init, int steps) {
+    if (steps <= 0)
+        return init;
+
+    SearchContext best;
+    best.val = init.val;
+
+    vector<GraspingActionSpec> succ = init.spec.genSuccessors(init.ctx);
+    for (int i = 0; i < succ.size(); ++i) {
+        const GraspingActionSpec &spec = succ[i];
+        cout << "TRYING ACTION (" << (1+i) << '/' << succ.size() << "): " << spec.specstr << endl;
+
+        SearchContext local = tryAction(init.ctx, spec);
+        SearchContext future = flattenCloth_single_internal(local, steps - 1);
+        local.val = future.val;
+        if (future.val > best.val)
+            best = local;
+    }
+
+    return best;
+}
+
+GraspingActionSpec flattenCloth_single(const GraspingActionContext &initCtx, const GraspingActionSpec &prevAction, int steps) {
+    return flattenCloth_single_internal(SearchContext(prevAction, initCtx), steps).spec;
 }

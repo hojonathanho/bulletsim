@@ -28,6 +28,10 @@ void GraspingActionContext::runAction(Action::Ptr a) {
         a->step(BulletConfig::dt);
         env->step(BulletConfig::dt, BulletConfig::maxSubSteps, BulletConfig::internalTimeStep);
     }
+    // let scene settle
+    static const float SETTLE_TIME = 1;
+    for (float t = 0; t < SETTLE_TIME; t += BulletConfig::dt)
+        env->step(BulletConfig::dt, BulletConfig::maxSubSteps, BulletConfig::internalTimeStep);
 }
 
 static Action::Ptr createGrabAction(GraspingActionContext &ctx, stringstream &ss) {
@@ -62,18 +66,19 @@ static Action::Ptr createGrabAndMoveAction(GraspingActionContext &ctx, stringstr
     // format: grab_and_move <grabstr> <movestr>
     string op;
     ss >> op; BOOST_ASSERT(op == "grab");
-    cout << "parsed: " << op << endl;
     Action::Ptr grabaction = createGrabAction(ctx, ss);
     ss >> op; BOOST_ASSERT(op == "move");
-    cout << "parsed: " << op << endl;
     Action::Ptr moveaction = createMoveAction(ctx, ss);
     ActionChain::Ptr chain(new ActionChain);
     *chain << grabaction << moveaction;
     return chain;
 }
 
+static Action::Ptr createNoneAction() {
+    return EmptyAction::Ptr(new EmptyAction);
+}
+
 Action::Ptr GraspingActionSpec::createAction(GraspingActionContext &ctx) const {
-    cout << "creating action: " << specstr << endl;
     stringstream ss;
     ss << specstr;
     string op; ss >> op; // consume type
@@ -83,7 +88,9 @@ Action::Ptr GraspingActionSpec::createAction(GraspingActionContext &ctx) const {
     case MOVE: return createMoveAction(ctx, ss); break;
     case GRAB_AND_MOVE: return createGrabAndMoveAction(ctx, ss); break;
     }
-    return Action::Ptr();
+    if (op != "none")
+        cout << "warning: unrecognized action op " << op << endl;
+    return createNoneAction();
 };
 
 void GraspingActionSpec::readType() {
@@ -141,12 +148,17 @@ static int tryGrasp(const GraspingActionContext &ctx, int node, const btVector3 
     int startNumAnchors = ctx.cloth->softBody->m_anchors.size();
 
     stringstream ss; ss << "grab " << node << ' ' << gripperdir.x() << ' ' << gripperdir.y() << ' ' << gripperdir.z();
-    Action::Ptr a = GraspingActionSpec(ss.str()).createAction(forkctx);
 
-    while (!a->done()) {
-        a->step(BulletConfig::dt);
-        fork->env->step(BulletConfig::dt,
-                BulletConfig::maxSubSteps, BulletConfig::internalTimeStep);
+    try {
+        Action::Ptr a = GraspingActionSpec(ss.str()).createAction(forkctx);
+
+        while (!a->done()) {
+            a->step(BulletConfig::dt);
+            fork->env->step(BulletConfig::dt,
+                    BulletConfig::maxSubSteps, BulletConfig::internalTimeStep);
+        }
+    } catch (const GraspingActionFailed &) {
+        return 0;
     }
 
     return fork_cloth->softBody->m_anchors.size() - startNumAnchors;
@@ -180,6 +192,17 @@ static void genGrabSpecs(const GraspingActionContext &ctx, vector<GraspingAction
     nodes.push_back(ctx.cloth->idx(ctx.cloth->resx-1-2, 0));
     nodes.push_back(ctx.cloth->idx(0, ctx.cloth->resy-1-2));
     nodes.push_back(ctx.cloth->idx(ctx.cloth->resx-1, ctx.cloth->resy-1-2));
+
+    // look for some fold nodes
+    vector<int> foldnodes;
+    ctx.cloth->updateAccel();
+    calcFoldNodes(*ctx.cloth, foldnodes);
+    std::random_shuffle(foldnodes.begin(), foldnodes.end());
+    static const int NUM_FOLD_NODES = 4;
+    for (int i = 0; i < NUM_FOLD_NODES && i < foldnodes.size(); ++i) {
+        if (std::find(nodes.begin(), nodes.end(), foldnodes[i]) == nodes.end())
+            nodes.push_back(foldnodes[i]);
+    }
 
     stringstream ss;
     for (int i = 0; i < nodes.size(); ++i) {

@@ -12,6 +12,16 @@
 #define PR2_GRIPPER_OPEN_VAL 0.54f
 #define PR2_GRIPPER_CLOSED_VAL 0.03f
 
+// does nothing
+class EmptyAction : public Action {
+public:
+    typedef boost::shared_ptr<EmptyAction> Ptr;
+    EmptyAction() : Action() { setDone(true); }
+    void step(float) {
+        setDone(true);
+    }
+};
+
 // an action that just runs a given function once
 class FunctionAction : public Action {
 private:
@@ -141,11 +151,11 @@ class ManipIKInterpAction : public RobotInterpAction {
         setStartVals(currvals);
 
         vector<dReal> newvals;
-        cout << "solving ik for transform: " << targetTrans.getOrigin().x() << ' ' << targetTrans.getOrigin().y() << ' ' << targetTrans.getOrigin().z() << '\t'  
-            << targetTrans.getRotation().x() << ' ' << targetTrans.getRotation().y() << ' ' << targetTrans.getRotation().z() << ' ' << targetTrans.getRotation().w() << endl;
+       // cout << "solving ik for transform: " << targetTrans.getOrigin().x() << ' ' << targetTrans.getOrigin().y() << ' ' << targetTrans.getOrigin().z() << '\t'  
+       //     << targetTrans.getRotation().x() << ' ' << targetTrans.getRotation().y() << ' ' << targetTrans.getRotation().z() << ' ' << targetTrans.getRotation().w() << endl;
         if (!manip->solveIK(targetTrans, newvals)) {
-            throw GraspingActionFailed("could not solve ik");
             setDone(true);
+            throw GraspingActionFailed("could not solve ik");
         } else {
             BOOST_ASSERT(newvals.size() == currvals.size());
             for (int i = 0; i < newvals.size(); ++i) {
@@ -153,10 +163,7 @@ class ManipIKInterpAction : public RobotInterpAction {
                 // multiple of pi, not 2pi
                 int index = manip->manip->GetArmIndices()[i];
                 bool halfRotSym = index == 21 || index == 33;
-                if (halfRotSym)
-                    cout << newvals[i] << " (" << currvals[i] << ") -> ";
                 newvals[i] = normJointVal(currvals[i], newvals[i], halfRotSym);
-                cout << newvals[i] << endl;
             }
             setEndVals(newvals);
         }
@@ -329,7 +336,7 @@ static const btQuaternion GRIPPER_TO_VERTICAL_ROT(btVector3(1, 0, 0), M_PI/2);
 static const btQuaternion GRIPPER_DOWN_ROT(btVector3(0, 1, 0), M_PI/2);
 static const btVector3 PR2_GRIPPER_INIT_ROT_DIR(1, 0, 0);
 static const btScalar MOVE_BEHIND_DIST = 0;//0.02;
-static const btScalar MOVE_FORWARD_DIST = 0.03;
+static const btScalar MOVE_FORWARD_DIST = 0.01;
 static const btVector3 SCOOP_OFFSET(0, 0, 0.02); // don't sink through table
 //static const btScalar ANGLE_DOWN_HEIGHT = 0.03;
 static const btQuaternion ANGLE_DOWN_ROT(btVector3(0, 1, 0), 45*M_PI/180);
@@ -349,7 +356,7 @@ class GraspClothNodeAction : public ActionChain {
         btVector3 cross = PR2_GRIPPER_INIT_ROT_DIR.cross(dir);
         btScalar angle = dir.angle(PR2_GRIPPER_INIT_ROT_DIR);
         if (btFuzzyZero(cross.length2()))
-            cross = btVector3(1, 0, 0); // arbitrary axis
+            cross = btVector3(0, 0, 1);
         btQuaternion q(btQuaternion(cross, angle)
                 * (angleDown ? ANGLE_DOWN_ROT : btQuaternion::getIdentity())
                 * GRIPPER_TO_VERTICAL_ROT * PR2_GRIPPER_INIT_ROT);

@@ -106,6 +106,9 @@ public:
     getEnvironment()->osg->root->addChild(m_ends->m_geode.get());
   }
 
+  PlotAxes();
   PlotAxes(osg::Vec3f origin, osg::Vec3f x, osg::Vec3f y, osg::Vec3f z, float size);
-
+  void set(osg::Vec3f origin, osg::Vec3f x, osg::Vec3f y, osg::Vec3f z, float size);
+  void set(const btVector3 &origin, const btVector3 &x, const btVector3 &y, const btVector3 &z, float size);
+  void set(const btTransform &t, float size);
 };

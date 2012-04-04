@@ -102,20 +102,27 @@ PR2SoftBodyGripper::PR2SoftBodyGripper(RaveRobotKinematicObject::Ptr robot_, Ope
 }
 
 void PR2SoftBodyGripper::releaseAllAnchors() {
-    cout << "releasing" << endl;
     for (int i = 0; i < anchors.size(); ++i)
         sb->removeAnchor(anchors[i]);
     anchors.clear();
 }
 
 bool PR2SoftBodyGripper::inGraspRegion(const btVector3 &pt) const {
+    // extra padding for more anchors (for stability)
+    static const float TOLERANCE = 0.02;
+
     // check that pt is between the fingers
     if (!onInnerSide(pt, true) || !onInnerSide(pt, false)) return false;
 
     // check that pt is behind the gripper tip
     btTransform manipTrans(util::toBtTransform(manip->GetTransform(), robot->scale));
     btVector3 x = manipTrans.inverse() * pt;
-    if (x.x() < 0) return false;
+    if (x.z() > robot->scale*(0.02 + TOLERANCE)) return false;
+
+    // check that pt is within the finger width
+    if (abs(x.x()) > robot->scale*(0.01 + TOLERANCE)) return false;
+
+    cout << "ATTACHING: " << x.x() << ' ' << x.y() << ' ' << x.z() << endl;
 
     return true;
 }
@@ -123,6 +130,7 @@ bool PR2SoftBodyGripper::inGraspRegion(const btVector3 &pt) const {
 void PR2SoftBodyGripper::attach(bool left) {
     btRigidBody *rigidBody =
         robot->associatedObj(left ? leftFinger : rightFinger)->rigidBody.get();
+#if 0
     btSoftBody::tRContactArray rcontacts;
     getContactPointsWith(sb->softBody.get(), rigidBody, rcontacts);
     cout << "got " << rcontacts.size() << " contacts\n";
@@ -140,11 +148,21 @@ void PR2SoftBodyGripper::attach(bool left) {
         }
     }
     cout << "appended " << nAppended << " anchors to " << (left ? "left" : "right") << endl;
+#endif
+    int nAppended = 0;
+    btSoftBody::tNodeArray &nodes = sb->softBody->m_nodes;
+    for (int i = 0; i < nodes.size(); ++i) {
+        if (inGraspRegion(nodes[i].m_x)) {
+            anchors.push_back(sb->addAnchor(i, rigidBody));
+            ++nAppended;
+        }
+    }
+    cout << "appended " << nAppended << " anchors to " << (left ? "left" : "right") << endl;
 }
 
 void PR2SoftBodyGripper::grab() {
     if (grabOnlyOnContact) {
-        attach(false);
+        //attach(false);
         attach(true);
     } else {
         // the gripper should be closed

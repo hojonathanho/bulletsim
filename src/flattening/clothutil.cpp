@@ -44,18 +44,6 @@ void liftClothEdges(Scene &scene, ClothSpec &cs, bool disableDrawing) {
         scene.step(BulletConfig::dt);
     }
 
-    // let the cloth stabilize
-    const int restingsteps = 400;
-    for (int i = 0; i < restingsteps; ++i) {
-        scene.step(BulletConfig::dt);
-    }
-    //scene.stepFor(BulletConfig::dt, 10);
-
-    // clear velocities
-    for (int i = 0; i < cs.psb->m_nodes.size(); ++i) {
-        cs.psb->m_nodes[i].m_v.setZero();
-    }
-
     scene.setDrawing(d);
 }
 
@@ -74,16 +62,6 @@ void liftClothMiddle(Scene &scene, ClothSpec &cs, bool disableDrawing) {
         scene.step(BulletConfig::dt);
     }
 
-    // let the cloth stabilize
-    const int restingsteps = 400;
-    for (int i = 0; i < restingsteps; ++i) {
-        scene.step(BulletConfig::dt);
-    }
-
-    // clear velocities
-    for (int i = 0; i < cs.psb->m_nodes.size(); ++i) {
-        cs.psb->m_nodes[i].m_v.setZero();
-    }
     scene.setDrawing(d);
 
     //liftClothMiddle2(scene, cs, disableDrawing);

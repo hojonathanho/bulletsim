@@ -88,7 +88,8 @@ btSoftBody *makeSelfCollidingTowel(const btVector3& center, btScalar lenx, btSca
     psb->randomizeConstraints();
 
     psb->setTotalMass(100, true);
-    psb->generateClusters(2048);
+//    psb->generateClusters(2048);
+    psb->generateClusters(0);
 
     /*for (int i = 0; i < psb->m_clusters.size(); ++i) {
         psb->m_clusters[i]->m_ndamping = 1;

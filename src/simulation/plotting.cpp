@@ -181,7 +181,14 @@ void PlotBoxes::addBox(const osg::Vec3 &center, float lenx, float leny, float le
   m_geode->addDrawable(boxDrawable);
 }
 
+PlotAxes::PlotAxes() {
+    osg::Vec3f zero(0, 0, 0);
+    set(zero, zero, zero, zero, 0);
+}
 PlotAxes::PlotAxes(osg::Vec3f origin, osg::Vec3f x, osg::Vec3f y, osg::Vec3f z, float size) {
+    set(origin, x, y, z, size);
+}
+void PlotAxes::set(osg::Vec3f origin, osg::Vec3f x, osg::Vec3f y, osg::Vec3f z, float size) {
 
     osg::ref_ptr<osg::Vec4Array> cols = new osg::Vec4Array();
     osg::ref_ptr<osg::Vec3Array> pts = new osg::Vec3Array();
@@ -208,3 +215,16 @@ PlotAxes::PlotAxes(osg::Vec3f origin, osg::Vec3f x, osg::Vec3f y, osg::Vec3f z, 
     m_ends->plot(endpts, cols, radii);
   }
 
+void PlotAxes::set(const btVector3 &origin, const btVector3 &x, const btVector3 &y, const btVector3 &z, float size) {
+  set(util::toOSGVector(origin), util::toOSGVector(x), util::toOSGVector(y), util::toOSGVector(z), size);
+}
+
+void PlotAxes::set(const btTransform &t, float size) {
+  btTransform r = btTransform::getIdentity();
+  r.setRotation(t.getRotation());
+  set(t.getOrigin(),
+      r * btVector3(1, 0, 0),
+      r * btVector3(0, 1, 0),
+      r * btVector3(0, 0, 1),
+      size);
+}

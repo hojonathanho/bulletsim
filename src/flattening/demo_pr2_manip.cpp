@@ -19,6 +19,7 @@ class CustomScene : Scene {
     Cloth::Ptr cloth;
     PR2Manager::Ptr pr2m;
     PR2SoftBodyGripper::Ptr sbgripperleft;
+    PlotAxes::Ptr leftManipAxes, rightManipAxes;
 
     PlotPoints::Ptr foldnodeplot;
     PlotLines::Ptr folddirplot;
@@ -140,6 +141,7 @@ class CustomScene : Scene {
         btVector3 gripperdir = folddir.cross(btVector3(0, 0, 1));
         */
         btVector3 gripperdir = calcGraspDir(*cloth, node);
+        cout << "gripper dir " << gripperdir.x() << ' ' << gripperdir.y() <<  ' ' << gripperdir.z() << endl;
         if (!cloth->idxOnEdge(node)) {
             // if not an edge node, there's ambiguity in the gripper direction
             // (either gripperdir or -gripperdir)
@@ -156,13 +158,8 @@ class CustomScene : Scene {
         stringstream ss; ss << "grab " << node << ' ' << gripperdir.x() << ' ' << gripperdir.y() << ' ' << gripperdir.z();
         GraspingActionSpec spec(ss.str());
         Action::Ptr a = spec.createAction(ctx);
-        printSuccs(ctx, spec);
         try { runAction(a, BulletConfig::dt); } catch (...) { }
         cout << "done." << endl;
-
-        GraspingActionSpec spec2("release");
-        try { runAction(spec2.createAction(ctx), BulletConfig::dt); } catch(...) { }
-        printSuccs(ctx, spec2);
     }
 
     GraspingActionSpec prevActionSpec;
@@ -221,6 +218,11 @@ class CustomScene : Scene {
         folddirplot->setPoints(pts);
     }
 
+    void drawManipAxes() {
+        leftManipAxes->set(pr2m->pr2Left->getTransform(), 0.05*METERS);
+        rightManipAxes->set(pr2m->pr2Right->getTransform(), 0.05*METERS);
+    }
+
 public:
     void run() {
         foldnodeplot.reset(new PlotPoints());
@@ -230,6 +232,11 @@ public:
         pickplot.reset(new PlotSpheres());
         env->add(pickplot);
         pickedNode = NULL;
+
+        leftManipAxes.reset(new PlotAxes);
+        env->add(leftManipAxes);
+        rightManipAxes.reset(new PlotAxes);
+        env->add(rightManipAxes);
 
         // load the robot
         pr2m.reset(new PR2Manager(*this));
@@ -264,7 +271,7 @@ public:
 //        const btScalar lenx = GeneralConfig::scale * 0.7, leny = GeneralConfig::scale * 0.5;
         const btScalar lenx = GeneralConfig::scale * 0.7/2, leny = GeneralConfig::scale * 0.5/2;
 //        const btVector3 clothcenter = GeneralConfig::scale * btVector3(0.5, 0, table_height+0.01);
-        const btVector3 clothcenter = GeneralConfig::scale * btVector3(0.5, 0.1, table_height+0.01);
+        const btVector3 clothcenter = GeneralConfig::scale * btVector3(0.3, 0.1, table_height+0.01);
 //        cloth = makeSelfCollidingTowel(clothcenter, lenx, leny, resx, resy, env->bullet->softBodyWorldInfo);
         cloth.reset(new Cloth(resx, resy, lenx, leny, clothcenter, env->bullet->softBodyWorldInfo));
         env->add(cloth);
@@ -288,6 +295,7 @@ public:
 
         addPreDrawCallback(boost::bind(&CustomScene::markFolds, this));
         addPreDrawCallback(boost::bind(&CustomScene::drawPick, this));
+        addPreDrawCallback(boost::bind(&CustomScene::drawManipAxes, this));
 
         startViewer();
         startFixedTimestepLoop(BulletConfig::dt);
