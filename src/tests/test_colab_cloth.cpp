@@ -1,0 +1,678 @@
+#include "simulation/simplescene.h"
+#include "simulation/softbodies.h"
+#include "simulation/config_bullet.h"
+#include "simulation/config_viewer.h"
+#include <BulletSoftBody/btSoftBodyHelpers.h>
+#include <openrave/kinbody.h>
+#include "robots/pr2.h"
+
+//#define USE_PR2
+GrabberKinematicObject::Ptr global_grabptr;
+
+
+class RigidMover
+{
+    public:
+    RigidMover(BulletObject::Ptr pobject_in, btVector3 pos, btDynamicsWorld* world){
+        pobject = pobject_in;
+        btRigidBody* rb = pobject->rigidBody.get();
+        cnt = new btGeneric6DofConstraint(*rb,btTransform(btQuaternion(0,0,0,1),btVector3(0,0,0)),true); // second parameter?
+        cnt->setLinearLowerLimit(btVector3(0,0,0));
+        cnt->setLinearUpperLimit(btVector3(0,0,0));
+        cnt->setAngularLowerLimit(btVector3(0,0,0));
+        cnt->setAngularUpperLimit(btVector3(0,0,0));
+        world->addConstraint(cnt);
+        updatePosition(pos);
+    }
+
+    typedef boost::shared_ptr<RigidMover> Ptr;
+
+    void updatePosition(btVector3 pos) {
+      cnt->getFrameOffsetA().setOrigin(pos);
+    }
+
+    btTransform GetTransform() { return cnt->getFrameOffsetA();}
+    void SetTransform(btTransform tm) { cnt->getFrameOffsetA() = tm;}
+
+    BulletObject::Ptr pobject;
+    btGeneric6DofConstraint* cnt;
+};
+
+
+class Grab
+{
+public:
+  //btGeneric6DofConstraint* cnt;
+  Grab(){}
+  typedef boost::shared_ptr<Grab> Ptr;
+
+
+
+//    Grab(btSoftBody * psb, btSoftBody::Node *node, btRigidBody *body) {
+//        btSoftBody::Anchor a;
+//        a.m_node = node;
+//        a.m_body = body;
+//        a.m_local = body->getWorldTransform().inverse()*a.m_node->m_x;
+//        a.m_node->m_battach = 1;
+//        a.m_influence = 1;
+//        psb->m_anchors.push_back(a);
+//  }
+    Grab(btSoftBody * psb,int node_ind, btRigidBody *body) {
+        psb->appendAnchor(node_ind,body);
+    }
+
+
+};
+
+
+// I've only tested this on the PR2 model
+class PR2SoftBodyGripperAction : public Action {
+    RaveRobotObject::Manipulator::Ptr manip;
+    dReal startVal, endVal;
+    vector<int> indices;
+    vector<dReal> vals;
+
+    // min/max gripper dof vals
+    static const float CLOSED_VAL = 0.03f, OPEN_VAL = 0.54f;
+
+    KinBody::LinkPtr leftFinger, rightFinger;
+    const btTransform origLeftFingerInvTrans, origRightFingerInvTrans;
+
+    // the point right where the fingers meet when the gripper is closed
+    // (in the robot's initial pose)
+    const btVector3 centerPt;
+
+    // vector normal to the direction that the gripper fingers move in the manipulator frame
+    // (on the PR2 this points back into the arm)
+    const btVector3 closingNormal;
+
+    // points straight down in the PR2 initial position (manipulator frame)
+    const btVector3 toolDirection;
+
+    // the target softbody
+    btSoftBody *psb;
+
+    btTransform getManipRot() const {
+        btTransform trans(manip->getTransform());
+        trans.setOrigin(btVector3(0, 0, 0));
+        return trans;
+    }
+
+    // Returns the direction that the specified finger will move when closing
+    // (manipulator frame)
+    btVector3 getClosingDirection(bool left) const {
+        return (left ? 1 : -1) * toolDirection.cross(closingNormal);
+    }
+
+    // Finds some innermost point on the gripper
+    btVector3 getInnerPt(bool left) const {
+        btTransform trans(manip->robot->getLinkTransform(left ? leftFinger : rightFinger));
+        // this assumes that the gripper is symmetric when it is closed
+        // we get an innermost point on the gripper by transforming a point
+        // on the center of the gripper when it is closed
+        const btTransform &origInv = left ? origLeftFingerInvTrans : origRightFingerInvTrans;
+        return trans * origInv * centerPt;
+        // actually above, we can just cache origInv * centerPt
+    }
+
+    // Returns true is pt is on the inner side of the specified finger of the gripper
+    bool onInnerSide(const btVector3 &pt, bool left) const {
+        // then the innerPt and the closing direction define the plane
+        return (getManipRot() * getClosingDirection(left)).dot(pt - getInnerPt(left)) > 0;
+    }
+
+    // Fills in the rcontacs array with contact information between psb and pco
+    static void getContactPointsWith(btSoftBody *psb, btCollisionObject *pco, btSoftBody::tRContactArray &rcontacts) {
+        // custom contact checking adapted from btSoftBody.cpp and btSoftBodyInternals.h
+        struct Custom_CollideSDF_RS : btDbvt::ICollide {
+            Custom_CollideSDF_RS(btSoftBody::tRContactArray &rcontacts_) : rcontacts(rcontacts_) { }
+
+            void Process(const btDbvtNode* leaf) {
+                btSoftBody::Node* node=(btSoftBody::Node*)leaf->data;
+                DoNode(*node);
+            }
+
+            void DoNode(btSoftBody::Node& n) {
+                const btScalar m=n.m_im>0?dynmargin:stamargin;
+                btSoftBody::RContact c;
+                if (!n.m_battach && psb->checkContact(m_colObj1,n.m_x,m,c.m_cti)) {
+                    const btScalar  ima=n.m_im;
+                    const btScalar  imb= m_rigidBody? m_rigidBody->getInvMass() : 0.f;
+                    const btScalar  ms=ima+imb;
+                    if(ms>0) {
+                        // there's a lot of extra information we don't need to compute
+                        // since we just want to find the contact points
+#if 0
+                        const btTransform&      wtr=m_rigidBody?m_rigidBody->getWorldTransform() : m_colObj1->getWorldTransform();
+                        static const btMatrix3x3        iwiStatic(0,0,0,0,0,0,0,0,0);
+                        const btMatrix3x3&      iwi=m_rigidBody?m_rigidBody->getInvInertiaTensorWorld() : iwiStatic;
+                        const btVector3         ra=n.m_x-wtr.getOrigin();
+                        const btVector3         va=m_rigidBody ? m_rigidBody->getVelocityInLocalPoint(ra)*psb->m_sst.sdt : btVector3(0,0,0);
+                        const btVector3         vb=n.m_x-n.m_q; 
+                        const btVector3         vr=vb-va;
+                        const btScalar          dn=btDot(vr,c.m_cti.m_normal);
+                        const btVector3         fv=vr-c.m_cti.m_normal*dn;
+                        const btScalar          fc=psb->m_cfg.kDF*m_colObj1->getFriction();
+#endif
+                        c.m_node        =       &n;
+#if 0
+                        c.m_c0          =       ImpulseMatrix(psb->m_sst.sdt,ima,imb,iwi,ra);
+                        c.m_c1          =       ra;
+                        c.m_c2          =       ima*psb->m_sst.sdt;
+                        c.m_c3          =       fv.length2()<(btFabs(dn)*fc)?0:1-fc;
+                        c.m_c4          =       m_colObj1->isStaticOrKinematicObject()?psb->m_cfg.kKHR:psb->m_cfg.kCHR;
+#endif
+                        rcontacts.push_back(c);
+#if 0
+                        if (m_rigidBody)
+                                m_rigidBody->activate();
+#endif
+                    }
+                }
+            }
+            btSoftBody*             psb;
+            btCollisionObject*      m_colObj1;
+            btRigidBody*    m_rigidBody;
+            btScalar                dynmargin;
+            btScalar                stamargin;
+            btSoftBody::tRContactArray &rcontacts;
+        };
+
+        Custom_CollideSDF_RS  docollide(rcontacts);              
+        btRigidBody*            prb1=btRigidBody::upcast(pco);
+        btTransform     wtr=pco->getWorldTransform();
+
+        const btTransform       ctr=pco->getWorldTransform();
+        const btScalar          timemargin=(wtr.getOrigin()-ctr.getOrigin()).length();
+        const btScalar          basemargin=psb->getCollisionShape()->getMargin();
+        btVector3                       mins;
+        btVector3                       maxs;
+        ATTRIBUTE_ALIGNED16(btDbvtVolume)               volume;
+        pco->getCollisionShape()->getAabb(      pco->getWorldTransform(),
+                mins,
+                maxs);
+        volume=btDbvtVolume::FromMM(mins,maxs);
+        volume.Expand(btVector3(basemargin,basemargin,basemargin));             
+        docollide.psb           =       psb;
+        docollide.m_colObj1 = pco;
+        docollide.m_rigidBody = prb1;
+
+        docollide.dynmargin     =       basemargin+timemargin;
+        docollide.stamargin     =       basemargin;
+        psb->m_ndbvt.collideTV(psb->m_ndbvt.m_root,volume,docollide);
+    }
+
+    // adapted from btSoftBody.cpp (btSoftBody::appendAnchor)
+    static void appendAnchor(btSoftBody *psb, btSoftBody::Node *node, btRigidBody *body, btScalar influence=1) {
+        btSoftBody::Anchor a;
+        a.m_node = node;
+        a.m_body = body;
+        a.m_local = body->getWorldTransform().inverse()*a.m_node->m_x;
+        a.m_node->m_battach = 1;
+        a.m_influence = influence;
+        psb->m_anchors.push_back(a);
+    }
+
+    // Checks if psb is touching the inside of the gripper fingers
+    // If so, attaches anchors to every contact point
+    void attach(bool left) {
+        btRigidBody *rigidBody =
+            manip->robot->associatedObj(left ? leftFinger : rightFinger)->rigidBody.get();
+        btSoftBody::tRContactArray rcontacts;
+        getContactPointsWith(psb, rigidBody, rcontacts);
+        cout << "got " << rcontacts.size() << " contacts\n";
+        for (int i = 0; i < rcontacts.size(); ++i) {
+            const btSoftBody::RContact &c = rcontacts[i];
+            KinBody::LinkPtr colLink = manip->robot->associatedObj(c.m_cti.m_colObj);
+            if (!colLink) continue;
+            const btVector3 &contactPt = c.m_node->m_x;
+            if (onInnerSide(contactPt, left)) {
+                appendAnchor(psb, c.m_node, rigidBody);
+                cout << "\tappending anchor\n";
+            }
+        }
+    }
+
+public:
+    typedef boost::shared_ptr<PR2SoftBodyGripperAction> Ptr;
+    PR2SoftBodyGripperAction(RaveRobotObject::Manipulator::Ptr manip_,
+                  const string &leftFingerName,
+                  const string &rightFingerName,
+                  float time) :
+            Action(time), manip(manip_), vals(1, 0),
+            leftFinger(manip->robot->robot->GetLink(leftFingerName)),
+            rightFinger(manip->robot->robot->GetLink(rightFingerName)),
+            origLeftFingerInvTrans(manip->robot->getLinkTransform(leftFinger).inverse()),
+            origRightFingerInvTrans(manip->robot->getLinkTransform(rightFinger).inverse()),
+            centerPt(manip->getTransform().getOrigin()),
+            indices(manip->manip->GetGripperIndices()),
+            closingNormal(manip->manip->GetClosingDirection()[0],
+                          manip->manip->GetClosingDirection()[1],
+                          manip->manip->GetClosingDirection()[2]),
+            toolDirection(util::toBtVector(manip->manip->GetLocalToolDirection())) // don't bother scaling
+    {
+        if (indices.size() != 1)
+            cout << "WARNING: more than one gripper DOF; just choosing first one" << endl;
+        setCloseAction();
+    }
+
+    void setEndpoints(dReal start, dReal end) { startVal = start; endVal = end; }
+    dReal getCurrDOFVal() const {
+        vector<dReal> v;
+        manip->robot->robot->GetDOFValues(v);
+        return v[indices[0]];
+    }
+    void setOpenAction() { setEndpoints(getCurrDOFVal(), OPEN_VAL); } // 0.54 is the max joint value for the pr2
+    void setCloseAction() { setEndpoints(getCurrDOFVal(), CLOSED_VAL); }
+    void toggleAction() {
+        if (endVal == CLOSED_VAL)
+            setOpenAction();
+        else if (endVal == OPEN_VAL)
+            setCloseAction();
+    }
+
+    // Must be called before the action is run!
+    void setTarget(btSoftBody *psb_) { psb = psb_; }
+
+    void releaseAllAnchors() {
+        psb->m_anchors.clear();
+    }
+
+    void reset() {
+        Action::reset();
+        releaseAllAnchors();
+    }
+
+    void step(float dt) {
+        if (done()) return;
+        stepTime(dt);
+
+        float frac = fracElapsed();
+        vals[0] = (1.f - frac)*startVal + frac*endVal;
+        manip->robot->setDOFValues(indices, vals);
+
+        if (vals[0] == CLOSED_VAL) {
+            attach(true);
+            attach(false);
+        }
+    }
+};
+
+
+struct CustomScene : public Scene {
+#ifdef USE_PR2
+    PR2SoftBodyGripperAction::Ptr leftAction, rightAction;
+#else
+    Grab::Ptr grab_left, grab_right;
+    GrabberKinematicObject::Ptr left_grabber, right_grabber;
+    RigidMover::Ptr left_mover;
+
+
+    struct {
+        bool transGrabber0,rotateGrabber0,transGrabber1,rotateGrabber1, startDragging;
+        float dx, dy, lastX, lastY;
+    } inputState;
+
+#endif
+    BulletInstance::Ptr bullet2;
+    OSGInstance::Ptr osg2;
+    Fork::Ptr fork;
+    RaveRobotObject::Ptr origRobot, tmpRobot;
+
+
+
+
+#ifdef USE_PR2
+    PR2Manager pr2m;
+
+    CustomScene() : pr2m(*this) { }
+#else
+    CustomScene(){
+        inputState.transGrabber0 = inputState.rotateGrabber0 = inputState.transGrabber1 = inputState.rotateGrabber1 = false;
+        //left_grabber.reset(new BoxObject(0, GeneralConfig::scale * btVector3(.075,.075,0.075),btTransform(btQuaternion(0, 0, 0, 1), GeneralConfig::scale * btVector3(1.5, 0, 0.2))));
+        left_grabber.reset(new GrabberKinematicObject(0.5, 2));
+        env->add(left_grabber);
+
+        //left_mover.reset(new RigidMover(left_grabber, left_grabber->rigidBody->getCenterOfMassPosition(), env->bullet->dynamicsWorld));
+    }
+
+#endif
+
+    BulletSoftObject::Ptr createCloth(btScalar s, const btVector3 &center);
+    void createFork();
+    void swapFork();
+
+    void run();
+};
+
+class CustomKeyHandler : public osgGA::GUIEventHandler {
+    CustomScene &scene;
+public:
+    CustomKeyHandler(CustomScene &scene_) : scene(scene_) { }
+    bool handle(const osgGA::GUIEventAdapter& ea,osgGA::GUIActionAdapter&);
+};
+
+bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,osgGA::GUIActionAdapter & aa) {
+    switch (ea.getEventType()) {
+    case osgGA::GUIEventAdapter::KEYDOWN:
+        switch (ea.getKey()) {
+        case 'a':
+#ifdef USE_PR2
+            scene.leftAction->reset();
+            scene.leftAction->toggleAction();
+            scene.runAction(scene.leftAction, BulletConfig::dt);
+#endif
+            break;
+        case 's':
+#ifdef USE_PR2
+            scene.rightAction->reset();
+            scene.rightAction->toggleAction();
+            scene.runAction(scene.rightAction, BulletConfig::dt);
+#endif
+            break;
+        case 'f':
+            scene.createFork();
+            break;
+        case 'g':
+            scene.swapFork();
+            break;
+
+        case '1':
+            scene.inputState.transGrabber0 = true; break;
+        case 'q':
+            scene.inputState.rotateGrabber0 = true; break;
+
+        case 'b':
+            btVector3 probe_move2 = btVector3(0,0,0.2);
+            btTransform tm2;
+            scene.left_grabber->motionState->getWorldTransform(tm2);
+            printf("origin: %f %f %f\n",tm2.getOrigin()[0],tm2.getOrigin()[1],tm2.getOrigin()[2]);
+            tm2.setOrigin(tm2.getOrigin() + probe_move2);
+            printf("neworigin: %f %f %f\n",tm2.getOrigin()[0],tm2.getOrigin()[1],tm2.getOrigin()[2]);
+            //scene.left_grabber->motionState->setWorldTransform(tm2);
+            scene.left_grabber->motionState->setKinematicPos(tm2);
+            break;
+
+//        case 'n':
+//            btVector3 probe_move = btVector3(0,0,0.05);
+//            btTransform tm = scene.left_mover->pobject->rigidBody->getWorldTransform();
+//            //btVector3 neworigin = tm.getOrigin() + probe_move;
+//            tm.setOrigin(tm.getOrigin() + probe_move);
+//            printf("neworigin: %f %f %f\n",tm.getOrigin()[0],tm.getOrigin()[1],tm.getOrigin()[2]);
+//            scene.left_mover->SetTransform(tm);
+//            break;
+
+
+        }
+        break;
+
+    case osgGA::GUIEventAdapter::KEYUP:
+        switch (ea.getKey()) {
+        case '1':
+            scene.inputState.transGrabber0 = false; break;
+        case 'q':
+            scene.inputState.rotateGrabber0 = false; break;
+        }
+        break;
+
+    case osgGA::GUIEventAdapter::PUSH:
+        scene.inputState.startDragging = true;
+        break;
+
+    case osgGA::GUIEventAdapter::DRAG:
+        if (ea.getEventType() == osgGA::GUIEventAdapter::DRAG){
+            // drag the active manipulator in the plane of view
+            if ( (ea.getButtonMask() & ea.LEFT_MOUSE_BUTTON) &&
+                  (scene.inputState.transGrabber0 || scene.inputState.transGrabber1 ||
+                   scene.inputState.rotateGrabber0 || scene.inputState.rotateGrabber1)) {
+                if (scene.inputState.startDragging) {
+                    scene.inputState.dx = scene.inputState.dy = 0;
+                } else {
+                    scene.inputState.dx = scene.inputState.lastX - ea.getXnormalized();
+                    scene.inputState.dy = ea.getYnormalized() - scene.inputState.lastY;
+                }
+                scene.inputState.lastX = ea.getXnormalized(); scene.inputState.lastY = ea.getYnormalized();
+                scene.inputState.startDragging = false;
+
+                // get our current view
+                osg::Vec3d osgCenter, osgEye, osgUp;
+                scene.manip->getTransformation(osgCenter, osgEye, osgUp);
+                btVector3 from(util::toBtVector(osgEye));
+                btVector3 to(util::toBtVector(osgCenter));
+                btVector3 up(util::toBtVector(osgUp)); up.normalize();
+
+                // compute basis vectors for the plane of view
+                // (the plane normal to the ray from the camera to the center of the scene)
+                btVector3 normal = (to - from).normalized();
+                btVector3 yVec = (up - (up.dot(normal))*normal).normalized(); //FIXME: is this necessary with osg?
+                btVector3 xVec = normal.cross(yVec);
+                btVector3 dragVec = SceneConfig::mouseDragScale*10 * (scene.inputState.dx*xVec + scene.inputState.dy*yVec);
+                printf("dx: %f dy: %f\n",scene.inputState.dx,scene.inputState.dy);
+
+                btTransform origTrans;
+                if (scene.inputState.transGrabber0 || scene.inputState.rotateGrabber0)
+                    scene.left_grabber->motionState->getWorldTransform(origTrans);
+                    //origTrans = scene.left_grabber->rigidBody->getCenterOfMassTransform();
+                else
+                    scene.right_grabber->motionState->getWorldTransform(origTrans);
+
+                printf("origin: %f %f %f\n",origTrans.getOrigin()[0],origTrans.getOrigin()[1],origTrans.getOrigin()[2]);
+
+                btTransform newTrans(origTrans);
+
+                if (scene.inputState.transGrabber0 || scene.inputState.transGrabber1)
+                    // if moving the manip, just set the origin appropriately
+                    newTrans.setOrigin(dragVec + origTrans.getOrigin());
+                else if (scene.inputState.rotateGrabber0 || scene.inputState.rotateGrabber1) {
+                    // if we're rotating, the axis is perpendicular to the
+                    // direction the mouse is dragging
+                    btVector3 axis = normal.cross(dragVec);
+                    btScalar angle = dragVec.length();
+                    btQuaternion rot(axis, angle);
+                    // we must ensure that we never get a bad rotation quaternion
+                    // due to really small (effectively zero) mouse movements
+                    // this is the easiest way to do this:
+                    if (rot.length() > 0.99f && rot.length() < 1.01f)
+                        newTrans.setRotation(rot * origTrans.getRotation());
+                }
+                printf("newtrans: %f %f %f\n",newTrans.getOrigin()[0],newTrans.getOrigin()[1],newTrans.getOrigin()[2]);
+
+                if (scene.inputState.transGrabber0 || scene.inputState.rotateGrabber0)
+                {
+                    scene.left_grabber->motionState->setKinematicPos(newTrans);
+                    //scene.left_grabber->rigidBody->setWorldTransform(newTrans);
+                }
+                else
+                {
+                    scene.right_grabber->motionState->setKinematicPos(newTrans);
+                }
+                return true;
+            }
+        }
+        break;
+
+    }
+    return false;
+}
+
+BulletSoftObject::Ptr CustomScene::createCloth(btScalar s, const btVector3 &center) {
+    const int divs = 45;
+
+    btSoftBody *psb = btSoftBodyHelpers::CreatePatch(
+        env->bullet->softBodyWorldInfo,
+        center + btVector3(-s,-s,0),
+        center + btVector3(+s,-s,0),
+        center + btVector3(-s,+s,0),
+        center + btVector3(+s,+s,0),
+        divs, divs,
+        0, true);
+
+    psb->m_cfg.piterations = 2;
+    psb->m_cfg.collisions = btSoftBody::fCollision::CL_SS
+        | btSoftBody::fCollision::CL_RS
+        | btSoftBody::fCollision::CL_SELF;
+    psb->m_cfg.kDF = 1.0;
+    psb->getCollisionShape()->setMargin(0.05);
+    btSoftBody::Material *pm = psb->appendMaterial();
+    pm->m_kLST = 0.1;
+    psb->generateBendingConstraints(2, pm);
+    psb->randomizeConstraints();
+    psb->setTotalMass(1, true);
+    psb->generateClusters(0);
+
+/*    for (int i = 0; i < psb->m_clusters.size(); ++i) {
+        psb->m_clusters[i]->m_selfCollisionImpulseFactor = 0.1;
+    }*/
+
+    return BulletSoftObject::Ptr(new BulletSoftObject(psb));
+}
+
+void CustomScene::createFork() {
+    bullet2.reset(new BulletInstance);
+    bullet2->setGravity(BulletConfig::gravity);
+    osg2.reset(new OSGInstance);
+    osg->root->addChild(osg2->root.get());
+
+    fork.reset(new Fork(env, bullet2, osg2));
+    registerFork(fork);
+
+    cout << "forked!" << endl;
+
+#ifdef USE_PR2
+    origRobot = pr2m.pr2;
+    EnvironmentObject::Ptr p = fork->forkOf(pr2m.pr2);
+    if (!p) {
+        cout << "failed to get forked version of robot!" << endl;
+        return;
+    }
+    tmpRobot = boost::static_pointer_cast<RaveRobotObject>(p);
+    cout << (tmpRobot->getEnvironment() == env.get()) << endl;
+    cout << (tmpRobot->getEnvironment() == fork->env.get()) << endl;
+#endif
+}
+
+void CustomScene::swapFork() {
+    // swaps the forked robot with the real one
+    cout << "swapping!" << endl;
+#ifdef USE_PR2
+    int leftidx = pr2m.pr2Left->index;
+    int rightidx = pr2m.pr2Right->index;
+    origRobot.swap(tmpRobot);
+    pr2m.pr2 = origRobot;
+    pr2m.pr2Left = pr2m.pr2->getManipByIndex(leftidx);
+    pr2m.pr2Right = pr2m.pr2->getManipByIndex(rightidx);
+#endif
+
+/*    vector<int> indices; vector<dReal> vals;
+    for (int i = 0; i < tmpRobot->robot->GetDOF(); ++i) {
+        indices.push_back(i);
+        vals.push_back(0);
+    }
+    tmpRobot->setDOFValues(indices, vals);*/
+}
+
+
+
+void CustomScene::run() {
+    viewer.addEventHandler(new CustomKeyHandler(*this));
+
+    const float dt = BulletConfig::dt;
+    const float table_height = .5;
+    const float table_thickness = .05;
+    BoxObject::Ptr table(
+        new BoxObject(0, GeneralConfig::scale * btVector3(.75,.75,table_thickness/2),
+            btTransform(btQuaternion(0, 0, 0, 1), GeneralConfig::scale * btVector3(1.2, 0, table_height-table_thickness/2))));
+    table->rigidBody->setFriction(1);
+
+    BulletSoftObject::Ptr cloth(
+            createCloth(GeneralConfig::scale * 0.25, GeneralConfig::scale * btVector3(0.9, 0, table_height+0.01)));
+
+
+    btSoftBody * psb = cloth->softBody.get();
+
+    psb->setTotalMass(0.1);
+
+#ifdef USE_PR2
+    pr2m.pr2->ignoreCollisionWith(psb);
+#endif
+
+
+    env->add(table);
+    env->add(cloth);
+
+    left_mover.reset(new RigidMover(table, table->rigidBody->getCenterOfMassPosition(), env->bullet->dynamicsWorld));
+
+#ifdef USE_PR2
+    leftAction.reset(new PR2SoftBodyGripperAction(pr2m.pr2Left, "l_gripper_l_finger_tip_link", "l_gripper_r_finger_tip_link", 1));
+    leftAction->setTarget(psb);
+    rightAction.reset(new PR2SoftBodyGripperAction(pr2m.pr2Right, "r_gripper_l_finger_tip_link", "r_gripper_r_finger_tip_link", 1));
+    rightAction->setTarget(psb);
+#else
+
+    btTransform tm2 = btTransform(btQuaternion(0, 1, 0, 0), psb->m_nodes[0].m_x+btVector3(0,0,2));
+    left_grabber->motionState->setKinematicPos(tm2);
+    //btVector3 pos(0,0,0);
+    //grab_left.reset(new Grab(psb, &psb->m_nodes[0], left_grabber->rigidBody.get()));
+    //grab_left.reset(new Grab(psb, 0, left_grabber->rigidBody.get()));
+
+    //psb->m_cfg.kAHR = 1;
+    psb->appendAnchor(0,left_grabber->rigidBody.get());
+    psb->appendAnchor(1,left_grabber->rigidBody.get());
+    psb->appendAnchor(2,left_grabber->rigidBody.get());
+    global_grabptr = left_grabber;
+//    btSoftBody::Anchor a;
+//    a.m_node = &psb->m_nodes[0];
+//    a.m_body = left_grabber->rigidBody.get();
+//    a.m_local = left_grabber->rigidBody.get()->getWorldTransform().inverse()*a.m_node->m_x;
+//    a.m_node->m_battach = 1;
+//    a.m_influence = 1;
+//    psb->m_anchors.push_back(a);
+
+
+    //grab_left = g;
+    //grab_left.updatePosition(ropePtr->bodies[0]->getCenterOfMassPosition() + btVector3(0.5,0,0.5));
+
+
+#endif
+
+    btVector3 probe_move = btVector3(0,0,0.05);
+    btTransform tm = left_mover->pobject->rigidBody->getWorldTransform();
+    //btVector3 neworigin = tm.getOrigin() + probe_move;
+    tm.setOrigin(tm.getOrigin() + probe_move);
+    printf("neworigin: %f %f %f\n",tm.getOrigin()[0],tm.getOrigin()[1],tm.getOrigin()[2]);
+    left_mover->SetTransform(tm);
+
+
+    //setSyncTime(true);
+    startViewer();
+    stepFor(dt, 2);
+
+    /*
+    leftAction->setOpenAction();
+    runAction(leftAction, dt);
+
+    rightAction->setOpenAction();
+    runAction(rightAction, dt);
+    */
+
+    startFixedTimestepLoop(dt);
+}
+
+int main(int argc, char *argv[]) {
+    GeneralConfig::scale = 20.;
+    ViewerConfig::cameraHomePosition = btVector3(100, 0, 100);
+    BulletConfig::dt = 0.01;
+    BulletConfig::internalTimeStep = 0.01;
+    BulletConfig::maxSubSteps = 0;
+
+    Parser parser;
+
+    parser.addGroup(GeneralConfig());
+    parser.addGroup(BulletConfig());
+    parser.addGroup(SceneConfig());
+    parser.read(argc, argv);
+
+
+    CustomScene().run();
+    return 0;
+}
