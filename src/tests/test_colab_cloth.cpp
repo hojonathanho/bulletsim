@@ -303,7 +303,7 @@ struct CustomScene : public Scene {
 #else
     Grab::Ptr grab_left, grab_right;
     GrabberKinematicObject::Ptr left_grabber, right_grabber;
-    RigidMover::Ptr left_mover;
+    //RigidMover::Ptr left_mover;
 
 
     struct {
@@ -326,10 +326,12 @@ struct CustomScene : public Scene {
     CustomScene() : pr2m(*this) { }
 #else
     CustomScene(){
-        inputState.transGrabber0 = inputState.rotateGrabber0 = inputState.transGrabber1 = inputState.rotateGrabber1 = false;
+        //inputState.transGrabber0 = inputState.rotateGrabber0 = inputState.transGrabber1 = inputState.rotateGrabber1 = false;
         //left_grabber.reset(new BoxObject(0, GeneralConfig::scale * btVector3(.075,.075,0.075),btTransform(btQuaternion(0, 0, 0, 1), GeneralConfig::scale * btVector3(1.5, 0, 0.2))));
         left_grabber.reset(new GrabberKinematicObject(0.5, 2));
+        right_grabber.reset(new GrabberKinematicObject(0.5, 2));
         env->add(left_grabber);
+        env->add(right_grabber);
 
         //left_mover.reset(new RigidMover(left_grabber, left_grabber->rigidBody->getCenterOfMassPosition(), env->bullet->dynamicsWorld));
     }
@@ -354,20 +356,6 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,osgGA::GUIActionA
     switch (ea.getEventType()) {
     case osgGA::GUIEventAdapter::KEYDOWN:
         switch (ea.getKey()) {
-        case 'a':
-#ifdef USE_PR2
-            scene.leftAction->reset();
-            scene.leftAction->toggleAction();
-            scene.runAction(scene.leftAction, BulletConfig::dt);
-#endif
-            break;
-        case 's':
-#ifdef USE_PR2
-            scene.rightAction->reset();
-            scene.rightAction->toggleAction();
-            scene.runAction(scene.rightAction, BulletConfig::dt);
-#endif
-            break;
         case 'f':
             scene.createFork();
             break;
@@ -380,6 +368,26 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,osgGA::GUIActionA
         case 'q':
             scene.inputState.rotateGrabber0 = true; break;
 
+        case '2':
+            scene.inputState.transGrabber1 = true; break;
+        case 'w':
+            scene.inputState.rotateGrabber1 = true; break;
+#ifdef USE_PR2
+        case 'a':
+            scene.leftAction->reset();
+            scene.leftAction->toggleAction();
+            scene.runAction(scene.leftAction, BulletConfig::dt);
+
+            break;
+        case 's':
+
+            scene.rightAction->reset();
+            scene.rightAction->toggleAction();
+            scene.runAction(scene.rightAction, BulletConfig::dt);
+
+            break;
+#else
+
         case 'b':
             btVector3 probe_move2 = btVector3(0,0,0.2);
             btTransform tm2;
@@ -390,17 +398,6 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,osgGA::GUIActionA
             //scene.left_grabber->motionState->setWorldTransform(tm2);
             scene.left_grabber->motionState->setKinematicPos(tm2);
             break;
-
-//        case 'n':
-//            btVector3 probe_move = btVector3(0,0,0.05);
-//            btTransform tm = scene.left_mover->pobject->rigidBody->getWorldTransform();
-//            //btVector3 neworigin = tm.getOrigin() + probe_move;
-//            tm.setOrigin(tm.getOrigin() + probe_move);
-//            printf("neworigin: %f %f %f\n",tm.getOrigin()[0],tm.getOrigin()[1],tm.getOrigin()[2]);
-//            scene.left_mover->SetTransform(tm);
-//            break;
-
-
         }
         break;
 
@@ -410,6 +407,11 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,osgGA::GUIActionA
             scene.inputState.transGrabber0 = false; break;
         case 'q':
             scene.inputState.rotateGrabber0 = false; break;
+        case '2':
+            scene.inputState.transGrabber1 = false; break;
+        case 'w':
+            scene.inputState.rotateGrabber1 = false; break;
+
         }
         break;
 
@@ -474,7 +476,7 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,osgGA::GUIActionA
                         newTrans.setRotation(rot * origTrans.getRotation());
                 }
                 //printf("newtrans: %f %f %f\n",newTrans.getOrigin()[0],newTrans.getOrigin()[1],newTrans.getOrigin()[2]);
-
+                //softbody ->addForce(const btVector3& forceVector,int node)
                 if (scene.inputState.transGrabber0 || scene.inputState.rotateGrabber0)
                 {
                     scene.left_grabber->motionState->setKinematicPos(newTrans);
@@ -488,7 +490,7 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,osgGA::GUIActionA
             }
         }
         break;
-
+#endif
     }
     return false;
 }
@@ -598,7 +600,7 @@ void CustomScene::run() {
     env->add(table);
     env->add(cloth);
 
-    left_mover.reset(new RigidMover(table, table->rigidBody->getCenterOfMassPosition(), env->bullet->dynamicsWorld));
+    //left_mover.reset(new RigidMover(table, table->rigidBody->getCenterOfMassPosition(), env->bullet->dynamicsWorld));
 
 #ifdef USE_PR2
     leftAction.reset(new PR2SoftBodyGripperAction(pr2m.pr2Left, "l_gripper_l_finger_tip_link", "l_gripper_r_finger_tip_link", 1));
@@ -607,16 +609,69 @@ void CustomScene::run() {
     rightAction->setTarget(psb);
 #else
 
-    btTransform tm2 = btTransform(btQuaternion(0, 1, 0, 0), psb->m_nodes[0].m_x+btVector3(0,0,2));
-    left_grabber->motionState->setKinematicPos(tm2);
+
     //btVector3 pos(0,0,0);
     //grab_left.reset(new Grab(psb, &psb->m_nodes[0], left_grabber->rigidBody.get()));
     //grab_left.reset(new Grab(psb, 0, left_grabber->rigidBody.get()));
 
     //psb->m_cfg.kAHR = 1;
-    psb->appendAnchor(0,left_grabber->rigidBody.get());
-    psb->appendAnchor(1,left_grabber->rigidBody.get());
-    psb->appendAnchor(2,left_grabber->rigidBody.get());
+    //psb->appendAnchor(0,left_grabber->rigidBody.get());
+    //psb->appendAnchor(1,left_grabber->rigidBody.get());
+    //psb->appendAnchor(2,left_grabber->rigidBody.get());
+
+
+    int min_x_ind = -1;
+    int max_x_ind = -1;
+    int min_y_ind = -1;
+    int max_y_ind = -1;
+    double min_x = 100;
+    double max_x = -100;
+    double min_y = 100;
+    double max_y = -100;
+
+    for(int i = 0; i < psb->m_nodes.size();i++)
+    {
+        //printf("%f\n", psb->m_nodes[i].m_x[0]);
+        double new_x = psb->m_nodes[i].m_x[0];
+        double new_y = psb->m_nodes[i].m_x[1];
+        if(new_x > max_x)
+        {
+            max_x = new_x;
+            max_x_ind = i;
+        }
+
+        if(new_x < min_x)
+        {
+            min_x = new_x;
+            min_x_ind = i;
+        }
+
+        if(new_y > max_y)
+        {
+            max_y = new_y;
+            max_y_ind = i;
+        }
+
+        if(new_y < min_y)
+        {
+            min_y = new_y;
+            min_y_ind = i;
+        }
+
+    }
+
+    btTransform tm_left = btTransform(btQuaternion( 0,    0.9877,    0.1564 ,   0), psb->m_nodes[min_x_ind].m_x+btVector3(0,0,2));
+    btTransform tm_right = btTransform(btQuaternion( 0,    0.9877,    0.1564 ,   0), psb->m_nodes[max_x_ind].m_x+btVector3(0,0,2));
+    left_grabber->motionState->setKinematicPos(tm_left);
+    right_grabber->motionState->setKinematicPos(tm_right);
+
+    psb->appendAnchor(min_x_ind,left_grabber->rigidBody.get());
+    psb->appendAnchor(max_x_ind,right_grabber->rigidBody.get());
+
+
+
+
+
     //    btSoftBody::Anchor a;
 //    a.m_node = &psb->m_nodes[0];
 //    a.m_body = left_grabber->rigidBody.get();
@@ -632,12 +687,12 @@ void CustomScene::run() {
 
 #endif
 
-    btVector3 probe_move = btVector3(0,0,0.05);
-    btTransform tm = left_mover->pobject->rigidBody->getWorldTransform();
-    //btVector3 neworigin = tm.getOrigin() + probe_move;
-    tm.setOrigin(tm.getOrigin() + probe_move);
-    printf("neworigin: %f %f %f\n",tm.getOrigin()[0],tm.getOrigin()[1],tm.getOrigin()[2]);
-    left_mover->SetTransform(tm);
+//    btVector3 probe_move = btVector3(0,0,0.05);
+//    btTransform tm = left_mover->pobject->rigidBody->getWorldTransform();
+//    //btVector3 neworigin = tm.getOrigin() + probe_move;
+//    tm.setOrigin(tm.getOrigin() + probe_move);
+//    printf("neworigin: %f %f %f\n",tm.getOrigin()[0],tm.getOrigin()[1],tm.getOrigin()[2]);
+//    left_mover->SetTransform(tm);
 
 
     //setSyncTime(true);
