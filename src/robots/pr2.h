@@ -46,7 +46,7 @@ class PR2SoftBodyGripper {
         btTransform trans(robot->getLinkTransform(left ? leftFinger : rightFinger));
         // we get an innermost point on the gripper by transforming a point
         // on the center of the gripper when it is closed
-        return trans * (METERS/20.*btVector3(0.234402, (left ? 1 : -1) * -0.299, 0));
+        return trans * (METERS/20.*btVector3((left ? 1 : -1) * 0.234402, -0.299, 0));
     }
 
     // Returns true is pt is on the inner side of the specified finger of the gripper

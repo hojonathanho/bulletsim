@@ -109,7 +109,7 @@ void PR2SoftBodyGripper::releaseAllAnchors() {
 
 bool PR2SoftBodyGripper::inGraspRegion(const btVector3 &pt) const {
     // extra padding for more anchors (for stability)
-    static const float TOLERANCE = 0.02;
+    static const float TOLERANCE = 0.00;
 
     // check that pt is between the fingers
     if (!onInnerSide(pt, true) || !onInnerSide(pt, false)) return false;
@@ -117,7 +117,7 @@ bool PR2SoftBodyGripper::inGraspRegion(const btVector3 &pt) const {
     // check that pt is behind the gripper tip
     btTransform manipTrans(util::toBtTransform(manip->GetTransform(), robot->scale));
     btVector3 x = manipTrans.inverse() * pt;
-    if (x.z() > robot->scale*(0.02 + TOLERANCE)) return false;
+    if (x.z() > robot->scale*(0.01 + TOLERANCE)) return false;
 
     // check that pt is within the finger width
     if (abs(x.x()) > robot->scale*(0.01 + TOLERANCE)) return false;
