@@ -106,9 +106,22 @@ public:
     getEnvironment()->osg->root->addChild(m_ends->m_geode.get());
   }
 
-  PlotAxes();
+  PlotAxes() {  m_ends.reset(new PlotSpheres());}
   PlotAxes(osg::Vec3f origin, osg::Vec3f x, osg::Vec3f y, osg::Vec3f z, float size);
-  void set(osg::Vec3f origin, osg::Vec3f x, osg::Vec3f y, osg::Vec3f z, float size);
-  void set(const btVector3 &origin, const btVector3 &x, const btVector3 &y, const btVector3 &z, float size);
-  void set(const btTransform &t, float size);
+  void setup(osg::Vec3f origin, osg::Vec3f x, osg::Vec3f y, osg::Vec3f z, float size);
+  void setup(const btTransform &tf, float size);
+};
+
+class PlotCurve : public osg::Geode {
+
+public:
+  typedef osg::ref_ptr<PlotCurve> Ptr;
+  osg::Vec4 m_defaultColor;
+  osg::ref_ptr<osg::Geometry> m_geom;
+
+  PlotCurve(float width=5);
+  void setPoints(const std::vector<btVector3>& pts, const std::vector<btVector4>& cols);
+  void setPoints(const std::vector<btVector3>& pts);
+  void setPoints(const osg::ref_ptr<osg::Vec3Array>& pts, const osg::ref_ptr<osg::Vec4Array>& cols);
+  void setPoints(const osg::ref_ptr<osg::Vec3Array>& pts);
 };

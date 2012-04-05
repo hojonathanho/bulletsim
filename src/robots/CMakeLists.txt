@@ -8,5 +8,5 @@ include_directories(
 )
 link_directories(${BULLETSIM_BINARY_DIR}/src/simulation)
 
-add_library(robots grabbing.cpp pr2.cpp)
+add_library(robots grabbing.cpp pr2.cpp ros2rave.cpp)
 target_link_libraries(robots simulation)

@@ -1,7 +1,7 @@
 #include "simulation/simplescene.h"
 #include "robots/pr2.h"
 
-typedef RaveRobotKinematicObject::Manipulator::Ptr ManipPtr;
+typedef RaveRobotObject::Manipulator::Ptr ManipPtr;
 
 btTransform rotX(btTransform t,float s) {
   return t*btTransform(btQuaternion(s,0,0,1),btVector3(0,0,0));

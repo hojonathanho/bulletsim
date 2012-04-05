@@ -1,15 +1,42 @@
 #pragma once
 #include <boost/foreach.hpp>
-#include <pcl/point_types.h>
-#include <pcl/point_cloud.h>
 #include <btBulletDynamicsCommon.h>
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
+#include <osg/Geometry>
+#include "utils/my_assert.h"
+#include "utils/my_exceptions.h"
 
 inline btVector3 toBulletVector(const std::vector<float>& vec) {return btVector3(vec[0],vec[1],vec[2]);}
 inline btVector3 toBulletVector(const Eigen::Vector3f& vec) {return btVector3(vec[0],vec[1],vec[2]);}
+inline btVector3 toBulletVector(const osg::Vec3d &v) { return btVector3(v.x(), v.y(), v.z()); }
+
 inline Eigen::Vector3f toEigenVector(const std::vector<float>& vec) {return Eigen::Vector3f(vec[0],vec[1],vec[2]);}
 inline Eigen::Vector3f toEigenVector(const btVector3& vec) {return Eigen::Vector3f(vec.x(),vec.y(),vec.z());}
+
+inline osg::Vec3f toOSGVector(const btVector3 &v) { return osg::Vec3f(v.x(), v.y(), v.z()); }
+
+inline osg::Matrix toOsgMatrix( const btTransform& t )
+{
+    btScalar ogl[ 16 ];
+    t.getOpenGLMatrix( ogl );
+    osg::Matrix m( ogl );
+    return m;
+}
+
+inline btTransform toBtTransform( const osg::Matrix& m )
+{
+    const osg::Matrix::value_type* oPtr = m.ptr();
+    btScalar bPtr[ 16 ];
+    int idx;
+    for (idx=0; idx<16; idx++)
+        bPtr[ idx ] = oPtr[ idx ];
+    btTransform t;
+    t.setFromOpenGLMatrix( bPtr );
+    return t;
+}
+
+
 
 inline std::vector<btVector3> toBulletVectors(const std::vector< std::vector<float> >& in) {
   std::vector<btVector3> out(in.size());
@@ -23,15 +50,6 @@ inline std::vector<btVector3> toBulletVectors(const std::vector< Eigen::Vector3f
   return out;
 }
 
-inline std::vector<btVector3> toBulletVectors(const pcl::PointCloud<pcl::PointXYZRGBA>::Ptr& cloud) {
-  std::vector<btVector3> out(cloud->size());
-  int i=0;
-  BOOST_FOREACH(pcl::PointXYZRGBA& point, *cloud) {
-    out[i] = btVector3(point.x, point.y, point.z);
-    i++;
-  }
-  return out;
-}
 
 inline std::vector<btVector3> toBulletVectors(const Eigen::MatrixXf& in) {
   std::vector<btVector3> out(in.rows());

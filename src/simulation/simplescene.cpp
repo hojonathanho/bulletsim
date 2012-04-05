@@ -29,6 +29,7 @@ Scene::Scene() {
     // default callbacks
     addVoidKeyCallback('p', boost::bind(&Scene::toggleIdle, this));
     addVoidKeyCallback('d', boost::bind(&Scene::toggleDebugDraw, this));
+    
 }
 
 void Scene::startViewer() {
@@ -43,7 +44,7 @@ void Scene::startViewer() {
 
     viewer.setUpViewInWindow(0, 0, ViewerConfig::windowWidth, ViewerConfig::windowHeight);
     manip = new EventHandler(*this);
-    manip->setHomePosition(util::toOSGVector(ViewerConfig::cameraHomePosition), osg::Vec3(), osg::Z_AXIS);
+    manip->setHomePosition(util::toOSGVector(ViewerConfig::cameraHomePosition)*METERS, osg::Vec3(), osg::Z_AXIS);
     viewer.setCameraManipulator(manip);
     viewer.setSceneData(osg->root.get());
     viewer.realize();
@@ -160,7 +161,7 @@ void Scene::runAction(Action &a, float dt) {
     }
 }
 
-void Scene::addKeyCallback(char c, Callback cb) {
+void Scene::addKeyCallback(int c, Callback cb) {
     if (keyCallbacks.count(c) != 0)
         cout << "warning: key " << c << " is bound to multiple callbacks" << endl;
     keyCallbacks.insert(make_pair(c, cb));
@@ -169,7 +170,7 @@ void Scene::addKeyCallback(char c, Callback cb) {
 void Scene::addVoidCallback(osgGA::GUIEventAdapter::EventType t, VoidCallback cb) {
     addCallback(t, boost::bind<bool>(VoidCallbackWrapper(cb)));
 }
-void Scene::addVoidKeyCallback(char c, VoidCallback cb) {
+void Scene::addVoidKeyCallback(int c, VoidCallback cb) {
     addKeyCallback(c, boost::bind<bool>(VoidCallbackWrapper(cb)));
 }
 

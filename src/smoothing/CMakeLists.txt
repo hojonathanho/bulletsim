@@ -1,0 +1,2 @@
+add_executable(record_traj record_traj.cpp)
+target_link_libraries(record_traj simulation robots)

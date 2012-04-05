@@ -5,6 +5,25 @@
 #include "simulation/basicobjects.h"
 #include "simulation/simplescene.h"
 #include "simulation/softbodies.h"
+#include "simulation/fake_gripper.h"
+#include <map>
+
+enum HapticEvent {
+  hapticLeft0Up,
+  hapticLeft0Down,
+  hapticLeft0Hold,
+  hapticLeft1Up,
+  hapticLeft1Down,
+  hapticLeft1Hold,
+  hapticLeftBoth,
+  hapticRight0Up,
+  hapticRight0Down,
+  hapticRight0Hold,
+  hapticRight1Up,
+  hapticRight1Down,
+  hapticRight1Hold,
+  hapticRightBoth
+};
 
 // Special support for the OpenRAVE PR2 model
 
@@ -12,7 +31,7 @@
 #define PR2_GRIPPER_CLOSED_VAL 0.03f
 
 class PR2SoftBodyGripper {
-    RaveRobotKinematicObject::Ptr robot;
+    RaveRobotObject::Ptr robot;
     OpenRAVE::RobotBase::ManipulatorPtr manip;
 
     float grabOnlyOnContact;
@@ -66,7 +85,7 @@ class PR2SoftBodyGripper {
 public:
     typedef boost::shared_ptr<PR2SoftBodyGripper> Ptr;
 
-    PR2SoftBodyGripper(RaveRobotKinematicObject::Ptr robot_, OpenRAVE::RobotBase::ManipulatorPtr manip_, bool leftGripper);
+    PR2SoftBodyGripper(RaveRobotObject::Ptr robot_, OpenRAVE::RobotBase::ManipulatorPtr manip_, bool leftGripper);
 
     void setGrabOnlyOnContact(bool b) { grabOnlyOnContact = b; }
 
@@ -91,16 +110,16 @@ private:
         float lastHapticReadTime;
     } inputState;
 
+
     void loadRobot();
     void initIK();
     void initHaptics();
 
     float hapticPollRate;
     btTransform leftInitTrans, rightInitTrans;
-    SphereObject::Ptr hapTrackerLeft, hapTrackerRight;
 
-    boost::function<void()> lopencb, lclosecb, ropencb, rclosecb;
-
+    map<HapticEvent, boost::function<void()> > hapticEvent2Func;
+  
     void actionWrapper(Action::Ptr a, float dt) {
         a->reset();
         scene.runAction(a, dt);
@@ -109,8 +128,11 @@ private:
 public:
     typedef boost::shared_ptr<PR2Manager> Ptr;
 
-    RaveRobotKinematicObject::Ptr pr2;
-    RaveRobotKinematicObject::Manipulator::Ptr pr2Left, pr2Right;
+    RaveRobotObject::Ptr pr2;
+    RaveRobotObject::Manipulator::Ptr pr2Left, pr2Right;
+    SphereObject::Ptr hapTrackerLeft, hapTrackerRight;
+    bool lEngaged, rEngaged; // only accept haptic input if engaged
+    bool armsDisabled; // hack so I can do demonstrations with fake gripper but still use haptics stuff
 
     PR2Manager(Scene &);
     void registerSceneCallbacks();
@@ -119,15 +141,11 @@ public:
 
     void setHapticPollRate(float hz) { hapticPollRate = hz; }
 
-    void setLGripperOpenCb(boost::function<void()> cb) { lopencb = cb; }
-    void setLGripperCloseCb(boost::function<void()> cb) { lclosecb = cb; }
-    void setRGripperOpenCb(boost::function<void()> cb) { ropencb = cb; }
-    void setRGripperCloseCb(boost::function<void()> cb) { rclosecb = cb; }
-    // convenience methods for calling actions as callbacks
-    void setLGripperOpenCb(Action::Ptr a, float dt) { setLGripperOpenCb(boost::bind(&PR2Manager::actionWrapper, this, a, dt)); }
-    void setLGripperCloseCb(Action::Ptr a, float dt) { setLGripperCloseCb(boost::bind(&PR2Manager::actionWrapper, this, a, dt)); }
-    void setRGripperOpenCb(Action::Ptr a, float dt) { setRGripperOpenCb(boost::bind(&PR2Manager::actionWrapper, this, a, dt)); }
-    void setRGripperCloseCb(Action::Ptr a, float dt) { setRGripperCloseCb(boost::bind(&PR2Manager::actionWrapper, this, a, dt)); }
+    void setHapticCb(HapticEvent h, boost::function<void()> cb) {hapticEvent2Func[h] = cb;}
+    void setHapticCb(HapticEvent h, Action::Ptr a, float dt) { setHapticCb(h, boost::bind(&PR2Manager::actionWrapper, this, a, dt));}
+    void handleButtons(bool left[], bool right[]);
+    void toggleLeftEngaged() {lEngaged = !lEngaged;}
+    void toggleRightEngaged() {rEngaged = !rEngaged;}
 
     void processHapticInput();
     bool processKeyInput(const osgGA::GUIEventAdapter &ea);

@@ -1,6 +1,7 @@
 #include "rope.h"
 #include "basicobjects.h"
 #include <iostream>
+#include "bullet_io.h"
 using namespace std;
 
 boost::shared_ptr<btRigidBody> createRigidBody(const boost::shared_ptr<btCollisionShape> shapePtr, const btTransform& trans, btScalar mass) {
@@ -13,7 +14,7 @@ boost::shared_ptr<btRigidBody> createRigidBody(const boost::shared_ptr<btCollisi
 }
 
 boost::shared_ptr<btGeneric6DofSpringConstraint>  createBendConstraint(btScalar len,
-			  const boost::shared_ptr<btRigidBody> rbA, const boost::shared_ptr<btRigidBody>& rbB, float damping, float stiffness, float limit) {
+								       const boost::shared_ptr<btRigidBody> rbA, const boost::shared_ptr<btRigidBody>& rbB, float damping, float stiffness, float limit) {
 
   btTransform tA,tB;
   tA.setIdentity(); tB.setIdentity();
@@ -29,6 +30,23 @@ boost::shared_ptr<btGeneric6DofSpringConstraint>  createBendConstraint(btScalar 
   return springPtr;
 }
 
+const float SMALL_FLOAT = 1e-7;
+static btMatrix3x3 makePerpBasis(const btVector3& a0) {
+  btVector3 a = a0.normalized();
+  if ((a.x() == 0) && (a.y() == 0)) {
+    return btMatrix3x3(0,0,1,0,1,0,0,0,1);
+  }
+  else {
+    btVector3 b = btVector3(a0.y(), -a0.x(), 0);
+    b.normalize();
+    btVector3 c = a.cross(b);
+    return btMatrix3x3(a.x(), a.y(), a.z(),
+		       b.x(), b.y(), b.z(),
+		       c.x(), c.y(), c.z());
+  }
+}
+
+
 void createRopeTransforms(vector<btTransform>& transforms, vector<btScalar>& lengths, const vector<btVector3>& ctrlPoints) {
   int nLinks = ctrlPoints.size()-1;
   for (int i=0; i < nLinks; i++) {
@@ -36,21 +54,17 @@ void createRopeTransforms(vector<btTransform>& transforms, vector<btScalar>& len
     btVector3 pt1 = ctrlPoints[i+1];
     btVector3 midpt = (pt0+pt1)/2;
     btVector3 diff = (pt1-pt0);
-    btQuaternion q;
-    btScalar ang = diff.angle(btVector3(1,0,0));
-    if (ang*ang > 1e-4) {
-      btVector3 ax = diff.cross(btVector3(1,0,0));
-      q = btQuaternion(ax,-ang);
-    }
-    else {
-      q = btQuaternion(0,0,0,1);
-    }
-    btTransform trans(q,midpt);
+
+    btMatrix3x3 rotation = makePerpBasis(diff);
+
+
+    btTransform trans(rotation,midpt);
 
     float len = diff.length();
     transforms.push_back(trans);
-      lengths.push_back(len);
+    lengths.push_back(len);
   }
+
 }
 
 
@@ -90,26 +104,45 @@ void CapsuleRope::init() {
 
 
 
-   // for (int i=0; i < children.size()-1; i++) {
-   //        BulletObject::Ptr bo0 = static_cast<BulletObject::Ptr>(children[i]);
-   //   BulletObject::Ptr bo1 = static_cast<BulletObject::Ptr>(children[i+1]);
+  // for (int i=0; i < children.size()-1; i++) {
+  //        BulletObject::Ptr bo0 = static_cast<BulletObject::Ptr>(children[i]);
+  //   BulletObject::Ptr bo1 = static_cast<BulletObject::Ptr>(children[i+1]);
 
-   //   btRigidBody* body0 = (bo0->rigidBody).get();
-     //btRigidBody* body1 = (bo1->rigidBody).get();
-     //         btPoint2PointConstraint* joint = new btPoint2PointConstraint(*body0,*body1,btVector3(.1/2,0,0),btVector3(-.1/2,0,0));
+  //   btRigidBody* body0 = (bo0->rigidBody).get();
+  //btRigidBody* body1 = (bo1->rigidBody).get();
+  //         btPoint2PointConstraint* joint = new btPoint2PointConstraint(*body0,*body1,btVector3(.1/2,0,0),btVector3(-.1/2,0,0));
   //      getEnvironment()->bullet->dynamicsWorld->addConstraint(joint);
   //  }
 
 
   for (int i=0; i< joints.size(); i++) {
-       getEnvironment()->addConstraint(joints[i]);
+    getEnvironment()->addConstraint(joints[i]);
   }
 }
 
 void CapsuleRope::destroy() {
-/*  for (int i = 0; i < joints.size(); i++) {
-       getEnvironment()->bullet->dynamicsWorld->removeConstraint(joints[i].get());
-  }*/
+  /*  for (int i = 0; i < joints.size(); i++) {
+      getEnvironment()->bullet->dynamicsWorld->removeConstraint(joints[i].get());
+      }*/
   CompoundObject<BulletObject>::destroy();
 }
 
+vector<btVector3> CapsuleRope::getNodes() { 
+  vector<btVector3> out(children.size());
+  for (int i=0; i < children.size(); i++)
+    out[i] = children[i]->rigidBody->getCenterOfMassPosition();
+  return out;
+}
+
+vector<btVector3> CapsuleRope::getControlPoints() { 
+  vector<btVector3> out;
+  out.reserve(children.size()+1);
+  for (int i=0; i < children.size(); i++) {
+    btRigidBody* body = children[i]->rigidBody.get();
+    btCapsuleShape* capsule = dynamic_cast<btCapsuleShapeX*>(body->getCollisionShape());
+    btTransform tf = body->getCenterOfMassTransform();
+    if (i==0) out.push_back(tf.getOrigin() + btMatrix3x3(tf.getRotation())*btVector3(-capsule->getHalfHeight(),0,0));
+    out.push_back(tf.getOrigin() + btMatrix3x3(tf.getRotation())*btVector3(capsule->getHalfHeight(),0,0));
+  }
+  return out;
+}

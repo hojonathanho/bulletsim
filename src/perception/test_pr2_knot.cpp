@@ -17,7 +17,7 @@
 #include "optimization_forces.h"
 #include "visibility.h"
 #include "apply_impulses.h"
-#include "openrave_joints.h"
+#include "robots/ros2rave.h"
 #include "robot_geometry.h"
 #include "simulation/recording.h"
 #include <pcl/common/transforms.h>
@@ -73,8 +73,8 @@ int main(int argc, char *argv[]) {
 
   Scene scene;
   PR2Manager pr2m(scene);
-  MonitorForGrabbing lMonitor(pr2m.pr2->robot->GetManipulators()[5], scene.env->bullet->dynamicsWorld);
-  MonitorForGrabbing rMonitor(pr2m.pr2->robot->GetManipulators()[7], scene.env->bullet->dynamicsWorld);
+  MonitorForGrabbing lMonitor(pr2m.pr2Left, scene.env->bullet->dynamicsWorld);
+  MonitorForGrabbing rMonitor(pr2m.pr2Right, scene.env->bullet->dynamicsWorld);
 
   vector<double> firstJoints = doubleVecFromFile(filePath("data000000000000.txt", "joint_states").string());
   ValuesInds vi = getValuesInds(firstJoints);

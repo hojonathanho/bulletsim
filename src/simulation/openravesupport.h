@@ -31,7 +31,6 @@ enum TrimeshMode {
     RAW // use btBvhTriangleMeshShape (not recommended, makes simulation very slow)
 };
 
-#define RaveRobotKinematicObject RaveRobotObject
 class RaveRobotObject : public CompoundObject<BulletObject> {
 private:
     RaveInstance::Ptr rave;
@@ -54,24 +53,25 @@ private:
 
     // for the loaded robot, this will create BulletObjects
     // and place them into the children vector
-    void initRobotWithoutDynamics(const btTransform &initialTransform, TrimeshMode trimeshMode, float fmargin=0.0005);
+    void initRobot(const btTransform &initialTransform, TrimeshMode trimeshMode, float fmargin, bool isDynamic);
 
     // empty constructor for manual copying
-    RaveRobotKinematicObject(btScalar scale_) : scale(scale_) { }
+    RaveRobotObject(btScalar scale_) : scale(scale_) { }
 
 public:
-    typedef boost::shared_ptr<RaveRobotKinematicObject> Ptr;
+    typedef boost::shared_ptr<RaveRobotObject> Ptr;
 
     RobotBasePtr robot;
     const btScalar scale;
 
     // this class is actually a collection of BulletObjects,
     // each of which represents a link of the robot
-    RaveRobotKinematicObject(RaveInstance::Ptr rave_,
+    RaveRobotObject(RaveInstance::Ptr rave_,
             const std::string &uri,
             const btTransform &initialTransform_,
             btScalar scale=1.0f,
-            TrimeshMode trimeshMode=CONVEX_HULL
+            TrimeshMode trimeshMode=CONVEX_HULL,
+            bool isDynamic = false
             );
 
     // forking
@@ -102,10 +102,13 @@ public:
     // Positions the robot according to DOF values in the OpenRAVE model
     // and copy link positions to the Bullet rigid bodies.
     void setDOFValues(const vector<int> &indices, const vector<dReal> &vals);
+    void updateBullet();
+
+    vector<double> getDOFValues(const vector<int> &indices);
 
     // IK support
     struct Manipulator {
-        RaveRobotKinematicObject *robot;
+        RaveRobotObject *robot;
         ModuleBasePtr ikmodule;
         RobotBase::ManipulatorPtr manip, origManip;
         int index; // id for this manipulator in this robot instance
@@ -115,11 +118,14 @@ public:
         void updateGrabberPos();
 
         typedef boost::shared_ptr<Manipulator> Ptr;
-        Manipulator(RaveRobotKinematicObject *robot_) : robot(robot_) { }
+        Manipulator(RaveRobotObject *robot_) : robot(robot_) { }
 
         btTransform getTransform() const {
             return util::toBtTransform(manip->GetTransform(), robot->scale);
         }
+        vector<double> getDOFValues();
+        float getGripperAngle();
+        void setGripperAngle(float);
 
         // Gets one IK solution closest to the current position in joint space
         bool solveIKUnscaled(const OpenRAVE::Transform &targetTrans,
@@ -155,7 +161,7 @@ public:
                 checkCollisions, revertOnCollision);
         }
 
-        Manipulator::Ptr copy(RaveRobotKinematicObject::Ptr newRobot, Fork &f);
+        Manipulator::Ptr copy(RaveRobotObject::Ptr newRobot, Fork &f);
     };
 
     // If useFakeGrabber is true, the manipulator will use a GrabberKinematicObject

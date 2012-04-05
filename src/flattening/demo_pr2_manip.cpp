@@ -219,8 +219,8 @@ class CustomScene : Scene {
     }
 
     void drawManipAxes() {
-        leftManipAxes->set(pr2m->pr2Left->getTransform(), 0.05*METERS);
-        rightManipAxes->set(pr2m->pr2Right->getTransform(), 0.05*METERS);
+        leftManipAxes->setup(pr2m->pr2Left->getTransform(), 0.05*METERS);
+        rightManipAxes->setup(pr2m->pr2Right->getTransform(), 0.05*METERS);
     }
 
 public:

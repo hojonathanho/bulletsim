@@ -12,7 +12,7 @@ link_directories(
   ${TETGEN_DIR}
 )
 
-add_library(perception config_perception.cpp utils_perception.cpp make_bodies.cpp openrave_joints.cpp robot_geometry.cpp dist_math.cpp optimization_forces.cpp sparse_array.cpp apply_impulses.cpp visibility.cpp trackers.cpp matching.cpp get_nodes.cpp plotting_perception.cpp vision.cpp)
+add_library(perception config_perception.cpp utils_perception.cpp make_bodies.cpp robot_geometry.cpp dist_math.cpp optimization_forces.cpp sparse_array.cpp apply_impulses.cpp visibility.cpp trackers.cpp matching.cpp get_nodes.cpp plotting_perception.cpp vision.cpp)
 target_link_libraries(perception ${PCL_LIBRARIES} comm clouds simulation tetgen utils)
 
 add_executable(test_matching test_matching.cpp matching.cpp)
@@ -39,8 +39,9 @@ target_link_libraries(test_kinect_rope clouds comm simulation comm clouds percep
 add_executable(test_pr2_knot test_pr2_knot.cpp)
 target_link_libraries(test_pr2_knot clouds comm simulation comm clouds perception robots)
 
-add_executable(test_pr2_towel test_pr2_towel.cpp)
-target_link_libraries(test_pr2_towel clouds comm simulation perception robots ${PCL_LIBRARIES})
+# add_executable(test_pr2_towel test_pr2_towel.cpp)
+# target_link_libraries(test_pr2_towel clouds comm simulation perception robots ${PCL_LIBRARIES})
+# commented for Monitor refactoring
 
 add_executable(test_tetgen test_tetgen.cpp ${TETGEN_DIR}/tetgen.h)
 target_link_libraries(test_tetgen tetgen)
@@ -55,8 +56,8 @@ target_link_libraries(calibrate_kinect clouds comm simulation perception robots 
 # add_executable(test_new_towel_tracking test_new_towel_tracking.cpp vision.cpp)
 # target_link_libraries(test_new_towel_tracking comm ${PCL_LIBRARIES} simulation clouds perception)
 
-# add_executable(test_new_tracking2 test_new_tracking2.cpp vision.cpp)
-# target_link_libraries(test_new_tracking2 comm ${PCL_LIBRARIES} simulation clouds perception)
+ add_executable(test_new_tracking2 test_new_tracking2.cpp vision.cpp)
+ target_link_libraries(test_new_tracking2 comm ${PCL_LIBRARIES} simulation clouds perception)
 
 add_executable(comm_track_towel comm_track_towel.cpp)
 target_link_libraries(comm_track_towel perception clouds simulation utils comm gomp)

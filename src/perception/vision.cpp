@@ -18,6 +18,8 @@
 #include <pcl/common/transforms.h>
 #include "clouds/geom.h"
 #include <algorithm>
+#include <BulletSoftBody/btSoftBodyHelpers.h>
+
 using namespace std;
 using namespace Eigen;
 
@@ -365,7 +367,7 @@ void TrackedRope::applyEvidence(const SparseArray& corr, const MatrixXf& obsPts)
   vector<btVector3> ropePos = getNodes(m_sim);
   vector<btVector3> ropeVel = getNodeVels(m_sim);
   vector<btVector3> impulses = calcImpulsesDamped(ropePos, ropeVel, toBulletVectors(obsPts), corr, masses, TrackingConfig::kp, TrackingConfig::kd);
-  m_sigs = calcSigs(corr, toEigenMatrix(ropePos), obsPts, .025*METERS, 1);
+  m_sigs = calcSigs(corr, toEigenMatrix(ropePos), obsPts, .1*METERS, 1);
   applyImpulses(impulses, m_sim);  
 }
 
@@ -463,7 +465,9 @@ void RopeVision2::beforeIterations() {
 
 void RopeVision2::doIteration() {
   BOOST_FOREACH(TrackedRope::Ptr hyp, m_ropeHypoths) {
-    VectorXf pVis = VectorXf::Ones(hyp->m_sim->nLinks,1); // TODO
+    MatrixXf ropePtsCam  = toEigenMatrix(m_CT->toCamFromWorldN(getNodes(hyp->m_sim)));
+    VectorXf pVis  = calcVisibility(ropePtsCam, m_depthImage, m_ropeMask); 
+VectorXf::Ones(hyp->m_sim->nLinks,1); // TODO
     Eigen::MatrixXf corrEigen = calcCorrProb(hyp->featsFromSim(), hyp->m_sigs, m_obsFeats, pVis, TrackingConfig::outlierParam, hyp->m_loglik);
     SparseArray corr = toSparseArray(corrEigen, TrackingConfig::cutoff);
     hyp->applyEvidence(corr, toEigenMatrix(m_obsCloud));
@@ -495,7 +499,7 @@ void RopeVision2::afterIterations() {
 void RopeVision2::cullHypoths() {  
   if (m_ropeHypoths.size() > 1 && m_ropeHypoths[0]->m_age >= MIN_CULL_AGE && m_ropeHypoths[1]->m_age >= MIN_CULL_AGE) {
     cout << "log likelihoods: " << m_ropeHypoths[0]->m_loglik << " " << m_ropeHypoths[1]->m_loglik << endl;
-    if (m_ropeHypoths[0]->m_loglik > m_ropeHypoths[1]->m_loglik) {
+    if (m_ropeHypoths[0]->m_loglik > .95*m_ropeHypoths[1]->m_loglik) {
       cout << "removing alternate hypoth" << endl;
       removeRopeHypoth(m_ropeHypoths[1]);
     }
@@ -649,9 +653,12 @@ TrackedTowel::TrackedTowel(BulletSoftObject::Ptr sim, int xres, int yres) {
 	  if (knots.find(intpair(row+dy, col+dx)) != knots.end()) 
 	    node2knots[idx(row,col,xres)].push_back(idx(row+dy, col+dx, xres));
 
-  for (int row=0; row < yres; row++) {
-    for (int col = 0; col < xres; col++)
-      cout << node2knots[row][col] << " ";
+  for (int i=0; i < xres*yres; i++) {
+    cout << i << ": ";
+    BOOST_FOREACH(int j, node2knots[i]) {
+      cout << j << " ";
+      assert(i==j || sim->softBody->checkLink(i,j));
+    }
     cout << endl;
   }
 
@@ -729,7 +736,7 @@ void TrackedTowel::applyEvidence(const SparseArray& corr, const vector<btVector3
 
   vector<btVector3> impulses = calcImpulsesDamped(estPos, estVel, obsPts, corr, m_masses, TrackingConfig::kp, TrackingConfig::kd);
 
-  m_sigs = calcSigs(corr, toEigenMatrix(estPos), toEigenMatrix(obsPts), .025*METERS, 1);
+  m_sigs = calcSigs(corr, toEigenMatrix(estPos), toEigenMatrix(obsPts), .1*METERS, .5);
 
   int nNodes = node2knots.size();
   vector<btVector3> allImpulses(nNodes, btVector3(0,0,0));

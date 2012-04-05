@@ -181,50 +181,81 @@ void PlotBoxes::addBox(const osg::Vec3 &center, float lenx, float leny, float le
   m_geode->addDrawable(boxDrawable);
 }
 
-PlotAxes::PlotAxes() {
-    osg::Vec3f zero(0, 0, 0);
-    set(zero, zero, zero, zero, 0);
+void PlotAxes::setup(const btTransform &tf, float size) {
+  btMatrix3x3 mat(tf.getRotation());
+  osg::Vec3f origin = util::toOSGVector(tf.getOrigin());
+  osg::Vec3f x = util::toOSGVector(mat.getColumn(0));
+  osg::Vec3f y = util::toOSGVector(mat.getColumn(1));
+  osg::Vec3f z = util::toOSGVector(mat.getColumn(2));
+  setup(origin, x, y, z, size);
 }
+
 PlotAxes::PlotAxes(osg::Vec3f origin, osg::Vec3f x, osg::Vec3f y, osg::Vec3f z, float size) {
-    set(origin, x, y, z, size);
-}
-void PlotAxes::set(osg::Vec3f origin, osg::Vec3f x, osg::Vec3f y, osg::Vec3f z, float size) {
-
-    osg::ref_ptr<osg::Vec4Array> cols = new osg::Vec4Array();
-    osg::ref_ptr<osg::Vec3Array> pts = new osg::Vec3Array();
-
-    pts->push_back(origin);
-    pts->push_back(origin+x*(size/x.length()));
-    pts->push_back(origin);
-    pts->push_back(origin+y*(size/y.length()));
-    pts->push_back(origin);
-    pts->push_back(origin+z*(size/z.length()));
-
-    cols->push_back(osg::Vec4f(1,0,0,1));
-    cols->push_back(osg::Vec4f(0,1,0,1));
-    cols->push_back(osg::Vec4f(0,0,1,1));
-
-    PlotLines::setPoints(pts, cols);
-
-    m_ends.reset(new PlotSpheres());
-    osg::ref_ptr<osg::Vec3Array> endpts = new osg::Vec3Array();
-    endpts->push_back(origin+x*(size/x.length()));
-    endpts->push_back(origin+y*(size/y.length()));
-    endpts->push_back(origin+z*(size/z.length()));
-    vector<float> radii(3,.1);
-    m_ends->plot(endpts, cols, radii);
-  }
-
-void PlotAxes::set(const btVector3 &origin, const btVector3 &x, const btVector3 &y, const btVector3 &z, float size) {
-  set(util::toOSGVector(origin), util::toOSGVector(x), util::toOSGVector(y), util::toOSGVector(z), size);
+  setup(origin, x, y, z, size);
 }
 
-void PlotAxes::set(const btTransform &t, float size) {
-  btTransform r = btTransform::getIdentity();
-  r.setRotation(t.getRotation());
-  set(t.getOrigin(),
-      r * btVector3(1, 0, 0),
-      r * btVector3(0, 1, 0),
-      r * btVector3(0, 0, 1),
-      size);
+void PlotAxes::setup(osg::Vec3f origin, osg::Vec3f x, osg::Vec3f y, osg::Vec3f z, float size) {
+    
+  osg::ref_ptr<osg::Vec4Array> cols = new osg::Vec4Array();
+  osg::ref_ptr<osg::Vec3Array> pts = new osg::Vec3Array();
+
+  pts->push_back(origin);
+  pts->push_back(origin+x*(size/x.length()));
+  pts->push_back(origin);
+  pts->push_back(origin+y*(size/y.length()));
+  pts->push_back(origin);
+  pts->push_back(origin+z*(size/z.length()));
+
+  cols->push_back(osg::Vec4f(1,0,0,1));
+  cols->push_back(osg::Vec4f(0,1,0,1));
+  cols->push_back(osg::Vec4f(0,0,1,1));
+
+  PlotLines::setPoints(pts, cols);
+
+  osg::ref_ptr<osg::Vec3Array> endpts = new osg::Vec3Array();
+  endpts->push_back(origin+x*(size/x.length()));
+  endpts->push_back(origin+y*(size/y.length()));
+  endpts->push_back(origin+z*(size/z.length()));
+  vector<float> radii(3,.1*size);
+  m_ends->plot(endpts, cols, radii);
+}
+
+
+PlotCurve::PlotCurve(float width) : osg::Geode(), m_defaultColor(1,0,0,1) {
+
+  m_geom = new osg::Geometry();
+  addDrawable(m_geom);
+
+  osg::ref_ptr<osg::StateSet> stateset = new osg::StateSet();
+  osg::LineWidth *linewidth = new osg::LineWidth();
+  linewidth->setWidth(width);
+  stateset->setAttributeAndModes(linewidth,osg::StateAttribute::ON);
+  stateset->setMode(GL_LIGHTING, osg::StateAttribute::OFF);
+  stateset->setAttribute(linewidth);
+
+  osg::ref_ptr<osg::BlendFunc> blendFunc = new osg::BlendFunc;
+  blendFunc->setFunction(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+  stateset->setAttributeAndModes(blendFunc);
+  stateset->setRenderingHint(osg::StateSet::TRANSPARENT_BIN);
+
+  setStateSet(stateset);
+}
+
+void PlotCurve::setPoints(const vector<btVector3>& pts, const vector<btVector4>& cols) {
+  setPoints(toVec3Array(pts),  toVec4Array(cols));
+}
+
+void PlotCurve::setPoints(const vector<btVector3>& pts) {
+  osg::ref_ptr<osg::Vec4Array> osgCols = new osg::Vec4Array(pts.size());
+  BOOST_FOREACH(osg::Vec4& col, *osgCols) col = m_defaultColor;
+  setPoints(toVec3Array(pts),  osgCols);
+}
+
+void PlotCurve::setPoints(const osg::ref_ptr<osg::Vec3Array>& osgPts, const osg::ref_ptr<osg::Vec4Array>& osgCols) {
+  int nPts = osgPts->getNumElements();
+  m_geom->setColorArray(osgCols);
+  m_geom->setColorBinding(osg::Geometry::BIND_PER_PRIMITIVE);
+  m_geom->setVertexArray(osgPts);
+  m_geom->getPrimitiveSetList().clear();
+  m_geom->addPrimitiveSet(new osg::DrawArrays(osg::PrimitiveSet::LINE_STRIP,0,nPts));
 }

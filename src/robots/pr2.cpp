@@ -89,7 +89,7 @@ static void getContactPointsWith(btSoftBody *psb, btCollisionObject *pco, btSoft
     psb->m_ndbvt.collideTV(psb->m_ndbvt.m_root,volume,docollide);
 }
 
-PR2SoftBodyGripper::PR2SoftBodyGripper(RaveRobotKinematicObject::Ptr robot_, OpenRAVE::RobotBase::ManipulatorPtr manip_, bool leftGripper) :
+PR2SoftBodyGripper::PR2SoftBodyGripper(RaveRobotObject::Ptr robot_, OpenRAVE::RobotBase::ManipulatorPtr manip_, bool leftGripper) :
         robot(robot_), manip(manip_),
         leftFinger(robot->robot->GetLink(leftGripper ? LEFT_GRIPPER_LEFT_FINGER_NAME : RIGHT_GRIPPER_LEFT_FINGER_NAME)),
         rightFinger(robot->robot->GetLink(leftGripper ? LEFT_GRIPPER_RIGHT_FINGER_NAME : RIGHT_GRIPPER_RIGHT_FINGER_NAME)),
@@ -210,8 +210,8 @@ void PR2Manager::registerSceneCallbacks() {
 void PR2Manager::loadRobot() {
     if (!SceneConfig::enableRobot) return;
     btTransform trans(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0));
-    static const char ROBOT_MODEL_FILE[] = EXPAND(BULLETSIM_DATA_DIR) "/robot_model/pr2_with_kinect.dae";
-    pr2.reset(new RaveRobotKinematicObject(scene.rave, ROBOT_MODEL_FILE, trans, GeneralConfig::scale));
+    static const char ROBOT_MODEL_FILE[] = "robots/pr2-beta-static.zae";
+    pr2.reset(new RaveRobotObject(scene.rave, ROBOT_MODEL_FILE, trans, GeneralConfig::scale));
     scene.env->add(pr2);
 //    pr2->ignoreCollisionWith(ground->rigidBody.get()); // the robot's always touching the ground anyway
 }
@@ -252,6 +252,13 @@ void PR2Manager::initHaptics() {
     scene.env->add(hapTrackerRight);
 
     setHapticPollRate(10); // default 10 hz
+
+    lEngaged = false;
+    rEngaged = false;
+    armsDisabled = false;
+    setHapticCb(hapticLeftBoth, boost::bind(&PR2Manager::toggleLeftEngaged, this));
+    setHapticCb(hapticRightBoth, boost::bind(&PR2Manager::toggleRightEngaged, this));
+
 }
 
 void PR2Manager::processHapticInput() {
@@ -267,54 +274,63 @@ void PR2Manager::processHapticInput() {
     // read the haptic controllers
     btTransform trans0, trans1;
     bool buttons0[2], buttons1[2];
-    static bool lastButton[2] = { false, false };
     if (!util::getHapticInput(trans0, buttons0, trans1, buttons1)) {
         cout << "failed to read haptic input" << endl;
         return;
     }
 
     // adjust the transforms
-    static const btVector3 HAPTIC_OFFSET(-0.2, 0, 0);
-    static const btScalar HAPTIC_SCALE = 1. / 200.;
-    trans0.setOrigin(trans0.getOrigin()*HAPTIC_SCALE*METERS + leftInitTrans.getOrigin()
-            + HAPTIC_OFFSET*METERS);
-    trans1.setOrigin(trans1.getOrigin()*HAPTIC_SCALE*METERS + rightInitTrans.getOrigin()
-            + HAPTIC_OFFSET*METERS);
+    btVector3 HAPTIC_OFFSET = btVector3(-0.2, 0, -1)*METERS + util::toBtVector(pr2->robot->GetLink("torso_lift_link")->GetTransform().trans)*METERS;
+    static const btScalar HAPTIC_SCALE = 1. / 100. * METERS;
+    trans0.setOrigin(trans0.getOrigin()*HAPTIC_SCALE + leftInitTrans.getOrigin() + HAPTIC_OFFSET);
+    trans1.setOrigin(trans1.getOrigin()*HAPTIC_SCALE + rightInitTrans.getOrigin()+ HAPTIC_OFFSET);
 
+    // util::sendRobotState(pr2Left->getTransform().getOrigin()/HAPTIC_SCALE - HAPTIC_OFFSET,
+    //  		   pr2Right->getTransform().getOrigin()/HAPTIC_SCALE - HAPTIC_OFFSET);
     // set marker positions
     hapTrackerLeft->motionState->setKinematicPos(trans0);
     hapTrackerRight->motionState->setKinematicPos(trans1);
 
+    // fakeLeft->setTransform(trans0);
+    // fakeRight->setTransform(trans1);
     // set manip positions by ik
-    pr2Left->moveByIK(trans0, SceneConfig::enableRobotCollision, true);
-    if (buttons0[0] && !lastButton[0]) {
-        if (SceneConfig::useFakeGrabber)
-            pr2Left->grabber->grabNearestObjectAhead();
-        else if (lclosecb)
-            lclosecb();
-    }
-    else if (!buttons0[0] && lastButton[0]) {
-        if (SceneConfig::useFakeGrabber)
-            pr2Left->grabber->releaseConstraint();
-        else if (lopencb)
-            lopencb();
-    }
-    lastButton[0] = buttons0[0];
 
-    pr2Right->moveByIK(trans1, SceneConfig::enableRobotCollision, true);
-    if (buttons1[0] && !lastButton[1]) {
-        if (SceneConfig::useFakeGrabber)
-            pr2Right->grabber->grabNearestObjectAhead();
-        else if (rclosecb)
-            rclosecb();
+    handleButtons(buttons0, buttons1);
+    if (!armsDisabled) {
+      if (lEngaged) pr2Left->moveByIK(trans0, SceneConfig::enableRobotCollision, true);
+      if (rEngaged) pr2Right->moveByIK(trans1, SceneConfig::enableRobotCollision, true);
     }
-    else if (!buttons1[0] && lastButton[1]) {
-        if (SceneConfig::useFakeGrabber)
-            pr2Right->grabber->releaseConstraint();
-        else if (ropencb)
-            ropencb();
-    }
-    lastButton[1] = buttons1[0];
+
+}
+
+void PR2Manager::handleButtons(bool left[], bool right[]) {
+
+  static bool lastLeft[2] = { left[0], left[1] };
+  static bool lastRight[2] = { right[0], right[1] };
+
+  vector<HapticEvent> events;
+  if (left[0] && !lastLeft[0]) events.push_back(hapticLeft0Down);
+  if (!left[0] && lastLeft[0]) events.push_back(hapticLeft0Up);
+  if (left[0]) events.push_back(hapticLeft0Hold);
+  if (left[1] && !lastLeft[1]) events.push_back(hapticLeft1Down);
+  if (!left[1] && lastLeft[1]) events.push_back(hapticLeft1Up);
+  if (left[1]) events.push_back(hapticLeft1Hold);
+  if (right[0] && !lastRight[0]) events.push_back(hapticRight0Down);
+  if (!right[0] && lastRight[0]) events.push_back(hapticRight0Up);
+  if (right[0]) events.push_back(hapticRight0Hold);
+  if (right[1] && !lastRight[1]) events.push_back(hapticRight1Down);
+  if (!right[1] && lastRight[1]) events.push_back(hapticRight1Up);
+  if (right[1]) events.push_back(hapticRight1Hold);
+  if (left[0] && left[1] && !(lastLeft[0] && lastLeft[1])) events.push_back(hapticLeftBoth);
+  if (right[0] && right[1] && !(lastRight[0] && lastRight[1])) events.push_back(hapticRightBoth);
+
+  lastLeft[0] = left[0];
+  lastLeft[1] = left[1];
+  lastRight[0] = right[0];
+  lastRight[1] = right[1];
+
+  BOOST_FOREACH(HapticEvent evt, events) if (hapticEvent2Func.find(evt) != hapticEvent2Func.end()) hapticEvent2Func[evt]();
+
 }
 
 bool PR2Manager::processKeyInput(const osgGA::GUIEventAdapter &ea) {
@@ -397,7 +413,7 @@ bool PR2Manager::processMouseInput(const osgGA::GUIEventAdapter &ea) {
             btVector3 xVec = normal.cross(yVec);
             btVector3 dragVec = SceneConfig::mouseDragScale * (inputState.dx*xVec + inputState.dy*yVec);
 
-            RaveRobotKinematicObject::Manipulator::Ptr manip;
+            RaveRobotObject::Manipulator::Ptr manip;
             if (inputState.moveManip0 || inputState.rotateManip0)
                 manip = pr2Left;
             else

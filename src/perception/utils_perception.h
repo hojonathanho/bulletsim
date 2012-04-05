@@ -11,6 +11,16 @@
 #include "utils/conversions.h"
 using namespace std;
 
+inline std::vector<btVector3> toBulletVectors(const pcl::PointCloud<pcl::PointXYZRGBA>::Ptr& cloud) {
+  std::vector<btVector3> out(cloud->size());
+  int i=0;
+  BOOST_FOREACH(pcl::PointXYZRGBA& point, *cloud) {
+    out[i] = btVector3(point.x, point.y, point.z);
+    i++;
+  }
+  return out;
+}
+
 
 template<class T, class S>
 vector<T> operator*(const vector<T>& xs, S p) {

@@ -2,8 +2,7 @@
 #include "environment.h"
 #include "basicobjects.h"
 #include "btBulletDynamicsCommon.h"
-#include "vector"
-using namespace std;
+#include <vector>
 
 class CapsuleRope : public CompoundObject<BulletObject> {
 private:
@@ -13,18 +12,14 @@ private:
   float angLimit;
 public:
   typedef boost::shared_ptr<CapsuleRope> Ptr;
-  vector<boost::shared_ptr<btCollisionShape> > shapes;
-  vector<BulletConstraint::Ptr> joints;
+  std::vector<boost::shared_ptr<btCollisionShape> > shapes;
+  std::vector<BulletConstraint::Ptr> joints;
   btScalar radius;
   int nLinks;
 
-  CapsuleRope(const vector<btVector3>& ctrlPoints, float radius_, float angStiffness_=.1, float angDamping_=1, float linDamping_=.75, float angLimit_=.4);
+  CapsuleRope(const std::vector<btVector3>& ctrlPoints, float radius_, float angStiffness_=.1, float angDamping_=1, float linDamping_=.75, float angLimit_=.4);
   void init();
   void destroy();
-  vector<btVector3> getNodes() { 
-    vector<btVector3> out(children.size());
-    for (int i=0; i < children.size(); i++)
-      out[i] = children[i]->rigidBody->getCenterOfMassPosition();
-  return out;
-  }
+  std::vector<btVector3> getNodes();
+  std::vector<btVector3> getControlPoints();
 };

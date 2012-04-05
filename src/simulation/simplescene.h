@@ -46,13 +46,13 @@ struct Scene {
   typedef multimap<osgGA::GUIEventAdapter::EventType, Callback> CallbackMap;
   CallbackMap callbacks;
   void addCallback(osgGA::GUIEventAdapter::EventType t, Callback cb) { callbacks.insert(make_pair(t, cb)); }
-  typedef multimap<char, Callback> KeyCallbackMap;
+  typedef multimap<int, Callback> KeyCallbackMap;
   KeyCallbackMap keyCallbacks;
-  void addKeyCallback(char c, Callback cb);
+  void addKeyCallback(int c, Callback cb);
 
   typedef boost::function<void(void)> VoidCallback;
   void addVoidCallback(osgGA::GUIEventAdapter::EventType t, VoidCallback cb);
-  void addVoidKeyCallback(char c, VoidCallback cb);
+  void addVoidKeyCallback(int c, VoidCallback cb);
     struct VoidCallbackWrapper {
         VoidCallback fn;
         VoidCallbackWrapper(VoidCallback fn_) : fn(fn_) { }
@@ -90,7 +90,7 @@ struct Scene {
   // If syncTime is true, then these will block until the time interval passes on the system clock
   virtual void step(float dt, int maxsteps, float internaldt);
   virtual void step(float dt);
-  virtual void stepFor(float dt, float time);
+  void stepFor(float dt, float time);
 
   // Blocks the caller and just runs the viewer for the specified
   // time interval. If either syncTime or displayOn is false, this does nothing.

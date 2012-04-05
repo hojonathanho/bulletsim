@@ -24,21 +24,22 @@ RaveInstance::~RaveInstance() {
         RaveDestroy();
 }
 
-RaveRobotKinematicObject::RaveRobotKinematicObject(
+RaveRobotObject::RaveRobotObject(
         RaveInstance::Ptr rave_,
         const std::string &uri,
         const btTransform &initialTransform_,
         btScalar scale_,
-        TrimeshMode trimeshMode) :
+        TrimeshMode trimeshMode,
+        bool isDynamic) :
             rave(rave_),
             initialTransform(initialTransform_),
             scale(scale_) {
     robot = rave->env->ReadRobotURI(uri);
     rave->env->AddRobot(robot);
-    initRobotWithoutDynamics(initialTransform, trimeshMode);
+    initRobot(initialTransform, trimeshMode, .0005 * METERS, isDynamic);
 }
 
-void RaveRobotKinematicObject::initRobotWithoutDynamics(const btTransform &initialTransform, TrimeshMode trimeshMode, float fmargin) {
+void RaveRobotObject::initRobot(const btTransform &initialTransform, TrimeshMode trimeshMode, float fmargin, bool isDynamic) {
     ConvexDecomp decomp(fmargin);
     const std::vector<KinBody::LinkPtr> &links = robot->GetLinks();
     getChildren().reserve(links.size());
@@ -130,7 +131,7 @@ void RaveRobotKinematicObject::initRobotWithoutDynamics(const btTransform &initi
             }
 
             if (!subshape) {
-                RAVELOG_WARN("did not create geom type %d\n", geom->GetType());
+	      cout << "did not create geom type %d\n", geom->GetType();
                 continue;
             }
 
@@ -151,9 +152,92 @@ void RaveRobotKinematicObject::initRobotWithoutDynamics(const btTransform &initi
         // when setting joint positions (OpenRAVE should take care of them anyway)
         ignoreCollisionWith(child->rigidBody.get());
     }
+    
+    if (isDynamic) {
+      vector<KinBody::LinkPtr> vlinks = robot->GetLinks();
+      BOOST_FOREACH(KinBody::LinkPtr& link, vlinks) {
+        btVector3 inertia(0, 0, 0);
+        btRigidBody* body = linkMap[link]->rigidBody.get();
+        float mass = link->GetMass();
+        body->getCollisionShape()->calculateLocalInertia(mass, inertia);
+        body->setMassProps(mass, inertia);
+      }    
+    
+
+      vector<KinBody::JointPtr> vbodyjoints; vbodyjoints.reserve(robot->GetJoints().size()+robot->GetPassiveJoints().size());
+      vbodyjoints.insert(vbodyjoints.end(),robot->GetJoints().begin(),robot->GetJoints().end());
+      vbodyjoints.insert(vbodyjoints.end(),robot->GetPassiveJoints().begin(),robot->GetPassiveJoints().end());
+      BOOST_FOREACH(KinBody::JointPtr& itjoint, vbodyjoints) {
+        btRigidBody* body0 = NULL, *body1 = NULL;
+        if( !!(itjoint)->GetFirstAttached() && !(itjoint)->GetFirstAttached()->IsStatic() ) {
+          body0 = linkMap[vlinks[(itjoint)->GetFirstAttached()->GetIndex()]]->rigidBody.get();
+        }
+        if( !!(itjoint)->GetSecondAttached() && !(itjoint)->GetSecondAttached()->IsStatic()) {
+          body1 = linkMap[vlinks[(itjoint)->GetSecondAttached()->GetIndex()]]->rigidBody.get();
+        }
+        if( !body0 || !body1 ) {
+          RAVELOG_ERROR(str(boost::format("joint %s needs to be attached to two bodies!\n")%(itjoint)->GetName()));
+          continue;
+        }
+
+        Transform t0inv = (itjoint)->GetFirstAttached()->GetTransform().inverse();
+        Transform t1inv = (itjoint)->GetSecondAttached()->GetTransform().inverse();
+        btTypedConstraint* joint;
+
+        switch((itjoint)->GetType()) {
+        case KinBody::Joint::JointHinge: {
+          btVector3 pivotInA = util::toBtVector(t0inv * (itjoint)->GetAnchor());
+          btVector3 pivotInB = util::toBtVector(t1inv * (itjoint)->GetAnchor());
+          btVector3 axisInA = util::toBtVector(t0inv.rotate((itjoint)->GetAxis(0)));
+          btVector3 axisInB = util::toBtVector(t1inv.rotate((itjoint)->GetAxis(0)));
+          btHingeConstraint* hinge = new btHingeConstraint(*body0, *body1, pivotInA, pivotInB, axisInA, axisInB);
+          if( !(itjoint)->IsCircular(0) ) {
+    	vector<dReal> vlower, vupper;
+    	(itjoint)->GetLimits(vlower,vupper);
+    	btScalar orInitialAngle = (itjoint)->GetValue(0);
+    	btScalar btInitialAngle = hinge->getHingeAngle();
+    	btScalar lower_adj, upper_adj;
+    	btScalar diff = (btInitialAngle + orInitialAngle);
+    	lower_adj = diff - vupper.at(0);
+    	upper_adj = diff - vlower.at(0);
+    	hinge->setLimit(lower_adj,upper_adj);
+          }
+          joint = hinge;
+          break;
+        }
+        case KinBody::Joint::JointSlider: {
+          Transform tslider; tslider.rot = quatRotateDirection(Vector(1,0,0),(itjoint)->GetAxis(0));
+          btTransform frameInA = util::toBtTransform(t0inv*tslider);
+          btTransform frameInB = util::toBtTransform(t1inv*tslider);
+          joint = new btSliderConstraint(*body0, *body1, frameInA, frameInB, true);
+          break;
+        }
+        case KinBody::Joint::JointUniversal:
+          RAVELOG_ERROR("universal joint not supported by bullet\n");
+          break;
+        case KinBody::Joint::JointHinge2:
+          RAVELOG_ERROR("hinge2 joint not supported by bullet\n");
+          break;
+        default:
+          RAVELOG_ERROR("unknown joint type %d\n", (itjoint)->GetType());
+          break;
+        }
+
+        if( joint!=NULL ) {
+          KinBody::LinkPtr plink0 = (itjoint)->GetFirstAttached(), plink1 = (itjoint)->GetSecondAttached();
+          int minindex = min(plink0->GetIndex(), plink1->GetIndex());
+          int maxindex = max(plink0->GetIndex(), plink1->GetIndex());
+          bool bIgnoreCollision = robot->GetAdjacentLinks().find(minindex|(maxindex<<16)) != robot->GetAdjacentLinks().end() || plink0->IsRigidlyAttached(plink0);
+          // not sure what's logic behind bIgnoreCollision
+          getEnvironment()->bullet->dynamicsWorld->addConstraint(joint, bIgnoreCollision);
+        }
+      }
+    }
+    
+    
 }
 
-bool RaveRobotKinematicObject::detectCollisions() {
+bool RaveRobotObject::detectCollisions() {
     getEnvironment()->bullet->dynamicsWorld->updateAabbs();
 
     BulletInstance::CollisionObjectSet objs;
@@ -171,7 +255,7 @@ bool RaveRobotKinematicObject::detectCollisions() {
     return false;
 }
 
-void RaveRobotKinematicObject::setDOFValues(const vector<int> &indices, const vector<dReal> &vals) {
+void RaveRobotObject::setDOFValues(const vector<int> &indices, const vector<dReal> &vals) {
     // update openrave structure
     {
         EnvironmentMutex::scoped_lock lock(rave->env->GetMutex());
@@ -179,7 +263,10 @@ void RaveRobotKinematicObject::setDOFValues(const vector<int> &indices, const ve
         robot->SetActiveDOFValues(vals);
         rave->env->UpdatePublishedBodies();
     }
+    updateBullet();
+}
 
+void RaveRobotObject::updateBullet() {
     // update bullet structures
     // we gave OpenRAVE the DOFs, now ask it for the equivalent transformations
     // which are easy to feed into Bullet
@@ -191,10 +278,18 @@ void RaveRobotKinematicObject::setDOFValues(const vector<int> &indices, const ve
         if (!c) continue;
         c->motionState->setKinematicPos(initialTransform * util::toBtTransform(transforms[i], scale));
     }
+
 }
 
-EnvironmentObject::Ptr RaveRobotKinematicObject::copy(Fork &f) const {
-    Ptr o(new RaveRobotKinematicObject(scale));
+vector<double> RaveRobotObject::getDOFValues(const vector<int>& indices) {
+  robot->SetActiveDOFs(indices);
+  vector<double> out;
+  robot->GetActiveDOFValues(out);
+  return out;
+}
+
+EnvironmentObject::Ptr RaveRobotObject::copy(Fork &f) const {
+    Ptr o(new RaveRobotObject(scale));
 
     internalCopy(o, f); // copies all children
 
@@ -230,30 +325,28 @@ EnvironmentObject::Ptr RaveRobotKinematicObject::copy(Fork &f) const {
     return o;
 }
 
-void RaveRobotKinematicObject::postCopy(EnvironmentObject::Ptr copy, Fork &f) const {
-    Ptr o = boost::static_pointer_cast<RaveRobotKinematicObject>(copy);
+void RaveRobotObject::postCopy(EnvironmentObject::Ptr copy, Fork &f) const {
+    Ptr o = boost::static_pointer_cast<RaveRobotObject>(copy);
 
     for (BulletInstance::CollisionObjectSet::const_iterator i = ignoreCollisionObjs.begin();
             i != ignoreCollisionObjs.end(); ++i)
         o->ignoreCollisionObjs.insert((btCollisionObject *) f.copyOf(*i));
 }
 
-RaveRobotKinematicObject::Manipulator::Ptr
-RaveRobotKinematicObject::createManipulator(const std::string &manipName, bool useFakeGrabber) {
-    RaveRobotKinematicObject::Manipulator::Ptr m(new Manipulator(this));
+RaveRobotObject::Manipulator::Ptr
+RaveRobotObject::createManipulator(const std::string &manipName, bool useFakeGrabber) {
+    RaveRobotObject::Manipulator::Ptr m(new Manipulator(this));
     // initialize the ik module
     robot->SetActiveManipulator(manipName);
     m->manip = m->origManip = robot->GetActiveManipulator();
     m->ikmodule = RaveCreateModule(rave->env, "ikfast");
     rave->env->AddModule(m->ikmodule, "");
-/*
-    stringstream ssin, ssout;
-    ssin << "LoadIKFastSolver " << robot->GetName() << " " << (int)IkParameterization::Type_Transform6D;
-    if (!m->ikmodule->SendCommand(ssout, ssin)) {
-        RAVELOG_ERROR("failed to load iksolver\n");
-        return Manipulator::Ptr(); // null
-    }
-*/
+    // stringstream ssin, ssout;
+    // ssin << "LoadIKFastSolver " << robot->GetName() << " " << (int)IkParameterization::Type_Transform6D;
+    // if (!m->ikmodule->SendCommand(ssout, ssin)) {
+    //   cout << "failed to load iksolver\n";
+    //     return Manipulator::Ptr(); // null
+    // }
 
     m->useFakeGrabber = useFakeGrabber;
     if (useFakeGrabber) {
@@ -267,13 +360,13 @@ RaveRobotKinematicObject::createManipulator(const std::string &manipName, bool u
     return m;
 }
 
-void RaveRobotKinematicObject::Manipulator::updateGrabberPos() {
+void RaveRobotObject::Manipulator::updateGrabberPos() {
     // set the grabber right on top of the end effector
     if (useFakeGrabber)
         grabber->motionState->setKinematicPos(getTransform());
 }
 
-bool RaveRobotKinematicObject::Manipulator::solveIKUnscaled(
+bool RaveRobotObject::Manipulator::solveIKUnscaled(
         const OpenRAVE::Transform &targetTrans,
         vector<dReal> &vsolution) {
 
@@ -281,7 +374,7 @@ bool RaveRobotKinematicObject::Manipulator::solveIKUnscaled(
     // TODO: lock environment?!?!
     // notice: we use origManip, which is the original manipulator (after cloning)
     // this way we don't have to clone the iksolver, which is attached to the manipulator
-    if (!origManip->FindIKSolution(IkParameterization(targetTrans), vsolution, IKFO_CheckEnvCollisions | IKFO_IgnoreEndEffectorCollisions)) {
+    if (!origManip->FindIKSolution(IkParameterization(targetTrans), vsolution, IKFO_CheckEnvCollisions | IKFO_IgnoreEndEffectorCollisions | IKFO_IgnoreSelfCollisions)) {
         stringstream ss;
         ss << "failed to get solution for target transform for end effector: " << targetTrans << endl;
         RAVELOG_DEBUG(ss.str());
@@ -291,7 +384,7 @@ bool RaveRobotKinematicObject::Manipulator::solveIKUnscaled(
     return true;
 }
 
-bool RaveRobotKinematicObject::Manipulator::solveAllIKUnscaled(
+bool RaveRobotObject::Manipulator::solveAllIKUnscaled(
         const OpenRAVE::Transform &targetTrans,
         vector<vector<dReal> > &vsolutions) {
 
@@ -306,7 +399,7 @@ bool RaveRobotKinematicObject::Manipulator::solveAllIKUnscaled(
     return true;
 }
 
-bool RaveRobotKinematicObject::Manipulator::moveByIKUnscaled(
+bool RaveRobotObject::Manipulator::moveByIKUnscaled(
         const OpenRAVE::Transform &targetTrans,
         bool checkCollisions, bool revertOnCollision) {
 
@@ -335,8 +428,29 @@ bool RaveRobotKinematicObject::Manipulator::moveByIKUnscaled(
     return true;
 }
 
-RaveRobotKinematicObject::Manipulator::Ptr
-RaveRobotKinematicObject::Manipulator::copy(RaveRobotKinematicObject::Ptr newRobot, Fork &f) {
+
+
+float RaveRobotObject::Manipulator::getGripperAngle() {
+  vector<int> inds = manip->GetGripperIndices();
+  assert(inds.size() ==1 );
+  vector<double> vals = robot->getDOFValues(inds);
+  return vals[0];
+}
+
+void RaveRobotObject::Manipulator::setGripperAngle(float x) {
+  vector<int> inds = manip->GetGripperIndices();
+  assert(inds.size() ==1 );
+  vector<double> vals;
+  vals.push_back(x);
+  robot->setDOFValues(inds, vals);
+}
+
+vector<double> RaveRobotObject::Manipulator::getDOFValues() {
+  return robot->getDOFValues(manip->GetArmIndices());
+}
+
+RaveRobotObject::Manipulator::Ptr
+RaveRobotObject::Manipulator::copy(RaveRobotObject::Ptr newRobot, Fork &f) {
     OpenRAVE::EnvironmentMutex::scoped_lock lock(newRobot->rave->env->GetMutex());
 
     Manipulator::Ptr o(new Manipulator(newRobot.get()));
@@ -354,7 +468,7 @@ RaveRobotKinematicObject::Manipulator::copy(RaveRobotKinematicObject::Ptr newRob
     return o;
 }
 
-void RaveRobotKinematicObject::destroyManipulator(RaveRobotKinematicObject::Manipulator::Ptr m) {
+void RaveRobotObject::destroyManipulator(RaveRobotObject::Manipulator::Ptr m) {
     std::vector<Manipulator::Ptr>::iterator i =
         std::find(createdManips.begin(), createdManips.end(), m);
     if (i == createdManips.end()) return;

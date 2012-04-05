@@ -5,6 +5,6 @@ include_directories(
     ${BULLETSIM_SOURCE_DIR}/src
 )
 
-add_library(simulation environment.cpp basicobjects.cpp openravesupport.cpp util.cpp simplescene.cpp softbodies.cpp rope.cpp plotting.cpp convexdecomp.cpp recording.cpp config_bullet.cpp config_viewer.cpp bullet_io.cpp)
+add_library(simulation environment.cpp basicobjects.cpp openravesupport.cpp util.cpp simplescene.cpp softbodies.cpp rope.cpp plotting.cpp convexdecomp.cpp recording.cpp config_bullet.cpp config_viewer.cpp bullet_io.cpp fake_gripper.cpp)
 
 target_link_libraries(simulation utils haptics osgBullet osgWorks ${Boost_LIBRARIES} ${OSG_LIBS} ${BULLET_LIBS} ${OpenRAVE_LIBRARIES} ${OpenRAVE_CORE_LIBRARIES})
