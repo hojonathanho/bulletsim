@@ -41,7 +41,6 @@ struct GraspingActionSpec {
 
     GraspingActionSpec() : specstr("none"), type(NONE) { }
     GraspingActionSpec(const string &s) : specstr(s) { readType(); }
-
     Action::Ptr createAction(GraspingActionContext &ctx) const;
 
     void genSuccessors(const GraspingActionContext &ctx, vector<GraspingActionSpec> &out) const;

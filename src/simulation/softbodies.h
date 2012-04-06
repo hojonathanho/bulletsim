@@ -32,6 +32,7 @@ public:
     AnchorHandle addAnchor(int nodeidx, btRigidBody *body, btScalar influence=1);
     void removeAnchor(AnchorHandle a);
     int getAnchorIdx(AnchorHandle h) const;
+    bool hasAnchorAttached(int nodeidx) const;
 
     EnvironmentObject::Ptr copy(Fork &f) const;
     void postCopy(EnvironmentObject::Ptr copy, Fork &f) const;

@@ -117,7 +117,7 @@ bool PR2SoftBodyGripper::inGraspRegion(const btVector3 &pt) const {
     // check that pt is behind the gripper tip
     btTransform manipTrans(util::toBtTransform(manip->GetTransform(), robot->scale));
     btVector3 x = manipTrans.inverse() * pt;
-    if (x.z() > robot->scale*(0.01 + TOLERANCE)) return false;
+    if (x.z() > robot->scale*(0.02 + TOLERANCE)) return false;
 
     // check that pt is within the finger width
     if (abs(x.x()) > robot->scale*(0.01 + TOLERANCE)) return false;
@@ -149,15 +149,54 @@ void PR2SoftBodyGripper::attach(bool left) {
     }
     cout << "appended " << nAppended << " anchors to " << (left ? "left" : "right") << endl;
 #endif
-    int nAppended = 0;
-    btSoftBody::tNodeArray &nodes = sb->softBody->m_nodes;
+    set<const btSoftBody::Node*> attached;
+
+    // look for nodes in gripper region
+    const btSoftBody::tNodeArray &nodes = sb->softBody->m_nodes;
     for (int i = 0; i < nodes.size(); ++i) {
-        if (inGraspRegion(nodes[i].m_x)) {
+        if (inGraspRegion(nodes[i].m_x) && !sb->hasAnchorAttached(i)) {
             anchors.push_back(sb->addAnchor(i, rigidBody));
-            ++nAppended;
+            attached.insert(&nodes[i]);
         }
     }
-    cout << "appended " << nAppended << " anchors to " << (left ? "left" : "right") << endl;
+
+    // look for faces with center in gripper region
+    const btSoftBody::tFaceArray &faces = sb->softBody->m_faces;
+    for (int i = 0; i < faces.size(); ++i) {
+        btVector3 ctr = (1./3.) * (faces[i].m_n[0]->m_x
+                + faces[i].m_n[1]->m_x + faces[i].m_n[2]->m_x);
+        if (inGraspRegion(ctr)) {
+            for (int z = 0; z < 3; ++z) {
+                int idx = faces[i].m_n[z] - &nodes[0];
+                if (!sb->hasAnchorAttached(idx)) {
+                    anchors.push_back(sb->addAnchor(idx, rigidBody));
+                    attached.insert(&nodes[idx]);
+                }
+            }
+        }
+    }
+
+    // now for each added anchor, add anchors to neighboring nodes for stability
+    const int MAX_EXTRA_ANCHORS = 5;
+    const btSoftBody::tLinkArray &links = sb->softBody->m_links;
+    const int origNumAnchors = anchors.size();
+    for (int i = 0; i < links.size(); ++i) {
+        if (anchors.size() >= origNumAnchors + MAX_EXTRA_ANCHORS) break;
+        if (attached.find(links[i].m_n[0]) != attached.end()) {
+            int idx = links[i].m_n[1] - &nodes[0];
+            if (!sb->hasAnchorAttached(idx)) {
+                anchors.push_back(sb->addAnchor(idx, rigidBody));
+            }
+        }
+        else if (attached.find(links[i].m_n[1]) != attached.end()) {
+            int idx = links[i].m_n[0] - &nodes[0];
+            if (!sb->hasAnchorAttached(idx)) {
+                anchors.push_back(sb->addAnchor(idx, rigidBody));
+            }
+        }
+    }
+
+    cout << "appended " << attached.size() << " anchors to " << (left ? "left" : "right") << endl;
 }
 
 void PR2SoftBodyGripper::grab() {

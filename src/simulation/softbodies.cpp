@@ -440,3 +440,7 @@ int BulletSoftObject::getAnchorIdx(AnchorHandle h) const {
     map<AnchorHandle, int>::const_iterator i = anchormap.find(h);
     return i == anchormap.end() ? -1 : i->second;
 }
+
+bool BulletSoftObject::hasAnchorAttached(int nodeidx) const {
+    return softBody->m_nodes[nodeidx].m_battach == 1;
+}

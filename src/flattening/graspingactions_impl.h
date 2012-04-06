@@ -89,15 +89,15 @@ public:
     }
 };
 
-class RobotInterpAction : public Action {
+class RobotJointInterpAction : public virtual Action {
     RaveRobotObject::Ptr robot;
     vector<int> indices;
     vector<dReal> startvals, endvals;
 
 public:
-    typedef boost::shared_ptr<RobotInterpAction> Ptr;
+    typedef boost::shared_ptr<RobotJointInterpAction> Ptr;
 
-    RobotInterpAction(RaveRobotObject::Ptr robot_) : robot(robot_) { }
+    RobotJointInterpAction(RaveRobotObject::Ptr robot_) : robot(robot_) { }
 
     void setIndices(const vector<int> &v) {
         indices.assign(v.begin(), v.end());
@@ -121,13 +121,53 @@ public:
     }
 };
 
-class ManipIKInterpAction : public RobotInterpAction {
+class ManipMoveAction : public virtual Action {
+protected:
+    enum MoveMode {
+        MOVE_TIP_ABSOLUTE,
+        MOVE_RELATIVE,
+        MOVE_ROT_ONLY,
+        MOVE_ORIGIN_ONLY
+    } mode;
+
+public:
+    MoveMode getMode() const { return mode; }
+
+    virtual void setTargetTrans(const btTransform &t) = 0;
+
+    // sets the transform of the tip of the fingers
+    virtual void setPR2TipTargetTrans(const btTransform &t) {
+        static const btTransform MANIP_TO_TIP =
+            btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, -0.005)*METERS);
+        setTargetTrans(t * MANIP_TO_TIP);
+    }
+
+    // t is an offset transformation (will be applied to the current transform when run)
+    virtual void setRelativeTrans(const btTransform &t) {
+        mode = MOVE_RELATIVE;
+        setTargetTrans(t);
+    }
+
+    // sets the rotation only and keeps the current origin
+    virtual void setRotOnly(const btQuaternion &rot) {
+        mode = MOVE_ROT_ONLY;
+        setTargetTrans(btTransform(rot, btVector3(0, 0, 0)));
+    }
+
+    // sets the origin only and keeps the current rotation
+    virtual void setOriginOnly(const btVector3 &origin) {
+        mode = MOVE_ORIGIN_ONLY;
+        setTargetTrans(btTransform(btQuaternion::getIdentity(), origin));
+    }
+};
+
+class ManipIKInterpAction : public RobotJointInterpAction, public ManipMoveAction {
     RaveRobotObject::Ptr robot;
     RaveRobotObject::Manipulator::Ptr manip;
 
     // rounds new joint vals to nearest multiple of pi (or 2pi)
     // that the old vals were, so we don't get unnecessary rotation
-    float normJointVal(dReal f, dReal g, bool halfRotSym) {
+    static float normJointVal(dReal f, dReal g, bool halfRotSym) {
         const float a = halfRotSym ? M_PI : 2*M_PI;
         if (g < f)
             return g + a*round((f - g)/a);
@@ -135,15 +175,19 @@ class ManipIKInterpAction : public RobotInterpAction {
     }
 
     btTransform targetTrans;
-    bool relative, rotOnly, originOnly;
 
     void calcEndVals() {
-        if (relative)
+        switch (getMode()) {
+        case MOVE_RELATIVE:
             targetTrans = targetTrans * manip->getTransform();
-        else if (rotOnly)
+            break;
+        case MOVE_ROT_ONLY:
             targetTrans.setOrigin(manip->getTransform().getOrigin());
-        else if (originOnly)
+            break;
+        case MOVE_ORIGIN_ONLY:
             targetTrans.setRotation(manip->getTransform().getRotation());
+            break;
+        }
 
         vector<dReal> currvals;
         robot->robot->SetActiveDOFs(manip->manip->GetArmIndices());
@@ -154,7 +198,7 @@ class ManipIKInterpAction : public RobotInterpAction {
        // cout << "solving ik for transform: " << targetTrans.getOrigin().x() << ' ' << targetTrans.getOrigin().y() << ' ' << targetTrans.getOrigin().z() << '\t'  
        //     << targetTrans.getRotation().x() << ' ' << targetTrans.getRotation().y() << ' ' << targetTrans.getRotation().z() << ' ' << targetTrans.getRotation().w() << endl;
         if (!manip->solveIK(targetTrans, newvals)) {
-            setDone(true);
+            RobotJointInterpAction::setDone(true);
             throw GraspingActionFailed("could not solve ik");
         } else {
             BOOST_ASSERT(newvals.size() == currvals.size());
@@ -176,8 +220,7 @@ public:
                         RaveRobotObject::Manipulator::Ptr manip_) :
         robot(robot_), manip(manip_),
         targetTrans(btTransform::getIdentity()),
-        relative(false), rotOnly(false), originOnly(false),
-        RobotInterpAction(robot_) { }
+        RobotJointInterpAction(robot_) { }
 
     // sets the manipulator transform
     void setTargetTrans(const btTransform &t) {
@@ -186,33 +229,9 @@ public:
     }
 
     void step(float dt) {
-        if (timeElapsed == 0)
+        if (RobotJointInterpAction::timeElapsed == 0)
             calcEndVals();
-        RobotInterpAction::step(dt);
-    }
-
-    // sets the transform of the tip of the fingers
-    void setPR2TipTargetTrans(const btTransform &t) {
-        static const btTransform MANIP_TO_TIP =
-            btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, -0.005)*METERS);
-        setTargetTrans(t * MANIP_TO_TIP);
-    }
-
-    void setRelativeTrans(const btTransform &t) {
-        relative = true;
-        setTargetTrans(t);
-    }
-
-    // sets the rotation only and keeps the current origin
-    void setRotOnly(const btQuaternion &rot) {
-        rotOnly = true;
-        setTargetTrans(btTransform(rot, btVector3(0, 0, 0)));
-    }
-
-    // sets the origin only and keeps the current rotation
-    void setOriginOnly(const btVector3 &origin) {
-        originOnly = true;
-        setTargetTrans(btTransform(btQuaternion::getIdentity(), origin));
+        RobotJointInterpAction::step(dt);
     }
 };
 
