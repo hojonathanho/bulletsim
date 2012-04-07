@@ -66,8 +66,8 @@ btSoftBody *makeSelfCollidingTowel(const btVector3& center, btScalar lenx, btSca
     psb->getCollisionShape()->setMargin(0.05);
 
     btSoftBody::Material *pm = psb->appendMaterial();
-    pm->m_kLST = 1;//*TrackingConfig::towelStiffness;
-    pm->m_kAST = 1;//*TrackingConfig::towelStiffness;
+    pm->m_kLST = 1;
+    pm->m_kAST = 1;
 
     psb->generateBendingConstraints(2, pm);
 

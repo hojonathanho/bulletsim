@@ -31,9 +31,7 @@ class CustomScene : Scene {
     void runGripperAction(PR2SoftBodyGripperAction &a) {
         a.reset();
         a.toggleAction();
-        try {
-            runAction(a, BulletConfig::dt);
-        } catch (...) { }
+        try { runAction(a, BulletConfig::dt); } catch (...) { }
     }
 
     btSoftBody::Node *pickedNode;
@@ -82,45 +80,10 @@ class CustomScene : Scene {
     void moveArmToSaved(RaveRobotObject::Ptr robot, RaveRobotObject::Manipulator::Ptr manip) {
         ManipIKInterpAction a(robot, manip);
         a.setExecTime(1);
-//        savedTrans.setOrigin(cloth->softBody->m_nodes[cloth->softBody->m_nodes.size()-10].m_x);
         a.setPR2TipTargetTrans(savedTrans);
         cout << "moving arm to saved trans" << endl;
         try { runAction(a, BulletConfig::dt); } catch (...) { }
         cout << "done." << endl;
-    }
-
-    int tryGrasp(int node, const btVector3 &gripperdir) {
-        BulletInstance::Ptr fork_bullet(new BulletInstance);
-        fork_bullet->setGravity(BulletConfig::gravity);
-        OSGInstance::Ptr fork_osg(new OSGInstance);
-        Fork::Ptr fork(new Fork(env, fork_bullet, fork_osg));
-        RaveRobotObject::Ptr fork_pr2 =
-            boost::static_pointer_cast<RaveRobotObject>(
-                fork->forkOf(pr2m->pr2));
-        Cloth::Ptr fork_cloth =
-            boost::static_pointer_cast<Cloth>(
-                    fork->forkOf(cloth));
-        RaveRobotObject::Manipulator::Ptr fork_pr2Left =
-            fork_pr2->getManipByIndex(pr2m->pr2Left->index);
-        osg->root->addChild(fork_osg->root);
-
-        PR2SoftBodyGripper::Ptr sbgripper(new PR2SoftBodyGripper(fork_pr2, fork_pr2Left->manip, true)); // TODO: leftGripper flag
-        sbgripper->setGrabOnlyOnContact(true);
-        sbgripper->setTarget(fork_cloth);
-
-        GraspingActionContext ctx = { fork->env, fork_pr2, fork_pr2Left, sbgripper, fork_cloth };
-        stringstream ss; ss << "grab " << node << ' ' << gripperdir.x() << ' ' << gripperdir.y() << ' ' << gripperdir.z();
-        Action::Ptr a = GraspingActionSpec(ss.str()).createAction(ctx);
-
-        while (!a->done()) {
-            a->step(BulletConfig::dt);
-            fork->env->step(BulletConfig::dt,
-                    BulletConfig::maxSubSteps, BulletConfig::internalTimeStep);
-            draw();
-        }
-        osg->root->removeChild(fork_osg->root);
-
-        return fork_cloth->softBody->m_anchors.size();
     }
 
     void printSuccs(const GraspingActionContext &ctx, const GraspingActionSpec &s) {
@@ -134,27 +97,8 @@ class CustomScene : Scene {
     void graspPickedNode() {
         if (!pickedNode) return;
         const int node = pickedNode - &cloth->softBody->m_nodes[0];
-
-        /*
-        btVector3 folddir = calcFoldLineDir(*cloth, node, foldnodes);
-        folddir.setZ(0);
-        btVector3 gripperdir = folddir.cross(btVector3(0, 0, 1));
-        */
-        btVector3 gripperdir = calcGraspDir(*cloth, node);
-        cout << "gripper dir " << gripperdir.x() << ' ' << gripperdir.y() <<  ' ' << gripperdir.z() << endl;
-        if (!cloth->idxOnEdge(node)) {
-            // if not an edge node, there's ambiguity in the gripper direction
-            // (either gripperdir or -gripperdir)
-            // choose the one that attaches the most anchors to the softbody
-            int nforward = tryGrasp(node, gripperdir);
-            int nbackward = tryGrasp(node, -gripperdir);
-            cout << "forward: " << nforward << " backward: " << nbackward << endl;
-
-            if (nbackward > nforward)
-                gripperdir = -gripperdir;
-        }
-
         GraspingActionContext ctx = { env, pr2m->pr2, pr2m->pr2Left, sbgripperleft, cloth };
+        btVector3 gripperdir = calcGraspDir(ctx, node);
         stringstream ss; ss << "grab " << node << ' ' << gripperdir.x() << ' ' << gripperdir.y() << ' ' << gripperdir.z();
         GraspingActionSpec spec(ss.str());
         Action::Ptr a = spec.createAction(ctx);

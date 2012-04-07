@@ -177,11 +177,12 @@ void PR2SoftBodyGripper::attach(bool left) {
     }
 
     // now for each added anchor, add anchors to neighboring nodes for stability
-    const int MAX_EXTRA_ANCHORS = 5;
+    const int MAX_EXTRA_ANCHORS = 3;
     const btSoftBody::tLinkArray &links = sb->softBody->m_links;
     const int origNumAnchors = anchors.size();
     for (int i = 0; i < links.size(); ++i) {
-        if (anchors.size() >= origNumAnchors + MAX_EXTRA_ANCHORS) break;
+        if (anchors.size() >= origNumAnchors + MAX_EXTRA_ANCHORS)
+            break;
         if (attached.find(links[i].m_n[0]) != attached.end()) {
             int idx = links[i].m_n[1] - &nodes[0];
             if (!sb->hasAnchorAttached(idx)) {

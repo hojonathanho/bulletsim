@@ -4,6 +4,7 @@
 #include "edges.h"
 #include "simulation/environment.h"
 #include "simulation/config_bullet.h"
+#include "clothutil.h"
 
 GraspingActionContext GraspingActionContext::fork() const {
     BulletInstance::Ptr fork_bullet(new BulletInstance);
@@ -164,17 +165,30 @@ static int tryGrasp(const GraspingActionContext &ctx, int node, const btVector3 
     return fork_cloth->softBody->m_anchors.size() - startNumAnchors;
 }
 
-static btVector3 calcGraspDir(const GraspingActionContext &ctx, int node) {
+btVector3 calcGraspDir(const GraspingActionContext &ctx, int node) {
     btVector3 dir = calcGraspDir(*ctx.cloth, node);
     if (!ctx.cloth->idxOnEdge(node)) {
         // if not an edge node, there's ambiguity in the gripper direction
         // (either dir or -dir)
-        // choose the one that attaches the most anchors to the softbody
-        int nforward = tryGrasp(ctx, node, dir);
-        int nbackward = tryGrasp(ctx, node, -dir);
-        cout << "forward: " << nforward << " backward: " << nbackward << endl;
+
+        // try to disambiguate based on layers of cloth
+        // in each direction
+        const btVector3 &pos = ctx.cloth->psb()->m_nodes[node].m_x;
+        static const float RAY_LEN = 1*METERS;
+        int nforward = softBody_facesCrossed(ctx.cloth->psb(), pos, pos + RAY_LEN*dir);
+        int nbackward = softBody_facesCrossed(ctx.cloth->psb(), pos, pos - RAY_LEN*dir);
         if (nbackward > nforward)
             dir = -dir;
+        cout << "ray testing: " << nbackward << ' ' << nforward << endl;
+
+        // otherwise, choose the direction that attaches the most anchors to the softbody
+        if (nbackward == nforward) {
+            nforward = tryGrasp(ctx, node, dir);
+            nbackward = tryGrasp(ctx, node, -dir);
+            cout << "forward: " << nforward << " backward: " << nbackward << endl;
+            if (nbackward > nforward)
+                dir = -dir;
+        }
     }
     return dir;
 }

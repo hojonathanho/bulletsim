@@ -50,4 +50,7 @@ private:
     void readType();
 };
 
+// utility functions
+btVector3 calcGraspDir(const GraspingActionContext &ctx, int node);
+
 #endif // __FL_GRASPINGACTIONS_H__

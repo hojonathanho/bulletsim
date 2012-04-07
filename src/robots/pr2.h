@@ -130,6 +130,7 @@ public:
 
     RaveRobotObject::Ptr pr2;
     RaveRobotObject::Manipulator::Ptr pr2Left, pr2Right;
+
     SphereObject::Ptr hapTrackerLeft, hapTrackerRight;
     bool lEngaged, rEngaged; // only accept haptic input if engaged
     bool armsDisabled; // hack so I can do demonstrations with fake gripper but still use haptics stuff

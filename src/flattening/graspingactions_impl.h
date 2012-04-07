@@ -131,6 +131,8 @@ protected:
     } mode;
 
 public:
+    typedef boost::shared_ptr<ManipMoveAction> Ptr;
+
     MoveMode getMode() const { return mode; }
 
     virtual void setTargetTrans(const btTransform &t) = 0;
@@ -407,37 +409,38 @@ public:
             GripperOpenCloseAction::Ptr openGripper(new GripperOpenCloseAction(robot, manip->manip, true));
             GripperOpenCloseAction::Ptr closeGripper(new GripperOpenCloseAction(robot, manip->manip, false));
 
-            ManipIKInterpAction::Ptr positionGrasp(new ManipIKInterpAction(robot, manip));
+            ManipMoveAction::Ptr positionGrasp(new ManipIKInterpAction(robot, manip));
             btVector3 v(sb->softBody->m_nodes[node].m_x);
-            btTransform graspTrans = scoop ? transFromDir(dir, v - dir*MOVE_BEHIND_DIST*METERS + SCOOP_OFFSET*METERS, true)
+            btTransform graspTrans = scoop ? transFromDir(dir, v + dir*0.03*METERS + SCOOP_OFFSET*METERS, true)
                                            : transFromDir(dir, v - dir*MOVE_BEHIND_DIST*METERS, false);
             positionGrasp->setPR2TipTargetTrans(graspTrans);
 
-            ManipIKInterpAction::Ptr moveAboveNode(new ManipIKInterpAction(robot, manip));
+            ManipMoveAction::Ptr moveAboveNode(new ManipIKInterpAction(robot, manip));
             btTransform moveAboveTrans(GRIPPER_DOWN_ROT * PR2_GRIPPER_INIT_ROT,
                     graspTrans.getOrigin() + btVector3(0, 0, 2*LIFT_DIST*METERS));
             moveAboveNode->setPR2TipTargetTrans(moveAboveTrans);
 
-            ManipIKInterpAction::Ptr moveForward(new ManipIKInterpAction(robot, manip));
+            ManipMoveAction::Ptr moveForward(new ManipIKInterpAction(robot, manip));
             moveForward->setRelativeTrans(btTransform(btQuaternion(0, 0, 0, 1),
-                       dir * (MOVE_BEHIND_DIST+MOVE_FORWARD_DIST) * METERS));
+                       dir * (MOVE_BEHIND_DIST+(scoop?0:MOVE_FORWARD_DIST)) * METERS));
+            if (scoop) moveForward->setExecTime(0);
 
             FunctionAction::Ptr releaseAnchors(new FunctionAction(boost::bind(&PR2SoftBodyGripper::releaseAllAnchors, sbgripper)));
             FunctionAction::Ptr setAnchors(new FunctionAction(boost::bind(&PR2SoftBodyGripper::grab, sbgripper)));
 
             // make gripper face down, while keeping rotation
-            ManipIKInterpAction::Ptr orientGripperDown(new ManipIKInterpAction(robot, manip));
+            ManipMoveAction::Ptr orientGripperDown(new ManipIKInterpAction(robot, manip));
             btVector3 facingDir = btTransform(graspTrans.getRotation() * PR2_GRIPPER_INIT_ROT.inverse(), btVector3(0, 0, 0)) * PR2_GRIPPER_INIT_ROT_DIR;
             btScalar angleFromVert = facingDir.angle(btVector3(0, 0, -1));
             btVector3 cross = facingDir.cross(btVector3(0, 0, -1));
             if (btFuzzyZero(cross.length2())) cross = btVector3(1, 0, 0); // arbitrary axis
             orientGripperDown->setRotOnly(btQuaternion(cross, angleFromVert) * graspTrans.getRotation());
 
-            ManipIKInterpAction::Ptr moveUp(new ManipIKInterpAction(robot, manip));
+            ManipMoveAction::Ptr moveUp(new ManipIKInterpAction(robot, manip));
             moveUp->setRelativeTrans(btTransform(btQuaternion(0, 0, 0, 1),
                         btVector3(0, 0, 0.01*METERS)));
 
-            ManipIKInterpAction::Ptr moveToNeutralHeight(new ManipIKInterpAction(robot, manip));
+            ManipMoveAction::Ptr moveToNeutralHeight(new ManipIKInterpAction(robot, manip));
             moveToNeutralHeight->setRelativeTrans(btTransform(btQuaternion(0, 0, 0, 1),
                         btVector3(0, 0, LIFT_DIST * METERS)));
 
