@@ -12,27 +12,28 @@ using namespace std;
 #include "environment.h"
 #include "basicobjects.h"
 #include "util.h"
+#include "config_bullet.h"
 
 struct RaveInstance {
-    typedef boost::shared_ptr<RaveInstance> Ptr;
+  typedef boost::shared_ptr<RaveInstance> Ptr;
 
-    bool isRoot;
-    EnvironmentBasePtr env;
+  bool isRoot;
+  EnvironmentBasePtr env;
 
-    RaveInstance();
+  RaveInstance();
     // copy constructor. will never call RaveInitialize or RaveDestroy
-    RaveInstance(const RaveInstance &o, int cloneOpts);
-    ~RaveInstance();
+  RaveInstance(const RaveInstance &o, int cloneOpts);
+  ~RaveInstance();
 };
 
 enum TrimeshMode {
-    CONVEX_DECOMP, // use HACD convex decomposition
+  CONVEX_DECOMP, // use HACD convex decomposition
     CONVEX_HULL, // use btShapeHull
     RAW // use btBvhTriangleMeshShape (not recommended, makes simulation very slow)
-};
+  };
 
-class RaveRobotObject : public CompoundObject<BulletObject> {
-private:
+  class RaveRobotObject : public CompoundObject<BulletObject> {
+  private:
     RaveInstance::Ptr rave;
     btTransform initialTransform;
 
@@ -43,6 +44,7 @@ private:
 
     // for looking up the associated Bullet object for an OpenRAVE link
     std::map<KinBody::LinkPtr, BulletObject::Ptr> linkMap;
+    std::map<KinBody::JointPtr, BulletConstraint::Ptr> jointMap;
     std::map<btCollisionObject *, KinBody::LinkPtr> collisionObjMap;
 
     // maps a child to a position in the children array. used for copying
@@ -56,23 +58,28 @@ private:
     void initRobot(const btTransform &initialTransform, TrimeshMode trimeshMode, float fmargin, bool isDynamic);
 
     // empty constructor for manual copying
-    RaveRobotObject(btScalar scale_) : scale(scale_) { }
+    RaveRobotObject() : scale(GeneralConfig::scale) { }
 
-public:
+  public:
     typedef boost::shared_ptr<RaveRobotObject> Ptr;
 
     RobotBasePtr robot;
     const btScalar scale;
 
-    // this class is actually a collection of BulletObjects,
-    // each of which represents a link of the robot
+    RaveRobotObject(RaveInstance::Ptr rave_, RobotBasePtr robot, TrimeshMode trimeshMode=CONVEX_HULL, bool isDynamic=false);
+    // This constructor assumes the robot is already in openrave. Use this if you're loading a bunch of stuff from an
+    // xml file, and you want to put everything in bullet
+
+
     RaveRobotObject(RaveInstance::Ptr rave_,
-            const std::string &uri,
-            const btTransform &initialTransform_,
-            btScalar scale=1.0f,
-            TrimeshMode trimeshMode=CONVEX_HULL,
-            bool isDynamic = false
-            );
+      const std::string &uri,
+      const btTransform &initialTransform_,
+      TrimeshMode trimeshMode=CONVEX_HULL,
+      bool isDynamic = false
+      );
+
+    void init();
+    void destroy();
 
     // forking
     EnvironmentObject::Ptr copy(Fork &f) const;
@@ -80,18 +87,18 @@ public:
 
     // Gets equivalent rigid bodies in OpenRAVE and in Bullet
     BulletObject::Ptr associatedObj(KinBody::LinkPtr link) const {
-        std::map<KinBody::LinkPtr, BulletObject::Ptr>::const_iterator i = linkMap.find(link);
-        return i == linkMap.end() ? BulletObject::Ptr() : i->second;
+      std::map<KinBody::LinkPtr, BulletObject::Ptr>::const_iterator i = linkMap.find(link);
+      return i == linkMap.end() ? BulletObject::Ptr() : i->second;
     }
     KinBody::LinkPtr associatedObj(btCollisionObject *obj) const {
-        std::map<btCollisionObject *, KinBody::LinkPtr>::const_iterator i = collisionObjMap.find(obj);
-        return i == collisionObjMap.end() ? KinBody::LinkPtr() : i->second;
+      std::map<btCollisionObject *, KinBody::LinkPtr>::const_iterator i = collisionObjMap.find(obj);
+      return i == collisionObjMap.end() ? KinBody::LinkPtr() : i->second;
     }
 
     // When getting transforms of links, you must remember to scale!
     // or just get the transforms directly from the equivalent Bullet rigid bodies
     btTransform getLinkTransform(KinBody::LinkPtr link) const {
-        return util::toBtTransform(link->GetTransform(), scale);
+      return util::toBtTransform(link->GetTransform(), scale);
     }
 
     void ignoreCollisionWith(const btCollisionObject *obj) { ignoreCollisionObjs.insert(obj); }
@@ -108,40 +115,40 @@ public:
 
     // IK support
     struct Manipulator {
-        RaveRobotObject *robot;
-        ModuleBasePtr ikmodule;
-        RobotBase::ManipulatorPtr manip, origManip;
-        int index; // id for this manipulator in this robot instance
+      RaveRobotObject *robot;
+      ModuleBasePtr ikmodule;
+      RobotBase::ManipulatorPtr manip, origManip;
+      int index; // id for this manipulator in this robot instance
 
-        bool useFakeGrabber;
-        GrabberKinematicObject::Ptr grabber;
-        void updateGrabberPos();
+      bool useFakeGrabber;
+      GrabberKinematicObject::Ptr grabber;
+      void updateGrabberPos();
 
-        typedef boost::shared_ptr<Manipulator> Ptr;
-        Manipulator(RaveRobotObject *robot_) : robot(robot_) { }
+      typedef boost::shared_ptr<Manipulator> Ptr;
+      Manipulator(RaveRobotObject *robot_) : robot(robot_) { }
 
-        btTransform getTransform() const {
-            return util::toBtTransform(manip->GetTransform(), robot->scale);
-        }
+      btTransform getTransform() const {
+        return util::toBtTransform(manip->GetTransform(), robot->scale);
+      }
 
         // Gets one IK solution closest to the current position in joint space
-        bool solveIKUnscaled(const OpenRAVE::Transform &targetTrans,
-                vector<dReal> &vsolution);
-        bool solveIK(const btTransform &targetTrans, vector<dReal> &vsolution) {
-            return solveIKUnscaled(
-                    util::toRaveTransform(targetTrans, 1./robot->scale),
-                    vsolution);
-        }
+      bool solveIKUnscaled(const OpenRAVE::Transform &targetTrans,
+        vector<dReal> &vsolution);
+      bool solveIK(const btTransform &targetTrans, vector<dReal> &vsolution) {
+        return solveIKUnscaled(
+          util::toRaveTransform(targetTrans, 1./robot->scale),
+          vsolution);
+      }
 
         // Gets all IK solutions
-        bool solveAllIKUnscaled(const OpenRAVE::Transform &targetTrans,
-                vector<vector<dReal> > &vsolutions);
-        bool solveAllIK(const btTransform &targetTrans,
-                vector<vector<dReal> > &vsolutions) {
-            return solveAllIKUnscaled(
-                    util::toRaveTransform(targetTrans, 1./robot->scale),
-                    vsolutions);
-        }
+      bool solveAllIKUnscaled(const OpenRAVE::Transform &targetTrans,
+        vector<vector<dReal> > &vsolutions);
+      bool solveAllIK(const btTransform &targetTrans,
+      vector<vector<dReal> > &vsolutions) {
+        return solveAllIKUnscaled(
+          util::toRaveTransform(targetTrans, 1./robot->scale),
+          vsolutions);
+      }
       vector<double> getDOFValues();
 
         // Moves the manipulator with IK to targetTrans in unscaled coordinates
@@ -150,19 +157,19 @@ public:
         // robot pose collides with anything in the environment (true otherwise).
         // The robot will revert is position to the pre-collision state if
         // revertOnCollision is set to true.
-        bool moveByIKUnscaled(const OpenRAVE::Transform &targetTrans,
-                bool checkCollisions=false, bool revertOnCollision=true);
+      bool moveByIKUnscaled(const OpenRAVE::Transform &targetTrans,
+        bool checkCollisions=false, bool revertOnCollision=true);
         // Moves the manipulator in scaled coordinates
-        bool moveByIK(const btTransform &targetTrans,
-                bool checkCollisions=false, bool revertOnCollision=true) {
-            return moveByIKUnscaled(util::toRaveTransform(targetTrans, 1./robot->scale),
-                checkCollisions, revertOnCollision);
-        }
+      bool moveByIK(const btTransform &targetTrans,
+      bool checkCollisions=false, bool revertOnCollision=true) {
+        return moveByIKUnscaled(util::toRaveTransform(targetTrans, 1./robot->scale),
+          checkCollisions, revertOnCollision);
+      }
 
-        float getGripperAngle();
-        void setGripperAngle(float);
+      float getGripperAngle();
+      void setGripperAngle(float);
 
-        Manipulator::Ptr copy(RaveRobotObject::Ptr newRobot, Fork &f);
+      Manipulator::Ptr copy(RaveRobotObject::Ptr newRobot, Fork &f);
     };
 
     // If useFakeGrabber is true, the manipulator will use a GrabberKinematicObject
@@ -172,8 +179,8 @@ public:
     void destroyManipulator(Manipulator::Ptr m); // not necessary to call this on destruction
     Manipulator::Ptr getManipByIndex(int i) const { return createdManips[i]; }
     int numCreatedManips() const { return createdManips.size(); }
-private:
+  private:
     std::vector<Manipulator::Ptr> createdManips;
-};
+  };
 
 #endif // _OPENRAVESUPPORT_H_
