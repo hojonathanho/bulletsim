@@ -204,14 +204,14 @@ public:
 
 
 class BoxObject : public BulletObject {
-private:
+public:
   btScalar mass;
   btVector3 halfExtents;
 
-public:
+
     typedef boost::shared_ptr<BoxObject> Ptr;
 
-    BoxObject(btScalar mass_, const btVector3 &halfExtents_, const btTransform &initTrans);
+    BoxObject(btScalar mass_, const btVector3 &halfExtents_, const btTransform &initTrans, bool isKinematic=false);
     EnvironmentObject::Ptr copy(Fork &f) const {
         Ptr o(new BoxObject(*this));
         internalCopy(o, f);

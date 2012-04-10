@@ -8,34 +8,128 @@
 
 //#define USE_PR2
 
-class RigidMover
-{
-    public:
-    RigidMover(BulletObject::Ptr pobject_in, btVector3 pos, btDynamicsWorld* world){
-        pobject = pobject_in;
-        btRigidBody* rb = pobject->rigidBody.get();
-        cnt = new btGeneric6DofConstraint(*rb,btTransform(btQuaternion(0,0,0,1),btVector3(0,0,0)),true); // second parameter?
-        cnt->setLinearLowerLimit(btVector3(0,0,0));
-        cnt->setLinearUpperLimit(btVector3(0,0,0));
-        cnt->setAngularLowerLimit(btVector3(0,0,0));
-        cnt->setAngularUpperLimit(btVector3(0,0,0));
-        world->addConstraint(cnt);
-        updatePosition(pos);
-    }
+//class RigidMover
+//{
+//    public:
+//    RigidMover(BulletObject::Ptr pobject_in, btVector3 pos, btDynamicsWorld* world){
+//        pobject = pobject_in;
+//        btRigidBody* rb = pobject->rigidBody.get();
+//        cnt = new btGeneric6DofConstraint(*rb,btTransform(btQuaternion(0,0,0,1),btVector3(0,0,0)),true); // second parameter?
+//        cnt->setLinearLowerLimit(btVector3(0,0,0));
+//        cnt->setLinearUpperLimit(btVector3(0,0,0));
+//        cnt->setAngularLowerLimit(btVector3(0,0,0));
+//        cnt->setAngularUpperLimit(btVector3(0,0,0));
+//        world->addConstraint(cnt);
+//        updatePosition(pos);
+//    }
 
-    typedef boost::shared_ptr<RigidMover> Ptr;
+//    typedef boost::shared_ptr<RigidMover> Ptr;
 
-    void updatePosition(btVector3 pos) {
-      cnt->getFrameOffsetA().setOrigin(pos);
-    }
+//    void updatePosition(btVector3 pos) {
+//      cnt->getFrameOffsetA().setOrigin(pos);
+//    }
 
-    btTransform GetTransform() { return cnt->getFrameOffsetA();}
-    void SetTransform(btTransform tm) { cnt->getFrameOffsetA() = tm;}
+//    btTransform GetTransform() { return cnt->getFrameOffsetA();}
+//    void SetTransform(btTransform tm) { cnt->getFrameOffsetA() = tm;}
 
-    BulletObject::Ptr pobject;
-    btGeneric6DofConstraint* cnt;
+//    BulletObject::Ptr pobject;
+//    btGeneric6DofConstraint* cnt;
+//};
+
+
+
+
+class GripperKinematicObject{
+public:
+    float apperture;
+    btTransform cur_tm;
+    bool bOpen;
+    typedef boost::shared_ptr<GripperKinematicObject> Ptr;
+
+    BoxObject::Ptr top_jaw, bottom_jaw;
+    GripperKinematicObject(Environment::Ptr env);
+    void setWorldTransform(btTransform tm);
+    btTransform getWorldTransform(){return cur_tm;}
+    void getWorldTransform(btTransform& in){in = cur_tm;}
+    void toggle();
+
 };
 
+
+//GrabberKinematicObject::GrabberKinematicObject(float halfExtents_) :
+//    halfExtents(halfExtents_), height(height_),
+//    BulletObject(0, new btBoxShape(halfExtents_),
+//            btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0)), true) {
+//}
+
+GripperKinematicObject::GripperKinematicObject(Environment::Ptr env)
+{
+    apperture = 4;
+    top_jaw.reset(new BoxObject(0, btVector3(.75,.75,.75),btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, apperture/2)),true));
+    top_jaw->setColor(1,0,0,1);
+    bottom_jaw.reset(new BoxObject(0, btVector3(.75,.75,.75),btTransform(btQuaternion(0, 0, 0, 1), btVector3(0,0,-apperture/2)),true));
+    bottom_jaw->setColor(0,0,1,1);
+    env->add(top_jaw);
+    env->add(bottom_jaw);
+    top_jaw->motionState->getWorldTransform(cur_tm);
+    cur_tm.setOrigin(cur_tm.getOrigin() - btVector3(0,0,-apperture/2));
+    bOpen = true;
+}
+
+void GripperKinematicObject::setWorldTransform(btTransform tm)
+{
+
+    btTransform top_tm = tm;
+    btTransform bottom_tm = tm;
+
+    btTransform top_offset;
+
+    top_jaw->motionState->getWorldTransform(top_offset);
+    top_offset = cur_tm.inverse()*top_offset;
+
+    top_tm.setOrigin(top_tm.getOrigin() + top_tm.getBasis().getColumn(2)*(top_offset.getOrigin()[2]));
+    bottom_tm.setOrigin(bottom_tm.getOrigin() - bottom_tm.getBasis().getColumn(2)*(top_offset.getOrigin()[2]));
+
+    top_jaw->motionState->setKinematicPos(top_tm);
+    bottom_jaw->motionState->setKinematicPos(bottom_tm);
+
+    cur_tm = tm;
+}
+
+void GripperKinematicObject::toggle()
+{
+
+    btTransform top_tm;
+    btTransform bottom_tm;
+    top_jaw->motionState->getWorldTransform(top_tm);
+    bottom_jaw->motionState->getWorldTransform(bottom_tm);
+
+
+    if(bOpen)
+    {
+
+        btTransform top_offset = cur_tm.inverse()*top_tm;
+
+        float close_length = 1.01*top_offset.getOrigin()[2] - top_jaw->halfExtents[2];
+
+        top_tm.setOrigin(top_tm.getOrigin() - close_length*top_tm.getBasis().getColumn(2));
+        bottom_tm.setOrigin(bottom_tm.getOrigin() + close_length*bottom_tm.getBasis().getColumn(2));
+
+    }
+    else
+    {
+        top_tm.setOrigin(top_tm.getOrigin() + top_tm.getBasis().getColumn(2)*(apperture/2));
+        bottom_tm.setOrigin(bottom_tm.getOrigin() - bottom_tm.getBasis().getColumn(2)*(apperture/2));
+
+    }
+
+    top_jaw->motionState->setKinematicPos(top_tm);
+    bottom_jaw->motionState->setKinematicPos(bottom_tm);
+
+
+    bOpen = !bOpen;
+
+}
 
 class Grab
 {
@@ -304,7 +398,7 @@ struct CustomScene : public Scene {
     Grab::Ptr grab_left, grab_right;
     GrabberKinematicObject::Ptr left_grabber, right_grabber;
     //RigidMover::Ptr left_mover;
-
+    GripperKinematicObject::Ptr left_gripper;
 
     struct {
         bool transGrabber0,rotateGrabber0,transGrabber1,rotateGrabber1, startDragging;
@@ -333,6 +427,9 @@ struct CustomScene : public Scene {
         env->add(left_grabber);
         env->add(right_grabber);
 
+        left_gripper.reset(new GripperKinematicObject(env));
+        left_gripper->setWorldTransform(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0,0,10)));
+        //left_gripper->toggle();
         //left_mover.reset(new RigidMover(left_grabber, left_grabber->rigidBody->getCenterOfMassPosition(), env->bullet->dynamicsWorld));
     }
 
@@ -387,6 +484,9 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,osgGA::GUIActionA
 
             break;
 #else
+        case 'a':
+            scene.left_gripper->toggle();
+            break;
 
         case 'b':
             btVector3 probe_move2 = btVector3(0,0,0.2);
@@ -451,8 +551,11 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,osgGA::GUIActionA
 
                 btTransform origTrans;
                 if (scene.inputState.transGrabber0 || scene.inputState.rotateGrabber0)
-                    scene.left_grabber->motionState->getWorldTransform(origTrans);
+                {
+                    //scene.left_grabber->motionState->getWorldTransform(origTrans);
+                    scene.left_gripper->getWorldTransform(origTrans);
                     //origTrans = scene.left_grabber->rigidBody->getCenterOfMassTransform();
+                }
                 else
                     scene.right_grabber->motionState->getWorldTransform(origTrans);
 
@@ -479,8 +582,9 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,osgGA::GUIActionA
                 //softbody ->addForce(const btVector3& forceVector,int node)
                 if (scene.inputState.transGrabber0 || scene.inputState.rotateGrabber0)
                 {
-                    scene.left_grabber->motionState->setKinematicPos(newTrans);
-                    //scene.left_grabber->rigidBody->setWorldTransform(newTrans);
+                    //scene.left_grabber->motionState->setKinematicPos(newTrans);
+                    scene.left_gripper->setWorldTransform(newTrans);
+
                 }
                 else
                 {
@@ -660,15 +764,20 @@ void CustomScene::run() {
 
     }
 
-    btTransform tm_left = btTransform(btQuaternion( 0,    0.9877,    0.1564 ,   0), psb->m_nodes[min_x_ind].m_x+btVector3(0,0,2));
+    //btTransform tm_left = btTransform(btQuaternion( 0,    0.9877,    0.1564 ,   0), psb->m_nodes[min_x_ind].m_x+btVector3(0,0,2));
     btTransform tm_right = btTransform(btQuaternion( 0,    0.9877,    0.1564 ,   0), psb->m_nodes[max_x_ind].m_x+btVector3(0,0,2));
-    left_grabber->motionState->setKinematicPos(tm_left);
+    //left_grabber->motionState->setKinematicPos(tm_left);
     right_grabber->motionState->setKinematicPos(tm_right);
 
-    psb->appendAnchor(min_x_ind,left_grabber->rigidBody.get());
+    //psb->appendAnchor(min_x_ind,left_grabber->rigidBody.get());
     psb->appendAnchor(max_x_ind,right_grabber->rigidBody.get());
 
+    btTransform tm_left = btTransform(btQuaternion( 0,    0,    0 ,   1), psb->m_nodes[min_x_ind].m_x);
+    left_gripper->setWorldTransform(tm_left);
+    left_gripper->toggle();
 
+     psb->appendAnchor(min_x_ind,left_gripper->top_jaw->rigidBody.get());
+     psb->appendAnchor(min_x_ind,left_gripper->bottom_jaw->rigidBody.get());
 
 
 

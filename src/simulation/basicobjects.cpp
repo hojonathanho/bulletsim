@@ -505,9 +505,9 @@ SphereObject::SphereObject(btScalar mass_, btScalar radius_, const btTransform &
     BulletObject(mass_, new btSphereShape(radius_), initTrans, isKinematic) {
 }
 
-BoxObject::BoxObject(btScalar mass_, const btVector3 &halfExtents_, const btTransform &initTrans) :
+BoxObject::BoxObject(btScalar mass_, const btVector3 &halfExtents_, const btTransform &initTrans, bool isKinematic) :
     mass(mass_), halfExtents(halfExtents_),
-    BulletObject(mass_, new btBoxShape(halfExtents_), initTrans) {
+    BulletObject(mass_, new btBoxShape(halfExtents_), initTrans, isKinematic) {
 }
 
 CapsuleObject::CapsuleObject(btScalar mass_, btScalar radius_, btScalar height_, const btTransform &initTrans) :
