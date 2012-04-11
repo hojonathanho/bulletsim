@@ -44,6 +44,7 @@ public:
     float apperture;
     btTransform cur_tm;
     bool bOpen;
+    bool bAttached;
     typedef boost::shared_ptr<GripperKinematicObject> Ptr;
 
     BoxObject::Ptr top_jaw, bottom_jaw;
@@ -52,7 +53,12 @@ public:
     btTransform getWorldTransform(){return cur_tm;}
     void getWorldTransform(btTransform& in){in = cur_tm;}
     void toggle();
-
+    void toggleattach(btSoftBody * psb);
+    void getContactPointsWith(btSoftBody *psb, btCollisionObject *pco, btSoftBody::tRContactArray &rcontacts);
+    void appendAnchor(btSoftBody *psb, btSoftBody::Node *node, btRigidBody *body, btScalar influence=1);
+    void releaseAllAnchors(btSoftBody * psb) {
+        psb->m_anchors.clear();
+    }
 };
 
 
@@ -62,8 +68,120 @@ public:
 //            btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0)), true) {
 //}
 
+
+
+void GripperKinematicObject::toggleattach(btSoftBody * psb) {
+
+    if(bAttached)
+        releaseAllAnchors(psb);
+    else
+    {
+        for(int k = 0; k < 2; k++)
+        {
+            BoxObject::Ptr part;
+            if(k == 0)
+                part = bottom_jaw;
+            else
+                part = top_jaw;
+
+            btRigidBody* rigidBody = part->rigidBody.get();
+            btSoftBody::tRContactArray rcontacts;
+            getContactPointsWith(psb, rigidBody, rcontacts);
+            cout << "got " << rcontacts.size() << " contacts\n";
+
+            //if no contacts, return without toggling bAttached
+            if(rcontacts.size() == 0)
+                return;
+
+            for (int i = 0; i < rcontacts.size(); ++i) {
+                const btSoftBody::RContact &c = rcontacts[i];
+                //btRigidBody* colLink = c.m_cti.m_colObj;
+                //if (!colLink) continue;
+                const btVector3 &contactPt = c.m_node->m_x;
+                //if (onInnerSide(contactPt, left)) {
+                    appendAnchor(psb, c.m_node, rigidBody);
+                    cout << "\tappending anchor\n";
+            }
+        }
+    }
+    bAttached = !bAttached;
+}
+
+// Fills in the rcontacs array with contact information between psb and pco
+void GripperKinematicObject::getContactPointsWith(btSoftBody *psb, btCollisionObject *pco, btSoftBody::tRContactArray &rcontacts) {
+    // custom contact checking adapted from btSoftBody.cpp and btSoftBodyInternals.h
+    struct Custom_CollideSDF_RS : btDbvt::ICollide {
+        Custom_CollideSDF_RS(btSoftBody::tRContactArray &rcontacts_) : rcontacts(rcontacts_) { }
+
+        void Process(const btDbvtNode* leaf) {
+            btSoftBody::Node* node=(btSoftBody::Node*)leaf->data;
+            DoNode(*node);
+        }
+
+        void DoNode(btSoftBody::Node& n) {
+            const btScalar m=n.m_im>0?dynmargin:stamargin;
+            btSoftBody::RContact c;
+            if (!n.m_battach && psb->checkContact(m_colObj1,n.m_x,m,c.m_cti)) {
+                const btScalar  ima=n.m_im;
+                const btScalar  imb= m_rigidBody? m_rigidBody->getInvMass() : 0.f;
+                const btScalar  ms=ima+imb;
+                if(ms>0) {
+                    // there's a lot of extra information we don't need to compute
+                    // since we just want to find the contact points
+                    c.m_node        =       &n;
+
+                    rcontacts.push_back(c);
+
+                }
+            }
+        }
+        btSoftBody*             psb;
+        btCollisionObject*      m_colObj1;
+        btRigidBody*    m_rigidBody;
+        btScalar                dynmargin;
+        btScalar                stamargin;
+        btSoftBody::tRContactArray &rcontacts;
+    };
+
+    Custom_CollideSDF_RS  docollide(rcontacts);
+    btRigidBody*            prb1=btRigidBody::upcast(pco);
+    btTransform     wtr=pco->getWorldTransform();
+
+    const btTransform       ctr=pco->getWorldTransform();
+    const btScalar          timemargin=(wtr.getOrigin()-ctr.getOrigin()).length();
+    const btScalar          basemargin=psb->getCollisionShape()->getMargin();
+    btVector3                       mins;
+    btVector3                       maxs;
+    ATTRIBUTE_ALIGNED16(btDbvtVolume)               volume;
+    pco->getCollisionShape()->getAabb(      pco->getWorldTransform(),
+            mins,
+            maxs);
+    volume=btDbvtVolume::FromMM(mins,maxs);
+    volume.Expand(btVector3(basemargin,basemargin,basemargin));
+    docollide.psb           =       psb;
+    docollide.m_colObj1 = pco;
+    docollide.m_rigidBody = prb1;
+
+    docollide.dynmargin     =       basemargin+timemargin;
+    docollide.stamargin     =       basemargin;
+    psb->m_ndbvt.collideTV(psb->m_ndbvt.m_root,volume,docollide);
+}
+
+// adapted from btSoftBody.cpp (btSoftBody::appendAnchor)
+void GripperKinematicObject::appendAnchor(btSoftBody *psb, btSoftBody::Node *node, btRigidBody *body, btScalar influence) {
+    btSoftBody::Anchor a;
+    a.m_node = node;
+    a.m_body = body;
+    a.m_local = body->getWorldTransform().inverse()*a.m_node->m_x;
+    a.m_node->m_battach = 1;
+    a.m_influence = influence;
+    psb->m_anchors.push_back(a);
+}
+
+
 GripperKinematicObject::GripperKinematicObject(Environment::Ptr env)
 {
+    bAttached = false;
     apperture = 4;
     top_jaw.reset(new BoxObject(0, btVector3(.75,.75,0.2),btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, apperture/2)),true));
     top_jaw->setColor(1,0,0,1);
@@ -395,6 +513,7 @@ struct CustomScene : public Scene {
 #ifdef USE_PR2
     PR2SoftBodyGripperAction::Ptr leftAction, rightAction;
 #else
+
     Grab::Ptr grab_left, grab_right;
     //GrabberKinematicObject::Ptr left_grabber, right_grabber;
     //RigidMover::Ptr left_mover;
@@ -406,6 +525,7 @@ struct CustomScene : public Scene {
     } inputState;
 
 #endif
+
     BulletInstance::Ptr bullet2;
     OSGInstance::Ptr osg2;
     Fork::Ptr fork;
@@ -420,6 +540,7 @@ struct CustomScene : public Scene {
     CustomScene() : pr2m(*this) { }
 #else
     CustomScene(){
+        inputState.transGrabber0 =  inputState.rotateGrabber0 =  inputState.transGrabber1 =  inputState.rotateGrabber1 =  inputState.startDragging = false;
         //left_grabber.reset(new GrabberKinematicObject(0.5, 2));
         //right_grabber.reset(new GrabberKinematicObject(0.5, 2));
         //env->add(left_grabber);
@@ -435,7 +556,7 @@ struct CustomScene : public Scene {
     }
 
 #endif
-
+    BulletSoftObject::Ptr clothptr;
     BulletSoftObject::Ptr createCloth(btScalar s, const btVector3 &center);
     void createFork();
     void swapFork();
@@ -491,6 +612,14 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,osgGA::GUIActionA
 
         case 's':
             scene.right_gripper->toggle();
+            break;
+
+        case 'z':
+            scene.left_gripper->toggleattach(scene.clothptr->softBody.get());
+            break;
+
+        case 'x':
+            scene.right_gripper->toggleattach(scene.clothptr->softBody.get());
             break;
 
 //        case 'b':
@@ -702,8 +831,8 @@ void CustomScene::run() {
             createCloth(GeneralConfig::scale * 0.25, GeneralConfig::scale * btVector3(0.9, 0, table_height+0.01)));
 
 
-    btSoftBody * psb = cloth->softBody.get();
-
+    btSoftBody* psb = cloth->softBody.get();
+    clothptr = cloth;
     psb->setTotalMass(0.1);
 
 #ifdef USE_PR2
@@ -784,15 +913,15 @@ void CustomScene::run() {
 
     btTransform tm_left = btTransform(btQuaternion( 0,    0,    0 ,   1), psb->m_nodes[min_x_ind].m_x);
     left_gripper->setWorldTransform(tm_left);
-    left_gripper->toggle();
+    //left_gripper->toggle();
 
 
     btTransform tm_right = btTransform(btQuaternion( 0,    0,    0 ,   1), psb->m_nodes[max_x_ind].m_x);
     right_gripper->setWorldTransform(tm_right);
-    right_gripper->toggle();
+    //right_gripper->toggle();
 
-    psb->appendAnchor(min_x_ind,left_gripper->top_jaw->rigidBody.get());
-    psb->appendAnchor(max_x_ind,right_gripper->top_jaw->rigidBody.get());
+    //psb->appendAnchor(min_x_ind,left_gripper->top_jaw->rigidBody.get());
+    //psb->appendAnchor(max_x_ind,right_gripper->top_jaw->rigidBody.get());
 
 
 
