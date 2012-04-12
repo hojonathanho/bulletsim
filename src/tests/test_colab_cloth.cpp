@@ -37,18 +37,40 @@
 //};
 
 
+//class CapsuleRope : public CompoundObject<BulletObject> {
+//private:
+//  float angStiffness;
+//  float angDamping;
+//  float linDamping;
+//  float angLimit;
+//public:
+//  typedef boost::shared_ptr<CapsuleRope> Ptr;
+//  std::vector<boost::shared_ptr<btCollisionShape> > shapes;
+//  std::vector<BulletConstraint::Ptr> joints;
+//  btScalar radius;
+//  int nLinks;
+
+//  CapsuleRope(const std::vector<btVector3>& ctrlPoints, float radius_, float angStiffness_=.1, float angDamping_=1, float linDamping_=.75, float angLimit_=.4);
+//  void init();
+//  void destroy();
+//  std::vector<btVector3> getNodes();
+//  std::vector<btVector3> getControlPoints();
+//};
 
 
-class GripperKinematicObject{
+class GripperKinematicObject : public CompoundObject<BoxObject>{
 public:
     float apperture;
     btTransform cur_tm;
     bool bOpen;
     bool bAttached;
+    //BoxObject::Ptr top_jaw, bottom_jaw;
+
+
     typedef boost::shared_ptr<GripperKinematicObject> Ptr;
 
-    BoxObject::Ptr top_jaw, bottom_jaw;
-    GripperKinematicObject(Environment::Ptr env);
+//    GripperKinematicObject(const GripperKinematicObject& gripper);
+    GripperKinematicObject();
     void setWorldTransform(btTransform tm);
     btTransform getWorldTransform(){return cur_tm;}
     void getWorldTransform(btTransform& in){in = cur_tm;}
@@ -56,9 +78,56 @@ public:
     void toggleattach(btSoftBody * psb);
     void getContactPointsWith(btSoftBody *psb, btCollisionObject *pco, btSoftBody::tRContactArray &rcontacts);
     void appendAnchor(btSoftBody *psb, btSoftBody::Node *node, btRigidBody *body, btScalar influence=1);
-    void releaseAllAnchors(btSoftBody * psb) {
-        psb->m_anchors.clear();
+    void releaseAllAnchors(btSoftBody * psb) {psb->m_anchors.clear();}
+
+
+//    EnvironmentObject::Ptr copy(Fork &f) const {
+//        CompoundObject<BoxObject>::Ptr o(new CompoundObject<BoxObject>());
+//        internalCopy(o, f);
+//        return o;
+//    }
+
+//    void internalCopy(CompoundObject<BulletObject>::Ptr o, Fork &f) const {
+//        o->children.reserve(children.size());
+//         ChildVector::const_iterator i;
+//        for (i = children.begin(); i != children.end(); ++i) {
+//            if (*i)
+//                o->children.push_back(boost::static_pointer_cast<BoxObject> ((*i)->copy(f)));
+//            else
+//                o->children.push_back( BoxObject::Ptr());
+//        }
+//    }
+
+
+    EnvironmentObject::Ptr copy(Fork &f) const {
+        Ptr o(new GripperKinematicObject());
+        printf("copying gripper\n");
+        internalCopy(o, f);
+        return o;
     }
+    void internalCopy(GripperKinematicObject::Ptr o, Fork &f) const {
+        o->apperture = apperture;
+        o->cur_tm = cur_tm;
+        o->bOpen = bOpen;
+        o->bAttached = bAttached;
+
+        o->children.clear();
+        o->children.reserve(children.size());
+        ChildVector::const_iterator i;
+        for (i = children.begin(); i != children.end(); ++i) {
+            if (*i)
+                o->children.push_back(boost::static_pointer_cast<BoxObject> ((*i)->copy(f)));
+            else
+                o->children.push_back(BoxObject::Ptr());
+        }
+
+        //o->top_jaw = boost::static_pointer_cast<BoxObject> (children[0]);
+        //o->bottom_jaw = boost::static_pointer_cast<BoxObject> (children[1]);
+
+        //f.registerCopy(top_jaw->rigidBody.get(), o->top_jaw->rigidBody.get());
+        //f.registerCopy(bottom_jaw->rigidBody.get(), o->bottom_jaw->rigidBody.get());
+    }
+
 };
 
 
@@ -80,9 +149,9 @@ void GripperKinematicObject::toggleattach(btSoftBody * psb) {
         {
             BoxObject::Ptr part;
             if(k == 0)
-                part = bottom_jaw;
+                part = children[0];
             else
-                part = top_jaw;
+                part = children[1];
 
             btRigidBody* rigidBody = part->rigidBody.get();
             btSoftBody::tRContactArray rcontacts;
@@ -179,19 +248,25 @@ void GripperKinematicObject::appendAnchor(btSoftBody *psb, btSoftBody::Node *nod
 }
 
 
-GripperKinematicObject::GripperKinematicObject(Environment::Ptr env)
+
+//GripperKinematicObject::GripperKinematicObject(const GripperKinematicObject& gripper)
+//{
+
+//}
+
+GripperKinematicObject::GripperKinematicObject()
 {
     bAttached = false;
     apperture = 4;
-    top_jaw.reset(new BoxObject(0, btVector3(.75,.75,0.2),btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, apperture/2)),true));
+    BoxObject::Ptr top_jaw(new BoxObject(0, btVector3(.75,.75,0.2),btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, apperture/2)),true));
     top_jaw->setColor(1,0,0,1);
-    bottom_jaw.reset(new BoxObject(0, btVector3(.75,.75,.2),btTransform(btQuaternion(0, 0, 0, 1), btVector3(0,0,-apperture/2)),true));
+    BoxObject::Ptr bottom_jaw(new BoxObject(0, btVector3(.75,.75,.2),btTransform(btQuaternion(0, 0, 0, 1), btVector3(0,0,-apperture/2)),true));
     bottom_jaw->setColor(0,0,1,1);
-    env->add(top_jaw);
-    env->add(bottom_jaw);
     top_jaw->motionState->getWorldTransform(cur_tm);
     cur_tm.setOrigin(cur_tm.getOrigin() - btVector3(0,0,-apperture/2));
     bOpen = true;
+    children.push_back(top_jaw);
+    children.push_back(bottom_jaw);
 }
 
 void GripperKinematicObject::setWorldTransform(btTransform tm)
@@ -202,14 +277,14 @@ void GripperKinematicObject::setWorldTransform(btTransform tm)
 
     btTransform top_offset;
 
-    top_jaw->motionState->getWorldTransform(top_offset);
+    children[0]->motionState->getWorldTransform(top_offset);
     top_offset = cur_tm.inverse()*top_offset;
 
     top_tm.setOrigin(top_tm.getOrigin() + top_tm.getBasis().getColumn(2)*(top_offset.getOrigin()[2]));
     bottom_tm.setOrigin(bottom_tm.getOrigin() - bottom_tm.getBasis().getColumn(2)*(top_offset.getOrigin()[2]));
 
-    top_jaw->motionState->setKinematicPos(top_tm);
-    bottom_jaw->motionState->setKinematicPos(bottom_tm);
+    children[0]->motionState->setKinematicPos(top_tm);
+    children[1]->motionState->setKinematicPos(bottom_tm);
 
     cur_tm = tm;
 }
@@ -219,8 +294,8 @@ void GripperKinematicObject::toggle()
 
     btTransform top_tm;
     btTransform bottom_tm;
-    top_jaw->motionState->getWorldTransform(top_tm);
-    bottom_jaw->motionState->getWorldTransform(bottom_tm);
+    children[0]->motionState->getWorldTransform(top_tm);
+    children[1]->motionState->getWorldTransform(bottom_tm);
 
 
     if(bOpen)
@@ -228,7 +303,7 @@ void GripperKinematicObject::toggle()
 
         btTransform top_offset = cur_tm.inverse()*top_tm;
 
-        float close_length = 1.01*top_offset.getOrigin()[2] - top_jaw->halfExtents[2];
+        float close_length = 1.01*top_offset.getOrigin()[2] - children[0]->halfExtents[2];
 
         top_tm.setOrigin(top_tm.getOrigin() - close_length*top_tm.getBasis().getColumn(2));
         bottom_tm.setOrigin(bottom_tm.getOrigin() + close_length*bottom_tm.getBasis().getColumn(2));
@@ -241,38 +316,13 @@ void GripperKinematicObject::toggle()
 
     }
 
-    top_jaw->motionState->setKinematicPos(top_tm);
-    bottom_jaw->motionState->setKinematicPos(bottom_tm);
+    children[0]->motionState->setKinematicPos(top_tm);
+    children[1]->motionState->setKinematicPos(bottom_tm);
 
 
     bOpen = !bOpen;
 
 }
-
-class Grab
-{
-public:
-  //btGeneric6DofConstraint* cnt;
-  Grab(){}
-  typedef boost::shared_ptr<Grab> Ptr;
-
-
-
-//    Grab(btSoftBody * psb, btSoftBody::Node *node, btRigidBody *body) {
-//        btSoftBody::Anchor a;
-//        a.m_node = node;
-//        a.m_body = body;
-//        a.m_local = body->getWorldTransform().inverse()*a.m_node->m_x;
-//        a.m_node->m_battach = 1;
-//        a.m_influence = 1;
-//        psb->m_anchors.push_back(a);
-//  }
-    Grab(btSoftBody * psb,int node_ind, btRigidBody *body) {
-        psb->appendAnchor(node_ind,body);
-    }
-
-
-};
 
 
 // I've only tested this on the PR2 model
@@ -514,9 +564,7 @@ struct CustomScene : public Scene {
     PR2SoftBodyGripperAction::Ptr leftAction, rightAction;
 #else
 
-    Grab::Ptr grab_left, grab_right;
-    //GrabberKinematicObject::Ptr left_grabber, right_grabber;
-    //RigidMover::Ptr left_mover;
+
     GripperKinematicObject::Ptr left_gripper, right_gripper;
 
     struct {
@@ -541,18 +589,14 @@ struct CustomScene : public Scene {
 #else
     CustomScene(){
         inputState.transGrabber0 =  inputState.rotateGrabber0 =  inputState.transGrabber1 =  inputState.rotateGrabber1 =  inputState.startDragging = false;
-        //left_grabber.reset(new GrabberKinematicObject(0.5, 2));
-        //right_grabber.reset(new GrabberKinematicObject(0.5, 2));
-        //env->add(left_grabber);
-        //env->add(right_grabber);
 
-        left_gripper.reset(new GripperKinematicObject(env));
+        left_gripper.reset(new GripperKinematicObject());
         left_gripper->setWorldTransform(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0,-10,0)));
+        env->add(left_gripper);
 
-
-        right_gripper.reset(new GripperKinematicObject(env));
+        right_gripper.reset(new GripperKinematicObject());
         right_gripper->setWorldTransform(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0,10,0)));
-
+        env->add(right_gripper);
     }
 
 #endif
@@ -579,7 +623,17 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,osgGA::GUIActionA
             scene.createFork();
             break;
         case 'g':
+            {
             scene.swapFork();
+            GripperKinematicObject::Ptr fork_gripper = boost::static_pointer_cast<GripperKinematicObject> (scene.fork->forkOf(scene.left_gripper));
+            fork_gripper->toggle();
+            }
+            break;
+
+        case 'h':
+            scene.unregisterFork(scene.fork);
+            scene.osg->root->removeChild(scene.osg2->root.get());
+            scene.fork.reset();
             break;
 
         case '1':
@@ -795,9 +849,9 @@ void CustomScene::createFork() {
 }
 
 void CustomScene::swapFork() {
+#ifdef USE_PR2
     // swaps the forked robot with the real one
     cout << "swapping!" << endl;
-#ifdef USE_PR2
     int leftidx = pr2m.pr2Left->index;
     int rightidx = pr2m.pr2Right->index;
     origRobot.swap(tmpRobot);
