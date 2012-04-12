@@ -7,6 +7,7 @@
 #include "simulation/openravesupport.h"
 #include "robots/pr2.h"
 #include "cloth.h"
+#include "genmanip.h"
 
 #include <stdexcept>
 
@@ -18,12 +19,25 @@ public:
 struct GraspingActionContext {
     Environment::Ptr env;
     RaveRobotObject::Ptr robot;
-    RaveRobotObject::Manipulator::Ptr manip;
-    PR2SoftBodyGripper::Ptr sbgripper;
+
+    GenManip::Ptr gmanip;
+    GenPR2SoftGripper::Ptr sbgripper;
+
     Cloth::Ptr cloth;
 
     GraspingActionContext fork() const;
     void runAction(Action::Ptr a);
+
+    GraspingActionContext() { }
+
+    GraspingActionContext(
+            Environment::Ptr env_,
+            RaveRobotObject::Ptr robot_,
+            GenManip::Ptr gmanip_,
+            GenPR2SoftGripper::Ptr sbgripper_,
+            Cloth::Ptr cloth_) :
+        env(env_), robot(robot_), gmanip(gmanip_),
+        sbgripper(sbgripper_), cloth(cloth_) { }
 };
 
 struct GraspingActionSpec {

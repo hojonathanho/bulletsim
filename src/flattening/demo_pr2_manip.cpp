@@ -14,11 +14,13 @@
 #include "edges.h"
 #include "facepicker.h"
 #include "search_general.h"
+#include "config_flattening.h"
 
 class CustomScene : Scene {
     Cloth::Ptr cloth;
     PR2Manager::Ptr pr2m;
-    PR2SoftBodyGripper::Ptr sbgripperleft;
+    GenManip::Ptr gleft, gright;
+    GenPR2SoftGripper::Ptr sbgripperleft;
     PlotAxes::Ptr leftManipAxes, rightManipAxes;
 
     PlotPoints::Ptr foldnodeplot;
@@ -28,7 +30,7 @@ class CustomScene : Scene {
 
     vector<int> foldnodes;
 
-    void runGripperAction(PR2SoftBodyGripperAction &a) {
+    void runGripperAction(GenPR2SoftGripperAction &a) {
         a.reset();
         a.toggleAction();
         try { runAction(a, BulletConfig::dt); } catch (...) { }
@@ -62,6 +64,7 @@ class CustomScene : Scene {
         pickplot->plot(centers, cols, radii);
     }
 
+    /*
     btTransform savedTrans;
     void saveManipTrans(RaveRobotObject::Manipulator::Ptr manip) {
         savedTrans = manip->getTransform();
@@ -85,6 +88,7 @@ class CustomScene : Scene {
         try { runAction(a, BulletConfig::dt); } catch (...) { }
         cout << "done." << endl;
     }
+    */
 
     void printSuccs(const GraspingActionContext &ctx, const GraspingActionSpec &s) {
         vector<GraspingActionSpec> v;
@@ -97,20 +101,20 @@ class CustomScene : Scene {
     void graspPickedNode() {
         if (!pickedNode) return;
         const int node = pickedNode - &cloth->softBody->m_nodes[0];
-        GraspingActionContext ctx = { env, pr2m->pr2, pr2m->pr2Left, sbgripperleft, cloth };
+        GraspingActionContext ctx(env, pr2m->pr2, gleft, sbgripperleft, cloth);
         btVector3 gripperdir = calcGraspDir(ctx, node);
         stringstream ss; ss << "grab " << node << ' ' << gripperdir.x() << ' ' << gripperdir.y() << ' ' << gripperdir.z();
         GraspingActionSpec spec(ss.str());
-        Action::Ptr a = spec.createAction(ctx);
+        Action::Ptr a(spec.createAction(ctx));
         try { runAction(a, BulletConfig::dt); } catch (...) { }
         cout << "done." << endl;
     }
 
     GraspingActionSpec prevActionSpec;
     void greedyFlattenSingle() {
-        GraspingActionContext ctx = { env, pr2m->pr2, pr2m->pr2Left, sbgripperleft, cloth };
+        GraspingActionContext ctx(env, pr2m->pr2, gleft, sbgripperleft, cloth);
         GraspingActionSpec spec = flattenCloth_greedy_single(ctx, prevActionSpec);
-        try { runAction(spec.createAction(ctx), BulletConfig::dt);} catch (...) { }
+        try { runAction(spec.createAction(ctx), BulletConfig::dt); } catch (...) { }
         prevActionSpec = spec;
     }
 
@@ -163,8 +167,8 @@ class CustomScene : Scene {
     }
 
     void drawManipAxes() {
-        leftManipAxes->setup(pr2m->pr2Left->getTransform(), 0.05*METERS);
-        rightManipAxes->setup(pr2m->pr2Right->getTransform(), 0.05*METERS);
+        leftManipAxes->setup(gleft->getTransform(), 0.05*METERS);
+        rightManipAxes->setup(gright->getTransform(), 0.05*METERS);
     }
 
 public:
@@ -184,6 +188,21 @@ public:
 
         // load the robot
         pr2m.reset(new PR2Manager(*this));
+        if (FlatteningConfig::useFakeGripper) {
+            TelekineticGripper::Ptr fakeLeft(new TelekineticGripper(pr2m->pr2Left));
+            fakeLeft->setTransform(pr2m->pr2Left->getTransform());
+            env->add(fakeLeft);
+            gleft.reset(new GenManip(fakeLeft));
+
+            TelekineticGripper::Ptr fakeRight(new TelekineticGripper(pr2m->pr2Right));
+            fakeRight->setTransform(pr2m->pr2Right->getTransform());
+            gright.reset(new GenManip(fakeRight));
+            env->add(fakeRight);
+
+        } else {
+            gleft.reset(new GenManip(pr2m->pr2Left));
+            gright.reset(new GenManip(pr2m->pr2Right));
+        }
 
         // create the table
         const float table_height = .5;
@@ -223,16 +242,16 @@ public:
         facepicker.reset(new SoftBodyFacePicker(*this, viewer.getCamera(), cloth->softBody.get()));
         facepicker->setPickCallback(boost::bind(&CustomScene::pickCallback, this, _1));
 
-        sbgripperleft.reset(new PR2SoftBodyGripper(pr2m->pr2, pr2m->pr2Left->manip, true));
+        sbgripperleft.reset(new GenPR2SoftGripper(pr2m->pr2, gleft, true));
         sbgripperleft->setGrabOnlyOnContact(true);
         sbgripperleft->setTarget(cloth);
 
-        PR2SoftBodyGripperAction leftAction(pr2m->pr2, pr2m->pr2Left->manip, sbgripperleft);
+        GenPR2SoftGripperAction leftAction(pr2m->pr2, gleft->baseManip()->manip, sbgripperleft);
         leftAction.setTarget(cloth);
         leftAction.setExecTime(1.);
         addVoidKeyCallback('a', boost::bind(&CustomScene::runGripperAction, this, leftAction));
-        addVoidKeyCallback('z', boost::bind(&CustomScene::saveManipTrans, this, pr2m->pr2Left));
-        addVoidKeyCallback('x', boost::bind(&CustomScene::moveArmToSaved, this, pr2m->pr2, pr2m->pr2Left));
+//        addVoidKeyCallback('z', boost::bind(&CustomScene::saveManipTrans, this, pr2m->pr2Left));
+//        addVoidKeyCallback('x', boost::bind(&CustomScene::moveArmToSaved, this, pr2m->pr2, pr2m->pr2Left));
         addVoidKeyCallback('c', boost::bind(&CustomScene::graspPickedNode, this));
         addVoidKeyCallback('f', boost::bind(&CustomScene::greedyFlattenSingle, this));
         addVoidKeyCallback('g', boost::bind(&CustomScene::liftCloth, this));
@@ -256,6 +275,7 @@ int main(int argc, char *argv[]) {
     parser.addGroup(GeneralConfig());
     parser.addGroup(BulletConfig());
     parser.addGroup(SceneConfig());
+    parser.addGroup(FlatteningConfig());
     parser.read(argc, argv);
 
     CustomScene().run();

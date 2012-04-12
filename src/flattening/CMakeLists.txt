@@ -23,6 +23,8 @@ add_library(clothmanip
     edges.cpp
     facepicker.cpp
     graspingactions.cpp
+    genmanip.cpp
+    config_flattening.cpp
 )
 set_source_files_properties(search.cpp PROPERTIES COMPILE_FLAGS -fopenmp)
 target_link_libraries(clothmanip

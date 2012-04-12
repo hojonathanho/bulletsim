@@ -15,13 +15,13 @@ GraspingActionContext GraspingActionContext::fork() const {
         boost::static_pointer_cast<RaveRobotObject>(fork->forkOf(robot));
     Cloth::Ptr fork_cloth =
         boost::static_pointer_cast<Cloth>(fork->forkOf(cloth));
-    RaveRobotObject::Manipulator::Ptr fork_manip =
-        fork_robot->getManipByIndex(manip->index);
-    PR2SoftBodyGripper::Ptr sbgripper(new PR2SoftBodyGripper(fork_robot, fork_manip->manip, true)); // TODO: leftGripper flag
+    GenManip::Ptr fork_gmanip = gmanip->getForked(*fork, fork_robot);
+//    RaveRobotObject::Manipulator::Ptr fork_manip =
+        //fork_robot->getManipByIndex(manip->index);
+    GenPR2SoftGripper::Ptr sbgripper(new GenPR2SoftGripper(fork_robot, fork_gmanip, true)); // TODO: leftGripper flag
     sbgripper->setGrabOnlyOnContact(true);
     sbgripper->setTarget(fork_cloth);
-    GraspingActionContext forkctx = { fork->env, fork_robot, fork_manip, sbgripper, fork_cloth };
-    return forkctx;
+    return GraspingActionContext(fork->env, fork_robot, fork_gmanip, sbgripper, fork_cloth);
 }
 
 void GraspingActionContext::runAction(Action::Ptr a) {
@@ -40,16 +40,16 @@ static Action::Ptr createGrabAction(GraspingActionContext &ctx, stringstream &ss
     int nodeidx; ss >> nodeidx;
     btScalar vx, vy, vz; ss >> vx >> vy >> vz;
     return GraspClothNodeAction::Ptr(new GraspClothNodeAction(
-                ctx.robot, ctx.manip, ctx.sbgripper, ctx.cloth,
+                ctx.robot, ctx.gmanip, ctx.sbgripper, ctx.cloth,
                 nodeidx, btVector3(vx, vy, vz)));
 }
 
 static Action::Ptr createReleaseAction(GraspingActionContext &ctx, stringstream &ss) {
     // format: release
     FunctionAction::Ptr releaseAnchors(new FunctionAction(
-                boost::bind(&PR2SoftBodyGripper::releaseAllAnchors, ctx.sbgripper)));
+                boost::bind(&GenPR2SoftGripper::releaseAllAnchors, ctx.sbgripper)));
     GripperOpenCloseAction::Ptr openGripper(new GripperOpenCloseAction(
-                ctx.robot, ctx.manip->manip, true));
+                ctx.robot, ctx.gmanip->baseManip()->manip, true));
     ActionChain::Ptr a(new ActionChain);
     *a << releaseAnchors << openGripper;
     return a;
@@ -58,7 +58,16 @@ static Action::Ptr createReleaseAction(GraspingActionContext &ctx, stringstream 
 static Action::Ptr createMoveAction(GraspingActionContext &ctx, stringstream &ss) {
     // format: move dx dy dz
     btScalar dx, dy, dz; ss >> dx >> dy >> dz;
-    ManipIKInterpAction::Ptr a(new ManipIKInterpAction(ctx.robot, ctx.manip));
+    ManipMoveAction::Ptr a;
+    switch (ctx.gmanip->type) {
+    case GenManip::TYPE_FAKE:
+        a.reset(new FakeManipMoveAction(ctx.gmanip->asFake())); break;
+    case GenManip::TYPE_IK:
+        a.reset(new ManipIKInterpAction(ctx.robot, ctx.gmanip->asIKManip())); break;
+    default:
+        cout << "error: gen manip type " << ctx.gmanip->type << " not recognized by createMoveAction" << endl;
+        break;
+    }
     a->setRelativeTrans(btTransform(btQuaternion::getIdentity(), btVector3(dx, dy, dz)));
     return a;
 }
@@ -131,6 +140,7 @@ static void genMoveSpecs(vector<GraspingActionSpec> &out) {
 
 // tries out a grasp and returns the number of anchors attached
 static int tryGrasp(const GraspingActionContext &ctx, int node, const btVector3 &gripperdir) {
+#if 0
     BulletInstance::Ptr fork_bullet(new BulletInstance);
     fork_bullet->setGravity(BulletConfig::gravity);
     OSGInstance::Ptr fork_osg(new OSGInstance);
@@ -141,10 +151,12 @@ static int tryGrasp(const GraspingActionContext &ctx, int node, const btVector3 
         boost::static_pointer_cast<Cloth>(fork->forkOf(ctx.cloth));
     RaveRobotObject::Manipulator::Ptr fork_manip =
         fork_robot->getManipByIndex(ctx.manip->index);
-    PR2SoftBodyGripper::Ptr sbgripper(new PR2SoftBodyGripper(fork_robot, fork_manip->manip, true)); // TODO: leftGripper flag
+    GenPR2SoftGripper::Ptr sbgripper(new GenPR2SoftGripper(fork_robot, fork_manip->manip, true)); // TODO: leftGripper flag
     sbgripper->setGrabOnlyOnContact(true);
     sbgripper->setTarget(fork_cloth);
     GraspingActionContext forkctx = { fork->env, fork_robot, fork_manip, sbgripper, fork_cloth };
+#endif
+    GraspingActionContext forkctx = ctx.fork();
 
     int startNumAnchors = ctx.cloth->softBody->m_anchors.size();
 
@@ -155,14 +167,14 @@ static int tryGrasp(const GraspingActionContext &ctx, int node, const btVector3 
 
         while (!a->done()) {
             a->step(BulletConfig::dt);
-            fork->env->step(BulletConfig::dt,
+            forkctx.env->step(BulletConfig::dt,
                     BulletConfig::maxSubSteps, BulletConfig::internalTimeStep);
         }
     } catch (const GraspingActionFailed &) {
         return 0;
     }
 
-    return fork_cloth->softBody->m_anchors.size() - startNumAnchors;
+    return forkctx.cloth->softBody->m_anchors.size() - startNumAnchors;
 }
 
 btVector3 calcGraspDir(const GraspingActionContext &ctx, int node) {

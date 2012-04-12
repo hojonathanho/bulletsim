@@ -34,7 +34,7 @@ class PR2SoftBodyGripper {
     RaveRobotObject::Ptr robot;
     OpenRAVE::RobotBase::ManipulatorPtr manip;
 
-    float grabOnlyOnContact;
+    bool grabOnlyOnContact;
 
     KinBody::LinkPtr leftFinger, rightFinger;
 

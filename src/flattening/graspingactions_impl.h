@@ -6,6 +6,7 @@
 #include "simulation/environment.h"
 #include "simulation/openravesupport.h"
 #include "robots/pr2.h"
+#include "config_flattening.h"
 
 #undef PR2_GRIPPER_OPEN_VAL
 #undef PR2_GRIPPER_CLOSED_VAL
@@ -118,6 +119,25 @@ public:
         for (int i = 0; i < interpvals.size(); ++i)
             interpvals[i] = (1.-a)*startvals[i] + a*endvals[i];
         robot->setDOFValues(indices, interpvals);
+    }
+};
+
+class FakeManipAction : public virtual Action {
+    TelekineticGripper::Ptr gripper;
+    btTransform start, dest;
+
+public:
+    FakeManipAction(TelekineticGripper::Ptr fakeGripper) : gripper(fakeGripper), start(btTransform::getIdentity()), dest(btTransform::getIdentity()) { }
+    void setStart(const btTransform &start_) { start = start_; }
+    void setDest(const btTransform &dest_) { dest = dest_; }
+
+    void step(float dt) {
+        if (done()) return;
+        stepTime(dt);
+        const float a = fracElapsed();
+        btVector3 v = (1-a)*start.getOrigin() + a*dest.getOrigin();
+        btQuaternion q = start.getRotation().slerp(dest.getRotation(), a);
+        gripper->setTransform(btTransform(q, v));
     }
 };
 
@@ -237,10 +257,41 @@ public:
     }
 };
 
-class PR2SoftBodyGripperAction : public Action {
+class FakeManipMoveAction : public FakeManipAction, public ManipMoveAction {
+    btTransform targetTrans;
+    TelekineticGripper::Ptr fgripper;
+
+    void calcTraj() {
+        btTransform currTrans = fgripper->getTransform();
+        switch (getMode()) {
+        case MOVE_RELATIVE:
+            targetTrans = targetTrans * currTrans;
+            break;
+        case MOVE_ROT_ONLY:
+            targetTrans.setOrigin(currTrans.getOrigin());
+            break;
+        case MOVE_ORIGIN_ONLY:
+            targetTrans.setRotation(currTrans.getRotation());
+            break;
+        }
+        setStart(currTrans);
+        setDest(targetTrans);
+    }
+
+public:
+    FakeManipMoveAction(TelekineticGripper::Ptr fgripper_) : fgripper(fgripper_), targetTrans(btTransform::getIdentity()), FakeManipAction(fgripper_) { }
+    void setTargetTrans(const btTransform &t) { targetTrans = t; }
+    void step(float dt) {
+        if (FakeManipAction::timeElapsed == 0)
+            calcTraj();
+        FakeManipAction::step(dt);
+    }
+};
+
+class GenPR2SoftGripperAction : public Action {
     RaveRobotObject::Ptr robot;
     OpenRAVE::RobotBase::ManipulatorPtr manip;
-    PR2SoftBodyGripper::Ptr sbgripper;
+    GenPR2SoftGripper::Ptr sbgripper;
 
     dReal startVal, endVal;
     vector<int> indices;
@@ -250,9 +301,9 @@ class PR2SoftBodyGripperAction : public Action {
     BulletSoftObject::Ptr sb;
 
 public:
-    typedef boost::shared_ptr<PR2SoftBodyGripperAction> Ptr;
+    typedef boost::shared_ptr<GenPR2SoftGripperAction> Ptr;
 
-    PR2SoftBodyGripperAction(RaveRobotObject::Ptr robot_, OpenRAVE::RobotBase::ManipulatorPtr manip, PR2SoftBodyGripper::Ptr sbgripper_) :
+    GenPR2SoftGripperAction(RaveRobotObject::Ptr robot_, OpenRAVE::RobotBase::ManipulatorPtr manip, GenPR2SoftGripper::Ptr sbgripper_) :
         robot(robot_),
         sbgripper(sbgripper_),
         indices(manip->GetGripperIndices()),
@@ -365,11 +416,11 @@ static const btScalar LOWER_INTO_TABLE = -0.01;
 static const btScalar LIFT_DIST = 0.05;
 class GraspClothNodeAction : public ActionChain {
     RaveRobotObject::Ptr robot;
-    RaveRobotObject::Manipulator::Ptr manip;
+    GenManip::Ptr gmanip;
     BulletSoftObject::Ptr sb;
     const int node;
     btVector3 dir;
-    PR2SoftBodyGripper::Ptr sbgripper;
+    GenPR2SoftGripper::Ptr sbgripper;
 
     // pos = desired manip transform origin
     // dir = direction vector that the manipulator should point to
@@ -384,71 +435,116 @@ class GraspClothNodeAction : public ActionChain {
         return btTransform(q, pos);
     }
 
+    ManipMoveAction::Ptr createMoveAction() {
+        switch (gmanip->type) {
+        case GenManip::TYPE_FAKE:
+            return FakeManipMoveAction::Ptr(new FakeManipMoveAction(gmanip->asFake()));
+        case GenManip::TYPE_IK:
+            return ManipIKInterpAction::Ptr(new ManipIKInterpAction(robot, gmanip->asIKManip()));
+        }
+        cout << "error: gen manip type " << gmanip->type << " not recognized by GraspClothNodeAction" << endl;
+        return ManipMoveAction::Ptr();
+    };
+
+    void init() {
+        if (btFuzzyZero(dir.length2())) {
+            cout << "WARNING: creating GraspClothNodeAction with dir length zero" << endl;
+            return;
+        }
+
+        dir.normalize();
+
+        // if dir is a small angle from the table, use special scooping motion
+        bool scoop = false;
+        btVector3 dirProjTable = dir; dirProjTable.setZ(0); dirProjTable.normalize();
+        btScalar angleWithTable = abs(dir.angle(dirProjTable));
+        if (angleWithTable < M_PI/4) {
+            dir = dirProjTable;
+            scoop = true;
+        }
+
+        GripperOpenCloseAction::Ptr openGripper(new GripperOpenCloseAction(robot, gmanip->baseManip()->manip, true));
+        GripperOpenCloseAction::Ptr closeGripper(new GripperOpenCloseAction(robot, gmanip->baseManip()->manip, false));
+
+        ManipMoveAction::Ptr positionGrasp(createMoveAction());
+        btVector3 v(sb->softBody->m_nodes[node].m_x);
+        btTransform graspTrans = scoop ? transFromDir(dir, v + dir*0.03*METERS + SCOOP_OFFSET*METERS, true)
+                                       : transFromDir(dir, v - dir*MOVE_BEHIND_DIST*METERS, false);
+        positionGrasp->setPR2TipTargetTrans(graspTrans);
+
+        ManipMoveAction::Ptr moveAboveNode(createMoveAction());
+        btTransform moveAboveTrans(GRIPPER_DOWN_ROT * PR2_GRIPPER_INIT_ROT,
+                graspTrans.getOrigin() + btVector3(0, 0, 2*LIFT_DIST*METERS));
+        moveAboveNode->setPR2TipTargetTrans(moveAboveTrans);
+
+        ManipMoveAction::Ptr moveForward(createMoveAction());
+        moveForward->setRelativeTrans(btTransform(btQuaternion(0, 0, 0, 1),
+                   dir * (MOVE_BEHIND_DIST+(scoop?0:MOVE_FORWARD_DIST)) * METERS));
+        if (scoop) moveForward->setExecTime(0);
+
+        FunctionAction::Ptr releaseAnchors(new FunctionAction(boost::bind(&GenPR2SoftGripper::releaseAllAnchors, sbgripper)));
+        FunctionAction::Ptr setAnchors(new FunctionAction(boost::bind(&GenPR2SoftGripper::grab, sbgripper)));
+
+        // make gripper face down, while keeping rotation
+        ManipMoveAction::Ptr orientGripperDown(createMoveAction());
+        btVector3 facingDir = btTransform(graspTrans.getRotation() * PR2_GRIPPER_INIT_ROT.inverse(), btVector3(0, 0, 0)) * PR2_GRIPPER_INIT_ROT_DIR;
+        btScalar angleFromVert = facingDir.angle(btVector3(0, 0, -1));
+        btVector3 cross = facingDir.cross(btVector3(0, 0, -1));
+        if (btFuzzyZero(cross.length2())) cross = btVector3(1, 0, 0); // arbitrary axis
+        orientGripperDown->setRotOnly(btQuaternion(cross, angleFromVert) * graspTrans.getRotation());
+
+        ManipMoveAction::Ptr moveUp(createMoveAction());
+        moveUp->setRelativeTrans(btTransform(btQuaternion(0, 0, 0, 1),
+                    btVector3(0, 0, 0.01*METERS)));
+
+        ManipMoveAction::Ptr moveToNeutralHeight(createMoveAction());
+        moveToNeutralHeight->setRelativeTrans(btTransform(btQuaternion(0, 0, 0, 1),
+                    btVector3(0, 0, LIFT_DIST * METERS)));
+
+        *this << releaseAnchors << openGripper
+            << moveAboveNode << positionGrasp
+            << moveForward << closeGripper << setAnchors
+            << moveUp << orientGripperDown << moveToNeutralHeight;
+    }
+
 public:
     typedef boost::shared_ptr<GraspClothNodeAction> Ptr;
 
-    GraspClothNodeAction(RaveRobotObject::Ptr robot_, RaveRobotObject::Manipulator::Ptr manip_,
-            PR2SoftBodyGripper::Ptr sbgripper_,
+#if 0
+    // constructor for using real robot
+    GraspClothNodeAction(
+            RaveRobotObject::Ptr robot_,
+            RaveRobotObject::Manipulator::Ptr manip_,
+            GenPR2SoftGripper::Ptr sbgripper_,
             BulletSoftObject::Ptr sb_, int node_,
             const btVector3 &dir_) :
         robot(robot_), manip(manip_), sbgripper(sbgripper_), sb(sb_), node(node_), dir(dir_) {
+        init();
+    }
 
-        //dir.setZ(0); // only look at vector on the x-y plane
-        if (!btFuzzyZero(dir.length2())) {
-            dir.normalize();
-
-            // if dir is a small angle from the table, use special scooping motion
-            bool scoop = false;
-            btVector3 dirProjTable = dir; dirProjTable.setZ(0); dirProjTable.normalize();
-            btScalar angleWithTable = abs(dir.angle(dirProjTable));
-            if (angleWithTable < M_PI/4) {
-                dir = dirProjTable;
-                scoop = true;
-            }
-
-            GripperOpenCloseAction::Ptr openGripper(new GripperOpenCloseAction(robot, manip->manip, true));
-            GripperOpenCloseAction::Ptr closeGripper(new GripperOpenCloseAction(robot, manip->manip, false));
-
-            ManipMoveAction::Ptr positionGrasp(new ManipIKInterpAction(robot, manip));
-            btVector3 v(sb->softBody->m_nodes[node].m_x);
-            btTransform graspTrans = scoop ? transFromDir(dir, v + dir*0.03*METERS + SCOOP_OFFSET*METERS, true)
-                                           : transFromDir(dir, v - dir*MOVE_BEHIND_DIST*METERS, false);
-            positionGrasp->setPR2TipTargetTrans(graspTrans);
-
-            ManipMoveAction::Ptr moveAboveNode(new ManipIKInterpAction(robot, manip));
-            btTransform moveAboveTrans(GRIPPER_DOWN_ROT * PR2_GRIPPER_INIT_ROT,
-                    graspTrans.getOrigin() + btVector3(0, 0, 2*LIFT_DIST*METERS));
-            moveAboveNode->setPR2TipTargetTrans(moveAboveTrans);
-
-            ManipMoveAction::Ptr moveForward(new ManipIKInterpAction(robot, manip));
-            moveForward->setRelativeTrans(btTransform(btQuaternion(0, 0, 0, 1),
-                       dir * (MOVE_BEHIND_DIST+(scoop?0:MOVE_FORWARD_DIST)) * METERS));
-            if (scoop) moveForward->setExecTime(0);
-
-            FunctionAction::Ptr releaseAnchors(new FunctionAction(boost::bind(&PR2SoftBodyGripper::releaseAllAnchors, sbgripper)));
-            FunctionAction::Ptr setAnchors(new FunctionAction(boost::bind(&PR2SoftBodyGripper::grab, sbgripper)));
-
-            // make gripper face down, while keeping rotation
-            ManipMoveAction::Ptr orientGripperDown(new ManipIKInterpAction(robot, manip));
-            btVector3 facingDir = btTransform(graspTrans.getRotation() * PR2_GRIPPER_INIT_ROT.inverse(), btVector3(0, 0, 0)) * PR2_GRIPPER_INIT_ROT_DIR;
-            btScalar angleFromVert = facingDir.angle(btVector3(0, 0, -1));
-            btVector3 cross = facingDir.cross(btVector3(0, 0, -1));
-            if (btFuzzyZero(cross.length2())) cross = btVector3(1, 0, 0); // arbitrary axis
-            orientGripperDown->setRotOnly(btQuaternion(cross, angleFromVert) * graspTrans.getRotation());
-
-            ManipMoveAction::Ptr moveUp(new ManipIKInterpAction(robot, manip));
-            moveUp->setRelativeTrans(btTransform(btQuaternion(0, 0, 0, 1),
-                        btVector3(0, 0, 0.01*METERS)));
-
-            ManipMoveAction::Ptr moveToNeutralHeight(new ManipIKInterpAction(robot, manip));
-            moveToNeutralHeight->setRelativeTrans(btTransform(btQuaternion(0, 0, 0, 1),
-                        btVector3(0, 0, LIFT_DIST * METERS)));
-
-            *this << releaseAnchors << openGripper
-                << moveAboveNode << positionGrasp
-                << moveForward << closeGripper << setAnchors
-                << moveUp << orientGripperDown << moveToNeutralHeight;
-        }
+    // constructor for using fake manipulator
+    GraspClothNodeAction(
+            RaveRobotObject::Ptr robot_,
+            TelekineticGripper::Ptr fakeManip_,
+            GenPR2SoftGripper::Ptr sbgripper_,
+            BulletSoftObject::Ptr sb_, int node_,
+            const btVector3 &dir_) :
+        robot(robot_), manip(fakeManip_->m_manip), fakeManip(fakeManip_),
+        sbgripper(sbgripper_),
+        sb(sb_), node(node_), dir(dir_)
+    {
+        init();
+    }
+#endif
+    // general constructor with GenManip
+    GraspClothNodeAction(
+            RaveRobotObject::Ptr robot_,
+            GenManip::Ptr genmanip, 
+            GenPR2SoftGripper::Ptr sbgripper_,
+            BulletSoftObject::Ptr sb_, int node_,
+            const btVector3 &dir_) :
+        robot(robot_), gmanip(genmanip), sbgripper(sbgripper_), sb(sb_), node(node_), dir(dir_) {
+        init();
     }
 };
 
