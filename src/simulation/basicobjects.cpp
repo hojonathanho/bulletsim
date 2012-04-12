@@ -9,7 +9,7 @@
 #include <osgbCollision/CollisionShapes.h>
 #include <Serialize/BulletFileLoader/btBulletFile.h>
 #include <boost/scoped_array.hpp>
-#include "SetColorsVisitor.h"
+#include "set_colors_visitor.h"
 
 #define MAX_RAYCAST_DISTANCE 100.0
 

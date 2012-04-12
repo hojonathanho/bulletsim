@@ -106,7 +106,7 @@ PR2SoftBodyGripper::PR2SoftBodyGripper(RaveRobotObject::Ptr robot_, OpenRAVE::Ro
         rightFinger(robot->robot->GetLink(leftGripper ? LEFT_GRIPPER_RIGHT_FINGER_NAME : RIGHT_GRIPPER_RIGHT_FINGER_NAME)),
         origLeftFingerInvTrans(robot->getLinkTransform(leftFinger).inverse()),
         origRightFingerInvTrans(robot->getLinkTransform(rightFinger).inverse()),
-        centerPt(util::toBtTransform(manip->GetTransform(), robot->scale).getOrigin()),
+        centerPt(util::toBtTransform(manip->GetTransform(), GeneralConfig::scale).getOrigin()),
         closingNormal(manip->GetClosingDirection()[0],
                       manip->GetClosingDirection()[1],
                       manip->GetClosingDirection()[2]),
@@ -193,9 +193,8 @@ void PR2Manager::loadRobot() {
   }
   
   else {
-    btTransform trans(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0));
     static const char ROBOT_MODEL_FILE[] = "robots/pr2-beta-static.zae";
-    pr2.reset(new RaveRobotObject(scene.rave, ROBOT_MODEL_FILE, trans));
+    pr2.reset(new RaveRobotObject(scene.rave, ROBOT_MODEL_FILE));
     scene.env->add(pr2);
   }
   

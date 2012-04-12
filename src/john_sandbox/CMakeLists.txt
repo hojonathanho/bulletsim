@@ -53,3 +53,9 @@ target_link_libraries(ik_benchmark simulation robots)
 
 #add_executable(fake_gripper fake_gripper.cpp)
 #target_link_libraries(fake_gripper simulation robots)
+
+add_executable(test_rave_load test_rave_load.cpp)
+target_link_libraries(test_rave_load simulation robots)
+
+add_executable(test_dynamic_pr2 test_dynamic_pr2.cpp)
+target_link_libraries(test_dynamic_pr2 simulation robots)

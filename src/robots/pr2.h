@@ -49,7 +49,7 @@ class PR2SoftBodyGripper {
     btSoftBody *psb;
 
     btTransform getManipRot() const {
-        btTransform trans(util::toBtTransform(manip->GetTransform(), robot->scale));
+        btTransform trans(util::toBtTransform(manip->GetTransform(), GeneralConfig::scale));
         trans.setOrigin(btVector3(0, 0, 0));
         return trans;
     }
