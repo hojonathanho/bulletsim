@@ -5,6 +5,8 @@
 #include <BulletSoftBody/btSoftBodyHelpers.h>
 #include <openrave/kinbody.h>
 #include "robots/pr2.h"
+#include <Eigen/Dense>
+#include <Eigen/SVD>
 
 //#define USE_PR2
 
@@ -71,6 +73,7 @@ public:
 
 //    GripperKinematicObject(const GripperKinematicObject& gripper);
     GripperKinematicObject();
+    void translate(btVector3 transvec);
     void setWorldTransform(btTransform tm);
     btTransform getWorldTransform(){return cur_tm;}
     void getWorldTransform(btTransform& in){in = cur_tm;}
@@ -101,7 +104,7 @@ public:
 
     EnvironmentObject::Ptr copy(Fork &f) const {
         Ptr o(new GripperKinematicObject());
-        printf("copying gripper\n");
+        //printf("copying gripper\n");
         internalCopy(o, f);
         return o;
     }
@@ -138,6 +141,12 @@ public:
 //}
 
 
+void GripperKinematicObject::translate(btVector3 transvec)
+{
+    btTransform tm = getWorldTransform();
+    tm.setOrigin(tm.getOrigin() + transvec);
+    setWorldTransform(tm);
+}
 
 void GripperKinematicObject::toggleattach(btSoftBody * psb) {
 
@@ -565,7 +574,7 @@ struct CustomScene : public Scene {
 #else
 
 
-    GripperKinematicObject::Ptr left_gripper, right_gripper;
+    GripperKinematicObject::Ptr left_gripper, right_gripper, left_gripper_orig, right_gripper_orig, left_gripper_fork, right_gripper_fork;
 
     struct {
         bool transGrabber0,rotateGrabber0,transGrabber1,rotateGrabber1, startDragging;
@@ -573,7 +582,7 @@ struct CustomScene : public Scene {
     } inputState;
 
 #endif
-
+    BulletSoftObject::Ptr clothptr, clothptr_orig, clothptr_fork;
     BulletInstance::Ptr bullet2;
     OSGInstance::Ptr osg2;
     Fork::Ptr fork;
@@ -590,23 +599,157 @@ struct CustomScene : public Scene {
     CustomScene(){
         inputState.transGrabber0 =  inputState.rotateGrabber0 =  inputState.transGrabber1 =  inputState.rotateGrabber1 =  inputState.startDragging = false;
 
-        left_gripper.reset(new GripperKinematicObject());
-        left_gripper->setWorldTransform(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0,-10,0)));
-        env->add(left_gripper);
+        left_gripper_orig.reset(new GripperKinematicObject());
+        left_gripper_orig->setWorldTransform(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0,-10,0)));
+        env->add(left_gripper_orig);
 
-        right_gripper.reset(new GripperKinematicObject());
-        right_gripper->setWorldTransform(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0,10,0)));
-        env->add(right_gripper);
+        right_gripper_orig.reset(new GripperKinematicObject());
+        right_gripper_orig->setWorldTransform(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0,10,0)));
+        env->add(right_gripper_orig);
+
+        left_gripper = left_gripper_orig;
+        right_gripper = right_gripper_orig;
+
+        fork.reset();
     }
 
 #endif
-    BulletSoftObject::Ptr clothptr;
+
     BulletSoftObject::Ptr createCloth(btScalar s, const btVector3 &center);
     void createFork();
+    void destroyFork();
     void swapFork();
+    Eigen::MatrixXf computeJacobian();
 
     void run();
 };
+
+
+Eigen::MatrixXf CustomScene::computeJacobian()
+{
+    //printf("starting jacobian computation\n");
+    //stopLoop();
+    bool bBackupLoopState = loopState.skip_step;
+    loopState.skip_step = true;
+
+    int numnodes = clothptr->softBody->m_nodes.size();
+    Eigen::VectorXf  V_before(numnodes*3);
+    Eigen::VectorXf  V_after(V_before);
+
+    for(int k = 0; k < numnodes; k++)
+    {
+        for(int j = 0; j < 3; j++)
+            V_before(3*k + j) = clothptr->softBody->m_nodes[k].m_x[j];
+    }
+
+    Eigen::MatrixXf J(numnodes*3,3);
+
+    std::vector<btVector3> perts;
+    float step_length = 0.2;
+    perts.push_back(btVector3(step_length,0,0));
+    perts.push_back(btVector3(0,step_length,0));
+    perts.push_back(btVector3(0,0,step_length));
+
+    for(int i = 0; i < 3 ; i++)
+    {
+        createFork();
+        swapFork(); //now pointers are set to the forked objects
+
+        //apply perturbation
+
+//        btTransform tm;
+//        left_gripper->getWorldTransform(tm);
+//        tm.setOrigin(tm.getOrigin() + perts[i]);
+//        left_gripper->setWorldTransform(tm);
+
+        left_gripper->translate(perts[i]);
+
+        //stepFor(BulletConfig::dt, 0.5);
+
+        float time = 0.05;
+
+        while (time > 0) {
+            int maxsteps= BulletConfig::maxSubSteps;
+            float internaldt = BulletConfig::internalTimeStep;
+            float startTime=viewer.getFrameStamp()->getSimulationTime(), endTime;
+
+            if (syncTime && drawingOn)
+                endTime = viewer.getFrameStamp()->getSimulationTime();
+
+            // run pre-step callbacks
+            for (int i = 0; i < prestepCallbacks.size(); ++i)
+                prestepCallbacks[i]();
+
+            //env->step(dt, maxsteps, internaldt);
+            for (std::set<Fork::Ptr>::iterator i = forks.begin(); i != forks.end(); ++i)
+                (*i)->env->step(BulletConfig::dt, maxsteps, internaldt);
+
+            draw();
+
+            if (syncTime && drawingOn) {
+                float timeLeft = BulletConfig::dt - (endTime - startTime);
+                idleFor(timeLeft);
+                startTime = endTime + timeLeft;
+            }
+            time -= BulletConfig::dt;
+        }
+
+        for(int k = 0; k < numnodes; k++)
+        {
+            for(int j = 0; j < 3; j++)
+                V_after(3*k + j) = clothptr->softBody->m_nodes[k].m_x[j];
+        }
+
+        destroyFork();
+        J.col(i) = (V_after - V_before)/step_length;
+    }
+
+    //cout << J<< endl;
+
+
+    loopState.skip_step = bBackupLoopState;
+    //printf("done jacobian computation\n");
+    return J;
+}
+
+//template<typename Scalar>
+//bool pinv(const Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> &a, Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> &a_pinv)
+//{
+//    // see : http://en.wikipedia.org/wiki/Moore-Penrose_pseudoinverse#The_general_case_and_the_SVD_method
+
+//    if ( a.rows()<a.cols() )
+//        return false;
+
+//    // SVD
+//    Eigen::SVD< Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> > svdA(a);
+
+//    Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> vSingular = svdA.singularValues();
+
+//    // Build a diagonal matrix with the Inverted Singular values
+//    // The pseudo inverted singular matrix is easy to compute :
+//    // is formed by replacing every nonzero entry by its reciprocal (inversing).
+//    Eigen::Matrix<Scalar, Eigen::Dynamic, 1, Eigen::RowMajor> vPseudoInvertedSingular(svdA.matrixV().cols(),1);
+
+//    for (int iRow =0; iRow<vSingular.rows(); iRow++)
+//    {
+//        if ( fabs(vSingular(iRow))<=1e-10 ) // Todo : Put epsilon in parameter
+//        {
+//            vPseudoInvertedSingular(iRow,0)=0.;
+//        }
+//        else
+//        {
+//            vPseudoInvertedSingular(iRow,0)=1./vSingular(iRow);
+//        }
+//    }
+
+//    // A little optimization here
+//    Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> mAdjointU = svdA.matrixU().adjoint().block(0,0,vSingular.rows(),svdA.matrixU().adjoint().cols());
+
+//    // Pseudo-Inversion : V * S * U'
+//    a_pinv = (svdA.matrixV() *  vPseudoInvertedSingular.asDiagonal()) * mAdjointU  ;
+
+//    return true;
+//}
 
 class CustomKeyHandler : public osgGA::GUIEventHandler {
     CustomScene &scene;
@@ -625,15 +768,11 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,osgGA::GUIActionA
         case 'g':
             {
             scene.swapFork();
-            GripperKinematicObject::Ptr fork_gripper = boost::static_pointer_cast<GripperKinematicObject> (scene.fork->forkOf(scene.left_gripper));
-            fork_gripper->toggle();
             }
             break;
 
         case 'h':
-            scene.unregisterFork(scene.fork);
-            scene.osg->root->removeChild(scene.osg2->root.get());
-            scene.fork.reset();
+            scene.destroyFork();
             break;
 
         case '1':
@@ -699,6 +838,41 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,osgGA::GUIActionA
             scene.inputState.transGrabber1 = false; break;
         case 'w':
             scene.inputState.rotateGrabber1 = false; break;
+
+        case 'j':
+            {
+                scene.loopState.skip_step = true;
+                int numnodes = scene.clothptr->softBody->m_nodes.size();
+
+                Eigen::VectorXf nodestep(3);
+                nodestep(0) = -1;
+                nodestep(1) = 0;
+                nodestep(2) = 0;
+
+                Eigen::VectorXf V_step(numnodes*3);
+
+
+                for(int k = 0; k < numnodes; k++)
+                {
+                    for(int j = 0; j < 3; j++)
+                        V_step(3*k + j) = nodestep(j);
+                }
+
+                Eigen::VectorXf V_trans;
+                for(int i = 0; i < 100; i++)
+                {
+                    Eigen::MatrixXf Jt(scene.computeJacobian().transpose());
+                    V_trans = Jt*V_step;
+                    V_trans = V_trans/V_trans.norm()*0.2;
+                    cout << "trans vec: " << V_trans.transpose() << endl;
+                    btVector3 transvec(V_trans(0),V_trans(1),V_trans(2));
+                    scene.left_gripper->translate(transvec);
+                    scene.stepFor(BulletConfig::dt, 0.2);
+                }
+
+
+                scene.loopState.skip_step = false;
+            }
 
         }
         break;
@@ -825,6 +999,10 @@ BulletSoftObject::Ptr CustomScene::createCloth(btScalar s, const btVector3 &cent
 }
 
 void CustomScene::createFork() {
+    if(fork)
+    {
+        destroyFork();
+    }
     bullet2.reset(new BulletInstance);
     bullet2->setGravity(BulletConfig::gravity);
     osg2.reset(new OSGInstance);
@@ -833,7 +1011,7 @@ void CustomScene::createFork() {
     fork.reset(new Fork(env, bullet2, osg2));
     registerFork(fork);
 
-    cout << "forked!" << endl;
+    //cout << "forked!" << endl;
 
 #ifdef USE_PR2
     origRobot = pr2m.pr2;
@@ -845,7 +1023,27 @@ void CustomScene::createFork() {
     tmpRobot = boost::static_pointer_cast<RaveRobotObject>(p);
     cout << (tmpRobot->getEnvironment() == env.get()) << endl;
     cout << (tmpRobot->getEnvironment() == fork->env.get()) << endl;
+#else
+    left_gripper_fork = boost::static_pointer_cast<GripperKinematicObject> (fork->forkOf(left_gripper));
+    right_gripper_fork = boost::static_pointer_cast<GripperKinematicObject> (fork->forkOf(right_gripper));
+    clothptr_fork = boost::static_pointer_cast<BulletSoftObject> (fork->forkOf(clothptr));
 #endif
+}
+
+void CustomScene::destroyFork() {
+    if(left_gripper.get() == left_gripper_fork.get())
+    {
+        left_gripper = left_gripper_orig;
+        right_gripper = right_gripper_orig;
+        clothptr = clothptr_orig;
+    }
+
+    unregisterFork(fork);
+    osg->root->removeChild(osg2->root.get());
+    fork.reset();
+    left_gripper_fork.reset();
+    right_gripper_fork.reset();
+    clothptr_fork.reset();
 }
 
 void CustomScene::swapFork() {
@@ -858,6 +1056,20 @@ void CustomScene::swapFork() {
     pr2m.pr2 = origRobot;
     pr2m.pr2Left = pr2m.pr2->getManipByIndex(leftidx);
     pr2m.pr2Right = pr2m.pr2->getManipByIndex(rightidx);
+#else
+    if(left_gripper.get() == left_gripper_orig.get())
+    {
+        left_gripper = left_gripper_fork;
+        right_gripper = right_gripper_fork;
+        clothptr = clothptr_fork;
+    }
+    else
+    {
+        left_gripper = left_gripper_orig;
+        right_gripper = right_gripper_orig;
+        clothptr = clothptr_orig;
+    }
+
 #endif
 
 /*    vector<int> indices; vector<dReal> vals;
@@ -886,7 +1098,7 @@ void CustomScene::run() {
 
 
     btSoftBody* psb = cloth->softBody.get();
-    clothptr = cloth;
+    clothptr = clothptr_orig = cloth;
     psb->setTotalMass(0.1);
 
 #ifdef USE_PR2

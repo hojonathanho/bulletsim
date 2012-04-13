@@ -95,7 +95,7 @@ struct Scene {
 
   struct {
       float currTime, prevTime;
-      bool looping, paused, debugDraw;
+      bool looping, paused, debugDraw, skip_step;
   } loopState;
   // Starts a viewer loop and blocks the caller.
   void startLoop(); // runs with a variable-rate dt that depends on the system speed

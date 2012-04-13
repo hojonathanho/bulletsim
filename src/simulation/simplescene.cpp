@@ -33,7 +33,7 @@ Scene::Scene() {
 
 void Scene::startViewer() {
     drawingOn = syncTime = true;
-    loopState.looping = loopState.paused = loopState.debugDraw = false;
+    loopState.looping = loopState.paused = loopState.debugDraw = loopState.skip_step = false;
 
     dbgDraw.reset(new osgbCollision::GLDebugDrawer());
     dbgDraw->setDebugMode(btIDebugDraw::DBG_MAX_DEBUG_DRAW_MODE /*btIDebugDraw::DBG_DrawWireframe*/);
@@ -129,7 +129,16 @@ void Scene::startLoop() {
 void Scene::startFixedTimestepLoop(float dt) {
     loopState.looping = true;
     while (loopState.looping && drawingOn && !viewer.done())
-        step(dt);
+    {
+        if(loopState.skip_step)
+        {
+            if(drawingOn && !viewer.done())
+                draw();
+            sleep(1/60.);
+        }
+        else
+            step(dt);
+    }
 }
 
 void Scene::stopLoop() {
