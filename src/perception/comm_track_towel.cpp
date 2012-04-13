@@ -1,7 +1,7 @@
 #include "vision.h"
 #include "perception/config_perception.h"
 #include "simulation/config_bullet.h"
-
+#include "simulation/recording.h"
 
 int main(int argc, char* argv[]) {
   Eigen::internal::setNbThreads(3);

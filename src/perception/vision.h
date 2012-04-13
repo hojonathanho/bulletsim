@@ -1,17 +1,12 @@
 #pragma once
 #include "simulation/simplescene.h"
-#include "simulation/recording.h"
 #include "simulation/softbodies.h"
 #include "comm/comm.h"
 #include "perception/utils_perception.h"
-#include <vector>
-#include <queue>
 #include "clouds/comm_pcl.h"
 #include "clouds/comm_cv.h"
 #include "simulation/rope.h"
 #include "perception/plotting_perception.h"
-
-const int BIGINT = 9999999;
 
 struct Vision {
     
@@ -100,14 +95,16 @@ struct RopeVision : public Vision {
 struct TrackedObject {
   typedef boost::shared_ptr<TrackedObject> Ptr;
   
-  TrackedObject();
+  TrackedObject() : m_age(0) {}
+  
 
   Eigen::VectorXf m_sigs;
-  float m_loglik;
-  int m_age;
+  float m_loglik; // DEPRECATED: let Vision class keep track of likelihood of fork
+  int m_age; // DEPRECATED?
 
   virtual Eigen::MatrixXf featsFromSim() = 0;
-  virtual void applyEvidence(const SparseArray& corr, const Eigen::MatrixXf& obsPts) = 0;
+  virtual void applyEvidence(const SparseArray& corr, const Eigen::MatrixXf& obsPts) {}
+  virtual void applyEvidence(const SparseArray& corr, const vector<btVector3>& obsPts) {}  
 };
 
 
@@ -138,52 +135,8 @@ protected:
   void init(const std::vector<btVector3>& nodes, const Eigen::VectorXf& labels);
 };
 
-struct RopeVision2 : public Vision {
-  RopeVision2();
-  std::vector<TrackedRope::Ptr> m_ropeHypoths;
-  std::map<TrackedRope::Ptr, Fork::Ptr> m_rope2fork;
-  BulletObject::Ptr m_table;
-  ColorCloudPtr m_obsCloud;
-  Eigen::MatrixXf m_obsFeats;
-  FileSubscriber* m_ropeInitSub;
-  RopeInitMessage m_ropeInitMsg;
-  FileSubscriber* m_ropeSub;
-  CloudMessage m_ropePtsMsg;
-  FileSubscriber* m_labelSub;
-  ImageMessage m_labelMsg;
-  Eigen::MatrixXf m_depthImage;
-  cv::Mat m_ropeMask;
 
-  void doIteration();
-  void beforeIterations();
-  void afterIterations();
-
-  void setupComm();
-  void setupScene();
-
-  void addRopeHypoth(TrackedRope::Ptr rope);
-  void removeRopeHypoth(TrackedRope::Ptr rope);
-  void cullHypoths();
-
-
-};
-
-
-struct TrackedObject2 {
-  typedef boost::shared_ptr<TrackedObject> Ptr;
-
-  Eigen::VectorXf m_sigs;
-
-  TrackedObject2() {}
-  ~TrackedObject2() {}  
-
-
-  virtual Eigen::MatrixXf featsFromSim() = 0;
-  virtual void applyEvidence(const SparseArray& corr, const vector<btVector3>& obsPts) = 0;
-
-};
-
-struct TrackedTowel : public TrackedObject2 {
+struct TrackedTowel : public TrackedObject {
   typedef boost::shared_ptr<TrackedTowel> Ptr;
 
   BulletSoftObject::Ptr m_sim;
@@ -277,3 +230,4 @@ struct TowelVision2 : public Vision2 {
   
 };
 
+CoordinateTransformer* loadTable(Scene& scene); // load table from standard location and add it to the scene

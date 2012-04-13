@@ -336,8 +336,6 @@ void RopeInitMessage::writeDataTo(path p) {
   throw runtime_error("not implemented");
 }
 
-TrackedObject::TrackedObject() : m_age(0) {}
-
 MatrixXf TrackedRope::featsFromCloud(ColorCloudPtr cloud) {
   MatrixXf out(cloud->size(), 4);
   for (int i=0; i < cloud->points.size(); i++) {
@@ -385,163 +383,10 @@ void TrackedRope::init(const vector<btVector3>& nodes, const VectorXf& labels) {
   m_sigs.setConstant(sq(.025*METERS));
 }
 
-
-osg::Vec4f hyp_colors[6] = {osg::Vec4f(1,0,0,.3),
-			    osg::Vec4f(0,1,0,.3),
-			    osg::Vec4f(0,0,1,.3),
-			    osg::Vec4f(1,1,0,.3),
-			    osg::Vec4f(0,1,1,.3),
-			    osg::Vec4f(1,0,1,.3)
-};
-int COLOR_IND=0;
-osg::Vec4f getColor() {
-  COLOR_IND = (COLOR_IND + 1) % 6;
-  return hyp_colors[COLOR_IND];
-}
-
-
-
-RopeVision2::RopeVision2() {
-  Eigen::internal::setNbThreads(2);
-  setupComm();
-  setupScene();
-}
-
-void RopeVision2::setupComm() {
-  // not each frame
-  m_ropeInitSub = new FileSubscriber("rope_init","txt"); // not adding stuff because it's not called every step
-  // ------------
-
-  // each frame -------------
-  m_ropeSub = new FileSubscriber("rope_pts","pcd");
-  m_subs.push_back(m_ropeSub);
-  m_msgs.push_back(&m_ropePtsMsg);
-  
-  m_labelSub = new FileSubscriber("labels","bmp");
-  m_subs.push_back(m_labelSub);
-  m_msgs.push_back(&m_labelMsg);
-  // ----------------
-  
-  m_pub = new FilePublisher("rope_model", "txt");
-
-  m_obsCloud.reset(new ColorCloud());
-
-}
-
-void RopeVision2::setupScene() {
-  vector< vector<float> > vv = floatMatFromFile(onceFile("table_corners.txt").string());
-  vector<btVector3> tableCornersCam = toBulletVectors(vv);
-  m_CT = new CoordinateTransformer(getCamToWorldFromTable(tableCornersCam));
-
-  vector<btVector3> tableCornersWorld = m_CT->toWorldFromCamN(tableCornersCam);
-  m_table = makeTable(tableCornersWorld, .1*METERS);
-  m_table->setColor(0,0,1,.25);
-
-  m_scene->env->add(m_table);
-}
-
-void RopeVision2::beforeIterations() {
-  ColorCloudPtr cloudCam  = m_kinectMsg.m_data;
-  ColorCloudPtr cloudWorld(new ColorCloud());
-  pcl::transformPointCloud(*cloudCam, *cloudWorld, m_CT->worldFromCamEigen);
-  if (TrackingConfig::showKinect) m_kinectPts->setPoints1(cloudWorld);
-  else {m_kinectPts->clear();}
-  cv::Mat labels = m_labelMsg.m_data;
-  m_ropeMask = labels < 2;
-  m_depthImage = getDepthImage(cloudCam);
-  pcl::transformPointCloud(*m_ropePtsMsg.m_data, *m_obsCloud, m_CT->worldFromCamEigen);
-  m_obsFeats = TrackedRope::featsFromCloud(m_obsCloud);
-
-
-  bool gotRope = m_ropeInitSub->recv(m_ropeInitMsg,false);
-  if (gotRope) {
-    TrackedRope::Ptr trackedRope(new TrackedRope(m_ropeInitMsg, m_CT));
-    osg::Vec4f color = getColor();
-    BOOST_FOREACH(BulletObject::Ptr bo, trackedRope->m_sim->children) bo->setColor(color[0], color[1], color[2], color[3]);
-    addRopeHypoth(trackedRope);
-  }
-}
-
-
-void RopeVision2::doIteration() {
-  BOOST_FOREACH(TrackedRope::Ptr hyp, m_ropeHypoths) {
-    MatrixXf ropePtsCam  = toEigenMatrix(m_CT->toCamFromWorldN(getNodes(hyp->m_sim)));
-    VectorXf pVis  = calcVisibility(ropePtsCam, m_depthImage, m_ropeMask); 
-VectorXf::Ones(hyp->m_sim->nLinks,1); // TODO
-    Eigen::MatrixXf corrEigen = calcCorrProb(hyp->featsFromSim(), hyp->m_sigs, m_obsFeats, pVis, TrackingConfig::outlierParam, hyp->m_loglik);
-    SparseArray corr = toSparseArray(corrEigen, TrackingConfig::cutoff);
-    hyp->applyEvidence(corr, toEigenMatrix(m_obsCloud));
-    
-    
-    if (hyp==m_ropeHypoths[0]) {      
-      
-      vector<btVector3> obsPts = toBulletVectors(m_obsCloud);
-      vector<btVector3> estPts = getNodes(hyp->m_sim);
-      Eigen::VectorXf inlierFrac = corrEigen.colwise().sum();
-      updateAllPlots(obsPts, estPts, hyp->m_sigs, pVis, corr, inlierFrac);
-
-    }
-  }
-
-  BOOST_FOREACH(Fork::Ptr f, m_scene->forks)
-    f->env->step(.03,2,.015);
-  m_scene->draw();
-
-}
-
-void RopeVision2::afterIterations() {
-  vector< vector<float> > vv; 
-  m_pub->send(VecVecMessage<float>(vv));
-  BOOST_FOREACH(TrackedRope::Ptr hyp, m_ropeHypoths) hyp->m_age++;
-  cullHypoths();
-}
-
-void RopeVision2::cullHypoths() {  
-  if (m_ropeHypoths.size() > 1 && m_ropeHypoths[0]->m_age >= MIN_CULL_AGE && m_ropeHypoths[1]->m_age >= MIN_CULL_AGE) {
-    cout << "log likelihoods: " << m_ropeHypoths[0]->m_loglik << " " << m_ropeHypoths[1]->m_loglik << endl;
-    if (m_ropeHypoths[0]->m_loglik > .95*m_ropeHypoths[1]->m_loglik) {
-      cout << "removing alternate hypoth" << endl;
-      removeRopeHypoth(m_ropeHypoths[1]);
-    }
-    else {
-      cout << "removing original hypoth" << endl;
-      removeRopeHypoth(m_ropeHypoths[0]);
-    }
-  }
-}
-
-void RopeVision2::addRopeHypoth(TrackedRope::Ptr ropeHypoth) {
-
-  BulletInstance::Ptr bullet2(new BulletInstance);
-  bullet2->setGravity(BulletConfig::gravity);
-  OSGInstance::Ptr osg2(new OSGInstance);
-  m_scene->osg->root->addChild(osg2->root.get());
-  Fork::Ptr fork(new Fork(m_scene->env, bullet2, osg2));
-  m_scene->registerFork(fork);
-  fork->env->add(ropeHypoth->m_sim);
-  m_ropeHypoths.push_back(ropeHypoth);
-  m_rope2fork[ropeHypoth]=fork;
-  
-
-}
-
-void RopeVision2::removeRopeHypoth(TrackedRope::Ptr ropeHypoth) {
-  Fork::Ptr fork = m_rope2fork[ropeHypoth];
-  m_scene->unregisterFork(fork);
-  m_rope2fork.erase(ropeHypoth);
-  m_scene->osg->root->removeChild(fork->env->osg->root.get());
-    
-  for (vector<TrackedRope::Ptr>::iterator it=m_ropeHypoths.begin(); it < m_ropeHypoths.end(); ++it) {
-    if (*it == ropeHypoth) {
-      m_ropeHypoths.erase(it);
-      return;
-    }
-  }
-  throw std::runtime_error("rope hypothesis not found");
-}
-
     
 Vision2::Vision2() {
+
+  cout << "Vision2::Vision2()" << endl;
   
   m_scene = new Scene();
 
@@ -810,6 +655,3 @@ void TowelVision2::afterIterations() {
   vector< vector<float> > towelPts = toVecVec(m_towel->getNodes());  
   m_pub.send(VecVecMessage<float>(towelPts));
 }
-  
-  
-
