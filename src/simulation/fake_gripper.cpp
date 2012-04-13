@@ -48,7 +48,11 @@ btTransform TelekineticGripper::getLinkTransform(KinBody::LinkPtr link) const {
 }
 
 BulletObject::Ptr TelekineticGripper::getLinkRigidBody(KinBody::LinkPtr link) const {
-  return children[m_linkToChildMap.find(link)->second];
+  map<KinBody::LinkPtr, int>::const_iterator i = m_linkToChildMap.find(link);
+  BOOST_ASSERT(i != m_linkToChildMap.end());
+  const int idx = i->second;
+  BOOST_ASSERT(idx >= 0 && idx < children.size());
+  return children[idx];
 }
 
 void TelekineticGripper::setTransform(const btTransform& tf) {m_tf = tf;}
@@ -97,4 +101,5 @@ void TelekineticGripper::postCopy(EnvironmentObject::Ptr copy, Fork &f) const {
     }
   }
   BOOST_ASSERT(o->m_origs.size() == m_origs.size());
+  BOOST_ASSERT(o->children.size() == children.size());
 }

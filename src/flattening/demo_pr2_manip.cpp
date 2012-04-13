@@ -16,7 +16,7 @@
 #include "search_general.h"
 #include "config_flattening.h"
 
-class CustomScene : Scene {
+class CustomScene : public Scene {
     Cloth::Ptr cloth;
     PR2Manager::Ptr pr2m;
     GenManip::Ptr gleft, gright;
@@ -234,6 +234,7 @@ public:
         addPreDrawCallback(boost::bind(&CustomScene::markFolds, this));
         addPreDrawCallback(boost::bind(&CustomScene::drawPick, this));
         addPreDrawCallback(boost::bind(&CustomScene::drawManipAxes, this));
+        addPreDrawCallback(boost::bind(&GenPR2SoftGripper::dbgDraw, sbgripperleft.get(), this));
 
         startViewer();
         startFixedTimestepLoop(BulletConfig::dt);

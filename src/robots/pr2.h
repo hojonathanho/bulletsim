@@ -119,7 +119,7 @@ private:
     btTransform leftInitTrans, rightInitTrans;
 
     map<HapticEvent, boost::function<void()> > hapticEvent2Func;
-  
+
     void actionWrapper(Action::Ptr a, float dt) {
         a->reset();
         scene.runAction(a, dt);

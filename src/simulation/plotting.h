@@ -23,7 +23,7 @@ public:
   }
   void prePhysics(){}// no physics
   void preDraw(){};
-  void destroy(){} 
+  void destroy(){}
   void setDefaultColor(float r, float g, float b, float a);
   void forceTransparency(float a);
 };
@@ -55,13 +55,13 @@ public:
 class PlotSpheres : public EnvironmentObject  {
 public:
   typedef boost::shared_ptr<PlotSpheres> Ptr;
-    
-  osg::ref_ptr<osg::Geode> m_geode;     
+
+  osg::ref_ptr<osg::Geode> m_geode;
   int m_nDrawables;
-    
+
   void clear();
 
-  EnvironmentObject::Ptr copy(Fork &f) const { return Ptr(new PlotSpheres(*this)); }    
+  EnvironmentObject::Ptr copy(Fork &f) const { return Ptr(new PlotSpheres(*this)); }
   virtual void init(){
     getEnvironment()->osg->root->addChild(m_geode.get());
   }

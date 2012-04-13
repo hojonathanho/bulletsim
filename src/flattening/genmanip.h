@@ -6,6 +6,7 @@
 #include "simulation/fake_gripper.h"
 #include "simulation/softbodies.h"
 
+#include "simulation/simplescene.h"
 struct GenManip {
     typedef boost::shared_ptr<GenManip> Ptr;
     enum Type {
@@ -66,6 +67,8 @@ public:
     void grab();
     void releaseAllAnchors();
     bool isGrabbing() const { return grabbing; }
+
+    void dbgDraw(Scene *s);
 };
 
 #endif // __FL_GENGRIPPER_H__

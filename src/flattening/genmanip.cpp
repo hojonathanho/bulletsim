@@ -66,6 +66,7 @@ static const char LEFT_GRIPPER_RIGHT_FINGER_NAME[] = "l_gripper_r_finger_tip_lin
 static const char RIGHT_GRIPPER_LEFT_FINGER_NAME[] = "r_gripper_l_finger_tip_link";
 static const char RIGHT_GRIPPER_RIGHT_FINGER_NAME[] = "r_gripper_r_finger_tip_link";
 
+
 static inline btTransform getManipRot(GenManip::Ptr gmanip) {
     btTransform trans(gmanip->getTransform());
     trans.setOrigin(btVector3(0, 0, 0));
@@ -89,7 +90,7 @@ static inline btVector3 getInnerPt(GenManip::Ptr gmanip, KinBody::LinkPtr leftFi
     btTransform trans(gmanip->getLinkTransform(left ? leftFinger : rightFinger));
     // we get an innermost point on the gripper by transforming a point
     // on the center of the gripper when it is closed
-    return trans * (METERS/20.*btVector3((left ? 1 : -1) * 0.234402, -0.299, 0));
+    return trans * (METERS/20.*btVector3(0.234402, (left ? 1 : -1) * -0.299, 0));
 }
 
 // Returns true is pt is on the inner side of the specified finger of the gripper
@@ -102,17 +103,17 @@ static bool inGraspRegion(GenManip::Ptr gmanip, const btVector3 &pt, KinBody::Li
     // extra padding for more anchors (for stability)
     static const float TOLERANCE = 0.00;
 
-    // check that pt is between the fingers
-    if (!onInnerSide(gmanip, pt, leftFinger, rightFinger, true)
-            || !onInnerSide(gmanip, pt, leftFinger, rightFinger, false))
-        return false;
-
     // check that pt is behind the gripper tip
     btVector3 x = gmanip->getTransform().inverse() * pt;
     if (x.z() > gmanip->baseManip()->robot->scale*(0.02 + TOLERANCE)) return false;
 
     // check that pt is within the finger width
     if (abs(x.x()) > gmanip->baseManip()->robot->scale*(0.01 + TOLERANCE)) return false;
+
+    // check that pt is between the fingers
+    if (!onInnerSide(gmanip, pt, leftFinger, rightFinger, true) ||
+        !onInnerSide(gmanip, pt, leftFinger, rightFinger, false))
+        return false;
 
     cout << "ATTACHING: " << x.x() << ' ' << x.y() << ' ' << x.z() << endl;
 
@@ -134,7 +135,8 @@ GenPR2SoftGripper::Ptr GenPR2SoftGripper::copy(
         GenManip::Ptr gmanip, bool leftGripper) {
     GenPR2SoftGripper::Ptr o(new GenPR2SoftGripper(robot, gmanip, leftGripper));
     o->grabOnlyOnContact = grabOnlyOnContact;
-    o->leftFinger = leftFinger; o->rightFinger = rightFinger;
+    o->leftFinger = robot->robot->GetLink(leftGripper ? LEFT_GRIPPER_LEFT_FINGER_NAME : RIGHT_GRIPPER_LEFT_FINGER_NAME);
+    o->rightFinger = robot->robot->GetLink(leftGripper ? LEFT_GRIPPER_RIGHT_FINGER_NAME : RIGHT_GRIPPER_RIGHT_FINGER_NAME);
     o->sb = sb;
     o->grabbing = grabbing;
     o->anchors = anchors;
@@ -153,6 +155,17 @@ void GenPR2SoftGripper::grab() {
     grabbing = true;
 }
 
+void GenPR2SoftGripper::dbgDraw(Scene *s) {
+    vector<btVector3> pts;
+    pts.push_back(getInnerPt(gmanip, leftFinger, rightFinger, true));
+    pts.push_back(getInnerPt(gmanip, leftFinger, rightFinger, true) + (getManipRot(gmanip) * getClosingDirection(gmanip, true))*0.1*METERS);
+
+    pts.push_back(getInnerPt(gmanip, leftFinger, rightFinger, false));
+    pts.push_back(getInnerPt(gmanip, leftFinger, rightFinger, false) + (getManipRot(gmanip) * getClosingDirection(gmanip, false))*0.1*METERS);
+
+    s->plotLines->setPoints(pts);
+}
+
 void GenPR2SoftGripper::attach(bool left) {
     btRigidBody *rigidBody =
         gmanip->getLinkRigidBody(left ? leftFinger : rightFinger)->rigidBody.get();
@@ -168,6 +181,7 @@ void GenPR2SoftGripper::attach(bool left) {
         }
     }
 
+#if 0
     // look for faces with center in gripper region
     const btSoftBody::tFaceArray &faces = sb->softBody->m_faces;
     for (int i = 0; i < faces.size(); ++i) {
@@ -204,6 +218,7 @@ void GenPR2SoftGripper::attach(bool left) {
             }
         }
     }
+#endif
 
     cout << "appended " << attached.size() << " anchors to " << (left ? "left" : "right") << endl;
 }

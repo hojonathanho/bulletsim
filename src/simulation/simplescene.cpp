@@ -29,7 +29,6 @@ Scene::Scene() {
     // default callbacks
     addVoidKeyCallback('p', boost::bind(&Scene::toggleIdle, this));
     addVoidKeyCallback('d', boost::bind(&Scene::toggleDebugDraw, this));
-    
 }
 
 void Scene::startViewer() {

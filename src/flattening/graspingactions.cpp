@@ -220,6 +220,7 @@ static void genGrabSpecs(const GraspingActionContext &ctx, vector<GraspingAction
     nodes.push_back(ctx.cloth->idx(0, ctx.cloth->resy-1-2));
     nodes.push_back(ctx.cloth->idx(ctx.cloth->resx-1, ctx.cloth->resy-1-2));
 
+    /*
     // look for some fold nodes
     vector<int> foldnodes;
     ctx.cloth->updateAccel();
@@ -230,6 +231,7 @@ static void genGrabSpecs(const GraspingActionContext &ctx, vector<GraspingAction
         if (std::find(nodes.begin(), nodes.end(), foldnodes[i]) == nodes.end())
             nodes.push_back(foldnodes[i]);
     }
+    */
 
     stringstream ss;
     for (int i = 0; i < nodes.size(); ++i) {
