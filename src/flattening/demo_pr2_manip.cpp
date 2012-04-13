@@ -64,32 +64,6 @@ class CustomScene : Scene {
         pickplot->plot(centers, cols, radii);
     }
 
-    /*
-    btTransform savedTrans;
-    void saveManipTrans(RaveRobotObject::Manipulator::Ptr manip) {
-        savedTrans = manip->getTransform();
-        cout << "saved!" << endl;
-
-        vector<btVector3> pts;
-
-        pts.push_back(btVector3(0, 0, 0));
-
-        btTransform t = manip->getTransform();
-        btTransform s = btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0.02)*METERS);
-        btTransform final = t * s;
-        pts.push_back(final.getOrigin());
-        plotLines->setPoints(pts);
-    }
-    void moveArmToSaved(RaveRobotObject::Ptr robot, RaveRobotObject::Manipulator::Ptr manip) {
-        ManipIKInterpAction a(robot, manip);
-        a.setExecTime(1);
-        a.setPR2TipTargetTrans(savedTrans);
-        cout << "moving arm to saved trans" << endl;
-        try { runAction(a, BulletConfig::dt); } catch (...) { }
-        cout << "done." << endl;
-    }
-    */
-
     void printSuccs(const GraspingActionContext &ctx, const GraspingActionSpec &s) {
         vector<GraspingActionSpec> v;
         s.genSuccessors(ctx, v);
@@ -199,6 +173,8 @@ public:
             gright.reset(new GenManip(fakeRight));
             env->add(fakeRight);
 
+            pr2m->pr2->setTransform(btTransform(btQuaternion::getIdentity(), btVector3(0, 0, -100))); // out of view
+
         } else {
             gleft.reset(new GenManip(pr2m->pr2Left));
             gright.reset(new GenManip(pr2m->pr2Right));
@@ -250,8 +226,6 @@ public:
         leftAction.setTarget(cloth);
         leftAction.setExecTime(1.);
         addVoidKeyCallback('a', boost::bind(&CustomScene::runGripperAction, this, leftAction));
-//        addVoidKeyCallback('z', boost::bind(&CustomScene::saveManipTrans, this, pr2m->pr2Left));
-//        addVoidKeyCallback('x', boost::bind(&CustomScene::moveArmToSaved, this, pr2m->pr2, pr2m->pr2Left));
         addVoidKeyCallback('c', boost::bind(&CustomScene::graspPickedNode, this));
         addVoidKeyCallback('f', boost::bind(&CustomScene::greedyFlattenSingle, this));
         addVoidKeyCallback('g', boost::bind(&CustomScene::liftCloth, this));

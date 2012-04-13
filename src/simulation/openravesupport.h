@@ -74,6 +74,11 @@ public:
             bool isDynamic = false
             );
 
+    void setTransform(const btTransform &t) { initialTransform = t; updateBullet(); }
+    btTransform getTransform() const { return initialTransform; }
+    btTransform toRobotFrame(const btTransform &t) const { return util::scaleTransform(initialTransform.inverse() * t, 1./scale); }
+    btTransform toWorldFrame(const btTransform &t) const { return initialTransform * util::scaleTransform(t, scale); }
+
     // forking
     EnvironmentObject::Ptr copy(Fork &f) const;
     void postCopy(EnvironmentObject::Ptr copy, Fork &f) const;
@@ -91,7 +96,7 @@ public:
     // When getting transforms of links, you must remember to scale!
     // or just get the transforms directly from the equivalent Bullet rigid bodies
     btTransform getLinkTransform(KinBody::LinkPtr link) const {
-        return util::toBtTransform(link->GetTransform(), scale);
+        return toWorldFrame(util::toBtTransform(link->GetTransform()));
     }
 
     void ignoreCollisionWith(const btCollisionObject *obj) { ignoreCollisionObjs.insert(obj); }
@@ -121,7 +126,7 @@ public:
         Manipulator(RaveRobotObject *robot_) : robot(robot_) { }
 
         btTransform getTransform() const {
-            return util::toBtTransform(manip->GetTransform(), robot->scale);
+            return robot->toWorldFrame(util::toBtTransform(manip->GetTransform()));
         }
         vector<double> getDOFValues();
         float getGripperAngle();
@@ -132,7 +137,7 @@ public:
                 vector<dReal> &vsolution);
         bool solveIK(const btTransform &targetTrans, vector<dReal> &vsolution) {
             return solveIKUnscaled(
-                    util::toRaveTransform(targetTrans, 1./robot->scale),
+                    util::toRaveTransform(robot->toRobotFrame(targetTrans)),
                     vsolution);
         }
 
@@ -142,7 +147,7 @@ public:
         bool solveAllIK(const btTransform &targetTrans,
                 vector<vector<dReal> > &vsolutions) {
             return solveAllIKUnscaled(
-                    util::toRaveTransform(targetTrans, 1./robot->scale),
+                    util::toRaveTransform(robot->toRobotFrame(targetTrans)),
                     vsolutions);
         }
 
@@ -157,8 +162,8 @@ public:
         // Moves the manipulator in scaled coordinates
         bool moveByIK(const btTransform &targetTrans,
                 bool checkCollisions=false, bool revertOnCollision=true) {
-            return moveByIKUnscaled(util::toRaveTransform(targetTrans, 1./robot->scale),
-                checkCollisions, revertOnCollision);
+            return moveByIKUnscaled(util::toRaveTransform(robot->toRobotFrame(targetTrans)),
+                    checkCollisions, revertOnCollision);
         }
 
         Manipulator::Ptr copy(RaveRobotObject::Ptr newRobot, Fork &f);
