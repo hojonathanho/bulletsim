@@ -75,6 +75,7 @@ class CustomScene : Scene {
         if (!pickedNode) return;
         const int node = pickedNode - &cloth->softBody->m_nodes[0];
         GraspingActionContext ctx(env, pr2m->pr2, gleft, sbgripperleft, cloth);
+        ctx.enableDrawing(this);
         btVector3 gripperdir = calcGraspDir(ctx, node);
         stringstream ss; ss << "grab " << node << ' ' << gripperdir.x() << ' ' << gripperdir.y() << ' ' << gripperdir.z();
         GraspingActionSpec spec(ss.str());
@@ -86,6 +87,7 @@ class CustomScene : Scene {
     GraspingActionSpec prevActionSpec;
     void greedyFlattenSingle() {
         GraspingActionContext ctx(env, pr2m->pr2, gleft, sbgripperleft, cloth);
+        ctx.enableDrawing(this);
         GraspingActionSpec spec = flattenCloth_greedy_single(ctx, prevActionSpec);
         try { runAction(spec.createAction(ctx), BulletConfig::dt); } catch (...) { }
         prevActionSpec = spec;

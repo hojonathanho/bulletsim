@@ -18,21 +18,38 @@ GraspingActionContext GraspingActionContext::fork() const {
     GenManip::Ptr fork_gmanip = gmanip->getForked(*fork, fork_robot);
 //    RaveRobotObject::Manipulator::Ptr fork_manip =
         //fork_robot->getManipByIndex(manip->index);
-    GenPR2SoftGripper::Ptr sbgripper(new GenPR2SoftGripper(fork_robot, fork_gmanip, true)); // TODO: leftGripper flag
-    sbgripper->setGrabOnlyOnContact(true);
-    sbgripper->setTarget(fork_cloth);
-    return GraspingActionContext(fork->env, fork_robot, fork_gmanip, sbgripper, fork_cloth);
+    GenPR2SoftGripper::Ptr fork_sbgripper(sbgripper->copy(fork_robot, fork_gmanip, true)); // TODO: leftGripper flag
+    fork_sbgripper->setGrabOnlyOnContact(true);
+    fork_sbgripper->setTarget(fork_cloth);
+
+    GraspingActionContext newctx(fork->env, fork_robot, fork_gmanip, fork_sbgripper, fork_cloth);
+    newctx.scene = scene;
+
+    return newctx;
 }
 
+void GraspingActionContext::enableDrawing(Scene *s) { scene = s; }
+void GraspingActionContext::disableDrawing() { scene = NULL; }
+
 void GraspingActionContext::runAction(Action::Ptr a) {
+    if (scene)
+        scene->osg->root->addChild(env->osg->root.get());
+
     while (!a->done()) {
         a->step(BulletConfig::dt);
         env->step(BulletConfig::dt, BulletConfig::maxSubSteps, BulletConfig::internalTimeStep);
+
+        if (scene) scene->draw();
     }
     // let scene settle
     static const float SETTLE_TIME = 1;
-    for (float t = 0; t < SETTLE_TIME; t += BulletConfig::dt)
+    for (float t = 0; t < SETTLE_TIME; t += BulletConfig::dt) {
         env->step(BulletConfig::dt, BulletConfig::maxSubSteps, BulletConfig::internalTimeStep);
+        if (scene) scene->draw();
+    }
+
+    if (scene)
+        scene->osg->root->removeChild(env->osg->root.get());
 }
 
 static Action::Ptr createGrabAction(GraspingActionContext &ctx, stringstream &ss) {
@@ -140,22 +157,6 @@ static void genMoveSpecs(vector<GraspingActionSpec> &out) {
 
 // tries out a grasp and returns the number of anchors attached
 static int tryGrasp(const GraspingActionContext &ctx, int node, const btVector3 &gripperdir) {
-#if 0
-    BulletInstance::Ptr fork_bullet(new BulletInstance);
-    fork_bullet->setGravity(BulletConfig::gravity);
-    OSGInstance::Ptr fork_osg(new OSGInstance);
-    Fork::Ptr fork(new Fork(ctx.env, fork_bullet, fork_osg));
-    RaveRobotObject::Ptr fork_robot =
-        boost::static_pointer_cast<RaveRobotObject>(fork->forkOf(ctx.robot));
-    Cloth::Ptr fork_cloth =
-        boost::static_pointer_cast<Cloth>(fork->forkOf(ctx.cloth));
-    RaveRobotObject::Manipulator::Ptr fork_manip =
-        fork_robot->getManipByIndex(ctx.manip->index);
-    GenPR2SoftGripper::Ptr sbgripper(new GenPR2SoftGripper(fork_robot, fork_manip->manip, true)); // TODO: leftGripper flag
-    sbgripper->setGrabOnlyOnContact(true);
-    sbgripper->setTarget(fork_cloth);
-    GraspingActionContext forkctx = { fork->env, fork_robot, fork_manip, sbgripper, fork_cloth };
-#endif
     GraspingActionContext forkctx = ctx.fork();
 
     int startNumAnchors = ctx.cloth->softBody->m_anchors.size();

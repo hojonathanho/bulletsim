@@ -25,10 +25,15 @@ struct GraspingActionContext {
 
     Cloth::Ptr cloth;
 
+    // for debugging
+    Scene *scene;
+    void enableDrawing(Scene *);
+    void disableDrawing();
+
     GraspingActionContext fork() const;
     void runAction(Action::Ptr a);
 
-    GraspingActionContext() { }
+    GraspingActionContext() : scene(NULL) { }
 
     GraspingActionContext(
             Environment::Ptr env_,
@@ -37,7 +42,8 @@ struct GraspingActionContext {
             GenPR2SoftGripper::Ptr sbgripper_,
             Cloth::Ptr cloth_) :
         env(env_), robot(robot_), gmanip(gmanip_),
-        sbgripper(sbgripper_), cloth(cloth_) { }
+        sbgripper(sbgripper_), cloth(cloth_),
+        scene(NULL) { }
 };
 
 struct GraspingActionSpec {

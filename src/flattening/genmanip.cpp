@@ -129,6 +129,18 @@ GenPR2SoftGripper::GenPR2SoftGripper(
 {
 }
 
+GenPR2SoftGripper::Ptr GenPR2SoftGripper::copy(
+        RaveRobotObject::Ptr robot,
+        GenManip::Ptr gmanip, bool leftGripper) {
+    GenPR2SoftGripper::Ptr o(new GenPR2SoftGripper(robot, gmanip, leftGripper));
+    o->grabOnlyOnContact = grabOnlyOnContact;
+    o->leftFinger = leftFinger; o->rightFinger = rightFinger;
+    o->sb = sb;
+    o->grabbing = grabbing;
+    o->anchors = anchors;
+    return o;
+}
+
 void GenPR2SoftGripper::releaseAllAnchors() {
     for (int i = 0; i < anchors.size(); ++i)
         sb->removeAnchor(anchors[i]);

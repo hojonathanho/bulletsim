@@ -55,6 +55,9 @@ public:
 
     GenPR2SoftGripper(RaveRobotObject::Ptr robot_, GenManip::Ptr gmanip_, bool leftGripper);
 
+    // duplicates this into the given environment (good for forks)
+    Ptr copy(RaveRobotObject::Ptr robot, GenManip::Ptr gmanip, bool leftGripper);
+
     void setGrabOnlyOnContact(bool b) { grabOnlyOnContact = b; }
 
     // Must be called before the action is run!
