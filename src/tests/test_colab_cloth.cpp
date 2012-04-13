@@ -978,14 +978,15 @@ BulletSoftObject::Ptr CustomScene::createCloth(btScalar s, const btVector3 &cent
         divs, divs,
         0, true);
 
-    psb->m_cfg.piterations = 2;
+    psb->m_cfg.piterations = 10;//2;
     psb->m_cfg.collisions = btSoftBody::fCollision::CL_SS
         | btSoftBody::fCollision::CL_RS
         | btSoftBody::fCollision::CL_SELF;
     psb->m_cfg.kDF = 1.0;
     psb->getCollisionShape()->setMargin(0.05);
     btSoftBody::Material *pm = psb->appendMaterial();
-    pm->m_kLST = 0.1;
+    pm->m_kLST = 0.2;//0.1;
+    psb->m_cfg.kDP = 0.05;
     psb->generateBendingConstraints(2, pm);
     psb->randomizeConstraints();
     psb->setTotalMass(1, true);
