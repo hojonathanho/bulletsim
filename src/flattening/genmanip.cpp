@@ -133,10 +133,12 @@ void GenPR2SoftGripper::releaseAllAnchors() {
     for (int i = 0; i < anchors.size(); ++i)
         sb->removeAnchor(anchors[i]);
     anchors.clear();
+    grabbing = false;
 }
 
 void GenPR2SoftGripper::grab() {
     attach(true);
+    grabbing = true;
 }
 
 void GenPR2SoftGripper::attach(bool left) {

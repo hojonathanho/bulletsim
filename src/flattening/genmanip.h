@@ -47,7 +47,7 @@ class GenPR2SoftGripper {
     // Checks if psb is touching the inside of the gripper fingers
     // If so, attaches anchors to every contact point
     void attach(bool left);
-
+    bool grabbing;
     vector<BulletSoftObject::AnchorHandle> anchors;
 
 public:
@@ -62,6 +62,7 @@ public:
 
     void grab();
     void releaseAllAnchors();
+    bool isGrabbing() const { return grabbing; }
 };
 
 #endif // __FL_GENGRIPPER_H__

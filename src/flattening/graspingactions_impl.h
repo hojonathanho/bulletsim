@@ -311,7 +311,6 @@ public:
     {
         if (indices.size() != 1)
             cout << "WARNING: more than one gripper DOF; just choosing first one" << endl;
-        setCloseAction();
     }
 
     void setEndpoints(dReal start, dReal end) { startVal = start; endVal = end; }
@@ -322,12 +321,6 @@ public:
     }
     void setOpenAction() { setEndpoints(getCurrDOFVal(), PR2_GRIPPER_OPEN_VAL); }
     void setCloseAction() { setEndpoints(getCurrDOFVal(), PR2_GRIPPER_CLOSED_VAL); }
-    void toggleAction() {
-        if (endVal == PR2_GRIPPER_CLOSED_VAL)
-            setOpenAction();
-        else if (endVal == PR2_GRIPPER_OPEN_VAL)
-            setCloseAction();
-    }
 
     // Must be called before the action is run!
     void setTarget(BulletSoftObject::Ptr sb_) {
@@ -335,13 +328,18 @@ public:
         sbgripper->setTarget(sb_);
     }
 
-    void reset() {
-        Action::reset();
-        sbgripper->releaseAllAnchors();
-    }
-
     void step(float dt) {
         if (done()) return;
+
+        if (timeElapsed == 0) {
+            if (sbgripper->isGrabbing()) {
+                setOpenAction();
+                sbgripper->releaseAllAnchors();
+            } else {
+                setCloseAction();
+            }
+        }
+
         stepTime(dt);
 
         float frac = fracElapsed();

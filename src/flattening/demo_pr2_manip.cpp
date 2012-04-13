@@ -32,7 +32,6 @@ class CustomScene : Scene {
 
     void runGripperAction(GenPR2SoftGripperAction &a) {
         a.reset();
-        a.toggleAction();
         try { runAction(a, BulletConfig::dt); } catch (...) { }
     }
 
