@@ -4,6 +4,7 @@
 
 using namespace Eigen;
 using namespace pcl;
+using namespace std;
 
 pcl::PointCloud<pcl::PointXYZRGBA>::Ptr readPCD(const std::string& pcdfile) {
   pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZRGBA>);

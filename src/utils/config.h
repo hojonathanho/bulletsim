@@ -6,20 +6,19 @@
 #include <boost/foreach.hpp>
 #include <boost/program_options.hpp>
 
-using namespace std;
 namespace po = boost::program_options;
 
 
 struct ParameterBase {
-  string m_name;
-  string m_desc;
+  std::string m_name;
+  std::string m_desc;
   virtual void addToBoost(po::options_description&) = 0;
 };
 
 template <typename T>
 struct Parameter : ParameterBase {
   T* m_value;
-  Parameter(string name, T* value, string desc) {
+  Parameter(std::string name, T* value, std::string desc) {
     m_name = name;
     m_value = value;
     m_desc = desc;
@@ -30,39 +29,17 @@ struct Parameter : ParameterBase {
 };
 
 struct Config {
-  vector<ParameterBase*> params;
+  std::vector<ParameterBase*> params;
 };
 
 class Parser {
-
-  vector<Config> m_configs;
+  std::vector<Config> m_configs;
 public:
   void addGroup(Config config) {
-    m_configs.push_back(config);
+      m_configs.push_back(config);
   }
 
-  void read(int argc, char* argv[]) {
-    // create boost options_description based on variables, parser
-    po::options_description od;
-    od.add_options()("help,h", "produce help message");
-    BOOST_FOREACH(Config config, m_configs){
-      BOOST_FOREACH(ParameterBase* param, config.params) {
-	param->addToBoost(od);
-      }
-    }
-    po::variables_map vm;        
-    po::store(po::command_line_parser(argc, argv)
-	      .options(od)
-	      .run()
-	      , vm);
-    if (vm.count("help")) {
-      cout << "usage: " << argv[0] << " [options]" << endl;
-      cout << od << endl;
-      exit(0);
-    }
-    po::notify(vm);    
-
-  } 
+  void read(int argc, char* argv[]);
 };
 
 struct GeneralConfig : Config {

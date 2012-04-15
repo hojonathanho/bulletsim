@@ -3,7 +3,6 @@
 
 #include <openrave/openrave.h>
 #include <simulation/util.h>
-using namespace OpenRAVE;
 
 btTransform getKinectToWorld(RobotBasePtr robot);
 

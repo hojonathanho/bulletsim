@@ -3,9 +3,9 @@
 #include "clouds/utils_pcl.h"
 #include "clouds/comm_pcl.h"
 #include <pcl/io/pcd_io.h>
-#include<GL/gl.h>
-#include<GL/glx.h>
-#include<GL/glu.h>
+#include <GL/gl.h>
+#include <GL/glx.h>
+#include <GL/glu.h>
 #include <Eigen/Dense>
 #include "fake_kinect.h"
 #include "utils/my_assert.h"

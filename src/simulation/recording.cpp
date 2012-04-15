@@ -3,6 +3,7 @@
 #include "utils/my_exceptions.h"
 #include "utils/my_assert.h"
 namespace fs = boost::filesystem;
+using namespace std;
 
 int RecordingConfig::record = 0;
 
