@@ -17,11 +17,10 @@ int main(int argc, char* argv[]) {
   parser.read(argc, argv);
 
   initComm();
-  SingleHypRopeVision visionSystem;
+  SingleHypRobotAndRopeVision visionSystem;
 
   extern bool LIVE;
-  if (false) visionSystem.runOnline();
-  else visionSystem.runOffline();
+  visionSystem.runOffline();
 
 
 }
