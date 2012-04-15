@@ -170,7 +170,8 @@ struct Vision2 {
   MultiSubscriber* m_multisub;  
     
   Vision2();
-  ~Vision2();
+  
+  
   void runOnline(); // update loop. when live, iterates until next message
   void runOffline(); 
   virtual void doIteration() = 0; // correspondence update and physics update
@@ -178,6 +179,10 @@ struct Vision2 {
   virtual void afterIterations() = 0; // e.g. send output message, take snapshot
     
   void updateAllPlots(const std::vector<btVector3>& obsPts, const std::vector<btVector3>& estPts, const Eigen::VectorXf& sigs, const Eigen::VectorXf& pVis, const SparseArray& corr, const Eigen::VectorXf& inlierFrac);
+
+
+  virtual void makeScene(); // may want to use some fancier type of scene
+  virtual Scene* getScene(); // you can use covariant return types with this
 
 
 };

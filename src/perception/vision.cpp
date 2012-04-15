@@ -62,8 +62,6 @@ void Vision::setupComm() {
 
 void Vision::setupScene() {
 
-  m_scene = new Scene();
-
   m_kinectPts.reset(new PointCloudPlot(2));
   m_estPlot.reset(new PlotSpheres());
   m_obsPlot.reset(new PointCloudPlot(10));
@@ -383,13 +381,14 @@ void TrackedRope::init(const vector<btVector3>& nodes, const VectorXf& labels) {
   m_sigs.setConstant(sq(.025*METERS));
 }
 
+
     
 Vision2::Vision2() {
 
   cout << "Vision2::Vision2()" << endl;
   
-  m_scene = new Scene();
-
+  makeScene();
+  
   m_kinectPts.reset(new PointCloudPlot(2));
   m_estPlot.reset(new PlotSpheres());
   m_obsPlot.reset(new PointCloudPlot(5));
@@ -412,10 +411,16 @@ Vision2::Vision2() {
   OSGCamParams cp(m_CT->worldFromCamUnscaled, GeneralConfig::scale);
   m_scene->manip->setHomePosition(cp.eye, cp.center, cp.up);
 
-
 }
 
-Vision2::~Vision2() {}
+
+void Vision2::makeScene() {
+  m_scene = new Scene();
+}
+
+Scene* Vision2::getScene() {
+  return m_scene;
+}
 
 void Vision2::runOnline() {
   m_multisub->prepare();
@@ -441,11 +446,13 @@ void Vision2::runOffline() {
     ENSURE(m_multisub->recvAll());
 
     beforeIterations();
+    cout << "iter: ";
     do {
       doIteration();
-      cout << iter++ << endl;
+      cout << iter++ << " ";
     }
     while (iter < TrackingConfig::nIter);
+    cout << endl;
     afterIterations();
   }
 }
