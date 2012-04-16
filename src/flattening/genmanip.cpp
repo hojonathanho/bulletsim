@@ -79,10 +79,7 @@ static inline btVector3 getClosingDirection(GenManip::Ptr gmanip, bool left) {
     btVector3 toolDir = util::toBtVector(gmanip->baseManip()->manip->GetLocalToolDirection());
     // vector normal to the direction that the gripper fingers move in the manipulator frame
     // (on the PR2 this points back into the arm)
-    btVector3 closingNormal(
-        gmanip->baseManip()->manip->GetClosingDirection()[0],
-        gmanip->baseManip()->manip->GetClosingDirection()[1],
-        gmanip->baseManip()->manip->GetClosingDirection()[2]);
+    btVector3 closingNormal(-1, 0, 0);
     return (left ? 1 : -1) * toolDir.cross(closingNormal);
 }
 // Finds some innermost point on the gripper
@@ -181,7 +178,6 @@ void GenPR2SoftGripper::attach(bool left) {
         }
     }
 
-#if 0
     // look for faces with center in gripper region
     const btSoftBody::tFaceArray &faces = sb->softBody->m_faces;
     for (int i = 0; i < faces.size(); ++i) {
@@ -218,7 +214,6 @@ void GenPR2SoftGripper::attach(bool left) {
             }
         }
     }
-#endif
 
     cout << "appended " << attached.size() << " anchors to " << (left ? "left" : "right") << endl;
 }

@@ -23,6 +23,16 @@ public:
     }
 };
 
+class WaitAction : public Action {
+public:
+    typedef boost::shared_ptr<WaitAction> Ptr;
+    WaitAction(float time) { execTime = time; }
+    void step(float dt) {
+        if (done()) return;
+        stepTime(dt);
+    }
+};
+
 // an action that just runs a given function once
 class FunctionAction : public Action {
 private:
@@ -159,6 +169,7 @@ public:
 
     // sets the transform of the tip of the fingers
     virtual void setPR2TipTargetTrans(const btTransform &t) {
+        mode = MOVE_TIP_ABSOLUTE;
         static const btTransform MANIP_TO_TIP =
             btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, -0.005)*METERS);
         setTargetTrans(t * MANIP_TO_TIP);

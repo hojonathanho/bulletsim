@@ -19,7 +19,7 @@ Cloth::Cloth(int resx_, int resy_,
         BulletSoftObject::Ptr sb) :
             resx(resx_), resy(resy_),
             lenx(lenx_), leny(leny_),
-            BulletSoftObject(sb->softBody) {
+            BulletSoftObject(*sb) {
     initAccel();
 }
 

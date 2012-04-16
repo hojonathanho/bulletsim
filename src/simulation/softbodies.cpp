@@ -11,6 +11,13 @@
 
 #define COPY_ARRAY(a, b) { (a).resize((b).size()); for (int z = 0; z < (b).size(); ++z) (a)[z] = (b)[z]; }
 
+static void printAnchors(const map<BulletSoftObject::AnchorHandle, int> &anchormap) {
+    cout << "=======" << endl;
+    for (map<BulletSoftObject::AnchorHandle, int>::const_iterator i = anchormap.begin(); i != anchormap.end(); ++i)
+        cout << i->first << " -> " << i->second << '\n';
+    cout << "=======" << endl;
+}
+
 // there is no btSoftBody::appendFace that takes Node pointers, so here it is
 static void btSoftBody_appendFace(btSoftBody *psb, btSoftBody::Node *node0, btSoftBody::Node *node1,
         btSoftBody::Node *node2, btSoftBody::Material *mat=0) {
@@ -129,15 +136,11 @@ void BulletSoftObject::preDraw() {
     quadnormals->dirty();
     quadgeom->dirtyBound();
     quadgeom->addPrimitiveSet(new osg::DrawArrays(GL_QUADS, 0, quadvertices->size()));
-
-/*    osgUtil::SmoothingVisitor sv;
-    sv.apply(*geode);*/
 }
 
 void BulletSoftObject::destroy() {
     getEnvironment()->bullet->dynamicsWorld->removeSoftBody(softBody.get());
 }
-
 // adapted from bullet's SerializeDemo.cpp
 EnvironmentObject::Ptr BulletSoftObject::copy(Fork &f) const {
     const btSoftBody * const orig = softBody.get();
@@ -333,6 +336,7 @@ void BulletSoftObject::postCopy(EnvironmentObject::Ptr copy, Fork &f) const {
 
         // TODO: disableCollisionBetweenLinkedBodies
     }
+    BOOST_ASSERT(psb->m_anchors.size() == orig->m_anchors.size());
 
     // copy the joints
     // TODO: THIS IS NOT TESTED
@@ -387,13 +391,6 @@ void BulletSoftObject::postCopy(EnvironmentObject::Ptr copy, Fork &f) const {
         }
     }
 #endif
-}
-
-static void printAnchors(const map<BulletSoftObject::AnchorHandle, int> &anchormap) {
-    cout << "=======" << endl;
-    for (map<BulletSoftObject::AnchorHandle, int>::const_iterator i = anchormap.begin(); i != anchormap.end(); ++i)
-        cout << i->first << " -> " << i->second << '\n';
-    cout << "=======" << endl;
 }
 
 BulletSoftObject::AnchorHandle BulletSoftObject::addAnchor(btSoftBody::Node *node, btRigidBody *body, btScalar influence) {

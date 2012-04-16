@@ -6,6 +6,7 @@ include_directories(
     ${WM_INCLUDE_DIR}
     ${PCL_INCLUDE_DIRS}
 )
+message(${PCL_INCLUDE_DIRS})
 link_directories(
     ${BULLETSIM_BINARY_DIR}/src
     ${PCL_LIBRARY_DIRS} 
