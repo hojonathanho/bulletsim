@@ -7,6 +7,9 @@
 #include "robots/pr2.h"
 #include <Eigen/Dense>
 #include <Eigen/SVD>
+#include <omp.h>
+#include <boost/date_time/posix_time/posix_time.hpp>
+
 
 //#define USE_PR2
 
@@ -567,6 +570,27 @@ public:
     }
 };
 
+class PointReflector{
+public:
+    PointReflector(float _mid_x, float _min_y, float _max_y)
+    {
+        mid_x = _mid_x;
+        min_y = _min_y;
+        max_y = _max_y;
+    }
+
+    btVector3 reflect(btVector3& vector_in)
+    {
+        btVector3 v_out = vector_in;
+        v_out[0] = vector_in[0] - 2*(vector_in[0] - mid_x);
+        return v_out;
+    }
+
+    float mid_x, min_y, max_y;
+
+    typedef boost::shared_ptr<PointReflector> Ptr;
+};
+
 
 struct CustomScene : public Scene {
 #ifdef USE_PR2
@@ -582,12 +606,13 @@ struct CustomScene : public Scene {
     } inputState;
 
 #endif
+    PointReflector::Ptr point_reflector;
     BulletSoftObject::Ptr clothptr, clothptr_orig, clothptr_fork;
     BulletInstance::Ptr bullet2;
     OSGInstance::Ptr osg2;
     Fork::Ptr fork;
     RaveRobotObject::Ptr origRobot, tmpRobot;
-
+    std::map<int, int> node_mirror_map;
 
 
 
@@ -620,13 +645,113 @@ struct CustomScene : public Scene {
     void destroyFork();
     void swapFork();
     Eigen::MatrixXf computeJacobian();
+    Eigen::MatrixXf computeJacobian_parallel();
 
     void run();
 };
 
+struct StepState {
+    BulletInstance::Ptr bullet;
+    OSGInstance::Ptr osg;
+    Fork::Ptr fork;
+    BulletSoftObject::Ptr cloth;
+    GripperKinematicObject::Ptr gripper;
+};
+
+
+Eigen::MatrixXf CustomScene::computeJacobian_parallel()
+{
+    boost::posix_time::ptime begTick(boost::posix_time::microsec_clock::local_time());
+
+    int numthreads;
+
+    //printf("starting jacobian computation\n");
+    //stopLoop();
+    bool bBackupLoopState = loopState.skip_step;
+    loopState.skip_step = true;
+
+    int numnodes = clothptr->softBody->m_nodes.size();
+    Eigen::VectorXf  V_before(numnodes*3);
+
+
+    for(int k = 0; k < numnodes; k++)
+    {
+        for(int j = 0; j < 3; j++)
+            V_before(3*k + j) = clothptr->softBody->m_nodes[k].m_x[j];
+    }
+
+    Eigen::MatrixXf J(numnodes*3,3);
+
+    std::vector<btVector3> perts;
+    float step_length = 0.2;
+    perts.push_back(btVector3(step_length,0,0));
+    perts.push_back(btVector3(0,step_length,0));
+    perts.push_back(btVector3(0,0,step_length));
+    const float sim_time = 0.05;
+    omp_set_num_threads(4); //need to find a better way to do this
+
+    #pragma omp parallel shared(J, numthreads)
+    {
+        #pragma omp single
+        {
+           numthreads = omp_get_num_threads();
+           //cout << "Numthreads: " << numthreads << endl;
+        }
+
+
+        #pragma omp for
+        for(int i = 0; i < 3 ; i++)
+        {
+
+            StepState innerstate;
+            innerstate.bullet.reset(new BulletInstance);
+            innerstate.bullet->setGravity(BulletConfig::gravity);
+            innerstate.osg.reset(new OSGInstance);
+            innerstate.fork.reset(new Fork(env, innerstate.bullet, innerstate.osg));
+            innerstate.cloth = boost::static_pointer_cast<BulletSoftObject>(innerstate.fork->forkOf(clothptr));
+            innerstate.gripper = boost::static_pointer_cast<GripperKinematicObject>(innerstate.fork->forkOf(left_gripper));
+
+            innerstate.gripper->translate(perts[i]);
+
+            float time = sim_time;
+            while (time > 0) {
+                // run pre-step callbacks
+                for (int i = 0; i < prestepCallbacks.size(); ++i)
+                    prestepCallbacks[i]();
+
+                innerstate.fork->env->step(BulletConfig::dt, BulletConfig::maxSubSteps, BulletConfig::internalTimeStep);
+                time -= BulletConfig::dt;
+            }
+
+            Eigen::VectorXf  V_after(V_before);
+            for(int k = 0; k < numnodes; k++)
+            {
+                for(int j = 0; j < 3; j++)
+                    V_after(3*k + j) = innerstate.cloth->softBody->m_nodes[k].m_x[j];
+            }
+            J.col(i) = (V_after - V_before)/step_length;
+        }
+    }
+
+    //cout << J<< endl;
+    boost::posix_time::ptime endTick(boost::posix_time::microsec_clock::local_time());
+    //std::cout << "time: " << boost::posix_time::to_simple_string(endTick - begTick) << std::endl;
+
+    loopState.skip_step = bBackupLoopState;
+    //printf("done jacobian computation\n");
+    return J;
+
+
+}
+
+
+
+
 
 Eigen::MatrixXf CustomScene::computeJacobian()
 {
+    boost::posix_time::ptime begTick(boost::posix_time::microsec_clock::local_time());
+
     //printf("starting jacobian computation\n");
     //stopLoop();
     bool bBackupLoopState = loopState.skip_step;
@@ -649,6 +774,8 @@ Eigen::MatrixXf CustomScene::computeJacobian()
     perts.push_back(btVector3(step_length,0,0));
     perts.push_back(btVector3(0,step_length,0));
     perts.push_back(btVector3(0,0,step_length));
+    float sim_time = 0.05;
+    float time;
 
     for(int i = 0; i < 3 ; i++)
     {
@@ -656,23 +783,11 @@ Eigen::MatrixXf CustomScene::computeJacobian()
         swapFork(); //now pointers are set to the forked objects
 
         //apply perturbation
-
-//        btTransform tm;
-//        left_gripper->getWorldTransform(tm);
-//        tm.setOrigin(tm.getOrigin() + perts[i]);
-//        left_gripper->setWorldTransform(tm);
-
         left_gripper->translate(perts[i]);
 
-        //stepFor(BulletConfig::dt, 0.5);
-
-        float time = 0.05;
-
+        time = sim_time;
         while (time > 0) {
-            int maxsteps= BulletConfig::maxSubSteps;
-            float internaldt = BulletConfig::internalTimeStep;
             float startTime=viewer.getFrameStamp()->getSimulationTime(), endTime;
-
             if (syncTime && drawingOn)
                 endTime = viewer.getFrameStamp()->getSimulationTime();
 
@@ -680,10 +795,7 @@ Eigen::MatrixXf CustomScene::computeJacobian()
             for (int i = 0; i < prestepCallbacks.size(); ++i)
                 prestepCallbacks[i]();
 
-            //env->step(dt, maxsteps, internaldt);
-            for (std::set<Fork::Ptr>::iterator i = forks.begin(); i != forks.end(); ++i)
-                (*i)->env->step(BulletConfig::dt, maxsteps, internaldt);
-
+            fork->env->step(BulletConfig::dt, BulletConfig::maxSubSteps, BulletConfig::internalTimeStep);
             draw();
 
             if (syncTime && drawingOn) {
@@ -691,7 +803,10 @@ Eigen::MatrixXf CustomScene::computeJacobian()
                 idleFor(timeLeft);
                 startTime = endTime + timeLeft;
             }
+
+
             time -= BulletConfig::dt;
+
         }
 
         for(int k = 0; k < numnodes; k++)
@@ -705,6 +820,8 @@ Eigen::MatrixXf CustomScene::computeJacobian()
     }
 
     //cout << J<< endl;
+    boost::posix_time::ptime endTick(boost::posix_time::microsec_clock::local_time());
+    //std::cout << "time: " << boost::posix_time::to_simple_string(endTick - begTick) << std::endl;
 
 
     loopState.skip_step = bBackupLoopState;
@@ -843,7 +960,7 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,osgGA::GUIActionA
             {
                 scene.loopState.skip_step = true;
                 int numnodes = scene.clothptr->softBody->m_nodes.size();
-
+                float step_limit = 0.2;
                 Eigen::VectorXf nodestep(3);
                 nodestep(0) = -1;
                 nodestep(1) = 0;
@@ -859,11 +976,13 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,osgGA::GUIActionA
                 }
 
                 Eigen::VectorXf V_trans;
-                for(int i = 0; i < 100; i++)
+                for(int i = 0; i < 10; i++)
                 {
-                    Eigen::MatrixXf Jt(scene.computeJacobian().transpose());
+                    Eigen::MatrixXf Jt(scene.computeJacobian_parallel().transpose());
                     V_trans = Jt*V_step;
-                    V_trans = V_trans/V_trans.norm()*0.2;
+                    if(V_trans.norm() > step_limit)
+                        V_trans = V_trans/V_trans.norm()*step_limit;
+
                     cout << "trans vec: " << V_trans.transpose() << endl;
                     btVector3 transvec(V_trans(0),V_trans(1),V_trans(2));
                     scene.left_gripper->translate(transvec);
@@ -873,6 +992,49 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,osgGA::GUIActionA
 
                 scene.loopState.skip_step = false;
             }
+            break;
+
+        case 'k':
+            {
+                scene.loopState.skip_step = true;
+                int numnodes = scene.clothptr->softBody->m_nodes.size();
+
+                float step_limit = 0.2;
+                Eigen::VectorXf V_step(numnodes*3);
+
+                Eigen::VectorXf V_trans;
+                for(int i = 0; i < 10; i++)
+                {
+
+                    for(int i = 0; i < numnodes*3;i++)
+                        V_step(i) = 0;
+
+                    for( map<int,int>::iterator ii=scene.node_mirror_map.begin(); ii!=scene.node_mirror_map.end(); ++ii)
+                    {
+                        btVector3 targpoint = scene.point_reflector->reflect(scene.clothptr->softBody->m_nodes[(*ii).second].m_x);
+
+                        btVector3 targvec = targpoint - scene.clothptr->softBody->m_nodes[(*ii).first].m_x;
+                        for(int j = 0; j < 3; j++)
+                            V_step(3*(*ii).first + j) = targvec[j];
+                    }
+
+
+                    Eigen::MatrixXf Jt(scene.computeJacobian_parallel().transpose());
+                    V_trans = Jt*V_step;
+                    if(V_trans.norm() > step_limit)
+                        V_trans = V_trans/V_trans.norm()*step_limit;
+                    cout << "trans vec: " << V_trans.transpose() << endl;
+                    btVector3 transvec(V_trans(0),V_trans(1),V_trans(2));
+                    scene.left_gripper->translate(transvec);
+                    scene.stepFor(BulletConfig::dt, 0.2);
+                }
+
+
+                scene.loopState.skip_step = false;
+            }
+            break;
+
+
 
         }
         break;
@@ -1139,11 +1301,17 @@ void CustomScene::run() {
     double min_y = 100;
     double max_y = -100;
 
+    //std::vector<float> node_x(psb->m_nodes.size());
+    //std::vector<float> node_y(psb->m_nodes.size());
+    std::vector<btVector3> node_pos(psb->m_nodes.size());
+
     for(int i = 0; i < psb->m_nodes.size();i++)
     {
         //printf("%f\n", psb->m_nodes[i].m_x[0]);
         double new_x = psb->m_nodes[i].m_x[0];
         double new_y = psb->m_nodes[i].m_x[1];
+        node_pos[i] = psb->m_nodes[i].m_x;
+
         if(new_x > max_x)
         {
             max_x = new_x;
@@ -1185,6 +1353,65 @@ void CustomScene::run() {
 
     btTransform tm_right = btTransform(btQuaternion( 0,    0,    0 ,   1), psb->m_nodes[max_x_ind].m_x);
     right_gripper->setWorldTransform(tm_right);
+
+    //mirror about centerline along y direction
+    //centerline defined by 2 points
+    float mid_x = (max_x + min_x)/2;
+
+    point_reflector.reset(new PointReflector(mid_x, min_y, max_y));
+    //find node that most closely matches reflection of point
+    for(int i = 0; i < node_pos.size(); i++)
+    {
+        if(node_pos[i][0] < mid_x)
+        {
+            //float reflected_x = node_pos[i][0] + 2*(mid_x - node_pos[i][0]);
+            btVector3 new_vec = point_reflector->reflect(node_pos[i]);
+            float closest_dist = 100000;
+            int closest_ind = -1;
+            for(int j = 0; j < node_pos.size(); j++)
+            {
+                float dist = (node_pos[j]-new_vec).length();//(node_pos[j][0]-reflected_x)*(node_pos[j][0]-reflected_x) + (node_pos[j][1]-node_pos[i][1])*(node_pos[j][1]-node_pos[i][1]);
+                if(dist < closest_dist)
+                {
+                    closest_dist = dist;
+                    closest_ind = j;
+                }
+            }
+            node_mirror_map[i] = closest_ind;
+        }
+    }
+
+
+
+
+
+    //plotting
+
+    std::vector<btVector3> plotpoints;
+    std::vector<btVector4> plotcols;
+    plotpoints.push_back(btVector3(mid_x,min_y,node_pos[0][2]));
+    plotpoints.push_back(btVector3(mid_x,max_y,node_pos[0][2]));
+    plotcols.push_back(btVector4(1,0,0,1));
+
+//    for( map<int,int>::iterator ii=node_mirror_map.begin(); ii!=node_mirror_map.end(); ++ii)
+//    {
+
+//        cout << (*ii).first << ": " << (*ii).second << endl;
+//        float r = (float)rand()/(float)RAND_MAX;
+//        if(r < 0.05)
+//        {
+//            plotpoints.push_back(node_pos[(*ii).first]);
+//            plotpoints.push_back(node_pos[(*ii).second]);
+//            plotcols.push_back(btVector4(0,1,0,1));
+//        }
+
+//    }
+
+    PlotLines::Ptr lines;
+    lines.reset(new PlotLines(2));
+    lines->setPoints(plotpoints,plotcols);
+    env->add(lines);
+
     //right_gripper->toggle();
 
     //psb->appendAnchor(min_x_ind,left_gripper->top_jaw->rigidBody.get());
