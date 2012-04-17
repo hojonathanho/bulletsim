@@ -663,8 +663,6 @@ Eigen::MatrixXf CustomScene::computeJacobian_parallel()
 {
     boost::posix_time::ptime begTick(boost::posix_time::microsec_clock::local_time());
 
-    int numthreads;
-
     //printf("starting jacobian computation\n");
     //stopLoop();
     bool bBackupLoopState = loopState.skip_step;
@@ -690,16 +688,11 @@ Eigen::MatrixXf CustomScene::computeJacobian_parallel()
     const float sim_time = 0.05;
     omp_set_num_threads(4); //need to find a better way to do this
 
-    #pragma omp parallel shared(J, numthreads)
+    #pragma omp parallel shared(J)
     {
-        #pragma omp single
-        {
-           numthreads = omp_get_num_threads();
-           //cout << "Numthreads: " << numthreads << endl;
-        }
 
-
-        #pragma omp for
+        //schedule(static, 1)
+        #pragma omp for nowait
         for(int i = 0; i < 3 ; i++)
         {
 
