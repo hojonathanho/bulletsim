@@ -632,7 +632,7 @@ struct CustomScene : public Scene {
         bTracking = bInTrackingLoop = false;
         inputState.transGrabber0 =  inputState.rotateGrabber0 =  inputState.transGrabber1 =  inputState.rotateGrabber1 =  inputState.startDragging = false;
 
-        jacobian_sim_time = 0.035;
+        jacobian_sim_time = 0.05;
 
         left_gripper_orig.reset(new GripperKinematicObject());
         left_gripper_orig->setWorldTransform(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0,-10,0)));
@@ -919,18 +919,36 @@ void CustomScene::doJtTracking()
         //cout << "trans vec: " << V_trans.transpose() << endl;
         transvec = btVector3(V_trans(0),V_trans(1),V_trans(2));
 
+        //check is it more semetric than it would have been had you done nothing
+        //simulateInNewFork(innerstate, BulletConfig::dt, transvec);
 
-        StepState innerstate;
-        simulateInNewFork(innerstate, BulletConfig::dt, transvec);
-        error = 0;
-        for( map<int,int>::iterator ii=node_mirror_map.begin(); ii!=node_mirror_map.end(); ++ii)
+        float errors[2];
+        omp_set_num_threads(2);
+        #pragma omp parallel
         {
-            btVector3 targpoint = point_reflector->reflect(innerstate.cloth->softBody->m_nodes[(*ii).second].m_x);
+            #pragma omp for nowait
+            for(int i = 0; i < 2 ; i++)
+            {
+                StepState innerstate;
+                btVector3 simvec = transvec;
+                if(i == 1)
+                    simvec = btVector3(0,0,0);
 
-            btVector3 targvec = targpoint - innerstate.cloth->softBody->m_nodes[(*ii).first].m_x;
-            error = error + targvec.length();
+                simulateInNewFork(innerstate, BulletConfig::dt, simvec);
+                errors[i] = 0;
+                for( map<int,int>::iterator ii=node_mirror_map.begin(); ii!=node_mirror_map.end(); ++ii)
+                {
+                    btVector3 targpoint = point_reflector->reflect(innerstate.cloth->softBody->m_nodes[(*ii).second].m_x);
+
+                    btVector3 targvec = targpoint - innerstate.cloth->softBody->m_nodes[(*ii).first].m_x;
+                    errors[i] = errors[i] + targvec.length();
+                }
+            }
         }
-        if(error > prev_error)
+
+
+
+        if(errors[0] > errors[1])
         {
             cout << "Error increase, not moving (new error: " <<  error << ")" << endl;
             //idleFor(0.2);
