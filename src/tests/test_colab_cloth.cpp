@@ -620,7 +620,7 @@ struct CustomScene : public Scene {
     Fork::Ptr fork;
     RaveRobotObject::Ptr origRobot, tmpRobot;
     std::map<int, int> node_mirror_map;
-
+    float jacobian_sim_time;
 
 
 #ifdef USE_PR2
@@ -631,6 +631,8 @@ struct CustomScene : public Scene {
     CustomScene(){
         bTracking = bInTrackingLoop = false;
         inputState.transGrabber0 =  inputState.rotateGrabber0 =  inputState.transGrabber1 =  inputState.rotateGrabber1 =  inputState.startDragging = false;
+
+        jacobian_sim_time = 0.035;
 
         left_gripper_orig.reset(new GripperKinematicObject());
         left_gripper_orig->setWorldTransform(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0,-10,0)));
@@ -714,7 +716,6 @@ Eigen::MatrixXf CustomScene::computeJacobian_parallel()
     perts.push_back(btVector3(step_length,0,0));
     perts.push_back(btVector3(0,step_length,0));
     perts.push_back(btVector3(0,0,step_length));
-    const float sim_time = 0.05;
     omp_set_num_threads(4); //need to find a better way to do this
 
     #pragma omp parallel shared(J)
@@ -726,7 +727,7 @@ Eigen::MatrixXf CustomScene::computeJacobian_parallel()
         {
 
             StepState innerstate;
-            simulateInNewFork(innerstate, sim_time, perts[i]);
+            simulateInNewFork(innerstate, jacobian_sim_time, perts[i]);
             Eigen::VectorXf  V_after(V_before);
             for(int k = 0; k < numnodes; k++)
             {
@@ -778,7 +779,6 @@ Eigen::MatrixXf CustomScene::computeJacobian()
     perts.push_back(btVector3(step_length,0,0));
     perts.push_back(btVector3(0,step_length,0));
     perts.push_back(btVector3(0,0,step_length));
-    float sim_time = 0.05;
     float time;
 
     for(int i = 0; i < 3 ; i++)
@@ -789,14 +789,14 @@ Eigen::MatrixXf CustomScene::computeJacobian()
         //apply perturbation
         left_gripper->translate(perts[i]);
 
-        time = sim_time;
+        time = jacobian_sim_time;
         while (time > 0) {
             float startTime=viewer.getFrameStamp()->getSimulationTime(), endTime;
             if (syncTime && drawingOn)
                 endTime = viewer.getFrameStamp()->getSimulationTime();
 
             // run pre-step callbacks
-            //for (int j = 0; j < prestepCallbacks.size(); ++j)
+            //for (int j = 0; j < prestepCallbackssize(); ++j)
             //    prestepCallbacks[j]();
 
             fork->env->step(BulletConfig::dt, BulletConfig::maxSubSteps, BulletConfig::internalTimeStep);
@@ -891,8 +891,6 @@ void CustomScene::doJtTracking()
     float prev_error = 10000000;
     Eigen::VectorXf V_trans;
     btVector3 transvec;
-    const float sim_time = 0.1;
-
 
     while(bTracking)
     {
@@ -923,7 +921,7 @@ void CustomScene::doJtTracking()
 
 
         StepState innerstate;
-        simulateInNewFork(innerstate, sim_time, transvec);
+        simulateInNewFork(innerstate, BulletConfig::dt, transvec);
         error = 0;
         for( map<int,int>::iterator ii=node_mirror_map.begin(); ii!=node_mirror_map.end(); ++ii)
         {
@@ -939,15 +937,16 @@ void CustomScene::doJtTracking()
             //left_gripper->translate(-transvec);
             //stepFor(BulletConfig::dt, 0.2);
             //bTracking = false;
-            stepFor(BulletConfig::dt, sim_time);
+            //stepFor(BulletConfig::dt, jacobian_sim_time);
             break;
         }
         else
         {
             cout << endl;
             left_gripper->translate(transvec);
-            stepFor(BulletConfig::dt, sim_time);
+            //stepFor(BulletConfig::dt, jacobian_sim_time);
         }
+        break;
 
     }
 
@@ -1053,44 +1052,6 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,osgGA::GUIActionA
             break;
 
         case 'j':
-            {
-                scene.loopState.skip_step = true;
-                int numnodes = scene.clothptr->softBody->m_nodes.size();
-                float step_limit = 0.2;
-                Eigen::VectorXf nodestep(3);
-                nodestep(0) = -1;
-                nodestep(1) = 0;
-                nodestep(2) = 0;
-
-                Eigen::VectorXf V_step(numnodes*3);
-
-
-                for(int k = 0; k < numnodes; k++)
-                {
-                    for(int j = 0; j < 3; j++)
-                        V_step(3*k + j) = nodestep(j);
-                }
-
-                Eigen::VectorXf V_trans;
-                for(int i = 0; i < 10; i++)
-                {
-                    Eigen::MatrixXf Jt(scene.computeJacobian_parallel().transpose());
-                    V_trans = Jt*V_step;
-                    if(V_trans.norm() > step_limit)
-                        V_trans = V_trans/V_trans.norm()*step_limit;
-
-                    cout << "trans vec: " << V_trans.transpose() << endl;
-                    btVector3 transvec(V_trans(0),V_trans(1),V_trans(2));
-                    scene.left_gripper->translate(transvec);
-                    scene.stepFor(BulletConfig::dt, 0.2);
-                }
-
-
-                scene.loopState.skip_step = false;
-            }
-            break;
-
-        case 'k':
             {
                scene.bTracking = !scene.bTracking;
                //scene.doJtTracking();
