@@ -591,13 +591,19 @@ public:
     typedef boost::shared_ptr<PointReflector> Ptr;
 };
 
+struct StepState {
+    BulletInstance::Ptr bullet;
+    OSGInstance::Ptr osg;
+    Fork::Ptr fork;
+    BulletSoftObject::Ptr cloth;
+    GripperKinematicObject::Ptr gripper;
+};
+
 
 struct CustomScene : public Scene {
 #ifdef USE_PR2
     PR2SoftBodyGripperAction::Ptr leftAction, rightAction;
 #else
-
-
     GripperKinematicObject::Ptr left_gripper, right_gripper, left_gripper_orig, right_gripper_orig, left_gripper_fork, right_gripper_fork;
 
     struct {
@@ -606,6 +612,7 @@ struct CustomScene : public Scene {
     } inputState;
 
 #endif
+    bool bTracking, bInTrackingLoop;
     PointReflector::Ptr point_reflector;
     BulletSoftObject::Ptr clothptr, clothptr_orig, clothptr_fork;
     BulletInstance::Ptr bullet2;
@@ -622,6 +629,7 @@ struct CustomScene : public Scene {
     CustomScene() : pr2m(*this) { }
 #else
     CustomScene(){
+        bTracking = bInTrackingLoop = false;
         inputState.transGrabber0 =  inputState.rotateGrabber0 =  inputState.transGrabber1 =  inputState.rotateGrabber1 =  inputState.startDragging = false;
 
         left_gripper_orig.reset(new GripperKinematicObject());
@@ -646,17 +654,38 @@ struct CustomScene : public Scene {
     void swapFork();
     Eigen::MatrixXf computeJacobian();
     Eigen::MatrixXf computeJacobian_parallel();
+    void simulateInNewFork(StepState& innerstate, float sim_time, btVector3& gripper_trans);
+    void doJtTracking();
 
     void run();
 };
 
-struct StepState {
-    BulletInstance::Ptr bullet;
-    OSGInstance::Ptr osg;
-    Fork::Ptr fork;
-    BulletSoftObject::Ptr cloth;
-    GripperKinematicObject::Ptr gripper;
-};
+
+
+
+void CustomScene::simulateInNewFork(StepState& innerstate, float sim_time, btVector3& gripper_trans)
+{
+
+    innerstate.bullet.reset(new BulletInstance);
+    innerstate.bullet->setGravity(BulletConfig::gravity);
+    innerstate.osg.reset(new OSGInstance);
+    innerstate.fork.reset(new Fork(env, innerstate.bullet, innerstate.osg));
+    innerstate.cloth = boost::static_pointer_cast<BulletSoftObject>(innerstate.fork->forkOf(clothptr));
+    innerstate.gripper = boost::static_pointer_cast<GripperKinematicObject>(innerstate.fork->forkOf(left_gripper));
+
+    innerstate.gripper->translate(gripper_trans);
+
+    float time = sim_time;
+    while (time > 0) {
+        // run pre-step callbacks
+        //for (int j = 0; j < prestepCallbacks.size(); ++j)
+        //    prestepCallbacks[j]();
+
+        innerstate.fork->env->step(BulletConfig::dt, BulletConfig::maxSubSteps, BulletConfig::internalTimeStep);
+        time -= BulletConfig::dt;
+    }
+
+}
 
 
 Eigen::MatrixXf CustomScene::computeJacobian_parallel()
@@ -697,25 +726,7 @@ Eigen::MatrixXf CustomScene::computeJacobian_parallel()
         {
 
             StepState innerstate;
-            innerstate.bullet.reset(new BulletInstance);
-            innerstate.bullet->setGravity(BulletConfig::gravity);
-            innerstate.osg.reset(new OSGInstance);
-            innerstate.fork.reset(new Fork(env, innerstate.bullet, innerstate.osg));
-            innerstate.cloth = boost::static_pointer_cast<BulletSoftObject>(innerstate.fork->forkOf(clothptr));
-            innerstate.gripper = boost::static_pointer_cast<GripperKinematicObject>(innerstate.fork->forkOf(left_gripper));
-
-            innerstate.gripper->translate(perts[i]);
-
-            float time = sim_time;
-            while (time > 0) {
-                // run pre-step callbacks
-                for (int i = 0; i < prestepCallbacks.size(); ++i)
-                    prestepCallbacks[i]();
-
-                innerstate.fork->env->step(BulletConfig::dt, BulletConfig::maxSubSteps, BulletConfig::internalTimeStep);
-                time -= BulletConfig::dt;
-            }
-
+            simulateInNewFork(innerstate, sim_time, perts[i]);
             Eigen::VectorXf  V_after(V_before);
             for(int k = 0; k < numnodes; k++)
             {
@@ -785,8 +796,8 @@ Eigen::MatrixXf CustomScene::computeJacobian()
                 endTime = viewer.getFrameStamp()->getSimulationTime();
 
             // run pre-step callbacks
-            for (int i = 0; i < prestepCallbacks.size(); ++i)
-                prestepCallbacks[i]();
+            //for (int j = 0; j < prestepCallbacks.size(); ++j)
+            //    prestepCallbacks[j]();
 
             fork->env->step(BulletConfig::dt, BulletConfig::maxSubSteps, BulletConfig::internalTimeStep);
             draw();
@@ -860,6 +871,92 @@ Eigen::MatrixXf CustomScene::computeJacobian()
 
 //    return true;
 //}
+
+
+void CustomScene::doJtTracking()
+{
+
+    //this loop is already being executed by someone else, abort
+    if(bInTrackingLoop)
+        return;
+    else
+        bInTrackingLoop = true;
+
+
+    loopState.skip_step = true;
+    int numnodes = clothptr->softBody->m_nodes.size();
+
+    float step_limit = 0.2;
+    Eigen::VectorXf V_step(numnodes*3);
+    float prev_error = 10000000;
+    Eigen::VectorXf V_trans;
+    btVector3 transvec;
+    const float sim_time = 0.1;
+
+
+    while(bTracking)
+    {
+        for(int i = 0; i < numnodes*3;i++)
+            V_step(i) = 0;
+
+        float error = 0;
+        for( map<int,int>::iterator ii=node_mirror_map.begin(); ii!=node_mirror_map.end(); ++ii)
+        {
+            btVector3 targpoint = point_reflector->reflect(clothptr->softBody->m_nodes[(*ii).second].m_x);
+
+            btVector3 targvec = targpoint - clothptr->softBody->m_nodes[(*ii).first].m_x;
+            error = error + targvec.length();
+            for(int j = 0; j < 3; j++)
+                V_step(3*(*ii).first + j) = targvec[j];
+        }
+        cout << "Error: " << error << " ";
+
+
+        prev_error = error;
+
+        Eigen::MatrixXf Jt(computeJacobian_parallel().transpose());
+        V_trans = Jt*V_step;
+        if(V_trans.norm() > step_limit)
+            V_trans = V_trans/V_trans.norm()*step_limit;
+        //cout << "trans vec: " << V_trans.transpose() << endl;
+        transvec = btVector3(V_trans(0),V_trans(1),V_trans(2));
+
+
+        StepState innerstate;
+        simulateInNewFork(innerstate, sim_time, transvec);
+        error = 0;
+        for( map<int,int>::iterator ii=node_mirror_map.begin(); ii!=node_mirror_map.end(); ++ii)
+        {
+            btVector3 targpoint = point_reflector->reflect(innerstate.cloth->softBody->m_nodes[(*ii).second].m_x);
+
+            btVector3 targvec = targpoint - innerstate.cloth->softBody->m_nodes[(*ii).first].m_x;
+            error = error + targvec.length();
+        }
+        if(error > prev_error)
+        {
+            cout << "Error increase, not moving (new error: " <<  error << ")" << endl;
+            //idleFor(0.2);
+            //left_gripper->translate(-transvec);
+            //stepFor(BulletConfig::dt, 0.2);
+            //bTracking = false;
+            stepFor(BulletConfig::dt, sim_time);
+            break;
+        }
+        else
+        {
+            cout << endl;
+            left_gripper->translate(transvec);
+            stepFor(BulletConfig::dt, sim_time);
+        }
+
+    }
+
+    loopState.skip_step = false;
+
+    bInTrackingLoop = false;
+}
+
+
 
 class CustomKeyHandler : public osgGA::GUIEventHandler {
     CustomScene &scene;
@@ -945,9 +1042,15 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,osgGA::GUIActionA
         case 'q':
             scene.inputState.rotateGrabber0 = false; break;
         case '2':
-            scene.inputState.transGrabber1 = false; break;
+            scene.inputState.transGrabber1 = false;
+            //scene.bTracking = true;
+            //scene.doJtTracking();
+            break;
         case 'w':
-            scene.inputState.rotateGrabber1 = false; break;
+            scene.inputState.rotateGrabber1 = false;
+            //scene.bTracking = true;
+            //scene.doJtTracking();
+            break;
 
         case 'j':
             {
@@ -989,46 +1092,10 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,osgGA::GUIActionA
 
         case 'k':
             {
-                scene.loopState.skip_step = true;
-                int numnodes = scene.clothptr->softBody->m_nodes.size();
-
-                float step_limit = 0.2;
-                Eigen::VectorXf V_step(numnodes*3);
-
-                Eigen::VectorXf V_trans;
-                for(int i = 0; i < 10; i++)
-                {
-
-                    for(int i = 0; i < numnodes*3;i++)
-                        V_step(i) = 0;
-
-                    for( map<int,int>::iterator ii=scene.node_mirror_map.begin(); ii!=scene.node_mirror_map.end(); ++ii)
-                    {
-                        btVector3 targpoint = scene.point_reflector->reflect(scene.clothptr->softBody->m_nodes[(*ii).second].m_x);
-
-                        btVector3 targvec = targpoint - scene.clothptr->softBody->m_nodes[(*ii).first].m_x;
-                        for(int j = 0; j < 3; j++)
-                            V_step(3*(*ii).first + j) = targvec[j];
-                    }
-
-
-                    Eigen::MatrixXf Jt(scene.computeJacobian_parallel().transpose());
-                    V_trans = Jt*V_step;
-                    if(V_trans.norm() > step_limit)
-                        V_trans = V_trans/V_trans.norm()*step_limit;
-                    cout << "trans vec: " << V_trans.transpose() << endl;
-                    btVector3 transvec(V_trans(0),V_trans(1),V_trans(2));
-                    scene.left_gripper->translate(transvec);
-                    scene.stepFor(BulletConfig::dt, 0.2);
-                }
-
-
-                scene.loopState.skip_step = false;
+               scene.bTracking = !scene.bTracking;
+               //scene.doJtTracking();
             }
             break;
-
-
-
         }
         break;
 
@@ -1110,6 +1177,7 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,osgGA::GUIActionA
                 else
                 {
                     scene.right_gripper->setWorldTransform(newTrans);
+                    //scene.doJtTracking();
                     //scene.right_grabber->motionState->setKinematicPos(newTrans);
                 }
                 return true;
@@ -1146,6 +1214,7 @@ BulletSoftObject::Ptr CustomScene::createCloth(btScalar s, const btVector3 &cent
     psb->randomizeConstraints();
     psb->setTotalMass(1, true);
     psb->generateClusters(0);
+    //psb->generateClusters(500);
 
 /*    for (int i = 0; i < psb->m_clusters.size(); ++i) {
         psb->m_clusters[i]->m_selfCollisionImpulseFactor = 0.1;
@@ -1240,6 +1309,8 @@ void CustomScene::swapFork() {
 
 void CustomScene::run() {
     viewer.addEventHandler(new CustomKeyHandler(*this));
+
+    addPreStepCallback(boost::bind(&CustomScene::doJtTracking, this));
 
     const float dt = BulletConfig::dt;
     const float table_height = .5;
