@@ -154,7 +154,21 @@ void GripperKinematicObject::translate(btVector3 transvec)
 void GripperKinematicObject::toggleattach(btSoftBody * psb) {
 
     if(bAttached)
+    {
+        btAlignedObjectArray<btSoftBody::Anchor> newanchors;
+        for(int i = 0; i < psb->m_anchors.size(); i++)
+        {
+            if(psb->m_anchors[i].m_body != children[0]->rigidBody.get() && psb->m_anchors[i].m_body != children[1]->rigidBody.get())
+                newanchors.push_back(psb->m_anchors[i]);
+        }
         releaseAllAnchors(psb);
+        for(int i = 0; i < newanchors.size(); i++)
+        {
+            psb->m_anchors.push_back(newanchors[i]);
+        }
+
+
+    }
     else
     {
         for(int k = 0; k < 2; k++)
@@ -172,7 +186,7 @@ void GripperKinematicObject::toggleattach(btSoftBody * psb) {
 
             //if no contacts, return without toggling bAttached
             if(rcontacts.size() == 0)
-                return;
+                continue;
 
             for (int i = 0; i < rcontacts.size(); ++i) {
                 const btSoftBody::RContact &c = rcontacts[i];
@@ -948,7 +962,7 @@ void CustomScene::doJtTracking()
 
 
 
-        if(errors[0] > errors[1])
+        if(errors[0] >= errors[1])
         {
             cout << "Error increase, not moving (new error: " <<  error << ")" << endl;
             //idleFor(0.2);
@@ -1405,7 +1419,9 @@ void CustomScene::run() {
     //find node that most closely matches reflection of point
     for(int i = 0; i < node_pos.size(); i++)
     {
-        if(node_pos[i][0] < mid_x)
+
+        //if(node_pos[i][0] < mid_x) //look at points in left half
+        if(node_pos[i][0] < mid_x && (abs(node_pos[i][0] - min_x) < 0.01 || abs(node_pos[i][1] - min_y) < 0.01 || abs(node_pos[i][1] - max_y) < 0.01))
         {
             //float reflected_x = node_pos[i][0] + 2*(mid_x - node_pos[i][0]);
             btVector3 new_vec = point_reflector->reflect(node_pos[i]);
@@ -1441,7 +1457,7 @@ void CustomScene::run() {
 
 //        cout << (*ii).first << ": " << (*ii).second << endl;
 //        float r = (float)rand()/(float)RAND_MAX;
-//        if(r < 0.05)
+//        if(r < 0.5)
 //        {
 //            plotpoints.push_back(node_pos[(*ii).first]);
 //            plotpoints.push_back(node_pos[(*ii).second]);
@@ -1454,6 +1470,14 @@ void CustomScene::run() {
     lines.reset(new PlotLines(2));
     lines->setPoints(plotpoints,plotcols);
     env->add(lines);
+
+
+    left_gripper->toggle();
+    right_gripper->toggle();
+
+    left_gripper->toggleattach(clothptr->softBody.get());
+    right_gripper->toggleattach(clothptr->softBody.get());
+
 
     //right_gripper->toggle();
 
