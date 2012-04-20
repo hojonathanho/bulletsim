@@ -8,6 +8,6 @@ GraspingActionSpec flattenCloth_greedy_single(
         const GraspingActionSpec &prevAction=GraspingActionSpec());
 //void flattenCloth_greedy(GraspingActionContext &ctx, int steps, vector<GraspingActionSpec> &out);
 
-GraspingActionSpec flattenCloth_single(const GraspingActionContext &initCtx, const GraspingActionSpec &prevAction, int steps);
+GraspingActionSpec flattenCloth_single(const GraspingActionContext &initCtx, const GraspingActionSpec &prevAction, int depth);
 
 #endif // __FL_SEARCH_GENERAL_H__

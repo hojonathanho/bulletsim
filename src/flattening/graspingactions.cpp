@@ -42,7 +42,7 @@ void GraspingActionContext::runAction(Action::Ptr a, bool debugDraw) {
         if (scene && debugDraw) scene->draw();
     }
     // let scene settle
-    static const float SETTLE_TIME = 1;
+    static const float SETTLE_TIME = 0.5;
     for (float t = 0; t < SETTLE_TIME; t += BulletConfig::dt) {
         env->step(BulletConfig::dt, BulletConfig::maxSubSteps, BulletConfig::internalTimeStep);
         if (scene && debugDraw) scene->draw();

@@ -95,8 +95,17 @@ class CustomScene : public Scene {
         try { runAction(spec.createAction(ctx), BulletConfig::dt); } catch (...) { }
         prevActionSpec = spec;
     }
+    void deepFlattenSingle() {
+        static const int DEPTH = 2;
+        GraspingActionContext ctx(env, pr2m->pr2, gleft, sbgripperleft, cloth, GraspingActionContext::TableDims(tableTrans, tableExtents));
+        ctx.enableDrawing(this);
+        GraspingActionSpec spec = flattenCloth_single(ctx, prevActionSpec, DEPTH);
+        try { runAction(spec.createAction(ctx), BulletConfig::dt); } catch (...) { }
+        prevActionSpec = spec;
+    }
 
     void liftCloth() {
+        cout << "lifting... " << flush;
         const int steps = 20;
     //    const int steps = 50;
         const btVector3 force(0, 0, 0.25*100);
@@ -107,18 +116,8 @@ class CustomScene : public Scene {
             }
             step(BulletConfig::dt);
         }
-
-        // let the cloth stabilize
-        const int restingsteps = 400;
-        for (int i = 0; i < restingsteps; ++i) {
-            step(BulletConfig::dt);
-        }
-        //scene.stepFor(BulletConfig::dt, 10);
-
-        // clear velocities
-        for (int i = 0; i < cloth->psb()->m_nodes.size(); ++i) {
-            cloth->psb()->m_nodes[i].m_v.setZero();
-        }
+        cout << "done.\n";
+        stepFor(BulletConfig::dt, 2);
     }
 
     void markFolds() {
@@ -232,6 +231,7 @@ public:
         addVoidKeyCallback('a', boost::bind(&CustomScene::runGripperAction, this, leftAction));
         addVoidKeyCallback('c', boost::bind(&CustomScene::graspPickedNode, this));
         addVoidKeyCallback('f', boost::bind(&CustomScene::greedyFlattenSingle, this));
+        addVoidKeyCallback('F', boost::bind(&CustomScene::deepFlattenSingle, this));
         addVoidKeyCallback('g', boost::bind(&CustomScene::liftCloth, this));
 
         addPreDrawCallback(boost::bind(&CustomScene::markFolds, this));

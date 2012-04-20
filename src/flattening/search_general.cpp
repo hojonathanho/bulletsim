@@ -119,8 +119,8 @@ GraspingActionSpec flattenCloth_greedy_single(const GraspingActionContext &initC
     return flattenCloth_greedy_single_internal(initCtx, prevAction).spec;
 }
 
-static SearchContext flattenCloth_single_internal(const SearchContext &init, int steps) {
-    if (steps <= 0)
+static SearchContext flattenCloth_single_internal(const SearchContext &init, int depth, int currdepth) {
+    if (currdepth >= depth)
         return init;
 
     SearchContext best;
@@ -129,10 +129,10 @@ static SearchContext flattenCloth_single_internal(const SearchContext &init, int
     vector<GraspingActionSpec> succ = init.spec.genSuccessors(init.ctx);
     for (int i = 0; i < succ.size(); ++i) {
         const GraspingActionSpec &spec = succ[i];
-        cout << "TRYING ACTION (" << (1+i) << '/' << succ.size() << "): " << spec.specstr << endl;
+        cout << currdepth << '/' << depth << " >> TRYING ACTION (" << (1+i) << '/' << succ.size() << "): " << spec.specstr << endl;
 
-        SearchContext local = tryAction(init.ctx, spec);
-        SearchContext future = flattenCloth_single_internal(local, steps - 1);
+        SearchContext local = tryAction(init.ctx, spec, true);
+        SearchContext future = flattenCloth_single_internal(local, depth, currdepth + 1);
         local.val = future.val;
         if (future.val > best.val)
             best = local;
@@ -141,6 +141,6 @@ static SearchContext flattenCloth_single_internal(const SearchContext &init, int
     return best;
 }
 
-GraspingActionSpec flattenCloth_single(const GraspingActionContext &initCtx, const GraspingActionSpec &prevAction, int steps) {
-    return flattenCloth_single_internal(SearchContext(prevAction, initCtx), steps).spec;
+GraspingActionSpec flattenCloth_single(const GraspingActionContext &initCtx, const GraspingActionSpec &prevAction, int depth) {
+    return flattenCloth_single_internal(SearchContext(prevAction, initCtx), depth, 0).spec;
 }
