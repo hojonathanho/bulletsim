@@ -75,7 +75,9 @@ static SearchContext tryAction(const GraspingActionContext &ctx, const GraspingA
     try {
         forkCtx.runAction(spec.createAction(forkCtx), debugDraw);
         value = calcValue(forkCtx);
-    } catch (const GraspingActionFailed &) { }
+    } catch (const GraspingActionFailed &e) {
+        cout << "WARNING: GraspingActionFailed: " << e.what() << endl;
+    }
     return SearchContext(spec, forkCtx, value);
 }
 

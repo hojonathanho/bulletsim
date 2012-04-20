@@ -67,6 +67,7 @@ public:
     void grab();
     void releaseAllAnchors();
     bool isGrabbing() const { return grabbing; }
+    int numAnchorsSet() const { return anchors.size(); }
 
     void dbgDraw(Scene *s);
 };

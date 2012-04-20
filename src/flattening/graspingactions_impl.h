@@ -455,6 +455,11 @@ class GraspClothNodeAction : public ActionChain {
         return ManipMoveAction::Ptr();
     };
 
+    void checkAnchorsSet() {
+        if (sbgripper->numAnchorsSet() <= 0)
+            throw GraspingActionFailed("GraspClothNodeAction: failed to attach anchors to cloth");
+    }
+
     void init() {
         if (btFuzzyZero(dir.length2())) {
             cout << "WARNING: creating GraspClothNodeAction with dir length zero" << endl;
@@ -473,18 +478,26 @@ class GraspClothNodeAction : public ActionChain {
         }
 
         GripperOpenCloseAction::Ptr openGripper(new GripperOpenCloseAction(robot, gmanip->baseManip()->manip, true));
+        openGripper->setExecTime(0.05);
         GripperOpenCloseAction::Ptr closeGripper(new GripperOpenCloseAction(robot, gmanip->baseManip()->manip, false));
+        closeGripper->setExecTime(0.3);
 
         ManipMoveAction::Ptr positionGrasp(createMoveAction());
         btVector3 v(sb->softBody->m_nodes[node].m_x);
         btTransform graspTrans = scoop ? transFromDir(dir, v + dir*0.03*METERS + SCOOP_OFFSET*METERS, true)
                                        : transFromDir(dir, v - dir*MOVE_BEHIND_DIST*METERS, false);
         positionGrasp->setPR2TipTargetTrans(graspTrans);
+        if (gmanip->type == GenManip::TYPE_FAKE)
+            positionGrasp->setExecTime(0.001);
+        else
+            positionGrasp->setExecTime(0.5);
 
         ManipMoveAction::Ptr moveAboveNode(createMoveAction());
         btTransform moveAboveTrans(GRIPPER_DOWN_ROT * PR2_GRIPPER_INIT_ROT,
                 graspTrans.getOrigin() + btVector3(0, 0, 2*LIFT_DIST*METERS));
         moveAboveNode->setPR2TipTargetTrans(moveAboveTrans);
+        if (gmanip->type == GenManip::TYPE_FAKE)
+            moveAboveNode->setExecTime(0.001);
 
         ManipMoveAction::Ptr moveForward(createMoveAction());
         moveForward->setRelativeTrans(btTransform(btQuaternion(0, 0, 0, 1),
@@ -493,6 +506,7 @@ class GraspClothNodeAction : public ActionChain {
 
         FunctionAction::Ptr releaseAnchors(new FunctionAction(boost::bind(&GenPR2SoftGripper::releaseAllAnchors, sbgripper)));
         FunctionAction::Ptr setAnchors(new FunctionAction(boost::bind(&GenPR2SoftGripper::grab, sbgripper)));
+        FunctionAction::Ptr checkAnchors(new FunctionAction(boost::bind(&GraspClothNodeAction::checkAnchorsSet, this)));
 
         // make gripper face down, while keeping rotation
         ManipMoveAction::Ptr orientGripperDown(createMoveAction());
@@ -501,18 +515,21 @@ class GraspClothNodeAction : public ActionChain {
         btVector3 cross = facingDir.cross(btVector3(0, 0, -1));
         if (btFuzzyZero(cross.length2())) cross = btVector3(1, 0, 0); // arbitrary axis
         orientGripperDown->setRotOnly(btQuaternion(cross, angleFromVert) * graspTrans.getRotation());
+        orientGripperDown->setExecTime(0.2);
 
         ManipMoveAction::Ptr moveUp(createMoveAction());
         moveUp->setRelativeTrans(btTransform(btQuaternion(0, 0, 0, 1),
                     btVector3(0, 0, 0.01*METERS)));
+        moveUp->setExecTime(0.2);
 
         ManipMoveAction::Ptr moveToNeutralHeight(createMoveAction());
         moveToNeutralHeight->setRelativeTrans(btTransform(btQuaternion(0, 0, 0, 1),
                     btVector3(0, 0, LIFT_DIST * METERS)));
+        moveToNeutralHeight->setExecTime(0.5);
 
         *this << releaseAnchors << openGripper
             << moveAboveNode << positionGrasp
-            << moveForward << closeGripper << setAnchors
+            << moveForward << closeGripper << setAnchors << checkAnchors
             << moveUp << orientGripperDown << moveToNeutralHeight;
     }
 

@@ -67,6 +67,7 @@ static Action::Ptr createReleaseAction(GraspingActionContext &ctx, stringstream 
                 boost::bind(&GenPR2SoftGripper::releaseAllAnchors, ctx.sbgripper)));
     GripperOpenCloseAction::Ptr openGripper(new GripperOpenCloseAction(
                 ctx.robot, ctx.gmanip->baseManip()->manip, true));
+    openGripper->setExecTime(0.2);
     ActionChain::Ptr a(new ActionChain);
     *a << releaseAnchors << openGripper;
     return a;
@@ -86,6 +87,7 @@ static Action::Ptr createMoveAction(GraspingActionContext &ctx, stringstream &ss
         break;
     }
     a->setRelativeTrans(btTransform(btQuaternion::getIdentity(), btVector3(dx, dy, dz)));
+    a->setExecTime(0.5);
     return a;
 }
 
