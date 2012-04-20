@@ -7,6 +7,8 @@
 #include "graspingactions.h"
 using std::numeric_limits;
 
+static const float MIN_VALUE = -1e99;
+
 static btVector3 softBodyCM(btSoftBody *psb) {
     // assumes all node masses are the same..
     btVector3 sum(0, 0, 0);
@@ -40,8 +42,22 @@ static btScalar projectedConvexHullArea(btSoftBody *psb) {
     return area;
 }
 
-static float calcValue(Cloth::Ptr cloth) {
-    return projectedConvexHullArea(cloth->psb()) + softBodyCM(cloth->psb()).z();
+static bool clothInTableBounds(GraspingActionContext &ctx) {
+    btSoftBody *psb = ctx.cloth->psb();
+    for (int i = 0; i < psb->m_nodes.size(); ++i) {
+        const btVector3 &p = psb->m_nodes[i].m_x;
+        btVector3 q = ctx.table.trans.inverse() * p;
+        if (abs(q.x()) > ctx.table.halfExtents.x() ||
+            abs(q.y()) > ctx.table.halfExtents.y())
+            return false;
+    }
+    return true;
+}
+
+static float calcValue(GraspingActionContext &ctx) {
+    if (!clothInTableBounds(ctx))
+        return MIN_VALUE;
+    return projectedConvexHullArea(ctx.cloth->psb()) + softBodyCM(ctx.cloth->psb()).z();
 }
 
 struct SearchContext {
@@ -49,45 +65,52 @@ struct SearchContext {
     GraspingActionContext ctx; // the context after the action was run
     float val; // value function output
 
-    SearchContext() : spec(), ctx(), val(-1e99) { }
-    SearchContext(const GraspingActionSpec &spec_, const GraspingActionContext &ctx_, float val_=-1e99) : spec(spec_), ctx(ctx_), val(val_) { }
+    SearchContext() : spec(), ctx(), val(MIN_VALUE) { }
+    SearchContext(const GraspingActionSpec &spec_, const GraspingActionContext &ctx_, float val_=MIN_VALUE) : spec(spec_), ctx(ctx_), val(val_) { }
 };
 
-static SearchContext tryAction(const GraspingActionContext &ctx, const GraspingActionSpec &spec) {
+static SearchContext tryAction(const GraspingActionContext &ctx, const GraspingActionSpec &spec, bool debugDraw=false) {
     GraspingActionContext forkCtx = ctx.fork();
-    float value = -1e99;
+    float value = MIN_VALUE;
     try {
-        forkCtx.runAction(spec.createAction(forkCtx));
-        value = calcValue(forkCtx.cloth);
+        forkCtx.runAction(spec.createAction(forkCtx), debugDraw);
+        value = calcValue(forkCtx);
     } catch (const GraspingActionFailed &) { }
     return SearchContext(spec, forkCtx, value);
 }
 
 static SearchContext flattenCloth_greedy_single_internal(const GraspingActionContext &initCtx, const GraspingActionSpec &prevAction) {
-    SearchContext best;
-
     vector<GraspingActionSpec> succ = prevAction.genSuccessors(initCtx);
-    for (int i = 0; i < succ.size(); ++i) {
-        const GraspingActionSpec &spec = succ[i];
-        cout << "TRYING ACTION (" << (1+i) << '/' << succ.size() << "): " << spec.specstr << endl;
 
-        // if the action is a grab, then we have to go one level deeper
-        // (a grab on its own is useless)
-        // this won't be infinitely recursive since grabs' successors don't contain grabs
-        SearchContext local;
-/*        if (spec.type == GraspingActionSpec::GRAB) {
-            SearchContext internalsc = tryAction(initCtx, spec);
-            local = flattenCloth_greedy_single_internal(internalsc.ctx, internalsc.spec);
-        } else {
-            */
-            local = tryAction(initCtx, spec);
-       // }
+    SearchContext *threadbest = NULL;
+    int numthreads;
+    #pragma omp parallel shared(threadbest, numthreads)
+    {
+        #pragma omp single
+        {
+            numthreads = omp_get_num_threads();
+            threadbest = new SearchContext[numthreads];
+        }
 
-        if (local.val > best.val)
-            best = local;
-    }
+        #pragma omp for
+        for (int i = 0; i < succ.size(); ++i) {
+            const GraspingActionSpec &spec = succ[i];
+            cout << "TRYING ACTION (" << (1+i) << '/' << succ.size() << "): " << spec.specstr << endl;
+            SearchContext local = tryAction(initCtx, spec, numthreads == 1);
+            cout << "local val " << local.val << endl;
+            SearchContext &best = threadbest[omp_get_thread_num()];
+            if (local.val > best.val)
+                best = local;
+        } // end omp for
+    } // end omp parallel
 
-    return best;
+    SearchContext totalbest;
+    for (int i = 0; i < numthreads; ++i)
+        if (i == 0 || threadbest[i].val > totalbest.val)
+            totalbest = threadbest[i];
+    delete [] threadbest;
+
+    return totalbest;
 }
 
 GraspingActionSpec flattenCloth_greedy_single(const GraspingActionContext &initCtx, const GraspingActionSpec &prevAction) {

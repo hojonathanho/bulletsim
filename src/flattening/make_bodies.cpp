@@ -50,7 +50,7 @@ btSoftBody *makeSelfCollidingTowel(const btVector3& center, btScalar lenx, btSca
         resx, resy,
         0, true);
 
-    psb->m_cfg.piterations = 2;
+    psb->m_cfg.piterations = 8;
     psb->m_cfg.collisions = btSoftBody::fCollision::CL_RS
         | btSoftBody::fCollision::CL_SS
         | btSoftBody::fCollision::CL_SELF;
@@ -88,7 +88,7 @@ btSoftBody *makeSelfCollidingTowel(const btVector3& center, btScalar lenx, btSca
     psb->randomizeConstraints();
 
     psb->setTotalMass(100, true);
-    psb->generateClusters(2048);
+    psb->generateClusters(1000);
 //    psb->generateClusters(0);
 
     /*for (int i = 0; i < psb->m_clusters.size(); ++i) {

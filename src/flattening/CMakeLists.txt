@@ -6,10 +6,9 @@ include_directories(
     ${WM_INCLUDE_DIR}
     ${PCL_INCLUDE_DIRS}
 )
-message(${PCL_INCLUDE_DIRS})
 link_directories(
     ${BULLETSIM_BINARY_DIR}/src
-    ${PCL_LIBRARY_DIRS} 
+    ${PCL_LIBRARY_DIRS}
     ${WM_LIBRARY_DIR}
 )
 add_definitions(${PCL_DEFINITIONS})
@@ -28,6 +27,7 @@ add_library(clothmanip
     config_flattening.cpp
 )
 set_source_files_properties(search.cpp PROPERTIES COMPILE_FLAGS -fopenmp)
+set_source_files_properties(search_general.cpp PROPERTIES COMPILE_FLAGS -fopenmp)
 target_link_libraries(clothmanip
     simulation
     ${WM_LIBRARIES}

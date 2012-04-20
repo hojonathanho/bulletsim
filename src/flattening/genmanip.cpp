@@ -112,7 +112,7 @@ static bool inGraspRegion(GenManip::Ptr gmanip, const btVector3 &pt, KinBody::Li
         !onInnerSide(gmanip, pt, leftFinger, rightFinger, false))
         return false;
 
-    cout << "ATTACHING: " << x.x() << ' ' << x.y() << ' ' << x.z() << endl;
+    //cout << "ATTACHING: " << x.x() << ' ' << x.y() << ' ' << x.z() << endl;
 
     return true;
 }
@@ -215,5 +215,5 @@ void GenPR2SoftGripper::attach(bool left) {
         }
     }
 
-    cout << "appended " << attached.size() << " anchors to " << (left ? "left" : "right") << endl;
+    //cout << "appended " << attached.size() << " anchors to " << (left ? "left" : "right") << endl;
 }

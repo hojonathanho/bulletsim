@@ -28,6 +28,9 @@ class CustomScene : public Scene {
     PlotSpheres::Ptr pickplot;
     SoftBodyFacePicker::Ptr facepicker;
 
+    btTransform tableTrans;
+    btVector3 tableExtents;
+
     vector<int> foldnodes;
 
     void runGripperAction(GenPR2SoftGripperAction &a) {
@@ -74,7 +77,7 @@ class CustomScene : public Scene {
     void graspPickedNode() {
         if (!pickedNode) return;
         const int node = pickedNode - &cloth->softBody->m_nodes[0];
-        GraspingActionContext ctx(env, pr2m->pr2, gleft, sbgripperleft, cloth);
+        GraspingActionContext ctx(env, pr2m->pr2, gleft, sbgripperleft, cloth, GraspingActionContext::TableDims(tableTrans, tableExtents));
         ctx.enableDrawing(this);
         btVector3 gripperdir = calcGraspDir(ctx, node);
         stringstream ss; ss << "grab " << node << ' ' << gripperdir.x() << ' ' << gripperdir.y() << ' ' << gripperdir.z();
@@ -86,7 +89,7 @@ class CustomScene : public Scene {
 
     GraspingActionSpec prevActionSpec;
     void greedyFlattenSingle() {
-        GraspingActionContext ctx(env, pr2m->pr2, gleft, sbgripperleft, cloth);
+        GraspingActionContext ctx(env, pr2m->pr2, gleft, sbgripperleft, cloth, GraspingActionContext::TableDims(tableTrans, tableExtents));
         ctx.enableDrawing(this);
         GraspingActionSpec spec = flattenCloth_greedy_single(ctx, prevActionSpec);
         try { runAction(spec.createAction(ctx), BulletConfig::dt); } catch (...) { }
@@ -96,7 +99,7 @@ class CustomScene : public Scene {
     void liftCloth() {
         const int steps = 20;
     //    const int steps = 50;
-        const btVector3 force(0, 0, 0.5*100);
+        const btVector3 force(0, 0, 0.25*100);
         for (int i = 0; i < steps; ++i) {
             for (int y = 0; y < cloth->resy; ++y) {
                 //cloth->psb()->addForce(force, y*cloth->resx + 0);
@@ -184,9 +187,9 @@ public:
         // create the table
         const float table_height = .5;
         const float table_thickness = .05;
-        const btVector3 table_extents = GeneralConfig::scale * btVector3(.75,.75,table_thickness/2);
-        const btTransform table_trans = btTransform(btQuaternion(0, 0, 0, 1), GeneralConfig::scale * btVector3(0.8, 0, table_height-table_thickness/2));
-        BoxObject::Ptr table(new BoxObject(0, table_extents, table_trans));
+        tableExtents = GeneralConfig::scale * btVector3(.75,.75,table_thickness/2);
+        tableTrans = btTransform(btQuaternion(0, 0, 0, 1), GeneralConfig::scale * btVector3(0.8, 0, table_height-table_thickness/2));
+        BoxObject::Ptr table(new BoxObject(0, tableExtents, tableTrans));
         table->rigidBody->setFriction(0.1);
         env->add(table);
         cout << "table margin: " << table->rigidBody->getCollisionShape()->getMargin() << endl;
@@ -207,7 +210,7 @@ public:
         raveViewer->main(true);
 #endif
 
-        const int resx = 45/2, resy = 31/2;
+        const int resx = 45, resy = 31;
 //        const btScalar lenx = GeneralConfig::scale * 0.7, leny = GeneralConfig::scale * 0.5;
         const btScalar lenx = GeneralConfig::scale * 0.7/2, leny = GeneralConfig::scale * 0.5/2;
 //        const btVector3 clothcenter = GeneralConfig::scale * btVector3(0.5, 0, table_height+0.01);

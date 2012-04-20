@@ -22,7 +22,7 @@ GraspingActionContext GraspingActionContext::fork() const {
     fork_sbgripper->setGrabOnlyOnContact(true);
     fork_sbgripper->setTarget(fork_cloth);
 
-    GraspingActionContext newctx(fork->env, fork_robot, fork_gmanip, fork_sbgripper, fork_cloth);
+    GraspingActionContext newctx(fork->env, fork_robot, fork_gmanip, fork_sbgripper, fork_cloth, table);
     newctx.scene = scene;
 
     return newctx;
@@ -31,24 +31,24 @@ GraspingActionContext GraspingActionContext::fork() const {
 void GraspingActionContext::enableDrawing(Scene *s) { scene = s; }
 void GraspingActionContext::disableDrawing() { scene = NULL; }
 
-void GraspingActionContext::runAction(Action::Ptr a) {
-    if (scene)
+void GraspingActionContext::runAction(Action::Ptr a, bool debugDraw) {
+    if (scene && debugDraw)
         scene->osg->root->addChild(env->osg->root.get());
 
     while (!a->done()) {
         a->step(BulletConfig::dt);
         env->step(BulletConfig::dt, BulletConfig::maxSubSteps, BulletConfig::internalTimeStep);
 
-        if (scene) scene->draw();
+        if (scene && debugDraw) scene->draw();
     }
     // let scene settle
     static const float SETTLE_TIME = 1;
     for (float t = 0; t < SETTLE_TIME; t += BulletConfig::dt) {
         env->step(BulletConfig::dt, BulletConfig::maxSubSteps, BulletConfig::internalTimeStep);
-        if (scene) scene->draw();
+        if (scene && debugDraw) scene->draw();
     }
 
-    if (scene)
+    if (scene && debugDraw)
         scene->osg->root->removeChild(env->osg->root.get());
 }
 

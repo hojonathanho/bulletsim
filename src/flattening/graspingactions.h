@@ -24,6 +24,12 @@ struct GraspingActionContext {
     GenPR2SoftGripper::Ptr sbgripper;
 
     Cloth::Ptr cloth;
+    struct TableDims {
+        btTransform trans;
+        btVector3 halfExtents;
+        TableDims() { }
+        TableDims(const btTransform &t, const btVector3 &he) : trans(t), halfExtents(he) { }
+    } table;
 
     // for debugging
     Scene *scene;
@@ -31,18 +37,19 @@ struct GraspingActionContext {
     void disableDrawing();
 
     GraspingActionContext fork() const;
-    void runAction(Action::Ptr a);
+    void runAction(Action::Ptr a, bool debugDraw=false);
 
     GraspingActionContext() : scene(NULL) { }
-
     GraspingActionContext(
             Environment::Ptr env_,
             RaveRobotObject::Ptr robot_,
             GenManip::Ptr gmanip_,
             GenPR2SoftGripper::Ptr sbgripper_,
-            Cloth::Ptr cloth_) :
+            Cloth::Ptr cloth_,
+            const TableDims &table_) :
         env(env_), robot(robot_), gmanip(gmanip_),
         sbgripper(sbgripper_), cloth(cloth_),
+        table(table_),
         scene(NULL) { }
 };
 
