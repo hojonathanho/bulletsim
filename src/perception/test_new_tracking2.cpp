@@ -1,4 +1,4 @@
-#include "perception/multihyp_vision.h"
+#include "perception/rope_tracking.h"
 #include "perception/config_perception.h"
 #include "simulation/config_bullet.h"
 #include "simulation/recording.h"
@@ -17,11 +17,11 @@ int main(int argc, char* argv[]) {
   parser.read(argc, argv);
 
   initComm();
-  SingleHypRopeVision visionSystem;
+  SingleHypRopeTracker TrackerSystem;
 
   extern bool LIVE;
-  if (false) visionSystem.runOnline();
-  else visionSystem.runOffline();
+  if (false) TrackerSystem.runOnline();
+  else TrackerSystem.runOffline();
 
 
 }

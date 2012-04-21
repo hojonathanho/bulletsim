@@ -8,7 +8,7 @@
 #include "simulation/rope.h"
 #include "perception/plotting_perception.h"
 
-struct Vision {
+struct Tracker {
     
 
   // simulation
@@ -28,8 +28,8 @@ struct Vision {
   FilePublisher* m_pub;
   std::vector<bool> m_gotEm;
     
-  Vision();
-  ~Vision();
+  Tracker();
+  ~Tracker();
   void runOnline(); // update loop. when live, iterates until next message
   void runOffline(); 
   virtual void doIteration() = 0; // correspondence update and physics update
@@ -45,9 +45,9 @@ struct Vision {
 };
 
 
-struct TowelVision : public Vision {
+struct TowelTracker : public Tracker {
 
-  TowelVision();
+  TowelTracker();
 
   BulletSoftObject::Ptr m_towel;
   Eigen::VectorXf m_sigs;
@@ -66,8 +66,8 @@ struct TowelVision : public Vision {
 
 };
 
-struct RopeVision : public Vision {
-  RopeVision();
+struct RopeTracker : public Tracker {
+  RopeTracker();
 
   CapsuleRope::Ptr m_rope;
   Eigen::VectorXf m_sigs;
@@ -99,7 +99,7 @@ struct TrackedObject {
   
 
   Eigen::VectorXf m_sigs;
-  float m_loglik; // DEPRECATED: let Vision class keep track of likelihood of fork
+  float m_loglik; // DEPRECATED: let Tracker class keep track of likelihood of fork
   int m_age; // DEPRECATED?
 
   virtual Eigen::MatrixXf featsFromSim() = 0;
@@ -155,7 +155,7 @@ struct TrackedTowel : public TrackedObject {
   vector<int> getNodeInds();
 };
 
-struct Vision2 {
+struct Tracker2 {
 
   // simulation
   CoordinateTransformer* m_CT;
@@ -169,7 +169,7 @@ struct Vision2 {
     
   MultiSubscriber* m_multisub;  
     
-  Vision2();
+  Tracker2();
   
   
   void runOnline(); // update loop. when live, iterates until next message
@@ -188,7 +188,7 @@ struct Vision2 {
 };
 
 
-struct TowelVision2 : public Vision2 {
+struct TowelTracker2 : public Tracker2 {
   
   struct TowelSubs : public MultiSubscriber {
     CloudMessage m_kinectMsg;        
@@ -227,7 +227,7 @@ struct TowelVision2 : public Vision2 {
   float m_loglik;
 
   
-  TowelVision2();
+  TowelTracker2();
 
   void doIteration(); // correspondence update and physics update
   void beforeIterations(); // e.g. joint updates, coordinate transforms, make depth image

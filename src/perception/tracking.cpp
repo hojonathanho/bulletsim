@@ -9,7 +9,7 @@
 #include "perception/make_bodies.h"
 #include "perception/optimization_forces.h"
 #include "perception/visibility.h"
-#include "perception/vision.h"
+#include "perception/tracking.h"
 #include "simulation/simplescene.h"
 #include "simulation/config_bullet.h"
 #include "simulation/softbodies.h"
@@ -38,29 +38,29 @@ void toggleEst() {TrackingConfig::showEst = !TrackingConfig::showEst;}
 void toggleObs() {TrackingConfig::showObs = !TrackingConfig::showObs;}
 void toggleLines() {TrackingConfig::showLines = !TrackingConfig::showLines;}
 
-Vision::Vision() {
+Tracker::Tracker() {
   setupScene();
   setupComm();
 }
 
-Vision::~Vision() {
+Tracker::~Tracker() {
   //todo
 }
 
-bool Vision::recvAll() {
+bool Tracker::recvAll() {
   for (int i=0; i < m_subs.size(); i++)
     if (!m_gotEm[i]) m_gotEm[i] = m_subs[i]->recv(*m_msgs[i], false);
   return allTrue(m_gotEm);
 }
 
-void Vision::setupComm() {
-  cout << "Vision::setupComm" << endl;
+void Tracker::setupComm() {
+  cout << "Tracker::setupComm" << endl;
   initComm();
   m_subs.push_back(new FileSubscriber("kinect","pcd"));
   m_msgs.push_back(&m_kinectMsg);
 }
 
-void Vision::setupScene() {
+void Tracker::setupScene() {
 
   m_kinectPts.reset(new PointCloudPlot(2));
   m_estPlot.reset(new PlotSpheres());
@@ -82,7 +82,7 @@ void Vision::setupScene() {
 
 }
 
-void Vision::runOffline() {
+void Tracker::runOffline() {
   m_scene->startViewer();
 
   if (TrackingConfig::startIdle) m_scene->idle(true);
@@ -104,7 +104,7 @@ void Vision::runOffline() {
   }
 }
 
-void Vision::runOnline() {
+void Tracker::runOnline() {
   m_scene->startViewer();
   m_gotEm = vector<bool>(m_msgs.size(), false);
   ENSURE(recvAll());
@@ -124,7 +124,7 @@ void Vision::runOnline() {
 }
 
 
-void Vision::updateAllPlots(const vector<btVector3>& obsPts, const vector<btVector3>& estPts, const VectorXf& sigs, const VectorXf& pVis, const SparseArray& corr, const VectorXf& inlierFrac) {
+void Tracker::updateAllPlots(const vector<btVector3>& obsPts, const vector<btVector3>& estPts, const VectorXf& sigs, const VectorXf& pVis, const SparseArray& corr, const VectorXf& inlierFrac) {
   if (TrackingConfig::showLines) drawCorrLines(m_corrLines, estPts, obsPts, corr);
   else m_corrLines->clear();
   if (TrackingConfig::showObs) plotObs(obsPts, inlierFrac, m_obsPlot);
@@ -135,7 +135,7 @@ void Vision::updateAllPlots(const vector<btVector3>& obsPts, const vector<btVect
 
 
 
-TowelVision::TowelVision() {
+TowelTracker::TowelTracker() {
   // why do I need this? These methods are virtual.
   setupComm();
   setupScene(); 
@@ -143,7 +143,7 @@ TowelVision::TowelVision() {
 
 float sq(float x) {return x*x;}
 
-void TowelVision::doIteration() {
+void TowelTracker::doIteration() {
   VectorXf pVis = calcVisibility(m_towel->softBody.get(), m_scene->env->bullet->dynamicsWorld, m_CT->worldFromCamUnscaled.getOrigin()*METERS);
 
   vector<btVector3> m_towelEstPts = getNodes(m_towel);
@@ -177,7 +177,7 @@ void TowelVision::doIteration() {
   m_scene->draw();
 }
 
-void TowelVision::beforeIterations() {
+void TowelTracker::beforeIterations() {
   if (TrackingConfig::showKinect) {
     ColorCloudPtr cloudCam  = m_kinectMsg.m_data;
     ColorCloudPtr cloudWorld(new ColorCloud());
@@ -189,12 +189,12 @@ void TowelVision::beforeIterations() {
   if (TrackingConfig::showObs) m_obsPlot->setPoints(m_towelObsPts);
 }
 
-void TowelVision::afterIterations() {
+void TowelTracker::afterIterations() {
   vector< vector<float> > vv = toVecVec(m_towelEstPts);
   m_pub->send(VecVecMessage<float>(vv));
 }
 
-void TowelVision::setupComm() {
+void TowelTracker::setupComm() {
 
   m_towelSub = new FileSubscriber("towel_pts","pcd");
   m_subs.push_back(m_towelSub);
@@ -202,7 +202,7 @@ void TowelVision::setupComm() {
   m_pub = new FilePublisher("towel_model", "txt");
 }
 
-void TowelVision::setupScene() {
+void TowelTracker::setupScene() {
 
   vector< vector<float> > vv = floatMatFromFile(onceFile("table_corners.txt").string());
   vector<btVector3> tableCornersCam = toBulletVectors(vv);
@@ -223,12 +223,12 @@ void TowelVision::setupScene() {
   m_scene->env->add(m_table);
 }
 
-RopeVision::RopeVision() {
+RopeTracker::RopeTracker() {
   setupComm();
   setupScene();
 }
 
-void RopeVision::setupComm() {
+void RopeTracker::setupComm() {
   m_ropeSub = new FileSubscriber("rope_pts","pcd");
   m_subs.push_back(m_ropeSub);
   m_msgs.push_back(&m_ropePtsMsg);
@@ -238,7 +238,7 @@ void RopeVision::setupComm() {
   m_pub = new FilePublisher("rope_model", "txt");
 }
 
-void RopeVision::setupScene() {
+void RopeTracker::setupScene() {
   vector< vector<float> > vv = floatMatFromFile(onceFile("table_corners.txt").string());
   vector<btVector3> tableCornersCam = toBulletVectors(vv);
   m_CT = new CoordinateTransformer(getCamToWorldFromTable(tableCornersCam));
@@ -254,7 +254,7 @@ void RopeVision::setupScene() {
   m_scene->env->add(m_table);
 }
 
-void RopeVision::beforeIterations() {
+void RopeTracker::beforeIterations() {
   ColorCloudPtr cloudCam  = m_kinectMsg.m_data;
   ColorCloudPtr cloudWorld(new ColorCloud());
   pcl::transformPointCloud(*cloudCam, *cloudWorld, m_CT->worldFromCamEigen);
@@ -268,7 +268,7 @@ void RopeVision::beforeIterations() {
 
 }
 
-void RopeVision::doIteration() {
+void RopeTracker::doIteration() {
   m_ropeEstPts = m_rope->getNodes();
   Eigen::MatrixXf ropePtsCam = toEigenMatrix(m_CT->toCamFromWorldN(m_ropeEstPts));
   VectorXf pVis = calcVisibility(ropePtsCam, m_depthImage, m_ropeMask);
@@ -303,7 +303,7 @@ void RopeVision::doIteration() {
 
 }
 
-void RopeVision::afterIterations() {
+void RopeTracker::afterIterations() {
   vector< vector<float> > vv = toVecVec(m_ropeEstPts);
   m_pub->send(VecVecMessage<float>(vv));
 }
@@ -383,9 +383,9 @@ void TrackedRope::init(const vector<btVector3>& nodes, const VectorXf& labels) {
 
 
     
-Vision2::Vision2() {
+Tracker2::Tracker2() {
 
-  cout << "Vision2::Vision2()" << endl;
+  cout << "Tracker2::Tracker2()" << endl;
   
   makeScene();
   
@@ -414,15 +414,15 @@ Vision2::Vision2() {
 }
 
 
-void Vision2::makeScene() {
+void Tracker2::makeScene() {
   m_scene = new Scene();
 }
 
-Scene* Vision2::getScene() {
+Scene* Tracker2::getScene() {
   return m_scene;
 }
 
-void Vision2::runOnline() {
+void Tracker2::runOnline() {
   m_multisub->prepare();
   ENSURE(m_multisub->recvAll()); // get first messages
   for (int t=0; ; t++) {
@@ -438,7 +438,7 @@ void Vision2::runOnline() {
   }
 }
 
-void Vision2::runOffline() {  
+void Tracker2::runOffline() {  
   for (int t=0; ; t++) {
     cout << "t=" << t << endl;
     int iter=0;
@@ -457,7 +457,7 @@ void Vision2::runOffline() {
   }
 }
 
-void Vision2::updateAllPlots(const std::vector<btVector3>& obsPts, const std::vector<btVector3>& estPts, const Eigen::VectorXf& sigs, const Eigen::VectorXf& pVis, const SparseArray& corr, const Eigen::VectorXf& inlierFrac) {
+void Tracker2::updateAllPlots(const std::vector<btVector3>& obsPts, const std::vector<btVector3>& estPts, const Eigen::VectorXf& sigs, const Eigen::VectorXf& pVis, const SparseArray& corr, const Eigen::VectorXf& inlierFrac) {
 
   if (TrackingConfig::showLines) drawCorrLines(m_corrLines, estPts, obsPts, corr);
   else m_corrLines->clear();
@@ -602,9 +602,9 @@ void TrackedTowel::applyEvidence(const SparseArray& corr, const vector<btVector3
 
 
 
-TowelVision2::TowelVision2() : m_pub("towel_model", "txt") {
+TowelTracker2::TowelTracker2() : m_pub("towel_model", "txt") {
 
-  Vision2::m_multisub = m_multisub = new TowelSubs();
+  Tracker2::m_multisub = m_multisub = new TowelSubs();
   // sorry, unfortunate c++ behavior
 
   m_CT = loadTable(*m_scene);
@@ -624,7 +624,7 @@ TowelVision2::TowelVision2() : m_pub("towel_model", "txt") {
 }
 
 
-void TowelVision2::doIteration() {
+void TowelTracker2::doIteration() {
   
   VectorXf pVis = calcVisibility(m_towel->m_sim->softBody.get(), m_scene->env->bullet->dynamicsWorld, m_CT->worldFromCamUnscaled.getOrigin()*METERS, m_towel->m_nodeInds);
 
@@ -645,7 +645,7 @@ void TowelVision2::doIteration() {
   
 }
 
-void TowelVision2::beforeIterations() {
+void TowelTracker2::beforeIterations() {
   m_obsData.m_obsCloud.reset(new ColorCloud());
   pcl::transformPointCloud(*m_multisub->m_towelPtsMsg.m_data, *m_obsData.m_obsCloud, m_CT->worldFromCamEigen);
   m_obsData.m_obsPts = toBulletVectors(m_obsData.m_obsCloud);
@@ -658,7 +658,7 @@ void TowelVision2::beforeIterations() {
   else m_kinectPts->clear();
 }
 
-void TowelVision2::afterIterations() {
+void TowelTracker2::afterIterations() {
   vector< vector<float> > towelPts = toVecVec(m_towel->getNodes());  
   m_pub.send(VecVecMessage<float>(towelPts));
 }

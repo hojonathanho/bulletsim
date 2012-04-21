@@ -1,4 +1,4 @@
-#include "vision.h"
+#include "tracking.h"
 #include "perception/config_perception.h"
 #include "simulation/config_bullet.h"
 
@@ -14,13 +14,13 @@ int main(int argc, char* argv[]) {
   parser.addGroup(BulletConfig());
   parser.read(argc, argv);
 
-  Vision* visionSystem;
+  Tracker* TrackerSystem;
   if (TrackingConfig::objType=="towel")
-    visionSystem = new TowelVision();
+    TrackerSystem = new TowelTracker();
   else if (TrackingConfig::objType=="rope")
-    visionSystem = new RopeVision();
+    TrackerSystem = new RopeTracker();
   else throw std::runtime_error("invalid objType");
   extern bool LIVE;
-  if (LIVE) visionSystem->runOnline();
-  else visionSystem->runOffline();
+  if (LIVE) TrackerSystem->runOnline();
+  else TrackerSystem->runOffline();
 }

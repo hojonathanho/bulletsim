@@ -1,5 +1,5 @@
 #pragma once
-#include "perception/vision.h"
+#include "perception/tracking.h"
 #include "perception/robot_geometry.h"
 #include "robots/pr2.h"
 #include "robots/grabbing.h"
@@ -44,8 +44,8 @@ struct RopeSubs : public MultiSubscriber {
 };
 
 
-struct SingleHypRopeVision : public Vision2 {
-  SingleHypRopeVision();
+struct SingleHypRopeTracker : public Tracker2 {
+  SingleHypRopeTracker();
 
   RopeSubs* m_multisub;
 
@@ -60,21 +60,28 @@ struct SingleHypRopeVision : public Vision2 {
   Eigen::MatrixXf m_depthImage;
   cv::Mat m_ropeMask;
 
+
+  struct ObsData {
+    ColorCloudPtr m_obsCloud;
+    Eigen::MatrixXf m_obsFeats;
+    vector<btVector3> m_obsPts;
+  };
+  ObsData m_obsData;
+
   FilePublisher m_pub;
 
   virtual void doIteration();
   virtual void beforeIterations();
   virtual void afterIterations();
-
-  void addHyp(TrackedRope::Ptr rope);
+  virtual void setup();
 };
 
 
 
-struct SingleHypRobotAndRopeVision : public SingleHypRopeVision {
-  SingleHypRobotAndRopeVision();
+struct SingleHypRobotAndRopeTracker : public SingleHypRopeTracker {
+  SingleHypRobotAndRopeTracker();
   
-  KinectTrans* m_kinectTrans;
+  KinectTransformer* m_kinectTrans;
   FileSubscriber m_jointSub;
   Retimer<VectorMessage<double> > m_retimer;
   
@@ -86,15 +93,15 @@ struct SingleHypRobotAndRopeVision : public SingleHypRopeVision {
   virtual void beforeIterations();
   virtual void afterIterations();
 
-
+  virtual void setup();
 };
 
 
 /*
 
-struct MultiHypRopeVision : public Vision2 {
+struct MultiHypRopeTracker : public Tracker2 {
 
-  MultiHypRopeVision();
+  MultiHypRopeTracker();
 
   RopeSubs* m_multisub;
 
@@ -124,8 +131,8 @@ struct MultiHypRopeVision : public Vision2 {
 
 
 
-struct MultiHypRobotAndRopeVision : public MultiHypRopeVision {
-  MultiHypRobotAndRopeVision();
+struct MultiHypRobotAndRopeTracker : public MultiHypRopeTracker {
+  MultiHypRobotAndRopeTracker();
   
   KinectTrans* m_kinectTrans;
   FileSubscriber m_jointSub;

@@ -1,4 +1,4 @@
-#include "multihyp_vision.h"
+#include "rope_tracking.h"
 using namespace std;
 using namespace Eigen;
 #include "perception/utils_perception.h"
@@ -9,6 +9,8 @@ using namespace Eigen;
 #include "perception/visibility.h"
 #include "simulation/bullet_io.h"
 #include "robots/ros2rave.h"
+#include "perception/make_bodies.h"
+#include "utils/vector_io.h"
 
 static osg::Vec4f hyp_colors[6] = {osg::Vec4f(1,0,0,.3),
 				   osg::Vec4f(0,1,0,.3),
@@ -23,17 +25,20 @@ static osg::Vec4f getColor() {
   return hyp_colors[COLOR_IND];
 }
 
-SingleHypRopeVision::SingleHypRopeVision() : Vision2(), m_ropeInitMsg(), m_ropeInitSub("rope_init","txt"), m_pub("rope_model","txt") {
-  cout << "SingleHypRopeVision::SingleHypRopeVision()" << endl;
-  Vision2::m_multisub = m_multisub = new RopeSubs();
-
-  m_CT = loadTable(*m_scene);
+SingleHypRopeTracker::SingleHypRopeTracker() : Tracker2(), m_ropeInitMsg(), m_ropeInitSub("rope_init","txt"), m_pub("rope_model","txt") {
+  cout << "SingleHypRopeTracker::SingleHypRopeTracker()" << endl;
+  Tracker2::m_multisub = m_multisub = new RopeSubs();
   m_obsCloud.reset(new ColorCloud());
 
+}
+
+void SingleHypRopeTracker::setup() {
+
+  m_CT = loadTable(*m_scene);
   ENSURE(m_ropeInitSub.recv(m_ropeInitMsg,true));
   TrackedRope::Ptr tr(new TrackedRope(m_ropeInitMsg, m_CT));
   m_hyp = RopeHyp::Ptr(new RopeHyp(tr, m_scene->env));
-
+  m_scene->env->add(tr->m_sim);
 }
 
 RopeHypWithRobot::RopeHypWithRobot(TrackedRope::Ptr tracked, Environment::Ptr env, RaveRobotObject::Ptr robot) :
@@ -49,20 +54,23 @@ m_robot(robot)
 }
 
 void RopeHypWithRobot::step() {
-  m_lMonitor->update();
-  m_rMonitor->update();
 }
 
 btTransform transformFromFile(const string& fname) {
   ifstream infile(fname.c_str());
+  if (infile.fail()) throw FileOpenError(fname);
   btTransform t;
   infile >> t;
+  if (infile.fail()) throw runtime_error( (string("problem when reading ") + fname).c_str() );
+  ENSURE(!infile.fail());
   return t;
 }
 
-void SingleHypRopeVision::beforeIterations() {
+void SingleHypRopeTracker::beforeIterations() {
   ColorCloudPtr cloudCam  = m_multisub->m_kinectMsg.m_data;
   ColorCloudPtr cloudWorld(new ColorCloud());
+
+  cout << "KINECT TRANSFORM2:" << toBulletTransform(m_CT->worldFromCamEigen) << endl;
   pcl::transformPointCloud(*cloudCam, *cloudWorld, m_CT->worldFromCamEigen);
   if (TrackingConfig::showKinect) m_kinectPts->setPoints1(cloudWorld);
   else {m_kinectPts->clear();}
@@ -75,12 +83,14 @@ void SingleHypRopeVision::beforeIterations() {
 }
 
 
-void SingleHypRopeVision::doIteration() {
+void SingleHypRopeTracker::doIteration() {
   
   TrackedRope::Ptr tr = m_hyp->m_tracked;
   
   MatrixXf ropePtsCam  = toEigenMatrix(m_CT->toCamFromWorldN(getNodes(tr->m_sim)));
-  VectorXf pVis  = calcVisibility(ropePtsCam, m_depthImage, m_ropeMask); 
+  VectorXf pVis = calcVisibility(m_hyp->m_tracked->m_sim->children, m_scene->env->bullet->dynamicsWorld, m_CT->worldFromCamUnscaled.getOrigin()*METERS,
+		  TrackingConfig::sigA*METERS, TrackingConfig::nSamples);
+
   Eigen::MatrixXf corrEigen = calcCorrProb(tr->featsFromSim(), tr->m_sigs, m_obsFeats, pVis, TrackingConfig::outlierParam, m_hyp->m_loglik);
   SparseArray corr = toSparseArray(corrEigen, TrackingConfig::cutoff);
   tr->applyEvidence(corr, toEigenMatrix(m_obsCloud));
@@ -97,60 +107,77 @@ void SingleHypRopeVision::doIteration() {
 
 }
 
-void SingleHypRopeVision::afterIterations() {
+void SingleHypRopeTracker::afterIterations() {
   vector< vector<float> > vv; 
   m_pub.send(VecVecMessage<float>(vv));
 }
 
 
-SingleHypRobotAndRopeVision::SingleHypRobotAndRopeVision() : 
-  SingleHypRopeVision(),
+SingleHypRobotAndRopeTracker::SingleHypRobotAndRopeTracker() : 
+  SingleHypRopeTracker(),
   m_jointSub("joint_states","txt"),
   m_retimer(&m_jointSub) {
+}
   
+void SingleHypRobotAndRopeTracker::setup() {
+
+	// make robot
   m_pr2m.reset(new PR2Manager(*m_scene));
-  m_kinectTrans = new KinectTrans(m_pr2m->pr2->robot);
-  btTransform trans = transformFromFile(onceFile("kinect_transform.txt").string());
+  btTransform trans = transformFromFile(onceFile("transform.txt").string());
+  m_kinectTrans = new KinectTransformer(m_pr2m->pr2->robot);
   m_kinectTrans->calibrate(trans);
-  
-  ENSURE(m_ropeInitSub.recv(m_ropeInitMsg,false));
-  TrackedRope::Ptr tr(new TrackedRope(m_ropeInitMsg, m_CT));  
-  
-  m_hyp.reset(new RopeHypWithRobot(tr, m_scene->env, m_pr2m->pr2));
-  SingleHypRopeVision::m_hyp = m_hyp;
+
+  vector<double> firstJoints = doubleVecFromFile(filePath("data000000000000.txt", "joint_states").string());
+  ValuesInds vi = getValuesInds(firstJoints);
+  m_pr2m->pr2->setDOFValues(vi.second, vi.first);
+  m_CT = new CoordinateTransformer(m_kinectTrans->getWFC());
+
+  vector< vector<float> > vv = floatMatFromFile(onceFile("table_corners.txt").string());
+  vector<btVector3> tableCornersCam = toBulletVectors(vv);
+  vector<btVector3> tableCornersWorld = m_CT->toWorldFromCamN(tableCornersCam);
+  BulletObject::Ptr table = makeTable(tableCornersWorld, .1*METERS);
+  table->setColor(0,0,1,.25);
+  m_scene->env->add(table);
+
+  ENSURE(m_ropeInitSub.recv(m_ropeInitMsg,true));
+  TrackedRope::Ptr tr(new TrackedRope(m_ropeInitMsg, m_CT));
+  m_scene->env->add(tr->m_sim);
+  m_hyp = RopeHypWithRobot::Ptr(new RopeHypWithRobot(tr, m_scene->env,m_pr2m->pr2));
+  SingleHypRopeTracker::m_hyp = m_hyp;
+
+
 
 }
-  
 
 
-
-void SingleHypRobotAndRopeVision::doIteration() {
-  SingleHypRopeVision::doIteration();
+void SingleHypRobotAndRopeTracker::doIteration() {
+  SingleHypRopeTracker::doIteration();
 }
 
-void SingleHypRobotAndRopeVision::beforeIterations() {
+void SingleHypRobotAndRopeTracker::beforeIterations() {
   
   VectorMessage<double>* jointMsgPtr = m_retimer.msgAt(m_multisub->m_kinectMsg.getTime());
   std::vector<double> currentJoints = jointMsgPtr->m_data;
   ValuesInds vi = getValuesInds(currentJoints);
   m_pr2m->pr2->setDOFValues(vi.second, vi.first);
-  m_CT->reset(m_kinectTrans->getKinectTrans());
+  m_CT->reset(m_kinectTrans->getWFC());
 
-  m_hyp->step();
+  m_hyp->m_lMonitor->update();
+  m_hyp->m_rMonitor->update();
   
-  SingleHypRopeVision::beforeIterations();
+  SingleHypRopeTracker::beforeIterations();
   
 }
-void SingleHypRobotAndRopeVision::afterIterations() {
-  SingleHypRopeVision::afterIterations();
+void SingleHypRobotAndRopeTracker::afterIterations() {
+  SingleHypRopeTracker::afterIterations();
 }
 
 
 /*
 
-MultiHypRopeVision::MultiHypRopeVision() : Vision2(), m_ropeInitMsg(), m_ropeInitSub("rope_init","txt"), m_pub("rope_model","txt") {
-  cout << "MultiHypRopeVision::MultiHypRopeVision()" << endl;
-  Vision2::m_multisub = m_multisub = new RopeSubs();
+MultiHypRopeTracker::MultiHypRopeTracker() : Tracker2(), m_ropeInitMsg(), m_ropeInitSub("rope_init","txt"), m_pub("rope_model","txt") {
+  cout << "MultiHypRopeTracker::MultiHypRopeTracker()" << endl;
+  Tracker2::m_multisub = m_multisub = new RopeSubs();
 
   m_CT = loadTable(*m_scene);
   m_obsCloud.reset(new ColorCloud());
@@ -159,7 +186,7 @@ MultiHypRopeVision::MultiHypRopeVision() : Vision2(), m_ropeInitMsg(), m_ropeIni
 
 
 
-void MultiHypRopeVision::beforeIterations() {
+void MultiHypRopeTracker::beforeIterations() {
   ColorCloudPtr cloudCam  = m_multisub->m_kinectMsg.m_data;
   ColorCloudPtr cloudWorld(new ColorCloud());
   pcl::transformPointCloud(*cloudCam, *cloudWorld, m_CT->worldFromCamEigen);
@@ -182,7 +209,7 @@ void MultiHypRopeVision::beforeIterations() {
 }
 
 
-void MultiHypRopeVision::doIteration() {
+void MultiHypRopeTracker::doIteration() {
   for (int i=0; i < m_hyps.size(); i++) {
     TrackedRope::Ptr hyp = m_hyps[i]->m_tracked;
     MatrixXf ropePtsCam  = toEigenMatrix(m_CT->toCamFromWorldN(getNodes(hyp->m_sim)));
@@ -208,14 +235,14 @@ void MultiHypRopeVision::doIteration() {
 
 }
 
-void MultiHypRopeVision::afterIterations() {
+void MultiHypRopeTracker::afterIterations() {
   vector< vector<float> > vv; 
   m_pub.send(VecVecMessage<float>(vv));
   BOOST_FOREACH(RopeHyp::Ptr hyp, m_hyps) hyp->m_age++;
   cullHyps();
 }
 
-void MultiHypRopeVision::cullHyps() {  
+void MultiHypRopeTracker::cullHyps() {  
   // TODO
   // if (m_hyps.size() > 1 && m_hyps[0]->m_age >= MIN_CULL_AGE && m_ropeHypoths[1]->m_age >= MIN_CULL_AGE) {
   //   cout << "log likelihoods: " << m_ropeHypoths[0]->m_loglik << " " << m_ropeHypoths[1]->m_loglik << endl;
@@ -232,7 +259,7 @@ void MultiHypRopeVision::cullHyps() {
 
 
 
-void MultiHypRopeVision::addHyp(TrackedRope::Ptr tr) {
+void MultiHypRopeTracker::addHyp(TrackedRope::Ptr tr) {
 
   if (m_hyps.size() == 0) { // use the scene's env
     m_hyps.push_back(RopeHyp::Ptr(new RopeHyp(tr, m_scene->env)));
@@ -249,8 +276,8 @@ void MultiHypRopeVision::addHyp(TrackedRope::Ptr tr) {
 
 }
 
-void MultiHypRopeVision::removeHyp(int i) {
-  throw runtime_error("MultiHypRopeVision::removeHyp not yet implemented");
+void MultiHypRopeTracker::removeHyp(int i) {
+  throw runtime_error("MultiHypRopeTracker::removeHyp not yet implemented");
   RopeHyp::Ptr hyp = m_hyps[i];
   m_scene->osg->root->removeChild(hyp->m_env->osg->root.get());
   m_hyps.erase(m_hyps.begin() + i, m_hyps.begin() + i + 1);
@@ -259,8 +286,8 @@ void MultiHypRopeVision::removeHyp(int i) {
 
 
 
-MultiHypRobotAndRopeVision::MultiHypRobotAndRopeVision() : 
-  MultiHypRopeVision(),
+MultiHypRobotAndRopeTracker::MultiHypRobotAndRopeTracker() : 
+  MultiHypRopeTracker(),
   m_jointSub("joint_states","txt"),
   m_retimer(&m_jointSub) {
   
@@ -270,7 +297,7 @@ MultiHypRobotAndRopeVision::MultiHypRobotAndRopeVision() :
 
 }
   
-void MultiHypRobotAndRopeVision::addHyp(TrackedRope::Ptr tr) {
+void MultiHypRobotAndRopeTracker::addHyp(TrackedRope::Ptr tr) {
   // unfortunate code duplication between this and parent class
   if (m_hyps.size() == 0) { // use the scene's env
     m_hyps.push_back(RopeHypWithRobot::Ptr(new RopeHypWithRobot(tr, m_scene->env, m_robot)));
@@ -290,11 +317,11 @@ void MultiHypRobotAndRopeVision::addHyp(TrackedRope::Ptr tr) {
 
 
 
-void MultiHypRobotAndRopeVision::doIteration() {
-  MultiHypRopeVision::doIteration();
+void MultiHypRobotAndRopeTracker::doIteration() {
+  MultiHypRopeTracker::doIteration();
 }
 
-void MultiHypRobotAndRopeVision::beforeIterations() {
+void MultiHypRobotAndRopeTracker::beforeIterations() {
   
   VectorMessage<double>* jointMsgPtr = m_retimer.msgAt(m_multisub->m_kinectMsg.getTime());
   std::vector<double> currentJoints = jointMsgPtr->m_data;
@@ -307,11 +334,11 @@ void MultiHypRobotAndRopeVision::beforeIterations() {
     boost::dynamic_pointer_cast<RopeHypWithRobot>(hyp)->step();
   }
   
-  MultiHypRopeVision::beforeIterations();
+  MultiHypRopeTracker::beforeIterations();
   
 }
-void MultiHypRobotAndRopeVision::afterIterations() {
-  MultiHypRopeVision::afterIterations();
+void MultiHypRobotAndRopeTracker::afterIterations() {
+  MultiHypRopeTracker::afterIterations();
 }
 
 */

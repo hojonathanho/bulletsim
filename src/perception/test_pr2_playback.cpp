@@ -76,7 +76,7 @@ int main(int argc, char *argv[]) {
   scene.idle(true);
 
   // indices of joint angles
-  // see /home/joschu/pr2/rope_manipulation/rope_vision/test/write_joint_stuff_to_files.py
+  // see /home/joschu/pr2/rope_manipulation/rope_Tracker/test/write_joint_stuff_to_files.py
   ColorCloudPtr cloudWorld(new pcl::PointCloud<pcl::PointXYZRGBA>());
 
   int count = 0;

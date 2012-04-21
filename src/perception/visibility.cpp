@@ -73,6 +73,14 @@ Eigen::VectorXf calcVisibility(const vector<RigidBodyPtr> bodies, btDynamicsWorl
   return vis;
 }
 
+Eigen::VectorXf calcVisibility(const vector<BulletObject::Ptr> bodies, btDynamicsWorld* world, const btVector3& cameraPos, float stdev, int nSamples) {
+  int nPts = bodies.size();
+  VectorXf vis(nPts);
+  for (int i=0; i < nPts; i++)
+    vis[i] = calcVisProbability(bodies[i]->rigidBody, cameraPos, world, stdev, nSamples);
+  return vis;
+}
+
 Eigen::VectorXf calcVisibility(btSoftBody* softBody, btDynamicsWorld* world, const btVector3& cameraPos) {
   btAlignedObjectArray<btSoftBody::Node> nodes = softBody->m_nodes;
   VectorXf vis(nodes.size());

@@ -30,8 +30,8 @@ BulletObject::BulletObject(CI ci, const btTransform &initTrans, bool isKinematic
     rigidBody.reset(new btRigidBody(ci));
     if (isKinematic) {
         rigidBody->setCollisionFlags(rigidBody->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);
-	rigidBody->setActivationState(DISABLE_DEACTIVATION);
     }
+	rigidBody->setActivationState(DISABLE_DEACTIVATION);
 
 }
 
@@ -49,8 +49,8 @@ BulletObject::BulletObject(btScalar mass, btCollisionShape *cs, const btTransfor
 
     if (isKinematic) {
         rigidBody->setCollisionFlags(rigidBody->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);
-	rigidBody->setActivationState(DISABLE_DEACTIVATION);
     }
+	rigidBody->setActivationState(DISABLE_DEACTIVATION);
 
 }
 
@@ -65,6 +65,7 @@ void BulletObject::init() {
     blendFunc->setFunction(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     osg::StateSet *ss = node->getOrCreateStateSet();
     ss->setAttributeAndModes(blendFunc);
+//    ss->setRenderingHint(osg::StateSet::TRANSPARENT_BIN);
     setColorAfterInit();
 }
 

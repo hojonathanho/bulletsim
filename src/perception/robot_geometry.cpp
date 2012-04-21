@@ -2,6 +2,7 @@
 #include "btBulletDynamicsCommon.h"
 #include "simulation/util.h"
 #include "simulation/bullet_io.h"
+#include "perception/robot_geometry.h"
 using namespace OpenRAVE;
 
 // btTransform getKinectToWorld(RobotBasePtr robot) {
@@ -12,5 +13,11 @@ using namespace OpenRAVE;
 // }
 
 btTransform getKinectToWorld(RobotBasePtr robot) {
-  return util::toBtTransform(robot->GetLink("camera_rgb_optical_frame")->GetTransform());
+  return util::toBtTransform(robot->GetLink("head_plate_frame")->GetTransform());
+}
+
+btTransform KinectTransformer::getWFC() {
+	btTransform f(util::toBtTransform(headplate->GetTransform()));
+	btTransform tf = f * headFromKinect;
+	return tf;
 }
