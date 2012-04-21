@@ -20,6 +20,7 @@ RaveInstance::RaveInstance(const RaveInstance &o, int cloneOpts) {
 }
 
 RaveInstance::~RaveInstance() {
+    env->Destroy();
     if (isRoot)
         RaveDestroy();
 }
