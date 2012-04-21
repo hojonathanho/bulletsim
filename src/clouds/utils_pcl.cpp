@@ -65,3 +65,12 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr toPointCloud(const std::vector< std::vector<
 bool pointIsFinite(const pcl::PointXYZRGBA& pt) {
   return std::isfinite(pt.x) && std::isfinite(pt.y) && std::isfinite(pt.z);
 }
+
+ColorCloudPtr transformPointCloud1(ColorCloudPtr in, Eigen::Affine3f transform) {
+  ColorCloudPtr out(new ColorCloud(*in));
+  BOOST_FOREACH(PointXYZRGBA& p, out->points) {
+    p.getVector3fMap() = transform * p.getVector3fMap();
+  }
+  return out;
+}
+

@@ -26,3 +26,8 @@ cv::Mat toCVMat(Eigen::MatrixXf);
 
 
 bool pointIsFinite(const pcl::PointXYZRGBA& pt);
+
+inline ColorCloudPtr removeConst(ConstColorCloudPtr cloud) {
+  return boost::const_pointer_cast< pcl::PointCloud<pcl::PointXYZRGBA> >(cloud);
+}
+ColorCloudPtr transformPointCloud1(ColorCloudPtr in, Eigen::Affine3f transform);
