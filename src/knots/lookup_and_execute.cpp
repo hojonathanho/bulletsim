@@ -147,7 +147,7 @@ int main(int argc, char* argv[]) {
 
 
   } // python try block
-  catch (std::exception err) {
+  catch (py::error_already_set err) {
     PyErr_Print();
     PyErr_Clear();    
   }  
