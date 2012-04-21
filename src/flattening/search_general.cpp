@@ -77,6 +77,7 @@ static SearchContext tryAction(const GraspingActionContext &ctx, const GraspingA
         value = calcValue(forkCtx);
     } catch (const GraspingActionFailed &e) {
         cout << "WARNING: GraspingActionFailed: " << e.what() << endl;
+        return SearchContext();
     }
     return SearchContext(spec, forkCtx, value);
 }
@@ -84,14 +85,14 @@ static SearchContext tryAction(const GraspingActionContext &ctx, const GraspingA
 static SearchContext flattenCloth_greedy_single_internal(const GraspingActionContext &initCtx, const GraspingActionSpec &prevAction) {
     vector<GraspingActionSpec> succ = prevAction.genSuccessors(initCtx);
 
-    SearchContext *threadbest = NULL;
+    vector<SearchContext> threadbest;
     int numthreads;
     #pragma omp parallel shared(threadbest, numthreads)
     {
         #pragma omp single
         {
             numthreads = omp_get_num_threads();
-            threadbest = new SearchContext[numthreads];
+            threadbest.resize(numthreads);
         }
 
         #pragma omp for
@@ -106,13 +107,11 @@ static SearchContext flattenCloth_greedy_single_internal(const GraspingActionCon
         } // end omp for
     } // end omp parallel
 
-    SearchContext totalbest;
-    for (int i = 0; i < numthreads; ++i)
-        if (i == 0 || threadbest[i].val > totalbest.val)
-            totalbest = threadbest[i];
-    delete [] threadbest;
-
-    return totalbest;
+    int totalbest = 0;
+    for (int i = 1; i < numthreads; ++i)
+        if (threadbest[i].val > threadbest[totalbest].val)
+            totalbest = i;
+    return threadbest[totalbest];
 }
 
 GraspingActionSpec flattenCloth_greedy_single(const GraspingActionContext &initCtx, const GraspingActionSpec &prevAction) {
@@ -123,22 +122,38 @@ static SearchContext flattenCloth_single_internal(const SearchContext &init, int
     if (currdepth >= depth)
         return init;
 
-    SearchContext best;
-    best.val = init.val;
+    vector<SearchContext> threadbest;
+    int numthreads;
 
     vector<GraspingActionSpec> succ = init.spec.genSuccessors(init.ctx);
-    for (int i = 0; i < succ.size(); ++i) {
-        const GraspingActionSpec &spec = succ[i];
-        cout << currdepth << '/' << depth << " >> TRYING ACTION (" << (1+i) << '/' << succ.size() << "): " << spec.specstr << endl;
 
-        SearchContext local = tryAction(init.ctx, spec, true);
-        SearchContext future = flattenCloth_single_internal(local, depth, currdepth + 1);
-        local.val = future.val;
-        if (future.val > best.val)
-            best = local;
+    #pragma omp parallel if(currdepth == 0) shared(threadbest, numthreads)
+    {
+        #pragma omp single
+        {
+            numthreads = omp_get_num_threads();
+            threadbest.resize(numthreads);
+        }
+
+        #pragma omp for
+        for (int i = 0; i < succ.size(); ++i) {
+            const GraspingActionSpec &spec = succ[i];
+            cout << currdepth << '/' << depth << " >> TRYING ACTION (" << (1+i) << '/' << succ.size() << "): " << spec.specstr << endl;
+
+            SearchContext local = tryAction(init.ctx, spec, false);
+            SearchContext future = flattenCloth_single_internal(local, depth, currdepth + 1);
+            local.val = future.val;
+            SearchContext &best = threadbest[omp_get_thread_num()];
+            if (future.val > best.val)
+                best = local;
+        }
     }
 
-    return best;
+    int totalbest = 0;
+    for (int i = 1; i < numthreads; ++i)
+        if (threadbest[i].val > threadbest[totalbest].val)
+            totalbest = i;
+    return threadbest[totalbest];
 }
 
 GraspingActionSpec flattenCloth_single(const GraspingActionContext &initCtx, const GraspingActionSpec &prevAction, int depth) {
