@@ -17,8 +17,7 @@ int main(int argc, char* argv[]) {
   parser.read(argc, argv);
 
   initComm();
-  SingleHypRobotAndRopeTracker TrackerSystem;
-  TrackerSystem.setup();
+  DefaultSingleHypRobotAndRopeTracker TrackerSystem;
 
   extern bool LIVE;
   TrackerSystem.runOffline();

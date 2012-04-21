@@ -71,4 +71,6 @@ inline bool isFinite(const Eigen::MatrixXf& x) {
   return true;
 }
 
+inline float sq(float x) {return x*x;}
+
 

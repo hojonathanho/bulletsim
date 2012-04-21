@@ -17,10 +17,10 @@ int main(int argc, char* argv[]) {
   parser.read(argc, argv);
 
   initComm();
-  SingleHypRopeTracker TrackerSystem;
+  DefaultSingleHypRopeTracker TrackerSystem;
 
   extern bool LIVE;
-  if (false) TrackerSystem.runOnline();
+  if (LIVE) TrackerSystem.runOnline();
   else TrackerSystem.runOffline();
 
 

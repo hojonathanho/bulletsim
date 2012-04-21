@@ -12,7 +12,7 @@ link_directories(
   ${TETGEN_DIR}
 )
 
-add_library(perception config_perception.cpp utils_perception.cpp make_bodies.cpp robot_geometry.cpp dist_math.cpp optimization_forces.cpp sparse_array.cpp apply_impulses.cpp visibility.cpp matching.cpp get_nodes.cpp plotting_perception.cpp tracking.cpp rope_tracking.cpp)
+add_library(perception config_perception.cpp utils_perception.cpp make_bodies.cpp robot_geometry.cpp dist_math.cpp optimization_forces.cpp sparse_array.cpp apply_impulses.cpp visibility.cpp matching.cpp get_nodes.cpp plotting_perception.cpp tracking.cpp rope_tracking.cpp towel_tracking.cpp)
 target_link_libraries(perception ${PCL_LIBRARIES} comm clouds simulation tetgen utils robots)
 
 #add_executable(test_matching test_matching.cpp matching.cpp)
@@ -56,11 +56,11 @@ target_link_libraries(calibrate_kinect2 clouds comm simulation perception robots
 # add_executable(test_new_towel_tracking test_new_towel_tracking.cpp tracking.cpp)
 # target_link_libraries(test_new_towel_tracking comm ${PCL_LIBRARIES} simulation clouds perception)
 
-add_executable(test_new_tracking2 test_new_tracking2.cpp)
-target_link_libraries(test_new_tracking2 comm ${PCL_LIBRARIES} simulation clouds perception)
+add_executable(track_rope track_rope.cpp)
+target_link_libraries(track_rope comm ${PCL_LIBRARIES} simulation clouds perception)
 
-#add_executable(test_track_towel test_track_towel.cpp)
-#target_link_libraries(test_track_towel perception clouds simulation utils comm gomp)
+#add_executable(track_towel track_towel.cpp)
+#target_link_libraries(track_towel perception clouds simulation utils comm gomp)
 
-add_executable(test_robot_rope_tracking test_robot_rope_tracking.cpp)
-target_link_libraries(test_robot_rope_tracking perception clouds simulation utils comm)
+add_executable(track_rope_with_robot track_rope_with_robot.cpp)
+target_link_libraries(track_rope_with_robot perception clouds simulation utils comm)

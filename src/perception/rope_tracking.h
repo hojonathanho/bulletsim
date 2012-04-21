@@ -3,6 +3,37 @@
 #include "perception/robot_geometry.h"
 #include "robots/pr2.h"
 #include "robots/grabbing.h"
+#include "simulation/rope.h"
+
+
+struct RopeInitMessage : public Message {
+  struct RopeInitData {
+    Eigen::VectorXf m_labels;
+    Eigen::MatrixXf m_positions;
+  };
+  RopeInitData m_data;
+  RopeInitMessage() : Message() {}
+  RopeInitMessage(RopeInitData& data) : Message(), m_data(data) {}
+  RopeInitMessage(RopeInitData& data, Value info) : Message(info), m_data(data) {}
+  void readDataFrom(path);
+  void writeDataTo(path);
+};
+
+
+struct TrackedRope : public TrackedObject { // TODO: visibility
+  typedef boost::shared_ptr<TrackedRope> Ptr;
+
+  CapsuleRope::Ptr m_sim;
+  Eigen::VectorXf m_labels;
+
+  TrackedRope(const RopeInitMessage&, CoordinateTransformer*);
+  static Eigen::MatrixXf featsFromCloud(ColorCloudPtr); // x,y,z,a=label
+  Eigen::MatrixXf featsFromSim();
+  void applyEvidence(const SparseArray& corr, const Eigen::MatrixXf& obsPts); // add forces
+protected:
+  void init(const std::vector<btVector3>& nodes, const Eigen::VectorXf& labels);
+};
+
 
 struct RopeHyp {
   typedef boost::shared_ptr<RopeHyp> Ptr;
@@ -14,6 +45,7 @@ struct RopeHyp {
   RopeHyp(TrackedRope::Ptr tracked, Environment::Ptr env) : m_tracked(tracked), m_env(env), m_age(0) {}
   
 };
+
 
 struct RopeHypWithRobot : public RopeHyp {
   typedef boost::shared_ptr<RopeHypWithRobot> Ptr;
@@ -73,10 +105,11 @@ struct SingleHypRopeTracker : public Tracker2 {
   virtual void doIteration();
   virtual void beforeIterations();
   virtual void afterIterations();
-  virtual void setup();
 };
 
-
+struct DefaultSingleHypRopeTracker : public SingleHypRopeTracker {
+  DefaultSingleHypRopeTracker();
+};
 
 struct SingleHypRobotAndRopeTracker : public SingleHypRopeTracker {
   SingleHypRobotAndRopeTracker();
@@ -93,9 +126,11 @@ struct SingleHypRobotAndRopeTracker : public SingleHypRopeTracker {
   virtual void beforeIterations();
   virtual void afterIterations();
 
-  virtual void setup();
 };
 
+struct DefaultSingleHypRobotAndRopeTracker : public SingleHypRobotAndRopeTracker {
+  DefaultSingleHypRobotAndRopeTracker();
+};
 
 /*
 
