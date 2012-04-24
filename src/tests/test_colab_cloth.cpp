@@ -12,7 +12,7 @@
 
 
 //#define USE_PR2
-
+//#define DO_ROTATION
 
 class GripperKinematicObject : public CompoundObject<BoxObject>{
 public:
@@ -25,6 +25,7 @@ public:
 
     GripperKinematicObject(btVector4 color = btVector4(0,0,1,0.3));
     void translate(btVector3 transvec);
+    void applyTransform(btTransform tm);
     void setWorldTransform(btTransform tm);
     btTransform getWorldTransform(){return cur_tm;}
     void getWorldTransform(btTransform& in){in = cur_tm;}
@@ -58,6 +59,16 @@ public:
 
 };
 
+
+void GripperKinematicObject::applyTransform(btTransform tm)
+{
+
+    //btTransform _tm = getWorldTransform();
+    //cout << "tm: " << _tm.getOrigin()[0] << " " << _tm.getOrigin()[1] << " " << _tm.getOrigin()[2] << endl;
+    //btTransform a = _tm*tm;
+    //cout << "tm: " << a.getOrigin()[0] << " " << a.getOrigin()[1] << " " <<  a.getOrigin()[2] << endl;
+    setWorldTransform(getWorldTransform()*tm);
+}
 
 void GripperKinematicObject::translate(btVector3 transvec)
 {
@@ -537,6 +548,8 @@ struct CustomScene : public Scene {
     std::map<int, int> node_mirror_map;
     float jacobian_sim_time;
     PlotPoints::Ptr plot_points;
+    PlotPoints::Ptr left_center_point;
+    PlotAxes::Ptr left_axes;
     //PlotLines::Ptr drag_line;
 
 
@@ -583,16 +596,14 @@ struct CustomScene : public Scene {
     void swapFork();
     Eigen::MatrixXf computeJacobian();
     Eigen::MatrixXf computeJacobian_parallel();
-    void simulateInNewFork(StepState& innerstate, float sim_time, btVector3& gripper_trans);
+    void simulateInNewFork(StepState& innerstate, float sim_time, btTransform& gripper_tm);
     void doJtTracking();
 
     void run();
 };
 
 
-
-
-void CustomScene::simulateInNewFork(StepState& innerstate, float sim_time, btVector3& gripper_trans)
+void CustomScene::simulateInNewFork(StepState& innerstate, float sim_time, btTransform& gripper_tm)
 {
 
     innerstate.bullet.reset(new BulletInstance);
@@ -602,7 +613,7 @@ void CustomScene::simulateInNewFork(StepState& innerstate, float sim_time, btVec
     innerstate.cloth = boost::static_pointer_cast<BulletSoftObject>(innerstate.fork->forkOf(clothptr));
     innerstate.gripper = boost::static_pointer_cast<GripperKinematicObject>(innerstate.fork->forkOf(left_gripper));
 
-    innerstate.gripper->translate(gripper_trans);
+    innerstate.gripper->applyTransform(gripper_tm);
 
     float time = sim_time;
     while (time > 0) {
@@ -636,21 +647,30 @@ Eigen::MatrixXf CustomScene::computeJacobian_parallel()
             V_before(3*k + j) = clothptr->softBody->m_nodes[k].m_x[j];
     }
 
-    Eigen::MatrixXf J(numnodes*3,3);
 
-    std::vector<btVector3> perts;
+
+    std::vector<btTransform> perts;
     float step_length = 0.2;
-    perts.push_back(btVector3(step_length,0,0));
-    perts.push_back(btVector3(0,step_length,0));
-    perts.push_back(btVector3(0,0,step_length));
-    omp_set_num_threads(4); //need to find a better way to do this
+    float rot_angle = 0.2;
+    perts.push_back(btTransform(btQuaternion(0,0,0,1),btVector3(step_length,0,0)));
+    perts.push_back(btTransform(btQuaternion(0,0,0,1),btVector3(0,step_length,0)));
+    perts.push_back(btTransform(btQuaternion(0,0,0,1),btVector3(0,0,step_length)));
+#ifdef DO_ROTATION
+    perts.push_back(btTransform(btQuaternion(btVector3(1,0,0),rot_angle),btVector3(0,0,0)));
+    perts.push_back(btTransform(btQuaternion(btVector3(0,1,0),rot_angle),btVector3(0,0,0)));
+    perts.push_back(btTransform(btQuaternion(btVector3(0,0,1),rot_angle),btVector3(0,0,0)));
+    omp_set_num_threads(7); //need to find a better way to do this
+#else
+    omp_set_num_threads(4);
+#endif
 
+    Eigen::MatrixXf J(numnodes*3,perts.size());
     #pragma omp parallel shared(J)
     {
 
         //schedule(static, 1)
         #pragma omp for nowait
-        for(int i = 0; i < 3 ; i++)
+        for(int i = 0; i < perts.size(); i++)
         {
 
             StepState innerstate;
@@ -661,7 +681,13 @@ Eigen::MatrixXf CustomScene::computeJacobian_parallel()
                 for(int j = 0; j < 3; j++)
                     V_after(3*k + j) = innerstate.cloth->softBody->m_nodes[k].m_x[j];
             }
-            J.col(i) = (V_after - V_before)/step_length;
+            float divider;
+            if(i < 3)
+                divider = step_length;
+            else
+                divider = rot_angle;
+
+            J.col(i) = (V_after - V_before)/divider;
         }
     }
 
@@ -701,11 +727,11 @@ Eigen::MatrixXf CustomScene::computeJacobian()
 
     Eigen::MatrixXf J(numnodes*3,3);
 
-    std::vector<btVector3> perts;
+    std::vector<btTransform> perts;
     float step_length = 0.2;
-    perts.push_back(btVector3(step_length,0,0));
-    perts.push_back(btVector3(0,step_length,0));
-    perts.push_back(btVector3(0,0,step_length));
+    perts.push_back(btTransform(btQuaternion(0,0,0,1),btVector3(step_length,0,0)));
+    perts.push_back(btTransform(btQuaternion(0,0,0,1),btVector3(0,step_length,0)));
+    perts.push_back(btTransform(btQuaternion(0,0,0,1),btVector3(0,0,step_length)));
     float time;
 
     for(int i = 0; i < 3 ; i++)
@@ -714,7 +740,7 @@ Eigen::MatrixXf CustomScene::computeJacobian()
         swapFork(); //now pointers are set to the forked objects
 
         //apply perturbation
-        left_gripper->translate(perts[i]);
+        left_gripper->applyTransform(perts[i]);
 
         time = jacobian_sim_time;
         while (time > 0) {
@@ -817,7 +843,8 @@ void CustomScene::doJtTracking()
     Eigen::VectorXf V_step(numnodes*3);
     float prev_error = 10000000;
     Eigen::VectorXf V_trans;
-    btVector3 transvec;
+    //btVector3 transvec;
+    btTransform transtm;
 
 
     while(bTracking)
@@ -842,6 +869,7 @@ void CustomScene::doJtTracking()
             plotcols.push_back(btVector4(targvec.length(),0,0,1));
         }
         plot_points->setPoints(plotpoints,plotcols);
+        left_axes->setup(left_gripper->getWorldTransform(),1);
         cout << "Error: " << error << " ";
 
 
@@ -852,8 +880,15 @@ void CustomScene::doJtTracking()
         if(V_trans.norm() > step_limit)
             V_trans = V_trans/V_trans.norm()*step_limit;
         //cout << "trans vec: " << V_trans.transpose() << endl;
-        transvec = btVector3(V_trans(0),V_trans(1),V_trans(2));
-
+        //transvec = btVector3(V_trans(0),V_trans(1),V_trans(2));
+#ifdef DO_ROTATION
+        transtm = btTransform(btQuaternion(btVector3(0,0,1),V_trans(5))*
+                              btQuaternion(btVector3(0,1,0),V_trans(4))*
+                              btQuaternion(btVector3(1,0,0),V_trans(3)),
+                              btVector3(V_trans(0),V_trans(1),V_trans(2)));
+#else
+        transtm = btTransform(btQuaternion(0,0,0,1), btVector3(V_trans(0),V_trans(1),V_trans(2)));
+#endif
         //check is it more semetric than it would have been had you done nothing
         //simulateInNewFork(innerstate, BulletConfig::dt, transvec);
 
@@ -865,11 +900,12 @@ void CustomScene::doJtTracking()
             for(int i = 0; i < 2 ; i++)
             {
                 StepState innerstate;
-                btVector3 simvec = transvec;
+                //btTransform simtm(btQuaternion(0,0,0,1),transvec);
+                btTransform simtm = transtm;
                 if(i == 1)
-                    simvec = btVector3(0,0,0);
+                    simtm = btTransform(btQuaternion(0,0,0,1),btVector3(0,0,0));
 
-                simulateInNewFork(innerstate, BulletConfig::dt, simvec);
+                simulateInNewFork(innerstate, BulletConfig::dt, simtm);
                 errors[i] = 0;
                 for( map<int,int>::iterator ii=node_mirror_map.begin(); ii!=node_mirror_map.end(); ++ii)
                 {
@@ -896,7 +932,7 @@ void CustomScene::doJtTracking()
         else
         {
             cout << endl;
-            left_gripper->translate(transvec);
+            left_gripper->applyTransform(transtm);
             //stepFor(BulletConfig::dt, jacobian_sim_time);
         }
         break;
@@ -974,16 +1010,12 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,osgGA::GUIActionA
             scene.right_gripper->toggleattach(scene.clothptr->softBody.get());
             break;
 
-//        case 'b':
-//            btVector3 probe_move2 = btVector3(0,0,0.2);
-//            btTransform tm2;
-//            scene.left_grabber->motionState->getWorldTransform(tm2);
-//            printf("origin: %f %f %f\n",tm2.getOrigin()[0],tm2.getOrigin()[1],tm2.getOrigin()[2]);
-//            tm2.setOrigin(tm2.getOrigin() + probe_move2);
-//            printf("neworigin: %f %f %f\n",tm2.getOrigin()[0],tm2.getOrigin()[1],tm2.getOrigin()[2]);
-//            //scene.left_grabber->motionState->setWorldTransform(tm2);
-//            scene.left_grabber->motionState->setKinematicPos(tm2);
-//            break;
+        case 'b':
+            {
+
+            scene.left_gripper->applyTransform(btTransform(btQuaternion(btVector3(0,0,1),0.2),btVector3(0,0,0)));
+            scene.left_axes->setup(scene.left_gripper->getWorldTransform(),1);
+            }
         }
         break;
 
@@ -1244,7 +1276,7 @@ void CustomScene::run() {
 #endif
 
 
-    //env->add(table);
+    env->add(table);
     env->add(cloth);
 
     //left_mover.reset(new RigidMover(table, table->rigidBody->getCenterOfMassPosition(), env->bullet->dynamicsWorld));
@@ -1445,6 +1477,35 @@ void CustomScene::run() {
     plot_points.reset(new PlotPoints());
     env->add(plot_points);
 
+
+    left_center_point.reset(new PlotPoints(10));
+
+    btTransform left_tm = left_gripper->getWorldTransform();
+    cout << left_tm.getOrigin()[0] << " " << left_tm.getOrigin()[1] << " " << left_tm.getOrigin()[2] << " " <<endl;
+    cout << mid_x << " " << min_y << " " << node_pos[0][2] <<endl;
+    std::vector<btVector3> poinsfsefts2;
+    //points2.push_back(left_tm.getOrigin());
+    //points2.push_back(left_tm.getOrigin());
+    std::vector<btVector4> plotcols2;
+    plotcols2.push_back(btVector4(1,0,0,1));
+    //plotcols2.push_back(btVector4(1,0,0,1));
+
+    poinsfsefts2.push_back(btVector3(mid_x,min_y,node_pos[0][2]));
+    //poinsfsefts2[0] = left_tm.getOrigin();
+    //plotcols.push_back(btVector4(1,0,0,1));
+
+    std::vector<btVector3> plotpoints2;
+    plotpoints2.push_back( left_tm.getOrigin());
+    //plotpoints2.push_back(btVector3(mid_x,max_y,node_pos[0][2]));
+
+
+    env->add(left_center_point);
+    //left_center_point->setPoints(plotpoints2);
+
+
+    left_axes.reset(new PlotAxes());
+    left_axes->setup(left_tm,1);
+    env->add(left_axes);
 //    drag_line.reset(new PlotLines(2));
 //    env->add(drag_line);
 
