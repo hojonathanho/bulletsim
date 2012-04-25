@@ -1,0 +1,8 @@
+Highlights of the 1.1 branch:
+
+  - Speed improvements. Usually 25% to 30% shorter run times.
+
+  - Implementation of AsyncAppender.
+
+  - Logging macros accept both logger name as string and Logger object
+    as their first parameter.

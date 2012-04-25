@@ -9,6 +9,7 @@ include_directories(
     ${Boost_INCLUDE_DIRS}
     ${EIGEN3_INCLUDE_DIR}
     ${JSON_INCLUDE_DIR}
+    ${LOG4CPLUS_INCLUDE_DIRS}
 )
 link_directories(${BULLETSIM_BINARY_DIR}/src)
 option(JOHNS_ADVENTURES OFF)
