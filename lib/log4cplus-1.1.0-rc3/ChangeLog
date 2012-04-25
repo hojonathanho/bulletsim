@@ -1,0 +1,38 @@
+log4cplus 1.1.0-RC3
+
+- Fix log4cplusS.vcxproj - add missing source files to the project.
+
+log4cplus 1.1.0-RC2
+
+- CMake build system fixes.
+
+- Fixed TTCCLayout double time stamp issue.
+
+
+log4cplus 1.1.0-RC1
+
+Important changes relative to PRODUCTION_1_0_x branch:
+
+- Added AsyncAppender.
+
+- Added simple C interface for interoperability with C.
+
+- Added inter-process file locking to file appenders to allow logging
+  into a single log file from multiple processes.
+
+- Added Mapped Diagnostic Context (MDC) and associated converter (%X).
+
+- Added alternative thread identification (%T) converter to pattern layout.
+
+- Added function name converter (%M).
+
+- Added wchar_t <-> char conversion implementations based on standard
+  C locale functions and based on iconv().
+
+- Added DeviceAppender to allow use of Boost.IOStream's Sink as appender.
+
+- Added LOG4CPLUS_*_FMT() macros to allow printf-like formatted output
+  where it is possible.
+
+- Logging macros now accept both logger name as string and Logger
+  instance as their first parameter.

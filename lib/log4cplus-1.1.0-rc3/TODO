@@ -1,0 +1,21 @@
+Possible enhancements and directions of development, in no particular
+order:
+
+- XML appender compatible with Chainsaw GUI.
+
+- EventLog library appender.
+
+- org.apache.log4j.net.ZeroConfSocketHubAppender.
+
+- Reading log4j-like XML configuration files.
+
+- More flexible events format for transport over network. ASN.1? XML?
+  YAML? JSON?.
+
+- Syslog appender capable of logging using UDP to another host.
+
+- Modular PatternLayout; public PatternConverter classes; user defined
+  format specifiers.
+
+- More flexible log file rotation, like keeping only last 31 days of
+  logs produced by DailyRollingFileAppender, etc.
