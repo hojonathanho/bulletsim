@@ -12,7 +12,7 @@
 
 
 //#define USE_PR2
-//#define DO_ROTATION
+#define DO_ROTATION
 
 class GripperKinematicObject : public CompoundObject<BoxObject>{
 public:
@@ -597,7 +597,7 @@ struct CustomScene : public Scene {
     Eigen::MatrixXf computeJacobian();
     Eigen::MatrixXf computeJacobian_parallel();
     void simulateInNewFork(StepState& innerstate, float sim_time, btTransform& gripper_tm);
-    void doJtTracking();
+    void doJTracking();
 
     void run();
 };
@@ -786,47 +786,48 @@ Eigen::MatrixXf CustomScene::computeJacobian()
     return J;
 }
 
-//template<typename Scalar>
-//bool pinv(const Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> &a, Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> &a_pinv)
-//{
-//    // see : http://en.wikipedia.org/wiki/Moore-Penrose_pseudoinverse#The_general_case_and_the_SVD_method
+Eigen::MatrixXf pinv(const Eigen::MatrixXf &a)
+{
+    // see : http://en.wikipedia.org/wiki/Moore-Penrose_pseudoinverse#The_general_case_and_the_SVD_method
 
-//    if ( a.rows()<a.cols() )
-//        return false;
+    if ( a.rows()<a.cols() )
+    {
+        cout << "pinv error!" << endl;
+        return Eigen::MatrixXf();
+    }
 
-//    // SVD
-//    Eigen::SVD< Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> > svdA(a);
+    // SVD
+    Eigen::JacobiSVD< Eigen::MatrixXf> svdA(a,Eigen::ComputeFullU | Eigen::ComputeFullV);
 
-//    Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> vSingular = svdA.singularValues();
+    Eigen::MatrixXf vSingular = svdA.singularValues();
 
-//    // Build a diagonal matrix with the Inverted Singular values
-//    // The pseudo inverted singular matrix is easy to compute :
-//    // is formed by replacing every nonzero entry by its reciprocal (inversing).
-//    Eigen::Matrix<Scalar, Eigen::Dynamic, 1, Eigen::RowMajor> vPseudoInvertedSingular(svdA.matrixV().cols(),1);
+    // Build a diagonal matrix with the Inverted Singular values
+    // The pseudo inverted singular matrix is easy to compute :
+    // is formed by replacing every nonzero entry by its reciprocal (inversing).
+    Eigen::MatrixXf vPseudoInvertedSingular(svdA.matrixV().cols(),1);
 
-//    for (int iRow =0; iRow<vSingular.rows(); iRow++)
-//    {
-//        if ( fabs(vSingular(iRow))<=1e-10 ) // Todo : Put epsilon in parameter
-//        {
-//            vPseudoInvertedSingular(iRow,0)=0.;
-//        }
-//        else
-//        {
-//            vPseudoInvertedSingular(iRow,0)=1./vSingular(iRow);
-//        }
-//    }
+    for (int iRow =0; iRow<vSingular.rows(); iRow++)
+    {
+        if ( fabs(vSingular(iRow))<=1e-10 ) // Todo : Put epsilon in parameter
+        {
+            vPseudoInvertedSingular(iRow,0)=0.;
+        }
+        else
+        {
+            vPseudoInvertedSingular(iRow,0)=1./vSingular(iRow);
+        }
+    }
 
-//    // A little optimization here
-//    Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> mAdjointU = svdA.matrixU().adjoint().block(0,0,vSingular.rows(),svdA.matrixU().adjoint().cols());
+    // A little optimization here
+    Eigen::MatrixXf mAdjointU = svdA.matrixU().adjoint().block(0,0,vSingular.rows(),svdA.matrixU().adjoint().cols());
 
-//    // Pseudo-Inversion : V * S * U'
-//    a_pinv = (svdA.matrixV() *  vPseudoInvertedSingular.asDiagonal()) * mAdjointU  ;
+    // Pseudo-Inversion : V * S * U'
+    return (svdA.matrixV() *  vPseudoInvertedSingular.asDiagonal()) * mAdjointU  ;
 
-//    return true;
-//}
+}
 
 
-void CustomScene::doJtTracking()
+void CustomScene::doJTracking()
 {
 
     //this loop is already being executed by someone else, abort
@@ -846,7 +847,7 @@ void CustomScene::doJtTracking()
     //btVector3 transvec;
     btTransform transtm;
 
-
+    Eigen::MatrixXf J;
     while(bTracking)
     {
         for(int i = 0; i < numnodes*3;i++)
@@ -874,9 +875,13 @@ void CustomScene::doJtTracking()
 
 
         prev_error = error;
+        J = computeJacobian_parallel();
+        //Eigen::MatrixXf Jt(J.transpose());
+        //V_trans = Jt*V_step;
 
-        Eigen::MatrixXf Jt(computeJacobian_parallel().transpose());
-        V_trans = Jt*V_step;
+        Eigen::MatrixXf Jpinv= pinv(J.transpose()*J)*J.transpose();
+        V_trans = Jpinv*V_step;
+
         if(V_trans.norm() > step_limit)
             V_trans = V_trans/V_trans.norm()*step_limit;
         //cout << "trans vec: " << V_trans.transpose() << endl;
@@ -905,7 +910,7 @@ void CustomScene::doJtTracking()
                 if(i == 1)
                     simtm = btTransform(btQuaternion(0,0,0,1),btVector3(0,0,0));
 
-                simulateInNewFork(innerstate, BulletConfig::dt, simtm);
+                simulateInNewFork(innerstate, jacobian_sim_time, simtm);
                 errors[i] = 0;
                 for( map<int,int>::iterator ii=node_mirror_map.begin(); ii!=node_mirror_map.end(); ++ii)
                 {
@@ -1253,7 +1258,7 @@ void CustomScene::swapFork() {
 void CustomScene::run() {
     viewer.addEventHandler(new CustomKeyHandler(*this));
 
-    addPreStepCallback(boost::bind(&CustomScene::doJtTracking, this));
+    addPreStepCallback(boost::bind(&CustomScene::doJTracking, this));
 
     const float dt = BulletConfig::dt;
     const float table_height = .5;
