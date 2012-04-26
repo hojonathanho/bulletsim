@@ -90,7 +90,6 @@ void getTable(PointCloud<PointXYZRGBA>::Ptr cloud, vector<Vector3f>& corners, Ve
   ec.setInputCloud(cloud_plane);
   ec.extract (cluster_indices);
 
-  cout << "num clust: " << cluster_indices.size() << endl;
 
 
   PointCloud<PointXYZRGBA>::Ptr cloud_cluster(new PointCloud<PointXYZRGBA>);
@@ -103,8 +102,6 @@ void getTable(PointCloud<PointXYZRGBA>::Ptr cloud, vector<Vector3f>& corners, Ve
   cloud_cluster->height = 1;
   cloud_cluster->is_dense = true;
 
-  stringstream ss;
-  ss << "/tmp/clu" << skip << ".pcd";
 
   vector<Vector3f> tablePts;
   Vector4f abcd(coeffs->values[0],coeffs->values[1],coeffs->values[2],coeffs->values[3]);

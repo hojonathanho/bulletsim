@@ -22,6 +22,20 @@ public:
 
 };
 
+class RopePreprocessor {
+public:
+  
+  Eigen::MatrixXf m_coeffs;
+  Eigen::VectorXf m_intercepts;
+  Eigen::MatrixXf m_cornersWorld;
+  Eigen::Affine3f m_camToWorld;
+  
+  RopePreprocessor();
+  ColorCloudPtr extractRopePoints(ColorCloudPtr cloud);
+
+};
+
+
 /*
 
 class TowelGrabAndProc : public CloudGrabber {

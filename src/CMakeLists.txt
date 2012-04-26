@@ -14,6 +14,7 @@ link_directories(${BULLETSIM_BINARY_DIR}/src)
 option(JOHNS_ADVENTURES OFF)
 option(JONATHANS_ADVENTURES OFF)
 
+set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 
 add_subdirectory(simulation)
 add_subdirectory(robots)

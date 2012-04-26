@@ -21,7 +21,7 @@ ColorCloudPtr cloud = readPCD("/home/joschu/cpp/clouds/test.pcd");
 
 void test_toBGR() {
   ColorCloudPtr cloud = readPCD("/home/joschu/cpp/clouds/test.pcd");
-  MatrixXb bgr = toBGR(cloud);
+  MatrixXu bgr = toBGR(cloud);
   ENSURE(bgr.rows() == cloud->size());
   ENSURE(bgr.cols() == 3);
   for (int i=0; i<cloud->size(); i++) {

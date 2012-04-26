@@ -6,6 +6,7 @@
 #include "clouds/preprocessing.h"
 #include "clouds/utils_pcl.h"
 #include "clouds/filtering.h"
+#include "clouds/cloud_ops.h"
 #include <boost/timer.hpp>
 
 using namespace pcl;

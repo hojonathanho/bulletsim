@@ -36,10 +36,10 @@ Eigen::MatrixXf toEigenMatrix(ColorCloudPtr cloud) {
 }
 
 
-MatrixXb toBGR(ColorCloudPtr cloud) {
+MatrixXu toBGR(ColorCloudPtr cloud) {
   MatrixXf bgrFloats = cloud->getMatrixXfMap(1,8,4);
-  MatrixXb bgrBytes4 = Map<MatrixXb>(reinterpret_cast<uint8_t*>(bgrFloats.data()), bgrFloats.rows(),4);
-  MatrixXb bgrBytes3 = bgrBytes4.block(0,0,bgrBytes4.rows(),3);
+  MatrixXu bgrBytes4 = Map<MatrixXu>(reinterpret_cast<uint8_t*>(bgrFloats.data()), bgrFloats.rows(),4);
+  MatrixXu bgrBytes3 = bgrBytes4.block(0,0,bgrBytes4.rows(),3);
   return bgrBytes3;
 }
 
@@ -74,3 +74,15 @@ ColorCloudPtr transformPointCloud1(ColorCloudPtr in, Eigen::Affine3f transform) 
   return out;
 }
 
+ColorCloudPtr extractInds(ColorCloudPtr in, std::vector<int> inds) {
+  ColorCloudPtr out(new ColorCloud());
+  out->reserve(inds.size());
+  out->width = inds.size();
+  out->height = 1;
+  out->is_dense = false;
+
+  BOOST_FOREACH(int i, inds) {
+    out->push_back(in->points[i]);
+  }
+  return out;
+}

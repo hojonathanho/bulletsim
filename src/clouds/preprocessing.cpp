@@ -9,6 +9,7 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include "utils/vector_io.h"
 #include "filtering.h"
+#include "cloud_ops.h"
 #include "perception/utils_perception.h" // XXX. just for inline stuff
 #include "utils/conversions.h"
 
@@ -70,10 +71,10 @@ VectorXb getPointsOnTable(ColorCloudPtr cloudCam, const Affine3f& camToWorld, co
 
 VectorXi getLabels(ColorCloudPtr cloud,  const MatrixXf& coeffs, const VectorXf& intercepts) {
   int nPts = cloud->size();
-  MatrixXb bgr = toBGR(cloud);
+  MatrixXu bgr = toBGR(cloud);
   cv::Mat cvmat(cv::Size(nPts,1), CV_8UC3, bgr.data());
   cv::cvtColor(cvmat, cvmat, CV_BGR2Lab);
-  Map<MatrixXb>lab(cvmat.data,nPts, 3);
+  Map<MatrixXu>lab(cvmat.data,nPts, 3);
   ArrayXXf feats(nPts,6);
   feats.block(0,0,nPts,3) = lab.cast<float>().array()/256.;
   feats.block(0,3,nPts,3) = feats.block(0,0,nPts,3).square();
@@ -112,6 +113,34 @@ ColorCloudPtr TowelPreprocessor::extractTowelPoints(ColorCloudPtr cloud) {
   ColorCloudPtr cloudOnTable = maskCloud(cloud, mask);
   VectorXi labels = getLabels(cloudOnTable, m_coeffs, m_intercepts);
   ColorCloudPtr towelCloud = maskCloud(cloudOnTable, labels.array()==0);
+  ColorCloudPtr downedTowelCloud = removeOutliers(downsampleCloud(towelCloud,.02),1.5);
+  return downedTowelCloud;
+}  
+
+RopePreprocessor::RopePreprocessor() {
+
+  vector<Vector3f> cornersCam = toEigenVectors(floatMatFromFile(onceFile("table_corners.txt").string()));
+  m_camToWorld = getCamToWorldFromTable(cornersCam);
+        
+  MatrixXf cornersCam1(4,3);
+  for (int i=0; i < 4; i++) cornersCam1.row(i) = cornersCam[i];
+
+  Matrix3f rotation; rotation = m_camToWorld.linear();
+  m_cornersWorld = cornersCam1 * rotation.transpose();
+
+  vector< vector<float> > coeffs_tmp = floatMatFromFile(EXPAND(BULLETSIM_DATA_DIR)"/pixel_classifiers/rope_sdh_light/coeffs.txt");
+  vector<float> intercepts_tmp = floatVecFromFile(EXPAND(BULLETSIM_DATA_DIR)"/pixel_classifiers/rope_sdh_light/intercepts.txt");
+  m_coeffs = toEigenMatrix(coeffs_tmp);
+  m_intercepts = toVectorXf(intercepts_tmp);
+    
+}
+  
+  
+ColorCloudPtr RopePreprocessor::extractRopePoints(ColorCloudPtr cloud) {
+  VectorXb mask = getPointsOnTable(cloud, m_camToWorld, m_cornersWorld,.01,1);
+  ColorCloudPtr cloudOnTable = maskCloud(cloud, mask);
+  VectorXi labels = getLabels(cloudOnTable, m_coeffs, m_intercepts);
+  ColorCloudPtr towelCloud = maskCloud(cloudOnTable, labels.array() <= 1);
   ColorCloudPtr downedTowelCloud = removeOutliers(downsampleCloud(towelCloud,.02),1.5);
   return downedTowelCloud;
 }  

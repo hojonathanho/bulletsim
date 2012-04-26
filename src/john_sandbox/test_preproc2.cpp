@@ -1,4 +1,5 @@
 #include "clouds/filtering.h"
+#include "clouds/cloud_ops.h"
 #include "clouds/geom.h"
 #include "clouds/get_table.h"
 #include "clouds/preprocessing.h"

@@ -14,11 +14,13 @@
 #include <pcl/sample_consensus/ransac.h>
 #include <pcl/surface/convex_hull.h>
 #include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/core/core.hpp>
 
 typedef pcl::PointXYZRGBA PointT;
 
 using namespace std;
 using namespace Eigen;
+using namespace pcl;
 
 vector< vector<int> > findClusters(ColorCloudPtr cloud, float tol, float minSize) {
   std::vector<pcl::PointIndices> cluster_indices;
@@ -106,7 +108,27 @@ ColorCloudPtr cropToHull(const ColorCloudPtr in, ColorCloudPtr hull_cloud, std::
   return out;
 }
 
-ColorCloudPtr filterHeight(ColorCloudPtr in, float low, float high) {
+ColorCloudPtr filterX(ColorCloudPtr in, float low, float high) {
+  pcl::PassThrough<pcl::PointXYZRGBA> pass;
+  pass.setInputCloud (in);
+  pass.setFilterFieldName ("x");
+  pass.setFilterLimits (low, high);
+
+  ColorCloudPtr out(new ColorCloud());
+  pass.filter (*out);
+  return out;
+}
+ColorCloudPtr filterY(ColorCloudPtr in, float low, float high) {
+  pcl::PassThrough<pcl::PointXYZRGBA> pass;
+  pass.setInputCloud (in);
+  pass.setFilterFieldName ("y");
+  pass.setFilterLimits (low, high);
+
+  ColorCloudPtr out(new ColorCloud());
+  pass.filter (*out);
+  return out;
+}
+ColorCloudPtr filterZ(ColorCloudPtr in, float low, float high) {
   pcl::PassThrough<pcl::PointXYZRGBA> pass;
   pass.setInputCloud (in);
   pass.setFilterFieldName ("z");
@@ -117,9 +139,7 @@ ColorCloudPtr filterHeight(ColorCloudPtr in, float low, float high) {
   return out;
 }
 
-void fixZ(ColorCloudPtr in, float z) {
-  BOOST_FOREACH(PointT& p, in->points) p.z = z;
-}
+
 
 
 VectorXf getCircle(ColorCloudPtr cloud) {
@@ -191,4 +211,54 @@ ColorCloudPtr getBiggestCluster(ColorCloudPtr in, float tol) {
   cout << iBest << endl;
   return extractInds(in, cluster_inds[iBest]);
 
+}
+
+
+ColorCloudPtr maskCloud(const ColorCloudPtr in, const cv::Mat& mask) {
+  assert(mask.elemSize() == 1);
+  assert(mask.rows == in->height);
+  assert(mask.cols == in->width);
+  assert(in->isOrganized());
+
+  boost::shared_ptr< vector<int> > indicesPtr(new vector<int>());
+
+  cv::MatConstIterator_<bool> it = mask.begin<bool>(), it_end = mask.end<bool>();
+  for (int i=0; it != it_end; ++it, ++i) {
+    if (*it > 0) indicesPtr->push_back(i);
+  }
+
+  ColorCloudPtr out(new ColorCloud());
+  pcl::ExtractIndices<pcl::PointXYZRGBA> ei;
+  ei.setNegative(false);
+  ei.setInputCloud(in);
+  ei.setIndices(indicesPtr);
+  ei.filter(*out);
+  return out;
+}
+
+
+ColorCloudPtr maskCloud(const ColorCloudPtr in, const VectorXb& mask) {
+
+  ColorCloudPtr out(new ColorCloud());
+  int nOut = mask.sum();
+  out->reserve(nOut);
+  out->header=in->header;
+  out->width = nOut;
+  out->height = 1;
+  out->is_dense = false;
+
+  int i = 0;
+  BOOST_FOREACH(const PointXYZRGBA& pt, in->points) {
+    if (mask(i)) out->push_back(pt);
+    ++i;
+  }
+
+  return out;
+}
+
+void labelCloud(ColorCloudPtr in, const cv::Mat& labels) {
+  ColorCloudPtr out(new ColorCloud());
+  MatrixXi uv = xyz2uv(toEigenMatrix(in));
+  for (int i=0; i < in->size(); i++)
+    in->points[i]._unused = labels.at<uint8_t>(uv(i,0), uv(i,1));
 }

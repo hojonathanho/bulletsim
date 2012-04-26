@@ -14,7 +14,7 @@ link_directories(
 
 add_definitions(${PCL_DEFINITIONS})
 
-add_library(clouds geom.cpp get_table.cpp utils_pcl.cpp filtering.cpp comm_cv.cpp comm_pcl.cpp utils_cv.cpp preprocessing.cpp)
+add_library(clouds geom.cpp get_table.cpp get_table2.cpp plane_finding.cpp utils_pcl.cpp cloud_ops.cpp comm_cv.cpp comm_pcl.cpp utils_cv.cpp preprocessing.cpp)
 target_link_libraries(clouds utils ${PCL_LIBRARIES} ${WM_LIBRARIES} ${OpenCV_LIBS} ${BULLET_LIBS})
 
 add_executable(record_one_pcd record_one_pcd.cpp)
@@ -34,6 +34,9 @@ target_link_libraries(comm_downsample_clouds clouds comm ${PCL_LIBRARIES} ${Open
 
 add_executable(comm_towel_preproc comm_towel_preproc.cpp)
 target_link_libraries(comm_towel_preproc clouds comm ${PCL_LIBRARIES} ${OpenCV_LIBS})
+
+add_executable(comm_rope_preproc comm_rope_preproc.cpp)
+target_link_libraries(comm_rope_preproc clouds comm ${PCL_LIBRARIES} ${OpenCV_LIBS})
 
 add_executable(viz_curves viz_curves.cpp)
 target_link_libraries(viz_curves ${PCL_LIBRARIES} clouds boost_program_options utils)
