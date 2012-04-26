@@ -156,6 +156,7 @@ public:
 				vsolutions);
     }
     vector<double> getDOFValues();
+    void setDOFValues(const vector<double>& vals);
 
     // Moves the manipulator with IK to targetTrans in unscaled coordinates
     // Returns false if IK cannot find a solution
@@ -163,13 +164,10 @@ public:
     // robot pose collides with anything in the environment (true otherwise).
     // The robot will revert is position to the pre-collision state if
     // revertOnCollision is set to true.
-    bool moveByIKUnscaled(const OpenRAVE::Transform &targetTrans,
-			  bool checkCollisions                                                                     = false, bool revertOnCollision=true);
+    bool moveByIKUnscaled(const OpenRAVE::Transform &targetTrans, bool checkCollisions = false, bool revertOnCollision=true);
     // Moves the manipulator in scaled coordinates
-    bool moveByIK(const btTransform &targetTrans,
-		  bool checkCollisions                                                                       = false, bool revertOnCollision=true) {
-      return moveByIKUnscaled(util::toRaveTransform(targetTrans, 1./GeneralConfig::scale),
-			      checkCollisions, revertOnCollision);
+    bool moveByIK(const btTransform &targetTrans, bool checkCollisions = false, bool revertOnCollision=true) {
+      return moveByIKUnscaled(util::toRaveTransform(targetTrans, 1./GeneralConfig::scale), checkCollisions, revertOnCollision);
     }
 
     float getGripperAngle();

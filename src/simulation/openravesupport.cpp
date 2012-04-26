@@ -570,6 +570,11 @@ vector<double> RaveRobotObject::Manipulator::getDOFValues() {
 	return robot->getDOFValues(manip->GetArmIndices());
 }
 
+void RaveRobotObject::Manipulator::setDOFValues(const vector<double>& vals) {
+	robot->setDOFValues(manip->GetArmIndices(), vals);
+}
+
+
 RaveRobotObject::Manipulator::Ptr RaveRobotObject::Manipulator::copy(
 		RaveRobotObject::Ptr newRobot, Fork &f) {
 	OpenRAVE::EnvironmentMutex::scoped_lock lock(

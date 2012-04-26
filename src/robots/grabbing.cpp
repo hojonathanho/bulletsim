@@ -57,9 +57,9 @@ BulletObject::Ptr getNearestBody(vector<BulletObject::Ptr> bodies, btVector3 pos
 Monitor::Monitor() : closedThreshold(.2) {}
 
 Monitor::Monitor(RaveRobotObject::Manipulator::Ptr manip) :
-    m_manip(manip),
-    closedThreshold(.2),
-    m_wasClosed(isClosed(manip, .2))
+  m_manip(manip),
+  closedThreshold(.2),
+  m_wasClosed(isClosed(manip, .2))
 {
   cout << "monitor init: " << m_wasClosed << " " << isClosed(manip, closedThreshold) << endl;
 }
@@ -73,8 +73,8 @@ void Monitor::update() {
 }
 
 void Monitor::setManip(RaveRobotObject::Manipulator::Ptr m) {
-    m_manip = m;
-    m_wasClosed = isClosed(m_manip, closedThreshold);
+  m_manip = m;
+  m_wasClosed = isClosed(m_manip, closedThreshold);
 }
 
 MonitorForGrabbing::MonitorForGrabbing(RaveRobotObject::Manipulator::Ptr manip, btDynamicsWorld *dynamicsWorld) :
@@ -92,10 +92,13 @@ void MonitorForGrabbing::grab() {
   // grabs nearest object
   cout << "grabbing nearest object" << endl;
   btTransform curPose = m_manip->getTransform();
-  BulletObject::Ptr nearestObj = getNearestBody(m_bodies, curPose.getOrigin(), m_i);
-  cout << "grab: " << m_i << endl;
-  m_grab = new Grab(nearestObj->rigidBody.get(), curPose, m_world);
-  nearestObj->setColor(0,0,1,1);
+  int i;
+  BulletObject::Ptr nearestObj = getNearestBody(m_bodies, curPose.getOrigin(), i);
+  if (nearestObj->rigidBody->getCenterOfMassPosition().distance(curPose.getOrigin()) < .05*METERS) {
+    m_grab = new Grab(nearestObj->rigidBody.get(), curPose.getOrigin(), m_world);
+    nearestObj->setColor(0,0,1,1);
+  }
+
 }
 
 void MonitorForGrabbing::release() {
@@ -108,6 +111,6 @@ void MonitorForGrabbing::release() {
 }
 
 void MonitorForGrabbing::updateGrabPose() {
-    if (!m_grab) return;
-    m_grab->updatePose(m_manip->getTransform());
+  if (!m_grab) return;
+  m_grab->updatePose(m_manip->getTransform());
 }
