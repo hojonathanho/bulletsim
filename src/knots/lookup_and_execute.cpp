@@ -35,6 +35,18 @@ vector<btVector3> getOrigins(const vector<btTransform>& in) {
   return out;
 }
 
+void checkUsed(const vector<RobotAndRopeState>& rars, bool& leftUsed, bool& rightUsed) {
+  leftUsed = false;
+  rightUsed = false;
+  
+  BOOST_FOREACH(const RobotAndRopeState& rar, rars) {
+    leftUsed |= (rar.leftGrab != -1);
+    rightUsed |= (rar.rightGrab != -1);
+  }
+  
+}
+
+
 int main(int argc, char* argv[]) {
   try {
 
@@ -120,6 +132,14 @@ int main(int argc, char* argv[]) {
       /////// execute the trajectory you got
       warpedTrajPlot->setPoints(getOrigins(leftPoses)*METERS);
       cout << "executing warped trajectory" << endl;
+      
+      bool leftUsed, rightUsed;
+      checkUsed(rarsWarped, leftUsed, rightUsed);
+      vector<double> zeroJoints(7, 0);
+      if (!leftUsed) scene.pr2m->pr2Left->setDOFValues(zeroJoints);
+      if (!rightUsed) scene.pr2m->pr2Right->setDOFValues(zeroJoints);
+      
+      
       for (int i=0; i < rarsWarped.size(); i++) {
         warpedLeftAxes->setup(rarsWarped[i].leftPose*METERS, .2*METERS);
         origLeftAxes->setup(rarsOrig[i].leftPose*METERS, .1*METERS);
@@ -132,8 +152,8 @@ int main(int argc, char* argv[]) {
         if (LocalConfig::telekinesis) 
           scene.setFakeHandPoses(rarsWarped[i].leftPose*METERS, rarsWarped[i].rightPose*METERS);
         else {
-          scene.pr2m->pr2Left->moveByIK(rarsWarped[i].leftPose*METERS);
-          scene.pr2m->pr2Right->moveByIK(rarsWarped[i].rightPose*METERS);
+          if (leftUsed) scene.pr2m->pr2Left->moveByIK(rarsWarped[i].leftPose*METERS);
+          if (rightUsed) scene.pr2m->pr2Right->moveByIK(rarsWarped[i].rightPose*METERS);
         }
 
         scene.pr2m->pr2Left->setGripperAngle(rarsWarped[i].leftGrip);    
