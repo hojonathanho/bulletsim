@@ -140,6 +140,7 @@ ColorCloudPtr RopePreprocessor::extractRopePoints(ColorCloudPtr cloud) {
   VectorXb mask = getPointsOnTable(cloud, m_camToWorld, m_cornersWorld,.01,1);
   ColorCloudPtr cloudOnTable = maskCloud(cloud, mask);
   VectorXi labels = getLabels(cloudOnTable, m_coeffs, m_intercepts);
+  for (int i=0; i < labels.size(); ++i) cloudOnTable->points[i].r = labels(i)+1;
   ColorCloudPtr towelCloud = maskCloud(cloudOnTable, labels.array() <= 1);
   ColorCloudPtr downedTowelCloud = removeOutliers(downsampleCloud(towelCloud,.02),1.5);
   return downedTowelCloud;

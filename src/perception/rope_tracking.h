@@ -59,21 +59,29 @@ struct RopeHypWithRobot : public RopeHyp {
 struct RopeSubs : public MultiSubscriber {
   CloudMessage m_kinectMsg;        
   CloudMessage m_ropePtsMsg;
-  ImageMessage m_labelMsg;
 
   FileSubscriber m_kinectSub;
   FileSubscriber m_ropeSub;
-  FileSubscriber m_labelSub;
-  RopeSubs() : m_kinectSub("kinect","pcd"), m_ropeSub("rope_pts", "pcd"), m_labelSub("labels","bmp") {
+  RopeSubs() : m_kinectSub("kinect","pcd"), m_ropeSub("rope_pts", "pcd") {
     m_msgs.push_back(&m_kinectMsg);
     m_msgs.push_back(&m_ropePtsMsg);
-    m_msgs.push_back(&m_labelMsg);
 
     m_subs.push_back(&m_kinectSub);
     m_subs.push_back(&m_ropeSub);
+  }
+};
+
+struct RopeSubs2 : public RopeSubs {
+
+  ImageMessage m_labelMsg;
+  FileSubscriber m_labelSub;
+  RopeSubs2() : RopeSubs(), m_labelSub("labels","bmp") {
+    m_msgs.push_back(&m_labelMsg);
     m_subs.push_back(&m_labelSub);
   }
 };
+
+
 
 
 struct SingleHypRopeTracker : public Tracker2 {
@@ -108,7 +116,9 @@ struct SingleHypRopeTracker : public Tracker2 {
 };
 
 struct DefaultSingleHypRopeTracker : public SingleHypRopeTracker {
+  RopeSubs2* m_multisub;
   DefaultSingleHypRopeTracker();
+  virtual void beforeIterations();
 };
 
 struct SingleHypRobotAndRopeTracker : public SingleHypRopeTracker {

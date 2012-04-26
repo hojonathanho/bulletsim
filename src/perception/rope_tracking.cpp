@@ -13,7 +13,7 @@ using namespace Eigen;
 #include "utils/vector_io.h"
 #include "perception/apply_impulses.h"
 
-static const float LABEL_MULTIPLIER = 100;
+static const float LABEL_MULTIPLIER = 100; //just so things work with old rope_pts data
 
 
 static osg::Vec4f hyp_colors[6] = {osg::Vec4f(1,0,0,.3),
@@ -62,7 +62,7 @@ MatrixXf TrackedRope::featsFromCloud(ColorCloudPtr cloud) {
     out(i,0) = pt.x;
     out(i,1) = pt.y;
     out(i,2) = pt.z;
-    out(i,3) = pt._unused*LABEL_MULTIPLIER;
+    out(i,3) = pt.r*LABEL_MULTIPLIER;
   }
   return out;
 }
@@ -95,6 +95,8 @@ TrackedRope::TrackedRope(const RopeInitMessage& message, CoordinateTransformer* 
 }
 
 void TrackedRope::init(const vector<btVector3>& nodes, const VectorXf& labels) {
+  cout << labels.size() << " " << nodes.size() << endl;
+  ENSURE(labels.size() == nodes.size() - 1);
   cout << labels.transpose() << endl;
   m_labels = labels;
   m_sim.reset(new CapsuleRope(nodes,.0075*METERS));
@@ -139,11 +141,9 @@ void SingleHypRopeTracker::beforeIterations() {
   pcl::transformPointCloud(*cloudCam, *cloudWorld, m_CT->worldFromCamEigen);
   if (TrackingConfig::showKinect) m_kinectPts->setPoints1(cloudWorld);
   else {m_kinectPts->clear();}
-  cv::Mat labels = m_multisub->m_labelMsg.m_data;
-  m_ropeMask = labels < 2;
-  m_depthImage = getDepthImage(cloudCam);
   pcl::transformPointCloud(*m_multisub->m_ropePtsMsg.m_data, *m_obsCloud, m_CT->worldFromCamEigen);
   m_obsFeats = TrackedRope::featsFromCloud(m_obsCloud);
+
 
 }
 
@@ -153,8 +153,7 @@ void SingleHypRopeTracker::doIteration() {
   TrackedRope::Ptr tr = m_hyp->m_tracked;
   
   MatrixXf ropePtsCam  = toEigenMatrix(m_CT->toCamFromWorldN(getNodes(tr->m_sim)));
-  VectorXf pVis = calcVisibility(m_hyp->m_tracked->m_sim->children, m_scene->env->bullet->dynamicsWorld, m_CT->worldFromCamUnscaled.getOrigin()*METERS,
-		  TrackingConfig::sigA*METERS, TrackingConfig::nSamples);
+  VectorXf pVis = calcVisibility(m_hyp->m_tracked->m_sim->children, m_scene->env->bullet->dynamicsWorld, m_CT->worldFromCamUnscaled.getOrigin()*METERS, TrackingConfig::sigA*METERS, TrackingConfig::nSamples);
 
   Eigen::MatrixXf corrEigen = calcCorrProb(tr->featsFromSim(), tr->m_sigs, m_obsFeats, pVis, TrackingConfig::outlierParam, m_hyp->m_loglik);
   SparseArray corr = toSparseArray(corrEigen, TrackingConfig::cutoff);
@@ -173,11 +172,16 @@ void SingleHypRopeTracker::doIteration() {
 }
 
 void SingleHypRopeTracker::afterIterations() {
-  vector< vector<float> > vv; 
+  vector<btVector3> ctrlPts = m_hyp->m_tracked->m_sim->getControlPoints() * (1/METERS);
+  vector< vector<float> > vv = toVecVec(ctrlPts);
   m_pub.send(VecVecMessage<float>(vv));
 }
 
 DefaultSingleHypRopeTracker::DefaultSingleHypRopeTracker() : SingleHypRopeTracker() {
+  m_multisub   = new RopeSubs2();
+  Tracker2::m_multisub = m_multisub;
+  SingleHypRopeTracker::m_multisub = m_multisub;
+
   m_CT = loadTable(*m_scene);
   ENSURE(m_ropeInitSub.recv(m_ropeInitMsg,true));
   TrackedRope::Ptr tr(new TrackedRope(m_ropeInitMsg, m_CT));
@@ -185,6 +189,14 @@ DefaultSingleHypRopeTracker::DefaultSingleHypRopeTracker() : SingleHypRopeTracke
   m_scene->env->add(tr->m_sim);
 }
 
+void DefaultSingleHypRopeTracker::beforeIterations() {
+  SingleHypRopeTracker::beforeIterations();
+  ColorCloudPtr cloudCam  = m_multisub->m_kinectMsg.m_data;
+  cv::Mat labels = m_multisub->m_labelMsg.m_data;
+  m_ropeMask = labels < 2;
+  m_depthImage = getDepthImage(cloudCam);
+
+}
 
 SingleHypRobotAndRopeTracker::SingleHypRobotAndRopeTracker() : 
   SingleHypRopeTracker(),
@@ -225,6 +237,7 @@ DefaultSingleHypRobotAndRopeTracker::DefaultSingleHypRobotAndRopeTracker() {
 
   vector<double> firstJoints = doubleVecFromFile(filePath("data000000000000.txt", "joint_states").string());
   ValuesInds vi = getValuesInds(firstJoints);
+  cout << "SETTING DOF VALUES" << endl;
   m_pr2m->pr2->setDOFValues(vi.second, vi.first);
   m_CT = new CoordinateTransformer(m_kinectTrans->getWFC());
 

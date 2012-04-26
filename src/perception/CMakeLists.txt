@@ -47,7 +47,7 @@ target_link_libraries(perception ${PCL_LIBRARIES} comm clouds simulation tetgen 
 #target_link_libraries(test_tetgen tetgen)
 
 add_executable(test_fake_kinect test_fake_kinect.cpp fake_kinect.cpp)
-target_link_libraries(test_fake_kinect simulation comm perception clouds robots)
+target_link_libraries(test_fake_kinect simulation comm perception clouds robots GLU)
 
 add_executable(calibrate_kinect2 calibrate_kinect2)
 target_link_libraries(calibrate_kinect2 clouds comm simulation perception robots ${PCL_LIBRARIES})

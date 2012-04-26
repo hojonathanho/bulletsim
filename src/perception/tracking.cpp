@@ -65,8 +65,6 @@ Tracker2::Tracker2() {
   m_scene->addVoidKeyCallback('K',&toggleKinect);
       
   m_scene->startViewer();
-  OSGCamParams cp(m_CT->worldFromCamUnscaled, GeneralConfig::scale);
-  m_scene->manip->setHomePosition(cp.eye, cp.center, cp.up);
 
 }
 
@@ -87,7 +85,6 @@ void Tracker2::runOnline() {
     beforeIterations();
     m_multisub->prepare();
     do {
-      cout << iter++ << endl;
       doIteration();
     } 
     while (!m_multisub->recvAll());
@@ -115,7 +112,6 @@ void Tracker2::runOffline() {
 }
 
 void Tracker2::updateAllPlots(const std::vector<btVector3>& obsPts, const std::vector<btVector3>& estPts, const Eigen::VectorXf& sigs, const Eigen::VectorXf& pVis, const SparseArray& corr, const Eigen::VectorXf& inlierFrac) {
-
   if (TrackingConfig::showLines) drawCorrLines(m_corrLines, estPts, obsPts, corr);
   else m_corrLines->clear();
   if (TrackingConfig::showObs) plotObs(obsPts, inlierFrac, m_obsPlot);
