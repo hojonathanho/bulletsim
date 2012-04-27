@@ -25,6 +25,7 @@ add_library(clothmanip
     graspingactions.cpp
     genmanip.cpp
     config_flattening.cpp
+    folding.cpp
 )
 set_source_files_properties(search.cpp PROPERTIES COMPILE_FLAGS -fopenmp)
 set_source_files_properties(search_general.cpp PROPERTIES COMPILE_FLAGS -fopenmp)
@@ -41,5 +42,5 @@ target_link_libraries(demo_flatten clothmanip)
 add_executable(demo_pr2_manip demo_pr2_manip.cpp)
 target_link_libraries(demo_pr2_manip clothmanip robots)
 
-add_executable(test_pr2_gripper_region test_pr2_gripper_region.cpp)
-target_link_libraries(test_pr2_gripper_region clothmanip robots)
+add_executable(test_folding test_folding.cpp)
+target_link_libraries(test_folding clothmanip)

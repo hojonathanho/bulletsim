@@ -50,7 +50,7 @@ btSoftBody *makeSelfCollidingTowel(const btVector3& center, btScalar lenx, btSca
         resx, resy,
         0, true);
 
-    psb->m_cfg.piterations = 8;
+    psb->m_cfg.piterations = 2;
     psb->m_cfg.collisions = btSoftBody::fCollision::CL_RS
         | btSoftBody::fCollision::CL_SS
         | btSoftBody::fCollision::CL_SELF;
@@ -60,13 +60,13 @@ btSoftBody *makeSelfCollidingTowel(const btVector3& center, btScalar lenx, btSca
     psb->m_cfg.kSSHR_CL = 1.0; // so the cloth doesn't penetrate itself
     psb->m_cfg.kSRHR_CL = 0.7;
     psb->m_cfg.kSKHR_CL = 0.7;
-    psb->m_cfg.kDP = 0.01;
-    //psb->m_cfg.kDP = 1;
+    //psb->m_cfg.kDP = 0.01;
+    psb->m_cfg.kDP = 0.5;
 
     psb->getCollisionShape()->setMargin(0.05);
 
     btSoftBody::Material *pm = psb->appendMaterial();
-    pm->m_kLST = 1;
+    pm->m_kLST = 0.5;
     pm->m_kAST = 1;
 
     psb->generateBendingConstraints(2, pm);
