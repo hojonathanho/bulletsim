@@ -9,7 +9,7 @@
 #include <osgbCollision/CollisionShapes.h>
 #include <Serialize/BulletFileLoader/btBulletFile.h>
 #include <boost/scoped_array.hpp>
-#include "SetColorsVisitor.h"
+#include "set_colors_visitor.h"
 
 #define MAX_RAYCAST_DISTANCE 100.0
 
@@ -28,9 +28,11 @@ BulletObject::BulletObject(CI ci, const btTransform &initTrans, bool isKinematic
     ci.m_motionState = motionState.get();
     collisionShape.reset(ci.m_collisionShape);
     rigidBody.reset(new btRigidBody(ci));
-    if (isKinematic)
+    if (isKinematic) {
         rigidBody->setCollisionFlags(rigidBody->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);
-    rigidBody->setActivationState(DISABLE_DEACTIVATION);
+    }
+	rigidBody->setActivationState(DISABLE_DEACTIVATION);
+
 }
 
 BulletObject::BulletObject(btScalar mass, btCollisionShape *cs, const btTransform &initTrans, bool isKinematic_) : isKinematic(isKinematic_) {
@@ -44,7 +46,12 @@ BulletObject::BulletObject(btScalar mass, btCollisionShape *cs, const btTransfor
     ci.m_motionState = motionState.get();
 
     rigidBody.reset(new btRigidBody(ci));
-    rigidBody->setActivationState(DISABLE_DEACTIVATION);
+
+    if (isKinematic) {
+        rigidBody->setCollisionFlags(rigidBody->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);
+    }
+	rigidBody->setActivationState(DISABLE_DEACTIVATION);
+
 }
 
 void BulletObject::init() {
@@ -58,6 +65,7 @@ void BulletObject::init() {
     blendFunc->setFunction(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     osg::StateSet *ss = node->getOrCreateStateSet();
     ss->setAttributeAndModes(blendFunc);
+//    ss->setRenderingHint(osg::StateSet::TRANSPARENT_BIN);
     setColorAfterInit();
 }
 

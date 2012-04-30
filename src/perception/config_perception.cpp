@@ -1,4 +1,5 @@
 #include "config_perception.h"
+using namespace std;
 
 int TrackingConfig::nIter = 20;
 float TrackingConfig::sigA = .025;

@@ -248,7 +248,7 @@ int main(int argc, char* argv[]) {
 
   // get kinect transform
   KinectTrans kinectTrans(pr2m.pr2->robot);
-  kinectTrans.calibrate(getKinectToWorld(pr2m.pr2->robot));//btTransform(btQuaternion(-0.703407, 0.706030, -0.048280, 0.066401), btVector3(0.348212, -0.047753, 1.611060)));
+  kinectTrans.calibrate(btTransform(btQuaternion(-0.703407, 0.706030, -0.048280, 0.066401), btVector3(0.348212, -0.047753, 1.611060)));
   CoordinateTransformer CT(kinectTrans.getKinectTrans());
 
   TransformAdjuster ta(CT, scene);

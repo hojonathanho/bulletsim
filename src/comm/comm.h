@@ -17,7 +17,7 @@ namespace fs = boost::filesystem;
 using fs::path;
 using Json::Value;
 using namespace Json;
-typedef pair<path,path> PathPair;
+typedef pair<path,path> PathPair; // dataname, infoname
 
 
 double timeOfDay();

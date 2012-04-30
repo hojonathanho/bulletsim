@@ -19,8 +19,8 @@ void MonitorForGrabbingWithTelekinesis::grab() {
   BulletObject::Ptr nearestObj = getNearestBody(m_bodies, curPose.getOrigin(), iNear);
   cout << "grab: " << m_i << endl;
 
-  //  if (nearestObj->rigidBody->getCenterOfMassPosition().distance(curPose.getOrigin()) < .05*METERS) {
-  if (true) {
+    if (nearestObj->rigidBody->getCenterOfMassPosition().distance(curPose.getOrigin()) < .05*METERS) {
+//  if (true) {
     m_grab = new Grab(nearestObj->rigidBody.get(), curPose.getOrigin(), m_world);
     m_i = iNear;
     nearestObj->setColor(0,0,1,1);
@@ -81,7 +81,8 @@ TableRopeScene::TableRopeScene(fs::path ropeFile, bool telekinesis) : GrabbingSc
   m_table = makeTable(tableCornersWorld, .1*GeneralConfig::scale);
   float seglen = controlPointsWorld[0].distance(controlPointsWorld[1]);
 
-  m_rope.reset(new CapsuleRope(controlPointsWorld, fmin(seglen/4.1,.0075*METERS)));
+//  m_rope.reset(new CapsuleRope(controlPointsWorld, fmin(seglen/4.1,.0075*METERS)));
+  m_rope.reset(new CapsuleRope(controlPointsWorld, .0075*METERS));
   env->add(m_rope);
   env->add(m_table);
   setGrabBodies(m_rope->children);

@@ -102,10 +102,10 @@ static bool inGraspRegion(GenManip::Ptr gmanip, const btVector3 &pt, KinBody::Li
 
     // check that pt is behind the gripper tip
     btVector3 x = gmanip->getTransform().inverse() * pt;
-    if (x.z() > gmanip->baseManip()->robot->scale*(0.02 + TOLERANCE)) return false;
+    if (x.z() > GeneralConfig::scale*(0.02 + TOLERANCE)) return false;
 
     // check that pt is within the finger width
-    if (abs(x.x()) > gmanip->baseManip()->robot->scale*(0.01 + TOLERANCE)) return false;
+    if (abs(x.x()) > GeneralConfig::scale*(0.01 + TOLERANCE)) return false;
 
     // check that pt is between the fingers
     if (!onInnerSide(gmanip, pt, leftFinger, rightFinger, true) ||

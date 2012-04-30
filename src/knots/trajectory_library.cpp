@@ -57,12 +57,12 @@
 
 py::object toNumpy1(const vector<RobotAndRopeState>& rars) {
   assert(rars.size() > 0);
-  py::object tl = py::import("knot_tying.trajectory_library");
+  py::object tl = py::import("knot_tying.rope_library");
   
   int nRows = rars.size();
   int nCtrlPts = rars[0].ctrlPts.size();
 
-  py::object dtype = tl.attr("TrajectoryPoint");
+  py::object dtype = tl.attr("RopeTrajectoryPoint");
   py::object out = NP.attr("zeros")(nRows, dtype);
   
   for (int i=0; i < nRows; i++) {
@@ -78,8 +78,8 @@ py::object toNumpy1(const vector<RobotAndRopeState>& rars) {
     out["grip_l"][i] = rars[i].leftGrip;
     out["grab_l"][i] = rars[i].leftGrab;
 
-    btVector3 xyz_r = rars[i].leftPose.getOrigin();
-    btQuaternion quat_r = rars[i].leftPose.getRotation();
+    btVector3 xyz_r = rars[i].rightPose.getOrigin();
+    btQuaternion quat_r = rars[i].rightPose.getRotation();
     out["xyz_r"][i][0] = xyz_r.x();
     out["xyz_r"][i][1] = xyz_r.y();
     out["xyz_r"][i][2] = xyz_r.z();
@@ -91,9 +91,9 @@ py::object toNumpy1(const vector<RobotAndRopeState>& rars) {
     out["grab_r"][i] = rars[i].rightGrab;
     
     for (int j=0; j < nCtrlPts; j++) {
-      out["rope"][j][0] = rars[i].ctrlPts[j].x();
-      out["rope"][j][1] = rars[i].ctrlPts[j].y();
-      out["rope"][j][2] = rars[i].ctrlPts[j].z();
+      out["rope"][i][j][0] = rars[i].ctrlPts[j].x();
+      out["rope"][i][j][1] = rars[i].ctrlPts[j].y();
+      out["rope"][i][j][2] = rars[i].ctrlPts[j].z();
     }
     
   }

@@ -216,12 +216,12 @@ void Message::toFiles(PathPair pair) const {
 }
 
 void Message::fromFiles(PathPair pair) {
-  cout << "reading " << pair.first << "...";
+//  cout << "reading " << pair.first << "...";
   readDataFrom(pair.first);
-  cout << "OK"<<endl;
-  cout << "reading " << pair.second << "...";
+//  cout << "OK"<<endl;
+//  cout << "reading " << pair.second << "...";
   m_info = readJson(pair.second);
-  cout << "OK"<<endl;
+//  cout << "OK"<<endl;
 }
 
 double Message::getTime() const {

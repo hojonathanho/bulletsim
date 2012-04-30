@@ -2,10 +2,10 @@
 #define __ROBOT_GEOMETRY_H__
 
 #include <openrave/openrave.h>
-#include <simulation/util.h>
-using namespace OpenRAVE;
+#include "simulation/util.h"
+#include "utils/config.h"
 
-btTransform getKinectToWorld(RobotBasePtr robot);
+btTransform getKinectToWorld(OpenRAVE::RobotBasePtr robot);
 
 struct KinectTrans {
     btTransform relativeWorldFromKinect;
@@ -20,5 +20,22 @@ struct KinectTrans {
         return f * relativeWorldFromKinect;
     }
 };
+
+struct KinectTransformer {
+
+	btTransform headFromKinect;
+	OpenRAVE::KinBody::LinkPtr headplate;
+
+	btTransform getWFC();
+	void calibrate(const btTransform& trans) {
+		headFromKinect = trans;
+	}
+	KinectTransformer(OpenRAVE::RobotBasePtr robot) :
+		headFromKinect(btTransform::getIdentity()), headplate(
+				robot->GetLink("wide_stereo_gazebo_l_stereo_camera_optical_frame")) {
+	}
+};
+
+
 
 #endif // __ROBOT_GEOMETRY_H__

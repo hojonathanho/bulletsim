@@ -2,8 +2,7 @@
 #include <pcl/io/pcd_io.h>
 #include <boost/foreach.hpp>
 #include <boost/program_options.hpp>
-#include "geom.h"
-#include "get_table.h"
+#include "get_table2.h"
 #include "comm/comm.h"
 #include "utils/my_assert.h"
 
@@ -49,9 +48,7 @@ int main(int argc, char* argv[]) {
   else {
     cout << "read " << cloud->size() << " points" << endl;
   }
-  vector<Vector3f> corners; 
-  Vector3f normal;
-  getTable(cloud,corners,normal,skip);
+  vector<Vector3f> corners = getTableCornersRansac(cloud);
 
   PointCloud<PointXYZ>::Ptr rectCloud(new PointCloud<PointXYZ>);
   BOOST_FOREACH(Vector3f w, corners) rectCloud->push_back(PointXYZ(w[0],w[1],w[2]));

@@ -5,7 +5,7 @@
 
 #include "comm_pcl.h"
 #include "comm_cv.h"
-#include "filtering.h"
+#include "cloud_ops.h"
 #include "utils/vector_io.h"
 #include "utils/my_exceptions.h"
 #include <boost/program_options.hpp>

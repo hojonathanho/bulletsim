@@ -1,9 +1,9 @@
-#include "search_general.h"
-//#include <omp.h>
+#include <omp.h>
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <Wm5Core.h>
 #include <Wm5Mathematics.h>
 //#include <limits>
+#include "search_general.h"
 #include "graspingactions.h"
 using std::numeric_limits;
 

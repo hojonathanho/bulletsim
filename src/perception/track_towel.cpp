@@ -1,7 +1,7 @@
-#include "vision.h"
+#include "tracking.h"
 #include "perception/config_perception.h"
 #include "simulation/config_bullet.h"
-
+#include "simulation/recording.h"
 
 int main(int argc, char* argv[]) {
   Eigen::internal::setNbThreads(3);
@@ -18,14 +18,14 @@ int main(int argc, char* argv[]) {
 
 
   initComm();
-  TowelVision2 tv;
+  TowelTracker2 tv;
   extern bool LIVE;
   if (LIVE) tv.runOnline();
   else tv.runOffline();
 
   // extern bool LIVE;
-  // if (LIVE) visionSystem.runOnline();
-  // else visionSystem.runOffline();
+  // if (LIVE) TrackerSystem.runOnline();
+  // else TrackerSystem.runOffline();
 
 
 }

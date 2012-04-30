@@ -115,12 +115,12 @@ bool PR2SoftBodyGripper::inGraspRegion(const btVector3 &pt) const {
     if (!onInnerSide(pt, true) || !onInnerSide(pt, false)) return false;
 
     // check that pt is behind the gripper tip
-    btTransform manipTrans(util::toBtTransform(manip->GetTransform(), robot->scale));
+    btTransform manipTrans(util::toBtTransform(manip->GetTransform(), GeneralConfig::scale));
     btVector3 x = manipTrans.inverse() * pt;
-    if (x.z() > robot->scale*(0.02 + TOLERANCE)) return false;
+    if (x.z() > GeneralConfig::scale*(0.02 + TOLERANCE)) return false;
 
     // check that pt is within the finger width
-    if (abs(x.x()) > robot->scale*(0.01 + TOLERANCE)) return false;
+    if (abs(x.x()) > GeneralConfig::scale*(0.01 + TOLERANCE)) return false;
 
     cout << "ATTACHING: " << x.x() << ' ' << x.y() << ' ' << x.z() << endl;
 
@@ -248,11 +248,18 @@ void PR2Manager::registerSceneCallbacks() {
 }
 
 void PR2Manager::loadRobot(const btTransform &initTrans) {
-    if (!SceneConfig::enableRobot) return;
-    static const char ROBOT_MODEL_FILE[] = "robots/pr2-beta-static.zae";
-    pr2.reset(new RaveRobotObject(scene.rave, ROBOT_MODEL_FILE, initTrans, GeneralConfig::scale));
+  if (!SceneConfig::enableRobot) return;
+
+  OpenRAVE::RobotBasePtr maybeRobot = scene.rave->env->GetRobot("pr2");
+
+  if (maybeRobot) { // if pr2 already loaded into openrave, use it
+    pr2.reset(new RaveRobotObject(scene.rave, maybeRobot, initTrans));
     scene.env->add(pr2);
-//    pr2->ignoreCollisionWith(ground->rigidBody.get()); // the robot's always touching the ground anyway
+  } else {
+    static const char ROBOT_MODEL_FILE[] = "robots/pr2-beta-static.zae";
+    pr2.reset(new RaveRobotObject(scene.rave, ROBOT_MODEL_FILE, initTrans));
+    scene.env->add(pr2);
+  }
 }
 
 void PR2Manager::initIK() {

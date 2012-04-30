@@ -5,6 +5,7 @@
 #include <Eigen/Dense>
 #include <boost/foreach.hpp>
 #include "matching.h"
+#include <fstream>
 using namespace std;
 using namespace Eigen;
 
@@ -27,6 +28,17 @@ SparseArray calcCorrNN(const vector<btVector3>& estPts, const vector<btVector3>&
 
 
 MatrixXf calcCorrProb(const MatrixXf& estPts, const VectorXf& variances, const MatrixXf& obsPts, const VectorXf& pVis, float pBandOutlier, float& loglik) {
+	// ofstream outfile("junk.txt");
+	// outfile << "estpts " << estPts.rows() << " " << estPts.cols() << endl;
+	// outfile << estPts << endl;
+	// outfile << "variances" << variances.rows() << " " << variances.cols() << endl;
+	// outfile << variances << endl;
+	// outfile << "obspts" << obsPts.rows() << " " << obsPts.cols() << endl;
+	// outfile << obsPts << endl;
+	// outfile << "pvis" << pVis.rows() << " " << pVis.cols() << endl;
+	// outfile << pVis << endl;
+	// outfile.close();
+
   VectorXf invVariances = variances.array().inverse();
   MatrixXf sqdists = pairwiseSquareDist(estPts, obsPts);
   MatrixXf tmp1 = ((-invVariances).asDiagonal() * sqdists).array().exp();

@@ -35,6 +35,18 @@ vector<btVector3> getOrigins(const vector<btTransform>& in) {
   return out;
 }
 
+void checkUsed(const vector<RobotAndRopeState>& rars, bool& leftUsed, bool& rightUsed) {
+  leftUsed = false;
+  rightUsed = false;
+  
+  BOOST_FOREACH(const RobotAndRopeState& rar, rars) {
+    leftUsed |= (rar.leftGrab != -1);
+    rightUsed |= (rar.rightGrab != -1);
+  }
+  
+}
+
+
 int main(int argc, char* argv[]) {
   try {
 
@@ -55,12 +67,12 @@ int main(int argc, char* argv[]) {
     parser.addGroup(BulletConfig());
     parser.read(argc, argv); 
     if (LocalConfig::dbname == "") throw std::runtime_error("must specify dbname");
-  
-  
-  
+
+
+
     TableRopeScene scene(KNOT_DATA / LocalConfig::initRope, LocalConfig::telekinesis);
     scene.addVoidKeyCallback('q',&setWantsExit);
-  
+
     PlotAxes::Ptr warpedLeftAxes(new PlotAxes());
     PlotAxes::Ptr origLeftAxes(new PlotAxes());
     PlotCurve::Ptr warpedRopePlot = new PlotCurve(4);
@@ -78,10 +90,14 @@ int main(int argc, char* argv[]) {
     scene.env->add(warpedLeftAxes);
     scene.env->add(origLeftAxes);
 
-  
+
 
     scene.startViewer();
     scene.setSyncTime(false);
+
+
+    py::object library_mod = py::import("knot_tying.rope_library");
+    py::object library = library_mod.attr("RopeTrajectoryLibrary")(LocalConfig::dbname, "read");
 
     while (true) {
 
@@ -91,8 +107,7 @@ int main(int argc, char* argv[]) {
       cout << "looking up a close trajectory" << endl;
 
       py::object rope = ropeToNumpy1(scene.m_rope->getControlPoints()*(1/METERS));
-      py::object library_mod = py::import("knot_tying.trajectory_library");
-      py::object result = library_mod.attr("get_closest_and_warp")(rope,LocalConfig::dbname);
+      py::object result = library.attr("get_closest_and_warp")(rope);
 
       py::object orig_states = result[0];
       py::object warped_states = result[1];
@@ -103,12 +118,12 @@ int main(int argc, char* argv[]) {
 
       vector<btTransform> leftPoses;
       BOOST_FOREACH(RobotAndRopeState rar, rarsWarped) leftPoses.push_back(rar.leftPose);
-      
+
       vector<btTransform> basePoses;
       if (LocalConfig::planBase) {
-	cout << "finding base positions" << endl;
-	vector<double> joints; scene.pr2m->pr2->robot->GetDOFValues(joints);
-	basePoses = findBasePoses2(rarsWarped, joints);
+        cout << "finding base positions" << endl;
+        vector<double> joints; scene.pr2m->pr2->robot->GetDOFValues(joints);
+        basePoses = findBasePoses2(rarsWarped, joints);
       }
 
       assert(rarsOrig.size() == rarsWarped.size());
@@ -117,34 +132,42 @@ int main(int argc, char* argv[]) {
       /////// execute the trajectory you got
       warpedTrajPlot->setPoints(getOrigins(leftPoses)*METERS);
       cout << "executing warped trajectory" << endl;
+      
+      bool leftUsed, rightUsed;
+      checkUsed(rarsWarped, leftUsed, rightUsed);
+      vector<double> zeroJoints(7, 0);
+      if (!leftUsed) scene.pr2m->pr2Left->setDOFValues(zeroJoints);
+      if (!rightUsed) scene.pr2m->pr2Right->setDOFValues(zeroJoints);
+      
+      
       for (int i=0; i < rarsWarped.size(); i++) {
         warpedLeftAxes->setup(rarsWarped[i].leftPose*METERS, .2*METERS);
         origLeftAxes->setup(rarsOrig[i].leftPose*METERS, .1*METERS);
         warpedRopePlot->setPoints(rarsWarped[i].ctrlPts*METERS);
         origRopePlot->setPoints(rarsOrig[i].ctrlPts*METERS);
-    
+
         if (LocalConfig::planBase)
-  	      scene.driveTo(basePoses[i]);
-        
+          scene.driveTo(basePoses[i]);
+
         if (LocalConfig::telekinesis) 
-  	      scene.setFakeHandPoses(rarsWarped[i].leftPose*METERS, rarsWarped[i].rightPose*METERS);
+          scene.setFakeHandPoses(rarsWarped[i].leftPose*METERS, rarsWarped[i].rightPose*METERS);
         else {
-  	      scene.pr2m->pr2Left->moveByIK(rarsWarped[i].leftPose*METERS);
-  	      scene.pr2m->pr2Right->moveByIK(rarsWarped[i].rightPose*METERS);
-	}
-      
+          if (leftUsed) scene.pr2m->pr2Left->moveByIK(rarsWarped[i].leftPose*METERS);
+          if (rightUsed) scene.pr2m->pr2Right->moveByIK(rarsWarped[i].rightPose*METERS);
+        }
+
         scene.pr2m->pr2Left->setGripperAngle(rarsWarped[i].leftGrip);    
         scene.pr2m->pr2Right->setGripperAngle(rarsWarped[i].rightGrip);    
         scene.step(DT);
         if (wantsExit) return 0;    
       } // executing a given trajectory
       cout << "done executing trajectory" << endl;
-      
+
     } // lookup & execute loop
 
 
   } // python try block
-  catch (std::exception err) {
+  catch (py::error_already_set err) {
     PyErr_Print();
     PyErr_Clear();    
   }  

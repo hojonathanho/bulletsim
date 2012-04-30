@@ -8,7 +8,8 @@
 #include "plotting_perception.h"
 
 Eigen::VectorXf calcVisibility(const Eigen::MatrixXf& pts, const Eigen::MatrixXf& depth, const cv::Mat& ropeMask);
-Eigen::VectorXf calcVisibility(const vector<RigidBodyPtr> bodies, btDynamicsWorld* world, const btVector3& cameraPos, float stdev=0, int nSamples=1);
+Eigen::VectorXf calcVisibility(const std::vector<RigidBodyPtr> bodies, btDynamicsWorld* world, const btVector3& cameraPos, float stdev=0, int nSamples=1);
+Eigen::VectorXf calcVisibility(const std::vector<BulletObject::Ptr> bodies, btDynamicsWorld* world, const btVector3& cameraPos, float stdev, int nSamples);
 Eigen::VectorXf calcVisibility(btSoftBody* softBody, btDynamicsWorld* world, const btVector3& cameraPos, const std::vector<int>& nodeInds);
 Eigen::VectorXf calcVisibility(btSoftBody* softBody, btDynamicsWorld* world, const btVector3& cameraPos);
 void colorByVisibility(CapsuleRope::Ptr rope, const Eigen::VectorXf& pVis);

@@ -28,8 +28,6 @@ void minEncRect(const vector<Vector3f>& pts3d, const Vector4f& abcd, vector<Vect
   
   Vector3f va, vb;
   perpBasis(normal,va,vb);
-  cout << "va " << va << endl;
-  cout << "vb " << vb << endl;
   int nPts = pts3d.size();
   Vector2f* pts2d = new Vector2f[nPts];
   for (int i=0; i<nPts; i++) {
