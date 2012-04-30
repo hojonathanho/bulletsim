@@ -50,28 +50,29 @@ btSoftBody *makeSelfCollidingTowel(const btVector3& center, btScalar lenx, btSca
         resx, resy,
         0, true);
 
-    psb->m_cfg.piterations = 2;
+    psb->m_cfg.piterations = 8;
     psb->m_cfg.collisions = btSoftBody::fCollision::CL_RS
         | btSoftBody::fCollision::CL_SS
         | btSoftBody::fCollision::CL_SELF;
-    psb->m_cfg.kDF = 0.6;
+    psb->m_cfg.kDF = 0.9;
     //psb->m_cfg.kDF = 0.1;
     psb->m_cfg.kAHR = 1; // anchor hardness
     psb->m_cfg.kSSHR_CL = 1.0; // so the cloth doesn't penetrate itself
     psb->m_cfg.kSRHR_CL = 0.7;
     psb->m_cfg.kSKHR_CL = 0.7;
-    //psb->m_cfg.kDP = 0.01;
-    psb->m_cfg.kDP = 0.5;
+//    psb->m_cfg.kDP = 0.01;
+    psb->m_cfg.kDP = 0.1;
 
     psb->getCollisionShape()->setMargin(0.05);
 
     btSoftBody::Material *pm = psb->appendMaterial();
-    pm->m_kLST = 0.5;
-    pm->m_kAST = 1;
+    pm->m_kLST = 0.001;
+    pm->m_kAST = 0.5;
 
     psb->generateBendingConstraints(2, pm);
 
     // weaken links that span 2 nodes
+    /*
     btScalar avgDist = 0;
     for (int i = 0; i < psb->m_links.size(); ++i) {
         btSoftBody::Link &l = psb->m_links[i];
@@ -83,13 +84,12 @@ btSoftBody *makeSelfCollidingTowel(const btVector3& center, btScalar lenx, btSca
         btScalar d = l.m_n[0]->m_x.distance(l.m_n[1]->m_x);
         if (d > avgDist)
             l.m_material->m_kLST = 0.005;
-    }
+    }*/
 
     psb->randomizeConstraints();
 
     psb->setTotalMass(100, true);
-    psb->generateClusters(1000);
-//    psb->generateClusters(0);
+    psb->generateClusters(0);
 
     /*for (int i = 0; i < psb->m_clusters.size(); ++i) {
         psb->m_clusters[i]->m_ndamping = 1;

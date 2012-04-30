@@ -47,7 +47,7 @@ add_executable(test_tetgen test_tetgen.cpp ${TETGEN_DIR}/tetgen.h)
 target_link_libraries(test_tetgen tetgen)
 
 add_executable(test_fake_kinect test_fake_kinect.cpp fake_kinect.cpp)
-target_link_libraries(test_fake_kinect simulation comm perception clouds robots)
+target_link_libraries(test_fake_kinect simulation comm perception clouds robots ${OPENGL_gl_LIBRARY} ${OPENGL_glu_LIBRARY})
 
 add_executable(calibrate_kinect calibrate_kinect)
 target_link_libraries(calibrate_kinect clouds comm simulation perception robots ${PCL_LIBRARIES} boost_program_options)

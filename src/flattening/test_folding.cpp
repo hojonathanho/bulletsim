@@ -64,6 +64,17 @@ class CustomScene : public Scene {
         foldClothAlongLine(*this, destplot, *cloth, pickedNode->m_x, pickedNode2->m_x);
     }
 
+    void doRandomFolds(int n) {
+        srand(time(NULL));
+        for (int i = 0; i < n; ++i) {
+            int idx1 = rand() % cloth->psb()->m_nodes.size();
+            const btVector3 &p1 = cloth->psb()->m_nodes[idx1].m_x;
+            int idx2 = rand() % cloth->psb()->m_nodes.size();
+            const btVector3 &p2 = cloth->psb()->m_nodes[idx2].m_x;
+            foldClothAlongLine(*this, destplot, *cloth, p1, p2);
+        }
+    }
+
     void markNodesToFold() {
         if (!pickedNode || !pickedNode2) return;
 
@@ -133,7 +144,7 @@ public:
 //        const btScalar lenx = GeneralConfig::scale * 0.7, leny = GeneralConfig::scale * 0.5;
         const btScalar lenx = GeneralConfig::scale * 0.7/2, leny = GeneralConfig::scale * 0.5/2;
 //        const btVector3 clothcenter = GeneralConfig::scale * btVector3(0.5, 0, table_height+0.01);
-        const btVector3 clothcenter = GeneralConfig::scale * btVector3(0.3, 0.1, table_height+0.01);
+        const btVector3 clothcenter = GeneralConfig::scale * btVector3(0.7, 0.1, table_height+0.01);
 //        cloth = makeSelfCollidingTowel(clothcenter, lenx, leny, resx, resy, env->bullet->softBodyWorldInfo);
         cloth.reset(new Cloth(resx, resy, lenx, leny, clothcenter, env->bullet->softBodyWorldInfo));
         env->add(cloth);
@@ -142,12 +153,14 @@ public:
         facepicker->setPickCallback(boost::bind(&CustomScene::pickCallback, this, _1));
 
         addVoidKeyCallback('f', boost::bind(&CustomScene::doFold, this));
+        addVoidKeyCallback('g', boost::bind(&CustomScene::doRandomFolds, this, 3));
 
         addPreDrawCallback(boost::bind(&CustomScene::markFolds, this));
         addPreDrawCallback(boost::bind(&CustomScene::drawPick, this));
         addPreDrawCallback(boost::bind(&CustomScene::markNodesToFold, this));
 
         startViewer();
+        setSyncTime(false);
         startFixedTimestepLoop(BulletConfig::dt);
     }
 };
