@@ -15,6 +15,8 @@ struct FoldingConfig : Config {
     static bool disableGravityWhenFolding;
 
     static float dropHeight;
+    static float dropWaitTime;
+    static float dropTimestep;
 
     FoldingConfig() : Config() {
         params.push_back(new Parameter<int>("foldHalfCircleDivs", &foldHalfCircleDivs, "steps around half-circle when folding"));
@@ -23,6 +25,8 @@ struct FoldingConfig : Config {
         params.push_back(new Parameter<bool>("disableGravityWhenFolding", &disableGravityWhenFolding, "disable gravity when folding"));
 
         params.push_back(new Parameter<float>("dropHeight", &dropHeight, "height to pick up cloth and drop from"));
+        params.push_back(new Parameter<float>("dropWaitTime", &dropWaitTime, "time to wait for cloth to drop"));
+        params.push_back(new Parameter<float>("dropTimestep", &dropTimestep, "timestep while dropping cloth"));
     }
 };
 

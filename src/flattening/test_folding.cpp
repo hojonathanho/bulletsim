@@ -3,6 +3,7 @@
 #include "simulation/config_viewer.h"
 #include "simulation/plotting.h"
 #include "simulation/util.h"
+#include "simulation/logging.h"
 #include <cstdlib>
 
 #include "edges.h"
@@ -175,6 +176,8 @@ int main(int argc, char *argv[]) {
     ViewerConfig::cameraHomePosition = btVector3(100, 0, 100);
     BulletConfig::dt = BulletConfig::internalTimeStep = 0.01;
     BulletConfig::maxSubSteps = 0;
+
+    LoggingInit();
 
     Parser parser;
     parser.addGroup(GeneralConfig());

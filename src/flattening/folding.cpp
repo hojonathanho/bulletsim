@@ -3,12 +3,16 @@
 #include "cloth.h"
 #include "simulation/simplescene.h"
 #include "simulation/config_bullet.h"
+#include "simulation/logging.h"
 
 int FoldingConfig::foldHalfCircleDivs = 10;
 int FoldingConfig::attractNodesMaxSteps = 50;
 float FoldingConfig::attractNodesMaxAvgErr = 0.1;
 bool FoldingConfig::disableGravityWhenFolding = true;
+
 float FoldingConfig::dropHeight = 0.2;
+float FoldingConfig::dropWaitTime = 4;
+float FoldingConfig::dropTimestep = 0.03;
 
 static void attractNodesToPositions(Scene &scene, Cloth &c, const vector<btVector3> &pos) {
     btSoftBody *psb = c.psb();
@@ -35,7 +39,7 @@ static void attractNodesToPositions(Scene &scene, Cloth &c, const vector<btVecto
         avgerr /= pos.size();
     }
     if (step >= MAXSTEPS)
-        cout << "hit step limit" << endl;
+        LOG_DEBUG("hit step limit");
 }
 
 struct Rotspec {
@@ -93,9 +97,8 @@ void Folding::pickUpAndDrop(Scene &scene, Cloth &cloth) {
     cloth.translateRelToCenter(btTransform(btQuaternion(y, p, r),
                 btVector3(0, 0, FoldingConfig::dropHeight*METERS)));
 
-    scene.stepFor(0.03, 3);
+    scene.stepFor(FoldingConfig::dropTimestep, FoldingConfig::dropWaitTime);
 
     cloth.psb()->m_cfg.kDF = oldkDF;
-
-    cout << "DONE DROPPING" << endl;
+    LOG_DEBUG("done dropping");
 }
