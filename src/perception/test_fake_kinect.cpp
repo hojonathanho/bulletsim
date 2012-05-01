@@ -13,9 +13,9 @@ int main() {
   SceneConfig::enableIK = false;
 
   PR2Manager pr2m(scene);
-  KinectTrans kinectTrans(pr2m.pr2->robot);
-  kinectTrans.calibrate(btTransform(btQuaternion(-0.703407, 0.706030, -0.048280, 0.066401), btVector3(0.348212, -0.047753, 1.611060)));
-  CoordinateTransformer CT(kinectTrans.getKinectTrans());
+  KinectTransformer kinectTrans(pr2m.pr2->robot);
+  kinectTrans.calibrate(btTransform::getIdentity());
+  CoordinateTransformer CT(kinectTrans.getWFC());
   
   FakeKinect fk(scene.env->osg, CT.worldFromCamEigen);
 

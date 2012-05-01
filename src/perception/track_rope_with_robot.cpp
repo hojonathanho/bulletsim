@@ -20,7 +20,8 @@ int main(int argc, char* argv[]) {
   DefaultSingleHypRobotAndRopeTracker TrackerSystem;
 
   extern bool LIVE;
-  TrackerSystem.runOnline();
+  if (LIVE) TrackerSystem.runOnline();
+  else TrackerSystem.runOffline();
 
 
 }

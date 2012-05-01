@@ -16,9 +16,6 @@ BulletObject::Ptr makeTable(const vector<btVector3>& corners, float thickness) {
   btVector3 halfExtents = (corners[2] - corners[0]).absolute()/2;
   halfExtents[2] = thickness/2;
 
-  cout << "origin: " << origin << endl;
-  cout << "halfExtents: " << halfExtents << endl;
-
   return BulletObject::Ptr(new BoxObject(0,halfExtents,btTransform(btQuaternion(0,0,0,1),origin)));
 }
 

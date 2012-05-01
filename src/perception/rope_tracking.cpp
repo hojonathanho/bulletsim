@@ -51,6 +51,20 @@ void RopeInitMessage::readDataFrom(path p) {
   infile.close();
 }
 
+void TransformMessage::writeDataTo(path p) {
+  ofstream outfile(p.string().c_str());
+  outfile << m_data;
+  outfile.close();
+}
+
+void TransformMessage::readDataFrom(path p) {
+  ifstream infile(p.string().c_str());
+  if (infile.fail()) throw FileOpenError(p.string());
+  infile >> m_data;
+  assert(!infile.fail());
+  infile.close();
+}
+
 void RopeInitMessage::writeDataTo(path p) {
   throw runtime_error("not implemented");
 }
@@ -99,7 +113,7 @@ void TrackedRope::init(const vector<btVector3>& nodes, const VectorXf& labels) {
   ENSURE(labels.size() == nodes.size() - 1);
   cout << labels.transpose() << endl;
   m_labels = labels;
-  m_sim.reset(new CapsuleRope(nodes,.0075*METERS));
+  m_sim.reset(new CapsuleRope(nodes,.005*METERS));
   m_sigs.resize(m_labels.rows(),1);
   m_sigs.setConstant(sq(.025*METERS));
 }
@@ -201,7 +215,9 @@ void DefaultSingleHypRopeTracker::beforeIterations() {
 SingleHypRobotAndRopeTracker::SingleHypRobotAndRopeTracker() : 
   SingleHypRopeTracker(),
   m_jointSub("joint_states","txt"),
-  m_retimer(&m_jointSub) {
+  m_basePoseSub("base_pose", "txt"),
+  m_retimer(&m_jointSub),
+  m_retimer2(&m_basePoseSub) {
 }
   
 void SingleHypRobotAndRopeTracker::doIteration() {
@@ -214,6 +230,10 @@ void SingleHypRobotAndRopeTracker::beforeIterations() {
   std::vector<double> currentJoints = jointMsgPtr->m_data;
   ValuesInds vi = getValuesInds(currentJoints);
   m_pr2m->pr2->setDOFValues(vi.second, vi.first);
+  
+  btTransform basePose = m_retimer2.msgAt(m_multisub->m_kinectMsg.getTime())->m_data;
+  m_pr2m->pr2->robot->SetTransform(util::toRaveTransform(basePose));
+  
   m_CT->reset(m_kinectTrans->getWFC());
 
   m_hyp->m_lMonitor->update();
@@ -239,6 +259,10 @@ DefaultSingleHypRobotAndRopeTracker::DefaultSingleHypRobotAndRopeTracker() {
   ValuesInds vi = getValuesInds(firstJoints);
   cout << "SETTING DOF VALUES" << endl;
   m_pr2m->pr2->setDOFValues(vi.second, vi.first);
+
+  btTransform firstTransform = transformFromFile(filePath("data000000000000.txt", "base_pose").string());
+  m_pr2m->pr2->robot->SetTransform(util::toRaveTransform(firstTransform));
+
   m_CT = new CoordinateTransformer(m_kinectTrans->getWFC());
 
   vector< vector<float> > vv = floatMatFromFile(onceFile("table_corners.txt").string());

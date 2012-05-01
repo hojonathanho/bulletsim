@@ -17,7 +17,7 @@ btTransform getKinectToWorld(RobotBasePtr robot) {
 }
 
 btTransform KinectTransformer::getWFC() {
-	btTransform f(util::toBtTransform(headplate->GetTransform()));
+	btTransform f(util::toBtTransform(headcamframe->GetTransform()));
 	btTransform tf = f * headFromKinect;
 	return tf;
 }

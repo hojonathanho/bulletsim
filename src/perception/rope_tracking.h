@@ -20,6 +20,13 @@ struct RopeInitMessage : public Message {
 };
 
 
+struct TransformMessage : public Message {
+  btTransform m_data;
+  void readDataFrom(path);
+  void writeDataTo(path);
+};
+
+
 struct TrackedRope : public TrackedObject { // TODO: visibility
   typedef boost::shared_ptr<TrackedRope> Ptr;
 
@@ -126,7 +133,9 @@ struct SingleHypRobotAndRopeTracker : public SingleHypRopeTracker {
   
   KinectTransformer* m_kinectTrans;
   FileSubscriber m_jointSub;
+  FileSubscriber m_basePoseSub;
   Retimer<VectorMessage<double> > m_retimer;
+  Retimer<TransformMessage> m_retimer2;
   
   RopeHypWithRobot::Ptr m_hyp;
   
