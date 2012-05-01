@@ -61,7 +61,8 @@ class CustomScene : public Scene {
     }
 
     void doFold() {
-        foldClothAlongLine(*this, destplot, *cloth, pickedNode->m_x, pickedNode2->m_x);
+        if (pickedNode && pickedNode2)
+            Folding::foldClothAlongLine(*this, *cloth, pickedNode->m_x, pickedNode2->m_x);
     }
 
     void doRandomFolds(int n) {
@@ -71,8 +72,12 @@ class CustomScene : public Scene {
             const btVector3 &p1 = cloth->psb()->m_nodes[idx1].m_x;
             int idx2 = rand() % cloth->psb()->m_nodes.size();
             const btVector3 &p2 = cloth->psb()->m_nodes[idx2].m_x;
-            foldClothAlongLine(*this, destplot, *cloth, p1, p2);
+            Folding::foldClothAlongLine(*this, *cloth, p1, p2);
         }
+    }
+
+    void pickUpAndDrop() {
+        Folding::pickUpAndDrop(*this, *cloth);
     }
 
     void markNodesToFold() {
@@ -139,7 +144,6 @@ public:
         env->add(table);
         cout << "table margin: " << table->rigidBody->getCollisionShape()->getMargin() << endl;
 
-
         const int resx = 45, resy = 31;
 //        const btScalar lenx = GeneralConfig::scale * 0.7, leny = GeneralConfig::scale * 0.5;
         const btScalar lenx = GeneralConfig::scale * 0.7/2, leny = GeneralConfig::scale * 0.5/2;
@@ -154,6 +158,7 @@ public:
 
         addVoidKeyCallback('f', boost::bind(&CustomScene::doFold, this));
         addVoidKeyCallback('g', boost::bind(&CustomScene::doRandomFolds, this, 3));
+        addVoidKeyCallback('h', boost::bind(&CustomScene::pickUpAndDrop, this));
 
         addPreDrawCallback(boost::bind(&CustomScene::markFolds, this));
         addPreDrawCallback(boost::bind(&CustomScene::drawPick, this));
@@ -176,6 +181,7 @@ int main(int argc, char *argv[]) {
     parser.addGroup(BulletConfig());
     parser.addGroup(SceneConfig());
     parser.addGroup(FlatteningConfig());
+    parser.addGroup(FoldingConfig());
     parser.read(argc, argv);
 
     CustomScene().run();

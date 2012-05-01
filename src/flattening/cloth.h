@@ -41,6 +41,18 @@ struct Cloth : public BulletSoftObject {
     bool idxOnRightEdge(int i) const { return coordX(i) == resx-1; }
     bool idxOnEdge(int i) const { return idxOnTopEdge(i) || idxOnBottomEdge(i) || idxOnLeftEdge(i) || idxOnRightEdge(i); }
 
+    // utility functions
+
+    // calculates center of the cloth
+    btVector3 centerPoint() const;
+
+    // applies rigid transformation relative to the given point
+    void translateRel(const btTransform &t, const btVector3 &pt);
+    void translateRelToCenter(const btTransform &t) { translateRel(t, centerPoint()); }
+
+    // translates the cloth so that its center lies at the given point
+    void translateCenterToPt(const btVector3 &pt);
+
 private:
     void initAccel();
 };
