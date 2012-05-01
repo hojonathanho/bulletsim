@@ -42,7 +42,7 @@ PlotPoints::PlotPoints(float size) {
   osg::ref_ptr<osg::BlendFunc> blendFunc = new osg::BlendFunc;
   blendFunc->setFunction(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
   stateset->setAttributeAndModes(blendFunc);
-  stateset->setRenderingHint(osg::StateSet::TRANSPARENT_BIN);
+  stateset->setMode(GL_BLEND, osg::StateAttribute::ON);
 
   point->setSize(size);
   stateset->setAttribute(point);
@@ -171,6 +171,14 @@ void PlotAxes::setup(btTransform tf, float size) {
 
 PlotAxes::PlotAxes(osg::Vec3f origin, osg::Vec3f x, osg::Vec3f y, osg::Vec3f z, float size) {
   setup(origin, x, y, z, size);
+
+
+  osg::ref_ptr<osg::StateSet> stateset = new osg::StateSet();
+  osg::ref_ptr<osg::BlendFunc> blendFunc = new osg::BlendFunc;
+  blendFunc->setFunction(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+  stateset->setAttributeAndModes(blendFunc);
+  stateset->setMode(GL_BLEND, osg::StateAttribute::ON);
+
 }
 
 void PlotAxes::setup(osg::Vec3f origin, osg::Vec3f x, osg::Vec3f y, osg::Vec3f z, float size) {
@@ -215,7 +223,7 @@ PlotCurve::PlotCurve(float width) : osg::Geode(), m_defaultColor(1,0,0,1) {
   osg::ref_ptr<osg::BlendFunc> blendFunc = new osg::BlendFunc;
   blendFunc->setFunction(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
   stateset->setAttributeAndModes(blendFunc);
-  stateset->setRenderingHint(osg::StateSet::TRANSPARENT_BIN);
+  stateset->setMode(GL_BLEND, osg::StateAttribute::ON);
 
   setStateSet(stateset);
 }

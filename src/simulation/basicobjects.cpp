@@ -65,6 +65,7 @@ void BulletObject::init() {
     blendFunc->setFunction(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     osg::StateSet *ss = node->getOrCreateStateSet();
     ss->setAttributeAndModes(blendFunc);
+    ss->setMode(GL_BLEND, osg::StateAttribute::ON);
 //    ss->setRenderingHint(osg::StateSet::TRANSPARENT_BIN);
     setColorAfterInit();
 }
