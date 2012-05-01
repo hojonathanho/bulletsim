@@ -207,6 +207,16 @@ struct CalibScene: public Scene {
 
 };
 
+struct LocalConfig : public Config {
+  static string input;
+  LocalConfig() : Config() {
+    params.push_back(new Parameter<string>("input", &input, "input transform files"));
+  }
+};
+string LocalConfig::input = "";
+
+extern btTransform transformFromFile(const string& name);
+
 int main(int argc, char* argv[]) {
 	//////////// get command line options
 	Parser parser;
@@ -214,14 +224,19 @@ int main(int argc, char* argv[]) {
 	SceneConfig::enableRobot = true;
 	SceneConfig::enableRobotCollision = false;
 	GeneralConfig::scale = 1;
-	parser.addGroup(TrackingConfig());
 	parser.addGroup(SceneConfig());
 	parser.addGroup(GeneralConfig());
-	parser.addGroup(BulletConfig());
+	parser.addGroup(LocalConfig());
 	parser.read(argc, argv);
 
 	initComm();
 	CalibScene scene;
+
+	if (LocalConfig::input.size() > 0) {
+	  btTransform trans = transformFromFile(LocalConfig::input);
+	  scene.kh->m_transform = trans;
+	}
+
 	scene.startViewer();
 	while (!scene.viewer.done())
 		scene.step();
