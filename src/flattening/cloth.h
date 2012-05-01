@@ -41,6 +41,8 @@ struct Cloth : public BulletSoftObject {
     bool idxOnRightEdge(int i) const { return coordX(i) == resx-1; }
     bool idxOnEdge(int i) const { return idxOnTopEdge(i) || idxOnBottomEdge(i) || idxOnLeftEdge(i) || idxOnRightEdge(i); }
 
+    // serialization
+
     // utility functions
 
     // calculates center of the cloth

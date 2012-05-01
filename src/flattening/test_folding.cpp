@@ -121,6 +121,15 @@ class CustomScene : public Scene {
         folddirplot->setPoints(pts);
     }
 
+    void saveCloth() {
+        cloth->saveToFile("currstate.cloth");
+    }
+
+    void loadCloth() {
+        if (cloth)
+            env->remove(cloth);
+    }
+
 public:
     void run() {
         foldnodeplot.reset(new PlotPoints());
@@ -160,6 +169,7 @@ public:
         addVoidKeyCallback('f', boost::bind(&CustomScene::doFold, this));
         addVoidKeyCallback('g', boost::bind(&CustomScene::doRandomFolds, this, 3));
         addVoidKeyCallback('h', boost::bind(&CustomScene::pickUpAndDrop, this));
+        addVoidKeyCallback('s', boost::bind(&CustomScene::saveCloth, this));
 
         addPreDrawCallback(boost::bind(&CustomScene::markFolds, this));
         addPreDrawCallback(boost::bind(&CustomScene::drawPick, this));

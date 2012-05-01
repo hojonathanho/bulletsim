@@ -20,9 +20,16 @@ public:
 
     boost::shared_ptr<btSoftBody> softBody;
 
+    // constructors/destructors
     BulletSoftObject(boost::shared_ptr<btSoftBody> softBody_) : softBody(softBody_), nextAnchorHandle(0) { }
     BulletSoftObject(btSoftBody *softBody_) : softBody(softBody_), nextAnchorHandle(0) { }
     virtual ~BulletSoftObject() { }
+
+    // serialization (TODO: serialize anchors also?)
+    // for saving and loading softbodies (text format)
+    static Ptr createFromFile(btSoftBodyWorldInfo& worldInfo, const char* fileName);
+    static void saveToFile(btSoftBody *psb, const char *fileName);
+    void saveToFile(const char *fileName) const;
 
     void setColor(float,float,float,float);
 
@@ -46,9 +53,5 @@ private:
     AnchorHandle nextAnchorHandle;
     map<AnchorHandle, int> anchormap;
 };
-
-// for saving and loading softbodies (text format)
-void saveSoftBody(const btSoftBody* orig, const char* fileName);
-btSoftBody* loadSoftBody(btSoftBodyWorldInfo& worldInfo, const char* fileName);
 
 #endif // _SOFTBODIES_H_

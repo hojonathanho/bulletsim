@@ -444,7 +444,7 @@ bool BulletSoftObject::hasAnchorAttached(int nodeidx) const {
     return softBody->m_nodes[nodeidx].m_battach == 1;
 }
 
-void saveSoftBody(const btSoftBody* orig, const char* fileName) {
+static void saveSoftBody(const btSoftBody* orig, const char* fileName) {
   int i, j;
   ofstream saveFile;
   saveFile.open(fileName);
@@ -613,8 +613,8 @@ void saveSoftBody(const btSoftBody* orig, const char* fileName) {
   saveFile.close();
 }
 
-btSoftBody* loadSoftBody(btSoftBodyWorldInfo& worldInfo,
-			 const char* fileName) {
+static btSoftBody* loadSoftBody(btSoftBodyWorldInfo& worldInfo,
+        const char* fileName) {
   int i, j, size;
   ifstream loadFile;
   loadFile.open(fileName);
@@ -840,4 +840,17 @@ btSoftBody* loadSoftBody(btSoftBodyWorldInfo& worldInfo,
 
   loadFile.close();
   return psb;
+}
+
+BulletSoftObject::Ptr BulletSoftObject::createFromFile(
+        btSoftBodyWorldInfo& worldInfo, const char* fileName) {
+    return Ptr(new BulletSoftObject(loadSoftBody(worldInfo, fileName)));
+}
+
+void BulletSoftObject::saveToFile(const char *fileName) const {
+    saveSoftBody(softBody.get(), fileName);
+}
+
+void BulletSoftObject::saveToFile(btSoftBody *psb, const char *fileName) {
+    saveSoftBody(psb, fileName);
 }

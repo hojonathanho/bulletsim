@@ -52,6 +52,8 @@ void Folding::foldClothAlongLine(Scene &scene, Cloth &c, const btVector3 &a, con
     if (FoldingConfig::disableGravityWhenFolding)
         scene.bullet->setGravity(btVector3(0, 0, 0));
 
+    btVector3 oldcenter = c.centerPoint();
+
     btVector3 line = b - a; line.setZ(0); line.normalize();
     btSoftBody *psb = c.psb();
 
@@ -81,6 +83,10 @@ void Folding::foldClothAlongLine(Scene &scene, Cloth &c, const btVector3 &a, con
         attractNodesToPositions(scene, c, pos);
     }
 
+    // after folding, the cloth is probably off-center
+    // so move it back
+    c.translateCenterToPt(oldcenter);
+
     if (FoldingConfig::disableGravityWhenFolding)
         scene.bullet->setGravity(BulletConfig::gravity);
 }
@@ -89,6 +95,8 @@ void Folding::pickUpAndDrop(Scene &scene, Cloth &cloth) {
     // temporarily decrease damping
     btScalar oldkDF = cloth.psb()->m_cfg.kDF;
     cloth.psb()->m_cfg.kDF = 0;
+
+    btVector3 oldcenter = cloth.centerPoint();
 
     // generate random rotation
     btScalar y  = (btScalar) rand() / RAND_MAX * 2 * M_PI;
@@ -99,6 +107,7 @@ void Folding::pickUpAndDrop(Scene &scene, Cloth &cloth) {
 
     scene.stepFor(FoldingConfig::dropTimestep, FoldingConfig::dropWaitTime);
 
+    cloth.translateCenterToPt(oldcenter);
     cloth.psb()->m_cfg.kDF = oldkDF;
     LOG_DEBUG("done dropping");
 }
