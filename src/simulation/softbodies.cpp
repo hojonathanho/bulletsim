@@ -14,10 +14,10 @@
 #define COPY_ARRAY(a, b) { (a).resize((b).size()); for (int z = 0; z < (b).size(); ++z) (a)[z] = (b)[z]; }
 
 static void printAnchors(const map<BulletSoftObject::AnchorHandle, int> &anchormap) {
-    cout << "=======" << endl;
+    cout << "=======" << '\n';
     for (map<BulletSoftObject::AnchorHandle, int>::const_iterator i = anchormap.begin(); i != anchormap.end(); ++i)
         cout << i->first << " -> " << i->second << '\n';
-    cout << "=======" << endl;
+    cout << "=======" << '\n';
 }
 
 // there is no btSoftBody::appendFace that takes Node pointers, so here it is
@@ -142,7 +142,9 @@ void BulletSoftObject::preDraw() {
 
 void BulletSoftObject::destroy() {
     getEnvironment()->bullet->dynamicsWorld->removeSoftBody(softBody.get());
+    getEnvironment()->osg->root->removeChild(transform);
 }
+
 // adapted from bullet's SerializeDemo.cpp
 EnvironmentObject::Ptr BulletSoftObject::copy(Fork &f) const {
     const btSoftBody * const orig = softBody.get();
@@ -444,26 +446,23 @@ bool BulletSoftObject::hasAnchorAttached(int nodeidx) const {
     return softBody->m_nodes[nodeidx].m_battach == 1;
 }
 
-static void saveSoftBody(const btSoftBody* orig, const char* fileName) {
+static void saveSoftBody(const btSoftBody* orig, ostream &saveFile) {
   int i, j;
-  ofstream saveFile;
-  saveFile.open(fileName);
-
   // materials
   map<const btSoftBody::Material*, int> matMap;
-  saveFile << orig->m_materials.size() << endl;
+  saveFile << orig->m_materials.size() << '\n';
   for (i = 0;i < orig->m_materials.size(); i++) {
     const btSoftBody::Material* mat = orig->m_materials[i];
     matMap[mat] = i;
     saveFile << mat->m_flags << " ";
     saveFile << mat->m_kAST << " ";
     saveFile << mat->m_kLST << " ";
-    saveFile << mat->m_kVST << endl;
+    saveFile << mat->m_kVST << '\n';
   }
 
   // nodes
   map<const btSoftBody::Node*, int> nodeMap;
-  saveFile << orig->m_nodes.size() << endl;
+  saveFile << orig->m_nodes.size() << '\n';
   for (i = 0; i < orig->m_nodes.size(); i++) {
     const btSoftBody::Node* node = &orig->m_nodes[i];
     nodeMap[node] = i;
@@ -475,22 +474,22 @@ static void saveSoftBody(const btSoftBody* orig, const char* fileName) {
     saveFile << node->m_n << " ";
     saveFile << node->m_q << " ";
     saveFile << node->m_v << " ";
-    saveFile << matMap[node->m_material] << endl;
+    saveFile << matMap[node->m_material] << '\n';
   }
   
   // links
-  saveFile << orig->m_links.size() << endl;
+  saveFile << orig->m_links.size() << '\n';
   for (i = 0; i < orig->m_links.size(); i++) {
     const btSoftBody::Link *link = &orig->m_links[i];
     saveFile << matMap[link->m_material] << " ";
     saveFile << nodeMap[link->m_n[0]] << " ";
     saveFile << nodeMap[link->m_n[1]] << " ";
     saveFile << link->m_bbending << " ";
-    saveFile << link->m_rl << endl;
+    saveFile << link->m_rl << '\n';
   }
   
   // faces
-  saveFile << orig->m_faces.size() << endl;
+  saveFile << orig->m_faces.size() << '\n';
   for (i = 0; i < orig->m_faces.size(); i++) {
     const btSoftBody::Face *face = &orig->m_faces[i];
     saveFile << matMap[face->m_material] << " ";
@@ -498,25 +497,25 @@ static void saveSoftBody(const btSoftBody* orig, const char* fileName) {
     saveFile << nodeMap[face->m_n[1]] << " ";
     saveFile << nodeMap[face->m_n[2]] << " ";
     saveFile << face->m_normal << " ";
-    saveFile << face->m_ra << endl;
+    saveFile << face->m_ra << '\n';
   }
   
   // pose
   saveFile << orig->m_pose.m_bvolume << " ";
   saveFile << orig->m_pose.m_bframe << " ";
-  saveFile << orig->m_pose.m_volume << endl;
-  saveFile << orig->m_pose.m_pos.size() << endl;
+  saveFile << orig->m_pose.m_volume << '\n';
+  saveFile << orig->m_pose.m_pos.size() << '\n';
   for (i = 0; i < orig->m_pose.m_pos.size(); i++) {
-    saveFile << orig->m_pose.m_pos[i] << endl;
+    saveFile << orig->m_pose.m_pos[i] << '\n';
   }
-  saveFile << orig->m_pose.m_wgh.size() << endl;
+  saveFile << orig->m_pose.m_wgh.size() << '\n';
   for (i = 0; i < orig->m_pose.m_wgh.size(); i++) {
-    saveFile << orig->m_pose.m_wgh[i] << endl;
+    saveFile << orig->m_pose.m_wgh[i] << '\n';
   }
   saveFile << orig->m_pose.m_com << " ";
   saveFile << orig->m_pose.m_rot << " ";
   saveFile << orig->m_pose.m_scl << " ";
-  saveFile << orig->m_pose.m_aqq << endl;
+  saveFile << orig->m_pose.m_aqq << '\n';
 
   // config
   saveFile << orig->m_cfg.aeromodel << " ";
@@ -544,41 +543,41 @@ static void saveSoftBody(const btSoftBody* orig, const char* fileName) {
   saveFile << orig->m_cfg.piterations << " ";
   saveFile << orig->m_cfg.diterations << " ";
   saveFile << orig->m_cfg.citerations << " ";
-  saveFile << orig->m_cfg.collisions << endl;
-  saveFile << orig->m_cfg.m_vsequence.size() << endl;
+  saveFile << orig->m_cfg.collisions << '\n';
+  saveFile << orig->m_cfg.m_vsequence.size() << '\n';
   for (i = 0; i < orig->m_cfg.m_vsequence.size(); i++) {
-    saveFile << orig->m_cfg.m_vsequence[i] << endl;
+    saveFile << orig->m_cfg.m_vsequence[i] << '\n';
   }
-  saveFile << orig->m_cfg.m_psequence.size() << endl;
+  saveFile << orig->m_cfg.m_psequence.size() << '\n';
   for (i = 0; i < orig->m_cfg.m_psequence.size(); i++) {
-    saveFile << orig->m_cfg.m_psequence[i] << endl;
+    saveFile << orig->m_cfg.m_psequence[i] << '\n';
   }
-  saveFile << orig->m_cfg.m_dsequence.size() << endl;
+  saveFile << orig->m_cfg.m_dsequence.size() << '\n';
   for (i = 0; i < orig->m_cfg.m_dsequence.size(); i++) {
-    saveFile << orig->m_cfg.m_dsequence[i] << endl;
+    saveFile << orig->m_cfg.m_dsequence[i] << '\n';
   }
-  saveFile << orig->getCollisionShape()->getMargin() << endl;
+  saveFile << orig->getCollisionShape()->getMargin() << '\n';
 
   // solver state
   saveFile << orig->m_sst.isdt << " ";
   saveFile << orig->m_sst.radmrg << " ";
   saveFile << orig->m_sst.sdt << " ";
   saveFile << orig->m_sst.updmrg << " ";
-  saveFile << orig->m_sst.velmrg << endl;
+  saveFile << orig->m_sst.velmrg << '\n';
   
   // clusters
-  saveFile << orig->m_clusters.size() << endl;
+  saveFile << orig->m_clusters.size() << '\n';
   for (i = 0; i < orig->m_clusters.size(); i++) {
     btSoftBody::Cluster *cl = orig->m_clusters[i];
-    saveFile << cl->m_nodes.size() << endl;
+    saveFile << cl->m_nodes.size() << '\n';
     for (j = 0; j < cl->m_nodes.size(); j++)
-      saveFile << nodeMap[cl->m_nodes[j]] << endl;
-    saveFile << cl->m_masses.size() << endl;
+      saveFile << nodeMap[cl->m_nodes[j]] << '\n';
+    saveFile << cl->m_masses.size() << '\n';
     for (j = 0; j < cl->m_masses.size(); j++)
-      saveFile << cl->m_masses[j] << endl;
-    saveFile << cl->m_framerefs.size() << endl;
+      saveFile << cl->m_masses[j] << '\n';
+    saveFile << cl->m_framerefs.size() << '\n';
     for (j = 0; j < cl->m_framerefs.size(); j++)
-      saveFile << cl->m_framerefs[j] << endl;
+      saveFile << cl->m_framerefs[j] << '\n';
     saveFile << cl->m_framexform << " ";
     saveFile << cl->m_idmass << " ";
     saveFile << cl->m_imass << " ";
@@ -601,24 +600,19 @@ static void saveSoftBody(const btSoftBody* orig, const char* fileName) {
     saveFile << cl->m_selfCollisionImpulseFactor << " ";
     saveFile << cl->m_containsAnchor << " ";
     saveFile << cl->m_collide << " ";
-    saveFile << cl->m_clusterIndex << endl;
+    saveFile << cl->m_clusterIndex << '\n';
   }
 
   // cluster connectivity
-  saveFile << orig->m_clusterConnectivity.size() << endl;
+  saveFile << orig->m_clusterConnectivity.size() << '\n';
   for (i = 0; i < orig->m_clusterConnectivity.size(); i++) {
     saveFile << orig->m_clusterConnectivity[i] << " ";
   }
-
-  saveFile.close();
 }
 
 static btSoftBody* loadSoftBody(btSoftBodyWorldInfo& worldInfo,
-        const char* fileName) {
+        istream &loadFile) {
   int i, j, size;
-  ifstream loadFile;
-  loadFile.open(fileName);
-
   btSoftBody * const psb = new btSoftBody(&worldInfo);
 
   // materials
@@ -838,19 +832,33 @@ static btSoftBody* loadSoftBody(btSoftBodyWorldInfo& worldInfo,
     loadFile >> psb->m_clusterConnectivity[i];
   }
 
-  loadFile.close();
   return psb;
 }
 
 BulletSoftObject::Ptr BulletSoftObject::createFromFile(
+        btSoftBodyWorldInfo& worldInfo, istream &s) {
+    return Ptr(new BulletSoftObject(loadSoftBody(worldInfo, s)));
+}
+BulletSoftObject::Ptr BulletSoftObject::createFromFile(
         btSoftBodyWorldInfo& worldInfo, const char* fileName) {
-    return Ptr(new BulletSoftObject(loadSoftBody(worldInfo, fileName)));
+    ifstream s(fileName);
+    return createFromFile(worldInfo, s);
 }
 
 void BulletSoftObject::saveToFile(const char *fileName) const {
-    saveSoftBody(softBody.get(), fileName);
+    ofstream s(fileName);
+    saveSoftBody(softBody.get(), s);
+}
+
+void BulletSoftObject::saveToFile(ostream &s) const {
+    saveSoftBody(softBody.get(), s);
 }
 
 void BulletSoftObject::saveToFile(btSoftBody *psb, const char *fileName) {
-    saveSoftBody(psb, fileName);
+    ofstream s(fileName);
+    saveSoftBody(psb, s);
+}
+
+void BulletSoftObject::saveToFile(btSoftBody *psb, ostream &s) {
+    saveSoftBody(psb, s);
 }

@@ -1,5 +1,8 @@
 #include "cloth.h"
 
+#include <fstream>
+using namespace std;
+
 Cloth::Cloth(int resx_, int resy_,
         btScalar lenx_, btScalar leny_,
         const btVector3 &initCenter,
@@ -79,4 +82,28 @@ void Cloth::translateRel(const btTransform &t, const btVector3 &pt) {
 void Cloth::translateCenterToPt(const btVector3 &pt) {
     translateRelToCenter(btTransform(btQuaternion::getIdentity(),
                 pt - centerPoint()));
+}
+
+
+Cloth::Ptr Cloth::createFromFile(btSoftBodyWorldInfo& worldInfo, istream &s) {
+    // first read in Cloth header, then read in soft body
+    int resx, resy; btScalar lenx, leny;
+    s >> resx >> resy >> lenx >> leny;
+    BulletSoftObject::Ptr sb = BulletSoftObject::createFromFile(worldInfo, s);
+    return Ptr(new Cloth(resx, resy, lenx, leny, sb));
+}
+
+Cloth::Ptr Cloth::createFromFile(btSoftBodyWorldInfo& worldInfo, const char* fileName) {
+    ifstream s(fileName);
+    return createFromFile(worldInfo, s);
+}
+
+void Cloth::saveToFile(ostream &s) const {
+    s << resx << ' ' << resy << ' ' << lenx << ' ' << leny << '\n';
+    BulletSoftObject::saveToFile(s);
+}
+
+void Cloth::saveToFile(const char *fileName) const {
+    ofstream s(fileName);
+    saveToFile(s);
 }

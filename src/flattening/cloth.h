@@ -42,6 +42,10 @@ struct Cloth : public BulletSoftObject {
     bool idxOnEdge(int i) const { return idxOnTopEdge(i) || idxOnBottomEdge(i) || idxOnLeftEdge(i) || idxOnRightEdge(i); }
 
     // serialization
+    static Ptr createFromFile(btSoftBodyWorldInfo& worldInfo, const char* fileName);
+    static Ptr createFromFile(btSoftBodyWorldInfo& worldInfo, istream &s);
+    void saveToFile(const char *fileName) const;
+    void saveToFile(ostream &s) const;
 
     // utility functions
 

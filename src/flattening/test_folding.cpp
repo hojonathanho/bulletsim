@@ -126,8 +126,12 @@ class CustomScene : public Scene {
     }
 
     void loadCloth() {
-        if (cloth)
+        if (cloth) {
             env->remove(cloth);
+            cloth.reset();
+        }
+        cloth = Cloth::createFromFile(env->bullet->softBodyWorldInfo, "currstate.cloth");
+        env->add(cloth);
     }
 
 public:
@@ -170,6 +174,7 @@ public:
         addVoidKeyCallback('g', boost::bind(&CustomScene::doRandomFolds, this, 3));
         addVoidKeyCallback('h', boost::bind(&CustomScene::pickUpAndDrop, this));
         addVoidKeyCallback('s', boost::bind(&CustomScene::saveCloth, this));
+        addVoidKeyCallback('l', boost::bind(&CustomScene::loadCloth, this));
 
         addPreDrawCallback(boost::bind(&CustomScene::markFolds, this));
         addPreDrawCallback(boost::bind(&CustomScene::drawPick, this));

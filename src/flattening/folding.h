@@ -1,7 +1,6 @@
 #ifndef __FL_FOLDING_H__
 #define __FL_FOLDING_H__
 
-#include "simulation/plotting.h"
 #include "utils/config.h"
 
 class Scene;
