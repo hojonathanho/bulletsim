@@ -11,8 +11,7 @@ void NodeMoveAction::appendAnchor(const btTransform &trans) {
     moveaction = anchorpt->createMoveAction();
     moveaction->setExecTime(execTime * spec.movingFrac);
 
-    psb->appendAnchor(spec.i, anchorpt->rigidBody.get());
-    anchoridx = psb->m_anchors.size() - 1;
+    anchoridx = sb->addAnchor(spec.i, anchorpt->rigidBody.get());
     if (anchoridx != 0) {
         cout << "WARNING: attaching multiple anchors to cloth in NodeMoveAction!" << endl;
         BOOST_ASSERT(false);
@@ -28,13 +27,7 @@ void NodeMoveAction::removeAnchor() {
     anchorpt.reset();
     moveaction.reset();
 
-    psb->m_anchors[anchoridx].m_node->m_battach = 0;
-    if (psb->m_anchors.size() != 1) {
-        cout << "WARNING: number of anchors on cloth != 1" << endl;
-        BOOST_ASSERT(false);
-    }
-    psb->m_anchors.clear();
-
+    sb->removeAnchor(anchoridx);
     anchorAppended = false;
 }
 
@@ -43,7 +36,7 @@ void NodeMoveAction::step(float dt) {
 
     if (timeElapsed == 0) {
         // first step
-        const btVector3 &nodepos = psb->m_nodes[spec.i].m_x;
+        const btVector3 &nodepos = sb->softBody->m_nodes[spec.i].m_x;
         btTransform starttrans(btQuaternion(0, 0, 0, 1), nodepos);
         btTransform endtrans(btQuaternion(0, 0, 0, 1), nodepos + spec.v);
         appendAnchor(starttrans);

@@ -4,6 +4,7 @@
 #include "simulation/openravesupport.h"
 #include "simulation/basicobjects.h"
 #include "simulation/simplescene.h"
+#include "simulation/softbodies.h"
 #include "simulation/fake_gripper.h"
 #include <map>
 
@@ -25,18 +26,17 @@ enum HapticEvent {
 };
 
 // Special support for the OpenRAVE PR2 model
+
+#define PR2_GRIPPER_OPEN_VAL 0.54f
+#define PR2_GRIPPER_CLOSED_VAL 0.03f
+
 class PR2SoftBodyGripper {
     RaveRobotObject::Ptr robot;
     OpenRAVE::RobotBase::ManipulatorPtr manip;
 
-    float grabOnlyOnContact;
+    bool grabOnlyOnContact;
 
     KinBody::LinkPtr leftFinger, rightFinger;
-    const btTransform origLeftFingerInvTrans, origRightFingerInvTrans;
-
-    // the point right where the fingers meet when the gripper is closed
-    // (in the robot's initial pose)
-    const btVector3 centerPt;
 
     // vector normal to the direction that the gripper fingers move in the manipulator frame
     // (on the PR2 this points back into the arm)
@@ -46,7 +46,7 @@ class PR2SoftBodyGripper {
     const btVector3 toolDirection;
 
     // the target softbody
-    btSoftBody *psb;
+    BulletSoftObject::Ptr sb;
 
     btTransform getManipRot() const {
         btTransform trans(util::toBtTransform(manip->GetTransform(), GeneralConfig::scale));
@@ -63,12 +63,9 @@ class PR2SoftBodyGripper {
     // Finds some innermost point on the gripper
     btVector3 getInnerPt(bool left) const {
         btTransform trans(robot->getLinkTransform(left ? leftFinger : rightFinger));
-        // this assumes that the gripper is symmetric when it is closed
         // we get an innermost point on the gripper by transforming a point
         // on the center of the gripper when it is closed
-        const btTransform &origInv = left ? origLeftFingerInvTrans : origRightFingerInvTrans;
-        return trans * origInv * centerPt;
-        // actually above, we can just cache origInv * centerPt
+        return trans * (METERS/20.*btVector3((left ? 1 : -1) * 0.234402, -0.299, 0));
     }
 
     // Returns true is pt is on the inner side of the specified finger of the gripper
@@ -77,9 +74,13 @@ class PR2SoftBodyGripper {
         return (getManipRot() * getClosingDirection(left)).dot(pt - getInnerPt(left)) > 0;
     }
 
+    bool inGraspRegion(const btVector3 &pt) const;
+
     // Checks if psb is touching the inside of the gripper fingers
     // If so, attaches anchors to every contact point
     void attach(bool left);
+
+    vector<BulletSoftObject::AnchorHandle> anchors;
 
 public:
     typedef boost::shared_ptr<PR2SoftBodyGripper> Ptr;
@@ -89,12 +90,10 @@ public:
     void setGrabOnlyOnContact(bool b) { grabOnlyOnContact = b; }
 
     // Must be called before the action is run!
-    void setTarget(btSoftBody *psb_) { psb = psb_; }
+    void setTarget(BulletSoftObject::Ptr sb_) { sb = sb_; }
 
     void grab();
-    void releaseAllAnchors() { psb->m_anchors.clear(); }
-
-    void setForkParams(Environment *env_, BulletInstance::Ptr newBullet_, OSGInstance::Ptr newOSG_);
+    void releaseAllAnchors();
 };
 
 class Scene;
@@ -108,12 +107,11 @@ private:
              startDragging;
         float dx, dy, lastX, lastY;
         int ikSolnNum0, ikSolnNum1;
-
         float lastHapticReadTime;
     } inputState;
 
 
-    void loadRobot();
+    void loadRobot(const btTransform &);
     void initIK();
     void initHaptics();
 
@@ -121,7 +119,7 @@ private:
     btTransform leftInitTrans, rightInitTrans;
 
     map<HapticEvent, boost::function<void()> > hapticEvent2Func;
-  
+
     void actionWrapper(Action::Ptr a, float dt) {
         a->reset();
         scene.runAction(a, dt);
@@ -132,11 +130,12 @@ public:
 
     RaveRobotObject::Ptr pr2;
     RaveRobotObject::Manipulator::Ptr pr2Left, pr2Right;
+
     SphereObject::Ptr hapTrackerLeft, hapTrackerRight;
     bool lEngaged, rEngaged; // only accept haptic input if engaged
     bool armsDisabled; // hack so I can do demonstrations with fake gripper but still use haptics stuff
 
-    PR2Manager(Scene &);
+    PR2Manager(Scene &s, const btTransform &initTrans=btTransform::getIdentity());
     void registerSceneCallbacks();
 
     void cycleIKSolution(int manipNum); // manipNum == 0 for left, 1 for right

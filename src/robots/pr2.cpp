@@ -8,18 +8,7 @@ static const char LEFT_GRIPPER_RIGHT_FINGER_NAME[] = "l_gripper_r_finger_tip_lin
 static const char RIGHT_GRIPPER_LEFT_FINGER_NAME[] = "r_gripper_l_finger_tip_link";
 static const char RIGHT_GRIPPER_RIGHT_FINGER_NAME[] = "r_gripper_r_finger_tip_link";
 
-// adapted from btSoftBody.cpp (btSoftBody::appendAnchor)
-static void btSoftBody_appendAnchor(btSoftBody *psb, btSoftBody::Node *node, btRigidBody *body, btScalar influence=1) {
-    btSoftBody::Anchor a = { 0 };
-    a.m_node = node;
-    a.m_body = body;
-    a.m_local = body->getWorldTransform().inverse()*a.m_node->m_x;
-    a.m_node->m_battach = 1;
-    a.m_influence = influence;
-    psb->m_anchors.push_back(a);
-}
-
-// Fills in the rcontacs array with contact information between psb and pco
+// Fills in the rcontacts array with contact information between psb and pco
 static void getContactPointsWith(btSoftBody *psb, btCollisionObject *pco, btSoftBody::tRContactArray &rcontacts) {
     // custom contact checking adapted from btSoftBody.cpp and btSoftBodyInternals.h
     struct Custom_CollideSDF_RS : btDbvt::ICollide {
@@ -104,9 +93,6 @@ PR2SoftBodyGripper::PR2SoftBodyGripper(RaveRobotObject::Ptr robot_, OpenRAVE::Ro
         robot(robot_), manip(manip_),
         leftFinger(robot->robot->GetLink(leftGripper ? LEFT_GRIPPER_LEFT_FINGER_NAME : RIGHT_GRIPPER_LEFT_FINGER_NAME)),
         rightFinger(robot->robot->GetLink(leftGripper ? LEFT_GRIPPER_RIGHT_FINGER_NAME : RIGHT_GRIPPER_RIGHT_FINGER_NAME)),
-        origLeftFingerInvTrans(robot->getLinkTransform(leftFinger).inverse()),
-        origRightFingerInvTrans(robot->getLinkTransform(rightFinger).inverse()),
-        centerPt(util::toBtTransform(manip->GetTransform(), GeneralConfig::scale).getOrigin()),
         closingNormal(manip->GetClosingDirection()[0],
                       manip->GetClosingDirection()[1],
                       manip->GetClosingDirection()[2]),
@@ -115,36 +101,115 @@ PR2SoftBodyGripper::PR2SoftBodyGripper(RaveRobotObject::Ptr robot_, OpenRAVE::Ro
 {
 }
 
+void PR2SoftBodyGripper::releaseAllAnchors() {
+    for (int i = 0; i < anchors.size(); ++i)
+        sb->removeAnchor(anchors[i]);
+    anchors.clear();
+}
+
+bool PR2SoftBodyGripper::inGraspRegion(const btVector3 &pt) const {
+    // extra padding for more anchors (for stability)
+    static const float TOLERANCE = 0.00;
+
+    // check that pt is between the fingers
+    if (!onInnerSide(pt, true) || !onInnerSide(pt, false)) return false;
+
+    // check that pt is behind the gripper tip
+    btTransform manipTrans(util::toBtTransform(manip->GetTransform(), GeneralConfig::scale));
+    btVector3 x = manipTrans.inverse() * pt;
+    if (x.z() > GeneralConfig::scale*(0.02 + TOLERANCE)) return false;
+
+    // check that pt is within the finger width
+    if (abs(x.x()) > GeneralConfig::scale*(0.01 + TOLERANCE)) return false;
+
+    cout << "ATTACHING: " << x.x() << ' ' << x.y() << ' ' << x.z() << endl;
+
+    return true;
+}
+
 void PR2SoftBodyGripper::attach(bool left) {
     btRigidBody *rigidBody =
         robot->associatedObj(left ? leftFinger : rightFinger)->rigidBody.get();
+#if 0
     btSoftBody::tRContactArray rcontacts;
-    getContactPointsWith(psb, rigidBody, rcontacts);
+    getContactPointsWith(sb->softBody.get(), rigidBody, rcontacts);
     cout << "got " << rcontacts.size() << " contacts\n";
     int nAppended = 0;
+
     for (int i = 0; i < rcontacts.size(); ++i) {
         const btSoftBody::RContact &c = rcontacts[i];
         KinBody::LinkPtr colLink = robot->associatedObj(c.m_cti.m_colObj);
         if (!colLink) continue;
         const btVector3 &contactPt = c.m_node->m_x;
-        if (onInnerSide(contactPt, left)) {
-            btSoftBody_appendAnchor(psb, c.m_node, rigidBody);
+        //if (onInnerSide(contactPt, left)) {
+        if (inGraspRegion(contactPt)) {
+            anchors.push_back(sb->addAnchor(c.m_node, rigidBody));
             ++nAppended;
         }
     }
-    cout << "appended " << nAppended << " anchors\n";
+    cout << "appended " << nAppended << " anchors to " << (left ? "left" : "right") << endl;
+#endif
+    set<const btSoftBody::Node*> attached;
+
+    // look for nodes in gripper region
+    const btSoftBody::tNodeArray &nodes = sb->softBody->m_nodes;
+    for (int i = 0; i < nodes.size(); ++i) {
+        if (inGraspRegion(nodes[i].m_x) && !sb->hasAnchorAttached(i)) {
+            anchors.push_back(sb->addAnchor(i, rigidBody));
+            attached.insert(&nodes[i]);
+        }
+    }
+
+    // look for faces with center in gripper region
+    const btSoftBody::tFaceArray &faces = sb->softBody->m_faces;
+    for (int i = 0; i < faces.size(); ++i) {
+        btVector3 ctr = (1./3.) * (faces[i].m_n[0]->m_x
+                + faces[i].m_n[1]->m_x + faces[i].m_n[2]->m_x);
+        if (inGraspRegion(ctr)) {
+            for (int z = 0; z < 3; ++z) {
+                int idx = faces[i].m_n[z] - &nodes[0];
+                if (!sb->hasAnchorAttached(idx)) {
+                    anchors.push_back(sb->addAnchor(idx, rigidBody));
+                    attached.insert(&nodes[idx]);
+                }
+            }
+        }
+    }
+
+    // now for each added anchor, add anchors to neighboring nodes for stability
+    const int MAX_EXTRA_ANCHORS = 3;
+    const btSoftBody::tLinkArray &links = sb->softBody->m_links;
+    const int origNumAnchors = anchors.size();
+    for (int i = 0; i < links.size(); ++i) {
+        if (anchors.size() >= origNumAnchors + MAX_EXTRA_ANCHORS)
+            break;
+        if (attached.find(links[i].m_n[0]) != attached.end()) {
+            int idx = links[i].m_n[1] - &nodes[0];
+            if (!sb->hasAnchorAttached(idx)) {
+                anchors.push_back(sb->addAnchor(idx, rigidBody));
+            }
+        }
+        else if (attached.find(links[i].m_n[1]) != attached.end()) {
+            int idx = links[i].m_n[0] - &nodes[0];
+            if (!sb->hasAnchorAttached(idx)) {
+                anchors.push_back(sb->addAnchor(idx, rigidBody));
+            }
+        }
+    }
+
+    cout << "appended " << attached.size() << " anchors to " << (left ? "left" : "right") << endl;
 }
 
 void PR2SoftBodyGripper::grab() {
     if (grabOnlyOnContact) {
-        attach(false);
+        //attach(false);
         attach(true);
     } else {
         // the gripper should be closed
         const btVector3 midpt = 0.5 * (getInnerPt(false) + getInnerPt(true));
         // get point on cloth closest to midpt, and attach an anchor there
         // (brute-force iteration through every cloth node)
-        btSoftBody::tNodeArray &nodes = psb->m_nodes;
+        btSoftBody::tNodeArray &nodes = sb->softBody->m_nodes;
         btSoftBody::Node *closestNode = NULL;
         btScalar closestDist;
         for (int i = 0; i < nodes.size(); ++i) {
@@ -157,13 +222,13 @@ void PR2SoftBodyGripper::grab() {
         }
         // attach to left finger (arbitrary choice)
         if (closestNode)
-            btSoftBody_appendAnchor(psb, closestNode, robot->associatedObj(leftFinger)->rigidBody.get());
+            anchors.push_back(sb->addAnchor(closestNode, robot->associatedObj(leftFinger)->rigidBody.get()));
     }
 }
 
 
-PR2Manager::PR2Manager(Scene &s) : scene(s), inputState() {
-    loadRobot();
+PR2Manager::PR2Manager(Scene &s, const btTransform &initTrans) : scene(s), inputState() {
+    loadRobot(initTrans);
     initIK();
     initHaptics();
     registerSceneCallbacks();
@@ -182,22 +247,19 @@ void PR2Manager::registerSceneCallbacks() {
         scene.addPreStepCallback(boost::bind(&PR2Manager::processHapticInput, this));
 }
 
-void PR2Manager::loadRobot() {
-  if (!SceneConfig::enableRobot) return;  
+void PR2Manager::loadRobot(const btTransform &initTrans) {
+  if (!SceneConfig::enableRobot) return;
 
   OpenRAVE::RobotBasePtr maybeRobot = scene.rave->env->GetRobot("pr2");
 
   if (maybeRobot) { // if pr2 already loaded into openrave, use it
-    pr2.reset(new RaveRobotObject(scene.rave, maybeRobot));
+    pr2.reset(new RaveRobotObject(scene.rave, maybeRobot, initTrans));
     scene.env->add(pr2);
-  }
-  
-  else {
+  } else {
     static const char ROBOT_MODEL_FILE[] = "robots/pr2-beta-static.zae";
-    pr2.reset(new RaveRobotObject(scene.rave, ROBOT_MODEL_FILE));
+    pr2.reset(new RaveRobotObject(scene.rave, ROBOT_MODEL_FILE, initTrans));
     scene.env->add(pr2);
   }
-  
 }
 
 void PR2Manager::initIK() {

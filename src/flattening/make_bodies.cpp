@@ -40,7 +40,7 @@ BulletSoftObject::Ptr makeTowel(const vector<btVector3>& points, btSoftBodyWorld
   return BulletSoftObject::Ptr(new BulletSoftObject(psb));
 }
 
-BulletSoftObject::Ptr makeSelfCollidingTowel(const btVector3& center, btScalar lenx, btScalar leny, int resx, int resy, btSoftBodyWorldInfo& worldInfo) {
+btSoftBody *makeSelfCollidingTowel(const btVector3& center, btScalar lenx, btScalar leny, int resx, int resy, btSoftBodyWorldInfo& worldInfo) {
     btSoftBody *psb = btSoftBodyHelpers::CreatePatch(
         worldInfo,
         center + btVector3(-lenx/2,-leny/2,0),
@@ -54,40 +54,42 @@ BulletSoftObject::Ptr makeSelfCollidingTowel(const btVector3& center, btScalar l
     psb->m_cfg.collisions = btSoftBody::fCollision::CL_RS
         | btSoftBody::fCollision::CL_SS
         | btSoftBody::fCollision::CL_SELF;
-    psb->m_cfg.kDF = 0.6;
+    psb->m_cfg.kDF = 0.9;
     //psb->m_cfg.kDF = 0.1;
     psb->m_cfg.kAHR = 1; // anchor hardness
     psb->m_cfg.kSSHR_CL = 1.0; // so the cloth doesn't penetrate itself
-    psb->m_cfg.kSRHR_CL = 1.0;
-    psb->m_cfg.kSKHR_CL = 1.0;
-    psb->m_cfg.kDP = 0.005;
+    psb->m_cfg.kSRHR_CL = 0.7;
+    psb->m_cfg.kSKHR_CL = 0.7;
+//    psb->m_cfg.kDP = 0.01;
+    psb->m_cfg.kDP = 0.1;
 
     psb->getCollisionShape()->setMargin(0.05);
 
     btSoftBody::Material *pm = psb->appendMaterial();
-    pm->m_kLST = 1;//*TrackingConfig::towelStiffness;
-    pm->m_kAST = 1;//*TrackingConfig::towelStiffness;
+    pm->m_kLST = 0.001;
+    pm->m_kAST = 0.5;
 
     psb->generateBendingConstraints(2, pm);
 
     // weaken links that span 2 nodes
+    /*
     btScalar avgDist = 0;
     for (int i = 0; i < psb->m_links.size(); ++i) {
         btSoftBody::Link &l = psb->m_links[i];
-        avgDist += l.m_n[0]->m_x.distance2(l.m_n[1]->m_x);
+        avgDist += l.m_n[0]->m_x.distance(l.m_n[1]->m_x);
     }
     avgDist /= psb->m_links.size();
     for (int i = 0; i < psb->m_links.size(); ++i) {
         btSoftBody::Link &l = psb->m_links[i];
-        btScalar d = l.m_n[0]->m_x.distance2(l.m_n[1]->m_x);
+        btScalar d = l.m_n[0]->m_x.distance(l.m_n[1]->m_x);
         if (d > avgDist)
             l.m_material->m_kLST = 0.005;
-    }
+    }*/
 
     psb->randomizeConstraints();
 
-    psb->setTotalMass(1, true);
-    psb->generateClusters(2048);
+    psb->setTotalMass(100, true);
+    psb->generateClusters(0);
 
     /*for (int i = 0; i < psb->m_clusters.size(); ++i) {
         psb->m_clusters[i]->m_ndamping = 1;
@@ -95,7 +97,7 @@ BulletSoftObject::Ptr makeSelfCollidingTowel(const btVector3& center, btScalar l
 
     cout << "number of clusters: " << psb->m_clusters.size() << endl;
 
-    return BulletSoftObject::Ptr(new BulletSoftObject(psb));
+    return psb;
 }
 
 // adapted from btSoftBodyHelpers::CreatePatch

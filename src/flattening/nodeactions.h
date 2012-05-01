@@ -3,15 +3,16 @@
 
 #include "simulation/environment.h"
 #include "simulation/basicobjects.h"
+#include "simulation/softbodies.h"
 
 // an action that moves a node
 // completely specified by ActionDesc
 class NodeMoveAction : public Action {
-    btSoftBody *psb;
     Environment::Ptr env;
+    BulletSoftObject::Ptr sb;
 
     SphereObject::Ptr anchorpt; // an object that we can attach an an anchor to
-    int anchoridx;
+    BulletSoftObject::AnchorHandle anchoridx;
     bool anchorAppended;
     BulletObject::MoveAction::Ptr moveaction;
 
@@ -31,8 +32,8 @@ public:
     NodeMoveAction() : anchorAppended(false) { }
 
     // sets the environment and soft body to act on
-    void setSoftBody(Environment::Ptr env_, btSoftBody *psb_) {
-        env = env_; psb = psb_;
+    void setSoftBody(Environment::Ptr env_, BulletSoftObject::Ptr sb_) {
+        env = env_; sb = sb_;
     }
 
     void readSpec() { setExecTime(spec.t); }

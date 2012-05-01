@@ -41,7 +41,25 @@ void TelekineticGripper::prePhysics() {
 
 }
 
+btTransform TelekineticGripper::getLinkTransform(KinBody::LinkPtr link) const {
+  btTransform tf_manip = m_manip->getTransform();
+  btTransform tf_obj = m_manip->robot->getLinkTransform(link);
+  return m_tf * tf_manip.inverse()*tf_obj;
+}
+
+BulletObject::Ptr TelekineticGripper::getLinkRigidBody(KinBody::LinkPtr link) const {
+  map<KinBody::LinkPtr, int>::const_iterator i = m_linkToChildMap.find(link);
+  BOOST_ASSERT(i != m_linkToChildMap.end());
+  const int idx = i->second;
+  BOOST_ASSERT(idx >= 0 && idx < children.size());
+  return children[idx];
+}
+
 void TelekineticGripper::setTransform(const btTransform& tf) {m_tf = tf;}
+
+btTransform TelekineticGripper::getTransform() const {
+  return m_tf;
+}
 
 TelekineticGripper::TelekineticGripper(RaveRobotObject::Manipulator::Ptr manip) : m_manip(manip) {
   m_tf.setIdentity();
@@ -52,8 +70,36 @@ TelekineticGripper::TelekineticGripper(RaveRobotObject::Manipulator::Ptr manip) 
   BOOST_FOREACH(KinBody::LinkPtr link, links) {
     BulletObject::Ptr obj = robot->associatedObj(link);
     if (obj) {
-children.push_back(BulletObject::Ptr(new BulletObject(*obj)));
-m_origs.push_back(obj);
+      children.push_back(BulletObject::Ptr(new BulletObject(*obj)));
+      m_origs.push_back(obj);
+      m_linkToChildMap[link] = children.size() - 1;
     }
   }
+}
+
+EnvironmentObject::Ptr TelekineticGripper::copy(Fork &f) const {
+  Ptr o(new TelekineticGripper());
+  o->m_tf = m_tf;
+  CompoundObject::internalCopy(o, f);
+  return o;
+}
+
+void TelekineticGripper::postCopy(EnvironmentObject::Ptr copy, Fork &f) const {
+  Ptr o = boost::static_pointer_cast<TelekineticGripper>(copy);
+
+  RaveRobotObject::Ptr forkRobot = boost::static_pointer_cast<RaveRobotObject>(f.forkOf(m_manip->robot));
+  BOOST_ASSERT(forkRobot);
+  o->m_manip = forkRobot->getManipByIndex(m_manip->index);
+
+  vector<KinBody::LinkPtr> links; o->m_manip->manip->GetChildLinks(links);
+  int count = 0;
+  BOOST_FOREACH(KinBody::LinkPtr link, links) {
+    BulletObject::Ptr obj = forkRobot->associatedObj(link);
+    if (obj) {
+      o->m_origs.push_back(obj);
+      o->m_linkToChildMap[link] = count++;
+    }
+  }
+  BOOST_ASSERT(o->m_origs.size() == m_origs.size());
+  BOOST_ASSERT(o->children.size() == children.size());
 }

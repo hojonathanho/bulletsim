@@ -110,7 +110,7 @@ public:
     const Environment *parentEnv;
     Environment::Ptr env;
 
-    typedef std::map<EnvironmentObject::Ptr, EnvironmentObject::Ptr> ObjectMap;
+    typedef std::map<EnvironmentObject *, EnvironmentObject::Ptr> ObjectMap;
     ObjectMap objMap; // maps object in parentEnv to object in env
 
     typedef std::map<const void *, void *> DataMap;
@@ -130,6 +130,10 @@ public:
         return i == dataMap.end() ? NULL : i->second;
     }
     EnvironmentObject::Ptr forkOf(EnvironmentObject::Ptr orig) const {
+        ObjectMap::const_iterator i = objMap.find(orig.get());
+        return i == objMap.end() ? EnvironmentObject::Ptr() : i->second;
+    }
+    EnvironmentObject::Ptr forkOf(EnvironmentObject *orig) const {
         ObjectMap::const_iterator i = objMap.find(orig);
         return i == objMap.end() ? EnvironmentObject::Ptr() : i->second;
     }

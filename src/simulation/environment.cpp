@@ -3,6 +3,7 @@
 
 OSGInstance::OSGInstance() {
     root = new osg::Group;
+    osg::setNotifyLevel(osg::FATAL);
 }
 
 BulletInstance::BulletInstance() {
@@ -108,20 +109,20 @@ void Fork::copyObjects() {
     for (i = parentEnv->objects.begin(); i != parentEnv->objects.end(); ++i) {
         EnvironmentObject::Ptr copy = (*i)->copy(*this);
         env->add(copy);
-        objMap[*i] = copy;
+        objMap[i->get()] = copy;
     }
     // some objects might need processing after all objects have been added
     // e.g. anchors and joints for soft bodies
     for (i = parentEnv->objects.begin(); i != parentEnv->objects.end(); ++i)
-        (*i)->postCopy(objMap[*i], *this);
+        (*i)->postCopy(objMap[i->get()], *this);
 
     // copy constraints
     Environment::ConstraintList::const_iterator j;
     for (j = parentEnv->constraints.begin(); j != parentEnv->constraints.end(); ++j) {
         EnvironmentObject::Ptr copy = (*j)->copy(*this);
         env->addConstraint(copy);
-        objMap[*j] = copy;
+        objMap[j->get()] = copy;
     }
     for (j = parentEnv->constraints.begin(); j != parentEnv->constraints.end(); ++j)
-        (*j)->postCopy(objMap[*j], *this);
+        (*j)->postCopy(objMap[j->get()], *this);
 }

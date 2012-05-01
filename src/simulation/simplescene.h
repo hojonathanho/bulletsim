@@ -62,6 +62,9 @@ struct Scene {
   vector<VoidCallback> prestepCallbacks;
   void addPreStepCallback(VoidCallback cb);
 
+  vector<VoidCallback> predrawCallbacks;
+  void addPreDrawCallback(VoidCallback cb);
+
   Scene();
 
   void showWindow(bool showWindow, bool realtime);
@@ -131,6 +134,6 @@ struct SceneConfig : Config {
     params.push_back(new Parameter<bool>("enableRobot", &enableRobot, "enable the PR2"));
     params.push_back(new Parameter<bool>("enableRobotCollision", &enableRobotCollision, "collision detection between robot and environment during user manipulation"));
     params.push_back(new Parameter<bool>("useFakeGrabber", &useFakeGrabber, "use a fake grabber; pass false for realistic grasping"));
-    params.push_back(new Parameter<float>("mouseDragScale", &mouseDragScale, "scaling factor for mouse control for IK"));    
+    params.push_back(new Parameter<float>("mouseDragScale", &mouseDragScale, "scaling factor for mouse control for IK"));
   }
 };

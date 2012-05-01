@@ -16,6 +16,8 @@ public:
 };
 
 class TelekineticGripper : public CompoundObject<BulletObject> {
+  map<KinBody::LinkPtr, int> m_linkToChildMap;
+  TelekineticGripper() { }
 public:
   typedef boost::shared_ptr<TelekineticGripper> Ptr;
   RaveRobotObject::Manipulator::Ptr m_manip;
@@ -24,6 +26,12 @@ public:
 
   void prePhysics();
   void setTransform(const btTransform& tf);
+  btTransform getTransform() const;
+  btTransform getLinkTransform(KinBody::LinkPtr link) const;
+  BulletObject::Ptr getLinkRigidBody(KinBody::LinkPtr link) const;
 
   TelekineticGripper(RaveRobotObject::Manipulator::Ptr manip);
+
+  EnvironmentObject::Ptr copy(Fork &f) const;
+  void postCopy(EnvironmentObject::Ptr copy, Fork &f) const;
 };

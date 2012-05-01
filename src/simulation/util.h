@@ -24,6 +24,9 @@ namespace util {
 
   ///////////////// CONVERSIONS ////////////////////////////
 
+  inline btTransform scaleTransform(const btTransform &t, btScalar a) {
+      return btTransform(t.getRotation(), a*t.getOrigin());
+  }
   inline osg::Vec3d toOSGVector(const btVector3 &v) { return osg::Vec3d(v.x(), v.y(), v.z()); }
   inline btVector3 toBtVector(const osg::Vec3d &v) { return btVector3(v.x(), v.y(), v.z()); }
   inline btVector3 toBtVector(const OpenRAVE::Vector &v) { return btVector3(v.x, v.y, v.z); }

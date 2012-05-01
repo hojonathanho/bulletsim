@@ -65,6 +65,7 @@ void PlotPoints::setPoints(const osg::ref_ptr<osg::Vec3Array>& osgPts) {
 }
 
 void PlotPoints::forceTransparency(float a) {
+  if (!m_geom->getColorArray()) return;
   osg::Vec4Array &colors = (osg::Vec4Array&) *m_geom->getColorArray();
   for (int i = 0; i < colors.size(); ++i) {
     osg::Vec4 c = colors[i];
@@ -128,8 +129,17 @@ void PlotLines::setPoints(const osg::ref_ptr<osg::Vec3Array>& osgPts) {
   setPoints(osgPts, osgCols);
 }
 
+void PlotLines::forceTransparency(float a) {
+  if (!m_geom->getColorArray()) return;
+  osg::Vec4Array &colors = (osg::Vec4Array&) *m_geom->getColorArray();
+  for (int i = 0; i < colors.size(); ++i) {
+    osg::Vec4 c = colors[i];
+    colors[i] = osg::Vec4(c.r(), c.g(), c.b(), a);
+  }
+}
+
 PlotSpheres::PlotSpheres() {
-  m_geode = new osg::Geode();    
+  m_geode = new osg::Geode();
   m_nDrawables = 0;
 
   osg::ref_ptr<osg::StateSet> stateset = new osg::StateSet();
@@ -160,7 +170,28 @@ void PlotSpheres::plot(const osg::ref_ptr<osg::Vec3Array>& centers, const osg::r
   }
 }
 
-void PlotAxes::setup(btTransform tf, float size) {
+PlotBoxes::PlotBoxes() {
+  m_geode = new osg::Geode();
+  osg::ref_ptr<osg::StateSet> stateset = new osg::StateSet();
+  osg::ref_ptr<osg::BlendFunc> blendFunc = new osg::BlendFunc;
+  blendFunc->setFunction(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+  stateset->setAttributeAndModes(blendFunc);
+  stateset->setRenderingHint(osg::StateSet::TRANSPARENT_BIN);
+  m_geode->setStateSet(stateset);
+}
+
+void PlotBoxes::clear() {
+  while (m_geode->removeDrawables(0, 1)) ;
+}
+
+void PlotBoxes::addBox(const osg::Vec3 &center, float lenx, float leny, float lenz, const osg::Vec4 &color) {
+  osg::Box *box = new osg::Box(center, lenx, leny, lenz);
+  osg::ShapeDrawable *boxDrawable = new osg::ShapeDrawable(box);
+  boxDrawable->setColor(color);
+  m_geode->addDrawable(boxDrawable);
+}
+
+void PlotAxes::setup(const btTransform &tf, float size) {
   btMatrix3x3 mat(tf.getRotation());
   osg::Vec3f origin = util::toOSGVector(tf.getOrigin());
   osg::Vec3f x = util::toOSGVector(mat.getColumn(0));
@@ -237,7 +268,6 @@ void PlotCurve::setPoints(const vector<btVector3>& pts) {
   BOOST_FOREACH(osg::Vec4& col, *osgCols) col = m_defaultColor;
   setPoints(toVec3Array(pts),  osgCols);
 }
-
 
 void PlotCurve::setPoints(const osg::ref_ptr<osg::Vec3Array>& osgPts, const osg::ref_ptr<osg::Vec4Array>& osgCols) {
   int nPts = osgPts->getNumElements();
