@@ -7,6 +7,8 @@ class Scene;
 class Cloth;
 class btVector3;
 
+namespace Folding {
+
 struct FoldingConfig : Config {
     static int foldHalfCircleDivs;
     static int attractNodesMaxSteps;
@@ -29,17 +31,18 @@ struct FoldingConfig : Config {
     }
 };
 
-namespace Folding {
-
 // z-components of a and b are ignored
 // a line on the cloth is drawn from point a to point b
 // and the left side is folded over to the right side
 void foldClothAlongLine(Scene &scene, Cloth &c, const btVector3 &a, const btVector3 &b);
 
+// picks two random points and folds along that line
+void doRandomFolds(Scene &scene, Cloth &cloth, int nfolds);
+
 // picks up the cloth to FoldingConfig::dropHeight,
 // rotates the cloth randomly, and lets it drop
 void pickUpAndDrop(Scene &scene, Cloth &cloth);
 
-}
+} // end namespace Folding
 
 #endif // __FL_FOLDING_H__

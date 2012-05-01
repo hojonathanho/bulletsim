@@ -6,13 +6,13 @@
 #include "simulation/logging.h"
 #include <cstdlib>
 
+#include "clothscene.h"
 #include "edges.h"
 #include "facepicker.h"
 #include "folding.h"
 #include "config_flattening.h"
 
-class CustomScene : public Scene {
-    Cloth::Ptr cloth;
+class CustomScene : public ClothScene {
     PlotAxes::Ptr leftManipAxes, rightManipAxes;
 
     PlotPoints::Ptr foldnodeplot;
@@ -21,9 +21,6 @@ class CustomScene : public Scene {
     PlotLines::Ptr folddirplot;
     PlotSpheres::Ptr pickplot;
     SoftBodyFacePicker::Ptr facepicker;
-
-    btTransform tableTrans;
-    btVector3 tableExtents;
 
     vector<int> foldnodes;
 
@@ -67,7 +64,6 @@ class CustomScene : public Scene {
     }
 
     void doRandomFolds(int n) {
-        srand(time(NULL));
         for (int i = 0; i < n; ++i) {
             int idx1 = rand() % cloth->psb()->m_nodes.size();
             const btVector3 &p1 = cloth->psb()->m_nodes[idx1].m_x;
@@ -148,24 +144,8 @@ public:
         env->add(destplot);
         pickedNode = pickedNode2 = NULL;
 
-        // create the table
-        const float table_height = .5;
-        const float table_thickness = .05;
-        tableExtents = GeneralConfig::scale * btVector3(.75,.75,table_thickness/2);
-        tableTrans = btTransform(btQuaternion(0, 0, 0, 1), GeneralConfig::scale * btVector3(0.8, 0, table_height-table_thickness/2));
-        BoxObject::Ptr table(new BoxObject(0, tableExtents, tableTrans));
-        table->rigidBody->setFriction(0.1);
-        env->add(table);
-        cout << "table margin: " << table->rigidBody->getCollisionShape()->getMargin() << endl;
-
-        const int resx = 45, resy = 31;
-//        const btScalar lenx = GeneralConfig::scale * 0.7, leny = GeneralConfig::scale * 0.5;
-        const btScalar lenx = GeneralConfig::scale * 0.7/2, leny = GeneralConfig::scale * 0.5/2;
-//        const btVector3 clothcenter = GeneralConfig::scale * btVector3(0.5, 0, table_height+0.01);
-        const btVector3 clothcenter = GeneralConfig::scale * btVector3(0.7, 0.1, table_height+0.01);
-//        cloth = makeSelfCollidingTowel(clothcenter, lenx, leny, resx, resy, env->bullet->softBodyWorldInfo);
-        cloth.reset(new Cloth(resx, resy, lenx, leny, clothcenter, env->bullet->softBodyWorldInfo));
-        env->add(cloth);
+        setupScene();
+        initStandardCloth();
 
         facepicker.reset(new SoftBodyFacePicker(*this, viewer.getCamera(), cloth->softBody.get()));
         facepicker->setPickCallback(boost::bind(&CustomScene::pickCallback, this, _1));
@@ -199,8 +179,10 @@ int main(int argc, char *argv[]) {
     parser.addGroup(BulletConfig());
     parser.addGroup(SceneConfig());
     parser.addGroup(FlatteningConfig());
-    parser.addGroup(FoldingConfig());
+    parser.addGroup(Folding::FoldingConfig());
     parser.read(argc, argv);
+
+    srand(time(NULL));
 
     CustomScene().run();
 
