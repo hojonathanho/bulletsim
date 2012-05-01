@@ -1,6 +1,9 @@
 #include "cloth.h"
 
+#include "simulation/logging.h"
+
 #include <fstream>
+#include <cmath>
 using namespace std;
 
 Cloth::Cloth(int resx_, int resy_,
@@ -31,6 +34,18 @@ EnvironmentObject::Ptr Cloth::copy(Fork &f) const {
     return Ptr(new Cloth(resx, resy, lenx, leny, sb));
 }
 
+
+bool Cloth::checkExplosion() const {
+    for (int i = 0; i < psb()->m_nodes.size(); ++i) {
+        const btSoftBody::Node &n = psb()->m_nodes[i];
+        if (!isfinite(n.m_x.x()) || !isfinite(n.m_x.y()) || !isfinite(n.m_x.z())) {
+            LOG_ERROR("cloth explosion detected!");
+            return true;
+        }
+    }
+    return false;
+}
+
 void Cloth::initAccel() {
     cloud.reset(new pcl::PointCloud<pcl::PointXYZ>());
     kdtree.reset(new pcl::KdTreeFLANN<pcl::PointXYZ>());
@@ -39,6 +54,8 @@ void Cloth::initAccel() {
 }
 
 void Cloth::updateAccel() {
+    if (checkExplosion()) return;
+
     // fill in cloud with cloth points
     BOOST_ASSERT(cloud->points.size() == resx * resy);
     for (int i = 0; i < cloud->points.size(); ++i) {

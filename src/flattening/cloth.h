@@ -25,6 +25,9 @@ struct Cloth : public BulletSoftObject {
 
     EnvironmentObject::Ptr copy(Fork &f) const;
 
+    // checks if the cloth exploded (NaN or inf in positions)
+    bool checkExplosion() const;
+
     void updateAccel(); // update acceleration structures (kdtree, etc)
     btSoftBody *psb() const { return softBody.get(); }
     // (x,y) coord to nodeidx conversions and tests
