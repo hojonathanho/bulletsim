@@ -27,6 +27,7 @@ struct GenStatesConfig : Config {
     static int dropTimes;
     static string outputPath;
     static bool fake;
+    static string gzip;
 
     GenStatesConfig() : Config() {
         params.push_back(new Parameter<int>("maxRandFolds", &maxRandFolds, ""));
@@ -34,6 +35,7 @@ struct GenStatesConfig : Config {
         params.push_back(new Parameter<int>("dropTimes", &dropTimes, ""));
         params.push_back(new Parameter<string>("outputPath", &outputPath, ""));
         params.push_back(new Parameter<bool>("fake", &fake, "don't actually do anything"));
+        params.push_back(new Parameter<string>("gzip", &gzip, "path to gzip to compress output files (pass empty string to leave files uncompressed)"));
     }
 };
 int GenStatesConfig::maxRandFolds = 3;
@@ -41,16 +43,33 @@ int GenStatesConfig::statesPerFold = 10;
 int GenStatesConfig::dropTimes = 3;
 string GenStatesConfig::outputPath = "";
 bool GenStatesConfig::fake = false;
+string GenStatesConfig::gzip = "";
 
+static void compress(const string &path) {
+    if (GenStatesConfig::gzip.empty()) return;
+
+    stringstream ss;
+    ss << '\'' << GenStatesConfig::gzip << "' '" << path << '\'';
+    string cmd = ss.str();
+
+    LOG_INFO("compressing: executing " << cmd);
+    system(cmd.c_str());
+}
+
+static int discarded = 0;
 static int calcTotal() {
     static const int total = GenStatesConfig::maxRandFolds
         * GenStatesConfig::statesPerFold
         * (GenStatesConfig::dropTimes + 1);
-    return total;
+    return total - discarded;
 }
 static int gencount = 0;
 static void record(Cloth &cloth) {
-    if (cloth.checkExplosion()) return;
+    if (!cloth.validCheck(true)) {
+        LOG_ERROR("cloth explosion detected. discarding state");
+        ++discarded;
+        return;
+    }
 
     ++gencount;
     boost::filesystem::path path(GenStatesConfig::outputPath);
@@ -61,8 +80,9 @@ static void record(Cloth &cloth) {
 
     if (!GenStatesConfig::fake)
         cloth.saveToFile(out.c_str());
-
     LOG_INFO('(' << gencount << '/' << calcTotal() << "): wrote " << out);
+    if (!GenStatesConfig::fake)
+        compress(out);
 }
 
 static void gen(Scene &scene, Cloth &cloth, int nfolds) {

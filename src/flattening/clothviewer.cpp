@@ -38,7 +38,8 @@ public:
     }
 
     void nextCloth(int d) {
-        currpos = (currpos + d) % files.size();
+        currpos = (currpos + d) % (int) files.size();
+        if (currpos < 0) currpos += files.size();
         displayCloth(files[currpos]);
     }
 

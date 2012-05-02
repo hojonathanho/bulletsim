@@ -41,7 +41,7 @@ static void attractNodesToPositions(Scene &scene, Cloth &c, const vector<btVecto
         avgerr /= pos.size();
     }
     if (step >= MAXSTEPS)
-        LOG_DEBUG("hit step limit");
+        LOG_TRACE("hit step limit");
 }
 
 struct Rotspec {
@@ -121,7 +121,7 @@ void pickUpAndDrop(Scene &scene, Cloth &cloth) {
 
     cloth.translateCenterToPt(oldcenter);
     cloth.psb()->m_cfg.kDF = oldkDF;
-    LOG_DEBUG("done dropping");
+    LOG_TRACE("done dropping");
 }
 
 } // end namespace Folding

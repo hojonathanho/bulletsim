@@ -53,6 +53,20 @@ namespace util {
   osg::ref_ptr<osg::Vec3Array> toVec3Array(const std::vector<btVector3>&);
   osg::ref_ptr<osg::Vec4Array> toVec4Array(const std::vector<btVector4>&);
 
+  // Nan/Inf checking
+  inline bool isfinite(const btVector3 &v) {
+      return std::isfinite(v.x()) && std::isfinite(v.y()) && std::isfinite(v.z());
+  }
+
+  inline bool isfinite(const btMatrix3x3 &m) {
+      return isfinite(m[0]) && isfinite(m[1]) && isfinite(m[2]);
+  }
+
+  inline bool isfinite(const btTransform &t) {
+      return isfinite(t.getOrigin()) && isfinite(t.getBasis());
+  }
+
+
   ///////////////// FILE IO ////////////////////////////
 
   template <class T>

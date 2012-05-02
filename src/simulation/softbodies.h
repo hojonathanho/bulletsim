@@ -52,6 +52,11 @@ public:
     void preDraw();
     void destroy();
 
+    // utility functions
+
+    // check for nan/inf in the soft body state
+    bool validCheck(bool nodesOnly=true) const;
+
 private:
     AnchorHandle nextAnchorHandle;
     map<AnchorHandle, int> anchormap;

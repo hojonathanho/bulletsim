@@ -11,6 +11,9 @@
 #include <osgbCollision/Utils.h>
 #include <osgUtil/SmoothingVisitor>
 
+using std::isfinite;
+using util::isfinite;
+
 #define COPY_ARRAY(a, b) { (a).resize((b).size()); for (int z = 0; z < (b).size(); ++z) (a)[z] = (b)[z]; }
 
 static void printAnchors(const map<BulletSoftObject::AnchorHandle, int> &anchormap) {
@@ -861,4 +864,75 @@ void BulletSoftObject::saveToFile(btSoftBody *psb, const char *fileName) {
 
 void BulletSoftObject::saveToFile(btSoftBody *psb, ostream &s) {
     saveSoftBody(psb, s);
+}
+
+// TODO: also check for integrity in pointers?
+bool BulletSoftObject::validCheck(bool nodesOnly) const {
+#define CHECK(x) if (!isfinite((x))) return false
+#define CHECKARR(a) for (int z = 0; z < (a).size(); ++z) CHECK((a)[z])
+
+    const btSoftBody * const psb = softBody.get();
+    // check nodes
+    for (int i = 0; i < psb->m_nodes.size(); ++i) {
+        const btSoftBody::Node *node = &psb->m_nodes[i];
+        CHECK(node->m_x);
+        CHECK(node->m_area);
+        CHECK(node->m_f);
+        CHECK(node->m_im);
+        CHECK(node->m_n);
+        CHECK(node->m_q);
+        CHECK(node->m_v);
+    }
+
+    if (nodesOnly) return true;
+
+    // check clusters
+    for (int i = 0; i < psb->m_clusters.size(); ++i) {
+        btSoftBody::Cluster *cl = psb->m_clusters[i];
+        CHECKARR(cl->m_masses);
+        CHECKARR(cl->m_framerefs);
+        CHECK(cl->m_framexform);
+        CHECK(cl->m_idmass);
+        CHECK(cl->m_imass);
+        CHECK(cl->m_locii);
+        CHECK(cl->m_invwi);
+        CHECK(cl->m_com);
+        CHECK(cl->m_vimpulses[0]);
+        CHECK(cl->m_vimpulses[1]);
+        CHECK(cl->m_dimpulses[0]);
+        CHECK(cl->m_dimpulses[1]);
+        CHECK(cl->m_nvimpulses);
+        CHECK(cl->m_ndimpulses);
+        CHECK(cl->m_lv);
+        CHECK(cl->m_av);
+        CHECK(cl->m_ndamping);
+        CHECK(cl->m_ldamping);
+        CHECK(cl->m_adamping);
+        CHECK(cl->m_matching);
+        CHECK(cl->m_maxSelfCollisionImpulse);
+        CHECK(cl->m_selfCollisionImpulseFactor);
+        CHECK(cl->m_clusterIndex);
+    }
+
+    // links
+    for (int i = 0; i < psb->m_links.size(); ++i) {
+        const btSoftBody::Link *link = &psb->m_links[i];
+        CHECK(link->m_rl);
+        CHECK(link->m_c0);
+        CHECK(link->m_c1);
+        CHECK(link->m_c2);
+        CHECK(link->m_c3);
+    }
+
+    // faces
+    for (int i = 0; i < psb->m_faces.size(); ++i) {
+        const btSoftBody::Face *face = &psb->m_faces[i];
+        CHECK(face->m_normal);
+        CHECK(face->m_ra);
+    }
+
+    return true;
+
+#undef CHECKARR
+#undef CHECK
 }
