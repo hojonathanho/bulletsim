@@ -50,6 +50,8 @@ static int calcTotal() {
 }
 static int gencount = 0;
 static void record(Cloth &cloth) {
+    if (cloth.checkExplosion()) return;
+
     ++gencount;
     boost::filesystem::path path(GenStatesConfig::outputPath);
     stringstream ss;
@@ -60,7 +62,7 @@ static void record(Cloth &cloth) {
     if (!GenStatesConfig::fake)
         cloth.saveToFile(out.c_str());
 
-    LOG_INFO('(' << gencount << '/' << calcTotal() << "): " << out);
+    LOG_INFO('(' << gencount << '/' << calcTotal() << "): wrote " << out);
 }
 
 static void gen(Scene &scene, Cloth &cloth, int nfolds) {
