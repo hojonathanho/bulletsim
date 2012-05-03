@@ -65,7 +65,7 @@ static int calcTotal() {
 }
 static int gencount = 0;
 static void record(Cloth &cloth) {
-    if (!cloth.validCheck(true)) {
+    if (!cloth.fullValidCheck()) {
         LOG_ERROR("cloth explosion detected. discarding state");
         ++discarded;
         return;

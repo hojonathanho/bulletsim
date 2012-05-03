@@ -9,32 +9,57 @@ namespace fs = boost::filesystem;
 
 struct ClothViewerConfig : Config {
     static string path;
+    static string gzip;
     ClothViewerConfig() : Config() {
         params.push_back(new Parameter<string>("path", &path, "cloth state path (either a file or a directory)"));
+        params.push_back(new Parameter<string>("gzip", &gzip, "path to gzip to decompress input files"));
     }
 };
 string ClothViewerConfig::path = "";
+string ClothViewerConfig::gzip = "/bin/gzip";
 
 class CustomScene : public ClothScene {
-    vector<string> files;
+    vector<fs::path> files;
     int currpos;
 
 public:
-    void displayCloth(const string &filename) {
+    void displayCloth(const fs::path &filename) {
         LOG_INFO("loading " << filename);
+
+        bool usingTempPath = false;
+        fs::path tmpPath, tmpDecompressed;
+        // decompress if needed
+        if (filename.extension() == ".gz") {
+            // copy to /tmp first
+            usingTempPath = true;
+            tmpDecompressed = fs::temp_directory_path() / fs::unique_path();
+            tmpPath = tmpDecompressed; tmpPath.replace_extension(".gz");
+            fs::copy_file(filename, tmpPath);
+
+            // run gunzip
+            stringstream ss;
+            ss << '\'' << ClothViewerConfig::gzip << "' -d " << tmpPath;
+            string cmd = ss.str();
+            LOG_INFO("decompressing: executing " << cmd);
+            system(cmd.c_str());
+        }
+
         if (cloth) {
             env->remove(cloth);
             cloth.reset();
         }
-        try {
-            cloth = Cloth::createFromFile(env->bullet->softBodyWorldInfo, filename.c_str());
-            if (cloth->checkExplosion()) {
-                LOG_ERROR("cloth exploded");
-            }
-        } catch (...) {
-            LOG_ERROR("could not load " << filename);
+        cloth = Cloth::createFromFile(env->bullet->softBodyWorldInfo,
+                usingTempPath ? tmpDecompressed.string() : filename.string());
+        if (!cloth->fullValidCheck()) {
+            LOG_ERROR("cloth exploded");
+            goto exit;
         }
         env->add(cloth);
+
+exit:
+        // remove temporary file if needed
+        if (usingTempPath)
+            fs::remove(tmpDecompressed);
     }
 
     void nextCloth(int d) {
@@ -56,7 +81,7 @@ public:
             fs::directory_iterator end_iter;
             for (fs::directory_iterator dir_itr(p); dir_itr != end_iter; ++dir_itr)
                 if ( fs::is_regular_file( dir_itr->status() ) )
-                    files.push_back(dir_itr->path().string());
+                    files.push_back(dir_itr->path());
             sort(files.begin(), files.end());
         } else {
             files.push_back(p.string());

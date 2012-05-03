@@ -56,6 +56,7 @@ public:
 
     // check for nan/inf in the soft body state
     bool validCheck(bool nodesOnly=true) const;
+    bool fullValidCheck() const { return validCheck(false); }
 
 private:
     AnchorHandle nextAnchorHandle;

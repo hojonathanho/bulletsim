@@ -43,7 +43,7 @@ void Cloth::initAccel() {
 
 void Cloth::updateAccel() {
     // do a validity check of node positions
-    if (!validCheck(false)) {
+    if (!validCheck()) {
         LOG_ERROR("cloth explosion detected!");
         return;
     }
