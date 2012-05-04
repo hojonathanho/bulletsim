@@ -36,6 +36,18 @@ public:
 };
 
 
+class RopePreprocessor2 {
+public:
+  
+  Eigen::MatrixXf m_cornersWorld;
+  Eigen::Affine3f m_camToWorld;
+  
+  RopePreprocessor2();
+  ColorCloudPtr extractRopePoints(ColorCloudPtr cloud);
+
+};
+
+
 /*
 
 class TowelGrabAndProc : public CloudGrabber {

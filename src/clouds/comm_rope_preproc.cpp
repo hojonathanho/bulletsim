@@ -31,11 +31,10 @@ int main(int argc, char* argv[]) {
   FileSubscriber cloudSub("kinect","pcd");
   FilePublisher cloudPub("rope_pts","pcd");
 
-  RopePreprocessor tp;
+  RopePreprocessor2 tp;
 
   while (true) { 
     bool gotOne = cloudSub.recv(inputCloudMsg);
-    cout << "GOTIT" << gotOne << endl;
     if (!gotOne) break;
 
     ColorCloudPtr outputCloud = tp.extractRopePoints(inputCloudMsg.m_data);

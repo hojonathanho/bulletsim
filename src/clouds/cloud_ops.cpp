@@ -218,7 +218,6 @@ ColorCloudPtr maskCloud(const ColorCloudPtr in, const cv::Mat& mask) {
   assert(mask.elemSize() == 1);
   assert(mask.rows == in->height);
   assert(mask.cols == in->width);
-  assert(in->isOrganized());
 
   boost::shared_ptr< vector<int> > indicesPtr(new vector<int>());
 
@@ -261,4 +260,26 @@ void labelCloud(ColorCloudPtr in, const cv::Mat& labels) {
   MatrixXi uv = xyz2uv(toEigenMatrix(in));
   for (int i=0; i < in->size(); i++)
     in->points[i]._unused = labels.at<uint8_t>(uv(i,0), uv(i,1));
+}
+
+#include <opencv2/highgui/highgui.hpp>
+ColorCloudPtr hueFilter(const ColorCloudPtr in, uint8_t minHue, uint8_t maxHue, uint8_t minSat) {
+  MatrixXu bgr = toBGR(in);
+  int nPts = in->size();
+  cv::Mat cvmat(in->height,in->width, CV_8UC3, bgr.data());
+  cv::cvtColor(cvmat, cvmat, CV_BGR2HSV);
+  vector<cv::Mat> hsvChannels;
+  cv::split(cvmat, hsvChannels);
+
+  cv::Mat& h = hsvChannels[0];
+  cv::Mat& s = hsvChannels[1];
+  cv::Mat& l = hsvChannels[2];
+  cv::Mat hueMask = (minHue < maxHue) ?
+    (h > minHue) & (h < maxHue) :
+    (h > minHue) | (h < maxHue);
+  cv::Mat satMask = (s > minSat);
+  cv::Mat lumMask = (l > 100);
+  cv::Mat mask = hueMask & satMask;
+  //cv::imwrite("/tmp/blah.bmp", mask);
+  return maskCloud(in, hueMask & satMask & lumMask);
 }
