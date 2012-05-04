@@ -93,6 +93,8 @@ void Tracker2::runOnline() {
 }
 
 void Tracker2::runOffline() {  
+  m_scene->idle(true);
+  cout << "idling..." << endl;
   for (int t=0; ; t++) {
     cout << "t=" << t << endl;
     int iter=0;
@@ -100,10 +102,10 @@ void Tracker2::runOffline() {
     ENSURE(m_multisub->recvAll());
 
     beforeIterations();
-    cout << "iter: ";
     do {
       doIteration();
-      cout << iter++ << " ";
+      cout << "iteration" << iter << endl;
+      iter++;
     }
     while (iter < TrackingConfig::nIter);
     cout << endl;
