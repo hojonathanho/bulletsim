@@ -20,7 +20,6 @@ add_library(simulation
     config_viewer.cpp
     bullet_io.cpp
     fake_gripper.cpp
-    logging.cpp
 )
 
 target_link_libraries(simulation

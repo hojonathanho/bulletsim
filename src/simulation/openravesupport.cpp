@@ -4,6 +4,7 @@
 #include "convexdecomp.h"
 #include "utils/config.h"
 #include "bullet_io.h"
+#include "utils/logging.h"
 
 using namespace OpenRAVE;
 using namespace std;
@@ -21,7 +22,7 @@ RaveInstance::RaveInstance() {
 	isRoot = true;
 	RaveInitialize(true);
 	env = RaveCreateEnvironment();
-	if (GeneralConfig::verbose)
+	if (GeneralConfig::verbose  <= log4cplus::DEBUG_LOG_LEVEL)
 		RaveSetDebugLevel(Level_Debug);
 }
 

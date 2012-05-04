@@ -32,7 +32,7 @@ struct TrackingConfig : Config {
     params.push_back(new Parameter<float>("sigB", &sigB, "variance on observed positions"));
     params.push_back(new Parameter<float>("impulseSize", &impulseSize, "scaling from log-lik gradient to impulse"));
     params.push_back(new Parameter<float>("cutoff", &cutoff, "smallest correspondence value"));
-    params.push_back(new Parameter<float>("outlierParam", &cutoff, "p(outlier) * density"));
+    params.push_back(new Parameter<float>("outlierParam", &outlierParam, "p(outlier) * density"));
     params.push_back(new Parameter<int>("nSamples", &nSamples, "smallest correspondence value"));
     params.push_back(new Parameter<int>("stepsPerM",&stepsPerM,"number of physics steps in M step of algorithm"));
     params.push_back(new Parameter<float>("kp",&kp,"kp"));

@@ -123,7 +123,7 @@ struct SingleHypRopeTracker : public Tracker2 {
 };
 
 struct DefaultSingleHypRopeTracker : public SingleHypRopeTracker {
-  RopeSubs2* m_multisub;
+  RopeSubs* m_multisub;
   DefaultSingleHypRopeTracker();
   virtual void beforeIterations();
 };

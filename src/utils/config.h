@@ -43,10 +43,10 @@ public:
 };
 
 struct GeneralConfig : Config {
-  static bool verbose;
+  static int verbose;
   static float scale;
   GeneralConfig() : Config() {
-    params.push_back(new Parameter<bool>("verbose", &verbose, "verbose switch")); 
+    params.push_back(new Parameter<int>("verbose", &verbose, "verbosity: 0: debug, 10000:info, 20000: warn, 30000: error")); 
     params.push_back(new Parameter<float>("scale", &scale, "scale factor applied to distances that are assumed to be in meters")); 
   }
 };

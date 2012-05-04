@@ -1,4 +1,4 @@
-#include "simulation/logging.h"
+#include "utils/logging.h"
 
 int main(int argc, char *argv[]) {
     LoggingInit();

@@ -1,4 +1,10 @@
 #include "config.h"
+#include "utils/logging.h"
+#include <log4cplus/logger.h>
+
+
+
+
 using namespace std;
 
 void Parser::read(int argc, char* argv[]) {
@@ -22,8 +28,10 @@ param->addToBoost(od);
   }
   po::notify(vm);    
 
+  LoggingInit();
+  log4cplus::Logger::getRoot().setLogLevel(GeneralConfig::verbose);
 }
 
 
-bool GeneralConfig::verbose = false;
+int GeneralConfig::verbose = log4cplus::WARN_LOG_LEVEL;
 float GeneralConfig::scale = 1.;

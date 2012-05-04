@@ -12,8 +12,8 @@ using namespace Eigen;
 #include "perception/make_bodies.h"
 #include "utils/vector_io.h"
 #include "perception/apply_impulses.h"
-
-static const float LABEL_MULTIPLIER = 100; //just so things work with old rope_pts data
+#include "utils/logging.h"
+static const float LABEL_MULTIPLIER = 0; //just so things work with old rope_pts data
 
 
 static osg::Vec4f hyp_colors[6] = {osg::Vec4f(1,0,0,.3),
@@ -98,6 +98,7 @@ void TrackedRope::applyEvidence(const SparseArray& corr, const MatrixXf& obsPts)
   vector<btVector3> ropePos = getNodes(m_sim);
   vector<btVector3> ropeVel = getNodeVels(m_sim);
   vector<btVector3> impulses = calcImpulsesDamped(ropePos, ropeVel, toBulletVectors(obsPts), corr, masses, TrackingConfig::kp, TrackingConfig::kd);
+  //m_sigs = 1*VectorXf::Ones(ropePos.size());
   m_sigs = calcSigs(corr, toEigenMatrix(ropePos), obsPts, .1*METERS, 1);
   applyImpulses(impulses, m_sim);  
 }
@@ -170,11 +171,10 @@ void SingleHypRopeTracker::doIteration() {
   VectorXf pVis = calcVisibility(m_hyp->m_tracked->m_sim->children, m_scene->env->bullet->dynamicsWorld, m_CT->worldFromCamUnscaled.getOrigin()*METERS, TrackingConfig::sigA*METERS, TrackingConfig::nSamples);
 
   Eigen::MatrixXf corrEigen = calcCorrProb(tr->featsFromSim(), tr->m_sigs, m_obsFeats, pVis, TrackingConfig::outlierParam, m_hyp->m_loglik);
+  //cout << corrEigen << endl;
+  cout << "cut " << TrackingConfig::cutoff << endl;
   SparseArray corr = toSparseArray(corrEigen, TrackingConfig::cutoff);
   tr->applyEvidence(corr, toEigenMatrix(m_obsCloud));
-  
-  
-    
   vector<btVector3> obsPts = toBulletVectors(m_obsCloud);
   vector<btVector3> estPts = getNodes(tr->m_sim);
   Eigen::VectorXf inlierFrac = corrEigen.colwise().sum();
@@ -192,7 +192,7 @@ void SingleHypRopeTracker::afterIterations() {
 }
 
 DefaultSingleHypRopeTracker::DefaultSingleHypRopeTracker() : SingleHypRopeTracker() {
-  m_multisub   = new RopeSubs2();
+  m_multisub   = new RopeSubs();
   Tracker2::m_multisub = m_multisub;
   SingleHypRopeTracker::m_multisub = m_multisub;
 
@@ -206,9 +206,9 @@ DefaultSingleHypRopeTracker::DefaultSingleHypRopeTracker() : SingleHypRopeTracke
 void DefaultSingleHypRopeTracker::beforeIterations() {
   SingleHypRopeTracker::beforeIterations();
   ColorCloudPtr cloudCam  = m_multisub->m_kinectMsg.m_data;
-  cv::Mat labels = m_multisub->m_labelMsg.m_data;
-  m_ropeMask = labels < 2;
-  m_depthImage = getDepthImage(cloudCam);
+  //cv::Mat labels = m_multisub->m_labelMsg.m_data;
+  //m_ropeMask = labels < 2;
+  //m_depthImage = getDepthImage(cloudCam);
 
 }
 
@@ -446,7 +446,7 @@ void MultiHypRobotAndRopeTracker::beforeIterations() {
   
   MultiHypRopeTracker::beforeIterations();
   
-}
+p}
 void MultiHypRobotAndRopeTracker::afterIterations() {
   MultiHypRopeTracker::afterIterations();
 }
