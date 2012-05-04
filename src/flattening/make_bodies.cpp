@@ -5,6 +5,8 @@
 #include <boost/scoped_array.hpp>
 #include <BulletSoftBody/btSoftBodyHelpers.h>
 
+#include "simulation/logging.h"
+
 using boost::shared_ptr;
 
 BulletObject::Ptr makeTable(const vector<btVector3>& corners, float thickness) {
@@ -95,7 +97,7 @@ btSoftBody *makeSelfCollidingTowel(const btVector3& center, btScalar lenx, btSca
         psb->m_clusters[i]->m_ndamping = 1;
     }*/
 
-    cout << "number of clusters: " << psb->m_clusters.size() << endl;
+    LOG_TRACE("number of clusters: " << psb->m_clusters.size());
 
     return psb;
 }

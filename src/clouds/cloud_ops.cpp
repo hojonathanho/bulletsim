@@ -92,7 +92,7 @@ ColorCloudPtr findConvexHull(ColorCloudPtr in, std::vector<pcl::Vertices>& polyg
   ColorCloudPtr out(new ColorCloud());
   pcl::ConvexHull<PointT> chull;
   chull.setInputCloud (in);
-  chull.setDimension(2);
+//  chull.setDimension(2);
   chull.reconstruct (*out, polygons);
   return out;
 }
@@ -146,7 +146,7 @@ VectorXf getCircle(ColorCloudPtr cloud) {
   ColorCloudPtr cloud_hull (new ColorCloud());
   pcl::ConvexHull<pcl::PointXYZRGBA> chull;
   chull.setInputCloud (cloud);
-  chull.setDimension(2);
+//  chull.setDimension(2);
   chull.reconstruct (*cloud_hull);
 
   boost::shared_ptr<pcl::SampleConsensusModelCircle2D<pcl::PointXYZRGBA> > model(new pcl::SampleConsensusModelCircle2D<pcl::PointXYZRGBA>(cloud_hull));

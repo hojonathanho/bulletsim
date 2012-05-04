@@ -32,8 +32,8 @@ public:
   osg::ref_ptr<osg::Camera> m_cam;
   osgViewer::Viewer m_viewer;
   osg::ref_ptr<KinectCallback> m_cb;
-  FilePublisher m_pub;
-  FakeKinect(OSGInstance::Ptr, Eigen::Affine3f worldFromCam);
+  boost::shared_ptr<FilePublisher> m_pub;
+  FakeKinect(OSGInstance::Ptr, Eigen::Affine3f worldFromCam, bool usePub=true);
   void sendMessage();
-
+  ColorCloudPtr snapshot();
 };

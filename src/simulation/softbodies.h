@@ -28,8 +28,11 @@ public:
     // serialization (TODO: serialize anchors also?)
     // for saving and loading softbodies (text format)
     static Ptr createFromFile(btSoftBodyWorldInfo& worldInfo, const char* fileName);
+    static Ptr createFromFile(btSoftBodyWorldInfo& worldInfo, istream &s);
     static void saveToFile(btSoftBody *psb, const char *fileName);
-    void saveToFile(const char *fileName) const;
+    static void saveToFile(btSoftBody *psb, ostream &s);
+    virtual void saveToFile(const char *fileName) const;
+    virtual void saveToFile(ostream &s) const;
 
     void setColor(float,float,float,float);
 
@@ -48,6 +51,14 @@ public:
     void init();
     void preDraw();
     void destroy();
+
+    osg::Node *getOSGNode() const { return transform.get(); }
+
+    // utility functions
+
+    // check for nan/inf in the soft body state
+    bool validCheck(bool nodesOnly=true) const;
+    bool fullValidCheck() const { return validCheck(false); }
 
 private:
     AnchorHandle nextAnchorHandle;

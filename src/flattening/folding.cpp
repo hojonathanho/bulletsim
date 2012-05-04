@@ -5,13 +5,15 @@
 #include "simulation/config_bullet.h"
 #include "simulation/logging.h"
 
+namespace Folding {
+
 int FoldingConfig::foldHalfCircleDivs = 10;
 int FoldingConfig::attractNodesMaxSteps = 50;
 float FoldingConfig::attractNodesMaxAvgErr = 0.1;
 bool FoldingConfig::disableGravityWhenFolding = true;
 
 float FoldingConfig::dropHeight = 0.2;
-float FoldingConfig::dropWaitTime = 4;
+float FoldingConfig::dropWaitTime = 5;
 float FoldingConfig::dropTimestep = 0.03;
 
 static void attractNodesToPositions(Scene &scene, Cloth &c, const vector<btVector3> &pos) {
@@ -39,7 +41,7 @@ static void attractNodesToPositions(Scene &scene, Cloth &c, const vector<btVecto
         avgerr /= pos.size();
     }
     if (step >= MAXSTEPS)
-        LOG_DEBUG("hit step limit");
+        LOG_TRACE("hit step limit");
 }
 
 struct Rotspec {
@@ -48,7 +50,7 @@ struct Rotspec {
     btVector3 centerpt;
 };
 
-void Folding::foldClothAlongLine(Scene &scene, Cloth &c, const btVector3 &a, const btVector3 &b) {
+void foldClothAlongLine(Scene &scene, Cloth &c, const btVector3 &a, const btVector3 &b) {
     if (FoldingConfig::disableGravityWhenFolding)
         scene.bullet->setGravity(btVector3(0, 0, 0));
 
@@ -91,7 +93,17 @@ void Folding::foldClothAlongLine(Scene &scene, Cloth &c, const btVector3 &a, con
         scene.bullet->setGravity(BulletConfig::gravity);
 }
 
-void Folding::pickUpAndDrop(Scene &scene, Cloth &cloth) {
+void doRandomFolds(Scene &scene, Cloth &cloth, int nfolds) {
+    for (int i = 0; i < nfolds; ++i) {
+        int idx1 = rand() % cloth.psb()->m_nodes.size();
+        const btVector3 &p1 = cloth.psb()->m_nodes[idx1].m_x;
+        int idx2 = rand() % cloth.psb()->m_nodes.size();
+        const btVector3 &p2 = cloth.psb()->m_nodes[idx2].m_x;
+        Folding::foldClothAlongLine(scene, cloth, p1, p2);
+    }
+}
+
+void pickUpAndDrop(Scene &scene, Cloth &cloth) {
     // temporarily decrease damping
     btScalar oldkDF = cloth.psb()->m_cfg.kDF;
     cloth.psb()->m_cfg.kDF = 0;
@@ -109,5 +121,7 @@ void Folding::pickUpAndDrop(Scene &scene, Cloth &cloth) {
 
     cloth.translateCenterToPt(oldcenter);
     cloth.psb()->m_cfg.kDF = oldkDF;
-    LOG_DEBUG("done dropping");
+    LOG_TRACE("done dropping");
 }
+
+} // end namespace Folding

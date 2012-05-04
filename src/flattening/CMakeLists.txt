@@ -26,15 +26,28 @@ add_library(clothmanip
     genmanip.cpp
     config_flattening.cpp
     folding.cpp
+    clothscene.cpp
+    storage.cpp
 )
 set_source_files_properties(search.cpp PROPERTIES COMPILE_FLAGS -fopenmp)
 set_source_files_properties(search_general.cpp PROPERTIES COMPILE_FLAGS -fopenmp)
 target_link_libraries(clothmanip
     simulation
+    perception
+    comm
     ${WM_LIBRARIES}
     ${PCL_LIBRARIES}
     gomp
 )
+
+add_executable(gen_rand_states gen_rand_states.cpp)
+target_link_libraries(gen_rand_states clothmanip)
+
+add_executable(clothviewer clothviewer.cpp)
+target_link_libraries(clothviewer clothmanip)
+
+add_executable(gencloud gencloud.cpp ../perception/fake_kinect.cpp)
+target_link_libraries(gencloud clothmanip GLU)
 
 add_executable(demo_flatten demo_flatten.cpp)
 target_link_libraries(demo_flatten clothmanip)
