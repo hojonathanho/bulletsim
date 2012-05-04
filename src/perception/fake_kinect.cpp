@@ -120,7 +120,6 @@ KinectCallback::KinectCallback( osg::Camera* camera ) {
   const osg::Viewport* viewport    = camera->getViewport();
   osg::Viewport::value_type width  = viewport->width();
   osg::Viewport::value_type height = viewport->height();
-  cout << "viewport w/h: " << width << " " << height << endl;
   depthbufferimg = new osg::Image;
   depthbufferimg->allocateImage(width, height, 1, GL_DEPTH_COMPONENT, GL_FLOAT);
   colorbufferimg = new osg::Image;
@@ -133,9 +132,7 @@ KinectCallback::KinectCallback( osg::Camera* camera ) {
 void KinectCallback::operator () ( osg::RenderInfo& info ) const  {
   if (!m_done) {
     osg::Camera* camera = info.getCurrentCamera();
-    double start = timeOfDay();
     ColorCloudPtr cloud = computePointCloud(camera, depthbufferimg.get(), colorbufferimg.get());
-    cout << timeOfDay() - start << endl;
 
     KinectCallback* this2 = const_cast<KinectCallback*>(this);
     this2->m_done = true;
