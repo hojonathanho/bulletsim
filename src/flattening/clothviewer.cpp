@@ -3,6 +3,7 @@
 
 #include "clothscene.h"
 #include "cloth.h"
+#include "storage.h"
 
 #include <boost/filesystem.hpp>
 namespace fs = boost::filesystem;
@@ -25,41 +26,16 @@ class CustomScene : public ClothScene {
 public:
     void displayCloth(const fs::path &filename) {
         LOG_INFO("loading " << filename);
-
-        bool usingTempPath = false;
-        fs::path tmpPath, tmpDecompressed;
-        // decompress if needed
-        if (filename.extension() == ".gz") {
-            // copy to /tmp first
-            usingTempPath = true;
-            tmpDecompressed = fs::temp_directory_path() / fs::unique_path();
-            tmpPath = tmpDecompressed; tmpPath.replace_extension(".gz");
-            fs::copy_file(filename, tmpPath);
-
-            // run gunzip
-            stringstream ss;
-            ss << '\'' << ClothViewerConfig::gzip << "' -d " << tmpPath;
-            string cmd = ss.str();
-            LOG_INFO("decompressing: executing " << cmd);
-            system(cmd.c_str());
-        }
-
         if (cloth) {
             env->remove(cloth);
             cloth.reset();
         }
-        cloth = Cloth::createFromFile(env->bullet->softBodyWorldInfo,
-                usingTempPath ? tmpDecompressed.string() : filename.string());
+        cloth = Storage::loadCloth(filename, env->bullet->softBodyWorldInfo);
         if (!cloth->fullValidCheck()) {
             LOG_ERROR("cloth exploded");
-            goto exit;
+            return;
         }
         env->add(cloth);
-
-exit:
-        // remove temporary file if needed
-        if (usingTempPath)
-            fs::remove(tmpDecompressed);
     }
 
     void nextCloth(int d) {

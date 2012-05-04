@@ -72,6 +72,8 @@ public:
     virtual void prePhysics() { }
     virtual void preDraw() { }
     virtual void destroy() { }
+
+    virtual osg::Node *getOSGNode() const { return NULL; }
 };
 
 struct Environment {

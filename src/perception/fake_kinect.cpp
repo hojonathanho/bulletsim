@@ -148,11 +148,12 @@ void KinectCallback::operator () ( osg::RenderInfo& info ) const  {
 //#include <osgGA/TrackballManipulator>
 osg::Vec3f toOSGVector(Eigen::Vector3f v) { return osg::Vec3f(v.x(), v.y(), v.z());}
 
-FakeKinect::FakeKinect(OSGInstance::Ptr osg, Affine3f worldFromCam) : m_pub("kinect", "pcd") {
+FakeKinect::FakeKinect(OSGInstance::Ptr osg, Affine3f worldFromCam, bool usePub) {
+  if (usePub) m_pub.reset(new FilePublisher("kinect", "pcd"));
   m_viewer.setUpViewInWindow(0, 0, 640, 480);
   m_viewer.setSceneData(osg->root.get());
   m_viewer.setThreadingModel(osgViewer::Viewer::SingleThreaded);
-  m_cam = m_viewer.getCamera(); 
+  m_cam = m_viewer.getCamera();
 
   m_cam->setProjectionMatrixAsPerspective(49,640./480., .2*METERS, 10*METERS);
 
@@ -171,9 +172,17 @@ FakeKinect::FakeKinect(OSGInstance::Ptr osg, Affine3f worldFromCam) : m_pub("kin
 }
 
 void FakeKinect::sendMessage() {
+  if (!m_pub) return;
   m_cb->m_done = false;
   m_viewer.frame();
   ENSURE(m_cb->m_cloud != NULL);
   CloudMessage msg(m_cb->m_cloud);
-  m_pub.send(msg);
+  m_pub->send(msg);
+}
+
+ColorCloudPtr FakeKinect::snapshot() {
+  m_cb->m_done = false;
+  m_viewer.frame();
+  ENSURE(m_cb->m_cloud != NULL);
+  return m_cb->m_cloud;
 }

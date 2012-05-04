@@ -52,6 +52,8 @@ public:
     void preDraw();
     void destroy();
 
+    osg::Node *getOSGNode() const { return transform.get(); }
+
     // utility functions
 
     // check for nan/inf in the soft body state
