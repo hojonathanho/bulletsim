@@ -49,6 +49,13 @@ target_link_libraries(clothviewer clothmanip)
 add_executable(gencloud gencloud.cpp ../perception/fake_kinect.cpp)
 target_link_libraries(gencloud clothmanip GLU)
 
+file(COPY batch_genclouds.py
+    FILE_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE
+    DESTINATION ${EXECUTABLE_OUTPUT_PATH})
+
+add_executable(match_obs match_obs.cpp)
+target_link_libraries(match_obs clothmanip)
+
 add_executable(demo_flatten demo_flatten.cpp)
 target_link_libraries(demo_flatten clothmanip)
 

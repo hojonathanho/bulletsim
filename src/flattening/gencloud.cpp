@@ -93,9 +93,7 @@ static btTransform calcCamTrans(const btVector3 &target, const btVector3 &camoff
     btVector3 v1 = camoffset - btVector3(0, 0, camoffset.z());
     btVector3 v2 = btVector3(1, 0, 0);
     btVector3 v3 = v1.cross(v2);
-    btScalar zangle;
-    if (btFuzzyZero(v3.length())) zangle = 0;
-    else zangle = v1.angle(v2);
+    btScalar zangle = btFuzzyZero(v3.length()) ? 0 : v1.angle(v2);
     btQuaternion zrot(btVector3(0, 0, v1.cross(v2).z() < 0 ? 1 : -1), zangle);
     btQuaternion yrot(btVector3(0, 1, 0), camoffset.angle(btVector3(0, 0, 1)));
     btQuaternion xrot(btVector3(1, 0, 0), M_PI);

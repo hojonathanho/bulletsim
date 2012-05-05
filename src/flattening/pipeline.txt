@@ -1,0 +1,15 @@
+Description of the pipeline:
+
+0. Define a data root directory
+export ROOT=/media/1tb/jonathan/randclothstates
+mkdir $ROOT/states
+mkdir $ROOT/clouds
+
+1. Generate random cloth states
+gen_rand_states --gzip=/bin/gzip --outputPath=$ROOT/states
+
+2. Generate point clouds for the states
+export GENCLOUD_PATH=/home/jonathan/build/bulletsim/jonathan/relwithdebinfo/bin/gencloud
+batch_genclouds.py --gencloud=$GENCLOUD_PATH $ROOT
+(this will populate $ROOT/clouds with pcd files corresponding to states in $ROOT/states)
+

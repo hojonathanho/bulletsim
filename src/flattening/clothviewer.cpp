@@ -25,7 +25,6 @@ class CustomScene : public ClothScene {
 
 public:
     void displayCloth(const fs::path &filename) {
-        LOG_INFO("loading " << filename);
         if (cloth) {
             env->remove(cloth);
             cloth.reset();
