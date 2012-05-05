@@ -22,7 +22,7 @@ struct GenCloudConfig : Config {
 string GenCloudConfig::in = "";
 string GenCloudConfig::out = "";
 float GenCloudConfig::camDistFromCloth = 0.5;
-float GenCloudConfig::voxelSize = 0.001; // 1 mm
+float GenCloudConfig::voxelSize = 0.01; // 1 cm
 
 class CloudGenerator {
     Scene &scene; Cloth &cloth;
@@ -116,6 +116,7 @@ public:
     void run() {
         setupScene();
 
+        // load the cloth
         if (!fs::exists(GenCloudConfig::in)) {
             LOG_ERROR("input " << GenCloudConfig::in << " does not exist");
             exit(1);
@@ -127,26 +128,23 @@ public:
         }
         env->add(cloth);
 
+        step(0); // make sure all pre-draws are called
+
         // remove everything from osg except the cloth
         for (int i = env->osg->root->getNumChildren() - 1; i >= 0; --i)
             if (env->osg->root->getChild(i) != cloth->getOSGNode())
                 env->osg->root->removeChild(i);
 
         CloudGenerator g(*this, *cloth);
-
         btVector3 clothcenter = cloth->centerPoint();
-
         // generate views from the sides
         genPerspectives(g, clothcenter, M_PI/3);
         genPerspectives(g, clothcenter, M_PI/10);
-
         // generate view from the top
         btTransform T = calcCamTrans(clothcenter,
                 btVector3(0, 0, 1),
                 GenCloudConfig::camDistFromCloth*METERS);
         g.addPerspective(T);
-
-        startViewer();
         g.genCloud(GenCloudConfig::out);
     };
 };
