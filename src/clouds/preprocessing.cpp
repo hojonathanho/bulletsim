@@ -65,7 +65,6 @@ VectorXb getPointsOnTable(ColorCloudPtr cloudCam, const Affine3f& camToWorld, co
     * (ptsWorld.col(2) >= minZ)
     * (ptsWorld.col(2) <= maxZ);
         
-  cout << out.sum() << endl;
   return out;
 }
 
@@ -141,9 +140,31 @@ ColorCloudPtr RopePreprocessor::extractRopePoints(ColorCloudPtr cloud) {
   ColorCloudPtr cloudOnTable = maskCloud(cloud, mask);
   VectorXi labels = getLabels(cloudOnTable, m_coeffs, m_intercepts);
   for (int i=0; i < labels.size(); ++i) cloudOnTable->points[i].r = labels(i)+1;
-  ColorCloudPtr towelCloud = maskCloud(cloudOnTable, labels.array() <= 1);
+  ColorCloudPtr towelCloud = maskCloud(cloudOnTable, labels.array() == 0);
   ColorCloudPtr downedTowelCloud = removeOutliers(downsampleCloud(towelCloud,.02),1.5);
   return downedTowelCloud;
+}  
+
+RopePreprocessor2::RopePreprocessor2() {
+
+  vector<Vector3f> cornersCam = toEigenVectors(floatMatFromFile(onceFile("table_corners.txt").string()));
+  m_camToWorld = getCamToWorldFromTable(cornersCam);
+        
+  MatrixXf cornersCam1(4,3);
+  for (int i=0; i < 4; i++) cornersCam1.row(i) = cornersCam[i];
+
+  Matrix3f rotation; rotation = m_camToWorld.linear();
+  m_cornersWorld = cornersCam1 * rotation.transpose();
+}
+  
+  
+ColorCloudPtr RopePreprocessor2::extractRopePoints(ColorCloudPtr cloud) {
+  VectorXb mask = getPointsOnTable(cloud, m_camToWorld, m_cornersWorld,.01,1);
+  ColorCloudPtr cloudOnTable = maskCloud(cloud, mask);
+
+  ColorCloudPtr redCloud =  hueFilter(cloudOnTable, 170, 10, 220);
+  ColorCloudPtr downedRopeCloud = downsampleCloud(removeOutliers(redCloud,1),.01);
+  return downedRopeCloud;
 }  
   
 

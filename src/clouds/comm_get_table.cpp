@@ -15,12 +15,15 @@ int main(int argc, char* argv[]) {
 
   string infile="";
   int skip=0;
+  bool view=false;
 
   po::options_description opts("Allowed options");
   opts.add_options()
     ("help,h", "produce help message")
     ("infile,i", po::value< string >(&infile),"input file")
-    ("skip,s", po::value< int >(&skip),"skip");
+    ("skip,s", po::value< int >(&skip),"skip")
+    ("view,v", po::value< bool >(&view),"view")
+    ;
   po::variables_map vm;        
   po::store(po::command_line_parser(argc, argv)
 	    .options(opts)
@@ -50,12 +53,15 @@ int main(int argc, char* argv[]) {
   }
   vector<Vector3f> corners = getTableCornersRansac(cloud);
 
-  PointCloud<PointXYZ>::Ptr rectCloud(new PointCloud<PointXYZ>);
-  BOOST_FOREACH(Vector3f w, corners) rectCloud->push_back(PointXYZ(w[0],w[1],w[2]));
-  pcl::visualization::PCLVisualizer viewer ("Simple Cloud Viewer");
-  viewer.addPointCloud (cloud);
-  viewer.addPolygon<PointXYZ>(rectCloud,0,255,0);
-  viewer.spin();
+
+  if (view) {
+    PointCloud<PointXYZ>::Ptr rectCloud(new PointCloud<PointXYZ>);
+    BOOST_FOREACH(Vector3f w, corners) rectCloud->push_back(PointXYZ(w[0],w[1],w[2]));
+    pcl::visualization::PCLVisualizer viewer ("Simple Cloud Viewer");
+    viewer.addPointCloud (cloud);
+    viewer.addPolygon<PointXYZ>(rectCloud,0,255,0);
+    viewer.spin();
+  }
 
   path outPath = onceFile("table_corners.txt");
   cout << "writing to " << outPath << endl;

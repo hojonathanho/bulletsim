@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <boost/lexical_cast.hpp>
 #include <boost/foreach.hpp>
+#include "utils/logging.h"
 using namespace std;
 
 path DATA_ROOT = "/dont/forget/to/set";
@@ -247,7 +248,7 @@ bool FileSubscriber::recv(Message& message, bool enableWait)  {
     m_names.step();
       }
   if (!gotIt) {
-    cout << "didn't get " << namePair.second << endl;
+    LOG_DEBUG("didn't get " << namePair.second);
   }
   return gotIt;
 }
