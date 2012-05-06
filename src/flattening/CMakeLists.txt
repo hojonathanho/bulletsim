@@ -46,6 +46,9 @@ target_link_libraries(gen_rand_states clothmanip)
 add_executable(clothviewer clothviewer.cpp)
 target_link_libraries(clothviewer clothmanip)
 
+add_executable(check_cloth_integrity check_cloth_integrity.cpp)
+target_link_libraries(check_cloth_integrity clothmanip)
+
 add_executable(gencloud gencloud.cpp ../perception/fake_kinect.cpp)
 target_link_libraries(gencloud clothmanip GLU)
 

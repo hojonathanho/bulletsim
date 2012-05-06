@@ -8,6 +8,13 @@ mkdir $ROOT/clouds
 1. Generate random cloth states
 gen_rand_states --gzip=/bin/gzip --outputPath=$ROOT/states
 
+1. a. Check if the cloth states have any NaNs
+(gen_rand_states should already do this, but just in case)
+cd $ROOT/states
+mkdir bad
+for i in *.cloth.gz; do if (gunzip -c $i | grep nan &>/dev/null); then echo $i; mv $i bad; fi; done
+for i in *.cloth.gz; do if (gunzip -c $i | grep inf &>/dev/null); then echo $i; mv $i bad; fi; done
+
 2. Generate point clouds for the states
 export GENCLOUD_PATH=/home/jonathan/build/bulletsim/jonathan/relwithdebinfo/bin/gencloud
 batch_genclouds.py --gencloud=$GENCLOUD_PATH $ROOT

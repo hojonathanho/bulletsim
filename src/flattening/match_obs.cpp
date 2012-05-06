@@ -23,7 +23,7 @@ struct MatchObsConfig : Config {
 };
 string MatchObsConfig::root = "";
 string MatchObsConfig::inputcloud = "";
-float MatchObsConfig::downsampleSize = 0.01; // 1 cm
+float MatchObsConfig::downsampleSize = -1; // no downsampling
 
 int scount = 0;
 static float calcCloudSimilarity(ColorCloudPtr input, ColorCloudPtr target) {
@@ -43,15 +43,20 @@ static void run(const vector<fs::path> &dbcloudpaths, const fs::path &inputcloud
 
     // calculate similarities between dbclouds and the input cloud
     vector<pair<float, Storage::ID> > similarities;
+    similarities.resize(dbcloudpaths.size());
+
+    #pragma omp for
     for (int i = 0; i < dbcloudpaths.size(); ++i) {
         ColorCloudPtr dbcloud = readPCD(dbcloudpaths[i].string());
-        if (MatchObsConfig::downsampleSize > 0)
+        if (MatchObsConfig::downsampleSize > 0) {
+            LOG_TRACE("downsampling");
             dbcloud = downsampleCloud(dbcloud, MatchObsConfig::downsampleSize*METERS);
+        }
 
         float sim = calcCloudSimilarity(dbcloud, inputcloud);
 
         Storage::ID id = Storage::idFromCloudPath(dbcloudpaths[i].string());
-        similarities.push_back(make_pair(sim, id));
+        similarities[i] = make_pair(sim, id);
     }
 
     sort(similarities.begin(), similarities.end());

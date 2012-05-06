@@ -22,7 +22,8 @@ struct GenCloudConfig : Config {
 string GenCloudConfig::in = "";
 string GenCloudConfig::out = "";
 float GenCloudConfig::camDistFromCloth = 0.5;
-float GenCloudConfig::voxelSize = 0.01; // 1 cm
+//float GenCloudConfig::voxelSize = 0.01; // 1 cm
+float GenCloudConfig::voxelSize = 0.001; // 1 mm
 
 class CloudGenerator {
     Scene &scene; Cloth &cloth;

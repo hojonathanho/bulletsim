@@ -1,4 +1,4 @@
-#include "simulation/logging.h"
+#include "utils/logging.h"
 #include <cstdlib>
 
 #include "clothscene.h"
@@ -77,8 +77,6 @@ public:
 int main(int argc, char *argv[]) {
     SetCommonConfig();
     SceneConfig::enableRobot = false;
-
-    LoggingInit();
 
     Parser parser;
     parser.addGroup(GeneralConfig());
