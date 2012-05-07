@@ -4,6 +4,7 @@
 #include <boost/program_options.hpp>
 #include "get_table2.h"
 #include "comm/comm.h"
+using namespace comm;
 #include "utils/my_assert.h"
 
 using namespace pcl;
@@ -40,11 +41,11 @@ int main(int argc, char* argv[]) {
 
 
 
-  PointCloud<PointXYZRGBA>::Ptr cloud (new PointCloud<PointXYZRGBA>);
+  PointCloud<ColorPoint>::Ptr cloud (new PointCloud<ColorPoint>);
   if (infile.size() == 0)
     infile = Names("kinect","pcd").getCur().first.string();
   cout << "reading " << infile << endl;
-  if (pcl::io::loadPCDFile<pcl::PointXYZRGBA> (infile, *cloud) == -1) {
+  if (pcl::io::loadPCDFile<ColorPoint> (infile, *cloud) == -1) {
     PCL_ERROR(("couldn't read file " + infile + "\n").c_str());
     return -1;
   }
@@ -63,7 +64,7 @@ int main(int argc, char* argv[]) {
     viewer.spin();
   }
 
-  path outPath = onceFile("table_corners.txt");
+  fs::path outPath = onceFile("table_corners.txt");
   cout << "writing to " << outPath << endl;
   ofstream outFile(outPath.string().c_str());
   ENSURE(!outFile.fail());

@@ -1,3 +1,16 @@
+find_package(ROS REQUIRED COMPONENTS
+	roscpp rosconsole
+    cpp_common rostime roscpp_traits
+    roscpp_serialization sensor_msgs geometry_msgs
+    cloud_defs
+)
+
+# pcl_ros:
+#include_directories("/opt/ros/fuerte/stacks/perception_pcl/pcl_ros/include")
+#link_directories("/opt/ros/fuerte/stacks/perception_pcl/pcl_ros/lib")
+
+#include_directories(${PROJECT_BINARY_DIR}/gen/cpp)
+
 include_directories(
     ${PCL_INCLUDE_DIRS}
     ${WM_INCLUDE_DIR}
@@ -12,43 +25,58 @@ link_directories(
   ${WM_LIBRARY_DIR}
 )
 
+
 add_definitions(${PCL_DEFINITIONS})
 
 add_library(clouds geom.cpp get_table.cpp get_table2.cpp plane_finding.cpp utils_pcl.cpp cloud_ops.cpp comm_cv.cpp comm_pcl.cpp utils_cv.cpp preprocessing.cpp)
 target_link_libraries(clouds utils ${PCL_LIBRARIES} ${WM_LIBRARIES} ${OpenCV_LIBS} ${BULLET_LIBS})
 
-add_executable(record_one_pcd record_one_pcd.cpp)
-target_link_libraries(record_one_pcd ${PCL_LIBRARIES} ${Boost_LIBRARIES})
+#add_executable(record_one_pcd record_one_pcd.cpp)
+#target_link_libraries(record_one_pcd ${PCL_LIBRARIES} ${Boost_LIBRARIES})
 
-add_executable(pcd_picker pcd_picker.cpp)
-target_link_libraries(pcd_picker ${PCL_LIBRARIES})
+#add_executable(pcd_picker pcd_picker.cpp)
+#target_link_libraries(pcd_picker ${PCL_LIBRARIES})
 
-add_executable(comm_get_table comm_get_table.cpp)
-target_link_libraries(comm_get_table ${PCL_LIBRARIES} clouds comm boost_program_options)
+#add_executable(comm_get_table comm_get_table.cpp)
+#target_link_libraries(comm_get_table ${PCL_LIBRARIES} clouds comm boost_program_options)
 
-add_executable(comm_write_pcds comm_write_pcds.cpp)
-target_link_libraries(comm_write_pcds clouds ${PCL_LIBRARIES} comm boost_program_options)
+#add_executable(comm_write_pcds comm_write_pcds.cpp)
+#target_link_libraries(comm_write_pcds clouds ${PCL_LIBRARIES} comm boost_program_options)
 
-add_executable(comm_downsample_clouds comm_downsample_clouds.cpp)
-target_link_libraries(comm_downsample_clouds clouds comm ${PCL_LIBRARIES} ${OpenCV_LIBS})
+#add_executable(comm_downsample_clouds comm_downsample_clouds.cpp)
+#target_link_libraries(comm_downsample_clouds clouds comm ${PCL_LIBRARIES} ${OpenCV_LIBS})
 
-add_executable(comm_towel_preproc comm_towel_preproc.cpp)
-target_link_libraries(comm_towel_preproc clouds comm ${PCL_LIBRARIES} ${OpenCV_LIBS})
+#add_executable(comm_towel_preproc comm_towel_preproc.cpp)
+#target_link_libraries(comm_towel_preproc clouds comm ${PCL_LIBRARIES} ${OpenCV_LIBS})
 
-add_executable(comm_rope_preproc comm_rope_preproc.cpp)
-target_link_libraries(comm_rope_preproc clouds comm ${PCL_LIBRARIES} ${OpenCV_LIBS})
+add_executable(ros_towel_preproc ros_towel_preproc.cpp)
+target_link_libraries(ros_towel_preproc clouds comm ${PCL_LIBRARIES} ${OpenCV_LIBS} ${ROS_LIBRARIES})
+
+#add_executable(comm_rope_preproc comm_rope_preproc.cpp)
+#target_link_libraries(comm_rope_preproc clouds comm ${PCL_LIBRARIES} ${OpenCV_LIBS})
 
 add_executable(viz_curves viz_curves.cpp)
 target_link_libraries(viz_curves ${PCL_LIBRARIES} clouds boost_program_options utils)
 
-add_executable(test_utils test_utils.cpp)
-target_link_libraries(test_utils ${PCL_LIBRARIES} clouds)
+#add_executable(test_utils test_utils.cpp)
+#target_link_libraries(test_utils ${PCL_LIBRARIES} clouds)
 
-add_executable(test_cloud_filtering test_cloud_filtering.cpp)
-target_link_libraries(test_cloud_filtering clouds ${PCL_LIBRARIES} ${OpenCV_LIBS})
+#add_executable(test_cloud_filtering test_cloud_filtering.cpp)
+#target_link_libraries(test_cloud_filtering clouds ${PCL_LIBRARIES} ${OpenCV_LIBS})
+
+add_executable(ros_get_table_server ros_get_table_server.cpp)
+target_link_libraries(ros_get_table_server clouds ${PCL_LIBRARIES} ${ROS_LIBRARIES} utils boost_program_options)
+
+#add_executable(test_compressed_cloud test_compressed_cloud.cpp)
+#target_link_libraries(test_compressed_cloud ${PCL_LIBRARIES} clouds)
+
+
+#add_executable(stream_compression stream_compression.cpp)
+#target_link_libraries(stream_compression ${PCL_LIBRARIES})
 
 #add_executable(test_towel_preproc test_towel_preproc.cpp)
 #target_link_libraries(test_towel_preproc clouds ${PCL_LIBRARIES} ${OpenCV_LIBS} comm utils simulation)
+
 
 #INSTALL(TARGETS record_one_pcd comm_get_table comm_write_pcds DESTINATION "~/usr/bin")
 #INSTALL(TARGETS clouds DESTINATION "~/usr/lib")

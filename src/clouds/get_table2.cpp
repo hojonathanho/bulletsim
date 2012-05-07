@@ -9,7 +9,7 @@ using namespace Eigen;
 using namespace pcl;
 
 
-vector<Vector3f> getTableCornersRansac(ColorCloudPtr cloud) {
+MatrixXf getTableCornersRansac(ColorCloudPtr cloud) {
   cloud = downsampleCloud(cloud, .01);
   ColorCloudPtr fovCenter = filterX(cloud,-.25, .25); // center of field of view
   vector<float> coeffs = getPlaneCoeffsRansac(fovCenter);
@@ -21,10 +21,15 @@ vector<Vector3f> getTableCornersRansac(ColorCloudPtr cloud) {
   
   vector<Vector3f> tablePts, corners, tableVerts;
   Vector4f abcd(coeffs.data());
-  BOOST_FOREACH(PointXYZRGBA& pt, bigClu->points) tablePts.push_back(Vector3f(pt.x,pt.y,pt.z));
+  BOOST_FOREACH(ColorPoint& pt, bigClu->points) tablePts.push_back(Vector3f(pt.x,pt.y,pt.z));
   minEncRect(tablePts,abcd,corners);
 
-  return corners;
+  MatrixXf cornersMat(4,3);
+  for (int i=0; i < 4; i++) {
+	  cornersMat.row(i) = corners[i].transpose();
+  }
+
+  return cornersMat;
   
   
 }

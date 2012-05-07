@@ -58,7 +58,7 @@ TrackedTowel::TrackedTowel(BulletSoftObject::Ptr sim, int xres, int yres) {
 MatrixXf TrackedTowel::featsFromCloud(ColorCloudPtr cloud) {
   MatrixXf out(cloud->size(), 3);
   for (int i=0; i < cloud->points.size(); i++) {
-    pcl::PointXYZRGBA& pt = cloud->points[i];
+    ColorPoint& pt = cloud->points[i];
     out(i,0) = pt.x;
     out(i,1) = pt.y;
     out(i,2) = pt.z;

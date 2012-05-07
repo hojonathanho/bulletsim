@@ -25,7 +25,7 @@ int main(int argc, char* argv[]) {
  
   initComm();
   extern bool LIVE;
-  cout << "LIVE: " << LIVE << endl;
+
   CloudMessage inputCloudMsg;
   ImageMessage labelMsg;
   FileSubscriber cloudSub("kinect","pcd");

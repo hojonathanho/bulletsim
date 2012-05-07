@@ -15,8 +15,9 @@
 #include <pcl/surface/convex_hull.h>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
 
-typedef pcl::PointXYZRGBA PointT;
+typedef ColorPoint PointT;
 
 using namespace std;
 using namespace Eigen;
@@ -24,8 +25,8 @@ using namespace pcl;
 
 vector< vector<int> > findClusters(ColorCloudPtr cloud, float tol, float minSize) {
   std::vector<pcl::PointIndices> cluster_indices;
-  pcl::EuclideanClusterExtraction<pcl::PointXYZRGBA> ec;
-  pcl::search::KdTree<pcl::PointXYZRGBA>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZRGBA>);
+  pcl::EuclideanClusterExtraction<ColorPoint> ec;
+  pcl::search::KdTree<ColorPoint>::Ptr tree (new pcl::search::KdTree<ColorPoint>);
   ec.setClusterTolerance (tol);
   ec.setMinClusterSize (minSize);
   ec.setMaxClusterSize (2500000);
@@ -42,8 +43,8 @@ vector< vector<int> > findClusters(ColorCloudPtr cloud, float tol, float minSize
 }
 
 ColorCloudPtr downsampleCloud(const ColorCloudPtr in, float sz) {
-  pcl::PointCloud<pcl::PointXYZRGBA>::Ptr out(new pcl::PointCloud<pcl::PointXYZRGBA>());
-  pcl::VoxelGrid<pcl::PointXYZRGBA> vg;
+  pcl::PointCloud<ColorPoint>::Ptr out(new pcl::PointCloud<ColorPoint>());
+  pcl::VoxelGrid<ColorPoint> vg;
   vg.setInputCloud(in);
   vg.setLeafSize(sz,sz,sz);
   vg.filter(*out);
@@ -52,7 +53,7 @@ ColorCloudPtr downsampleCloud(const ColorCloudPtr in, float sz) {
 
 ColorCloudPtr removeOutliers(const ColorCloudPtr in, float thresh, int k) {
   ColorCloudPtr out(new ColorCloud());
-  pcl::StatisticalOutlierRemoval<pcl::PointXYZRGBA> sor;
+  pcl::StatisticalOutlierRemoval<ColorPoint> sor;
   sor.setInputCloud (in);
   sor.setMeanK (k);
   sor.setStddevMulThresh (thresh);
@@ -71,7 +72,7 @@ ColorCloudPtr projectOntoPlane(const ColorCloudPtr in, Eigen::Vector4f& coeffs) 
   coefficients->values[3] = 0;
 
   // Create the filtering object
-  pcl::ProjectInliers<pcl::PointXYZRGBA> proj;
+  pcl::ProjectInliers<ColorPoint> proj;
   proj.setModelType (pcl::SACMODEL_PLANE);
   proj.setInputCloud (in);
   proj.setModelCoefficients (coefficients);
@@ -109,7 +110,7 @@ ColorCloudPtr cropToHull(const ColorCloudPtr in, ColorCloudPtr hull_cloud, std::
 }
 
 ColorCloudPtr filterX(ColorCloudPtr in, float low, float high) {
-  pcl::PassThrough<pcl::PointXYZRGBA> pass;
+  pcl::PassThrough<ColorPoint> pass;
   pass.setInputCloud (in);
   pass.setFilterFieldName ("x");
   pass.setFilterLimits (low, high);
@@ -119,7 +120,7 @@ ColorCloudPtr filterX(ColorCloudPtr in, float low, float high) {
   return out;
 }
 ColorCloudPtr filterY(ColorCloudPtr in, float low, float high) {
-  pcl::PassThrough<pcl::PointXYZRGBA> pass;
+  pcl::PassThrough<ColorPoint> pass;
   pass.setInputCloud (in);
   pass.setFilterFieldName ("y");
   pass.setFilterLimits (low, high);
@@ -129,7 +130,7 @@ ColorCloudPtr filterY(ColorCloudPtr in, float low, float high) {
   return out;
 }
 ColorCloudPtr filterZ(ColorCloudPtr in, float low, float high) {
-  pcl::PassThrough<pcl::PointXYZRGBA> pass;
+  pcl::PassThrough<ColorPoint> pass;
   pass.setInputCloud (in);
   pass.setFilterFieldName ("z");
   pass.setFilterLimits (low, high);
@@ -144,13 +145,13 @@ ColorCloudPtr filterZ(ColorCloudPtr in, float low, float high) {
 
 VectorXf getCircle(ColorCloudPtr cloud) {
   ColorCloudPtr cloud_hull (new ColorCloud());
-  pcl::ConvexHull<pcl::PointXYZRGBA> chull;
+  pcl::ConvexHull<ColorPoint> chull;
   chull.setInputCloud (cloud);
 //  chull.setDimension(2);
   chull.reconstruct (*cloud_hull);
 
-  boost::shared_ptr<pcl::SampleConsensusModelCircle2D<pcl::PointXYZRGBA> > model(new pcl::SampleConsensusModelCircle2D<pcl::PointXYZRGBA>(cloud_hull));
-  pcl::RandomSampleConsensus<pcl::PointXYZRGBA> sac(model, .02);
+  boost::shared_ptr<pcl::SampleConsensusModelCircle2D<ColorPoint> > model(new pcl::SampleConsensusModelCircle2D<ColorPoint>(cloud_hull));
+  pcl::RandomSampleConsensus<ColorPoint> sac(model, .02);
   bool result = sac.computeModel(2);
   VectorXf zs = toEigenMatrix(cloud_hull).col(2);
   Eigen::VectorXf xyr;
@@ -227,7 +228,7 @@ ColorCloudPtr maskCloud(const ColorCloudPtr in, const cv::Mat& mask) {
   }
 
   ColorCloudPtr out(new ColorCloud());
-  pcl::ExtractIndices<pcl::PointXYZRGBA> ei;
+  pcl::ExtractIndices<ColorPoint> ei;
   ei.setNegative(false);
   ei.setInputCloud(in);
   ei.setIndices(indicesPtr);
@@ -247,7 +248,7 @@ ColorCloudPtr maskCloud(const ColorCloudPtr in, const VectorXb& mask) {
   out->is_dense = false;
 
   int i = 0;
-  BOOST_FOREACH(const PointXYZRGBA& pt, in->points) {
+  BOOST_FOREACH(const ColorPoint& pt, in->points) {
     if (mask(i)) out->push_back(pt);
     ++i;
   }
@@ -262,8 +263,7 @@ void labelCloud(ColorCloudPtr in, const cv::Mat& labels) {
     in->points[i]._unused = labels.at<uint8_t>(uv(i,0), uv(i,1));
 }
 
-#include <opencv2/highgui/highgui.hpp>
-ColorCloudPtr hueFilter(const ColorCloudPtr in, uint8_t minHue, uint8_t maxHue, uint8_t minSat) {
+ColorCloudPtr hueFilter(const ColorCloudPtr in, uint8_t minHue, uint8_t maxHue, uint8_t minSat, uint8_t minVal) {
   MatrixXu bgr = toBGR(in);
   int nPts = in->size();
   cv::Mat cvmat(in->height,in->width, CV_8UC3, bgr.data());
@@ -278,8 +278,22 @@ ColorCloudPtr hueFilter(const ColorCloudPtr in, uint8_t minHue, uint8_t maxHue, 
     (h > minHue) & (h < maxHue) :
     (h > minHue) | (h < maxHue);
   cv::Mat satMask = (s > minSat);
-  cv::Mat lumMask = (l > 100);
-  cv::Mat mask = hueMask & satMask;
-  //cv::imwrite("/tmp/blah.bmp", mask);
-  return maskCloud(in, hueMask & satMask & lumMask);
+  cv::Mat valMask = (l > minVal);
+  return maskCloud(in, hueMask & satMask & valMask);
+}
+
+ColorCloudPtr orientedBoxFilter(ColorCloudPtr cloud_in, const Matrix3f& ori, const Vector3f& mins, const Vector3f& maxes) {
+	MatrixXf xyz = toEigenMatrix(cloud_in) * ori;
+
+	VectorXb mask(xyz.rows());
+	for (int i=0; i < xyz.rows(); i++) {
+		mask(i) = (xyz(i,0) >= mins(0)) &&
+				  (xyz(i,1) >= mins(1)) &&
+				  (xyz(i,2) >= mins(2)) &&
+				  (xyz(i,0) <= maxes(0)) &&
+				  (xyz(i,1) <= maxes(1)) &&
+				  (xyz(i,2) <= maxes(2));
+	}
+	ColorCloudPtr cloud_out = maskCloud(cloud_in, mask);
+	return cloud_out;
 }

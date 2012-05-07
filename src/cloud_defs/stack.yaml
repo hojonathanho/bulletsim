@@ -1,0 +1,1 @@
+Depends: catkin, genmsg, geometry_msgs, std_msgs

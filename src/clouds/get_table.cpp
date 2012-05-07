@@ -27,21 +27,21 @@ VectorXf toVectorXf1(const vector<float>& in) {
   return out;
 }
 
-void getTable(PointCloud<PointXYZRGBA>::Ptr cloud, vector<Vector3f>& corners, Vector3f& normal, int skip) {
+void getTable(PointCloud<ColorPoint>::Ptr cloud, vector<Vector3f>& corners, Vector3f& normal, int skip) {
   // downsample -> cloud_down
   // get nearby points -> cloud_near
   // get plane -> cloud_table
   // project to 2d, get rectangle
 
-  PointCloud<PointXYZRGBA>::Ptr cloud_down(new PointCloud<PointXYZRGBA>);
+  PointCloud<ColorPoint>::Ptr cloud_down(new PointCloud<ColorPoint>);
 
-  VoxelGrid<PointXYZRGBA> vg;
+  VoxelGrid<ColorPoint> vg;
   vg.setInputCloud(cloud);
   vg.setLeafSize(.01,.01,.01);
   vg.filter(*cloud_down);
 
-  PointCloud<PointXYZRGBA>::Ptr cloud_near(new PointCloud<PointXYZRGBA>);
-  PassThrough<PointXYZRGBA> extract_near;
+  PointCloud<ColorPoint>::Ptr cloud_near(new PointCloud<ColorPoint>);
+  PassThrough<ColorPoint> extract_near;
   extract_near.setInputCloud(cloud_down);
   extract_near.setFilterFieldName("x");
   extract_near.setFilterLimits(-.25,.25);
@@ -51,7 +51,7 @@ void getTable(PointCloud<PointXYZRGBA>::Ptr cloud, vector<Vector3f>& corners, Ve
 
   pcl::ModelCoefficients::Ptr coeffs (new pcl::ModelCoefficients ());
   pcl::PointIndices::Ptr inliers (new pcl::PointIndices ());
-  SACSegmentation<PointXYZRGBA> seg;
+  SACSegmentation<ColorPoint> seg;
   seg.setOptimizeCoefficients(true);
   seg.setModelType(SACMODEL_PLANE);
   seg.setMethodType(SAC_RANSAC);
@@ -60,10 +60,10 @@ void getTable(PointCloud<PointXYZRGBA>::Ptr cloud, vector<Vector3f>& corners, Ve
   seg.setInputCloud(cloud_near);
   seg.segment(*inliers,*coeffs); 
 
-  PointCloud<PointXYZRGBA>::Ptr cloud_plane(new PointCloud<PointXYZRGBA>);
+  PointCloud<ColorPoint>::Ptr cloud_plane(new PointCloud<ColorPoint>);
 
   Vector4f coeffsEigen = toVectorXf1(coeffs->values);
-  BOOST_FOREACH(const PointXYZRGBA& pt, cloud_down->points) {
+  BOOST_FOREACH(const ColorPoint& pt, cloud_down->points) {
     Vector4f xyz1 = pt.getVector4fMap();
     xyz1(3) = 1;
     if (fabs(xyz1.dot(coeffsEigen)) < .01) cloud_plane->push_back(pt);
@@ -72,7 +72,7 @@ void getTable(PointCloud<PointXYZRGBA>::Ptr cloud, vector<Vector3f>& corners, Ve
   cloud_plane->width = cloud_plane->size();
   cloud_plane->height = 1;
 
-  // pcl::ProjectInliers<pcl::PointXYZRGBA> proj;
+  // pcl::ProjectInliers<ColorPoint> proj;
   // proj.setModelType(SACMODEL_PLANE);
   // proj.setModelCoefficients(coeffs);
   // proj.setInputCloud (cloud_down);
@@ -81,8 +81,8 @@ void getTable(PointCloud<PointXYZRGBA>::Ptr cloud, vector<Vector3f>& corners, Ve
   // proj.filter (*cloud_plane);
 
   std::vector<pcl::PointIndices> cluster_indices;
-  pcl::EuclideanClusterExtraction<pcl::PointXYZRGBA> ec;
-  pcl::search::KdTree<pcl::PointXYZRGBA>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZRGBA>);
+  pcl::EuclideanClusterExtraction<ColorPoint> ec;
+  pcl::search::KdTree<ColorPoint>::Ptr tree (new pcl::search::KdTree<ColorPoint>);
   ec.setClusterTolerance (0.02);
   ec.setMinClusterSize (500);
   ec.setMaxClusterSize (250000);
@@ -92,7 +92,7 @@ void getTable(PointCloud<PointXYZRGBA>::Ptr cloud, vector<Vector3f>& corners, Ve
 
 
 
-  PointCloud<PointXYZRGBA>::Ptr cloud_cluster(new PointCloud<PointXYZRGBA>);
+  PointCloud<ColorPoint>::Ptr cloud_cluster(new PointCloud<ColorPoint>);
 
   BOOST_FOREACH(int pind, cluster_indices[skip].indices) {
     cloud_cluster->push_back(cloud_plane->points[pind]);
@@ -106,7 +106,7 @@ void getTable(PointCloud<PointXYZRGBA>::Ptr cloud, vector<Vector3f>& corners, Ve
   vector<Vector3f> tablePts;
   Vector4f abcd(coeffs->values[0],coeffs->values[1],coeffs->values[2],coeffs->values[3]);
   vector<Vector3f> tableVerts;
-  BOOST_FOREACH(PointXYZRGBA pt, *cloud_cluster) tablePts.push_back(Vector3f(pt.x,pt.y,pt.z));
+  BOOST_FOREACH(ColorPoint pt, *cloud_cluster) tablePts.push_back(Vector3f(pt.x,pt.y,pt.z));
 
 
   minEncRect(tablePts,abcd,corners);

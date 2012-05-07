@@ -127,6 +127,7 @@ struct SceneConfig : Config {
   static bool enableRobot;
   static bool enableRobotCollision;
   static bool useFakeGrabber;
+  static bool startIdle;
   static float mouseDragScale;
   SceneConfig() : Config() {
     params.push_back(new Parameter<bool>("enableIK", &enableIK, "enable OpenRAVE IK for the PR2"));

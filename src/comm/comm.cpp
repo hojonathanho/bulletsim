@@ -10,8 +10,14 @@
 #include <boost/foreach.hpp>
 #include "utils/logging.h"
 using namespace std;
+namespace fs = boost::filesystem;
+using fs::path;
+using Json::Value;
+using namespace Json;
 
-path DATA_ROOT = "/dont/forget/to/set";
+namespace comm {
+
+fs::path DATA_ROOT = "/dont/forget/to/set";
 bool LIVE = false;
 float TIMEOUT = 1; //second 
 
@@ -31,7 +37,7 @@ bool yesOrNo(char message[]) {
   }
 }
 
-void askToResetDir(path p) {
+void askToResetDir(fs::path p) {
   if (fs::exists(p)) {
     char buffer[150];
     sprintf(buffer, "%s already exists. Delete it?", p.string().c_str());
@@ -46,7 +52,7 @@ void askToResetDir(path p) {
 }
 
 
-void writeJson(const Value& v, path p) {
+void writeJson(const Value& v, fs::path p) {
   Json::StyledWriter writer;
   string outString = writer.write(v);
   ofstream outfile(p.string().c_str());
@@ -55,7 +61,7 @@ void writeJson(const Value& v, path p) {
   outfile.close();
 }
 
-Value readJson(path jsonfile) { 
+Value readJson(fs::path jsonfile) { 
   // occasionally it fails, presumably when the json isn't done being written. so repeat 10 times
   for (int i_try = 0; i_try < 10; i_try++) {
     try {
@@ -75,8 +81,8 @@ Value readJson(path jsonfile) {
   throw std::runtime_error("tried 10 times but failed to read json file " + jsonfile.string());
 }
 
-void setDataRoot(path newDataRoot) {
-  // if the path starts with ~, expand it
+void setDataRoot(fs::path newDataRoot) {
+  // if the fs::path starts with ~, expand it
   if (!newDataRoot.empty() && newDataRoot.string()[0] == '~') {
     const char *home = getenv("HOME");
     if (home) {
@@ -93,11 +99,11 @@ void setDataRoot(path newDataRoot) {
 void setDataRoot() {
   const char *home = getenv("DATA_ROOT");
   if (home==NULL) throw runtime_error("DATA_ROOT not set");
-  path p  = home;
+  fs::path p  = home;
   ENSURE(fs::exists(p));
   DATA_ROOT = p;
 }
-path getDataRoot() {return DATA_ROOT;}
+fs::path getDataRoot() {return DATA_ROOT;}
 
 void setLive(bool live){ LIVE = live;}
 void setTimeout(float timeout) {TIMEOUT = timeout;}
@@ -110,18 +116,18 @@ void initComm() {
   if (maybeTimeout) TIMEOUT = boost::lexical_cast<float>(maybeTimeout);
 }
 
-path topicPath(string topic) {
+fs::path topicPath(string topic) {
   return DATA_ROOT / topic;
 }
-path filePath(string basename, string topic) {
+fs::path filePath(string basename, string topic) {
   return DATA_ROOT / topic / basename;
 }
-path onceFile(string basename) {
+fs::path onceFile(string basename) {
   return DATA_ROOT / "once" / basename;
 }
 
 void delTopic(string topic) {
-  path fullPath = topicPath(topic);
+  fs::path fullPath = topicPath(topic);
   fs::remove_all(fullPath);
 }
 
@@ -133,13 +139,13 @@ int dataID(string dataName) {
 }
 
 
-path makeDataName(int id, string extension, string topic) {
+fs::path makeDataName(int id, string extension, string topic) {
   stringstream ss;
   ss << "data" << setw(12) << setfill('0') << id << "." << extension;
   return filePath(ss.str(),topic);
 }
 
-path makeInfoName(int id, string topic) {
+fs::path makeInfoName(int id, string topic) {
   stringstream ss;
   ss << "info" << setw(12) << setfill('0') << id << "." << "json";
   return filePath(ss.str(), topic);
@@ -149,7 +155,7 @@ PathPair makePathPair(int id, string extension, string topic) {
 		  makeInfoName(id,topic));
 }
 
-bool waitFor(path p, bool enableWait) {
+bool waitFor(fs::path p, bool enableWait) {
   // Checks if file exists. If LIVE, waits up to TIMEOUT if it doesn't exist
   if (enableWait) {
     double tStart = timeOfDay();
@@ -162,11 +168,11 @@ bool waitFor(path p, bool enableWait) {
   else return exists(p);
 }
 void waitIfThrottled(string topic) {
-  path throttleFile = filePath("STOP", topic);
+  fs::path throttleFile = filePath("STOP", topic);
   while (exists(throttleFile)) usleep(10000);
 }
 bool getThrottled(string topic) {
-  path throttleFile = filePath("STOP", topic);
+  fs::path throttleFile = filePath("STOP", topic);
   return exists(throttleFile);
 }
 
@@ -248,7 +254,7 @@ bool FileSubscriber::recv(Message& message, bool enableWait)  {
     m_names.step();
       }
   if (!gotIt) {
-    LOG_DEBUG("didn't get " << namePair.second);
+    LOG_INFO("didn't get " << namePair.second);
   }
   return gotIt;
 }
@@ -322,6 +328,7 @@ void MultiSubscriber::prepare() {
   m_gotEm = vector<bool>(m_msgs.size(), false);
 }
 
+}
 // Synchronizer::Synchronizer(vector<Subscriber>& subs) {
 //   m_leader = subs[0];
 //   for (int i=1; i<subs.size(); i++) m_retimers.push_back(Retimer(subs[i]));

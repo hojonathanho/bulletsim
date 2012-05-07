@@ -1,6 +1,7 @@
 #include <iostream>
 #include <string>
 #include "comm/comm.h"
+using namespace comm;
 #include "comm/comm_eigen.h"
 
 #include "comm_pcl.h"

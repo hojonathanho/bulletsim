@@ -47,19 +47,3 @@ public:
 
 };
 
-
-/*
-
-class TowelGrabAndProc : public CloudGrabber {
-public:
-  TowelPreprocessor m_proc;
-  FilePublisher m_pub;
-  TowelGrabAndProc(int downsample) : CloudGrabber("kinect", downsample), m_pub("towel_pts", "pcd") {}
-  void processCloud(ColorCloudPtr cloud) {
-    ColorCloudPtr towelPts = m_proc.extractTowelPoints(cloud);
-    m_pub.send(CloudMessage(towelPts));
-    CloudGrabber::processCloud(cloud); // publish kinect data
-  }
-};
-
-*/

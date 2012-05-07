@@ -1,1 +1,1 @@
-Depends: catkin, hydra_msgs
+Depends: catkin, hydra_msgs, sensor_msgs, pcl

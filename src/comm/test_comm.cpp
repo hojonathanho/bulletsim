@@ -8,7 +8,6 @@
 #include "comm.h"
 #include "comm_eigen.h"
 #include "utils/testing.h"
-namespace fs = boost::filesystem;
 using fs::path;
 using Json::Value;
 using namespace std;

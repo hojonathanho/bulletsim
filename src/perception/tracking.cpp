@@ -78,6 +78,12 @@ Scene* Tracker2::getScene() {
 }
 
 void Tracker2::runOnline() {
+
+  if (TrackingConfig::startIdle) {
+    m_scene->step(0);
+    m_scene->idle(true);
+  }
+
   m_multisub->prepare();
   ENSURE(m_multisub->recvAll()); // get first messages
   for (int t=0; ; t++) {
@@ -93,8 +99,12 @@ void Tracker2::runOnline() {
 }
 
 void Tracker2::runOffline() {  
-  m_scene->idle(true);
-  cout << "idling..." << endl;
+
+  if (TrackingConfig::startIdle) {
+    m_scene->step(0);
+    m_scene->idle(true);
+  }
+
   for (int t=0; ; t++) {
     cout << "t=" << t << endl;
     int iter=0;

@@ -2,7 +2,7 @@
 #include <iostream>
 using namespace std;
 
-void EigenMessage::writeDataTo(path p) const {
+void EigenMessage::writeDataTo(fs::path p) const {
   ofstream outfile(p.string().c_str());
   ENSURE(!outfile.fail());
   const float* floatData = m_data.data();
@@ -18,7 +18,7 @@ void EigenMessage::writeDataTo(path p) const {
   outfile.close();
 }
 
-void EigenMessage::readDataFrom(path p) {
+void EigenMessage::readDataFrom(fs::path p) {
   ifstream infile(p.string().c_str());
   ENSURE(!infile.fail());
 

@@ -14,16 +14,16 @@ struct RopeInitMessage : public Message {
   RopeInitData m_data;
   RopeInitMessage() : Message() {}
   RopeInitMessage(RopeInitData& data) : Message(), m_data(data) {}
-  RopeInitMessage(RopeInitData& data, Value info) : Message(info), m_data(data) {}
-  void readDataFrom(path);
-  void writeDataTo(path);
+  RopeInitMessage(RopeInitData& data, Json::Value info) : Message(info), m_data(data) {}
+  void readDataFrom(fs::path);
+  void writeDataTo(fs::path);
 };
 
 
 struct TransformMessage : public Message {
   btTransform m_data;
-  void readDataFrom(path);
-  void writeDataTo(path);
+  void readDataFrom(fs::path);
+  void writeDataTo(fs::path);
 };
 
 

@@ -1,8 +1,9 @@
 #include "utils/my_exceptions.h"
+#include "utils/logging.h"
 #include "clouds/preprocessing.h"
 #include "clouds/comm_pcl.h"
 #include "clouds/comm_cv.h"
-
+using namespace comm;
 
 using namespace std;
 
@@ -24,8 +25,9 @@ int main(int argc, char* argv[]) {
   // po::notify(vm);
  
   initComm();
+  LoggingInit();
+
   extern bool LIVE;
-  cout << "LIVE: " << LIVE << endl;
   CloudMessage inputCloudMsg;
   ImageMessage labelMsg;
   FileSubscriber cloudSub("kinect","pcd");

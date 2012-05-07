@@ -60,15 +60,14 @@ target_link_libraries(test_rave_load simulation robots)
 add_executable(test_dynamic_pr2 test_dynamic_pr2.cpp)
 target_link_libraries(test_dynamic_pr2 simulation robots)
 
-find_package(catkin REQUIRED)
-set(hydra_msgs_DIR "~/Dropbox/myros/hydra_msgs/build/cmake/hydra_msgs")
+# find_package(catkin REQUIRED)
+# set(hydra_msgs_DIR "~/Dropbox/myros/hydra_msgs/build/cmake/hydra_msgs")
 find_package(ROS REQUIRED COMPONENTS
-             cpp_common rostime roscpp_traits
-             roscpp_serialization sensor_msgs geometry_msgs hydra_msgs
-	     roscpp rosconsole
+	roscpp rosconsole
+    cpp_common rostime roscpp_traits
+    roscpp_serialization sensor_msgs geometry_msgs hydra_msgs	     	
 )
 include_directories(${ROS_INCLUDE_DIRS})
-include_directories("/home/joschu/Dropbox/myros/hydra_msgs/msg_gen/cpp/include")
-message("${ROS_LIBRARIES}")
+# message("${ROS_LIBRARIES}")
 add_executable(test_ros test_ros.cpp)
 target_link_libraries(test_ros ${ROS_LIBRARIES})

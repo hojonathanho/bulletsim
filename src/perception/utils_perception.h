@@ -8,13 +8,14 @@
 #include <Eigen/Geometry>
 #include <osg/Vec3d>
 #include "utils/my_assert.h"
+#include "clouds/utils_pcl.h"
 #include "utils/conversions.h"
 using namespace std;
 
-inline std::vector<btVector3> toBulletVectors(const pcl::PointCloud<pcl::PointXYZRGBA>::Ptr& cloud) {
+inline std::vector<btVector3> toBulletVectors(const pcl::PointCloud<ColorPoint>::Ptr& cloud) {
   std::vector<btVector3> out(cloud->size());
   int i=0;
-  BOOST_FOREACH(pcl::PointXYZRGBA& point, *cloud) {
+  BOOST_FOREACH(ColorPoint& point, *cloud) {
     out[i] = btVector3(point.x, point.y, point.z);
     i++;
   }

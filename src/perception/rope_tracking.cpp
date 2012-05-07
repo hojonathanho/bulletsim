@@ -43,7 +43,7 @@ void readMatrix(istream& is, MatrixT& m) {
     }
 }
 
-void RopeInitMessage::readDataFrom(path p) {
+void RopeInitMessage::readDataFrom(fs::path p) {
   ifstream infile(p.string().c_str());
   if (infile.fail()) throw FileOpenError(p.string());
   readMatrix(infile, m_data.m_positions);
@@ -51,13 +51,13 @@ void RopeInitMessage::readDataFrom(path p) {
   infile.close();
 }
 
-void TransformMessage::writeDataTo(path p) {
+void TransformMessage::writeDataTo(fs::path p) {
   ofstream outfile(p.string().c_str());
   outfile << m_data;
   outfile.close();
 }
 
-void TransformMessage::readDataFrom(path p) {
+void TransformMessage::readDataFrom(fs::path p) {
   ifstream infile(p.string().c_str());
   if (infile.fail()) throw FileOpenError(p.string());
   infile >> m_data;
@@ -65,14 +65,14 @@ void TransformMessage::readDataFrom(path p) {
   infile.close();
 }
 
-void RopeInitMessage::writeDataTo(path p) {
+void RopeInitMessage::writeDataTo(fs::path p) {
   throw runtime_error("not implemented");
 }
 
 MatrixXf TrackedRope::featsFromCloud(ColorCloudPtr cloud) {
   MatrixXf out(cloud->size(), 4);
   for (int i=0; i < cloud->points.size(); i++) {
-    pcl::PointXYZRGBA& pt = cloud->points[i];
+    ColorPoint& pt = cloud->points[i];
     out(i,0) = pt.x;
     out(i,1) = pt.y;
     out(i,2) = pt.z;
@@ -171,8 +171,6 @@ void SingleHypRopeTracker::doIteration() {
   VectorXf pVis = calcVisibility(m_hyp->m_tracked->m_sim->children, m_scene->env->bullet->dynamicsWorld, m_CT->worldFromCamUnscaled.getOrigin()*METERS, TrackingConfig::sigA*METERS, TrackingConfig::nSamples);
 
   Eigen::MatrixXf corrEigen = calcCorrProb(tr->featsFromSim(), tr->m_sigs, m_obsFeats, pVis, TrackingConfig::outlierParam, m_hyp->m_loglik);
-  //cout << corrEigen << endl;
-  cout << "cut " << TrackingConfig::cutoff << endl;
   SparseArray corr = toSparseArray(corrEigen, TrackingConfig::cutoff);
   tr->applyEvidence(corr, toEigenMatrix(m_obsCloud));
   vector<btVector3> obsPts = toBulletVectors(m_obsCloud);

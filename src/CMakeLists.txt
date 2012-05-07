@@ -20,9 +20,12 @@ set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 add_subdirectory(simulation)
 add_subdirectory(robots)
 add_subdirectory(utils)
+
+
 if(BUILD_PERCEPTION)
     add_subdirectory(perception)
     add_subdirectory(comm)
+	add_subdirectory(cloud_defs)    
     add_subdirectory(clouds)
 endif(BUILD_PERCEPTION)
 add_subdirectory(tests)

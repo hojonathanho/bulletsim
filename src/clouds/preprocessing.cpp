@@ -162,7 +162,7 @@ ColorCloudPtr RopePreprocessor2::extractRopePoints(ColorCloudPtr cloud) {
   VectorXb mask = getPointsOnTable(cloud, m_camToWorld, m_cornersWorld,.01,1);
   ColorCloudPtr cloudOnTable = maskCloud(cloud, mask);
 
-  ColorCloudPtr redCloud =  hueFilter(cloudOnTable, 170, 10, 220);
+  ColorCloudPtr redCloud =  hueFilter(cloudOnTable, 170, 10, 160);
   ColorCloudPtr downedRopeCloud = downsampleCloud(removeOutliers(redCloud,1),.01);
   return downedRopeCloud;
 }  
