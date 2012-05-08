@@ -13,7 +13,7 @@
 
 //#define PROFILER
 //#define USE_PR2
-#define DO_ROTATION
+//#define DO_ROTATION
 
 
 class GripperKinematicObject : public CompoundObject<BoxObject>{
@@ -528,6 +528,16 @@ struct StepState {
 };
 
 
+void nodeArrayToNodePosVector(const btAlignedObjectArray<btSoftBody::Node> &m_nodes, std::vector<btVector3> &nodeposvec)
+{
+    nodeposvec.resize(m_nodes.size());
+    for(int i =0; i < m_nodes.size(); i++)
+    {
+        nodeposvec[i] = m_nodes[i].m_x;
+    }
+}
+
+
 struct CustomScene : public Scene {
 #ifdef USE_PR2
     PR2SoftBodyGripperAction::Ptr leftAction, rightAction;
@@ -548,7 +558,9 @@ struct CustomScene : public Scene {
     Fork::Ptr fork;
     RaveRobotObject::Ptr origRobot, tmpRobot;
     std::map<int, int> node_mirror_map;
+    std::vector<double> node_distance_map;
     float jacobian_sim_time;
+    std::vector<btVector3> prev_node_pos;
     PlotPoints::Ptr plot_points;
     PlotPoints::Ptr left_center_point;
     PlotAxes::Ptr left_axes;
@@ -598,6 +610,7 @@ struct CustomScene : public Scene {
     void swapFork();
     Eigen::MatrixXf computeJacobian();
     Eigen::MatrixXf computeJacobian_parallel();
+    Eigen::MatrixXf computeJacobian_approx();
     void simulateInNewFork(StepState& innerstate, float sim_time, btTransform& gripper_tm);
     void doJTracking();
 
@@ -629,6 +642,34 @@ void CustomScene::simulateInNewFork(StepState& innerstate, float sim_time, btTra
 
 }
 
+Eigen::MatrixXf CustomScene::computeJacobian_approx()
+{
+
+    double dropoff_const = 0.5;
+    int numnodes = clothptr->softBody->m_nodes.size();
+
+    std::vector<btTransform> perts;
+    float step_length = 0.2;
+    float rot_angle = 0.2;
+    perts.push_back(btTransform(btQuaternion(0,0,0,1),btVector3(step_length,0,0)));
+    perts.push_back(btTransform(btQuaternion(0,0,0,1),btVector3(0,step_length,0)));
+    perts.push_back(btTransform(btQuaternion(0,0,0,1),btVector3(0,0,step_length)));
+    Eigen::VectorXf  V_pos(numnodes*3);
+    Eigen::MatrixXf J(numnodes*3,perts.size());
+    for(int i = 0; i < perts.size(); i++)
+    {
+
+        for(int k = 0; k < numnodes; k++)
+        {
+            for(int j = 0; j < 3; j++)
+                V_pos(3*k + j) = perts[i].getOrigin()[j]*exp(-node_distance_map[k]*dropoff_const);
+        }
+
+        J.col(i) = V_pos;
+    }
+
+    return J;
+}
 
 Eigen::MatrixXf CustomScene::computeJacobian_parallel()
 {
@@ -843,13 +884,14 @@ void CustomScene::doJTracking()
     loopState.skip_step = true;
     int numnodes = clothptr->softBody->m_nodes.size();
 
+    float approx_thresh = 5;
+
     float step_limit = 0.2;
     Eigen::VectorXf V_step(numnodes*3);
-    float prev_error = 10000000;
+
     Eigen::VectorXf V_trans;
     //btVector3 transvec;
     btTransform transtm;
-
     Eigen::MatrixXf J;
     while(bTracking)
     {
@@ -859,6 +901,7 @@ void CustomScene::doJTracking()
         float error = 0;
         std::vector<btVector3> plotpoints;
         std::vector<btVector4> plotcols;
+        float node_change = 0;
         for( map<int,int>::iterator ii=node_mirror_map.begin(); ii!=node_mirror_map.end(); ++ii)
         {
             btVector3 targpoint = point_reflector->reflect(clothptr->softBody->m_nodes[(*ii).second].m_x);
@@ -871,14 +914,33 @@ void CustomScene::doJTracking()
 
             plotpoints.push_back(clothptr->softBody->m_nodes[(*ii).first].m_x);
             plotcols.push_back(btVector4(targvec.length(),0,0,1));
+
+
+            node_change = node_change + (clothptr->softBody->m_nodes[(*ii).first].m_x - prev_node_pos[(*ii).first]).length();
+
         }
+        nodeArrayToNodePosVector(clothptr->softBody->m_nodes, prev_node_pos);
+
         plot_points->setPoints(plotpoints,plotcols);
         left_axes->setup(left_gripper->getWorldTransform(),1);
         cout << "Error: " << error << " ";
 
+        cout << "(" << node_change <<")";
+        if(0 && node_change < approx_thresh)
+        {
+            J = computeJacobian_parallel();
+            cout << "   ";
+        }
+        else
+        {
+            J = computeJacobian_approx();
+            cout << " A ";
+        }
 
-        prev_error = error;
-        J = computeJacobian_parallel();
+
+        node_change = error;
+
+
         //Eigen::MatrixXf Jt(J.transpose());
         //V_trans = Jt*V_step;
 
@@ -1045,6 +1107,7 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,osgGA::GUIActionA
                 else
                     ProfilerStop();
 #endif
+               nodeArrayToNodePosVector(scene.clothptr->softBody->m_nodes, scene.prev_node_pos);
                scene.bTracking = !scene.bTracking;
                if(!scene.bTracking)
                    scene.plot_points->setPoints(std::vector<btVector3> (), std::vector<btVector4> ());
@@ -1426,6 +1489,8 @@ void CustomScene::run() {
     fixed_gripper2->setWorldTransform(tm_fixed2);
 
 
+    node_distance_map.resize(node_pos.size());
+
     //mirror about centerline along y direction
     //centerline defined by 2 points
     float mid_x = (max_x + min_x)/2;
@@ -1434,7 +1499,6 @@ void CustomScene::run() {
     //find node that most closely matches reflection of point
     for(int i = 0; i < node_pos.size(); i++)
     {
-
         if(node_pos[i][0] < mid_x) //look at points in left half
         //if(node_pos[i][0] < mid_x && (abs(node_pos[i][0] - min_x) < 0.01 || abs(node_pos[i][1] - min_y) < 0.01 || abs(node_pos[i][1] - max_y) < 0.01))
         {
@@ -1453,6 +1517,9 @@ void CustomScene::run() {
             }
             node_mirror_map[i] = closest_ind;
         }
+
+        //get node distance map
+        node_distance_map[i] = (corner_pnts[0]-node_pos[i]).length();
     }
 
 
