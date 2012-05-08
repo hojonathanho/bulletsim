@@ -9,10 +9,12 @@
 #include <Eigen/SVD>
 #include <omp.h>
 #include <boost/date_time/posix_time/posix_time.hpp>
+#include <google/profiler.h>
 
-
+//#define PROFILER
 //#define USE_PR2
 #define DO_ROTATION
+
 
 class GripperKinematicObject : public CompoundObject<BoxObject>{
 public:
@@ -568,7 +570,7 @@ struct CustomScene : public Scene {
         left_gripper_orig->setWorldTransform(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0,-10,0)));
         env->add(left_gripper_orig);
 
-        btVector4 color(1,0,0,0.3);
+        btVector4 color(1,0,0,0.0);
         right_gripper_orig.reset(new GripperKinematicObject(color));
         right_gripper_orig->setWorldTransform(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0,10,0)));
         env->add(right_gripper_orig);
@@ -675,6 +677,7 @@ Eigen::MatrixXf CustomScene::computeJacobian_parallel()
 
             StepState innerstate;
             simulateInNewFork(innerstate, jacobian_sim_time, perts[i]);
+
             Eigen::VectorXf  V_after(V_before);
             for(int k = 0; k < numnodes; k++)
             {
@@ -1016,11 +1019,8 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,osgGA::GUIActionA
             break;
 
         case 'b':
-            {
-
-            scene.left_gripper->applyTransform(btTransform(btQuaternion(btVector3(0,0,1),0.2),btVector3(0,0,0)));
-            scene.left_axes->setup(scene.left_gripper->getWorldTransform(),1);
-            }
+            scene.stopLoop();
+            break;
         }
         break;
 
@@ -1039,9 +1039,17 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,osgGA::GUIActionA
 
         case 'j':
             {
+#ifdef PROFILER
+                if(!scene.bTracking)
+                    ProfilerStart("profile.txt");
+                else
+                    ProfilerStop();
+#endif
                scene.bTracking = !scene.bTracking;
                if(!scene.bTracking)
                    scene.plot_points->setPoints(std::vector<btVector3> (), std::vector<btVector4> ());
+
+
             }
             break;
         }
@@ -1427,8 +1435,8 @@ void CustomScene::run() {
     for(int i = 0; i < node_pos.size(); i++)
     {
 
-        //if(node_pos[i][0] < mid_x) //look at points in left half
-        if(node_pos[i][0] < mid_x && (abs(node_pos[i][0] - min_x) < 0.01 || abs(node_pos[i][1] - min_y) < 0.01 || abs(node_pos[i][1] - max_y) < 0.01))
+        if(node_pos[i][0] < mid_x) //look at points in left half
+        //if(node_pos[i][0] < mid_x && (abs(node_pos[i][0] - min_x) < 0.01 || abs(node_pos[i][1] - min_y) < 0.01 || abs(node_pos[i][1] - max_y) < 0.01))
         {
             //float reflected_x = node_pos[i][0] + 2*(mid_x - node_pos[i][0]);
             btVector3 new_vec = point_reflector->reflect(node_pos[i]);
@@ -1568,8 +1576,9 @@ void CustomScene::run() {
     rightAction->setOpenAction();
     runAction(rightAction, dt);
     */
-
+    //ProfilerStart("profile.txt");
     startFixedTimestepLoop(dt);
+    //ProfilerStop();
 }
 
 int main(int argc, char *argv[]) {
