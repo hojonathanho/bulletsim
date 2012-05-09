@@ -28,6 +28,7 @@ add_library(clothmanip
     folding.cpp
     clothscene.cpp
     storage.cpp
+    cloudutils.cpp
 )
 set_source_files_properties(search.cpp PROPERTIES COMPILE_FLAGS -fopenmp)
 set_source_files_properties(search_general.cpp PROPERTIES COMPILE_FLAGS -fopenmp)
