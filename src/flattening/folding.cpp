@@ -3,7 +3,7 @@
 #include "cloth.h"
 #include "simulation/simplescene.h"
 #include "simulation/config_bullet.h"
-#include "simulation/logging.h"
+#include "utils/logging.h"
 
 namespace Folding {
 

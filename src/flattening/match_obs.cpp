@@ -1,7 +1,7 @@
 #include "utils/config.h"
+#include "utils/logging.h"
 #include "storage.h"
 #include "clouds/utils_pcl.h"
-#include "simulation/logging.h"
 
 #include "clothscene.h" // not really necessary, just for SetCommonConfig
 #include "clouds/cloud_ops.h"
@@ -83,9 +83,9 @@ static void run(const vector<fs::path> &dbcloudpaths, const fs::path &inputcloud
     vector<pair<double, Storage::ID> > similarities;
     similarities.resize(dbcloudpaths.size());
 
-    #pragma omp parallel for shared(similarities)
-    for (int i = 0; i < dbcloudpaths.size(); ++i) {
-        cout << "num threads: " << omp_get_num_threads() << endl;
+    int count = 0, total = dbcloudpaths.size();
+    #pragma omp parallel for schedule(dynamic) shared(similarities, count, total)
+    for (int i = 0; i < total; ++i) {
         ColorCloudPtr dbcloud = readPCD(dbcloudpaths[i].string());
         if (MatchObsConfig::downsampleSize > 0) {
             LOG_TRACE("downsampling");
@@ -96,6 +96,9 @@ static void run(const vector<fs::path> &dbcloudpaths, const fs::path &inputcloud
 
         Storage::ID id = Storage::idFromCloudPath(dbcloudpaths[i].string());
         similarities[i] = make_pair(sim, id);
+
+        #pragma omp critical
+        LOG_INFO("progress: " << ++count << "/" << total);
     }
 
     sort(similarities.begin(), similarities.end());
@@ -106,7 +109,6 @@ static void run(const vector<fs::path> &dbcloudpaths, const fs::path &inputcloud
 
 int main(int argc, char *argv[]) {
     SetCommonConfig();
-    LoggingInit();
 
     Parser parser;
     parser.addGroup(GeneralConfig());

@@ -3,9 +3,8 @@
 
 #include "simulation/config_bullet.h"
 #include "simulation/config_viewer.h"
-#include "simulation/logging.h"
-
 #include "simulation/simplescene.h"
+#include "utils/logging.h"
 #include "cloth.h"
 
 // a scene common to all the cloth flattening programs

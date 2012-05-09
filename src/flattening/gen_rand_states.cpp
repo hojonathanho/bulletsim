@@ -28,6 +28,7 @@ struct GenStatesConfig : Config {
     static string outputPath;
     static bool fake;
     static string gzip;
+    static float settleTime;
 
     GenStatesConfig() : Config() {
         params.push_back(new Parameter<int>("maxRandFolds", &maxRandFolds, ""));
@@ -36,7 +37,7 @@ struct GenStatesConfig : Config {
         params.push_back(new Parameter<string>("outputPath", &outputPath, ""));
         params.push_back(new Parameter<bool>("fake", &fake, "don't actually do anything"));
         params.push_back(new Parameter<string>("gzip", &gzip, "path to gzip to compress output files (pass empty string to leave files uncompressed)"));
-        params.push_back(new Paramter<float>("settleTime", &settleTime, "time to let cloth settle before recording state"));
+        params.push_back(new Parameter<float>("settleTime", &settleTime, "time to let cloth settle before recording state"));
     }
 };
 int GenStatesConfig::maxRandFolds = 3;
@@ -128,7 +129,6 @@ void CustomScene::run() {
 
 int main(int argc, char *argv[]) {
     SetCommonConfig();
-    LoggingInit();
 
     Parser parser;
     parser.addGroup(GeneralConfig());

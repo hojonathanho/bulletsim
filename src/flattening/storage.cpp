@@ -1,5 +1,5 @@
 #include "storage.h"
-#include "simulation/logging.h"
+#include "utils/logging.h"
 #include <boost/lexical_cast.hpp>
 
 static const char GZIP_PATH[] = "/bin/gzip";

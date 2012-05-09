@@ -36,5 +36,5 @@ public:
   FakeKinect(OSGInstance::Ptr, const Eigen::Affine3f &worldFromCam, bool usePub=true);
   void setWorldFromCam(const Eigen::Affine3f &worldFromCam);
   void sendMessage();
-  snapshot(ColorCloudPtr &cloud, ColorCloudPtr normals);
+  ColorCloudPtr snapshot();
 };

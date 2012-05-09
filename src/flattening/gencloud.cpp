@@ -154,8 +154,6 @@ int main(int argc, char *argv[]) {
     SetCommonConfig();
     SceneConfig::enableRobot = false;
 
-    LoggingInit();
-
     Parser parser;
     parser.addGroup(GeneralConfig());
     parser.addGroup(BulletConfig());
