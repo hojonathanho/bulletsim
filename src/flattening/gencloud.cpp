@@ -52,11 +52,11 @@ public:
         // take a picture with the fake kinect from each perspective
         CoordinateTransformer CT(btTransform::getIdentity());
         ColorCloudPtr totalcloud;
+        FakeKinect fk(scene.env->osg, CT.worldFromCamEigen, false);
         pcl::CropBox<pcl::PointXYZRGBA> crop;
         for (int c = 0; c < perspectives.size(); ++c) {
             CT.reset(perspectives[c]);
-
-            FakeKinect fk(scene.env->osg, CT.worldFromCamEigen, false);
+            fk.setWorldFromCam(CT.worldFromCamEigen);
             ColorCloudPtr snapshot = fk.snapshot();
 
             // filter out everything outside of the bounds of the cloth

@@ -57,6 +57,7 @@ file(COPY batch_genclouds.py
     DESTINATION ${EXECUTABLE_OUTPUT_PATH})
 
 add_executable(match_obs match_obs.cpp)
+set_source_files_properties(match_obs.cpp PROPERTIES COMPILE_FLAGS -fopenmp)
 target_link_libraries(match_obs clothmanip)
 
 add_executable(demo_flatten demo_flatten.cpp)
@@ -67,3 +68,6 @@ target_link_libraries(demo_pr2_manip clothmanip robots)
 
 add_executable(test_folding test_folding.cpp)
 target_link_libraries(test_folding clothmanip)
+
+add_executable(test_icp test_icp.cpp)
+target_link_libraries(test_icp clothmanip)

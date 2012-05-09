@@ -36,6 +36,7 @@ struct GenStatesConfig : Config {
         params.push_back(new Parameter<string>("outputPath", &outputPath, ""));
         params.push_back(new Parameter<bool>("fake", &fake, "don't actually do anything"));
         params.push_back(new Parameter<string>("gzip", &gzip, "path to gzip to compress output files (pass empty string to leave files uncompressed)"));
+        params.push_back(new Paramter<float>("settleTime", &settleTime, "time to let cloth settle before recording state"));
     }
 };
 int GenStatesConfig::maxRandFolds = 3;
@@ -44,6 +45,7 @@ int GenStatesConfig::dropTimes = 3;
 string GenStatesConfig::outputPath = "";
 bool GenStatesConfig::fake = false;
 string GenStatesConfig::gzip = "";
+float GenStatesConfig::settleTime = 1.f; // 1 sec
 
 static void compress(const string &path) {
     if (GenStatesConfig::gzip.empty()) return;
@@ -86,13 +88,17 @@ static void record(Cloth &cloth) {
 }
 
 static void gen(Scene &scene, Cloth &cloth, int nfolds) {
-    if (!GenStatesConfig::fake)
+    if (!GenStatesConfig::fake) {
         Folding::doRandomFolds(scene, cloth, nfolds);
+        scene.stepFor(BulletConfig::dt, GenStatesConfig::settleTime);
+    }
     record(cloth);
 
     for (int i = 0; i < GenStatesConfig::dropTimes; ++i) {
-        if (!GenStatesConfig::fake)
+        if (!GenStatesConfig::fake) {
             Folding::pickUpAndDrop(scene, cloth);
+            scene.stepFor(BulletConfig::dt, GenStatesConfig::settleTime);
+        }
         record(cloth);
     }
 }

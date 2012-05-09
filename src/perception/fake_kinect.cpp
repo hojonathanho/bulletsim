@@ -145,7 +145,7 @@ void KinectCallback::operator () ( osg::RenderInfo& info ) const  {
 //#include <osgGA/TrackballManipulator>
 osg::Vec3f toOSGVector(Eigen::Vector3f v) { return osg::Vec3f(v.x(), v.y(), v.z());}
 
-FakeKinect::FakeKinect(OSGInstance::Ptr osg, Affine3f worldFromCam, bool usePub) {
+FakeKinect::FakeKinect(OSGInstance::Ptr osg, const Affine3f &worldFromCam, bool usePub) {
   if (usePub) m_pub.reset(new FilePublisher("kinect", "pcd"));
 
   const int width = 640, height = 480;
@@ -156,14 +156,7 @@ FakeKinect::FakeKinect(OSGInstance::Ptr osg, Affine3f worldFromCam, bool usePub)
 
   m_cam = m_viewer.getCamera();
   m_cam->setProjectionMatrixAsPerspective(49, (float)width/height, .2*METERS, 10*METERS);
-
-  Vector3f eye, center, up;
-  Matrix3f rot;
-  rot = worldFromCam.linear();
-  eye = worldFromCam.translation();
-  center = rot.col(2);
-  up = -rot.col(1);
-  m_cam->setViewMatrixAsLookAt(toOSGVector(eye), toOSGVector(center+eye), toOSGVector(up));
+  setWorldFromCam(worldFromCam);
 
   // set up pixel buffer
   osg::ref_ptr<osg::GraphicsContext::Traits> traits = new osg::GraphicsContext::Traits;
@@ -187,6 +180,16 @@ FakeKinect::FakeKinect(OSGInstance::Ptr osg, Affine3f worldFromCam, bool usePub)
   m_cam->setFinalDrawCallback(m_cb);
 
   m_viewer.realize();
+}
+
+void FakeKinect::setWorldFromCam(const Eigen::Affine3f &worldFromCam) {
+  Vector3f eye, center, up;
+  Matrix3f rot;
+  rot = worldFromCam.linear();
+  eye = worldFromCam.translation();
+  center = rot.col(2);
+  up = -rot.col(1);
+  m_cam->setViewMatrixAsLookAt(toOSGVector(eye), toOSGVector(center+eye), toOSGVector(up));
 }
 
 void FakeKinect::sendMessage() {
