@@ -61,6 +61,9 @@ add_executable(match_obs match_obs.cpp)
 set_source_files_properties(match_obs.cpp PROPERTIES COMPILE_FLAGS -fopenmp)
 target_link_libraries(match_obs clothmanip)
 
+add_executable(force_cloth_to_obs force_cloth_to_obs.cpp)
+target_link_libraries(force_cloth_to_obs clothmanip)
+
 add_executable(demo_flatten demo_flatten.cpp)
 target_link_libraries(demo_flatten clothmanip)
 
@@ -72,3 +75,6 @@ target_link_libraries(test_folding clothmanip)
 
 add_executable(test_icp test_icp.cpp)
 target_link_libraries(test_icp clothmanip)
+
+add_executable(pcd_xyzrgba_to_xyzrgb pcd_xyzrgba_to_xyzrgb.cpp)
+target_link_libraries(pcd_xyzrgba_to_xyzrgb clothmanip)

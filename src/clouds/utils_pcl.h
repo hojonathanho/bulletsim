@@ -5,10 +5,15 @@
 #include <Eigen/Dense>
 #include <opencv2/core/core.hpp>
 
+typedef pcl::PointXYZRGB ColorPoint;
+typedef pcl::PointCloud<ColorPoint> ColorCloud;
+typedef pcl::PointCloud<ColorPoint>::ConstPtr ConstColorCloudPtr;
+typedef pcl::PointCloud<ColorPoint>::Ptr ColorCloudPtr;
 
-typedef pcl::PointCloud<pcl::PointXYZRGBA> ColorCloud;
-typedef pcl::PointCloud<pcl::PointXYZRGBA>::ConstPtr ConstColorCloudPtr;
-typedef pcl::PointCloud<pcl::PointXYZRGBA>::Ptr ColorCloudPtr;
+typedef pcl::PointXYZ Point;
+typedef pcl::PointCloud<Point> Cloud;
+typedef pcl::PointCloud<Point>::ConstPtr ConstCloudPtr;
+typedef pcl::PointCloud<Point>::Ptr CloudPtr;
 
 typedef Eigen::Matrix<bool,Eigen::Dynamic,1> VectorXb;
 typedef Eigen::Matrix<uint8_t,Eigen::Dynamic,Eigen::Dynamic> MatrixXu;
@@ -25,10 +30,10 @@ MatrixXu toBGR(ColorCloudPtr);
 cv::Mat toCVMat(Eigen::MatrixXf);
 
 
-bool pointIsFinite(const pcl::PointXYZRGBA& pt);
+bool pointIsFinite(const ColorPoint& pt);
 
 inline ColorCloudPtr removeConst(ConstColorCloudPtr cloud) {
-  return boost::const_pointer_cast< pcl::PointCloud<pcl::PointXYZRGBA> >(cloud);
+  return boost::const_pointer_cast< pcl::PointCloud<ColorPoint> >(cloud);
 }
 ColorCloudPtr transformPointCloud1(ColorCloudPtr in, Eigen::Affine3f transform);
 ColorCloudPtr extractInds(ColorCloudPtr in, std::vector<int> inds);

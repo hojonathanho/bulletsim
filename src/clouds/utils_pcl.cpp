@@ -6,9 +6,9 @@ using namespace Eigen;
 using namespace pcl;
 using namespace std;
 
-pcl::PointCloud<pcl::PointXYZRGBA>::Ptr readPCD(const std::string& pcdfile) {
-  pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZRGBA>);
-  if (pcl::io::loadPCDFile<pcl::PointXYZRGBA> (pcdfile, *cloud) == -1) {
+pcl::PointCloud<ColorPoint>::Ptr readPCD(const std::string& pcdfile) {
+  pcl::PointCloud<ColorPoint>::Ptr cloud(new pcl::PointCloud<ColorPoint>);
+  if (pcl::io::loadPCDFile<ColorPoint> (pcdfile, *cloud) == -1) {
     throw FileOpenError(pcdfile);
     }
   return cloud;
@@ -62,13 +62,13 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr toPointCloud(const std::vector< std::vector<
   return out;
 }
 
-bool pointIsFinite(const pcl::PointXYZRGBA& pt) {
+bool pointIsFinite(const ColorPoint& pt) {
   return std::isfinite(pt.x) && std::isfinite(pt.y) && std::isfinite(pt.z);
 }
 
 ColorCloudPtr transformPointCloud1(ColorCloudPtr in, Eigen::Affine3f transform) {
   ColorCloudPtr out(new ColorCloud(*in));
-  BOOST_FOREACH(PointXYZRGBA& p, out->points) {
+  BOOST_FOREACH(ColorPoint& p, out->points) {
     p.getVector3fMap() = transform * p.getVector3fMap();
   }
   return out;

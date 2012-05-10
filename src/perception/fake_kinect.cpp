@@ -70,7 +70,7 @@ ColorCloudPtr computePointCloud( osg::Camera* camera, osg::ref_ptr<osg::Image> d
 
   for (int row=0; row < nRows; row++) {
     for (int col=0; col < nCols; col++) {
-      pcl::PointXYZRGBA& pt = out->at(col, row);
+      ColorPoint& pt = out->at(col, row);
       pt.x = X(row,col);
       pt.y = Y(row,col);
       pt.z = Z(row,col);

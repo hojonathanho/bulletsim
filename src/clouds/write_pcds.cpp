@@ -30,7 +30,7 @@ void PressEnterToContinue() {
   std::cin.ignore( std::numeric_limits <std::streamsize> ::max(), '\n' );
 }
 
-void cloud_cb_ (const pcl::PointCloud<pcl::PointXYZRGBA>::ConstPtr &cloud)
+void cloud_cb_ (const pcl::PointCloud<ColorPoint>::ConstPtr &cloud)
 {
   if (doPause) {
     PressEnterToContinue();
@@ -51,7 +51,7 @@ void run ()
   pcl::Grabber* interface = new pcl::OpenNIGrabber();
 
   // make callback function from member function
-  boost::function<void (const pcl::PointCloud<pcl::PointXYZRGBA>::ConstPtr&)> f = boost::bind (&cloud_cb_,  _1);
+  boost::function<void (const pcl::PointCloud<ColorPoint>::ConstPtr&)> f = boost::bind (&cloud_cb_,  _1);
 
   // connect callback function for desired signal. In this case its a point cloud with color values
   c = interface->registerCallback (f);

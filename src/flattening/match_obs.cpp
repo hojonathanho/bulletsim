@@ -27,7 +27,7 @@ float MatchObsConfig::downsampleSize = -1; // no downsampling
 
 
 static double calcCloudSimilarity(ColorCloudPtr input, ColorCloudPtr target) {
-    pcl::IterativeClosestPoint<pcl::PointXYZRGBA, pcl::PointXYZRGBA> icp;
+    pcl::IterativeClosestPoint<ColorPoint, ColorPoint> icp;
     icp.setInputCloud(input);
     icp.setInputTarget(target);
     ColorCloudPtr aligned(new ColorCloud);

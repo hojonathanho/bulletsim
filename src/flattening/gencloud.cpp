@@ -53,7 +53,7 @@ public:
         CoordinateTransformer CT(btTransform::getIdentity());
         ColorCloudPtr totalcloud;
         FakeKinect fk(scene.env->osg, CT.worldFromCamEigen, false);
-        pcl::CropBox<pcl::PointXYZRGBA> crop;
+        pcl::CropBox<ColorPoint> crop;
         for (int c = 0; c < perspectives.size(); ++c) {
             CT.reset(perspectives[c]);
             fk.setWorldFromCam(CT.worldFromCamEigen);
@@ -73,7 +73,7 @@ public:
 
         // downsample the result (since we got points from many perspectives)
         ColorCloudPtr downsampled(new ColorCloud(totalcloud->width, totalcloud->height));
-        pcl::VoxelGrid<pcl::PointXYZRGBA> vgrid;
+        pcl::VoxelGrid<ColorPoint> vgrid;
         vgrid.setInputCloud(totalcloud);
         float s = GenCloudConfig::voxelSize * GeneralConfig::scale;
         vgrid.setLeafSize(s, s, s);

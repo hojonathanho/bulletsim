@@ -4,7 +4,7 @@
 #include <pcl/sample_consensus/method_types.h>
 #include <pcl/sample_consensus/model_types.h>
 
-typedef pcl::PointXYZRGBA PointT;
+typedef ColorPoint PointT;
 using namespace std;
 using namespace Eigen;
 
@@ -12,7 +12,7 @@ vector<float> getPlaneCoeffsRansac(ColorCloudPtr cloud) {
 
   pcl::ModelCoefficients::Ptr coeffs (new pcl::ModelCoefficients ());
   pcl::PointIndices::Ptr inliers (new pcl::PointIndices ());
-  pcl::SACSegmentation<pcl::PointXYZRGBA> seg;
+  pcl::SACSegmentation<ColorPoint> seg;
   seg.setOptimizeCoefficients(true);
   seg.setModelType(pcl::SACMODEL_PLANE);
   seg.setMethodType(pcl::SAC_RANSAC);

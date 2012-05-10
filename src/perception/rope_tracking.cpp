@@ -72,7 +72,7 @@ void RopeInitMessage::writeDataTo(path p) {
 MatrixXf TrackedRope::featsFromCloud(ColorCloudPtr cloud) {
   MatrixXf out(cloud->size(), 4);
   for (int i=0; i < cloud->points.size(); i++) {
-    pcl::PointXYZRGBA& pt = cloud->points[i];
+    ColorPoint& pt = cloud->points[i];
     out(i,0) = pt.x;
     out(i,1) = pt.y;
     out(i,2) = pt.z;

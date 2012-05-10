@@ -40,11 +40,11 @@ int main(int argc, char* argv[]) {
 
 
 
-  PointCloud<PointXYZRGBA>::Ptr cloud (new PointCloud<PointXYZRGBA>);
+  PointCloud<ColorPoint>::Ptr cloud (new PointCloud<ColorPoint>);
   if (infile.size() == 0)
     infile = Names("kinect","pcd").getCur().first.string();
   cout << "reading " << infile << endl;
-  if (pcl::io::loadPCDFile<pcl::PointXYZRGBA> (infile, *cloud) == -1) {
+  if (pcl::io::loadPCDFile<ColorPoint> (infile, *cloud) == -1) {
     PCL_ERROR(("couldn't read file " + infile + "\n").c_str());
     return -1;
   }

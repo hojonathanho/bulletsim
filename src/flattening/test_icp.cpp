@@ -26,7 +26,7 @@ static pcl::PointCloud<pcl::PointXYZRGB>::Ptr convert(ColorCloudPtr in, int r, i
 int main (int argc, char** argv) {
   ColorCloudPtr in1 = readPCD(argv[1]);
   ColorCloudPtr in2 = readPCD(argv[2]);
-  pcl::IterativeClosestPoint<pcl::PointXYZRGBA, pcl::PointXYZRGBA> icp;
+  pcl::IterativeClosestPoint<ColorPoint, ColorPoint> icp;
   icp.setInputCloud(in1);
   icp.setInputTarget(in2);
   ColorCloudPtr final(new ColorCloud);

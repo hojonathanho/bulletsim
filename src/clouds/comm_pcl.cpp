@@ -32,7 +32,7 @@ void CloudGrabber::cloud_cb(const ConstColorCloudPtr& cloud) {
     return;
   }
   if (m_cbCount % m_downsample == 0) {
-    processCloud(boost::const_pointer_cast< pcl::PointCloud<pcl::PointXYZRGBA> >(cloud));
+    processCloud(boost::const_pointer_cast< pcl::PointCloud<ColorPoint> >(cloud));
   }
     // not nice to use a pointer cast but i don't know a way around it since callback signature is const but class member isn't
   m_cbCount++;       
@@ -78,7 +78,7 @@ void PausingCloudGrabber::cloud_cb(const ConstColorCloudPtr& cloud) {
     return;
   }
   else {
-    processCloud(boost::const_pointer_cast< pcl::PointCloud<pcl::PointXYZRGBA> >(cloud));
+    processCloud(boost::const_pointer_cast< pcl::PointCloud<ColorPoint> >(cloud));
     m_enabled=false;
   }
 }

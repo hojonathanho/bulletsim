@@ -9,7 +9,7 @@ double calcAlignmentScore(ColorCloudPtr input, ColorCloudPtr target, double max_
   std::vector<int> nn_indices (1);
   std::vector<float> nn_dists (1);
 
-  pcl::KdTree<pcl::PointXYZRGBA>::Ptr tree(new pcl::KdTreeFLANN<pcl::PointXYZRGBA>);
+  pcl::KdTree<ColorPoint>::Ptr tree(new pcl::KdTreeFLANN<ColorPoint>);
   tree->setInputCloud(target);
 
   // For each point in the source dataset

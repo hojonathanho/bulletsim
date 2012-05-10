@@ -1,6 +1,7 @@
 #include "storage.h"
 #include "utils/logging.h"
 #include <boost/lexical_cast.hpp>
+#include "utils/my_exceptions.h"
 
 static const char GZIP_PATH[] = "/bin/gzip";
 
@@ -11,6 +12,15 @@ namespace Storage {
 
 Cloth::Ptr loadCloth(const fs::path &filename, btSoftBodyWorldInfo &worldInfo) {
     LOG_INFO("loading " << filename.string());
+
+    if (!fs::exists(filename)) {
+        LOG_ERROR("file " << filename << " does not exist");
+        throw FileOpenError(filename.string());
+    }
+    if (fs::is_directory(filename)) {
+        LOG_ERROR("path " << filename << " is a directory, not a file");
+        throw FileOpenError(filename.string());
+    }
 
     bool usingTempPath = false;
     fs::path tmpPath, tmpDecompressed;

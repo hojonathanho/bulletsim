@@ -16,7 +16,7 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/core/core.hpp>
 
-typedef pcl::PointXYZRGBA PointT;
+typedef ColorPoint PointT;
 
 using namespace std;
 using namespace Eigen;
@@ -24,8 +24,8 @@ using namespace pcl;
 
 vector< vector<int> > findClusters(ColorCloudPtr cloud, float tol, float minSize) {
   std::vector<pcl::PointIndices> cluster_indices;
-  pcl::EuclideanClusterExtraction<pcl::PointXYZRGBA> ec;
-  pcl::search::KdTree<pcl::PointXYZRGBA>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZRGBA>);
+  pcl::EuclideanClusterExtraction<ColorPoint> ec;
+  pcl::search::KdTree<ColorPoint>::Ptr tree (new pcl::search::KdTree<ColorPoint>);
   ec.setClusterTolerance (tol);
   ec.setMinClusterSize (minSize);
   ec.setMaxClusterSize (2500000);
@@ -42,8 +42,8 @@ vector< vector<int> > findClusters(ColorCloudPtr cloud, float tol, float minSize
 }
 
 ColorCloudPtr downsampleCloud(const ColorCloudPtr in, float sz) {
-  pcl::PointCloud<pcl::PointXYZRGBA>::Ptr out(new pcl::PointCloud<pcl::PointXYZRGBA>());
-  pcl::VoxelGrid<pcl::PointXYZRGBA> vg;
+  pcl::PointCloud<ColorPoint>::Ptr out(new pcl::PointCloud<ColorPoint>());
+  pcl::VoxelGrid<ColorPoint> vg;
   vg.setInputCloud(in);
   vg.setLeafSize(sz,sz,sz);
   vg.filter(*out);
@@ -52,7 +52,7 @@ ColorCloudPtr downsampleCloud(const ColorCloudPtr in, float sz) {
 
 ColorCloudPtr removeOutliers(const ColorCloudPtr in, float thresh, int k) {
   ColorCloudPtr out(new ColorCloud());
-  pcl::StatisticalOutlierRemoval<pcl::PointXYZRGBA> sor;
+  pcl::StatisticalOutlierRemoval<ColorPoint> sor;
   sor.setInputCloud (in);
   sor.setMeanK (k);
   sor.setStddevMulThresh (thresh);
@@ -71,7 +71,7 @@ ColorCloudPtr projectOntoPlane(const ColorCloudPtr in, Eigen::Vector4f& coeffs) 
   coefficients->values[3] = 0;
 
   // Create the filtering object
-  pcl::ProjectInliers<pcl::PointXYZRGBA> proj;
+  pcl::ProjectInliers<ColorPoint> proj;
   proj.setModelType (pcl::SACMODEL_PLANE);
   proj.setInputCloud (in);
   proj.setModelCoefficients (coefficients);
@@ -109,7 +109,7 @@ ColorCloudPtr cropToHull(const ColorCloudPtr in, ColorCloudPtr hull_cloud, std::
 }
 
 ColorCloudPtr filterX(ColorCloudPtr in, float low, float high) {
-  pcl::PassThrough<pcl::PointXYZRGBA> pass;
+  pcl::PassThrough<ColorPoint> pass;
   pass.setInputCloud (in);
   pass.setFilterFieldName ("x");
   pass.setFilterLimits (low, high);
@@ -119,7 +119,7 @@ ColorCloudPtr filterX(ColorCloudPtr in, float low, float high) {
   return out;
 }
 ColorCloudPtr filterY(ColorCloudPtr in, float low, float high) {
-  pcl::PassThrough<pcl::PointXYZRGBA> pass;
+  pcl::PassThrough<ColorPoint> pass;
   pass.setInputCloud (in);
   pass.setFilterFieldName ("y");
   pass.setFilterLimits (low, high);
@@ -129,7 +129,7 @@ ColorCloudPtr filterY(ColorCloudPtr in, float low, float high) {
   return out;
 }
 ColorCloudPtr filterZ(ColorCloudPtr in, float low, float high) {
-  pcl::PassThrough<pcl::PointXYZRGBA> pass;
+  pcl::PassThrough<ColorPoint> pass;
   pass.setInputCloud (in);
   pass.setFilterFieldName ("z");
   pass.setFilterLimits (low, high);
@@ -144,13 +144,13 @@ ColorCloudPtr filterZ(ColorCloudPtr in, float low, float high) {
 
 VectorXf getCircle(ColorCloudPtr cloud) {
   ColorCloudPtr cloud_hull (new ColorCloud());
-  pcl::ConvexHull<pcl::PointXYZRGBA> chull;
+  pcl::ConvexHull<ColorPoint> chull;
   chull.setInputCloud (cloud);
 //  chull.setDimension(2);
   chull.reconstruct (*cloud_hull);
 
-  boost::shared_ptr<pcl::SampleConsensusModelCircle2D<pcl::PointXYZRGBA> > model(new pcl::SampleConsensusModelCircle2D<pcl::PointXYZRGBA>(cloud_hull));
-  pcl::RandomSampleConsensus<pcl::PointXYZRGBA> sac(model, .02);
+  boost::shared_ptr<pcl::SampleConsensusModelCircle2D<ColorPoint> > model(new pcl::SampleConsensusModelCircle2D<ColorPoint>(cloud_hull));
+  pcl::RandomSampleConsensus<ColorPoint> sac(model, .02);
   bool result = sac.computeModel(2);
   VectorXf zs = toEigenMatrix(cloud_hull).col(2);
   Eigen::VectorXf xyr;
@@ -227,7 +227,7 @@ ColorCloudPtr maskCloud(const ColorCloudPtr in, const cv::Mat& mask) {
   }
 
   ColorCloudPtr out(new ColorCloud());
-  pcl::ExtractIndices<pcl::PointXYZRGBA> ei;
+  pcl::ExtractIndices<ColorPoint> ei;
   ei.setNegative(false);
   ei.setInputCloud(in);
   ei.setIndices(indicesPtr);
@@ -247,7 +247,7 @@ ColorCloudPtr maskCloud(const ColorCloudPtr in, const VectorXb& mask) {
   out->is_dense = false;
 
   int i = 0;
-  BOOST_FOREACH(const PointXYZRGBA& pt, in->points) {
+  BOOST_FOREACH(const ColorPoint& pt, in->points) {
     if (mask(i)) out->push_back(pt);
     ++i;
   }

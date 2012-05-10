@@ -21,7 +21,7 @@ vector<Vector3f> getTableCornersRansac(ColorCloudPtr cloud) {
   
   vector<Vector3f> tablePts, corners, tableVerts;
   Vector4f abcd(coeffs.data());
-  BOOST_FOREACH(PointXYZRGBA& pt, bigClu->points) tablePts.push_back(Vector3f(pt.x,pt.y,pt.z));
+  BOOST_FOREACH(ColorPoint& pt, bigClu->points) tablePts.push_back(Vector3f(pt.x,pt.y,pt.z));
   minEncRect(tablePts,abcd,corners);
 
   return corners;

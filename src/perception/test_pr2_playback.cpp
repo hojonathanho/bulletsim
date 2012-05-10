@@ -77,7 +77,7 @@ int main(int argc, char *argv[]) {
 
   // indices of joint angles
   // see /home/joschu/pr2/rope_manipulation/rope_Tracker/test/write_joint_stuff_to_files.py
-  ColorCloudPtr cloudWorld(new pcl::PointCloud<pcl::PointXYZRGBA>());
+  ColorCloudPtr cloudWorld(new pcl::PointCloud<ColorPoint>());
 
   int count = 0;
   while ( pcSub.recv(cloudMsg) ) {
