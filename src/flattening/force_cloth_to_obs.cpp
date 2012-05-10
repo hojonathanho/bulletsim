@@ -1,7 +1,16 @@
 #include "storage.h"
 #include "clothscene.h"
+
 #include "clouds/utils_pcl.h"
+#include "clouds/cloud_ops.h"
+
 #include "simulation/plotting.h"
+
+#include "perception/get_nodes.h"
+#include "perception/optimization_forces.h"
+#include "perception/config_perception.h"
+#include "perception/utils_perception.h"
+using namespace Eigen;
 
 // This program locally optimizes a cloth state to match an input observation
 
@@ -10,83 +19,45 @@ struct ForceClothConfig : Config {
     static string cloudToMatch;
     static string outputCloth;
     static bool enableDisplay;
+    static float trackingDownsampleSize;
+    static int forceSteps;
+    static float restTime;
     ForceClothConfig() : Config() {
         params.push_back(new Parameter<string>("inputCloth", &inputCloth, "input cloth file"));
         params.push_back(new Parameter<string>("cloudToMatch", &cloudToMatch, "observation to force the input cloth to"));
         params.push_back(new Parameter<string>("outputCloth", &outputCloth, "output cloth file"));
         params.push_back(new Parameter<bool>("enableDisplay", &enableDisplay, "show display"));
+        params.push_back(new Parameter<float>("trackingDownsampleSize", &trackingDownsampleSize, "downsampling resolution for input cloud before doing tracking"));
+        params.push_back(new Parameter<int>("forceSteps", &forceSteps, "steps to run tracking"));
+        params.push_back(new Parameter<float>("restTime", &restTime, "rest time after tracking"));
     }
 };
 string ForceClothConfig::inputCloth;
 string ForceClothConfig::cloudToMatch;
 string ForceClothConfig::outputCloth;
 bool ForceClothConfig::enableDisplay = false;
+float ForceClothConfig::trackingDownsampleSize = 0.01; // 1 cm
+int ForceClothConfig::forceSteps = 200;
+float ForceClothConfig::restTime = 0.5; // 0.5 sec
 
-// for each cloth point, find nearest neighbor in cloud, and apply force
-// in that direction
-static void forceClothToObs(Scene &scene, PlotLines::Ptr forceplot, Cloth &cloth, ColorCloudPtr cloud) {
-    btSoftBody *psb = cloth.psb();
+static void forceClothToObs(Scene &scene, Cloth::Ptr cloth, ColorCloudPtr cloud) {
+    btSoftBody *psb = cloth->psb();
 
-    pcl::KdTree<ColorPoint>::Ptr tree(new pcl::KdTreeFLANN<ColorPoint>);
-    tree->setInputCloud(cloud);
-    vector<int> nn_indices(1);
-    vector<float> nn_dists(1);
+    VectorXf pVis(psb->m_nodes.size()); pVis.setOnes(); // assume full visibility
+    vector<btVector3> clothObsPts = toBulletVectors(cloud);
 
-    const btScalar nodemass = psb->getTotalMass() / psb->m_nodes.size();
-    const btScalar dt = BulletConfig::dt;
-    const btScalar numSteps=1000;
-    vector<btVector3> plotpts;
-    for (int s = 0; s < numSteps; ++s) {
-        plotpts.clear();
-        cloth->updateAccel();
-        for (int i = 0; i < cloud->points.size(); ++i) {
-            // find cloth node nearest to cloud point
-            cloth->kdtree->nearestKSearch(cloud->points[i], 1, nn_indices, nn_dists);
-            const int idx = nn_indices[0];
-
-            // apply force in that direction
-            btVector3 cpt(cloud->points[i].x,
-                          cloud->points[i].y,
-                          cloud->points[i].z);
-            btVector3 dir = cpt - psb->m_nodes[idx].m_x;
-            btVector3 force = 2*nodemass/dt/dt/250 * dir;
-            psb->addForce(force, clothnode);
-            if (forceplot) {
-                plotpts.push_back(node.m_x);
-                plotpts.push_back(cpt);
-            }
-        }
-
-/*
-        for (int i = 0; i < psb->m_nodes.size(); ++i) {
-            const btSoftBody::Node &node = psb->m_nodes[i];
-            // find nearest neighbor to node in the cloud
-            ColorPoint pt; pt.x = node.m_x.x(); pt.y = node.m_x.y(); pt.z = node.m_x.z();
-            tree->nearestKSearch(pt, 1, nn_indices, nn_dists);
-            btVector3 cpt(cloud->points[nn_indices[0]].x,
-                          cloud->points[nn_indices[0]].y,
-                          cloud->points[nn_indices[0]].z);
-            // apply force in that direction
-            btVector3 dir = (cpt - node.m_x).normalize();
-            btVector3 force = 2*nodemass/dt/dt/250 * dir;
-            psb->addForce(force, i);
-            if (forceplot) {
-                plotpts.push_back(node.m_x);
-                plotpts.push_back(cpt);
-            }
-        }
-        */
-        if (forceplot) {
-            forceplot->setPoints(plotpts);
-        }
-        scene.step(dt, 0, dt);
+    for (int t = 0; t < ForceClothConfig::forceSteps; ++t) {
+        vector<btVector3> clothEstPts = getNodes(cloth);
+        SparseArray corr = toSparseArray(calcCorrProb(toEigenMatrix(clothEstPts), toEigenMatrix(clothObsPts), pVis, TrackingConfig::sigB, TrackingConfig::outlierParam), TrackingConfig::cutoff);
+        vector<btVector3> impulses = calcImpulsesSimple(clothEstPts, clothObsPts, corr, TrackingConfig::impulseSize);
+        for (int i = 0; i < impulses.size(); ++i)
+            psb->addForce(impulses[i], i);
+        scene.step(DT);
     }
-    LOG_INFO("done");
 }
 
 class CustomScene : public ClothScene {
     PlotPoints::Ptr cloudplot;
-    PlotLines::Ptr forceplot;
 
 public:
     void run();
@@ -97,8 +68,10 @@ void CustomScene::run() {
 
     cloth = Storage::loadCloth(ForceClothConfig::inputCloth, env->bullet->softBodyWorldInfo);
     env->add(cloth);
+    cloth->setColor(1, 1, 1, 0.5);
 
     ColorCloudPtr cloud = readPCD(ForceClothConfig::cloudToMatch);
+    cloud = downsampleCloud(cloud, ForceClothConfig::trackingDownsampleSize*METERS);
 
     if (ForceClothConfig::enableDisplay) {
         // plot the cloud
@@ -111,23 +84,28 @@ void CustomScene::run() {
         cloudplot->setPoints(pts, colors);
         env->add(cloudplot);
 
-        forceplot.reset(new PlotLines(1));
-        env->add(forceplot);
-
         startViewer();
-        forceClothToObs(*this, forceplot, *cloth, cloud);
-        startFixedTimestepLoop(BulletConfig::dt);
     }
+
+    forceClothToObs(*this, cloth, cloud);
+    stepFor(DT, ForceClothConfig::restTime);
+
+    if (cloth->fullValidCheck())
+        cloth->saveToFile(ForceClothConfig::outputCloth);
+    else
+        LOG_ERROR("resulting cloth state is invalid");
 }
 
 int main(int argc, char *argv[]) {
     SetCommonConfig();
     SceneConfig::enableRobot = false;
+    TrackingConfig::impulseSize = 50;
 
     Parser parser;
     parser.addGroup(GeneralConfig());
     parser.addGroup(BulletConfig());
     parser.addGroup(SceneConfig());
+    parser.addGroup(TrackingConfig());
     parser.addGroup(ForceClothConfig());
     parser.read(argc, argv);
 
