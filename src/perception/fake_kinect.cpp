@@ -120,7 +120,6 @@ KinectCallback::KinectCallback( osg::Camera* camera ) {
   const osg::Viewport* viewport    = camera->getViewport();
   osg::Viewport::value_type width  = viewport->width();
   osg::Viewport::value_type height = viewport->height();
-  cout << "viewport w/h: " << width << " " << height << endl;
   depthbufferimg = new osg::Image;
   depthbufferimg->allocateImage(width, height, 1, GL_DEPTH_COMPONENT, GL_FLOAT);
   colorbufferimg = new osg::Image;
@@ -133,9 +132,7 @@ KinectCallback::KinectCallback( osg::Camera* camera ) {
 void KinectCallback::operator () ( osg::RenderInfo& info ) const  {
   if (!m_done) {
     osg::Camera* camera = info.getCurrentCamera();
-    double start = timeOfDay();
     ColorCloudPtr cloud = computePointCloud(camera, depthbufferimg.get(), colorbufferimg.get());
-    cout << timeOfDay() - start << endl;
 
     KinectCallback* this2 = const_cast<KinectCallback*>(this);
     this2->m_done = true;
@@ -148,15 +145,44 @@ void KinectCallback::operator () ( osg::RenderInfo& info ) const  {
 //#include <osgGA/TrackballManipulator>
 osg::Vec3f toOSGVector(Eigen::Vector3f v) { return osg::Vec3f(v.x(), v.y(), v.z());}
 
-FakeKinect::FakeKinect(OSGInstance::Ptr osg, Affine3f worldFromCam, bool usePub) {
+FakeKinect::FakeKinect(OSGInstance::Ptr osg, const Affine3f &worldFromCam, bool usePub) {
   if (usePub) m_pub.reset(new FilePublisher("kinect", "pcd"));
-  m_viewer.setUpViewInWindow(0, 0, 640, 480);
+
+  const int width = 640, height = 480;
+
+  // set up view
   m_viewer.setSceneData(osg->root.get());
   m_viewer.setThreadingModel(osgViewer::Viewer::SingleThreaded);
+
   m_cam = m_viewer.getCamera();
+  m_cam->setProjectionMatrixAsPerspective(49, (float)width/height, .2*METERS, 10*METERS);
+  setWorldFromCam(worldFromCam);
 
-  m_cam->setProjectionMatrixAsPerspective(49,640./480., .2*METERS, 10*METERS);
+  // set up pixel buffer
+  osg::ref_ptr<osg::GraphicsContext::Traits> traits = new osg::GraphicsContext::Traits;
+  traits->x = 0;
+  traits->y = 0;
+  traits->width = width;
+  traits->height = height;
+  traits->red = 8;
+  traits->green = 8;
+  traits->blue = 8;
+  traits->alpha = 8;
+  traits->windowDecoration = false;
+  traits->pbuffer = true;
+  traits->sharedContext = 0;
+  osg::ref_ptr<osg::GraphicsContext> pbuffer(osg::GraphicsContext::createGraphicsContext(traits.get()));
+  ENSURE(pbuffer.valid());
+  m_cam->setGraphicsContext(pbuffer.get());
+  m_cam->setViewport(new osg::Viewport(0, 0, width, height));
 
+  m_cb = new KinectCallback(m_cam.get());
+  m_cam->setFinalDrawCallback(m_cb);
+
+  m_viewer.realize();
+}
+
+void FakeKinect::setWorldFromCam(const Eigen::Affine3f &worldFromCam) {
   Vector3f eye, center, up;
   Matrix3f rot;
   rot = worldFromCam.linear();
@@ -164,11 +190,6 @@ FakeKinect::FakeKinect(OSGInstance::Ptr osg, Affine3f worldFromCam, bool usePub)
   center = rot.col(2);
   up = -rot.col(1);
   m_cam->setViewMatrixAsLookAt(toOSGVector(eye), toOSGVector(center+eye), toOSGVector(up));
-
-  m_cb = new KinectCallback(m_cam.get());
-  m_cam->setFinalDrawCallback(m_cb);
-
-
 }
 
 void FakeKinect::sendMessage() {

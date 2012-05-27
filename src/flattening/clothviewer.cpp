@@ -1,4 +1,4 @@
-#include "simulation/logging.h"
+#include "utils/logging.h"
 #include <cstdlib>
 
 #include "clothscene.h"
@@ -25,7 +25,6 @@ class CustomScene : public ClothScene {
 
 public:
     void displayCloth(const fs::path &filename) {
-        LOG_INFO("loading " << filename);
         if (cloth) {
             env->remove(cloth);
             cloth.reset();
@@ -78,8 +77,6 @@ public:
 int main(int argc, char *argv[]) {
     SetCommonConfig();
     SceneConfig::enableRobot = false;
-
-    LoggingInit();
 
     Parser parser;
     parser.addGroup(GeneralConfig());

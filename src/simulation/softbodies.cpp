@@ -931,6 +931,23 @@ bool BulletSoftObject::validCheck(bool nodesOnly) const {
         CHECK(face->m_ra);
     }
 
+    // pose
+    CHECK(psb->m_pose.m_volume);
+    CHECKARR(psb->m_pose.m_pos);
+    CHECKARR(psb->m_pose.m_wgh);
+    CHECK(psb->m_pose.m_com);
+    CHECK(psb->m_pose.m_rot);
+    CHECK(psb->m_pose.m_scl);
+    CHECK(psb->m_pose.m_aqq);
+
+    // solver state
+    CHECK(psb->m_sst.isdt);
+    CHECK(psb->m_sst.radmrg);
+    CHECK(psb->m_sst.sdt);
+    CHECK(psb->m_sst.updmrg);
+    CHECK(psb->m_sst.velmrg);
+
+
     return true;
 
 #undef CHECKARR

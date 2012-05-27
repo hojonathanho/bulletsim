@@ -13,9 +13,12 @@ typedef int ID;
 fs::path clothPathFromID(const fs::path &root, ID id);
 fs::path cloudPathFromID(const fs::path &root, ID id);
 
+ID idFromCloudPath(const fs::path &filename);
+
 Cloth::Ptr loadCloth(const fs::path &filename, btSoftBodyWorldInfo &worldInfo);
 //Cloth::Ptr loadClothByID(const fs::path &root, ID id, btSoftBodyWorldInfo &worldInfo);
 
+void listCloudFiles(const fs::path &root, vector<fs::path> &files);
 };
 
 

@@ -1,6 +1,6 @@
 #include "cloth.h"
 
-#include "simulation/logging.h"
+#include "utils/logging.h"
 
 #include <fstream>
 #include <cmath>

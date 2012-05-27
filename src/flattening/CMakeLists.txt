@@ -28,6 +28,7 @@ add_library(clothmanip
     folding.cpp
     clothscene.cpp
     storage.cpp
+    cloudutils.cpp
 )
 set_source_files_properties(search.cpp PROPERTIES COMPILE_FLAGS -fopenmp)
 set_source_files_properties(search_general.cpp PROPERTIES COMPILE_FLAGS -fopenmp)
@@ -46,8 +47,22 @@ target_link_libraries(gen_rand_states clothmanip)
 add_executable(clothviewer clothviewer.cpp)
 target_link_libraries(clothviewer clothmanip)
 
+add_executable(check_cloth_integrity check_cloth_integrity.cpp)
+target_link_libraries(check_cloth_integrity clothmanip)
+
 add_executable(gencloud gencloud.cpp ../perception/fake_kinect.cpp)
 target_link_libraries(gencloud clothmanip GLU)
+
+file(COPY batch_genclouds.py
+    FILE_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE
+    DESTINATION ${EXECUTABLE_OUTPUT_PATH})
+
+add_executable(match_obs match_obs.cpp)
+set_source_files_properties(match_obs.cpp PROPERTIES COMPILE_FLAGS -fopenmp)
+target_link_libraries(match_obs clothmanip)
+
+add_executable(force_cloth_to_obs force_cloth_to_obs.cpp)
+target_link_libraries(force_cloth_to_obs clothmanip)
 
 add_executable(demo_flatten demo_flatten.cpp)
 target_link_libraries(demo_flatten clothmanip)
@@ -57,3 +72,9 @@ target_link_libraries(demo_pr2_manip clothmanip robots)
 
 add_executable(test_folding test_folding.cpp)
 target_link_libraries(test_folding clothmanip)
+
+add_executable(test_icp test_icp.cpp)
+target_link_libraries(test_icp clothmanip)
+
+add_executable(pcd_xyzrgba_to_xyzrgb pcd_xyzrgba_to_xyzrgb.cpp)
+target_link_libraries(pcd_xyzrgba_to_xyzrgb clothmanip)

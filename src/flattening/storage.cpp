@@ -1,5 +1,7 @@
 #include "storage.h"
-#include "simulation/logging.h"
+#include "utils/logging.h"
+#include <boost/lexical_cast.hpp>
+#include "utils/my_exceptions.h"
 
 static const char GZIP_PATH[] = "/bin/gzip";
 
@@ -9,6 +11,17 @@ static const char CLOUDS_SUBDIR[] = "clouds";
 namespace Storage {
 
 Cloth::Ptr loadCloth(const fs::path &filename, btSoftBodyWorldInfo &worldInfo) {
+    LOG_INFO("loading " << filename.string());
+
+    if (!fs::exists(filename)) {
+        LOG_ERROR("file " << filename << " does not exist");
+        throw FileOpenError(filename.string());
+    }
+    if (fs::is_directory(filename)) {
+        LOG_ERROR("path " << filename << " is a directory, not a file");
+        throw FileOpenError(filename.string());
+    }
+
     bool usingTempPath = false;
     fs::path tmpPath, tmpDecompressed;
     // decompress if needed
@@ -27,7 +40,6 @@ Cloth::Ptr loadCloth(const fs::path &filename, btSoftBodyWorldInfo &worldInfo) {
         system(cmd.c_str());
     }
 
-    LOG_INFO("loading " << usingTempPath ? tmpDecompressed.string() : filename.string());
     Cloth::Ptr cloth = Cloth::createFromFile(worldInfo,
             usingTempPath ? tmpDecompressed.string() : filename.string());
 
@@ -54,6 +66,26 @@ fs::path clothFileFromID(const fs::path &root, ID id) {
 
 fs::path cloudFileFromID(const fs::path &root, ID id) {
     return root / CLOUDS_SUBDIR / genFilenameStem(id) / ".pcd";
+}
+
+// returns filename with all extensions stripped
+static fs::path rawStem(const fs::path &p) {
+    fs::path q = p;
+    while (!q.extension().empty())
+        q = q.stem();
+    return q;
+}
+
+ID idFromCloudPath(const fs::path &filename) {
+    return boost::lexical_cast<ID>(rawStem(filename).string());
+}
+
+void listCloudFiles(const fs::path &root, vector<fs::path> &files) {
+    fs::path p = root / CLOUDS_SUBDIR;
+    fs::directory_iterator end_iter;
+    for (fs::directory_iterator dir_itr(p); dir_itr != end_iter; ++dir_itr)
+        if ( fs::is_regular_file( dir_itr->status() ) )
+            files.push_back(dir_itr->path());
 }
 
 }
