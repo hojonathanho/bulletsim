@@ -1,4 +1,9 @@
 add_definitions("-DBULLETSIM_DATA_DIR=${BULLETSIM_SOURCE_DIR}/data")
+
+
+include_directories("/opt/ros/fuerte/include")
+
+
 include_directories(
     ${BULLETSIM_SOURCE_DIR}/src
 
@@ -21,17 +26,15 @@ add_subdirectory(simulation)
 add_subdirectory(robots)
 add_subdirectory(utils)
 
+#add_subdirectory(perception)
+add_subdirectory(comm)
+add_subdirectory(clouds)
 
-if(BUILD_PERCEPTION)
-    add_subdirectory(perception)
-    add_subdirectory(comm)
-	add_subdirectory(cloud_defs)    
-    add_subdirectory(clouds)
-endif(BUILD_PERCEPTION)
 add_subdirectory(tests)
 if (JOHNS_ADVENTURES)
    add_subdirectory(john_sandbox)
    add_subdirectory(knots)
+   add_subdirectory(tracking)
    #add_subdirectory(smoothing)
    #add_subdirectory(registration)
 endif(JOHNS_ADVENTURES)

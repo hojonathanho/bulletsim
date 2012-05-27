@@ -23,5 +23,5 @@ ColorCloudPtr maskCloud(const ColorCloudPtr in, const cv::Mat& mask);
 ColorCloudPtr maskCloud(const ColorCloudPtr in, const VectorXb& mask);
 ColorCloudPtr removeZRange(const ColorCloudPtr in, float minZ, float maxZ);
 void labelCloud(ColorCloudPtr in, const cv::Mat& labels);
-ColorCloudPtr hueFilter(ColorCloudPtr in, uint8_t minHue, uint8_t maxHue, uint8_t minSat=160, uint8_t minVal = 100);
+ColorCloudPtr hueFilter(ColorCloudPtr in, uint8_t minHue, uint8_t maxHue, uint8_t minSat=0, uint8_t maxSat=255, uint8_t minVal=0, uint8_t maxVal=255);
 ColorCloudPtr orientedBoxFilter(ColorCloudPtr cloud_in, const Eigen::Matrix3f& ori, const Eigen::Vector3f& mins, const Eigen::Vector3f& maxes);

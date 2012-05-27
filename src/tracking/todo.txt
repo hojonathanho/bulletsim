@@ -1,0 +1,59 @@
+TO IMPLEMENT 
+====================
+
+INCLUDES
+
+
+ROS NAMESPACES
+===================
+
+preprocessing node:
+   receives: cloud_in (MANDATORY)
+   emits: /preprocessorr/points
+      maybe: /ground_transform
+      
+
+tracking node:
+   receives: /preprocessing/points, depth_in
+   emits: /tracker/object
+   
+initialization service:
+   emits: /tracker/initialization
+   
+   
+MESSAGES   
+   
+TrackedObject
+- Header
+- type
+- nodes
+- pose
+
+RopeInitialization
+- nodes
+TowelInitialization1
+- corners
+TowelInitialization2
+- string
+
+ObjectInitialization
+- type
+- ropeInit
+- towelInit1
+- towelInit2
+
+
+Transforms
+============
+
+ros method is to make preprocessor publish a /ground frame, and then track_rope
+publishes in that frame. i'll hide all of this stuff from the actual algorithms: the file with main will update the coordinatetransformer.
+
+
+In the case with the robot, i'll use openrave to get the transform
+In the case without the robot, i'll tell the preprocessor to publish everything in the ground frame. 
+i'll also publish a ground transform, so I can play back bag file of input to the tracker without any tf bullshit.
+
+So the convention is that the preprocessor publishes stuff in the right frame
+
+OK I don't like the way the frames are set up now. Let's just 

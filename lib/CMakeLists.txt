@@ -1,3 +1,5 @@
+set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/3rdparty_bin)
+
 add_subdirectory(haptics)
 add_subdirectory(bullet-2.79)
 add_subdirectory(osgWorks-2.0)

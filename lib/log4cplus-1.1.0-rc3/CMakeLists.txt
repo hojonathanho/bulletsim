@@ -49,6 +49,6 @@ enable_testing()
 
 add_subdirectory (src)
 add_subdirectory (loggingserver)
-add_subdirectory (tests)
+# add_subdirectory (tests)
 
 include(Log4CPlusCPack.cmake)

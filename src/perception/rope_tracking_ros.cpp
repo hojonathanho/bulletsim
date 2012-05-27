@@ -13,8 +13,9 @@ using namespace Eigen;
 #include "utils/vector_io.h"
 #include "perception/apply_impulses.h"
 #include "utils/logging.h"
-static const float LABEL_MULTIPLIER = 0; //just so things work with old rope_pts data
+#include <ros/ros.h>
 
+static const float LABEL_MULTIPLIER = 0; //just so things work with old rope_pts data
 
 static osg::Vec4f hyp_colors[6] = {osg::Vec4f(1,0,0,.3),
 				   osg::Vec4f(0,1,0,.3),
@@ -28,7 +29,6 @@ static osg::Vec4f getColor() {
   COLOR_IND = (COLOR_IND + 1) % 6;
   return hyp_colors[COLOR_IND];
 }
-
 
 MatrixXf TrackedRope::featsFromCloud(ColorCloudPtr cloud) {
   MatrixXf out(cloud->size(), 4);
@@ -93,22 +93,14 @@ m_robot(robot)
 void RopeHypWithRobot::step() {
 }
 
-btTransform transformFromFile(const string& fname) {
-  ifstream infile(fname.c_str());
-  if (infile.fail()) throw FileOpenError(fname);
-  btTransform t;
-  infile >> t;
-  if (infile.fail()) throw runtime_error( (string("problem when reading ") + fname).c_str() );
-  ENSURE(!infile.fail());
-  return t;
-}
-
-SingleHypRopeTracker::SingleHypRopeTracker() : Tracker2(), m_ropeInitMsg(), m_ropeInitSub("rope_init","txt"), m_pub("rope_model","txt") {
-  Tracker2::m_multisub = m_multisub = new RopeSubs();
-  m_obsCloud.reset(new ColorCloud());
+SingleHypRopeTracker::SingleHypRopeTracker() : Tracker2() {
 }
 
 void SingleHypRopeTracker::beforeIterations() {
+  // TODO: convert datatypes from ros messages and create fields needed
+
+
+
   ColorCloudPtr cloudCam  = m_multisub->m_kinectMsg.m_data;
   ColorCloudPtr cloudWorld(new ColorCloud());
 
@@ -117,6 +109,7 @@ void SingleHypRopeTracker::beforeIterations() {
   else {m_kinectPts->clear();}
   pcl::transformPointCloud(*m_multisub->m_ropePtsMsg.m_data, *m_obsCloud, m_CT->worldFromCamEigen);
   m_obsFeats = TrackedRope::featsFromCloud(m_obsCloud);
+
 
 }
 

@@ -16,12 +16,6 @@ Scene::Scene() {
 
     env.reset(new Environment(bullet, osg));
 
-    // plots for debugging
-    plotPoints.reset(new PlotPoints(GeneralConfig::scale * 0.5));
-    env->add(plotPoints);
-    plotLines.reset(new PlotLines(GeneralConfig::scale * 0.5));
-    env->add(plotLines);
-
     // populate the scene with some basic objects
     ground.reset(new PlaneStaticObject(btVector3(0., 0., 1.), 0., btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0))));
     env->add(ground);

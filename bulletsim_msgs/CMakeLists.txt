@@ -25,19 +25,20 @@ cmake_minimum_required(VERSION 2.4.6)
 #rosbuild_add_executable(example examples/example.cpp)
 #target_link_libraries(example ${PROJECT_NAME})
 
-project(cloud_defs)
+project(bulletsim_msgs)
 find_package(catkin REQUIRED)
 find_package(genmsg REQUIRED)
 find_package(ROS REQUIRED std_msgs geometry_msgs sensor_msgs)
-#catkin_stack()
-catkin_project(cloud_defs)
+catkin_stack()
+catkin_project(bulletsim_msgs)
 
-# add_message_files(
-#   DIRECTORY msg
-#   FILES 
 add_service_files(
   DIRECTORY srv
-  FILES GetTable.srv
+  FILES GetTable.srv Initialization.srv
+)
+add_message_files(
+  DIRECTORY msg
+  FILES ObjectInit.msg Rope.msg TowelCorners.msg TrackedObject.msg
 )
 
 generate_messages(DEPENDENCIES std_msgs geometry_msgs sensor_msgs)

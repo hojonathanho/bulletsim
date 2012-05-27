@@ -44,7 +44,7 @@ vector<double> getTimes(string topic, string ext) {
 		PathPair pair = makePathPair(id, ext, topic);
 		if (!exists(pair.first))
 			break;
-		Value val = readJson(pair.second);
+		Json::Value val = readJson(pair.second);
 		double t = val["time"].asDouble();
 		times.push_back(t);
 		id++;

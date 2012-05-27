@@ -14,15 +14,17 @@ pcl::PointCloud<ColorPoint>::Ptr readPCD(const std::string& pcdfile) {
   return cloud;
 }
 
+
+static const float cx = 320-.5;
+static const float cy = 240-.5;
+static const float f = 525;
+
 Eigen::MatrixXi xyz2uv(const Eigen::MatrixXf& xyz) {
  // http://www.pcl-users.org/Using-Kinect-with-PCL-How-to-project-a-3D-point-x-y-z-to-the-depth-rgb-image-and-how-to-unproject-a--td3164499.html
   VectorXf x = xyz.col(0);
   VectorXf y = xyz.col(1);
   VectorXf z = xyz.col(2);
 
-  float cx = 320-.5;
-  float cy = 240-.5;
-  float f = 525;
   VectorXf v = f*(x.array() / z.array()) + cx;
   VectorXf u = f*(y.array() / z.array()) + cy;
   MatrixXi uv(u.rows(),2);
@@ -52,6 +54,11 @@ MatrixXf getDepthImage(ColorCloudPtr cloud) {
 
 cv::Mat toCVMat(Eigen::MatrixXf in) {
   return cv::Mat(in.rows(), in.cols(), CV_32FC1, in.data());
+}
+
+MatrixXf toEigenMatrix(const cv::Mat& in) {
+	if (in.type() != CV_32FC1) throw runtime_error("input matrix has the wrong type");
+	return Map<MatrixXf>((float*)in.data, in.rows, in.cols);
 }
 
 pcl::PointCloud<pcl::PointXYZ>::Ptr toPointCloud(const std::vector< std::vector<float> >& in) {

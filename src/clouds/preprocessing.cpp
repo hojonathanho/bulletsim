@@ -13,8 +13,6 @@
 #include "perception/utils_perception.h" // XXX. just for inline stuff
 #include "utils/conversions.h"
 
-#define STRINGIFY(x) #x
-#define EXPAND(x) STRINGIFY(x)
 
 using namespace Eigen;
 using namespace std;
@@ -162,7 +160,7 @@ ColorCloudPtr RopePreprocessor2::extractRopePoints(ColorCloudPtr cloud) {
   VectorXb mask = getPointsOnTable(cloud, m_camToWorld, m_cornersWorld,.01,1);
   ColorCloudPtr cloudOnTable = maskCloud(cloud, mask);
 
-  ColorCloudPtr redCloud =  hueFilter(cloudOnTable, 170, 10, 160);
+  ColorCloudPtr redCloud =  hueFilter(cloudOnTable, MIN_HUE, MAX_HUE, MIN_SAT, MAX_SAT, MIN_VAL, MAX_VAL);
   ColorCloudPtr downedRopeCloud = downsampleCloud(removeOutliers(redCloud,1),.01);
   return downedRopeCloud;
 }  

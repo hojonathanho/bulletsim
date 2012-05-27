@@ -58,7 +58,6 @@ ColorCloudPtr removeOutliers(const ColorCloudPtr in, float thresh, int k) {
   sor.setMeanK (k);
   sor.setStddevMulThresh (thresh);
   sor.filter (*out);
-  cout << "removeOutliers: removed " << (in->size() - out->size()) << " of " << in->size() << endl;
   return out;
 }
 
@@ -263,7 +262,7 @@ void labelCloud(ColorCloudPtr in, const cv::Mat& labels) {
     in->points[i]._unused = labels.at<uint8_t>(uv(i,0), uv(i,1));
 }
 
-ColorCloudPtr hueFilter(const ColorCloudPtr in, uint8_t minHue, uint8_t maxHue, uint8_t minSat, uint8_t minVal) {
+ColorCloudPtr hueFilter(const ColorCloudPtr in, uint8_t minHue, uint8_t maxHue, uint8_t minSat, uint8_t maxSat, uint8_t minVal, uint8_t maxVal) {
   MatrixXu bgr = toBGR(in);
   int nPts = in->size();
   cv::Mat cvmat(in->height,in->width, CV_8UC3, bgr.data());
@@ -273,13 +272,18 @@ ColorCloudPtr hueFilter(const ColorCloudPtr in, uint8_t minHue, uint8_t maxHue, 
 
   cv::Mat& h = hsvChannels[0];
   cv::Mat& s = hsvChannels[1];
-  cv::Mat& l = hsvChannels[2];
-  cv::Mat hueMask = (minHue < maxHue) ?
+  cv::Mat& v = hsvChannels[2];
+
+
+  cv::Mat mask = (minHue < maxHue) ?
     (h > minHue) & (h < maxHue) :
     (h > minHue) | (h < maxHue);
-  cv::Mat satMask = (s > minSat);
-  cv::Mat valMask = (l > minVal);
-  return maskCloud(in, hueMask & satMask & valMask);
+  if (minSat > 0) mask &= (s >= minSat);
+  if (maxSat < 255) mask &= (s <= maxSat);
+  if (minVal > 0) mask &= (v >= minVal);
+  if (maxVal < 255) mask &= (v <= maxVal);
+
+  return maskCloud(in, mask);
 }
 
 ColorCloudPtr orientedBoxFilter(ColorCloudPtr cloud_in, const Matrix3f& ori, const Vector3f& mins, const Vector3f& maxes) {

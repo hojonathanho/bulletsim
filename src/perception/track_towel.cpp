@@ -2,6 +2,7 @@
 #include "perception/config_perception.h"
 #include "simulation/config_bullet.h"
 #include "simulation/recording.h"
+#include <BulletSoftBody/btSoftBodyHelpers.h>
 
 int main(int argc, char* argv[]) {
   Eigen::internal::setNbThreads(3);

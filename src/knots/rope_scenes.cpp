@@ -1,6 +1,5 @@
 #include "knots.h"
 #include "rope_scenes.h"
-#include "perception/make_bodies.h"
 #include "robots/ros2rave.h"
 #include <boost/bind.hpp>
 #include "robots/pr2.h"
@@ -64,6 +63,15 @@ void GrabbingScene::step(float dt) {
   m_rMonitor->update();
 
   Scene::step(dt);
+}
+
+BulletObject::Ptr makeTable(const vector<btVector3>& corners, float thickness) {
+  btVector3 origin = (corners[0] + corners[2])/2;
+  origin[2] -= thickness/2;
+  btVector3 halfExtents = (corners[2] - corners[0]).absolute()/2;
+  halfExtents[2] = thickness/2;
+
+  return BulletObject::Ptr(new BoxObject(0,halfExtents,btTransform(btQuaternion(0,0,0,1),origin)));
 }
 
 TableRopeScene::TableRopeScene(fs::path ropeFile, bool telekinesis) : GrabbingScene(telekinesis) {
