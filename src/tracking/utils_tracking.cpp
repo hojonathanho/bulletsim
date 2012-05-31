@@ -6,9 +6,10 @@
 using namespace std;
 using namespace Eigen;
 
-void waitUntilTrue(bool* b) {
-  while(!b) sleep(.001);
+void toggle(bool* b){
+	*b = !(*b);
 }
+
 Affine3f Scaling3f(float s) {
   Affine3f T;
   T = s*Matrix3f::Identity();
@@ -45,18 +46,29 @@ vector<btVector3> CoordinateTransformer::toCamFromWorldN(const vector<btVector3>
 }
 
 Eigen::MatrixXf CoordinateTransformer::toCamFromWorldMatrixXf(const MatrixXf& in) {
-	MatrixXf out(in.rows(), in.cols());
-	MatrixXf mat = camFromWorldEigen.matrix();
-	out = in * mat.transpose();
+	MatrixX3f out(in.rows(), in.cols());
+	for (int row=0; row<in.rows(); ++row)
+		out.row(row) = camFromWorldEigen * Map<const Vector3f>(in.row(row).data(), 3, 1);
 	return out;
 }
 
 
-std::vector<btVector3> scaleBy(const std::vector<btVector3>& in, float scale) {
-	vector<btVector3> out(in.size());
-	BOOST_FOREACH(const btVector3& pt, in) out.push_back(pt * scale);
+std::vector<btVector3> scaleVecs(const std::vector<btVector3>& in, float scale) {
+	vector<btVector3> out = in;
+	BOOST_FOREACH(btVector3& pt, out) pt *= scale;
 	return out;
 }
+
+ColorCloudPtr scaleCloud(ColorCloudPtr in, float scale) {
+	ColorCloudPtr out(new ColorCloud(*in));
+	BOOST_FOREACH(ColorPoint& pt, out->points) {
+		pt.x *= scale;
+		pt.y *= scale;
+		pt.z *= scale;
+	}
+	return out;
+}
+
 
 MatrixXf pairwiseSquareDist(const Eigen::MatrixXf& x_m3, const Eigen::MatrixXf& y_n3) {
   // vectors are rows of x and y
@@ -84,9 +96,16 @@ bool isFinite(const Eigen::MatrixXf& x) {
   return true;
 }
 
+std::vector<btVector3> toBulletVectors(ColorCloudPtr in) {
+  std::vector<btVector3> out(in->size());
+  for (int i=0; i < in->size(); ++i) out[i] = btVector3(in->points[i].x,in->points[i].y,in->points[i].z);
+  return out;
+}
+
+
 
 btTransform waitForAndGetTransform(const tf::TransformListener& listener, std::string target_frame, std::string source_frame) {
-	listener.waitForTransform(target_frame, source_frame, ros::Time(0),ros::Duration(0));
+	listener.waitForTransform(target_frame, source_frame, ros::Time(0),ros::Duration(.1));
 	tf::StampedTransform st;
 	listener.lookupTransform(target_frame, source_frame, ros::Time(0), st);
 	return st.asBt();

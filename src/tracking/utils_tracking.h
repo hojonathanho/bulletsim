@@ -3,8 +3,9 @@
 #include <Eigen/Dense>
 #include <geometry_msgs/Point.h>
 #include <tf/transform_listener.h>
+#include "clouds/utils_pcl.h"
 
-void waitUntilTrue(bool* b);
+void toggle(bool* b);
 
 class CoordinateTransformer {
 public:
@@ -21,11 +22,15 @@ public:
   void reset(const btTransform &wfc);
 };
 
-std::vector<btVector3> scaleBy(const std::vector<btVector3>&, float);
+std::vector<btVector3> scaleVecs(const std::vector<btVector3>&, float);
+ColorCloudPtr scaleCloud(ColorCloudPtr, float);
 
 Eigen::Affine3f Scaling3f(float s);
 Eigen::MatrixXf pairwiseSquareDist(const Eigen::MatrixXf& x_m3, const Eigen::MatrixXf& y_n3);
 std::vector<int> argminAlongRows(const Eigen::MatrixXf& d_mn);
 bool isFinite(const Eigen::MatrixXf& x);
+
+std::vector<btVector3> toBulletVectors(ColorCloudPtr in);
+
 
 btTransform waitForAndGetTransform(const tf::TransformListener& listener, std::string target_frame, std::string source_frame);

@@ -1,3 +1,3 @@
 string type
 Rope rope
-TowelCorners towel_corners
+geometry_msgs/PolygonStamped towel_corners

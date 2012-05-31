@@ -48,19 +48,28 @@ float LocalConfig::downsample = .02;
 bool LocalConfig::removeOutliers = false;
 
 static int MIN_HUE, MAX_HUE, MIN_SAT, MAX_SAT, MIN_VAL, MAX_VAL;
-void updateHSVParams() {
-	ros::param::param<int>(nodeName + "/min_hue", MIN_HUE, 160);
-	ros::param::param<int>(nodeName + "/max_hue", MAX_HUE, 10);
-	ros::param::param<int>(nodeName + "/min_sat", MIN_SAT, 100);
-	ros::param::param<int>(nodeName + "/max_sat", MAX_SAT, 255);
-	ros::param::param<int>(nodeName + "/min_val", MIN_VAL, 140);
-	ros::param::param<int>(nodeName + "/max_val", MAX_VAL, 255);
+
+template <typename T>
+void getOrSetParam(const ros::NodeHandle& nh, std::string paramName, T& ref, T defaultVal) {
+	if (!nh.getParam(paramName, ref)) {
+		nh.setParam(paramName, defaultVal);
+		ref = defaultVal;
+		ROS_INFO_STREAM("setting " << paramName << "to default value " << defaultVal);
+	}
+}
+void setParams(const ros::NodeHandle& nh) {
+	getOrSetParam(nh, "min_hue", MIN_HUE, 160);
+	getOrSetParam(nh, "max_hue", MAX_HUE, 10);
+	getOrSetParam(nh, "min_sat", MIN_SAT, 150);
+	getOrSetParam(nh, "max_sat", MAX_SAT, 255);
+	getOrSetParam(nh, "min_val", MIN_VAL, 100);
+	getOrSetParam(nh, "max_val", MAX_VAL, 255);
 }
 
-void updateParamLoop() {
-	ros::NodeHandle nh;
+void setParamLoop() {
+	ros::NodeHandle nh(nodeName);
 	while (nh.ok()) {
-		updateHSVParams();
+		setParams(nh);
 		sleep(1);
 	}
 }
@@ -97,6 +106,7 @@ public:
 
     sensor_msgs::PointCloud2 msg_out;
     pcl::toROSMsg(*cloud_out, msg_out);
+    msg_out.header = msg_in.header;
     m_pub.publish(msg_out);
 		
     br.sendTransform(tf::StampedTransform(m_transform, ros::Time::now(), msg_in.header.frame_id, "ground"));
@@ -171,8 +181,8 @@ int main(int argc, char* argv[]) {
   ros::init(argc, argv,"preprocessor");
   ros::NodeHandle nh;
 
-  updateHSVParams();
-  if (LocalConfig::updateParams) boost::thread updateParamThread(updateParamLoop);
+  setParams(nh);
+  if (LocalConfig::updateParams) boost::thread setParamThread(setParamLoop);
 
 
   PreprocessorNode tp(nh);

@@ -35,8 +35,9 @@ SparseMatrixf toSparseMatrix(const Eigen::MatrixXf& in, float thresh) {
   Eigen::MatrixXf absIn = in.array().abs();
   SparseMatrixf out(in.rows(), in.cols());
   out.reserve(in.size() / 10);
-  for (int iRow = 0; iRow < in.rows(); iRow++) {
-    for (int iCol = 0;iCol < in.cols(); iCol++) {
+  for (int iRow = 0; iRow < in.rows(); ++iRow) {
+	out.startVec(iRow);
+    for (int iCol = 0;iCol < in.cols(); ++iCol) {
       if (absIn(iRow, iCol) > thresh) out.insertBack(iRow, iCol) = in(iRow, iCol);
     }
   }

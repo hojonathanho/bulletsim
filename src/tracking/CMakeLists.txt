@@ -21,6 +21,7 @@ add_library(tracking
 	algorithm_common.cpp 
 	config_tracking.cpp
 	initialization.cpp
+	plotting_tracking.cpp
 	simple_physics_tracker.cpp 
 	sparse_utils.cpp
 	tracked_object.cpp 
@@ -32,6 +33,9 @@ add_library(tracking
 	
 target_link_libraries(tracking
 	simulation clouds robots)
+	
+add_executable(test_sparse sandbox/test_sparse.cpp)
+target_link_libraries(test_sparse tracking)
 
-add_executable(single_object_tracker_node single_object_tracker_node.cpp)
-target_link_libraries(single_object_tracker_node tracking simulation clouds tf cv_bridge ${ROS_LIBRARIES} boost_signals)
+add_executable(tracker_node tracker_node.cpp)
+target_link_libraries(tracker_node tracking simulation clouds tf cv_bridge ${ROS_LIBRARIES} boost_signals)

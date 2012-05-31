@@ -86,6 +86,7 @@ double timeOfDay() {
 
 int main(int argc, char* argv[]) {
   Scene scene;
+  scene.startViewer();
   PR2Manager pr2m(scene);
   OpenRAVE::Transform current = pr2m.pr2Left->manip->GetEndEffectorTransform();
   vector< vector<dReal> > vsolution;
@@ -95,10 +96,16 @@ int main(int argc, char* argv[]) {
 
 
   RobotBase::ManipulatorPtr manip = pr2m.pr2Left->manip;
-  
+  PlotAxes::Ptr axes(new PlotAxes());
+  scene.env->add(axes);
   
   OpenRAVE::Transform target = current;
-  moveByNumericalIK(manip, target, 1);
-
+  while (true) {
+//	  moveByJt(manip, target, 1);
+	  pr2m.pr2->updateBullet();
+	  btTransform btarg = util::toBtTransform(target);
+	  axes->setup(btarg, .1);
+	  scene.step(.01);
+  }
 
 }

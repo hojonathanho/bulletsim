@@ -29,8 +29,8 @@ target_link_libraries(test_plotting2 simulation)
 add_executable(test_multithread_ik test_multithread_ik.cpp)
 target_link_libraries(test_multithread_ik simulation robots)
 
-#add_executable(numerical_ik numerical_ik.cpp)
-#target_link_libraries(numerical_ik simulation robots)
+add_executable(test_numerical_ik test_numerical_ik.cpp)
+target_link_libraries(test_numerical_ik simulation robots)
 
 add_executable(test_rave_load test_rave_load.cpp)
 target_link_libraries(test_rave_load simulation robots)

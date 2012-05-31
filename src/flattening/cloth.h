@@ -2,7 +2,7 @@
 #define __FL_CLOTH_H__
 
 #include "simulation/softbodies.h"
-#include "make_bodies.h"
+#include "flattening/make_bodies.h"
 #include <pcl/point_cloud.h>
 #include <pcl/kdtree/kdtree_flann.h>
 

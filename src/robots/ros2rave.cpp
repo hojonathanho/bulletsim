@@ -1,21 +1,25 @@
 #include "robots/ros2rave.h"
-// rosnames = np.load("/home/joschu/Data/knot_kinect2/joint_names.npy") 
-// (obtained from a joint_states message)
-// ros2rave = [pr2.GetJointIndex(name) for name in rosnames]
+#include <boost/foreach.hpp>
 
-// int ros2rave[]={ 6,  7,  8,  9, 10, 11,  0,  1,  2,  3,  4,  5, 12, 38, 13, 14, 26,
-//        29, 27, 28, 31, 30, 32, 33, 37, 34, -1, -1, -1, 36, 35, 17, 15, 16,
-// 	     19, 18, 20, 21, 25, 22, -1, -1, -1, 24, 23};
-// int nros=45;
-int ros2rave[] = {6,  7,  8,  9, 10, 11,  0,  1,  2,  3,  4,  5, 12, 13, 14, 26, 29,
-       27, 28, 31, 30, 32, 33, 37, 34, -1, -1, -1, 17, 15, 16, 19, 18, 20,
-		  21, 25, 22, -1, -1, -1};
-int nros = 40;
+vector<int> ros2rave;
 
+void setupDefaultROSRave() {
+  int ros2rave_array[] = {6,  7,  8,  9, 10, 11,  0,  1,  2,  3,  4,  5, 12, 13, 14, 26, 29,
+         27, 28, 31, 30, 32, 33, 37, 34, -1, -1, -1, 17, 15, 16, 19, 18, 20,
+  		  21, 25, 22, -1, -1, -1};
+  ros2rave.assign(ros2rave_array, ros2rave_array + sizeof(ros2rave_array)/sizeof(int));
+}
+
+void setupROSRave(const OpenRAVE::RobotBasePtr& robot, const sensor_msgs::JointState& msg) {
+  // ros2rave = [pr2.GetJointIndex(name) for name in rosnames]
+  BOOST_FOREACH(const string& name, msg.name) {
+    ros2rave.push_back(robot->GetJointIndex(name));
+  }
+}
 
 ValuesInds getValuesInds(const vector<double>& rosjoints) {
   ValuesInds out;
-  for (int iros=0; iros<nros; iros++) {
+  for (int iros=0; iros<ros2rave.size(); ++iros) {
     if (ros2rave[iros] != -1)  {
       int irave = ros2rave[iros];
       out.first.push_back(rosjoints[iros]);

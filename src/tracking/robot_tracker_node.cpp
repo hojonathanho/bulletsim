@@ -10,7 +10,9 @@
 #include <message_filters/time_synchronizer.h>
 #include <message_filters/sync_policies/exact_time.h>
 #include <bulletsim_msgs/TrackedObject.h>
+#include <sensor_msgs/JointState.h>
 
+#include "robots/pr2.h"
 #include "clouds/utils_pcl.h"
 #include "utils_tracking.h"
 #include "visibility.h"
@@ -32,15 +34,25 @@ CoordinateTransformer* transformer;
 tf::TransformListener* listener;
 string inputCloudFrame;
 
+sensor_msgs::JointState lastJointMsg;
+
 void callback (const sensor_msgs::PointCloud2ConstPtr& cloudMsg,
 			        const sensor_msgs::ImageConstPtr& depthMsg) {
-  if (transformer == NULL) {
-    transformer = new CoordinateTransformer(waitForAndGetTransform(*listener, "/ground",cloudMsg->header.frame_id));
+  if (transformer == NULL) { // first time
+    inputCloudFrame = cloudMsg->header.frame_id;
+    transformer = new CoordinateTransformer(waitForAndGetTransform(*listener, inputCloudFrame,cloudMsg->header.frame_id));
+  }
+  else {
+    transformer->reset(waitForAndGetTransform(*listener, inputCloudFrame, cloudMSg->header.frame_id));
   }
   depthImage = cv_bridge::toCvShare(depthMsg)->image;
   pcl::fromROSMsg(*cloudMsg, *filteredCloud);
   pcl::transformPointCloud(*filteredCloud, *filteredCloud, transformer->worldFromCamEigen);
   pending = true;
+}
+
+void jointCallback(const sensor_msgs::JointState& msg) {
+  lastJointMsg = 
 }
 
 int main(int argc, char* argv[]) {
@@ -57,7 +69,6 @@ int main(int argc, char* argv[]) {
 
   ros::Publisher objPub = nh.advertise<bulletsim_msgs::TrackedObject>(trackedObjectTopic,10);
 	
-	
   // wait for first message, then initialize
   while (!pending) {
     ros::spinOnce();
@@ -65,12 +76,11 @@ int main(int argc, char* argv[]) {
   }  
   TrackedObject::Ptr trackedObj = callInitServiceAndCreateObject(filteredCloud);
   
-  
   // set up scene
   Scene scene;
+  PR2Manager pr2m(scene);
   scene.startViewer();  
   scene.env->add(trackedObj->m_sim);
-	
 	
 	// actual tracking algorithm
   DepthImageVisibility visInterface(transformer);

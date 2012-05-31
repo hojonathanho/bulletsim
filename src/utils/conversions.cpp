@@ -158,6 +158,11 @@ std::vector<btVector3> toBulletVectors(const std::vector<geometry_msgs::Point>& 
 	for (int i=0; i < in.size(); ++i) out[i] = btVector3(in[i].x, in[i].y, in[i].z);
 	return out;
 }
+std::vector<btVector3> toBulletVectors(const std::vector<geometry_msgs::Point32>& in) {
+	std::vector<btVector3> out(in.size());
+	for (int i=0; i < in.size(); ++i) out[i] = btVector3(in[i].x, in[i].y, in[i].z);
+	return out;
+}
 
 std::vector<geometry_msgs::Point> toROSPoints(const std::vector<btVector3>& in) {
 	std::vector<geometry_msgs::Point> out(in.size());

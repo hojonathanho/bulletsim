@@ -16,7 +16,7 @@ public:
 class DepthImageVisibility : public VisibilityInterface {
 public:
   CoordinateTransformer* m_transformer;
-  Eigen::MatrixXf m_depth;
+  cv::Mat m_depth;
   DepthImageVisibility(CoordinateTransformer* transformer) : m_transformer(transformer) {}  
 	Eigen::VectorXf checkNodeVisibility(TrackedObject::Ptr);
 	void updateInput(const cv::Mat&);

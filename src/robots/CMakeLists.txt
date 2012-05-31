@@ -5,6 +5,7 @@ include_directories(
     ${BULLETSIM_SOURCE_DIR}/lib/haptics
     ${EIGEN3_INCLUDE_DIR}
     ${OSGBULLET_DIR}
+    
 )
 link_directories(${BULLETSIM_BINARY_DIR}/src/simulation)
 
