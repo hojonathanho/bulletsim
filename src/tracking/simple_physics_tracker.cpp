@@ -38,7 +38,10 @@ void SimplePhysicsTracker::doIteration() {
 
   MatrixXf obsPtsEigen = toEigenMatrix(m_obsPts);
 
+  // E STEP
   estimateCorrespondence(toEigenMatrix(m_estPts), m_stdev, vis, obsPtsEigen, TrackingConfig::outlierParam, corr);
+
+
   VectorXf inlierFrac = colSums(corr);
 
   if (m_enableObsPlot) plotObs(m_obsPts, inlierFrac, m_obsPlot);
@@ -48,7 +51,7 @@ void SimplePhysicsTracker::doIteration() {
   if (m_enableCorrPlot) drawCorrLines(m_corrPlot, m_estPts, m_obsPts, corr);
   else m_corrPlot->clear();
 
-
+  // M STEP
   m_obj->applyEvidence(corr, obsPtsEigen);
   m_env->step(.03,2,.015);
 
