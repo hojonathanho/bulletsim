@@ -45,7 +45,7 @@ float LocalConfig::zClipLow = .0025;
 float LocalConfig::zClipHigh = 1000;
 bool LocalConfig::updateParams = true;
 float LocalConfig::downsample = .02;
-bool LocalConfig::removeOutliers = false;
+bool LocalConfig::removeOutliers = true;
 
 static int MIN_HUE, MAX_HUE, MIN_SAT, MAX_SAT, MIN_VAL, MAX_VAL;
 
@@ -102,7 +102,7 @@ public:
     ColorCloudPtr cloud_out = orientedBoxFilter(cloud_in, m_axes, m_mins, m_maxes);
     cloud_out = hueFilter(cloud_out, MIN_HUE, MAX_HUE, MIN_SAT, MAX_SAT, MIN_VAL, MAX_VAL);
     if (LocalConfig::downsample > 0) cloud_out = downsampleCloud(cloud_out, LocalConfig::downsample);
-    if (LocalConfig::removeOutliers) cloud_out = removeOutliers(cloud_out, 1.5, 10);
+    if (LocalConfig::removeOutliers) cloud_out = removeOutliers(cloud_out, 1, 10);
 
     sensor_msgs::PointCloud2 msg_out;
     pcl::toROSMsg(*cloud_out, msg_out);

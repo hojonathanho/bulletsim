@@ -5,7 +5,7 @@
   </include>
   <node name="drop1" pkg="topic_tools" type="drop" args="/camera/depth_registered/points 2 3 /drop/points"/>
   <!--<node name="drop2" pkg="topic_tools" type="drop" args="/camera/depth_registered/image_rect 0 5 /drop/depth"/>-->
-  <node name="preprocessor" pkg="binary_symlinks" type="preprocessor_node"  args="--inputTopic=/drop/points --downsample=.025 --removeOutliers=1 --zClipLow=0"/>
+  <node name="preprocessor" pkg="binary_symlinks" type="preprocessor_node"  args="--inputTopic=/drop/points --downsample=.02 --removeOutliers=1 --zClipLow=0"/>
   <group if="$(arg make_sim_frame)">
     <node name="sim_kinect_frame_publisher" pkg="tf" type="static_transform_publisher" args="0 0 0 0 0 0 1 head_mount_kinect_ir_link camera_link 10"/>
   </group>
