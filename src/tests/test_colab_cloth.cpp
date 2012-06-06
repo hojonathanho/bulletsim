@@ -14,6 +14,7 @@
 //#define PROFILER
 //#define USE_PR2
 //#define DO_ROTATION
+#define USE_TABLE
 
 
 class GripperKinematicObject : public CompoundObject<BoxObject>{
@@ -524,7 +525,8 @@ struct StepState {
     OSGInstance::Ptr osg;
     Fork::Ptr fork;
     BulletSoftObject::Ptr cloth;
-    GripperKinematicObject::Ptr gripper;
+    GripperKinematicObject::Ptr left_gripper1;
+    GripperKinematicObject::Ptr left_gripper2;
 };
 
 
@@ -542,14 +544,15 @@ struct CustomScene : public Scene {
 #ifdef USE_PR2
     PR2SoftBodyGripperAction::Ptr leftAction, rightAction;
 #else
-    GripperKinematicObject::Ptr left_gripper, right_gripper, left_gripper_orig, right_gripper_orig, left_gripper_fork, right_gripper_fork;
-    GripperKinematicObject::Ptr fixed_gripper1, fixed_gripper2;
+    GripperKinematicObject::Ptr left_gripper1, right_gripper1, left_gripper1_orig, right_gripper1_orig, left_gripper1_fork, right_gripper1_fork;
+    GripperKinematicObject::Ptr left_gripper2, right_gripper2;
     struct {
-        bool transGrabber0,rotateGrabber0,transGrabber1,rotateGrabber1, startDragging;
+        bool transGrabber0,rotateGrabber0,transGrabber1,rotateGrabber1, transGrabber2,rotateGrabber2, transGrabber3,rotateGrabber3, startDragging;
         float dx, dy, lastX, lastY;
     } inputState;
 
 #endif
+    int num_auto_grippers;
     bool bTracking, bInTrackingLoop;
     PointReflector::Ptr point_reflector;
     BulletSoftObject::Ptr clothptr, clothptr_orig, clothptr_fork;
@@ -558,7 +561,7 @@ struct CustomScene : public Scene {
     Fork::Ptr fork;
     RaveRobotObject::Ptr origRobot, tmpRobot;
     std::map<int, int> node_mirror_map;
-    std::vector<double> node_distance_map;
+    std::vector<std::vector<double> > gripper_node_distance_map;
     float jacobian_sim_time;
     std::vector<btVector3> prev_node_pos;
     PlotPoints::Ptr plot_points;
@@ -574,30 +577,35 @@ struct CustomScene : public Scene {
 #else
     CustomScene(){
         bTracking = bInTrackingLoop = false;
-        inputState.transGrabber0 =  inputState.rotateGrabber0 =  inputState.transGrabber1 =  inputState.rotateGrabber1 =  inputState.startDragging = false;
+        inputState.transGrabber0 =  inputState.rotateGrabber0 =
+                inputState.transGrabber1 =  inputState.rotateGrabber1 =
+                inputState.transGrabber2 =  inputState.rotateGrabber2 =
+                inputState.transGrabber3 =  inputState.rotateGrabber3 =
+                inputState.startDragging = false;
 
         jacobian_sim_time = 0.05;
 
-        left_gripper_orig.reset(new GripperKinematicObject());
-        left_gripper_orig->setWorldTransform(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0,-10,0)));
-        env->add(left_gripper_orig);
+        left_gripper1_orig.reset(new GripperKinematicObject());
+        left_gripper1_orig->setWorldTransform(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0,-10,0)));
+        env->add(left_gripper1_orig);
 
-        btVector4 color(1,0,0,0.0);
-        right_gripper_orig.reset(new GripperKinematicObject(color));
-        right_gripper_orig->setWorldTransform(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0,10,0)));
-        env->add(right_gripper_orig);
+        btVector4 color(0.6,0.6,0.6,1);//(1,0,0,0.0);
+        right_gripper1_orig.reset(new GripperKinematicObject(color));
+        right_gripper1_orig->setWorldTransform(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0,10,0)));
+        env->add(right_gripper1_orig);
 
-        left_gripper = left_gripper_orig;
-        right_gripper = right_gripper_orig;
+        left_gripper1 = left_gripper1_orig;
+        right_gripper1 = right_gripper1_orig;
 
         color = btVector4(0.6,0.6,0.6,1);
-        fixed_gripper1.reset(new GripperKinematicObject(color));
-        fixed_gripper1->setWorldTransform(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0,20,0)));
-        env->add(fixed_gripper1);
-        fixed_gripper2.reset(new GripperKinematicObject(color));
-        fixed_gripper2->setWorldTransform(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0,-20,0)));
-        env->add(fixed_gripper2);
+        left_gripper2.reset(new GripperKinematicObject(color));
+        left_gripper2->setWorldTransform(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0,20,0)));
+        env->add(left_gripper2);
+        right_gripper2.reset(new GripperKinematicObject(color));
+        right_gripper2->setWorldTransform(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0,-20,0)));
+        env->add(right_gripper2);
 
+        num_auto_grippers = 2;
 
         fork.reset();
     }
@@ -611,14 +619,14 @@ struct CustomScene : public Scene {
     Eigen::MatrixXf computeJacobian();
     Eigen::MatrixXf computeJacobian_parallel();
     Eigen::MatrixXf computeJacobian_approx();
-    void simulateInNewFork(StepState& innerstate, float sim_time, btTransform& gripper_tm);
+    void simulateInNewFork(StepState& innerstate, float sim_time, btTransform& left_gripper1_tm, btTransform& left_gripper2_tm);
     void doJTracking();
 
     void run();
 };
 
 
-void CustomScene::simulateInNewFork(StepState& innerstate, float sim_time, btTransform& gripper_tm)
+void CustomScene::simulateInNewFork(StepState& innerstate, float sim_time, btTransform& left_gripper1_tm, btTransform& left_gripper2_tm)
 {
 
     innerstate.bullet.reset(new BulletInstance);
@@ -626,9 +634,11 @@ void CustomScene::simulateInNewFork(StepState& innerstate, float sim_time, btTra
     innerstate.osg.reset(new OSGInstance);
     innerstate.fork.reset(new Fork(env, innerstate.bullet, innerstate.osg));
     innerstate.cloth = boost::static_pointer_cast<BulletSoftObject>(innerstate.fork->forkOf(clothptr));
-    innerstate.gripper = boost::static_pointer_cast<GripperKinematicObject>(innerstate.fork->forkOf(left_gripper));
+    innerstate.left_gripper1 = boost::static_pointer_cast<GripperKinematicObject>(innerstate.fork->forkOf(left_gripper1));
+    innerstate.left_gripper2 = boost::static_pointer_cast<GripperKinematicObject>(innerstate.fork->forkOf(left_gripper2));
 
-    innerstate.gripper->applyTransform(gripper_tm);
+    innerstate.left_gripper1->applyTransform(left_gripper1_tm);
+    innerstate.left_gripper2->applyTransform(left_gripper2_tm);
 
     float time = sim_time;
     while (time > 0) {
@@ -655,17 +665,21 @@ Eigen::MatrixXf CustomScene::computeJacobian_approx()
     perts.push_back(btTransform(btQuaternion(0,0,0,1),btVector3(0,step_length,0)));
     perts.push_back(btTransform(btQuaternion(0,0,0,1),btVector3(0,0,step_length)));
     Eigen::VectorXf  V_pos(numnodes*3);
-    Eigen::MatrixXf J(numnodes*3,perts.size());
-    for(int i = 0; i < perts.size(); i++)
+    Eigen::MatrixXf J(numnodes*3,perts.size()*num_auto_grippers);
+
+    for(int g = 0; g < num_auto_grippers; g++)
     {
-
-        for(int k = 0; k < numnodes; k++)
+        for(int i = 0; i < perts.size(); i++)
         {
-            for(int j = 0; j < 3; j++)
-                V_pos(3*k + j) = perts[i].getOrigin()[j]*exp(-node_distance_map[k]*dropoff_const);
-        }
 
-        J.col(i) = V_pos;
+            for(int k = 0; k < numnodes; k++)
+            {
+                for(int j = 0; j < 3; j++)
+                    V_pos(3*k + j) = perts[i].getOrigin()[j]*exp(-gripper_node_distance_map[g][k]*dropoff_const);
+            }
+
+            J.col(perts.size()*g + i) = V_pos;
+        }
     }
 
     return J;
@@ -716,8 +730,9 @@ Eigen::MatrixXf CustomScene::computeJacobian_parallel()
         for(int i = 0; i < perts.size(); i++)
         {
 
+            btTransform dummy_tm;
             StepState innerstate;
-            simulateInNewFork(innerstate, jacobian_sim_time, perts[i]);
+            simulateInNewFork(innerstate, jacobian_sim_time, perts[i],dummy_tm);
 
             Eigen::VectorXf  V_after(V_before);
             for(int k = 0; k < numnodes; k++)
@@ -784,7 +799,7 @@ Eigen::MatrixXf CustomScene::computeJacobian()
         swapFork(); //now pointers are set to the forked objects
 
         //apply perturbation
-        left_gripper->applyTransform(perts[i]);
+        left_gripper1->applyTransform(perts[i]);
 
         time = jacobian_sim_time;
         while (time > 0) {
@@ -891,7 +906,7 @@ void CustomScene::doJTracking()
 
     Eigen::VectorXf V_trans;
     //btVector3 transvec;
-    btTransform transtm;
+    btTransform transtm1,transtm2;
     Eigen::MatrixXf J;
     while(bTracking)
     {
@@ -922,21 +937,12 @@ void CustomScene::doJTracking()
         nodeArrayToNodePosVector(clothptr->softBody->m_nodes, prev_node_pos);
 
         plot_points->setPoints(plotpoints,plotcols);
-        left_axes->setup(left_gripper->getWorldTransform(),1);
+        left_axes->setup(left_gripper1->getWorldTransform(),1);
         cout << "Error: " << error << " ";
 
         cout << "(" << node_change <<")";
-        if(0 && node_change < approx_thresh)
-        {
-            J = computeJacobian_parallel();
-            cout << "   ";
-        }
-        else
-        {
-            J = computeJacobian_approx();
-            cout << " A ";
-        }
 
+        J = computeJacobian_approx();
 
         node_change = error;
 
@@ -957,7 +963,11 @@ void CustomScene::doJTracking()
                               btQuaternion(btVector3(1,0,0),V_trans(3)),
                               btVector3(V_trans(0),V_trans(1),V_trans(2)));
 #else
-        transtm = btTransform(btQuaternion(0,0,0,1), btVector3(V_trans(0),V_trans(1),V_trans(2)));
+        transtm1 = btTransform(btQuaternion(0,0,0,1), btVector3(V_trans(0),V_trans(1),V_trans(2)));
+        if(num_auto_grippers > 1)
+            transtm2 = btTransform(btQuaternion(0,0,0,1), btVector3(V_trans(3),V_trans(4),V_trans(5)));
+        else
+            transtm2 = btTransform(btQuaternion(0,0,0,1),btVector3(0,0,0));
 #endif
         //check is it more semetric than it would have been had you done nothing
         //simulateInNewFork(innerstate, BulletConfig::dt, transvec);
@@ -971,11 +981,14 @@ void CustomScene::doJTracking()
             {
                 StepState innerstate;
                 //btTransform simtm(btQuaternion(0,0,0,1),transvec);
-                btTransform simtm = transtm;
+                btTransform simtm1 = transtm1;
+                btTransform simtm2 = transtm2;
                 if(i == 1)
-                    simtm = btTransform(btQuaternion(0,0,0,1),btVector3(0,0,0));
-
-                simulateInNewFork(innerstate, jacobian_sim_time, simtm);
+                {
+                    simtm1 = btTransform(btQuaternion(0,0,0,1),btVector3(0,0,0));
+                    simtm2 = btTransform(btQuaternion(0,0,0,1),btVector3(0,0,0));
+                }
+                simulateInNewFork(innerstate, jacobian_sim_time, simtm1, simtm2);
                 errors[i] = 0;
                 for( map<int,int>::iterator ii=node_mirror_map.begin(); ii!=node_mirror_map.end(); ++ii)
                 {
@@ -993,7 +1006,7 @@ void CustomScene::doJTracking()
         {
             cout << "Error increase, not moving (new error: " <<  error << ")" << endl;
             //idleFor(0.2);
-            //left_gripper->translate(-transvec);
+            //left_gripper1->translate(-transvec);
             //stepFor(BulletConfig::dt, 0.2);
             //bTracking = false;
             //stepFor(BulletConfig::dt, jacobian_sim_time);
@@ -1002,7 +1015,8 @@ void CustomScene::doJTracking()
         else
         {
             cout << endl;
-            left_gripper->applyTransform(transtm);
+            left_gripper1->applyTransform(transtm1);
+            left_gripper2->applyTransform(transtm2);
             //stepFor(BulletConfig::dt, jacobian_sim_time);
         }
         break;
@@ -1049,6 +1063,17 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,osgGA::GUIActionA
             scene.inputState.transGrabber1 = true; break;
         case 'w':
             scene.inputState.rotateGrabber1 = true; break;
+
+        case '3':
+            scene.inputState.transGrabber2 = true; break;
+        case 'e':
+            scene.inputState.rotateGrabber2 = true; break;
+
+        case '4':
+            scene.inputState.transGrabber3 = true; break;
+        case 'r':
+            scene.inputState.rotateGrabber3 = true; break;
+
 #ifdef USE_PR2
         case 'a':
             scene.leftAction->reset();
@@ -1065,20 +1090,31 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,osgGA::GUIActionA
             break;
 #else
         case 'a':
-            scene.left_gripper->toggle();
+            scene.left_gripper1->toggle();
             break;
 
         case 's':
-            scene.right_gripper->toggle();
+            scene.right_gripper1->toggle();
             break;
 
         case 'z':
-            scene.left_gripper->toggleattach(scene.clothptr->softBody.get());
+            scene.left_gripper1->toggleattach(scene.clothptr->softBody.get());
             break;
 
         case 'x':
-            scene.right_gripper->toggleattach(scene.clothptr->softBody.get());
+            scene.right_gripper1->toggleattach(scene.clothptr->softBody.get());
             break;
+
+        case 'c':
+            scene.right_gripper1->toggleattach(scene.clothptr->softBody.get());
+            scene.right_gripper2->toggleattach(scene.clothptr->softBody.get());
+            scene.right_gripper1->toggle();
+            scene.right_gripper2->toggle();
+
+            scene.right_gripper1->toggle();
+            scene.right_gripper1->toggleattach(scene.clothptr->softBody.get());
+            break;
+
 
         case 'b':
             scene.stopLoop();
@@ -1090,14 +1126,21 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,osgGA::GUIActionA
         switch (ea.getKey()) {
         case '1':
             scene.inputState.transGrabber0 = false; break;
+            break;
         case 'q':
             scene.inputState.rotateGrabber0 = false; break;
         case '2':
-            scene.inputState.transGrabber1 = false;
-            break;
+            scene.inputState.transGrabber1 = false; break;
         case 'w':
-            scene.inputState.rotateGrabber1 = false;
-            break;
+            scene.inputState.rotateGrabber1 = false; break;
+        case '3':
+            scene.inputState.transGrabber2 = false; break;
+        case 'e':
+            scene.inputState.rotateGrabber2 = false; break;
+        case '4':
+            scene.inputState.transGrabber3 = false; break;
+        case 'r':
+            scene.inputState.rotateGrabber3 = false; break;
 
         case 'j':
             {
@@ -1126,8 +1169,10 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,osgGA::GUIActionA
         if (ea.getEventType() == osgGA::GUIEventAdapter::DRAG){
             // drag the active manipulator in the plane of view
             if ( (ea.getButtonMask() & ea.LEFT_MOUSE_BUTTON) &&
-                  (scene.inputState.transGrabber0 || scene.inputState.transGrabber1 ||
-                   scene.inputState.rotateGrabber0 || scene.inputState.rotateGrabber1)) {
+                  (scene.inputState.transGrabber0 || scene.inputState.rotateGrabber0 ||
+                   scene.inputState.transGrabber1 || scene.inputState.rotateGrabber1 ||
+                   scene.inputState.transGrabber2 || scene.inputState.rotateGrabber2 ||
+                   scene.inputState.transGrabber3 || scene.inputState.rotateGrabber3)) {
                 if (scene.inputState.startDragging) {
                     scene.inputState.dx = scene.inputState.dy = 0;
                 } else {
@@ -1155,22 +1200,31 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,osgGA::GUIActionA
                 btTransform origTrans;
                 if (scene.inputState.transGrabber0 || scene.inputState.rotateGrabber0)
                 {
-                    scene.left_gripper->getWorldTransform(origTrans);
+                    scene.left_gripper1->getWorldTransform(origTrans);
                 }
-                else
+                else if(scene.inputState.transGrabber1 || scene.inputState.rotateGrabber1)
                 {
-                    scene.right_gripper->getWorldTransform(origTrans);
+                    scene.left_gripper2->getWorldTransform(origTrans);
                 }
-
+                else if(scene.inputState.transGrabber2 || scene.inputState.rotateGrabber2)
+                {
+                    scene.right_gripper1->getWorldTransform(origTrans);
+                }
+                else if(scene.inputState.transGrabber3 || scene.inputState.rotateGrabber3)
+                {
+                    scene.right_gripper2->getWorldTransform(origTrans);
+                }
 
                 //printf("origin: %f %f %f\n",origTrans.getOrigin()[0],origTrans.getOrigin()[1],origTrans.getOrigin()[2]);
 
                 btTransform newTrans(origTrans);
 
-                if (scene.inputState.transGrabber0 || scene.inputState.transGrabber1)
+                if (scene.inputState.transGrabber0 || scene.inputState.transGrabber1  ||
+                        scene.inputState.transGrabber2  || scene.inputState.transGrabber3)
                     // if moving the manip, just set the origin appropriately
                     newTrans.setOrigin(dragVec + origTrans.getOrigin());
-                else if (scene.inputState.rotateGrabber0 || scene.inputState.rotateGrabber1) {
+                else if (scene.inputState.rotateGrabber0 || scene.inputState.rotateGrabber1 ||
+                         scene.inputState.rotateGrabber2 || scene.inputState.rotateGrabber3) {
                     // if we're rotating, the axis is perpendicular to the
                     // direction the mouse is dragging
                     btVector3 axis = normal.cross(dragVec);
@@ -1193,11 +1247,19 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,osgGA::GUIActionA
 //                scene.drag_line->setPoints(plot_line,plot_color);
                 if (scene.inputState.transGrabber0 || scene.inputState.rotateGrabber0)
                 {
-                    scene.left_gripper->setWorldTransform(newTrans);
+                    scene.left_gripper1->setWorldTransform(newTrans);
                 }
-                else
+                else if(scene.inputState.transGrabber1 || scene.inputState.rotateGrabber1)
                 {
-                    scene.right_gripper->setWorldTransform(newTrans);
+                    scene.left_gripper2->setWorldTransform(newTrans);
+                }
+                else if(scene.inputState.transGrabber2 || scene.inputState.rotateGrabber2)
+                {
+                    scene.right_gripper1->setWorldTransform(newTrans);
+                }
+                else if(scene.inputState.transGrabber3 || scene.inputState.rotateGrabber3)
+                {
+                    scene.right_gripper2->setWorldTransform(newTrans);
                 }
                 return true;
             }
@@ -1268,25 +1330,25 @@ void CustomScene::createFork() {
     cout << (tmpRobot->getEnvironment() == env.get()) << endl;
     cout << (tmpRobot->getEnvironment() == fork->env.get()) << endl;
 #else
-    left_gripper_fork = boost::static_pointer_cast<GripperKinematicObject> (fork->forkOf(left_gripper));
-    right_gripper_fork = boost::static_pointer_cast<GripperKinematicObject> (fork->forkOf(right_gripper));
+    left_gripper1_fork = boost::static_pointer_cast<GripperKinematicObject> (fork->forkOf(left_gripper1));
+    right_gripper1_fork = boost::static_pointer_cast<GripperKinematicObject> (fork->forkOf(right_gripper1));
     clothptr_fork = boost::static_pointer_cast<BulletSoftObject> (fork->forkOf(clothptr));
 #endif
 }
 
 void CustomScene::destroyFork() {
-    if(left_gripper.get() == left_gripper_fork.get())
+    if(left_gripper1.get() == left_gripper1_fork.get())
     {
-        left_gripper = left_gripper_orig;
-        right_gripper = right_gripper_orig;
+        left_gripper1 = left_gripper1_orig;
+        right_gripper1 = right_gripper1_orig;
         clothptr = clothptr_orig;
     }
 
     unregisterFork(fork);
     osg->root->removeChild(osg2->root.get());
     fork.reset();
-    left_gripper_fork.reset();
-    right_gripper_fork.reset();
+    left_gripper1_fork.reset();
+    right_gripper1_fork.reset();
     clothptr_fork.reset();
 }
 
@@ -1301,16 +1363,16 @@ void CustomScene::swapFork() {
     pr2m.pr2Left = pr2m.pr2->getManipByIndex(leftidx);
     pr2m.pr2Right = pr2m.pr2->getManipByIndex(rightidx);
 #else
-    if(left_gripper.get() == left_gripper_orig.get())
+    if(left_gripper1.get() == left_gripper1_orig.get())
     {
-        left_gripper = left_gripper_fork;
-        right_gripper = right_gripper_fork;
+        left_gripper1 = left_gripper1_fork;
+        right_gripper1 = right_gripper1_fork;
         clothptr = clothptr_fork;
     }
     else
     {
-        left_gripper = left_gripper_orig;
-        right_gripper = right_gripper_orig;
+        left_gripper1 = left_gripper1_orig;
+        right_gripper1 = right_gripper1_orig;
         clothptr = clothptr_orig;
     }
 
@@ -1333,11 +1395,15 @@ void CustomScene::run() {
 
     const float dt = BulletConfig::dt;
     const float table_height = .5;
+
+#ifdef USE_TABLE
     const float table_thickness = .05;
     BoxObject::Ptr table(
         new BoxObject(0, GeneralConfig::scale * btVector3(.75,.75,table_thickness/2),
             btTransform(btQuaternion(0, 0, 0, 1), GeneralConfig::scale * btVector3(1.2, 0, table_height-table_thickness/2))));
     table->rigidBody->setFriction(1);
+    env->add(table);
+#endif
 
     BulletSoftObject::Ptr cloth(
             createCloth(GeneralConfig::scale * 0.25, GeneralConfig::scale * btVector3(0.9, 0, table_height+0.01)));
@@ -1352,7 +1418,6 @@ void CustomScene::run() {
 #endif
 
 
-    env->add(table);
     env->add(cloth);
 
     //left_mover.reset(new RigidMover(table, table->rigidBody->getCenterOfMassPosition(), env->bullet->dynamicsWorld));
@@ -1472,24 +1537,34 @@ void CustomScene::run() {
     //psb->appendAnchor(max_x_ind,right_grabber->rigidBody.get());
 
 
-    btTransform tm_left = btTransform(btQuaternion( 0,    0,    0 ,   1), corner_pnts[0] + btVector3(left_gripper->children[0]->halfExtents[0],left_gripper->children[0]->halfExtents[1],0));
-    left_gripper->setWorldTransform(tm_left);
-    //left_gripper->toggle();
+    btTransform tm_left = btTransform(btQuaternion( 0,    0,    0 ,   1), corner_pnts[0] + btVector3(left_gripper1->children[0]->halfExtents[0],left_gripper1->children[0]->halfExtents[1],0));
+    left_gripper1->setWorldTransform(tm_left);
+    //left_gripper1->toggle();
 
 
-    btTransform tm_right = btTransform(btQuaternion( 0,    0,    0 ,   1), corner_pnts[2] + btVector3(-right_gripper->children[0]->halfExtents[0],right_gripper->children[0]->halfExtents[1],0));
-    right_gripper->setWorldTransform(tm_right);
+    btTransform tm_right = btTransform(btQuaternion( 0,    0,    0 ,   1), corner_pnts[2] + btVector3(-right_gripper1->children[0]->halfExtents[0],right_gripper1->children[0]->halfExtents[1],0));
+    right_gripper1->setWorldTransform(tm_right);
 
-    btTransform tm_fixed1 = btTransform(btQuaternion( 0,    0,    0 ,   1), corner_pnts[1] + btVector3(fixed_gripper1->children[0]->halfExtents[0],-fixed_gripper1->children[0]->halfExtents[1],0));
-    fixed_gripper1->setWorldTransform(tm_fixed1);
-    //left_gripper->toggle();
-
-
-    btTransform tm_fixed2 = btTransform(btQuaternion( 0,    0,    0 ,   1), corner_pnts[3] + btVector3(-fixed_gripper2->children[0]->halfExtents[0],-fixed_gripper2->children[0]->halfExtents[1],0));
-    fixed_gripper2->setWorldTransform(tm_fixed2);
+    btTransform tm_fixed1 = btTransform(btQuaternion( 0,    0,    0 ,   1), corner_pnts[1] + btVector3(left_gripper2->children[0]->halfExtents[0],-left_gripper2->children[0]->halfExtents[1],0));
+    left_gripper2->setWorldTransform(tm_fixed1);
+    //left_gripper1->toggle();
 
 
-    node_distance_map.resize(node_pos.size());
+    btTransform tm_fixed2 = btTransform(btQuaternion( 0,    0,    0 ,   1), corner_pnts[3] + btVector3(-right_gripper2->children[0]->halfExtents[0],-right_gripper2->children[0]->halfExtents[1],0));
+    right_gripper2->setWorldTransform(tm_fixed2);
+
+    gripper_node_distance_map.resize(num_auto_grippers);
+
+    for(int i = 0; i < num_auto_grippers; i++)
+    {
+        gripper_node_distance_map[i].resize(node_pos.size());
+
+        for(int j = 0; j < node_pos.size(); j++)
+        {
+            gripper_node_distance_map[i][j] = (corner_pnts[i]-node_pos[j]).length();
+        }
+    }
+
 
     //mirror about centerline along y direction
     //centerline defined by 2 points
@@ -1518,8 +1593,7 @@ void CustomScene::run() {
             node_mirror_map[i] = closest_ind;
         }
 
-        //get node distance map
-        node_distance_map[i] = (corner_pnts[0]-node_pos[i]).length();
+
     }
 
 
@@ -1560,7 +1634,7 @@ void CustomScene::run() {
 
     left_center_point.reset(new PlotPoints(10));
 
-    btTransform left_tm = left_gripper->getWorldTransform();
+    btTransform left_tm = left_gripper1->getWorldTransform();
     cout << left_tm.getOrigin()[0] << " " << left_tm.getOrigin()[1] << " " << left_tm.getOrigin()[2] << " " <<endl;
     cout << mid_x << " " << min_y << " " << node_pos[0][2] <<endl;
     std::vector<btVector3> poinsfsefts2;
@@ -1589,22 +1663,22 @@ void CustomScene::run() {
 //    drag_line.reset(new PlotLines(2));
 //    env->add(drag_line);
 
-    left_gripper->toggle();
-    right_gripper->toggle();
+    left_gripper1->toggle();
+    right_gripper1->toggle();
 
-    left_gripper->toggleattach(clothptr->softBody.get());
-    right_gripper->toggleattach(clothptr->softBody.get());
+    left_gripper1->toggleattach(clothptr->softBody.get());
+    right_gripper1->toggleattach(clothptr->softBody.get());
 
-    fixed_gripper1->toggle();
-    fixed_gripper2->toggle();
+    left_gripper2->toggle();
+    right_gripper2->toggle();
 
-    fixed_gripper1->toggleattach(clothptr->softBody.get());
-    fixed_gripper2->toggleattach(clothptr->softBody.get());
+    left_gripper2->toggleattach(clothptr->softBody.get());
+    right_gripper2->toggleattach(clothptr->softBody.get());
 
-    //right_gripper->toggle();
+    //right_gripper1->toggle();
 
-    //psb->appendAnchor(min_x_ind,left_gripper->top_jaw->rigidBody.get());
-    //psb->appendAnchor(max_x_ind,right_gripper->top_jaw->rigidBody.get());
+    //psb->appendAnchor(min_x_ind,left_gripper1->top_jaw->rigidBody.get());
+    //psb->appendAnchor(max_x_ind,right_gripper1->top_jaw->rigidBody.get());
 
 
 
