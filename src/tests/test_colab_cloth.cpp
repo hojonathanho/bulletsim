@@ -16,6 +16,14 @@
 //#define DO_ROTATION
 #define USE_TABLE
 
+void nodeArrayToNodePosVector(const btAlignedObjectArray<btSoftBody::Node> &m_nodes, std::vector<btVector3> &nodeposvec)
+{
+    nodeposvec.resize(m_nodes.size());
+    for(int i =0; i < m_nodes.size(); i++)
+    {
+        nodeposvec[i] = m_nodes[i].m_x;
+    }
+}
 
 class GripperKinematicObject : public CompoundObject<BoxObject>{
 public:
@@ -23,6 +31,7 @@ public:
     btTransform cur_tm;
     bool bOpen;
     bool bAttached;
+    std::vector<int> vattached_node_inds;
 
     typedef boost::shared_ptr<GripperKinematicObject> Ptr;
 
@@ -95,9 +104,13 @@ void GripperKinematicObject::toggleattach(btSoftBody * psb) {
         {
             psb->m_anchors.push_back(newanchors[i]);
         }
+        vattached_node_inds.clear();
     }
     else
     {
+        std::vector<btVector3> nodeposvec;
+        nodeArrayToNodePosVector(psb->m_nodes, nodeposvec);
+
         for(int k = 0; k < 2; k++)
         {
             BoxObject::Ptr part;
@@ -121,8 +134,20 @@ void GripperKinematicObject::toggleattach(btSoftBody * psb) {
                 //if (!colLink) continue;
                 const btVector3 &contactPt = c.m_node->m_x;
                 //if (onInnerSide(contactPt, left)) {
+                    int closest_ind = -1;
+                    for(int n = 0; n < nodeposvec.size(); n++)
+                    {
+                        if((contactPt - nodeposvec[n]).length() < 0.0001)
+                        {
+                            closest_ind = n;
+                            break;
+                        }
+                    }
+                    assert(closest_ind!=-1);
+
+                    vattached_node_inds.push_back(closest_ind);
                     appendAnchor(psb, c.m_node, rigidBody);
-                    cout << "\tappending anchor\n";
+                    cout << "\tappending anchor, closest ind: "<< closest_ind << "\n";
             }
         }
     }
@@ -530,14 +555,6 @@ struct StepState {
 };
 
 
-void nodeArrayToNodePosVector(const btAlignedObjectArray<btSoftBody::Node> &m_nodes, std::vector<btVector3> &nodeposvec)
-{
-    nodeposvec.resize(m_nodes.size());
-    for(int i =0; i < m_nodes.size(); i++)
-    {
-        nodeposvec[i] = m_nodes[i].m_x;
-    }
-}
 
 
 struct CustomScene : public Scene {
@@ -568,6 +585,7 @@ struct CustomScene : public Scene {
     PlotPoints::Ptr left_center_point;
     PlotAxes::Ptr left_axes;
     //PlotLines::Ptr drag_line;
+    Eigen::MatrixXf cloth_distance_matrix;
 
 
 #ifdef USE_PR2
@@ -619,6 +637,7 @@ struct CustomScene : public Scene {
     Eigen::MatrixXf computeJacobian();
     Eigen::MatrixXf computeJacobian_parallel();
     Eigen::MatrixXf computeJacobian_approx();
+    double getDistfromNodeToClosestAttachedNodeInGripper(GripperKinematicObject::Ptr gripper, int input_ind, int &closest_ind);
     void simulateInNewFork(StepState& innerstate, float sim_time, btTransform& left_gripper1_tm, btTransform& left_gripper2_tm);
     void doJTracking();
 
@@ -652,6 +671,26 @@ void CustomScene::simulateInNewFork(StepState& innerstate, float sim_time, btTra
 
 }
 
+
+double CustomScene::getDistfromNodeToClosestAttachedNodeInGripper(GripperKinematicObject::Ptr gripper, int input_ind, int &closest_ind)
+{
+    double min_dist = 1000000;
+    closest_ind = -1;
+    for(int i =0; i < gripper->vattached_node_inds.size(); i++)
+    {
+        double new_dist = cloth_distance_matrix(gripper->vattached_node_inds[i],input_ind);
+        if(new_dist < min_dist)
+        {
+            min_dist = new_dist;
+            closest_ind = gripper->vattached_node_inds[i];
+        }
+    }
+
+    return min_dist;
+
+
+}
+
 Eigen::MatrixXf CustomScene::computeJacobian_approx()
 {
 
@@ -664,18 +703,49 @@ Eigen::MatrixXf CustomScene::computeJacobian_approx()
     perts.push_back(btTransform(btQuaternion(0,0,0,1),btVector3(step_length,0,0)));
     perts.push_back(btTransform(btQuaternion(0,0,0,1),btVector3(0,step_length,0)));
     perts.push_back(btTransform(btQuaternion(0,0,0,1),btVector3(0,0,step_length)));
+#ifdef DO_ROTATION
+    perts.push_back(btTransform(btQuaternion(btVector3(1,0,0),rot_angle),btVector3(0,0,0)));
+    perts.push_back(btTransform(btQuaternion(btVector3(0,1,0),rot_angle),btVector3(0,0,0)));
+    perts.push_back(btTransform(btQuaternion(btVector3(0,0,1),rot_angle),btVector3(0,0,0)));
+#endif
     Eigen::VectorXf  V_pos(numnodes*3);
     Eigen::MatrixXf J(numnodes*3,perts.size()*num_auto_grippers);
+    GripperKinematicObject::Ptr gripper;
 
     for(int g = 0; g < num_auto_grippers; g++)
     {
+        if(g == 0)
+            gripper = left_gripper1;
+        if(g == 1)
+            gripper = left_gripper2;
+
         for(int i = 0; i < perts.size(); i++)
         {
 
             for(int k = 0; k < numnodes; k++)
             {
-                for(int j = 0; j < 3; j++)
-                    V_pos(3*k + j) = perts[i].getOrigin()[j]*exp(-gripper_node_distance_map[g][k]*dropoff_const);
+                int closest_ind;
+                double dist = getDistfromNodeToClosestAttachedNodeInGripper(gripper, k, closest_ind);
+                //if(k < 10) cout << "dist: " << dist << " node_map " << gripper_node_distance_map[g][k] << endl;
+
+                if(i < 3) //translation
+                {
+                    for(int j = 0; j < 3; j++)
+                        V_pos(3*k + j) = perts[i].getOrigin()[j]*exp(-dist*dropoff_const);
+                        //V_pos(3*k + j) = perts[i].getOrigin()[j]*exp(-gripper_node_distance_map[g][k]*dropoff_const);
+                }
+                else // rotation
+                {
+                    //get the vector of translation induced at closest attached point by the rotation about the center of the gripper
+                    btVector3 attached_trans = clothptr->softBody->m_nodes[closest_ind].m_x;
+                    btTransform Tcenter_attached= btTransform(gripper->getWorldTransform().getRotation(), attached_trans - gripper->getWorldTransform().getOrigin());
+                    btTransform Tnewattached =  gripper->getWorldTransform()*perts[i]*Tcenter_attached;
+                    btVector3 transvec = Tnewattached.getOrigin()-attached_trans;
+                    for(int j = 0; j < 3; j++)
+                        V_pos(3*k + j) = transvec[j]*exp(-dist*dropoff_const);
+
+                }
+
             }
 
             J.col(perts.size()*g + i) = V_pos;
@@ -958,10 +1028,16 @@ void CustomScene::doJTracking()
         //cout << "trans vec: " << V_trans.transpose() << endl;
         //transvec = btVector3(V_trans(0),V_trans(1),V_trans(2));
 #ifdef DO_ROTATION
-        transtm = btTransform(btQuaternion(btVector3(0,0,1),V_trans(5))*
+        transtm1 = btTransform(btQuaternion(btVector3(0,0,1),V_trans(5))*
                               btQuaternion(btVector3(0,1,0),V_trans(4))*
                               btQuaternion(btVector3(1,0,0),V_trans(3)),
                               btVector3(V_trans(0),V_trans(1),V_trans(2)));
+
+        transtm2 = btTransform(btQuaternion(btVector3(0,0,1),V_trans(11))*
+                              btQuaternion(btVector3(0,1,0),V_trans(10))*
+                              btQuaternion(btVector3(1,0,0),V_trans(9)),
+                              btVector3(V_trans(6),V_trans(7),V_trans(8)));
+
 #else
         transtm1 = btTransform(btQuaternion(0,0,0,1), btVector3(V_trans(0),V_trans(1),V_trans(2)));
         if(num_auto_grippers > 1)
@@ -1537,21 +1613,21 @@ void CustomScene::run() {
     //psb->appendAnchor(max_x_ind,right_grabber->rigidBody.get());
 
 
-    btTransform tm_left = btTransform(btQuaternion( 0,    0,    0 ,   1), corner_pnts[0] + btVector3(left_gripper1->children[0]->halfExtents[0],left_gripper1->children[0]->halfExtents[1],0));
-    left_gripper1->setWorldTransform(tm_left);
+    btTransform tm_left1 = btTransform(btQuaternion( 0,    0,    0 ,   1), corner_pnts[0] + btVector3(left_gripper1->children[0]->halfExtents[0],left_gripper1->children[0]->halfExtents[1],0));
+    left_gripper1->setWorldTransform(tm_left1);
     //left_gripper1->toggle();
 
 
-    btTransform tm_right = btTransform(btQuaternion( 0,    0,    0 ,   1), corner_pnts[2] + btVector3(-right_gripper1->children[0]->halfExtents[0],right_gripper1->children[0]->halfExtents[1],0));
-    right_gripper1->setWorldTransform(tm_right);
+    btTransform tm_right1 = btTransform(btQuaternion( 0,    0,    0 ,   1), corner_pnts[2] + btVector3(-right_gripper1->children[0]->halfExtents[0],right_gripper1->children[0]->halfExtents[1],0));
+    right_gripper1->setWorldTransform(tm_right1);
 
-    btTransform tm_fixed1 = btTransform(btQuaternion( 0,    0,    0 ,   1), corner_pnts[1] + btVector3(left_gripper2->children[0]->halfExtents[0],-left_gripper2->children[0]->halfExtents[1],0));
-    left_gripper2->setWorldTransform(tm_fixed1);
+    btTransform tm_left2 = btTransform(btQuaternion( 0,    0,    0 ,   1), corner_pnts[1] + btVector3(left_gripper2->children[0]->halfExtents[0],-left_gripper2->children[0]->halfExtents[1],0));
+    left_gripper2->setWorldTransform(tm_left2);
     //left_gripper1->toggle();
 
 
-    btTransform tm_fixed2 = btTransform(btQuaternion( 0,    0,    0 ,   1), corner_pnts[3] + btVector3(-right_gripper2->children[0]->halfExtents[0],-right_gripper2->children[0]->halfExtents[1],0));
-    right_gripper2->setWorldTransform(tm_fixed2);
+    btTransform tm_right2 = btTransform(btQuaternion( 0,    0,    0 ,   1), corner_pnts[3] + btVector3(-right_gripper2->children[0]->halfExtents[0],-right_gripper2->children[0]->halfExtents[1],0));
+    right_gripper2->setWorldTransform(tm_right2);
 
     gripper_node_distance_map.resize(num_auto_grippers);
 
@@ -1566,7 +1642,18 @@ void CustomScene::run() {
     }
 
 
-    //mirror about centerline along y direction
+    cloth_distance_matrix = Eigen::MatrixXf( node_pos.size(), node_pos.size());
+    for(int i = 0; i < node_pos.size(); i++)
+    {
+        for(int j = i; j < node_pos.size(); j++)
+        {
+            cloth_distance_matrix(i,j) = (node_pos[i]-node_pos[j]).length();
+            cloth_distance_matrix(j,i) = cloth_distance_matrix(i,j);
+        }
+    }
+    //cout << cloth_distance_matrix<< endl;
+
+    //mirror about centerline along y direction;
     //centerline defined by 2 points
     float mid_x = (max_x + min_x)/2;
 
