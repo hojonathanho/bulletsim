@@ -33,7 +33,6 @@ protected:
   Eigen::VectorXf m_masses;
 };
 
-
 class TrackedTowel : public TrackedObject {
 public:
   typedef boost::shared_ptr<TrackedTowel> Ptr;
@@ -47,6 +46,21 @@ protected:
   std::vector< std::vector<int> > m_vert2nodes; // maps bullet vertex index to indices of nodes
   Eigen::VectorXf m_masses;
 
+};
+
+class TrackedBox : public TrackedObject {
+public:
+  typedef boost::shared_ptr<TrackedBox> Ptr;
+
+  TrackedBox(BoxObject::Ptr sim);
+
+  std::vector<btVector3> getPoints();
+  void applyEvidence(const SparseMatrixf& corr, const Eigen::MatrixXf& obsPts);
+  BoxObject* getSim() {return dynamic_cast<BoxObject*>(m_sim.get());}
+
+protected:
+  int m_nEdgeNodes;
+  Eigen::VectorXf m_masses;
 };
 
 std::vector<btVector3> calcImpulsesDamped(const std::vector<btVector3>& estPos, const std::vector<btVector3>& estVel, 

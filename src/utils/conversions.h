@@ -9,10 +9,14 @@
 
 inline btVector3 toBulletVector(const std::vector<float>& vec) {return btVector3(vec[0],vec[1],vec[2]);}
 inline btVector3 toBulletVector(const Eigen::Vector3f& vec) {return btVector3(vec[0],vec[1],vec[2]);}
-inline btVector3 toBulletVector(const osg::Vec3d &v) { return btVector3(v.x(), v.y(), v.z()); }
+inline btVector3 toBulletVector(const osg::Vec3f &v) { return btVector3(v.x(), v.y(), v.z()); }
+inline btVector3 toBulletVector(const geometry_msgs::Point& pt) { return btVector3(pt.x, pt.y, pt.z); }
+inline btVector3 toBulletVector(const geometry_msgs::Point32& pt) { return btVector3(pt.x, pt.y, pt.z); }
 inline Eigen::Vector3f toEigenVector(const std::vector<float>& vec) {return Eigen::Vector3f(vec[0],vec[1],vec[2]);}
 inline Eigen::Vector3f toEigenVector(const btVector3& vec) {return Eigen::Vector3f(vec.x(),vec.y(),vec.z());}
 inline osg::Vec3f toOSGVector(const btVector3 &v) { return osg::Vec3f(v.x(), v.y(), v.z()); }
+Eigen::Matrix3f toEigenMatrix(const btMatrix3x3& basis);
+btMatrix3x3 toBulletMatrix(const Eigen::Matrix3f& rotation);
 osg::Matrix toOsgMatrix( const btTransform& t );
 btTransform toBtTransform( const osg::Matrix& m );
 std::vector<btVector3> toBulletVectors(const std::vector< std::vector<float> >& in);

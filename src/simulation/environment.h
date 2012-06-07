@@ -49,8 +49,9 @@ private:
 public:
     typedef boost::shared_ptr<EnvironmentObject> Ptr;
 
-    EnvironmentObject() { }
-    EnvironmentObject(Environment *env_) : env(env_) { }
+    bool drawingOn;
+    EnvironmentObject() : drawingOn(true) { }
+    EnvironmentObject(Environment *env_) : env(env_), drawingOn(true) { }
     virtual ~EnvironmentObject() { }
 
     Environment *getEnvironment() { return env; }

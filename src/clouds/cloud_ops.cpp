@@ -213,6 +213,14 @@ ColorCloudPtr getBiggestCluster(ColorCloudPtr in, float tol) {
 
 }
 
+ColorCloudPtr clusterFilter(ColorCloudPtr in, float tol, float minSize) {
+	vector< vector<int> > cluster_inds = findClusters(in, tol, minSize);
+	vector<int> filtered_cluster_inds;
+	for (int i=0; i < cluster_inds.size(); i++)
+		if (cluster_inds[i].size() > 5)
+			for (int j=0; j < cluster_inds[i].size(); j++) filtered_cluster_inds.push_back(cluster_inds[i][j]);
+	return extractInds(in, filtered_cluster_inds);
+}
 
 ColorCloudPtr maskCloud(const ColorCloudPtr in, const cv::Mat& mask) {
   assert(mask.elemSize() == 1);

@@ -34,19 +34,19 @@ void SimplePhysicsTracker::doIteration() {
   VectorXf vis = m_visInt->checkNodeVisibility(m_obj);
   m_estPts = m_obj->getPoints();
   SparseMatrixf corr;
-  m_stdev = (.01*METERS)*VectorXf::Ones(m_obj->m_nNodes);
+  m_stdev = (.03*METERS)*VectorXf::Ones(m_obj->m_nNodes);
 
   MatrixXf obsPtsEigen = toEigenMatrix(m_obsPts);
 
   // E STEP
-  estimateCorrespondence(toEigenMatrix(m_estPts), m_stdev, vis, obsPtsEigen, TrackingConfig::outlierParam, corr);
+  estimateCorrespondence(toEigenMatrix(m_estPts), m_stdev.array().square(), vis, obsPtsEigen, TrackingConfig::outlierParam, corr);
 
 
   VectorXf inlierFrac = colSums(corr);
 
   if (m_enableObsPlot) plotObs(m_obsPts, inlierFrac, m_obsPlot);
   else m_obsPlot->clear();
-  if (m_enableEstPlot) plotNodesAsSpheres(m_estPts, vis, m_stdev, m_estPlot);
+  if (m_enableEstPlot) plotNodesAsSpheres(m_estPts, vis, m_stdev.array(), m_estPlot);
   else m_estPlot->clear();
   if (m_enableCorrPlot) drawCorrLines(m_corrPlot, m_estPts, m_obsPts, corr);
   else m_corrPlot->clear();
@@ -54,6 +54,4 @@ void SimplePhysicsTracker::doIteration() {
   // M STEP
   m_obj->applyEvidence(corr, obsPtsEigen);
   m_env->step(.03,2,.015);
-
-
 }

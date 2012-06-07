@@ -3,6 +3,26 @@
 #include "utils/my_assert.h"
 #include "utils/my_exceptions.h"
 
+Eigen::Matrix3f toEigenMatrix(const btMatrix3x3& basis)
+{
+	Eigen::Matrix3f rotation;
+	btVector3 col0 = basis.getColumn(0);
+	btVector3 col1 = basis.getColumn(1);
+	btVector3 col2 = basis.getColumn(2);
+	rotation.col(0) = toEigenVector(col0);
+	rotation.col(1) = toEigenVector(col1);
+	rotation.col(2) = toEigenVector(col2);
+	return rotation;
+}
+
+btMatrix3x3 toBulletMatrix(const Eigen::Matrix3f& rotation)
+{
+	btMatrix3x3 basis;
+	basis.setValue(rotation(0,0), rotation(0,1), rotation(0,2),
+                   rotation(1,0), rotation(1,1), rotation(1,2),
+                   rotation(2,0), rotation(2,1), rotation(2,2));
+	return basis;
+}
 
 osg::Matrix toOsgMatrix( const btTransform& t )
 {
