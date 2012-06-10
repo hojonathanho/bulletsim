@@ -38,7 +38,7 @@ public:
     
     if (m_side == LEFT) {
 
-      float inc = ea.getModKeyMask() & osgGA::GUIEventAdapter::MODKEY_LEFT_ALT ? .01 : -.01;
+      float inc = ea.getModKeyMask() & osgGA::GUIEventAdapter::MODKEY_LEFT_ALT ? -.01 : .01;
 
       switch(key) {
       case 'q': m_manip->moveByIK(moveX(m_manip->getTransform(), inc)); return true;

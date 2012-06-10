@@ -67,8 +67,8 @@ int main(int argc, char* argv[]) {
   scene.startViewer();
   scene.setSyncTime(true);
   
-  scene.addVoidKeyCallback('r',&toggleRecording);
-  scene.addVoidKeyCallback('q',&setWantsExit);
+  scene.addVoidKeyCallback('R',&toggleRecording);
+  scene.addVoidKeyCallback('Q',&setWantsExit);
 
   vector<RobotAndRopeState> rars;
 
@@ -98,7 +98,20 @@ int main(int argc, char* argv[]) {
       rar.rightGrip = scene.pr2m->pr2Right->getGripperAngle();
       rar.rightGrab = scene.m_rMonitor->m_i;
       rar.ctrlPts = scene.m_rope->getControlPoints()*(1/METERS);
-      rars.push_back(rar);
+
+      if (rars.size() == 0)
+    	  rars.push_back(rar);
+      else {
+    	  RobotAndRopeState last_rar = rars[rars.size()-1];
+    	  float leftPosDiff = (last_rar.leftPose.getOrigin() - rar.leftPose.getOrigin()).length();
+    	  float rightPosDiff = (last_rar.rightPose.getOrigin() - rar.rightPose.getOrigin()).length();
+    	  float leftAngDiff = (last_rar.leftPose.getRotation().inverse() * rar.leftPose.getRotation()).angle();
+    	  float rightAngDiff = (last_rar.leftPose.getRotation().inverse() * rar.rightPose.getRotation()).angle();
+
+    	  if (leftPosDiff > .005*METERS || rightPosDiff > .005*METERS || leftAngDiff > .01 || rightAngDiff > .01)
+    		  rars.push_Back(r);
+      }
+
     }
 
 

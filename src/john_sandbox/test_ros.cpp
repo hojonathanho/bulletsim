@@ -12,10 +12,9 @@ void callback(const hydra_msgs::Calib& msg) {
 int main(int argc, char* argv[]) {
   sensor_msgs::Image p;
   cout << p << endl;
-
-  ros::init(argc, argv, "test_recv_hydra_msg");
   ros::NodeHandle nh;
 
+  ros::init(argc, argv, "test_recv_hydra_msg");
   ros::Subscriber sub = nh.subscribe("hydra_calib", 1000, callback);
   ros::spin();
   return 0;

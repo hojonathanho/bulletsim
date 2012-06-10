@@ -32,8 +32,17 @@ target_link_libraries(test_multithread_ik simulation robots)
 add_executable(test_numerical_ik test_numerical_ik.cpp)
 target_link_libraries(test_numerical_ik simulation robots)
 
+add_executable(test_kb_control kb_control.cpp)
+target_link_libraries(test_kb_control simulation robots)
+
 add_executable(test_rave_load test_rave_load.cpp)
 target_link_libraries(test_rave_load simulation robots)
 
 add_executable(test_dynamic_pr2 test_dynamic_pr2.cpp)
 target_link_libraries(test_dynamic_pr2 simulation robots)
+
+add_executable(test_ros test_ros.cpp)
+target_link_libraries(test_ros simulation robots ${ROS_LIBRARIES})
+
+add_executable(test_hydra_teleop test_hydra_teleop.cpp)
+target_link_libraries(test_hydra_teleop simulation robots ${ROS_LIBRARIES})
