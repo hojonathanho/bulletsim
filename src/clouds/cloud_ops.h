@@ -19,6 +19,7 @@ ColorCloudPtr filterX(ColorCloudPtr in, float low, float high);
 Eigen::VectorXf getCircle(ColorCloudPtr cloud);
 Eigen::VectorXf getEnclosingCircle(ColorCloudPtr cloud);
 ColorCloudPtr getBiggestCluster(ColorCloudPtr in, float tol);
+ColorCloudPtr clusterFilter(ColorCloudPtr in, float tol, float minSize);
 ColorCloudPtr maskCloud(const ColorCloudPtr in, const cv::Mat& mask);
 ColorCloudPtr maskCloud(const ColorCloudPtr in, const VectorXb& mask);
 ColorCloudPtr removeZRange(const ColorCloudPtr in, float minZ, float maxZ);

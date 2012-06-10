@@ -31,6 +31,14 @@ TrackedObject::Ptr toTrackedObject(const bulletsim_msgs::ObjectInit& initMsg, En
 	  assert(!!sim);
 	  return TrackedTowel::Ptr(new TrackedTowel(sim, 45, 31));
   }
+  else if (initMsg.type == "box") {
+	  btScalar mass = 1;
+	  btVector3 halfExtents = toBulletVector(initMsg.box.extents)*0.5*METERS;
+	  Eigen::Matrix3f rotation = (Eigen::Matrix3f) Eigen::AngleAxisf(initMsg.box.angle, Eigen::Vector3f::UnitZ());
+	  btTransform initTrans(toBulletMatrix(rotation), toBulletVector(initMsg.box.center)*METERS);
+	  BoxObject::Ptr box(new BoxObject(mass, halfExtents, initTrans));
+	  return TrackedBox::Ptr(new TrackedBox(box));
+  }
   else
 	  throw runtime_error("unrecognized initialization type" + initMsg.type);
 }
@@ -42,7 +50,8 @@ bulletsim_msgs::TrackedObject toTrackedObjectMessage(TrackedObject::Ptr obj) {
     msg.rope.nodes = toROSPoints(obj->getPoints());
   }
   else {
-	  LOG_ERROR("I don't knot how to publish a ");
+	  //TODO
+	  //LOG_ERROR("I don't knot how to publish a ");
   }
   return msg;
 }

@@ -16,6 +16,8 @@ struct TrackingConfig : Config {
   static float kd_rope;
   static float kp_cloth;
   static float kd_cloth;
+  static float kp_box;
+  static float kd_box;
 
     TrackingConfig() : Config() {
         params.push_back(new Parameter<std::string>("filteredCloudTopic", &filteredCloudTopic, "filtered cloud topic"));
@@ -27,6 +29,8 @@ struct TrackingConfig : Config {
         params.push_back(new Parameter<float>("kp_rope", &kp_rope, "proportional gain for rope"));
         params.push_back(new Parameter<float>("kd_rope", &kd_rope, "damping for rope"));
         params.push_back(new Parameter<float>("kp_cloth", &kp_cloth, "proportional gain for cloth"));
-        params.push_back(new Parameter<float>("kd_cloth", &kd_cloth, "damping flor cloth"));
+        params.push_back(new Parameter<float>("kd_cloth", &kd_cloth, "damping for cloth"));
+        params.push_back(new Parameter<float>("kp_box", &kp_box, "proportional gain for box"));
+        params.push_back(new Parameter<float>("kd_box", &kd_box, "damping for box"));
     }
 };

@@ -96,8 +96,11 @@ void BulletObject::preDraw() {
     rigidBody->getMotionState()->getWorldTransform(btTrans);
 
     btScalar m[16];
-    btTrans.getOpenGLMatrix(m);
-    //transform->setMatrix(osg::Matrix(identityIfBad(m)));
+    if (drawingOn)
+    	btTrans.getOpenGLMatrix(m);
+		//transform->setMatrix(osg::Matrix(identityIfBad(m)));
+    else
+    	for (int i=0; i<16; i++) m[i]=0.0;
     transform->setMatrix(osg::Matrix(m));
 }
 

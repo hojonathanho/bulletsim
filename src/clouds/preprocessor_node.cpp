@@ -29,6 +29,8 @@ struct LocalConfig : Config {
   static bool updateParams;
   static float downsample;
   static bool removeOutliers;
+  static float clusterTolerance;
+  static float clusterMinSize;
 
   LocalConfig() : Config() {
     params.push_back(new Parameter<string>("inputTopic", &inputTopic, "input topic"));
@@ -37,6 +39,8 @@ struct LocalConfig : Config {
     params.push_back(new Parameter<bool>("updateParams", &updateParams, "start a thread to periodically update the parameters thru the parameter server"));
     params.push_back(new Parameter<float>("downsample", &downsample, "downsample voxel grid size. 0 means no"));
     params.push_back(new Parameter<bool>("removeOutliers", &removeOutliers, "remove outliers"));
+    params.push_back(new Parameter<float>("clusterTolerance", &clusterTolerance, "points within this distance are in the same cluster"));
+    params.push_back(new Parameter<float>("clusterMinSize", &clusterMinSize, "the clusters found must have at least this number of points. 0 means no filtering"));
   }
 };
 
@@ -46,6 +50,8 @@ float LocalConfig::zClipHigh = 1000;
 bool LocalConfig::updateParams = true;
 float LocalConfig::downsample = .02;
 bool LocalConfig::removeOutliers = true;
+float LocalConfig::clusterTolerance = 0.03;
+float LocalConfig::clusterMinSize = 40;
 
 static int MIN_HUE, MAX_HUE, MIN_SAT, MAX_SAT, MIN_VAL, MAX_VAL;
 
@@ -103,6 +109,7 @@ public:
     cloud_out = hueFilter(cloud_out, MIN_HUE, MAX_HUE, MIN_SAT, MAX_SAT, MIN_VAL, MAX_VAL);
     if (LocalConfig::downsample > 0) cloud_out = downsampleCloud(cloud_out, LocalConfig::downsample);
     if (LocalConfig::removeOutliers) cloud_out = removeOutliers(cloud_out, 1, 10);
+    if (LocalConfig::clusterMinSize > 0) cloud_out = clusterFilter(cloud_out, LocalConfig::clusterTolerance, LocalConfig::clusterMinSize);
 
     sensor_msgs::PointCloud2 msg_out;
     pcl::toROSMsg(*cloud_out, msg_out);

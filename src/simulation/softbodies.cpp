@@ -100,7 +100,13 @@ void BulletSoftObject::setColor(float r, float g, float b, float a) {
 }
 
 void BulletSoftObject::preDraw() {
-    transform->setMatrix(osgbCollision::asOsgMatrix(softBody->getWorldTransform()));
+	if (drawingOn) {
+		transform->setMatrix(osgbCollision::asOsgMatrix(softBody->getWorldTransform()));
+	} else {
+		btScalar m[16];
+		for (int i=0; i<16; i++) m[i]=0.0;
+		transform->setMatrix(osg::Matrix(m));
+	}
 
     if (trigeom->getNumPrimitiveSets() > 0)
         trigeom->removePrimitiveSet(0); // there should only be one

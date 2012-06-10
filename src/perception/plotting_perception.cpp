@@ -34,13 +34,13 @@ void drawCorrLines(PlotLines::Ptr lines, const vector<btVector3>& aPts, const ve
   lines->setPoints(linePoints);
 }
 
-void plotNodesAsSpheres(btSoftBody* psb, const VectorXf& pVis, const Eigen::VectorXf& sigs, PlotSpheres::Ptr spheres) {
+void plotNodesAsSpheres(btSoftBody* psb, const VectorXf& pVis, const Eigen::VectorXf& stdev, PlotSpheres::Ptr spheres) {
   int nPts = pVis.rows();
   using namespace osg;
   ref_ptr<Vec3Array> centers = new Vec3Array();
   ref_ptr<Vec4Array> colors = new Vec4Array();
   //vector<float> sizes = toVec(sigs.array().sqrt());
-  vector<float> sizes = toVec(sigs.array().sqrt());
+  vector<float> sizes = toVec(stdev.array());
   for (int i=0; i<nPts; i++) {
     const btVector3& v = psb->m_nodes[i].m_x;
     float p = pVis[i];
@@ -50,13 +50,13 @@ void plotNodesAsSpheres(btSoftBody* psb, const VectorXf& pVis, const Eigen::Vect
   spheres->plot(centers, colors, sizes);
 }
 
-void plotNodesAsSpheres(const vector<btVector3>& nodes, const VectorXf& pVis, const Eigen::VectorXf& sigs, PlotSpheres::Ptr spheres) {
+void plotNodesAsSpheres(const vector<btVector3>& nodes, const VectorXf& pVis, const Eigen::VectorXf& stdev, PlotSpheres::Ptr spheres) {
   int nPts = pVis.rows();
   using namespace osg;
   ref_ptr<Vec3Array> centers = new Vec3Array();
   ref_ptr<Vec4Array> colors = new Vec4Array();
   //vector<float> sizes = toVec(sigs.array().sqrt());
-  vector<float> sizes = toVec(sigs.array().sqrt()/2);
+  vector<float> sizes = toVec(stdev.array()/2);
   for (int i=0; i<nPts; i++) {
     float p = pVis[i];
     centers->push_back(Vec3f(nodes[i].x(), nodes[i].y(), nodes[i].z()));

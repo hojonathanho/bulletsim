@@ -60,7 +60,7 @@ int main(int argc, char* argv[]) {
 
   message_filters::Subscriber<PointCloud2> cloudSub(nh, TrackingConfig::filteredCloudTopic,1);
   message_filters::Subscriber<Image> imageSub(nh, TrackingConfig::depthTopic, 1);
-  message_filters::TimeSynchronizer<PointCloud2, Image> sync(cloudSub,imageSub,10);
+  message_filters::TimeSynchronizer<PointCloud2, Image> sync(cloudSub,imageSub,30);
   sync.registerCallback(boost::bind(&callback,_1,_2));
 
   ros::Publisher objPub = nh.advertise<bulletsim_msgs::TrackedObject>(trackedObjectTopic,10);
@@ -86,9 +86,15 @@ int main(int argc, char* argv[]) {
   SimplePhysicsTracker alg(trackedObj, &visInterface, scene.env);
 
   scene.addVoidKeyCallback('C',boost::bind(toggle, &alg.m_enableCorrPlot));
+  scene.addVoidKeyCallback('c',boost::bind(toggle, &alg.m_enableCorrPlot));
   scene.addVoidKeyCallback('E',boost::bind(toggle, &alg.m_enableEstPlot));
+  scene.addVoidKeyCallback('e',boost::bind(toggle, &alg.m_enableEstPlot));
   scene.addVoidKeyCallback('O',boost::bind(toggle, &alg.m_enableObsPlot));
-  
+  scene.addVoidKeyCallback('o',boost::bind(toggle, &alg.m_enableObsPlot));
+  scene.addVoidKeyCallback('T',boost::bind(toggle, &dynamic_cast<EnvironmentObject*>(trackedObj->getSim())->drawingOn));
+  scene.addVoidKeyCallback('t',boost::bind(toggle, &dynamic_cast<EnvironmentObject*>(trackedObj->getSim())->drawingOn));
+  scene.addVoidKeyCallback('q',boost::bind(exit, 0));
+
   while (ros::ok()) {
     alg.updateInput(filteredCloud);
     visInterface.updateInput(depthImage);
@@ -100,7 +106,8 @@ int main(int argc, char* argv[]) {
       ros::spinOnce();
     }
     LOG_DEBUG("publishing");
-    objPub.publish(toTrackedObjectMessage(trackedObj));
+    //TODO
+    //objPub.publish(toTrackedObjectMessage(trackedObj));
   }
 
 
