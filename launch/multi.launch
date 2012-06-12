@@ -17,13 +17,14 @@
   	<arg name="camera" value="kinect3" />
 		<arg name="device_id" default="A00361A03404051A" />
 	</include>
+	
 
   <node name="drop1" pkg="topic_tools" type="drop" args="/kinect1/depth_registered/points 2 3 /drop/points"/>
   <node name="drop2" pkg="topic_tools" type="drop" args="/kinect3/depth_registered/points 2 3 /drop/points2"/>
   
   <node name="merger" pkg="binary_symlinks" type="cloud_merger_node" output="screen" args="--inputTopic1=/drop/points --inputTopic2=/drop/points2 --zClipLow=0 
-  	--checkerBoardWidth 6
-  	--checkerBoardHeight 9
+  	--chessBoardWidth 6
+  	--chessBoardHeight 9
   	--imageCalibration 0
   	--SVDCalibration 1
   	--ICPCalibration 0
