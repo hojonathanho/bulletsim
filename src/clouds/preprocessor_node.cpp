@@ -1,6 +1,8 @@
 #include "utils/my_exceptions.h"
 #include <ros/ros.h>
+#include <pcl/io/pcd_io.h>
 #include <pcl/point_types.h>
+#include <pcl/registration/icp.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <pcl/ros/conversions.h>
 #include "clouds/utils_pcl.h"
@@ -103,13 +105,31 @@ public:
 
     if (!m_inited) {
       initTable(cloud_in);
+      //ColorCloudPtr downsampled_cloud = downsampleCloud(cloud_in, LocalConfig::downsample);
+      //ColorCloud* downsampled_cloud_noboost = dynamic_cast<ColorCloud*>(downsampled_cloud.get());
+      //pcl::io::savePCDFile("/home/alex/rll/test/data/sample.pcd", *downsampled_cloud_noboost);
     }
 
-    ColorCloudPtr cloud_out = orientedBoxFilter(cloud_in, m_axes, m_mins, m_maxes);
-    cloud_out = hueFilter(cloud_out, MIN_HUE, MAX_HUE, MIN_SAT, MAX_SAT, MIN_VAL, MAX_VAL);
-    if (LocalConfig::downsample > 0) cloud_out = downsampleCloud(cloud_out, LocalConfig::downsample);
-    if (LocalConfig::removeOutliers) cloud_out = removeOutliers(cloud_out, 1, 10);
-    if (LocalConfig::clusterMinSize > 0) cloud_out = clusterFilter(cloud_out, LocalConfig::clusterTolerance, LocalConfig::clusterMinSize);
+    //oud_out, MIN_HUE, MAX_HUE, MIN_SAT, MAX_SAT, MIN_VAL, MAX_VAL);
+    ColorCloudPtr cloud_out = checkerBoardCorners(cloud_in, 6, 7);
+    //if (LocalConfig::downsample > 0) cloud_out = downsampleCloud(cloud_out, LocalConfig::downsample);
+    //if (LocalConfig::removeOutliers) cloud_out = removeOutliers(cloud_out, 1, 10);
+    //if (LocalConfig::clusterMinSize > 0) cloud_out = clusterFilter(cloud_out, LocalConfig::clusterTolerance, LocalConfig::clusterMinSize);
+
+    /*
+    ColorCloudPtr cloud_in_shift(new ColorCloud());
+	*cloud_in_shift = *cloud_in;
+	for (size_t i = 0; i < cloud_in->points.size (); ++i)
+		cloud_in_shift->points[i].x = cloud_in->points[i].x + 0.07f;
+	pcl::IterativeClosestPoint<pcl::PointXYZRGB, pcl::PointXYZRGB> icp;
+	icp.setInputCloud(cloud_in);
+	icp.setInputTarget(cloud_in_shift);
+	pcl::PointCloud<pcl::PointXYZRGB> Final;
+	icp.align(Final);
+	std::cout << "has converged:" << icp.hasConverged() << " score: " << icp.getFitnessScore() << std::endl;
+	std::cout << icp.getFinalTransformation() << std::endl;
+	*/
+
 
     sensor_msgs::PointCloud2 msg_out;
     pcl::toROSMsg(*cloud_out, msg_out);

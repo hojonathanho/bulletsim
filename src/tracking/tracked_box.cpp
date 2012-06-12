@@ -7,8 +7,15 @@ using namespace std;
 using namespace Eigen;
 
 TrackedBox::TrackedBox(BoxObject::Ptr sim) : TrackedObject(sim, "box") {
-	m_nEdgeNodes = 4;
-	m_nNodes = pow(m_nEdgeNodes, 3) - pow(m_nEdgeNodes-2, 3);
+	BoxObject* box_object = dynamic_cast<BoxObject*>(m_sim.get());
+	btCollisionShape* bt_collision_shape = dynamic_cast<btCollisionShape*>(box_object->collisionShape.get());
+	btBoxShape* bt_box_shape = dynamic_cast<btBoxShape*>(bt_collision_shape);
+	btVector3 half_extents = bt_box_shape->getHalfExtentsWithMargin();
+	m_nEdgeNodesX = half_extents.x()/0.2;
+	m_nEdgeNodesY = half_extents.y()/0.2;
+	m_nEdgeNodesZ = half_extents.z()/0.2;
+	m_nNodes = m_nEdgeNodesX*m_nEdgeNodesY*m_nEdgeNodesZ - (m_nEdgeNodesX-2)*(m_nEdgeNodesY-2)*(m_nEdgeNodesZ-2);
+	//m_nNodes = pow(m_nEdgeNodes, 3) - pow(m_nEdgeNodes-2, 3);
 	m_masses.resize(m_nNodes);
 	float invMass = getSim()->rigidBody->getInvMass();
 	for (int i=0; i < m_nNodes; i++) {
@@ -23,16 +30,18 @@ std::vector<btVector3> TrackedBox::getPoints() {
 	btVector3 half_extents = bt_box_shape->getHalfExtentsWithMargin();
 	//std::vector<btVector3> out(m_nNodes);
 	std::vector<btVector3> out;
-	float midNEdgeNodes = ((float) m_nEdgeNodes - 1.0)/2.0;
+	float midNEdgeNodesX = 0.5*((float) m_nEdgeNodesX - 1.0);
+	float midNEdgeNodesY = 0.5*((float) m_nEdgeNodesY - 1.0);
+	float midNEdgeNodesZ = 0.5*((float) m_nEdgeNodesZ - 1.0);
 
 	btTransform cm = getSim()->rigidBody->getCenterOfMassTransform();
-	for (int i=0; i < m_nEdgeNodes; i++) {
-		for (int j=0; j < m_nEdgeNodes; j++) {
-			for (int k=0; k < m_nEdgeNodes; k++) {
-				if (i!=0 && i!=(m_nEdgeNodes-1) && j!=0 && j!=(m_nEdgeNodes-1) && k!=0 && k!=(m_nEdgeNodes-1)) continue;
-				float i_offset = ((float) i)/midNEdgeNodes - 1.0;
-                float j_offset = ((float) j)/midNEdgeNodes - 1.0;
-                float k_offset = ((float) k)/midNEdgeNodes - 1.0;
+	for (int i=0; i < m_nEdgeNodesX; i++) {
+		for (int j=0; j < m_nEdgeNodesY; j++) {
+			for (int k=0; k < m_nEdgeNodesZ; k++) {
+				if (i!=0 && i!=(m_nEdgeNodesX-1) && j!=0 && j!=(m_nEdgeNodesY-1) && k!=0 && k!=(m_nEdgeNodesZ-1)) continue;
+				float i_offset = ((float) i)/midNEdgeNodesX - 1.0;
+                float j_offset = ((float) j)/midNEdgeNodesY - 1.0;
+                float k_offset = ((float) k)/midNEdgeNodesZ - 1.0;
 				//out[(int)pow(m_nEdgeNodes, 2.0)*i+m_nEdgeNodes*j+k] = cm.getOrigin() + cm.getBasis() * (half_extents * btVector3(i_offset, j_offset, k_offset));
                 out.push_back(cm.getOrigin() + cm.getBasis() * (half_extents * btVector3(i_offset, j_offset, k_offset)));
 			}

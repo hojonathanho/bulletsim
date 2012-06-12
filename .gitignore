@@ -4,3 +4,9 @@ build/*
 *.wpr
 *.wpu
 data/knots
+CMakeFiles
+Makefile
+*.cmake
+*.a
+bin/
+CMakeCache.txt

@@ -309,3 +309,58 @@ ColorCloudPtr orientedBoxFilter(ColorCloudPtr cloud_in, const Matrix3f& ori, con
 	ColorCloudPtr cloud_out = maskCloud(cloud_in, mask);
 	return cloud_out;
 }
+
+cv::Mat cloud2Image(const ColorCloudPtr cloud) {
+	MatrixXu bgr = toBGR(cloud);
+	cv::Mat image(cloud->height, cloud->width, CV_8UC3, bgr.data());
+	return image;
+}
+
+bool isBad(MatrixXf mat, int i) {
+	return (isnan(mat(i,0)) ||
+			isnan(mat(i,1)) ||
+			isnan(mat(i,2)));
+}
+
+ColorCloudPtr checkerBoardCorners(const ColorCloudPtr in, int width_cb, int height_cb) {
+	MatrixXu bgr = toBGR(in);
+	int nPts = in->size();
+	cv::Mat image(in->height,in->width, CV_8UC3, bgr.data());
+	cv::Mat gray_image;
+	cv::cvtColor(image, gray_image, CV_BGR2GRAY);
+
+	vector<cv::Point2i> corners;
+	vector<cv::Point3f> obj(width_cb*height_cb);
+	for (int i=0; i<height_cb; i++)
+		for (int j=0; j<width_cb; j++)
+			obj[i*width_cb+j] = cv::Point3f(j, i, 0.0);
+	bool found = findChessboardCorners(gray_image, cv::Size(width_cb,height_cb), corners, cv::CALIB_CB_FAST_CHECK);
+	//printf("corners size %d\n", (int) corners.size());
+
+	MatrixXf in_mat = toEigenMatrix(in);
+	boost::shared_ptr< vector<int> > indicesPtr(new vector<int>());
+	for (int k=0; k<corners.size(); k++) {
+		int index = corners[k].y*in->width+corners[k].x;
+		if (isBad(in_mat, index)) {
+			for (int i=-1; i<=1; i++)
+				for (int j=-1; j<=1; j++)
+					if (!isBad(in_mat, (corners[k].y+j)*in->width+(corners[k].x+i))) {
+						index = (corners[k].y+j)*in->width+(corners[k].x+i);
+						break;
+					}
+		}
+		indicesPtr->push_back(index);
+	}
+	//for (int j=0; j<in->height; j++)
+	//	indicesPtr->push_back(j*in->width + in->width/2);
+	//for (int i=0; i<in->width; i++)
+	//	indicesPtr->push_back((in->height/2)*in->width + i);
+
+	ColorCloudPtr out(new ColorCloud());
+	pcl::ExtractIndices<ColorPoint> ei;
+	ei.setNegative(false);
+	ei.setInputCloud(in);
+	ei.setIndices(indicesPtr);
+	ei.filter(*out);
+	return out;
+}

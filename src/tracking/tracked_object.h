@@ -59,7 +59,9 @@ public:
   BoxObject* getSim() {return dynamic_cast<BoxObject*>(m_sim.get());}
 
 protected:
-  int m_nEdgeNodes;
+  int m_nEdgeNodesX;
+  int m_nEdgeNodesY;
+  int m_nEdgeNodesZ;
   Eigen::VectorXf m_masses;
 };
 
