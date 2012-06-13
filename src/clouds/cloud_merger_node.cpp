@@ -28,15 +28,13 @@ using namespace Eigen;
 struct LocalConfig : Config {
   static std::string inputTopic1;
   static std::string inputTopic2;
-  static std::string inputImageTopic1;
-  static std::string inputImageTopic2;
-  static float zClipLow;
-  static float zClipHigh;
-  static int checkerBoardWidth;
-  static int checkerBoardHeight;
-  static float squareSize;
+  static std::string outputTopic;
   static int imageCalibration;
+  static float squareSize;
+  static int chessBoardWidth;
+  static int chessBoardHeight;
   static int SVDCalibration;
+  static float minCorrFraction;
   static int ICPCalibration;
   static int maxIterations;
   static int RANSACIterations;
@@ -48,36 +46,32 @@ struct LocalConfig : Config {
   LocalConfig() : Config() {
     params.push_back(new Parameter<string>("inputTopic1", &inputTopic1, "input topic1"));
     params.push_back(new Parameter<string>("inputTopic2", &inputTopic2, "input topic2"));
-    params.push_back(new Parameter<string>("inputImageTopic1", &inputImageTopic1, "input image topic1"));
-    params.push_back(new Parameter<string>("inputImageTopic2", &inputImageTopic2, "input image topic2"));
-    params.push_back(new Parameter<float>("zClipLow", &zClipLow, "clip points that are less than this much above table"));
-    params.push_back(new Parameter<float>("zClipHigh", &zClipHigh, "clip points that are more than this much above table"));
-    params.push_back(new Parameter<int>("checkerBoardWidth", &checkerBoardWidth, "number of inner corners along the width of the checker board"));
-    params.push_back(new Parameter<int>("checkerBoardHeight", &checkerBoardHeight, "number of inner corners along the height of the checker board"));
-    params.push_back(new Parameter<float>("squareSize", &squareSize, "the length (in meters) of the sides of the squares"));
+    params.push_back(new Parameter<string>("outputTopic", &outputTopic, "output topic"));
     params.push_back(new Parameter<int>("imageCalibration", &imageCalibration, "0 means that image calibration is NOT run"));
-    params.push_back(new Parameter<int>("SVDCalibration", &SVDCalibration, "0 means that SVD calibration is NOT run"));
+    params.push_back(new Parameter<float>("squareSize", &squareSize, "the length (in meters) of the sides of the squares (if imageCalibration!=0)"));
+    params.push_back(new Parameter<int>("chessBoardWidth", &chessBoardWidth, "number of inner corners along the width of the chess board (if imageCalibration!=0 or SVDCalibration!=0)"));
+    params.push_back(new Parameter<int>("chessBoardHeight", &chessBoardHeight, "number of inner corners along the height of the chess board (if imageCalibration!=0 or SVDCalibration!=0)"));
+    params.push_back(new Parameter<int>("SVDCalibration", &SVDCalibration, "0 means that SVD calibration is NOT run. 2 means that chess board corners points are published into outputTopic/corners1 and outputTopic/corners2."));
+    params.push_back(new Parameter<float>("minCorrFraction", &minCorrFraction, "minimum number of valid checker board corner correspondences (i.e. minCorrFraction*chessBoardWidth*chessBoardHeight) in order to run SVD calibration (if SVDCalibration!=0)"));
     params.push_back(new Parameter<int>("ICPCalibration", &ICPCalibration, "0 means that ICP calibration is NOT run"));
-    params.push_back(new Parameter<int>("maxIterations", &maxIterations, "maximum number of iterations the internal optimization should run for"));
-    params.push_back(new Parameter<int>("RANSACIterations", &RANSACIterations, "the number of iterations RANSAC should run for"));
-    params.push_back(new Parameter<float>("RANSACOutlierRejectionThreshold", &RANSACOutlierRejectionThreshold, "the inlier distance threshold for the internal RANSAC outlier rejection loop"));
-    params.push_back(new Parameter<float>("maxCorrespondenceDistance", &maxCorrespondenceDistance, "the maximum distance threshold between two correspondent points in source <-> target"));
-    params.push_back(new Parameter<float>("transformationEpsilon", &transformationEpsilon, "the transformation epsilon (maximum allowable difference between two consecutive transformations) in order for an optimization to be considered as having converged to the final solution"));
-    params.push_back(new Parameter<float>("euclideanFitnessEpsilon", &euclideanFitnessEpsilon, "the maximum allowed Euclidean error between two consecutive steps in the ICP loop, before the algorithm is considered to have converged"));
+    params.push_back(new Parameter<int>("maxIterations", &maxIterations, "maximum number of iterations the internal optimization should run for (if ICPCalibration!=0)"));
+    params.push_back(new Parameter<int>("RANSACIterations", &RANSACIterations, "the number of iterations RANSAC should run for (if ICPCalibration!=0)"));
+    params.push_back(new Parameter<float>("RANSACOutlierRejectionThreshold", &RANSACOutlierRejectionThreshold, "the inlier distance threshold for the internal RANSAC outlier rejection loop (if ICPCalibration!=0)"));
+    params.push_back(new Parameter<float>("maxCorrespondenceDistance", &maxCorrespondenceDistance, "the maximum distance threshold between two correspondent points in source <-> target (if ICPCalibration!=0)"));
+    params.push_back(new Parameter<float>("transformationEpsilon", &transformationEpsilon, "the transformation epsilon (maximum allowable difference between two consecutive transformations) in order for an optimization to be considered as having converged to the final solution (if ICPCalibration!=0)"));
+    params.push_back(new Parameter<float>("euclideanFitnessEpsilon", &euclideanFitnessEpsilon, "the maximum allowed Euclidean error between two consecutive steps in the ICP loop, before the algorithm is considered to have converged (if ICPCalibration!=0)"));
   }
 };
 
 string LocalConfig::inputTopic1 = "/kinect1/depth_registered/points";
 string LocalConfig::inputTopic2 = "/kinect2/depth_registered/points";
-string LocalConfig::inputImageTopic1 = "/kinect1/rgb/image_color";
-string LocalConfig::inputImageTopic2 = "/kinect2/rgb/image_color";
-float LocalConfig::zClipLow = .0025;
-float LocalConfig::zClipHigh = 1000;
-int LocalConfig::checkerBoardWidth = 6;
-int LocalConfig::checkerBoardHeight = 9;
-float LocalConfig::squareSize = 0.041267;
+string LocalConfig::outputTopic = "/merger";
 int LocalConfig::imageCalibration = 0;
+float LocalConfig::squareSize = 0.041267;
+int LocalConfig::chessBoardWidth = 6;
+int LocalConfig::chessBoardHeight = 9;
 int LocalConfig::SVDCalibration = 1;
+float LocalConfig::minCorrFraction = 0.6;
 int LocalConfig::ICPCalibration = 0;
 int LocalConfig::maxIterations = 100;
 int LocalConfig::RANSACIterations = 10;
@@ -115,18 +109,6 @@ void initTable(ColorCloudPtr cloud) {
 	xax *= - zsgn;
 	zax *= - zsgn; // so z axis points up
 
-	Matrix3f axes;
-	axes.col(0) = xax;
-	axes.col(1) = yax;
-	axes.col(2) = zax;
-
-	MatrixXf rotCorners = corners * axes;
-
-	Vector3f mins = rotCorners.colwise().minCoeff();
-	Vector3f maxes = rotCorners.colwise().maxCoeff();
-	mins(2) = rotCorners(0,2) + LocalConfig::zClipLow;
-	maxes(2) = rotCorners(0,2) + LocalConfig::zClipHigh;
-
 	ground_transform.setBasis(btMatrix3x3(xax(0),yax(0),zax(0),
 										  xax(1),yax(1),zax(1),
 										  xax(2),yax(2),zax(2)));
@@ -138,58 +120,42 @@ void initTable(ColorCloudPtr cloud) {
 }
 
 void SVDCalibration(ColorCloudPtr cloud1, ColorCloudPtr cloud2) {
-	ColorCloudPtr cloud1_corners = checkerBoardCorners(cloud1, LocalConfig::checkerBoardWidth, LocalConfig::checkerBoardHeight);
-	ColorCloudPtr cloud2_corners = checkerBoardCorners(cloud2, LocalConfig::checkerBoardWidth, LocalConfig::checkerBoardHeight);
-	ROS_INFO("corner sizes %d %d", (int) cloud1_corners->size(), (int) cloud2_corners->size());
-	if ((cloud1_corners->size() == LocalConfig::checkerBoardWidth * LocalConfig::checkerBoardHeight) &&
-		(cloud2_corners->size() == LocalConfig::checkerBoardWidth * LocalConfig::checkerBoardHeight)) {
+	ColorCloudPtr cloud1_corners = chessBoardCorners(cloud1, LocalConfig::chessBoardWidth, LocalConfig::chessBoardHeight);
+	ColorCloudPtr cloud2_corners = chessBoardCorners(cloud2, LocalConfig::chessBoardWidth, LocalConfig::chessBoardHeight);
+	int nAllPoints = LocalConfig::chessBoardWidth * LocalConfig::chessBoardHeight;
+	if ((cloud1_corners->size() == nAllPoints) &&
+		(cloud2_corners->size() == nAllPoints)) {
 		//Filter out the bad points from both point clouds
-		MatrixXf corners1_mat = toEigenMatrix(cloud1_corners);
-		MatrixXf corners2_mat = toEigenMatrix(cloud2_corners);
 		vector<int> badPoints;
 		for (int i=0; i<cloud1_corners->size(); i++) {
-			if (isnan(corners1_mat(i,0)) || isnan(corners2_mat(i,0)) ||
-				isnan(corners1_mat(i,1)) || isnan(corners2_mat(i,1)) ||
-				isnan(corners1_mat(i,2)) || isnan(corners2_mat(i,2)))
+			if (!pointIsFinite(cloud1_corners->at(i)) || !pointIsFinite(cloud2_corners->at(i)))
 				badPoints.push_back(i);
 		}
 		for (int i=(badPoints.size()-1); i>=0; i--) {
-			ROS_INFO("bad points %d", badPoints[i]);
+			//ROS_INFO("bad points %d", badPoints[i]);
 			cloud1_corners->erase(cloud1_corners->begin() + badPoints[i]);
 			cloud2_corners->erase(cloud2_corners->begin() + badPoints[i]);
 		}
 
-		MatrixXf xyz = toEigenMatrix(cloud1_corners);
-		for(int i=0; i<cloud1_corners->size(); i++)
-			ROS_INFO("cloud1_corners[%d] %.4f %.4f %.4f", i, xyz(i,0), xyz(i,1), xyz(i,2));
+		int minCorr = LocalConfig::minCorrFraction * nAllPoints;
+		if ((cloud1_corners->size()>minCorr) && (cloud2_corners->size()>minCorr)) {
+			vector<int> indices;
+			for (int i=0; i<cloud1_corners->size(); i++)
+				indices.push_back(i);
+			pcl::registration::TransformationEstimationSVD<ColorPoint, ColorPoint> estimation_svd;
+			Matrix4f transform;
+			estimation_svd.estimateRigidTransformation(*cloud2_corners, indices, *cloud1_corners, indices, transform_diff);
 
-		vector<int> indices;
-		for (int i=0; i<cloud1_corners->size(); i++)
-			indices.push_back(i);
-		pcl::registration::TransformationEstimationSVD<ColorPoint, ColorPoint> estimation_svd;
-		Matrix4f transform;
-		estimation_svd.estimateRigidTransformation(*cloud2_corners, indices, *cloud1_corners, indices, transform);
-		bool valid_transform = true;
-		for (int i=0; i<4; i++)
-			for (int j=0; j<4; j++)
-				if (isnan(transform(j,i))) {
-					valid_transform = false;
-					break;
-				}
-		int nAllPoints = LocalConfig::checkerBoardWidth * LocalConfig::checkerBoardHeight;
-		if ((cloud1_corners->size()>(0.5*nAllPoints)) && (cloud2_corners->size()>(0.5*nAllPoints)) && valid_transform) {
-			transform_diff = transform;
 			svd_calib_init = true;
-			ROS_INFO("transform_diff %.4f %.4f %.4f", transform_diff(0,3), transform_diff(1,3), transform_diff(2,3));
-			ROS_INFO("SVD calibration succeeded with %d %d points", (int) cloud1_corners->size(), (int) cloud2_corners->size());
+			ROS_INFO("SVD calibration succeeded with %d/%d points", (int) cloud1_corners->size(), nAllPoints);
 		} else {
-			ROS_WARN("SVD calibration failed. SVD transformation estimation failed.");
+			ROS_WARN("SVD calibration failed. Only %d of a minimum of %d correspondences found.", (int) cloud1_corners->size(), minCorr);
 		}
 	} else {
-		ROS_WARN("SVD calibration failed. Make sure both cameras sees the checker board. First camera sees %d/%d. Second camera sees %d/%d.", (int) cloud1_corners->size(),
-																																			  LocalConfig::checkerBoardWidth * LocalConfig::checkerBoardHeight,
-																																			  (int) cloud2_corners->size(),
-																																			  LocalConfig::checkerBoardWidth * LocalConfig::checkerBoardHeight);
+		ROS_WARN("SVD calibration failed. Make sure both cameras sees the chess board. First camera sees %d/%d. Second camera sees %d/%d.", (int) cloud1_corners->size(),
+																																			nAllPoints,
+																																			(int) cloud2_corners->size(),
+																																			nAllPoints);
 	}
 }
 
@@ -216,8 +182,8 @@ void ICPCalibration(ColorCloudPtr cloud1, ColorCloudPtr cloud2) {
 }
 
 void imageCalibration(ColorCloudPtr cloud1, ColorCloudPtr cloud2) {
-	cv::Mat image1 = cloud2Image(cloud1);
-	cv::Mat image2 = cloud2Image(cloud2);
+	cv::Mat image1 = toCVMatImage(cloud1);
+	cv::Mat image2 = toCVMatImage(cloud2);
 
 	double CX = 320-.5;
 	double CY = 240-.5;
@@ -228,13 +194,13 @@ void imageCalibration(ColorCloudPtr cloud1, ColorCloudPtr cloud2) {
 	cam_matrix(1,2) = CY;
 
 	Matrix4f transform1, transform2;
-	if (get_chessboard_pose(image1, LocalConfig::checkerBoardWidth, LocalConfig::checkerBoardHeight, LocalConfig::squareSize, cam_matrix, transform1) &&
-		get_chessboard_pose(image2, LocalConfig::checkerBoardWidth, LocalConfig::checkerBoardHeight, LocalConfig::squareSize, cam_matrix, transform2)) {
+	if (get_chessboard_pose(image1, LocalConfig::chessBoardWidth, LocalConfig::chessBoardHeight, LocalConfig::squareSize, cam_matrix, transform1) &&
+		get_chessboard_pose(image2, LocalConfig::chessBoardWidth, LocalConfig::chessBoardHeight, LocalConfig::squareSize, cam_matrix, transform2)) {
 		transform_diff = transform1*transform2.inverse();
 		image_calib_init = true;
 		ROS_INFO("Image calibration suceeded");
 	} else {
-		ROS_WARN("Image calibration failed. Make sure both cameras sees the checker board.");
+		ROS_WARN("Image calibration failed. Make sure both cameras sees the chess board.");
 	}
 }
 
@@ -265,15 +231,17 @@ void callback(const sensor_msgs::PointCloud2ConstPtr& msg_in1, const sensor_msgs
 	msg_out.header = msg_in1->header;
 	cloudPub->publish(msg_out);
 
-	sensor_msgs::PointCloud2 msg_corners1;
-	pcl::toROSMsg(*checkerBoardCorners(cloud_in1, LocalConfig::checkerBoardWidth, LocalConfig::checkerBoardHeight), msg_corners1);
-	msg_corners1.header = msg_in1->header;
-	corners1Pub->publish(msg_corners1);
+	if (LocalConfig::SVDCalibration == 2) {
+		sensor_msgs::PointCloud2 msg_corners1;
+		pcl::toROSMsg(*chessBoardCorners(cloud_in1, LocalConfig::chessBoardWidth, LocalConfig::chessBoardHeight), msg_corners1);
+		msg_corners1.header = msg_in1->header;
+		corners1Pub->publish(msg_corners1);
 
-	sensor_msgs::PointCloud2 msg_corners2;
-	pcl::toROSMsg(*checkerBoardCorners(cloud_in2, LocalConfig::checkerBoardWidth, LocalConfig::checkerBoardHeight), msg_corners2);
-	msg_corners2.header = msg_in1->header;
-	corners2Pub->publish(msg_corners2);
+		sensor_msgs::PointCloud2 msg_corners2;
+		pcl::toROSMsg(*chessBoardCorners(cloud_in2, LocalConfig::chessBoardWidth, LocalConfig::chessBoardHeight), msg_corners2);
+		msg_corners2.header = msg_in1->header;
+		corners2Pub->publish(msg_corners2);
+	}
 
 	broadcaster->sendTransform(tf::StampedTransform(ground_transform, ros::Time::now(), msg_in1->header.frame_id, "ground"));
 
@@ -292,10 +260,12 @@ int main(int argc, char* argv[]) {
 	ros::init(argc, argv,"merger");
 	ros::NodeHandle nh;
 
-	cloudPub.reset(new ros::Publisher(nh.advertise<sensor_msgs::PointCloud2>("/merger/points",5)));
-	corners1Pub.reset(new ros::Publisher(nh.advertise<sensor_msgs::PointCloud2>("/merger/corners1",5)));
-	corners2Pub.reset(new ros::Publisher(nh.advertise<sensor_msgs::PointCloud2>("/merger/corners2",5)));
-	polyPub.reset(new ros::Publisher(nh.advertise<geometry_msgs::PolygonStamped>("/merger/polygon",5)));
+	cloudPub.reset(new ros::Publisher(nh.advertise<sensor_msgs::PointCloud2>(LocalConfig::outputTopic+"/points",5)));
+	if (LocalConfig::SVDCalibration == 2) {
+		corners1Pub.reset(new ros::Publisher(nh.advertise<sensor_msgs::PointCloud2>(LocalConfig::outputTopic+"/corners1",5)));
+		corners2Pub.reset(new ros::Publisher(nh.advertise<sensor_msgs::PointCloud2>(LocalConfig::outputTopic+"/corners2",5)));
+	}
+	polyPub.reset(new ros::Publisher(nh.advertise<geometry_msgs::PolygonStamped>(LocalConfig::outputTopic+"/polygon",5)));
 	broadcaster.reset(new tf::TransformBroadcaster());
 
 	message_filters::Subscriber<sensor_msgs::PointCloud2> cloud1Sub(nh, LocalConfig::inputTopic1, 1);

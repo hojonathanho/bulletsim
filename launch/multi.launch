@@ -6,34 +6,43 @@
 		<arg name="device_id" default="B00363711480052B" />
 	</include>
 	
-	<!--
 	<include file="$(find openni_launch)/launch/openni.launch">
   	<arg name="camera" value="kinect2" />
 		<arg name="device_id" default="B00362625491051B" />
 	</include>
-	-->
 	
+	<!--
 	<include file="$(find openni_launch)/launch/openni.launch">
   	<arg name="camera" value="kinect3" />
 		<arg name="device_id" default="A00361A03404051A" />
 	</include>
+	-->
 	
+	<!--
+	<node pkg="nodelet" type="nodelet" name="manager_nodelet"  args="manager"/>
+  <node pkg="nodelet" type="nodelet" name="points_xyzrgb_depth_rgb"
+        args="load depth_image_proc/point_cloud_xyzrgb manager_nodelet"
+				respawn="false">
+    <remap from="rgb/image_rect_color"        to="kinect1/rgb/image_rect_color" />
+    <remap from="rgb/camera_info"             to="kinect1/rgb/camera_info" />
+    <remap from="depth_registered/image_rect" to="kinect1/depth_registered/image_rect_raw" />
+    <remap from="depth_registered/points"     to="build_kinect1/depth_registered/points" />
+  </node>
+  -->
 
   <node name="drop1" pkg="topic_tools" type="drop" args="/kinect1/depth_registered/points 2 3 /drop/points"/>
-  <node name="drop2" pkg="topic_tools" type="drop" args="/kinect3/depth_registered/points 2 3 /drop/points2"/>
+  <node name="drop2" pkg="topic_tools" type="drop" args="/kinect2/depth_registered/points 2 3 /drop/points2"/>
   
-  <node name="merger" pkg="binary_symlinks" type="cloud_merger_node" output="screen" args="--inputTopic1=/drop/points --inputTopic2=/drop/points2 --zClipLow=0 
-  	--chessBoardWidth 6
-  	--chessBoardHeight 9
-  	--imageCalibration 0
-  	--SVDCalibration 1
-  	--ICPCalibration 0
-  	--maxIterations 10000000 
-  	--RANSACIterations 10000 
-  	--RANSACOutlierRejectionThreshold 0.1 
-  	--maxCorrespondenceDistance 0.1 
-		--transformationEpsilon 0 
-		--euclideanFitnessEpsilon 0.0001 
+  <node name="merger" pkg="binary_symlinks" type="cloud_merger_node" output="screen"
+  			args="--inputTopic1=/drop/points 
+  						--inputTopic2=/drop/points2 
+  						--outputTopic=/merger 
+  						--SVDCalibration 2 
+  						--minCorrFraction 0.6 
+  						--chessBoardWidth 6 
+  						--chessBoardHeight 7 
+  						--imageCalibration 0 
+  						--ICPCalibration 0
   "/>
   
   <group if="$(arg make_sim_frame)">

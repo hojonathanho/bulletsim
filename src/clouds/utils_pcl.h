@@ -30,7 +30,7 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr toPointCloud(const std::vector< std::vector<
 
 MatrixXu toBGR(ColorCloudPtr);
 cv::Mat toCVMat(Eigen::MatrixXf);
-
+cv::Mat toCVMatImage(const ColorCloudPtr cloud);
 
 bool pointIsFinite(const ColorPoint& pt);
 

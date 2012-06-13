@@ -5,6 +5,7 @@
 #include <pcl/Vertices.h>
 #include <opencv2/core/core.hpp>
 #include <cv.h>
+#include "utils/vector_alg.h"
 
 std::vector< std::vector<int> > findClusters(ColorCloudPtr cloud, float tol=.02, float minSize=100);
 ColorCloudPtr downsampleCloud(const ColorCloudPtr in, float sz);
@@ -26,6 +27,4 @@ ColorCloudPtr removeZRange(const ColorCloudPtr in, float minZ, float maxZ);
 void labelCloud(ColorCloudPtr in, const cv::Mat& labels);
 ColorCloudPtr hueFilter(ColorCloudPtr in, uint8_t minHue, uint8_t maxHue, uint8_t minSat=0, uint8_t maxSat=255, uint8_t minVal=0, uint8_t maxVal=255);
 ColorCloudPtr orientedBoxFilter(ColorCloudPtr cloud_in, const Eigen::Matrix3f& ori, const Eigen::Vector3f& mins, const Eigen::Vector3f& maxes);
-cv::Mat cloud2Image(const ColorCloudPtr cloud);
-bool isBad(Eigen::MatrixXf mat, int i);
-ColorCloudPtr checkerBoardCorners(const ColorCloudPtr in, int width_cb, int height_cb);
+ColorCloudPtr chessBoardCorners(const ColorCloudPtr in, int width_cb, int height_cb);

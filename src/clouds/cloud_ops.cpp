@@ -310,19 +310,7 @@ ColorCloudPtr orientedBoxFilter(ColorCloudPtr cloud_in, const Matrix3f& ori, con
 	return cloud_out;
 }
 
-cv::Mat cloud2Image(const ColorCloudPtr cloud) {
-	MatrixXu bgr = toBGR(cloud);
-	cv::Mat image(cloud->height, cloud->width, CV_8UC3, bgr.data());
-	return image;
-}
-
-bool isBad(MatrixXf mat, int i) {
-	return (isnan(mat(i,0)) ||
-			isnan(mat(i,1)) ||
-			isnan(mat(i,2)));
-}
-
-ColorCloudPtr checkerBoardCorners(const ColorCloudPtr in, int width_cb, int height_cb) {
+ColorCloudPtr chessBoardCorners(const ColorCloudPtr in, int width_cb, int height_cb) {
 	MatrixXu bgr = toBGR(in);
 	int nPts = in->size();
 	cv::Mat image(in->height,in->width, CV_8UC3, bgr.data());
@@ -337,20 +325,29 @@ ColorCloudPtr checkerBoardCorners(const ColorCloudPtr in, int width_cb, int heig
 	bool found = findChessboardCorners(gray_image, cv::Size(width_cb,height_cb), corners, cv::CALIB_CB_FAST_CHECK);
 	//printf("corners size %d\n", (int) corners.size());
 
-	MatrixXf in_mat = toEigenMatrix(in);
 	boost::shared_ptr< vector<int> > indicesPtr(new vector<int>());
 	for (int k=0; k<corners.size(); k++) {
 		int index = corners[k].y*in->width+corners[k].x;
-		if (isBad(in_mat, index)) {
-			for (int i=-1; i<=1; i++)
-				for (int j=-1; j<=1; j++)
-					if (!isBad(in_mat, (corners[k].y+j)*in->width+(corners[k].x+i))) {
-						index = (corners[k].y+j)*in->width+(corners[k].x+i);
-						break;
+		if (!pointIsFinite(in->at(corners[k].x, corners[k].y))) {
+			vector<float> ranges;
+			vector<int> indexes;
+			for (int i=-1; i<=1; i++) {
+				if (((corners[k].x+i) < 0) || ((corners[k].x+i) > in->width)) continue;
+				for (int j=-1; j<=1; j++) {
+					if (((corners[k].y+i) < 0) || ((corners[k].y+i) > in->height)) continue;
+					if (pointIsFinite(in->at(corners[k].x+i, corners[k].y+j))) {
+						ColorPoint pt = in->at(corners[k].x+i, corners[k].y+j);
+						ranges.push_back(pt.x*pt.x + pt.y*pt.y + pt.z*pt.z);
+						indexes.push_back((corners[k].y+j)*in->width+(corners[k].x+i));
 					}
+				}
+			}
+			int medianInd = argMedian(ranges);
+			if (medianInd > 0 && medianInd < indexes.size()) index = indexes[medianInd];
 		}
 		indicesPtr->push_back(index);
 	}
+	//Debug: draw a vertical and a horizontal line in the middles of the point cloud
 	//for (int j=0; j<in->height; j++)
 	//	indicesPtr->push_back(j*in->width + in->width/2);
 	//for (int i=0; i<in->width; i++)
