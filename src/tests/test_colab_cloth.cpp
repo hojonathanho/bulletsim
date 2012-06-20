@@ -209,19 +209,19 @@ void GripperKinematicObject::toggle()
     btTransform bottom_tm;
     children[0]->motionState->getWorldTransform(top_tm);
     children[1]->motionState->getWorldTransform(bottom_tm);
-
+    double gap = 0.01;
     if(bOpen)
     {
         btTransform top_offset = cur_tm.inverse()*top_tm;
-        float close_length = 1.01*top_offset.getOrigin()[2] - children[0]->halfExtents[2];
+        float close_length = (1+gap)*top_offset.getOrigin()[2] - children[0]->halfExtents[2];
 
         top_tm.setOrigin(top_tm.getOrigin() - close_length*top_tm.getBasis().getColumn(2));
         bottom_tm.setOrigin(bottom_tm.getOrigin() + close_length*bottom_tm.getBasis().getColumn(2));
     }
     else
     {
-        top_tm.setOrigin(top_tm.getOrigin() + top_tm.getBasis().getColumn(2)*(apperture/2));
-        bottom_tm.setOrigin(bottom_tm.getOrigin() - bottom_tm.getBasis().getColumn(2)*(apperture/2));
+        top_tm.setOrigin(top_tm.getOrigin() - top_tm.getBasis().getColumn(2)*(apperture/2));
+        bottom_tm.setOrigin(bottom_tm.getOrigin() + bottom_tm.getBasis().getColumn(2)*(apperture/2));
     }
 
     children[0]->motionState->setKinematicPos(top_tm);
@@ -293,9 +293,16 @@ Eigen::MatrixXf CustomScene::computeJacobian_approx()
     perts.push_back(btTransform(btQuaternion(0,0,0,1),btVector3(0,step_length,0)));
     perts.push_back(btTransform(btQuaternion(0,0,0,1),btVector3(0,0,step_length)));
 #ifdef DO_ROTATION
-    perts.push_back(btTransform(btQuaternion(btVector3(1,0,0),rot_angle),btVector3(0,0,0)));
-    perts.push_back(btTransform(btQuaternion(btVector3(0,1,0),rot_angle),btVector3(0,0,0)));
-    perts.push_back(btTransform(btQuaternion(btVector3(0,0,1),rot_angle),btVector3(0,0,0)));
+    #ifdef USE_QUATERNION
+        ///NOT IMPLEMENTED!!!!
+        perts.push_back(btTransform(btQuaternion(btVector3(1,0,0),rot_angle),btVector3(0,0,0)));
+        perts.push_back(btTransform(btQuaternion(btVector3(0,1,0),rot_angle),btVector3(0,0,0)));
+        perts.push_back(btTransform(btQuaternion(btVector3(0,0,1),rot_angle),btVector3(0,0,0)));
+    #else
+        perts.push_back(btTransform(btQuaternion(btVector3(1,0,0),rot_angle),btVector3(0,0,0)));
+        perts.push_back(btTransform(btQuaternion(btVector3(0,1,0),rot_angle),btVector3(0,0,0)));
+        perts.push_back(btTransform(btQuaternion(btVector3(0,0,1),rot_angle),btVector3(0,0,0)));
+    #endif
 #endif
 
     Eigen::MatrixXf J(numnodes*3,perts.size()*num_auto_grippers);
@@ -305,7 +312,7 @@ Eigen::MatrixXf CustomScene::computeJacobian_approx()
     std::vector<btVector4> plot_cols;
 
 
-    double rotation_scaling = 30;
+    double rotation_scaling = 50;
 //    Eigen::VectorXf  V_before(numnodes*3);
 //    for(int k = 0; k < numnodes; k++)
 //    {
@@ -358,7 +365,8 @@ Eigen::MatrixXf CustomScene::computeJacobian_approx()
 
                     if(i < 3) //translation
                     {
-                        btVector3 transvec = perts[i].getOrigin()*exp(-dist*dropoff_const)/step_length;
+                        btVector3 transvec = ((gripper->getWorldTransform()*perts[i]).getOrigin() - gripper->getWorldTransform().getOrigin())*exp(-dist*dropoff_const)/step_length;
+                        //WRONG: btVector3 transvec = perts[i].getOrigin()*exp(-dist*dropoff_const)/step_length;
                         //btVector3 transvec = perts[i].getOrigin()*exp(-gripper_node_distance_map[g][k]*dropoff_const);
                         for(int j = 0; j < 3; j++)
                             V_pos(3*k + j) = transvec[j];
@@ -653,7 +661,7 @@ void CustomScene::doJTracking()
 
     float approx_thresh = 5;
 
-    float step_limit = 0.2;
+    float step_limit = 0.05;
     Eigen::VectorXf V_step(numnodes*3);
 
     Eigen::VectorXf V_trans;
@@ -689,7 +697,7 @@ void CustomScene::doJTracking()
         nodeArrayToNodePosVector(clothptr->softBody->m_nodes, prev_node_pos);
 
         plot_points->setPoints(plotpoints,plotcols);
-        left_axes->setup(left_gripper1->getWorldTransform(),1);
+
         cout << "Error: " << error << " ";
 
         cout << "(" << node_change <<")";
@@ -710,6 +718,21 @@ void CustomScene::doJTracking()
         //cout << "trans vec: " << V_trans.transpose() << endl;
         //transvec = btVector3(V_trans(0),V_trans(1),V_trans(2));
 #ifdef DO_ROTATION
+    #ifdef USE_QUATERNION
+        ///NOT IMPLEMENTED!
+        btVector4 dquat1(V_trans(3),V_trans(4),V_trans(5),V_trans(6));
+        btVector4 dquat2(V_trans(10),V_trans(11),V_trans(12),V_trans(13));
+        dquat1 = dquat1*1/dquat1.length();
+        dquat2 = dquat2*1/dquat2.length();
+
+        transtm1 = btTransform(btQuaternion(dquat1),
+                              btVector3(V_trans(0),V_trans(1),V_trans(2)));
+        transtm2 = btTransform(btQuaternion(dquat2),
+                                  btVector3(V_trans(7),V_trans(8),V_trans(9)));
+
+
+    #else
+
         transtm1 = btTransform(btQuaternion(btVector3(0,0,1),V_trans(5))*
                               btQuaternion(btVector3(0,1,0),V_trans(4))*
                               btQuaternion(btVector3(1,0,0),V_trans(3)),
@@ -718,7 +741,7 @@ void CustomScene::doJTracking()
                                   btQuaternion(btVector3(0,1,0),V_trans(10))*
                                   btQuaternion(btVector3(1,0,0),V_trans(9)),
                                   btVector3(V_trans(6),V_trans(7),V_trans(8)));
-
+    #endif
 #else
         transtm1 = btTransform(btQuaternion(0,0,0,1), btVector3(V_trans(0),V_trans(1),V_trans(2)));
         if(num_auto_grippers > 1)
@@ -730,36 +753,36 @@ void CustomScene::doJTracking()
         //simulateInNewFork(innerstate, BulletConfig::dt, transvec);
 
         float errors[2];
-        omp_set_num_threads(2);
-        #pragma omp parallel
-        {
-            #pragma omp for nowait
-            for(int i = 0; i < 2 ; i++)
-            {
-                StepState innerstate;
-                //btTransform simtm(btQuaternion(0,0,0,1),transvec);
-                btTransform simtm1 = transtm1;
-                btTransform simtm2 = transtm2;
-                if(i == 1)
-                {
-                    simtm1 = btTransform(btQuaternion(0,0,0,1),btVector3(0,0,0));
-                    simtm2 = btTransform(btQuaternion(0,0,0,1),btVector3(0,0,0));
-                }
-                simulateInNewFork(innerstate, jacobian_sim_time, simtm1, simtm2);
-                errors[i] = 0;
-                for( map<int,int>::iterator ii=node_mirror_map.begin(); ii!=node_mirror_map.end(); ++ii)
-                {
-                    btVector3 targpoint = point_reflector->reflect(innerstate.cloth->softBody->m_nodes[(*ii).second].m_x);
+//        omp_set_num_threads(2);
+//        #pragma omp parallel
+//        {
+//            #pragma omp for nowait
+//            for(int i = 0; i < 2 ; i++)
+//            {
+//                StepState innerstate;
+//                //btTransform simtm(btQuaternion(0,0,0,1),transvec);
+//                btTransform simtm1 = transtm1;
+//                btTransform simtm2 = transtm2;
+//                if(i == 1)
+//                {
+//                    simtm1 = btTransform(btQuaternion(0,0,0,1),btVector3(0,0,0));
+//                    simtm2 = btTransform(btQuaternion(0,0,0,1),btVector3(0,0,0));
+//                }
+//                simulateInNewFork(innerstate, jacobian_sim_time, simtm1, simtm2);
+//                errors[i] = 0;
+//                for( map<int,int>::iterator ii=node_mirror_map.begin(); ii!=node_mirror_map.end(); ++ii)
+//                {
+//                    btVector3 targpoint = point_reflector->reflect(innerstate.cloth->softBody->m_nodes[(*ii).second].m_x);
 
-                    btVector3 targvec = targpoint - innerstate.cloth->softBody->m_nodes[(*ii).first].m_x;
-                    errors[i] = errors[i] + targvec.length();
-                }
-            }
-        }
+//                    btVector3 targvec = targpoint - innerstate.cloth->softBody->m_nodes[(*ii).first].m_x;
+//                    errors[i] = errors[i] + targvec.length();
+//                }
+//            }
+//        }
 
 
 
-        if(errors[0] >= errors[1])
+        if(0 && errors[0] >= errors[1])
         {
             cout << "Error increase, not moving (new error: " <<  error << ")" << endl;
             //idleFor(0.2);
@@ -864,13 +887,29 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,osgGA::GUIActionA
 
         case 'c':
             scene.right_gripper1->toggleattach(scene.clothptr->softBody.get());
-            scene.right_gripper2->toggleattach(scene.clothptr->softBody.get());
+            scene.left_gripper1->toggleattach(scene.clothptr->softBody.get());
             scene.right_gripper1->toggle();
-            scene.right_gripper2->toggle();
+            scene.left_gripper1->toggle();
 
             scene.right_gripper1->toggle();
             scene.right_gripper1->toggleattach(scene.clothptr->softBody.get());
+            scene.left_gripper1->setWorldTransform(btTransform(btQuaternion(0,0,0,1),btVector3(100,0,0)));
+            scene.left_axes1->setup(scene.left_gripper1->getWorldTransform(),1);
             break;
+
+        case 'v':
+            scene.right_gripper2->toggleattach(scene.clothptr->softBody.get());
+            scene.left_gripper2->toggleattach(scene.clothptr->softBody.get());
+            scene.right_gripper2->toggle();
+            scene.left_gripper2->toggle();
+
+            scene.right_gripper2->toggle();
+            scene.right_gripper2->toggleattach(scene.clothptr->softBody.get());
+            scene.left_gripper2->setWorldTransform(btTransform(btQuaternion(0,0,0,1),btVector3(100,5,0)));
+            scene.left_axes2->setup(scene.left_gripper2->getWorldTransform(),1);
+            break;
+
+
 
 
         case 'b':
@@ -900,11 +939,13 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,osgGA::GUIActionA
             scene.inputState.rotateGrabber3 = false; break;
 
         case 'k':
-            scene.left_gripper1->setWorldTransform(btTransform(btQuaternion(btVector3(1,0,0),0.1)*scene.left_gripper1->getWorldTransform().getRotation(), scene.left_gripper1->getWorldTransform().getOrigin()));
+            scene.right_gripper1->setWorldTransform(btTransform(btQuaternion(btVector3(0,1,0),-0.1)*scene.right_gripper1->getWorldTransform().getRotation(), scene.right_gripper1->getWorldTransform().getOrigin()));
             break;
+
         case 'l':
-            scene.left_gripper1->setWorldTransform(btTransform(btQuaternion(btVector3(1,0,0),-0.1)*scene.left_gripper1->getWorldTransform().getRotation(), scene.left_gripper1->getWorldTransform().getOrigin()));
+            scene.right_gripper2->setWorldTransform(btTransform(btQuaternion(btVector3(0,1,0),-0.1)*scene.right_gripper2->getWorldTransform().getRotation(), scene.right_gripper2->getWorldTransform().getOrigin()));
             break;
+
 
         case 'j':
             {
@@ -1151,12 +1192,17 @@ void CustomScene::swapFork() {
     tmpRobot->setDOFValues(indices, vals);*/
 }
 
-
+void CustomScene::drawAxes()
+{
+    left_axes1->setup(left_gripper1->getWorldTransform(),1);
+    left_axes2->setup(left_gripper2->getWorldTransform(),1);
+}
 
 void CustomScene::run() {
     viewer.addEventHandler(new CustomKeyHandler(*this));
 
     addPreStepCallback(boost::bind(&CustomScene::doJTracking, this));
+    addPreStepCallback(boost::bind(&CustomScene::drawAxes, this));
 
     const float dt = BulletConfig::dt;
     const float table_height = .5;
@@ -1437,9 +1483,14 @@ void CustomScene::run() {
     //left_center_point->setPoints(plotpoints2);
 
 
-    left_axes.reset(new PlotAxes());
-    left_axes->setup(left_tm,1);
-    env->add(left_axes);
+    left_axes1.reset(new PlotAxes());
+    left_axes1->setup(tm_left1,1);
+    env->add(left_axes1);
+
+    left_axes2.reset(new PlotAxes());
+    left_axes2->setup(tm_left2,1);
+    env->add(left_axes2);
+
 //    drag_line.reset(new PlotLines(2));
 //    env->add(drag_line);
 

@@ -16,7 +16,8 @@
 //#define PROFILER
 //#define USE_PR2
 #define DO_ROTATION
-#define USE_TABLE
+//#define USE_QUATERNION //NOT IMPLEMENTED!!!
+//#define USE_TABLE
 
 
 
@@ -365,7 +366,7 @@ public:
     std::vector<btVector3> prev_node_pos;
     PlotPoints::Ptr plot_points;
     PlotPoints::Ptr left_center_point;
-    PlotAxes::Ptr left_axes;
+    PlotAxes::Ptr left_axes1,left_axes2;
     PlotLines::Ptr rot_lines;
     Eigen::MatrixXf cloth_distance_matrix;
 
@@ -397,10 +398,11 @@ public:
         left_gripper1 = left_gripper1_orig;
         right_gripper1 = right_gripper1_orig;
 
-        color = btVector4(0.6,0.6,0.6,1);
-        left_gripper2.reset(new GripperKinematicObject(color));
+
+        left_gripper2.reset(new GripperKinematicObject());
         left_gripper2->setWorldTransform(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0,20,0)));
         env->add(left_gripper2);
+
         right_gripper2.reset(new GripperKinematicObject(color));
         right_gripper2->setWorldTransform(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0,-20,0)));
         env->add(right_gripper2);
@@ -422,6 +424,7 @@ public:
     double getDistfromNodeToClosestAttachedNodeInGripper(GripperKinematicObject::Ptr gripper, int input_ind, int &closest_ind);
     void simulateInNewFork(StepState& innerstate, float sim_time, btTransform& left_gripper1_tm, btTransform& left_gripper2_tm);
     void doJTracking();
+    void drawAxes();
 
     void run();
 };
