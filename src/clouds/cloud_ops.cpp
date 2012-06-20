@@ -457,24 +457,30 @@ ColorCloudPtr chessBoardCorners(const ColorCloudPtr in, int width_cb, int height
 
 //returns point cloud that is likely to be from skin
 //YCrCb thresholds from http://waset.org/journals/waset/v43/v43-91.pdf except for Ymin = 40
+//merging from here http://www.csee.wvu.edu/~richas/papers/tkjse.pdf
 ColorCloudPtr skinFilter(ColorCloudPtr cloud_dense) {
 	MatrixXu bgr = toBGR(cloud_dense);
   cv::Mat image(cloud_dense->height,cloud_dense->width, CV_8UC3, bgr.data());
-  cv::cvtColor(image, image, CV_BGR2YCrCb);
+  cv::Mat imageYCrCb(image.rows, image.cols, CV_8UC3);
+	cv::cvtColor(image, imageYCrCb, CV_BGR2YCrCb);
+	cv::Mat imageLab(image.rows, image.cols, CV_8UC3);
+	cv::cvtColor(image, imageLab, CV_BGR2Lab);
 
   for (int i=0; i<image.rows; i++) {
 		for (int j=0; j<image.cols; j++) {
-			cv::Vec3b pixel = image.at<cv::Vec3b>(i,j);
-			if (pixel[0] < 40 || pixel[0] > 255 ||
-					pixel[1] < 135 || pixel[1] > 180 ||
-					pixel[2] < 85 || pixel[2] > 135) {
+			cv::Vec3b YCrCb = imageYCrCb.at<cv::Vec3b>(i,j);
+			cv::Vec3b Lab = imageLab.at<cv::Vec3b>(i,j);
+				if (!	((YCrCb[0] > 80 &&
+						YCrCb[1] > 135 && YCrCb[1] < 180 &&
+						YCrCb[2] > 85 && YCrCb[2] < 135) ||
+						(Lab[1] > 130 && Lab[1] < 150 &&
+								Lab[2] > 130)) ) {
 				image.at<cv::Vec3b>(i,j) = cv::Vec3b(0,0,0);
 			}
 		}
 	}
 	cv::erode(image, image, cv::Mat(), cv::Point(-1, -1), 2);
-	cv::dilate(image, image, cv::Mat(), cv::Point(-1, -1), 15);
-	cv::erode(image, image, cv::Mat(), cv::Point(-1, -1), 15);
+	cv::dilate(image, image, cv::Mat(), cv::Point(-1, -1), 2);
 
 	ColorCloudPtr cloud_skin(new ColorCloud());
 	for (int i=0; i<image.rows; i++) {
@@ -484,6 +490,7 @@ ColorCloudPtr skinFilter(ColorCloudPtr cloud_dense) {
 			}
 		}
 	}
+
 	return cloud_skin;
 }
 
