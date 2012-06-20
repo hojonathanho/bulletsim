@@ -3,7 +3,29 @@
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_types.h>
 #include <pcl/registration/icp.h>
+
+#include <pcl/sample_consensus/ransac.h>
+#include <pcl/sample_consensus/sac_model_plane.h>
+
+#include <pcl/sample_consensus/method_types.h>
+#include <pcl/sample_consensus/model_types.h>
+#include <pcl/segmentation/sac_segmentation.h>
+#include <pcl/segmentation/extract_clusters.h>
+#include "pcl/segmentation/extract_polygonal_prism_data.h"
+#include <pcl/surface/convex_hull.h>
+
+#include <pcl/ModelCoefficients.h>
+#include <pcl/sample_consensus/method_types.h>
+#include <pcl/sample_consensus/model_types.h>
+#include <pcl/segmentation/sac_segmentation.h>
+#include <pcl/filters/extract_indices.h>
+
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <cv_bridge/cv_bridge.h>
 #include <sensor_msgs/PointCloud2.h>
+#include <sensor_msgs/Image.h>
+#include <sensor_msgs/image_encodings.h>
 #include <pcl/ros/conversions.h>
 #include "clouds/utils_pcl.h"
 #include "clouds/cloud_ops.h"
@@ -33,6 +55,12 @@ struct LocalConfig : Config {
   static bool removeOutliers;
   static float clusterTolerance;
   static float clusterMinSize;
+  static int i0;
+  static int i1;
+  static int i2;
+  static int i3;
+  static float skinRadius;
+  static int skinColorDist;
 
   LocalConfig() : Config() {
     params.push_back(new Parameter<string>("inputTopic", &inputTopic, "input topic"));
@@ -43,19 +71,39 @@ struct LocalConfig : Config {
     params.push_back(new Parameter<bool>("removeOutliers", &removeOutliers, "remove outliers"));
     params.push_back(new Parameter<float>("clusterTolerance", &clusterTolerance, "points within this distance are in the same cluster"));
     params.push_back(new Parameter<float>("clusterMinSize", &clusterMinSize, "the clusters found must have at least this number of points. 0 means no filtering"));
+    params.push_back(new Parameter<int>("i0", &i0, "i0"));
+    params.push_back(new Parameter<int>("i1", &i1, "i1"));
+    params.push_back(new Parameter<int>("i2", &i2, "i2"));
+    params.push_back(new Parameter<int>("i3", &i3, "i3"));
+    params.push_back(new Parameter<float>("skinRadius", &skinRadius, "skin color segmentation: nearest neighbor search radius to find other points that are potentially part of a skin"));
+    params.push_back(new Parameter<int>("skinColorDist", &skinColorDist, "skin color segmentation: RGB [0:255] squared distance to accept or reject the points from the nearest neighbor search"));
   }
 };
 
 string LocalConfig::inputTopic = "/camera/rgb/points";
-float LocalConfig::zClipLow = .0025;
-float LocalConfig::zClipHigh = 1000;
+float LocalConfig::zClipLow = 0.0;
+float LocalConfig::zClipHigh = 0.5;
 bool LocalConfig::updateParams = true;
 float LocalConfig::downsample = .02;
 bool LocalConfig::removeOutliers = true;
 float LocalConfig::clusterTolerance = 0.03;
-float LocalConfig::clusterMinSize = 40;
+float LocalConfig::clusterMinSize = 5;
+int LocalConfig::i0 = 0;
+int LocalConfig::i1 = 0;
+int LocalConfig::i2 = 0;
+int LocalConfig::i3 = 0;
+float LocalConfig::skinRadius = 0.10;
+int LocalConfig::skinColorDist = 6000;
 
 static int MIN_HUE, MAX_HUE, MIN_SAT, MAX_SAT, MIN_VAL, MAX_VAL;
+static int MIN_L, MAX_L, MIN_A, MAX_A, MIN_B, MAX_B;
+
+static int BG_MIN_HUE = 60;
+static int BG_MAX_HUE = 100;
+static int BG_MIN_SAT = 110;
+static int BG_MAX_SAT = 255;
+static int BG_MIN_VAL = 80;
+static int BG_MAX_VAL = 255;
 
 template <typename T>
 void getOrSetParam(const ros::NodeHandle& nh, std::string paramName, T& ref, T defaultVal) {
@@ -66,12 +114,19 @@ void getOrSetParam(const ros::NodeHandle& nh, std::string paramName, T& ref, T d
 	}
 }
 void setParams(const ros::NodeHandle& nh) {
-	getOrSetParam(nh, "min_hue", MIN_HUE, 160);
-	getOrSetParam(nh, "max_hue", MAX_HUE, 10);
-	getOrSetParam(nh, "min_sat", MIN_SAT, 150);
+	getOrSetParam(nh, "min_hue", MIN_HUE, 100);
+	getOrSetParam(nh, "max_hue", MAX_HUE, 40);
+	getOrSetParam(nh, "min_sat", MIN_SAT, 100);
 	getOrSetParam(nh, "max_sat", MAX_SAT, 255);
-	getOrSetParam(nh, "min_val", MIN_VAL, 100);
+	getOrSetParam(nh, "min_val", MIN_VAL, 0);
 	getOrSetParam(nh, "max_val", MAX_VAL, 255);
+
+	getOrSetParam(nh, "min_l", MIN_L, 30);
+	getOrSetParam(nh, "max_l", MAX_L, 255);
+	getOrSetParam(nh, "min_a", MIN_A, 115);
+	getOrSetParam(nh, "max_a", MAX_A, 255);
+	getOrSetParam(nh, "min_b", MIN_B, 0);
+	getOrSetParam(nh, "max_b", MAX_B, 255);
 }
 
 void setParamLoop() {
@@ -82,13 +137,29 @@ void setParamLoop() {
 	}
 }
 
+void printImage(cv::Mat image) {
+	for (int j=0; j<image.cols; j++)
+		printf("j=%d %d %d %d\n", j, image.at<cv::Vec3b>(0,j)[0], image.at<cv::Vec3b>(0,j)[1], image.at<cv::Vec3b>(0,j)[2]);
+}
+
+double clipColor(float c) {
+	if (c<0) c = 0;
+	if(c>255) c = 255;
+	return c;
+}
+
 class PreprocessorNode {
 public:
   ros::NodeHandle& m_nh;
-  ros::Publisher m_pub;
+  ros::Publisher m_pubCloud;
+  ros::Publisher m_pubCloudComp;
   ros::Publisher m_polyPub;
   tf::TransformBroadcaster br;
   ros::Subscriber m_sub;
+  ros::Subscriber m_subImg;
+  ros::Publisher m_pubImg1;
+  ros::Publisher m_pubImg2;
+  ros::Publisher m_pubImg3;
 
   bool m_inited;
 
@@ -104,28 +175,83 @@ public:
     pcl::fromROSMsg(msg_in, *cloud_in);
 
     if (!m_inited) {
-      initTable(cloud_in);
+    	ColorCloudPtr cloud_green = colorSpaceFilter(cloud_in, 0, 255, 100, 255, 0, 255, CV_BGR2Lab, true);
+    	cloud_green = clusterFilter(cloud_green, 0.01, 100);
+    	initTable(cloud_green);
     }
 
-    ColorCloudPtr cloud_out = hueFilter(cloud_in, MIN_HUE, MAX_HUE, MIN_SAT, MAX_SAT, MIN_VAL, MAX_VAL);
-    if (LocalConfig::downsample > 0) cloud_out = downsampleCloud(cloud_out, LocalConfig::downsample);
-    //if (LocalConfig::removeOutliers) cloud_out = removeOutliers(cloud_out, 1, 10);
-    if (LocalConfig::clusterMinSize > 0) cloud_out = clusterFilter(cloud_out, LocalConfig::clusterTolerance, LocalConfig::clusterMinSize);
+    //input cloud for skinFilter has to be dense
+    ColorCloudPtr cloud_skin = skinFilter(cloud_in);
+    cloud_skin = downsampleCloud(cloud_skin, 0.01);
+    cloud_skin = clusterFilter(cloud_skin, 0.02, 20);
+
+    //ColorCloudPtr cloud_out(new ColorCloud());
+    ColorCloudPtr cloud_out = cloud_in;
+		if (LocalConfig::downsample > 0) cloud_out = downsampleCloud(cloud_out, LocalConfig::downsample);
+		cloud_out = orientedBoxFilter(cloud_out, toEigenMatrix(m_transform.getBasis()), m_mins, m_maxes);
+
+		//Filter out green background
+		cloud_out = colorSpaceFilter(cloud_out, MIN_L, MAX_L, MIN_A, MAX_A, MIN_B, MAX_B, CV_BGR2Lab);
+
+		//Filter out hands and skin-color objects
+		cloud_out = filterNeighbors(cloud_out, cloud_skin, LocalConfig::skinRadius, LocalConfig::skinColorDist, true);
+
+		if (LocalConfig::clusterMinSize > 0) cloud_out = clusterFilter(cloud_out, LocalConfig::clusterTolerance, LocalConfig::clusterMinSize);
+		//if (LocalConfig::removeOutliers) cloud_out = removeOutliers(cloud_out, 1, 10);
+
 
     sensor_msgs::PointCloud2 msg_out;
     pcl::toROSMsg(*cloud_out, msg_out);
     msg_out.header = msg_in.header;
-    m_pub.publish(msg_out);
-		
+    m_pubCloud.publish(msg_out);
+
     br.sendTransform(tf::StampedTransform(m_transform, ros::Time::now(), msg_in.header.frame_id, "ground"));
+
+		MatrixXu bgr = toBGR(cloud_in);
+	  cv::Mat image(cloud_in->height,cloud_in->width, CV_8UC3, bgr.data());
+		cv::Mat imageYCrCb(image.rows, image.cols, CV_8UC3);
+		cv::cvtColor(image, imageYCrCb, CV_BGR2YCrCb);
+		cv::Mat imageLab(image.rows, image.cols, CV_8UC3);
+		cv::cvtColor(image, imageLab, CV_BGR2Lab);
+		cv::Mat imageHSV(image.rows, image.cols, CV_8UC3);
+		cv::cvtColor(image, imageHSV, CV_BGR2HSV);
+//		for (int i=0; i<image.rows; i++) {
+//			for (int j=0; j<image.cols; j++) {
+//				cv::Vec3b pixel = imageYCrCb.at<cv::Vec3b>(i,j);
+//				if (pixel[0] < MIN_HUE || pixel[0] > MAX_HUE ||
+//						pixel[1] < MIN_SAT || pixel[1] > MAX_SAT ||
+//						pixel[2] < MIN_VAL || pixel[2] > MAX_VAL) {
+//					image.at<cv::Vec3b>(i,j) = cv::Vec3b(0,0,0);
+//				}
+//			}
+//		}
+//		cv::erode(image, image, cv::Mat(), cv::Point(-1, -1), LocalConfig::i0); //2
+//    cv::dilate(image, image, cv::Mat(), cv::Point(-1, -1), LocalConfig::i1); //15
+//		cv::erode(image, image, cv::Mat(), cv::Point(-1, -1), LocalConfig::i2); //15
+
+    cv_bridge::CvImagePtr cv_ptr1(new cv_bridge::CvImage);
+		cv_ptr1->header = msg_in.header;
+		cv_ptr1->encoding = sensor_msgs::image_encodings::BGR8;
+		cv_ptr1->image = imageYCrCb;
+		m_pubImg1.publish(cv_ptr1->toImageMsg());
+
+		cv_bridge::CvImagePtr cv_ptr2(new cv_bridge::CvImage);
+		cv_ptr2->header = msg_in.header;
+		cv_ptr2->encoding = sensor_msgs::image_encodings::BGR8;
+		cv_ptr2->image = imageLab;
+		m_pubImg2.publish(cv_ptr2->toImageMsg());
+
+		cv_bridge::CvImagePtr cv_ptr3(new cv_bridge::CvImage);
+		cv_ptr3->header = msg_in.header;
+		cv_ptr3->encoding = sensor_msgs::image_encodings::BGR8;
+		cv_ptr3->image = imageHSV;
+		m_pubImg3.publish(cv_ptr3->toImageMsg());
 
     geometry_msgs::PolygonStamped polyStamped;
     polyStamped.polygon = m_poly;
     polyStamped.header.frame_id = msg_in.header.frame_id;
     polyStamped.header.stamp = ros::Time::now();
     m_polyPub.publish(polyStamped);
-
-		
   }
 
   void initTable(ColorCloudPtr cloud) {
@@ -149,10 +275,12 @@ public:
 
     m_mins = rotCorners.colwise().minCoeff();
     m_maxes = rotCorners.colwise().maxCoeff();
+    m_mins(0) += 0.03;
+    m_mins(1) += 0.03;
+    m_maxes(0) -= 0.03;
+    m_maxes(1) -= 0.03;
     m_mins(2) = rotCorners(0,2) + LocalConfig::zClipLow;
     m_maxes(2) = rotCorners(0,2) + LocalConfig::zClipHigh;
-
-
 
     m_transform.setBasis(btMatrix3x3(
 		  xax(0),yax(0),zax(0),
@@ -162,18 +290,19 @@ public:
 
     m_poly.points = toROSPoints32(toBulletVectors(corners));
 
-
-
     m_inited = true;
-
   }
 
   PreprocessorNode(ros::NodeHandle& nh) :
     m_inited(false),
     m_nh(nh),
-    m_pub(nh.advertise<sensor_msgs::PointCloud2>(outputNS+"/points",5)),
+    m_pubCloud(nh.advertise<sensor_msgs::PointCloud2>(outputNS+"/points",5)),
+    m_pubCloudComp(nh.advertise<sensor_msgs::PointCloud2>(outputNS+"/pointsComp",5)),
     m_polyPub(nh.advertise<geometry_msgs::PolygonStamped>(outputNS+"/polygon",5)),
-    m_sub(nh.subscribe(LocalConfig::inputTopic, 1, &PreprocessorNode::callback, this))
+    m_sub(nh.subscribe(LocalConfig::inputTopic, 1, &PreprocessorNode::callback, this)),
+  	m_pubImg1(nh.advertise<sensor_msgs::Image>(outputNS+"/image1",5)),
+		m_pubImg2(nh.advertise<sensor_msgs::Image>(outputNS+"/image2",5)),
+		m_pubImg3(nh.advertise<sensor_msgs::Image>(outputNS+"/image3",5))
     {
     }
 

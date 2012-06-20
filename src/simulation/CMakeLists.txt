@@ -5,6 +5,8 @@ include_directories(
     ${BULLETSIM_SOURCE_DIR}/src
 )
 
+FIND_PACKAGE( OpenCV REQUIRED )
+
 add_library(simulation
     environment.cpp
     basicobjects.cpp
@@ -27,6 +29,7 @@ target_link_libraries(simulation
     haptics
     osgBullet
     osgWorks
+    ${OpenCV_LIBS}
     ${Boost_LIBRARIES}
     ${OSG_LIBS}
     ${BULLET_LIBS}

@@ -29,10 +29,13 @@ add_library(clouds geom.cpp get_table2.cpp get_chessboard_pose.cpp plane_finding
 target_link_libraries(clouds utils ${PCL_LIBRARIES} ${WM_LIBRARIES} ${OpenCV_LIBS} ${BULLET_LIBS})
 
 add_executable(preprocessor_node preprocessor_node.cpp)
-target_link_libraries(preprocessor_node clouds comm utils ${PCL_LIBRARIES} ${OpenCV_LIBS} ${ROS_LIBRARIES} boost_signals tf)
+target_link_libraries(preprocessor_node clouds comm utils ${PCL_LIBRARIES} ${OpenCV_LIBS} ${ROS_LIBRARIES} boost_signals tf cv_bridge)
 
 add_executable(cloud_merger_node cloud_merger_node.cpp)
 target_link_libraries(cloud_merger_node clouds comm utils ${PCL_LIBRARIES} ${OpenCV_LIBS} ${ROS_LIBRARIES} boost_signals tf cv_bridge)
+
+add_executable(save_cloud_node save_cloud_node.cpp)
+target_link_libraries(save_cloud_node utils ${PCL_LIBRARIES} ${ROS_LIBRARIES})
 
 add_executable(viz_curves viz_curves.cpp)
 target_link_libraries(viz_curves ${PCL_LIBRARIES} clouds boost_program_options utils)

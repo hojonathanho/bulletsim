@@ -16,6 +16,8 @@ protected:
     osg::ref_ptr<osg::Vec3Array> quadvertices, quadnormals;
 
 public:
+    osg::ref_ptr<osg::Vec2Array> tritexcoords;
+
     typedef boost::shared_ptr<BulletSoftObject> Ptr;
 
     boost::shared_ptr<btSoftBody> softBody;
@@ -35,6 +37,7 @@ public:
     virtual void saveToFile(ostream &s) const;
 
     void setColor(float,float,float,float);
+    void setTexture(cv::Mat image);
 
     // custom anchor management
     typedef int AnchorHandle;
@@ -61,6 +64,7 @@ public:
     bool fullValidCheck() const { return validCheck(false); }
 
 private:
+    osg::ref_ptr<osg::Image> m_image;
     AnchorHandle nextAnchorHandle;
     map<AnchorHandle, int> anchormap;
 };

@@ -87,6 +87,7 @@ bool image_calib_init = false;
 bool svd_calib_init = false;
 bool icp_calib_init = false;
 Matrix4f transform_diff = Matrix4f::Identity();
+Matrix4f initial_cb_transform = Matrix4f::Identity();
 btTransform ground_transform;
 geometry_msgs::Polygon ground_poly;
 
@@ -125,6 +126,18 @@ void SVDCalibration(ColorCloudPtr cloud1, ColorCloudPtr cloud2) {
 	int nAllPoints = LocalConfig::chessBoardWidth * LocalConfig::chessBoardHeight;
 	if ((cloud1_corners->size() == nAllPoints) &&
 		(cloud2_corners->size() == nAllPoints)) {
+
+		ColorCloudPtr cloudref_corners(new ColorCloud());
+		for (int i=0; i<LocalConfig::chessBoardHeight; i++) {
+			for (int j=0; j<LocalConfig::chessBoardWidth; j++) {
+				ColorPoint pt;
+				pt.x = LocalConfig::squareSize * (j - ((float) LocalConfig::chessBoardWidth - 1.0)/2.0);
+				pt.y = LocalConfig::squareSize * (i - ((float) LocalConfig::chessBoardHeight - 1.0)/2.0);
+				pt.z = 0;
+				cloudref_corners->push_back(pt);
+			}
+		}
+
 		//Filter out the bad points from both point clouds
 		vector<int> badPoints;
 		for (int i=0; i<cloud1_corners->size(); i++) {
@@ -135,6 +148,7 @@ void SVDCalibration(ColorCloudPtr cloud1, ColorCloudPtr cloud2) {
 			//ROS_INFO("bad points %d", badPoints[i]);
 			cloud1_corners->erase(cloud1_corners->begin() + badPoints[i]);
 			cloud2_corners->erase(cloud2_corners->begin() + badPoints[i]);
+			cloudref_corners->erase(cloudref_corners->begin() + badPoints[i]);
 		}
 
 		int minCorr = LocalConfig::minCorrFraction * nAllPoints;
@@ -143,9 +157,8 @@ void SVDCalibration(ColorCloudPtr cloud1, ColorCloudPtr cloud2) {
 			for (int i=0; i<cloud1_corners->size(); i++)
 				indices.push_back(i);
 			pcl::registration::TransformationEstimationSVD<ColorPoint, ColorPoint> estimation_svd;
-			Matrix4f transform;
+			estimation_svd.estimateRigidTransformation(*cloud1_corners, indices, *cloudref_corners, indices, initial_cb_transform);
 			estimation_svd.estimateRigidTransformation(*cloud2_corners, indices, *cloud1_corners, indices, transform_diff);
-
 			svd_calib_init = true;
 			ROS_INFO("SVD calibration succeeded with %d/%d points", (int) cloud1_corners->size(), nAllPoints);
 		} else {
@@ -224,7 +237,8 @@ void callback(const sensor_msgs::PointCloud2ConstPtr& msg_in1, const sensor_msgs
 	ColorCloud::iterator it;
 	for (it = cloud_in2->begin(); it < cloud_in2->end(); it++)
 		cloud_out->push_back(*it);
-	//pcl::io::savePCDFile("/home/alex/rll/test/data/merged.pcd", *cloud_out);
+	pcl::transformPointCloud(*cloud_out.get(), *cloud_out.get(), initial_cb_transform);
+	//pcl::io::savePCDFile("/home/alex/Desktop/cloud.pcd", *cloud_out);
 
 	sensor_msgs::PointCloud2 msg_out;
 	pcl::toROSMsg(*cloud_out, msg_out);
@@ -243,7 +257,7 @@ void callback(const sensor_msgs::PointCloud2ConstPtr& msg_in1, const sensor_msgs
 		corners2Pub->publish(msg_corners2);
 	}
 
-	broadcaster->sendTransform(tf::StampedTransform(ground_transform, ros::Time::now(), msg_in1->header.frame_id, "ground"));
+	broadcaster->sendTransform(tf::StampedTransform(toBulletTransform((Eigen::Affine3f) Eigen::Matrix4f::Identity()), ros::Time::now(), msg_in1->header.frame_id, "ground"));
 
 	geometry_msgs::PolygonStamped polyStamped;
 	polyStamped.polygon = ground_poly;

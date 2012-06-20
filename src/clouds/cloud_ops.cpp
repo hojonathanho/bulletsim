@@ -23,10 +23,18 @@ using namespace std;
 using namespace Eigen;
 using namespace pcl;
 
-vector< vector<int> > findClusters(ColorCloudPtr cloud, float tol, float minSize) {
-  std::vector<pcl::PointIndices> cluster_indices;
-  pcl::EuclideanClusterExtraction<ColorPoint> ec;
+vector< vector<int> > findClusters(ColorCloudPtr cloud, float tol, int minSize) {
+	int cloud_size = cloud->size();
+	//HACK: a bug in pcl::EuclideanClusterExtraction causes a segfault when no clusters are returned.
+	//Hence add a cluster to the point cloud and then remove these indices from the result.
+	ColorPoint pt (255,255,255);
+	for (int i=0; i<minSize; i++)
+		cloud->push_back(pt);
+
+	std::vector<pcl::PointIndices> cluster_indices;
+	pcl::EuclideanClusterExtraction<ColorPoint> ec;
   pcl::search::KdTree<ColorPoint>::Ptr tree (new pcl::search::KdTree<ColorPoint>);
+  tree->setInputCloud(cloud);
   ec.setClusterTolerance (tol);
   ec.setMinClusterSize (minSize);
   ec.setMaxClusterSize (2500000);
@@ -36,8 +44,19 @@ vector< vector<int> > findClusters(ColorCloudPtr cloud, float tol, float minSize
 
   vector< vector<int> > out;
 
-  for (int i=0; i < cluster_indices.size(); i++) {
-    out.push_back(cluster_indices[i].indices);
+//  //HACK
+//  for (int i=0; i < cluster_indices.size(); i++) {
+//		vector<int> outi;
+//		for (int j=0; j<cluster_indices[i].indices.size(); j++) {
+//			if (cluster_indices[i].indices[j] < cloud_size)
+//				outi.push_back(cluster_indices[i].indices[j]);
+//		}
+//		out.push_back(outi);
+//  }
+
+  //ORIGINAL
+ 	for (int i=0; i < cluster_indices.size(); i++) {
+  	out.push_back(cluster_indices[i].indices);
   }
   return out;
 }
@@ -139,8 +158,33 @@ ColorCloudPtr filterZ(ColorCloudPtr in, float low, float high) {
   return out;
 }
 
+ColorCloudPtr filterPlane(ColorCloudPtr in, float dist_thresh) {
+	pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
+	pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
+	// Create the segmentation object
+	pcl::SACSegmentation<ColorPoint> seg;
+	seg.setOptimizeCoefficients (true);
+	seg.setModelType (pcl::SACMODEL_PLANE);
+	seg.setMethodType (pcl::SAC_RANSAC);
+	seg.setDistanceThreshold (dist_thresh);
 
+	seg.setInputCloud (in->makeShared ());
+	seg.segment (*inliers, *coefficients);
 
+	pcl::ExtractIndices<ColorPoint> extract;
+	extract.setInputCloud (in);
+	extract.setIndices (inliers);
+
+//	extract.setNegative (true);
+//	ColorCloudPtr outliers_cloud(new ColorCloud());
+//	extract.filter (*outliers_cloud);
+//	return outliers_cloud;
+
+	extract.setNegative (false);
+	ColorCloudPtr inliers_cloud(new ColorCloud());
+	extract.filter (*inliers_cloud);
+	return inliers_cloud;
+}
 
 VectorXf getCircle(ColorCloudPtr cloud) {
   ColorCloudPtr cloud_hull (new ColorCloud());
@@ -213,16 +257,16 @@ ColorCloudPtr getBiggestCluster(ColorCloudPtr in, float tol) {
 
 }
 
-ColorCloudPtr clusterFilter(ColorCloudPtr in, float tol, float minSize) {
+ColorCloudPtr clusterFilter(ColorCloudPtr in, float tol, int minSize) {
 	vector< vector<int> > cluster_inds = findClusters(in, tol, minSize);
 	vector<int> filtered_cluster_inds;
 	for (int i=0; i < cluster_inds.size(); i++)
-		if (cluster_inds[i].size() > 5)
+		if (cluster_inds[i].size() > minSize)
 			for (int j=0; j < cluster_inds[i].size(); j++) filtered_cluster_inds.push_back(cluster_inds[i][j]);
 	return extractInds(in, filtered_cluster_inds);
 }
 
-ColorCloudPtr maskCloud(const ColorCloudPtr in, const cv::Mat& mask) {
+ColorCloudPtr maskCloud(const ColorCloudPtr in, const cv::Mat& mask, bool negative) {
   assert(mask.elemSize() == 1);
   assert(mask.rows == in->height);
   assert(mask.cols == in->width);
@@ -236,7 +280,7 @@ ColorCloudPtr maskCloud(const ColorCloudPtr in, const cv::Mat& mask) {
 
   ColorCloudPtr out(new ColorCloud());
   pcl::ExtractIndices<ColorPoint> ei;
-  ei.setNegative(false);
+  ei.setNegative(negative);
   ei.setInputCloud(in);
   ei.setIndices(indicesPtr);
   ei.filter(*out);
@@ -270,7 +314,7 @@ void labelCloud(ColorCloudPtr in, const cv::Mat& labels) {
     in->points[i]._unused = labels.at<uint8_t>(uv(i,0), uv(i,1));
 }
 
-ColorCloudPtr hueFilter(const ColorCloudPtr in, uint8_t minHue, uint8_t maxHue, uint8_t minSat, uint8_t maxSat, uint8_t minVal, uint8_t maxVal) {
+ColorCloudPtr hueFilter(const ColorCloudPtr in, uint8_t minHue, uint8_t maxHue, uint8_t minSat, uint8_t maxSat, uint8_t minVal, uint8_t maxVal, bool negative) {
   MatrixXu bgr = toBGR(in);
   int nPts = in->size();
   cv::Mat cvmat(in->height,in->width, CV_8UC3, bgr.data());
@@ -291,12 +335,57 @@ ColorCloudPtr hueFilter(const ColorCloudPtr in, uint8_t minHue, uint8_t maxHue, 
   if (minVal > 0) mask &= (v >= minVal);
   if (maxVal < 255) mask &= (v <= maxVal);
 
-  return maskCloud(in, mask);
+  return maskCloud(in, mask, negative);
+}
+
+// As of now, mins should be smaller than maxs
+ColorCloudPtr colorSpaceFilter(const ColorCloudPtr in, uint8_t minx, uint8_t maxx, uint8_t miny, uint8_t maxy, uint8_t minz, uint8_t maxz, int dstCn, bool negative) {
+  MatrixXu bgr = toBGR(in);
+  int nPts = in->size();
+  cv::Mat cvmat(in->height,in->width, CV_8UC3, bgr.data());
+  cv::cvtColor(cvmat, cvmat, dstCn);
+  vector<cv::Mat> channels;
+  cv::split(cvmat, channels);
+
+  cv::Mat& x = channels[0];
+  cv::Mat& y = channels[1];
+  cv::Mat& z = channels[2];
+
+//  cv::Mat maskx = (minx < maxx) ?
+//      (x > minx) & (x < maxx) :
+//      (x > minx) | (x < maxx);
+//  cv::Mat masky = (miny < maxy) ?
+//        (y > miny) & (y < maxy) :
+//        (y > miny) | (y < maxy);
+//  cv::Mat maskz = (minz < maxz) ?
+//        (z > minz) & (z < maxz) :
+//        (z > minz) | (z < maxz);
+//  cv::Mat mask = maskx & masky & maskz;
+
+  cv::Mat mask = (x > minx) & (x < maxx);
+	if (miny > 0) mask &= (y >= miny);
+	if (maxy < 255) mask &= (y <= maxy);
+	if (minz > 0) mask &= (z >= minz);
+	if (maxz < 255) mask &= (z <= maxz);
+
+  return maskCloud(in, mask, negative);
 }
 
 ColorCloudPtr orientedBoxFilter(ColorCloudPtr cloud_in, const Matrix3f& ori, const Vector3f& mins, const Vector3f& maxes) {
 	MatrixXf xyz = toEigenMatrix(cloud_in) * ori;
-
+//	Vector3f min(1000,1000,1000);
+//	Vector3f max(-1000,-1000,-1000);
+//	for (int i=0; i < xyz.rows(); i++) {
+//		for( int j=0; j<3; j++) {
+//			if (xyz(i,j) < min(j))
+//				min(j) = xyz(i,j);
+//			if (xyz(i,j) > max(j))
+//				max(j) = xyz(i,j);
+//		}
+//	}
+//	cout << "min" << endl << min << endl;
+//	cout << "max" << endl << max << endl;
+//	cout << "xyz" << endl << xyz << endl;
 	VectorXb mask(xyz.rows());
 	for (int i=0; i < xyz.rows(); i++) {
 		mask(i) = (xyz(i,0) >= mins(0)) &&
@@ -322,8 +411,12 @@ ColorCloudPtr chessBoardCorners(const ColorCloudPtr in, int width_cb, int height
 	for (int i=0; i<height_cb; i++)
 		for (int j=0; j<width_cb; j++)
 			obj[i*width_cb+j] = cv::Point3f(j, i, 0.0);
-	bool found = findChessboardCorners(gray_image, cv::Size(width_cb,height_cb), corners, cv::CALIB_CB_FAST_CHECK);
+	bool found = findChessboardCorners(gray_image, cv::Size(width_cb,height_cb), corners); //, cv::CALIB_CB_FAST_CHECK);
 	//printf("corners size %d\n", (int) corners.size());
+//	if (found) {
+//		drawChessboardCorners(image, cv::Size(width_cb,height_cb), corners, found);
+//		imshow("win", image);
+//	}
 
 	boost::shared_ptr< vector<int> > indicesPtr(new vector<int>());
 	for (int k=0; k<corners.size(); k++) {
@@ -360,4 +453,71 @@ ColorCloudPtr chessBoardCorners(const ColorCloudPtr in, int width_cb, int height
 	ei.setIndices(indicesPtr);
 	ei.filter(*out);
 	return out;
+}
+
+//returns point cloud that is likely to be from skin
+//YCrCb thresholds from http://waset.org/journals/waset/v43/v43-91.pdf except for Ymin = 40
+ColorCloudPtr skinFilter(ColorCloudPtr cloud_dense) {
+	MatrixXu bgr = toBGR(cloud_dense);
+  cv::Mat image(cloud_dense->height,cloud_dense->width, CV_8UC3, bgr.data());
+  cv::cvtColor(image, image, CV_BGR2YCrCb);
+
+  for (int i=0; i<image.rows; i++) {
+		for (int j=0; j<image.cols; j++) {
+			cv::Vec3b pixel = image.at<cv::Vec3b>(i,j);
+			if (pixel[0] < 40 || pixel[0] > 255 ||
+					pixel[1] < 135 || pixel[1] > 180 ||
+					pixel[2] < 85 || pixel[2] > 135) {
+				image.at<cv::Vec3b>(i,j) = cv::Vec3b(0,0,0);
+			}
+		}
+	}
+	cv::erode(image, image, cv::Mat(), cv::Point(-1, -1), 2);
+	cv::dilate(image, image, cv::Mat(), cv::Point(-1, -1), 15);
+	cv::erode(image, image, cv::Mat(), cv::Point(-1, -1), 15);
+
+	ColorCloudPtr cloud_skin(new ColorCloud());
+	for (int i=0; i<image.rows; i++) {
+		for (int j=0; j<image.cols; j++) {
+			if (image.at<cv::Vec3b>(i,j) != cv::Vec3b(0,0,0)) {
+				cloud_skin->push_back(cloud_dense->at(j,i));
+			}
+		}
+	}
+	return cloud_skin;
+}
+
+// if negative false, returns points in cloud_in that are neighbors to any point in cloud_neighbor
+// if negative true, returns points in cloud_in that are not neighbors to any point in cloud_neighbor
+ColorCloudPtr filterNeighbors(ColorCloudPtr cloud_in, ColorCloudPtr cloud_neighbor, float radius_search, int color_squared_dist, bool negative) {
+	pcl::PointIndices::Ptr indices_neighbor = neighborIndices(cloud_in, cloud_neighbor, radius_search, color_squared_dist);
+	pcl::ExtractIndices<ColorPoint> extract;
+	extract.setInputCloud(cloud_in);
+	extract.setIndices(indices_neighbor);
+	extract.setNegative(negative);
+	ColorCloudPtr cloud_neighbors(new ColorCloud());
+	extract.filter (*cloud_neighbors);
+	return cloud_neighbors;
+}
+
+// indices of cloud_in that are within radius_search and within color_squared_dist of any point in cloud_neighbor
+pcl::PointIndices::Ptr neighborIndices(ColorCloudPtr cloud_in, ColorCloudPtr cloud_neighbor, float radius_search, int color_squared_dist) {
+	pcl::PointIndices::Ptr indices_neighbor (new pcl::PointIndices);
+	pcl::KdTreeFLANN<ColorPoint> kdtree;
+	kdtree.setInputCloud(cloud_in);
+	for (size_t j = 0; j < cloud_neighbor->size(); j++) {
+		ColorPoint searchPoint = cloud_neighbor->at(j);
+		if (!pointIsFinite(searchPoint)) continue;
+		std::vector<int> pointIdxRadiusSearch;
+		std::vector<float> pointRadiusSquaredDistance;
+		if ( kdtree.radiusSearch (searchPoint, radius_search, pointIdxRadiusSearch, pointRadiusSquaredDistance) > 0 )
+			for (size_t i = 0; i < pointIdxRadiusSearch.size(); i++) {
+				int r_diff = ((int) cloud_in->points[pointIdxRadiusSearch[i]].r) - ((int) searchPoint.r);
+				int g_diff = ((int) cloud_in->points[pointIdxRadiusSearch[i]].g) - ((int) searchPoint.g);
+				int b_diff = ((int) cloud_in->points[pointIdxRadiusSearch[i]].b) - ((int) searchPoint.b);
+				if ((r_diff*r_diff + g_diff*g_diff + b_diff*b_diff) < color_squared_dist)
+					indices_neighbor->indices.push_back(pointIdxRadiusSearch[i]);
+			}
+	}
+	return indices_neighbor;
 }

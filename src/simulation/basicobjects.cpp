@@ -1,10 +1,14 @@
 #include "basicobjects.h"
 #include "config_bullet.h"
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
 #include <osg/BlendFunc>
 #include <osg/Geometry>
 #include <osg/Geode>
 #include <osg/Shape>
 #include <osg/ShapeDrawable>
+#include <osg/Texture2D>
+#include <osgDB/ReadFile>
 #include <osgwTools/Shapes.h>
 #include <osgbCollision/CollisionShapes.h>
 #include <Serialize/BulletFileLoader/btBulletFile.h>
@@ -67,6 +71,7 @@ void BulletObject::init() {
     ss->setAttributeAndModes(blendFunc);
     ss->setMode(GL_BLEND, osg::StateAttribute::ON);
 //    ss->setRenderingHint(osg::StateSet::TRANSPARENT_BIN);
+    setTextureAfterInit();
     setColorAfterInit();
 }
 
@@ -212,20 +217,54 @@ void BulletObject::MoveAction::step(float dt) {
 }
 
 void BulletObject::setColor(float r, float g, float b, float a) {
-    m_color.reset(new osg::Vec4f(r,g,b,a));
-    if (node) setColorAfterInit();
+		m_color.reset(new osg::Vec4f(r,g,b,a));
+		m_image.release();
+		if (node) setColorAfterInit();
 }
 
 void BulletObject::setColorAfterInit() {
   if (m_color) {
-    if (m_color->a() != 1.0f) {
-      osg::StateSet *ss = node->getOrCreateStateSet();
-      ss->setRenderingHint(osg::StateSet::TRANSPARENT_BIN);
-    }
+		//clear out texture mapping information
+  	osg::StateSet *ss = node->getOrCreateStateSet();
+		ss->getTextureAttributeList().clear();
+		ss->getTextureModeList().clear();
 
+  	if (m_color->a() != 1.0f) {
+  		osg::StateSet *ss = node->getOrCreateStateSet();
+  		ss->setRenderingHint(osg::StateSet::TRANSPARENT_BIN);
+    }
     SetColorsVisitor visitor(m_color->r(),m_color->g(),m_color->b(),m_color->a());
     node->accept(visitor);
   }
+}
+
+void BulletObject::setTexture(cv::Mat image) {
+	//hack to convert cv::Mat images to osg::Image images
+	cv::imwrite("/tmp/images/image.jpg", image);
+	m_image = osgDB::readImageFile("/tmp/images/image.jpg");
+	m_color.reset();
+	if (node) setTextureAfterInit();
+}
+
+void BulletObject::setTextureAfterInit() {
+	if (m_image) {
+		// clear out color information
+		m_color.reset(new osg::Vec4f(1,1,1,1));
+		setColorAfterInit();
+		m_color.reset();
+
+		osg::Texture2D* texture = new osg::Texture2D;
+		// protect from being optimized away as static state:
+		texture->setDataVariance(osg::Object::DYNAMIC);
+		// Assign the texture to the image we read from file:
+		texture->setImage(m_image.get());
+		// Create a new StateSet with default settings:
+		//osg::StateSet* stateOne = new osg::StateSet();
+		osg::StateSet* state = node->getOrCreateStateSet();
+		// Assign texture unit 0 of our new StateSet to the texture
+		// we just created and enable the texture.
+		state->setTextureAttributeAndModes(0,texture,osg::StateAttribute::ON);
+	}
 }
 
 void BulletConstraint::init() {

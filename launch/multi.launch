@@ -3,21 +3,38 @@
   
   <include file="$(find openni_launch)/launch/openni.launch">
 		<arg name="camera" value="kinect1"/>
+		<arg name="device_id" default="1@0" />
+		<arg name="depth_registration" value="true" />
+	</include>
+
+	<include file="$(find openni_launch)/launch/openni.launch">
+  	<arg name="camera" value="kinect2" />
+  	<arg name="device_id" default="2@0" />
+		<arg name="depth_registration" value="true" />
+	</include>
+  
+  <!--
+  <include file="$(find openni_launch)/launch/openni.launch">
+		<arg name="camera" value="kinect1"/>
 		<arg name="device_id" default="B00363711480052B" />
 	</include>
-	
+
 	<include file="$(find openni_launch)/launch/openni.launch">
   	<arg name="camera" value="kinect2" />
 		<arg name="device_id" default="B00362625491051B" />
 	</include>
 	
-	<!--
 	<include file="$(find openni_launch)/launch/openni.launch">
   	<arg name="camera" value="kinect3" />
 		<arg name="device_id" default="A00361A03404051A" />
 	</include>
-	-->
 	
+	<include file="$(find openni_launch)/launch/openni.launch">
+  	<arg name="camera" value="kinect4" />
+		<arg name="device_id" default="B00363700806050B" />
+	</include>
+	-->
+
 	<!--
 	<node pkg="nodelet" type="nodelet" name="manager_nodelet"  args="manager"/>
   <node pkg="nodelet" type="nodelet" name="points_xyzrgb_depth_rgb"
@@ -37,13 +54,13 @@
   			args="--inputTopic1=/drop/points 
   						--inputTopic2=/drop/points2 
   						--outputTopic=/merger 
-  						--SVDCalibration 2 
+  						--SVDCalibration 1 
   						--minCorrFraction 0.6 
   						--chessBoardWidth 6 
   						--chessBoardHeight 7 
+  						--squareSize 0.0272
   						--imageCalibration 0 
-  						--ICPCalibration 0
-  "/>
+  						--ICPCalibration 0" />
   
   <group if="$(arg make_sim_frame)">
     <node name="sim_kinect_frame_publisher" pkg="tf" type="static_transform_publisher" args="0 0 0 0 0 0 1 head_mount_kinect_ir_link camera_link 10"/>

@@ -73,7 +73,6 @@ TrackedTowel::TrackedTowel(BulletSoftObject::Ptr sim, int nCols, int nRows) : Tr
   for (int i=0; i < m_nNodes; ++i) {
     m_masses(i) = 1/verts[m_node2vert[i]].m_im;
   }
-
 }
 
 void TrackedTowel::applyEvidence(const SparseMatrixf& corr, const Eigen::MatrixXf& obsPts) {
@@ -109,15 +108,36 @@ vector<btVector3> TrackedTowel::getPoints() {
 	return out;
 }
 
-BulletSoftObject::Ptr makeTowel(const vector<btVector3>& points, btSoftBodyWorldInfo& worldInfo) {
+float cross (const osg::Vec2f& p0, const osg::Vec2f& p1) {
+	return (p0.x()*p1.y() - p0.y()*p1.x());
+}
+
+osg::Vec2f inverseBilerp(const osg::Vec2f& point, const osg::Vec2Array& corners) {
+	float A = cross( (corners[0]-point) , (corners[0]-corners[2]) );
+  float B = ( cross( (corners[0]-point) , (corners[1]-corners[3]) ) + cross( (corners[1]-point) , (corners[0]-corners[2]) ) ) / 2.0;
+  float C = cross( (corners[1]-point) , (corners[1]-corners[3]) );
+  float s = A / (A-C);
+  if ((A - 2*B + C) != 0) {
+  	s = ( (A-B) + sqrt(B*B - A*C) ) / ( A - 2*B + C );
+		if (s < 0 || s > 1)
+			s = ( (A-B) - sqrt(B*B - A*C) ) / ( A - 2*B + C );
+  }
+  float t = ( (1-s)*(corners[0].x()-point.x()) + s*(corners[1].x()-point.x()) ) / ( (1-s)*(corners[0].x()-corners[2].x()) + s*(corners[1].x()-corners[3].x()) );
+  return osg::Vec2f(s,t);
+}
+
+BulletSoftObject::Ptr makeTowel(const vector<btVector3>& points, int resolution_x, int resolution_y, btSoftBodyWorldInfo& worldInfo) {
   btVector3 offset(0,0,.01*METERS);
-  btSoftBody* psb=btSoftBodyHelpers::CreatePatch(worldInfo,
+  int n_tex_coords = (resolution_x - 1)*(resolution_y -1)*12;
+  float * tex_coords = new float[ n_tex_coords ];
+  btSoftBody* psb=btSoftBodyHelpers::CreatePatchUV(worldInfo,
 						 points[0]+offset,
 						 points[1]+offset,
 						 points[3]+offset,
 						 points[2]+offset,
-						 45, 31,
-						 0/*1+2+4+8*/, true);
+						 resolution_x, resolution_y,
+						 0/*1+2+4+8*/, false,
+						 tex_coords);
 
   psb->m_cfg.piterations = 8;
   psb->m_cfg.collisions = btSoftBody::fCollision::CL_RS
@@ -138,12 +158,20 @@ BulletSoftObject::Ptr makeTowel(const vector<btVector3>& points, btSoftBodyWorld
 
   psb->generateBendingConstraints(2, pm);
 
-  psb->randomizeConstraints();
+  // this function was not in the original bullet physics
+  // this allows to swap the texture coordinates to match the swaped faces
+  psb->randomizeConstraints(tex_coords);
 
   psb->setTotalMass(10, true);
   psb->generateClusters(100);
 
-  return BulletSoftObject::Ptr(new BulletSoftObject(psb));
+  BulletSoftObject::Ptr bso = BulletSoftObject::Ptr(new BulletSoftObject(psb));
+	bso->tritexcoords = new osg::Vec2Array;
+  for (int i = 0; i < n_tex_coords; i+=2) {
+  	bso->tritexcoords->push_back(osg::Vec2f(tex_coords[i], tex_coords[i+1]));
+  }
+
+	return bso;
 }
 
 

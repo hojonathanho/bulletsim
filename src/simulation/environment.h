@@ -4,6 +4,8 @@
 #include <btBulletDynamicsCommon.h>
 #include <BulletSoftBody/btSoftRigidDynamicsWorld.h>
 #include <BulletSoftBody/btSoftBodyRigidBodyCollisionConfiguration.h>
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
 #include <osgbCollision/GLDebugDrawer.h>
 #include <vector>
 #include <boost/shared_ptr.hpp>
@@ -205,6 +207,25 @@ public:
             if (*i)
                 (*i)->destroy();
     }
+
+    void setColor(float r, float g, float b, float a) {
+			typename ChildVector::iterator i;
+			for (i = children.begin(); i != children.end(); ++i)
+				if (*i)
+					(*i)->setColor(r,g,b,a);
+    }
+
+		void setTexture(cv::Mat image) {
+			int height = image.size().height;
+			int width = image.size().width;
+			int n = (int) children.size();
+			int split_width = width/n;
+			for (int i=0; i<n; i++)
+				if (children[i]) {
+					children[i]->setTexture(cv::Mat(image, cv::Rect(i*split_width, 0, split_width, height)).t());
+					cout << i*split_width << " " << 0 << " " << split_width << " " << height << endl;
+				}
+		}
 };
 
 class Action {

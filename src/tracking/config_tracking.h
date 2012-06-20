@@ -19,6 +19,11 @@ struct TrackingConfig : Config {
   static float kp_box;
   static float kd_box;
 
+  static int res_x;
+  static int res_y;
+	static int fixeds;
+	static bool gendiags;
+
     TrackingConfig() : Config() {
         params.push_back(new Parameter<std::string>("filteredCloudTopic", &filteredCloudTopic, "filtered cloud topic"));
         params.push_back(new Parameter<std::string>("depthTopic", &depthTopic, "depth image topic"));
@@ -32,5 +37,10 @@ struct TrackingConfig : Config {
         params.push_back(new Parameter<float>("kd_cloth", &kd_cloth, "damping for cloth"));
         params.push_back(new Parameter<float>("kp_box", &kp_box, "proportional gain for box"));
         params.push_back(new Parameter<float>("kd_box", &kd_box, "damping for box"));
+
+        params.push_back(new Parameter<int>("res_x", &res_x, "towel resolution in x"));
+        params.push_back(new Parameter<int>("res_y", &res_y, "towel resolution in y"));
+        params.push_back(new Parameter<int>("fixeds", &fixeds, "fixeds"));
+        params.push_back(new Parameter<bool>("gendiags", &gendiags, "gendiags"));
     }
 };

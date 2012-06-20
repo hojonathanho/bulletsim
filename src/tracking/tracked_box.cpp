@@ -2,6 +2,9 @@
 #include "config_tracking.h"
 #include "utils/conversions.h"
 #include "simulation/bullet_io.h"
+#include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
 
 using namespace std;
 using namespace Eigen;

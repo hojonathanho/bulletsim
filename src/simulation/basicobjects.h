@@ -1,6 +1,7 @@
 #ifndef _BASICOBJECTS_H_
 #define _BASICOBJECTS_H_
 
+#include <opencv2/core/core.hpp>
 #include <osg/MatrixTransform>
 #include "environment.h"
 
@@ -100,9 +101,12 @@ public:
     MoveAction::Ptr createMoveAction() { return MoveAction::Ptr(new MoveAction(this)); }
     MoveAction::Ptr createMoveAction(const btTransform &start, const btTransform &end, float time) { return MoveAction::Ptr(new MoveAction(this, start, end, time)); }
   void setColor(float r, float g, float b, float a);
+  void setTexture(cv::Mat image);
 private:
   boost::shared_ptr<osg::Vec4f> m_color;
   void setColorAfterInit();
+  osg::ref_ptr<osg::Image> m_image;
+  void setTextureAfterInit();
 };
 
 class BulletConstraint : public EnvironmentObject {
