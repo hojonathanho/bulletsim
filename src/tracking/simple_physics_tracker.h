@@ -4,7 +4,6 @@
 #include "visibility.h"
 #include "plotting_tracking.h"
 
-
 class SimplePhysicsTracker {
 public:
   Environment::Ptr m_env;
@@ -14,6 +13,10 @@ public:
   vector<btVector3> m_estPts;
   Eigen::VectorXf m_stdev;
   
+  Eigen::MatrixXf M_estPts;
+  Eigen::MatrixXf M_obsPts;
+  Eigen::MatrixXf M_stdev;
+
   PointCloudPlot::Ptr m_obsPlot;
   PlotSpheres::Ptr m_estPlot;
   PlotLines::Ptr m_corrPlot;

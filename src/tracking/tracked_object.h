@@ -15,6 +15,7 @@ public:
 
   TrackedObject(EnvironmentObject::Ptr sim, string type) : m_sim(sim), m_type(type) {}
   virtual std::vector<btVector3> getPoints() = 0;
+  virtual Eigen::MatrixXf getFeatures() = 0;
   virtual void applyEvidence(const SparseMatrixf& corr, const Eigen::MatrixXf& obsPts) = 0;
   virtual EnvironmentObject* getSim()=0;
 };
@@ -26,6 +27,7 @@ public:
   TrackedRope(CapsuleRope::Ptr sim);
 
   std::vector<btVector3> getPoints();
+  Eigen::MatrixXf getFeatures();
   void applyEvidence(const SparseMatrixf& corr, const Eigen::MatrixXf& obsPts);
   CapsuleRope* getSim() {return dynamic_cast<CapsuleRope*>(m_sim.get());}
 
@@ -38,6 +40,7 @@ public:
   typedef boost::shared_ptr<TrackedTowel> Ptr;
   TrackedTowel(BulletSoftObject::Ptr, int xres, int yres);
   std::vector<btVector3> getPoints();
+  Eigen::MatrixXf getFeatures() {};
   void applyEvidence(const SparseMatrixf& corr, const Eigen::MatrixXf& obsPts); // add forces
   BulletSoftObject* getSim() {return dynamic_cast<BulletSoftObject*>(m_sim.get());};
 
@@ -55,6 +58,7 @@ public:
   TrackedBox(BoxObject::Ptr sim);
 
   std::vector<btVector3> getPoints();
+  Eigen::MatrixXf getFeatures() {};
   void applyEvidence(const SparseMatrixf& corr, const Eigen::MatrixXf& obsPts);
   BoxObject* getSim() {return dynamic_cast<BoxObject*>(m_sim.get());}
 

@@ -9,6 +9,7 @@
 #include <osg/ShapeDrawable>
 #include <osg/Texture2D>
 #include <osgDB/ReadFile>
+//#include <osgDB/WriteFile>
 #include <osgwTools/Shapes.h>
 #include <osgbCollision/CollisionShapes.h>
 #include <Serialize/BulletFileLoader/btBulletFile.h>
@@ -239,9 +240,26 @@ void BulletObject::setColorAfterInit() {
 }
 
 void BulletObject::setTexture(cv::Mat image) {
+	m_cvimage = image;
+
 	//hack to convert cv::Mat images to osg::Image images
 	cv::imwrite("/tmp/images/image.jpg", image);
 	m_image = osgDB::readImageFile("/tmp/images/image.jpg");
+
+//	m_image = new osg::Image();
+//	m_image->allocateImage(
+//		image.cols,
+//		image.rows,
+//		3,
+//		6407, // GLenum pixelFormat, (GL_RGB, 0x1907)
+//		5121); // GLenum type, (GL_UNSIGNED_BYTE, 0x1401)
+//	for (int i=0; i<image.rows; i++) {
+//		for (int j=0; j<image.cols; j++) {
+//			for (int k=0; k<3; k++) {
+//				m_image->data(j,image.rows-i)[k] = image.at<cv::Vec3b>(i,j)[2-k];
+//			}
+//		}
+//	}
 	m_color.reset();
 	if (node) setTextureAfterInit();
 }

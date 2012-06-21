@@ -8,7 +8,39 @@ using namespace Eigen;
 using namespace std;
 
 
-void estimateCorrespondence(const Eigen::MatrixXf& estPts, const Eigen::VectorXf& variances, const Eigen::VectorXf& pVis, 
+
+void estimateCorrespondence(const Eigen::MatrixXf& estPts, const Eigen::MatrixXf& sigma, const Eigen::VectorXf& pVis,
+  const Eigen::MatrixXf& obsPts, float pBandOutlier, SparseMatrixf& corr) {
+
+		MatrixXf invSigma = sigma.array().inverse();
+
+    // (x-u).transpose() * Sigma.inverse() * (x-u)
+    // equivalent to
+    // MatrixXf invVariances = invSigma.array().square();
+    // MatrixXf sqdistsSigma(estPts.size(), estPts.size());
+		// for (int i=0; i<estPts.size(); i++) {
+		// 	 for (int j=0; j<estPts.size(); j++) {
+		//		 VectorXf diff = (estPts.row(i) - obsPts.row(j));
+		//		 sqdistsSigma(i,j) = diff.transpose() * invVariances.row(i).asDiagonal() * diff;
+		//	 }
+		// }
+		// assumes that all the rows of sigma are the same. doesn't assume anything about elements in the rows.
+    MatrixXf sqdistsSigma = pairwiseSquareDist(estPts*invSigma.row(0).asDiagonal(), obsPts*invSigma.row(0).asDiagonal());
+
+    MatrixXf tmp1 = (-sqdistsSigma).array().exp();
+    VectorXf tmp2 = invSigma.rowwise().prod();
+    MatrixXf pBgivenZ_unnormed = tmp2.asDiagonal() * tmp1;
+    MatrixXf pBandZ_unnormed = pVis.asDiagonal()*pBgivenZ_unnormed;
+    VectorXf pB_unnormed = pBandZ_unnormed.colwise().sum();
+    VectorXf pBorOutlier_unnormed = (pB_unnormed.array() + pBandOutlier);
+//    float loglik = pBorOutlier_unnormed.sum();
+    MatrixXf pZgivenB = pBandZ_unnormed * pBorOutlier_unnormed.asDiagonal().inverse();
+    corr = toSparseMatrix(pZgivenB, .1);
+
+    assert(isFinite(pZgivenB));
+}
+
+void estimateCorrespondence(const Eigen::MatrixXf& estPts, const Eigen::VectorXf& variances, const Eigen::VectorXf& pVis,
   const Eigen::MatrixXf& obsPts, float pBandOutlier, SparseMatrixf& corr) {
 
 

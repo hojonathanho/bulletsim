@@ -11,6 +11,9 @@
 #include <bulletsim_msgs/TrackedObject.h>
 #include <bulletsim_msgs/Initialization.h>
 #include <pcl/ros/conversions.h>
+#include <pcl/common/transforms.h>
+#include <pcl/point_cloud.h>
+#include <pcl/kdtree/kdtree_flann.h>
 #include "tracked_object.h"
 #include <tf/tf.h>
 #include "simulation/bullet_io.h"
@@ -19,26 +22,53 @@
 
 using namespace std;
 
-TrackedObject::Ptr toTrackedObject(const bulletsim_msgs::ObjectInit& initMsg, Environment::Ptr env) {
+TrackedObject::Ptr toTrackedObject(const bulletsim_msgs::ObjectInit& initMsg, ColorCloudPtr cloud, Environment::Ptr env) {
   if (initMsg.type == "rope") {
 	  vector<btVector3> nodes = toBulletVectors(initMsg.rope.nodes);
 	  BOOST_FOREACH(btVector3& node, nodes) node += btVector3(0,0,.01);
 	  CapsuleRope::Ptr sim(new CapsuleRope(scaleVecs(nodes,METERS), initMsg.rope.radius*METERS));
 	  env->add(sim);
-//	  cv::Mat image = cv::imread("/home/alex/Desktop/image2.png");
-//		if (TrackingConfig::fixeds==1) {
-//			sim->setTexture(image);
-//			cout << "texture 1" << endl;
+	  TrackedObject::Ptr tracked_rope(new TrackedRope(sim));
+
+//	  nodes = tracked_rope->getPoints();
+//		cv::Mat image(1, nodes.size(), CV_8UC3);
+//		for (int j=0; j<nodes.size(); j++) {
+//			pcl::KdTreeFLANN<ColorPoint> kdtree;
+//			kdtree.setInputCloud(cloud);
+//			ColorPoint searchPoint;
+//			searchPoint.x = nodes[j].x();
+//			searchPoint.y = nodes[j].y();
+//			searchPoint.z = nodes[j].z();
+//			// Neighbors within radius search
+//			float radius = ((float) TrackingConfig::fixeds)/10.0; //(fixeds in cm)
+//			std::vector<int> pointIdxRadiusSearch;
+//			std::vector<float> pointRadiusSquaredDistance;
+//			float r,g,b;
+//			r=g=b=0;
+//			vector<unsigned char> R, G, B;
+//			if ( kdtree.radiusSearch (searchPoint, radius, pointIdxRadiusSearch, pointRadiusSquaredDistance) > 0 ) {
+//				for (size_t i = 0; i < pointIdxRadiusSearch.size(); i++) {
+//					r += cloud->points[pointIdxRadiusSearch[i]].r;
+//					g += cloud->points[pointIdxRadiusSearch[i]].g;
+//					b += cloud->points[pointIdxRadiusSearch[i]].b;
+//					R.push_back(cloud->points[pointIdxRadiusSearch[i]].r);
+//					G.push_back(cloud->points[pointIdxRadiusSearch[i]].g);
+//					B.push_back(cloud->points[pointIdxRadiusSearch[i]].b);
+//				}
+//				r /= ((float) pointIdxRadiusSearch.size());
+//				g /= ((float) pointIdxRadiusSearch.size());
+//				b /= ((float) pointIdxRadiusSearch.size());
+//			}
+//			image.at<cv::Vec3b>(0,j)[0] = b;
+//			image.at<cv::Vec3b>(0,j)[1] = g;
+//			image.at<cv::Vec3b>(0,j)[2] = r;
+//	//	  image.at<cv::Vec3b>(0,j)[0] = median(B);
+//	//		image.at<cv::Vec3b>(0,j)[1] = median(G);
+//	//		image.at<cv::Vec3b>(0,j)[2] = median(R);
 //		}
-//		if (TrackingConfig::gendiags) {
-//			sim->setColor(1,0,0,1);
-//			cout << "color 1" << endl;
-//		}
-//		if (TrackingConfig::fixeds==2) {
-//			sim->setTexture(image);
-//			cout << "texture 2" << endl;
-//		}
-	  return TrackedObject::Ptr(new TrackedRope(sim));
+//		sim->setTexture(image);
+
+	  return tracked_rope;
   }
   else if (initMsg.type == "towel_corners") {
 	  const vector<geometry_msgs::Point32>& points = initMsg.towel_corners.polygon.points;
@@ -50,20 +80,12 @@ TrackedObject::Ptr toTrackedObject(const bulletsim_msgs::ObjectInit& initMsg, En
 	  BulletSoftObject::Ptr sim = makeTowel(corners, resolution_x, resolution_y, env->bullet->softBodyWorldInfo);
 	  assert(!!sim);
 	  env->add(sim);
+	  TrackedObject::Ptr tracked_towel(new TrackedTowel(sim, resolution_x, resolution_y));
+
 	  cv::Mat image = cv::imread("/home/alex/Desktop/image.jpg");
-	  if (TrackingConfig::fixeds==1) {
-	  	sim->setTexture(image);
-	  	cout << "texture 1" << endl;
-	  }
-	  if (TrackingConfig::gendiags) {
-			sim->setColor(1,0,0,1);
-	  	cout << "color 1" << endl;
-	  }
-	  if (TrackingConfig::fixeds==2) {
-	  	sim->setTexture(image);
-	  	cout << "texture 2" << endl;
-	  }
-	  return TrackedTowel::Ptr(new TrackedTowel(sim, resolution_x, resolution_y));
+	  sim->setTexture(image);
+
+	  return tracked_towel;
   }
   else if (initMsg.type == "box") {
 	  btScalar mass = 1;
@@ -72,10 +94,12 @@ TrackedObject::Ptr toTrackedObject(const bulletsim_msgs::ObjectInit& initMsg, En
 	  btTransform initTrans(toBulletMatrix(rotation), toBulletVector(initMsg.box.center)*METERS);
 	  BoxObject::Ptr sim(new BoxObject(mass, halfExtents, initTrans));
 	  env->add(sim);
+	  TrackedBox::Ptr tracked_box(new TrackedBox(sim));
+
 	  cv::Mat image = cv::imread("/home/alex/Desktop/image.jpg");
 		sim->setTexture(image);
-		//sim->setColor(1,0,0,1);
-	  return TrackedBox::Ptr(new TrackedBox(sim));
+
+	  return tracked_box;
   }
   else
 	  throw runtime_error("unrecognized initialization type" + initMsg.type);
@@ -101,7 +125,7 @@ TrackedObject::Ptr callInitServiceAndCreateObject(ColorCloudPtr cloud, Environme
 	
   bool success = ros::service::call(initializationService, init);
   if (success)
-  	return toTrackedObject(init.response.objectInit, env);
+  	return toTrackedObject(init.response.objectInit, cloud, env);
   else {
 		ROS_ERROR("initialization failed");
 		return TrackedObject::Ptr();

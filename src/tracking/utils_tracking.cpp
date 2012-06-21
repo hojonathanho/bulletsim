@@ -102,7 +102,18 @@ std::vector<btVector3> toBulletVectors(ColorCloudPtr in) {
   return out;
 }
 
-
+MatrixXf toEigenMatrix(ColorCloudPtr in) {
+	MatrixXf out(in->size(), 6);
+  for (int i=0; i < in->size(); ++i) {
+  	out(i,0) = in->points[i].x;
+  	out(i,1) = in->points[i].y;
+  	out(i,2) = in->points[i].z;
+  	out(i,3) = in->points[i].r;
+  	out(i,4) = in->points[i].g;
+  	out(i,5) = in->points[i].b;
+  }
+  return out;
+}
 
 btTransform waitForAndGetTransform(const tf::TransformListener& listener, std::string target_frame, std::string source_frame) {
 	listener.waitForTransform(target_frame, source_frame, ros::Time(0),ros::Duration(.1));

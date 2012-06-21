@@ -28,6 +28,7 @@ SimplePhysicsTracker::SimplePhysicsTracker(TrackedObject::Ptr obj, VisibilityInt
 
 void SimplePhysicsTracker::updateInput(ColorCloudPtr obsPts) {
   m_obsPts = toBulletVectors(obsPts);
+  M_obsPts = toEigenMatrix(obsPts);
 }
 
 void SimplePhysicsTracker::doIteration() {
@@ -35,12 +36,16 @@ void SimplePhysicsTracker::doIteration() {
   m_estPts = m_obj->getPoints();
   SparseMatrixf corr;
   m_stdev = (.03*METERS)*VectorXf::Ones(m_obj->m_nNodes);
-
   MatrixXf obsPtsEigen = toEigenMatrix(m_obsPts);
 
-  // E STEP
-  estimateCorrespondence(toEigenMatrix(m_estPts), m_stdev.array().square(), vis, obsPtsEigen, TrackingConfig::outlierParam, corr);
+  M_estPts = m_obj->getFeatures(); //TODO scale features
+  MatrixXf node_stdev(1,6);
+  node_stdev << (.03*METERS), (.03*METERS), (.03*METERS), 64, 64, 64;
+  M_stdev = node_stdev.replicate(m_obj->m_nNodes, 1);
 
+  // E STEP
+  estimateCorrespondence(toEigenMatrix(m_estPts), (VectorXf) m_stdev.array().square(), vis, obsPtsEigen, TrackingConfig::outlierParam, corr);
+  //estimateCorrespondence(M_estPts, M_stdev, vis, M_obsPts, TrackingConfig::outlierParam, corr);
 
   VectorXf inlierFrac = colSums(corr);
 
@@ -51,7 +56,15 @@ void SimplePhysicsTracker::doIteration() {
   if (m_enableCorrPlot) drawCorrLines(m_corrPlot, m_estPts, m_obsPts, corr);
   else m_corrPlot->clear();
 
+//  if (m_enableObsPlot) plotObs(toBulletVectors(M_obsPts.block(0,0,M_obsPts.rows(),3)), inlierFrac, m_obsPlot);
+//	else m_obsPlot->clear();
+//	if (m_enableEstPlot) plotNodesAsSpheres(toBulletVectors(M_estPts.block(0,0,M_estPts.rows(),3)), vis, M_stdev.col(0), m_estPlot);
+//	else m_estPlot->clear();
+//	if (m_enableCorrPlot) drawCorrLines(m_corrPlot, toBulletVectors(M_estPts.block(0,0,M_estPts.rows(),3)), toBulletVectors(M_obsPts.block(0,0,M_obsPts.rows(),3)), corr);
+//	else m_corrPlot->clear();
+
   // M STEP
   m_obj->applyEvidence(corr, obsPtsEigen);
+  //m_obj->applyEvidence(corr, M_obsPts);
   m_env->step(.03,2,.015);
 }

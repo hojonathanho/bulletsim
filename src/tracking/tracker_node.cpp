@@ -90,49 +90,46 @@ int main(int argc, char* argv[]) {
   //scene.env->add(trackedObj->m_sim);
   //dynamic_cast<BulletObject*>(trackedObj->getSim())->setTexture();
   //dynamic_cast<BulletSoftObject*>(trackedObj->getSim())->setColor(1,0,0,1);
-
-
-
-  std::vector<btVector3> nodes = trackedObj->getPoints();
-  cv::Mat image(1, nodes.size(), CV_8UC3);
-  for (int j=0; j<nodes.size(); j++) {
-	  pcl::KdTreeFLANN<ColorPoint> kdtree;
-	  kdtree.setInputCloud(filteredCloud);
-	  ColorPoint searchPoint;
-	  searchPoint.x = nodes[j].x();
-	  searchPoint.y = nodes[j].y();
-	  searchPoint.z = nodes[j].z();
-	  // Neighbors within radius search
-	  float radius = ((float) TrackingConfig::fixeds)/10.0; //(fixeds in cm)
-	  std::vector<int> pointIdxRadiusSearch;
-	  std::vector<float> pointRadiusSquaredDistance;
-	  float r,g,b;
-	  r=g=b=0;
-	  vector<unsigned char> R, G, B;
-	  if ( kdtree.radiusSearch (searchPoint, radius, pointIdxRadiusSearch, pointRadiusSquaredDistance) > 0 ) {
-	    for (size_t i = 0; i < pointIdxRadiusSearch.size(); i++) {
-	    	r += filteredCloud->points[pointIdxRadiusSearch[i]].r;
-	    	g += filteredCloud->points[pointIdxRadiusSearch[i]].g;
+  vector<btVector3> nodes = trackedObj->getPoints();
+	cv::Mat image(1, nodes.size(), CV_8UC3);
+	for (int j=0; j<nodes.size(); j++) {
+		pcl::KdTreeFLANN<ColorPoint> kdtree;
+		kdtree.setInputCloud(filteredCloud);
+		ColorPoint searchPoint;
+		searchPoint.x = nodes[j].x();
+		searchPoint.y = nodes[j].y();
+		searchPoint.z = nodes[j].z();
+		// Neighbors within radius search
+		float radius = ((float) TrackingConfig::fixeds)/10.0; //(fixeds in cm)
+		std::vector<int> pointIdxRadiusSearch;
+		std::vector<float> pointRadiusSquaredDistance;
+		float r,g,b;
+		r=g=b=0;
+		vector<unsigned char> R, G, B;
+		if ( kdtree.radiusSearch (searchPoint, radius, pointIdxRadiusSearch, pointRadiusSquaredDistance) > 0 ) {
+			for (size_t i = 0; i < pointIdxRadiusSearch.size(); i++) {
+				r += filteredCloud->points[pointIdxRadiusSearch[i]].r;
+				g += filteredCloud->points[pointIdxRadiusSearch[i]].g;
 				b += filteredCloud->points[pointIdxRadiusSearch[i]].b;
 				R.push_back(filteredCloud->points[pointIdxRadiusSearch[i]].r);
 				G.push_back(filteredCloud->points[pointIdxRadiusSearch[i]].g);
 				B.push_back(filteredCloud->points[pointIdxRadiusSearch[i]].b);
-	    }
-	    r /= ((float) pointIdxRadiusSearch.size());
-	    g /= ((float) pointIdxRadiusSearch.size());
-	    b /= ((float) pointIdxRadiusSearch.size());
-	  }
-//	  image.at<cv::Vec3b>(0,j)[0] = b;
-//		image.at<cv::Vec3b>(0,j)[1] = g;
-//		image.at<cv::Vec3b>(0,j)[2] = r;
-	  image.at<cv::Vec3b>(0,j)[0] = median(B);
-		image.at<cv::Vec3b>(0,j)[1] = median(G);
-		image.at<cv::Vec3b>(0,j)[2] = median(R);
+			}
+			r /= ((float) pointIdxRadiusSearch.size());
+			g /= ((float) pointIdxRadiusSearch.size());
+			b /= ((float) pointIdxRadiusSearch.size());
+		}
+		image.at<cv::Vec3b>(0,j)[0] = b;
+		image.at<cv::Vec3b>(0,j)[1] = g;
+		image.at<cv::Vec3b>(0,j)[2] = r;
+//	  image.at<cv::Vec3b>(0,j)[0] = median(B);
+//		image.at<cv::Vec3b>(0,j)[1] = median(G);
+//		image.at<cv::Vec3b>(0,j)[2] = median(R);
 	}
-	cv::imwrite("/home/alex/Desktop/image5.png", image);
 	dynamic_cast<CapsuleRope*>(trackedObj->getSim())->setTexture(image);
 
-	    // actual tracking algorithm
+
+// actual tracking algorithm
 //  DepthImageVisibility visInterface(transformer);
   DepthImageVisibility visInterface(transformer);
   SimplePhysicsTracker alg(trackedObj, &visInterface, scene.env);
