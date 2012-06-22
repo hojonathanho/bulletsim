@@ -48,16 +48,35 @@ void GripperKinematicObject::toggleattach(btSoftBody * psb) {
     }
     else
     {
+#ifdef USE_RADIUS_CONTACT
+        double radius = halfextents[0];
+        btTransform top_tm;
+        children[0]->motionState->getWorldTransform(top_tm);
+        btTransform bottom_tm;
+        children[1]->motionState->getWorldTransform(bottom_tm);
+        int closest_body = -1;
+        for(int j = 0; j < psb->m_nodes.size(); j++)
+        {
+            if((psb->m_nodes[j].m_x - cur_tm.getOrigin()).length() < radius)
+            {
+                if( (psb->m_nodes[j].m_x - top_tm.getOrigin()).length() < (psb->m_nodes[j].m_x - bottom_tm.getOrigin()).length() )
+                    closest_body = 0;
+                else
+                    closest_body = 1;
+
+                vattached_node_inds.push_back(j);
+                appendAnchor(psb, &psb->m_nodes[j], children[closest_body]->rigidBody.get());
+                cout << "\tappending anchor, closest ind: "<< j << "\n";
+
+            }
+        }
+#else
         std::vector<btVector3> nodeposvec;
         nodeArrayToNodePosVector(psb->m_nodes, nodeposvec);
 
         for(int k = 0; k < 2; k++)
         {
-            BoxObject::Ptr part;
-            if(k == 0)
-                part = children[0];
-            else
-                part = children[1];
+            BoxObject::Ptr part = children[k];
 
             btRigidBody* rigidBody = part->rigidBody.get();
             btSoftBody::tRContactArray rcontacts;
@@ -67,12 +86,12 @@ void GripperKinematicObject::toggleattach(btSoftBody * psb) {
             //if no contacts, return without toggling bAttached
             if(rcontacts.size() == 0)
                 continue;
-
             for (int i = 0; i < rcontacts.size(); ++i) {
-                const btSoftBody::RContact &c = rcontacts[i];
+                //const btSoftBody::RContact &c = rcontacts[i];
+                btSoftBody::Node *node = rcontacts[i].m_node;
                 //btRigidBody* colLink = c.m_cti.m_colObj;
                 //if (!colLink) continue;
-                const btVector3 &contactPt = c.m_node->m_x;
+                const btVector3 &contactPt = node->m_x;
                 //if (onInnerSide(contactPt, left)) {
                     int closest_ind = -1;
                     for(int n = 0; n < nodeposvec.size(); n++)
@@ -86,11 +105,13 @@ void GripperKinematicObject::toggleattach(btSoftBody * psb) {
                     assert(closest_ind!=-1);
 
                     vattached_node_inds.push_back(closest_ind);
-                    appendAnchor(psb, c.m_node, rigidBody);
+                    appendAnchor(psb, node, rigidBody);
                     cout << "\tappending anchor, closest ind: "<< closest_ind << "\n";
             }
         }
+#endif
     }
+
     bAttached = !bAttached;
 }
 
@@ -171,8 +192,9 @@ void GripperKinematicObject::appendAnchor(btSoftBody *psb, btSoftBody::Node *nod
 GripperKinematicObject::GripperKinematicObject(btVector4 color)
 {
     bAttached = false;
-    apperture = 4;
-    btVector3 halfextents = btVector3(.3,.3,0.1);
+    closed_gap = 0.01;
+    apperture = 2;
+    halfextents = btVector3(.3,.3,0.1);
     BoxObject::Ptr top_jaw(new BoxObject(0, halfextents, btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, apperture/2)),true));
     top_jaw->setColor(color[0],color[1],color[2],color[3]);
     BoxObject::Ptr bottom_jaw(new BoxObject(0, halfextents, btTransform(btQuaternion(0, 0, 0, 1), btVector3(0,0,-apperture/2)),true));
@@ -209,19 +231,19 @@ void GripperKinematicObject::toggle()
     btTransform bottom_tm;
     children[0]->motionState->getWorldTransform(top_tm);
     children[1]->motionState->getWorldTransform(bottom_tm);
-    double gap = 0.01;
+
     if(bOpen)
     {
         btTransform top_offset = cur_tm.inverse()*top_tm;
-        float close_length = (1+gap)*top_offset.getOrigin()[2] - children[0]->halfExtents[2];
-
-        top_tm.setOrigin(top_tm.getOrigin() - close_length*top_tm.getBasis().getColumn(2));
-        bottom_tm.setOrigin(bottom_tm.getOrigin() + close_length*bottom_tm.getBasis().getColumn(2));
+        //float close_length = (1+closed_gap)*top_offset.getOrigin()[2] - children[0]->halfExtents[2];
+        //float close_length = (apperture/2 - children[0]->halfExtents[2] + closed_gap/2);
+        top_tm.setOrigin(cur_tm.getOrigin() + cur_tm.getBasis().getColumn(2)*(children[0]->halfExtents[2] + closed_gap/2));
+        bottom_tm.setOrigin(cur_tm.getOrigin() - cur_tm.getBasis().getColumn(2)*(children[1]->halfExtents[2] + closed_gap/2));
     }
     else
     {
-        top_tm.setOrigin(top_tm.getOrigin() - top_tm.getBasis().getColumn(2)*(apperture/2));
-        bottom_tm.setOrigin(bottom_tm.getOrigin() + bottom_tm.getBasis().getColumn(2)*(apperture/2));
+        top_tm.setOrigin(cur_tm.getOrigin() - cur_tm.getBasis().getColumn(2)*(apperture/2));
+        bottom_tm.setOrigin(cur_tm.getOrigin() + cur_tm.getBasis().getColumn(2)*(apperture/2));
     }
 
     children[0]->motionState->setKinematicPos(top_tm);
@@ -912,9 +934,9 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,osgGA::GUIActionA
 
 
 
-        case 'b':
-            scene.stopLoop();
-            break;
+//        case 'b':
+//            scene.stopLoop();
+//            break;
         }
         break;
 
@@ -946,6 +968,13 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,osgGA::GUIActionA
             scene.right_gripper2->setWorldTransform(btTransform(btQuaternion(btVector3(0,1,0),-0.1)*scene.right_gripper2->getWorldTransform().getRotation(), scene.right_gripper2->getWorldTransform().getOrigin()));
             break;
 
+        case 'b':
+            if(scene.right_gripper2->bOpen)
+                scene.right_gripper2->state = GripperState_CLOSING;
+            else
+                scene.right_gripper2->state = GripperState_OPENING;
+
+            break;
 
         case 'j':
             {
@@ -1203,6 +1232,7 @@ void CustomScene::run() {
 
     addPreStepCallback(boost::bind(&CustomScene::doJTracking, this));
     addPreStepCallback(boost::bind(&CustomScene::drawAxes, this));
+    addPreStepCallback(boost::bind(&GripperKinematicObject::step_openclose, this->right_gripper2));
 
     const float dt = BulletConfig::dt;
     const float table_height = .5;
@@ -1501,10 +1531,10 @@ void CustomScene::run() {
     right_gripper1->toggleattach(clothptr->softBody.get());
 
     left_gripper2->toggle();
-    right_gripper2->toggle();
+    //right_gripper2->toggle();
 
     left_gripper2->toggleattach(clothptr->softBody.get());
-    right_gripper2->toggleattach(clothptr->softBody.get());
+    //right_gripper2->toggleattach(clothptr->softBody.get());
 
     //right_gripper1->toggle();
 

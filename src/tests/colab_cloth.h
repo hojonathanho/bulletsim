@@ -18,7 +18,7 @@
 #define DO_ROTATION
 //#define USE_QUATERNION //NOT IMPLEMENTED!!!
 //#define USE_TABLE
-
+#define USE_RADIUS_CONTACT
 
 
 #ifdef USE_PR2
@@ -26,13 +26,19 @@
 #include "robots/pr2.h"
 #endif
 
+enum GripperState { GripperState_DONE, GripperState_CLOSING, GripperState_OPENING };
+
 class GripperKinematicObject : public CompoundObject<BoxObject>{
 public:
+
     float apperture;
     btTransform cur_tm;
     bool bOpen;
     bool bAttached;
+    btVector3 halfextents;
     std::vector<int> vattached_node_inds;
+    double closed_gap;
+    GripperState state;
 
     typedef boost::shared_ptr<GripperKinematicObject> Ptr;
 
@@ -57,6 +63,10 @@ public:
         o->apperture = apperture;
         o->cur_tm = cur_tm;
         o->bOpen = bOpen;
+        o->state = state;
+        o->closed_gap = closed_gap;
+        o->vattached_node_inds = vattached_node_inds;
+        o->halfextents = halfextents;
         o->bAttached = bAttached;
 
         o->children.clear();
@@ -70,10 +80,60 @@ public:
         }
     }
 
+
+
+    void step_openclose() {
+        if (state == GripperState_DONE) return;
+
+
+        btTransform top_tm;
+        btTransform bottom_tm;
+        children[0]->motionState->getWorldTransform(top_tm);
+        children[1]->motionState->getWorldTransform(bottom_tm);
+
+        double step_size = 0.005;
+        if(state == GripperState_CLOSING)
+        {
+            top_tm.setOrigin(top_tm.getOrigin() + step_size*top_tm.getBasis().getColumn(2));
+            bottom_tm.setOrigin(bottom_tm.getOrigin() - step_size*bottom_tm.getBasis().getColumn(2));
+        }
+        else if(state == GripperState_OPENING)
+        {
+            top_tm.setOrigin(top_tm.getOrigin() - step_size*top_tm.getBasis().getColumn(2));
+            bottom_tm.setOrigin(bottom_tm.getOrigin() + step_size*bottom_tm.getBasis().getColumn(2));
+        }
+
+        children[0]->motionState->setKinematicPos(top_tm);
+        children[1]->motionState->setKinematicPos(bottom_tm);
+
+        double cur_gap_length = (top_tm.getOrigin() - bottom_tm.getOrigin()).length();
+        if(state == GripperState_CLOSING && cur_gap_length <= (closed_gap + 2*halfextents[2]))
+        {
+            state = GripperState_DONE;
+            bOpen = false;
+        }
+        if(state == GripperState_OPENING && cur_gap_length >= apperture)
+        {
+            state = GripperState_DONE;
+            bOpen = true;
+        }
+
+//        float frac = fracElapsed();
+//        vals[0] = (1.f - frac)*startVal + frac*endVal;
+//        manip->robot->setDOFValues(indices, vals);
+
+//        if (vals[0] == CLOSED_VAL) {
+//            attach(true);
+//            attach(false);
+//        }
+    }
+
+
 };
 
+#ifdef USE_PR2
 // I've only tested this on the PR2 model
-/*class PR2SoftBodyGripperAction : public Action {
+class PR2SoftBodyGripperAction : public Action {
     RaveRobotObject::Manipulator::Ptr manip;
     dReal startVal, endVal;
     vector<int> indices;
@@ -304,7 +364,8 @@ public:
         }
     }
 };
-*/
+#endif
+
 class PointReflector{
 public:
     PointReflector(float _mid_x, float _min_y, float _max_y)
