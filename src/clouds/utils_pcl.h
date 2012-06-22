@@ -19,6 +19,8 @@ typedef pcl::PointCloud<Point>::Ptr CloudPtr;
 typedef Eigen::Matrix<bool,Eigen::Dynamic,1> VectorXb;
 typedef Eigen::Matrix<uint8_t,Eigen::Dynamic,Eigen::Dynamic> MatrixXu;
 
+inline Eigen::Vector3f toEigenVector(const ColorPoint pt) {return Eigen::Vector3f(pt.x,pt.y,pt.z);}
+
 ColorCloudPtr readPCD(const std::string& pcdfile);
 
 Eigen::MatrixXi xyz2uv(const Eigen::MatrixXf& xyz);

@@ -35,8 +35,8 @@ add_library(tracking
 target_link_libraries(tracking
 	simulation clouds robots)
 	
-add_executable(test_sparse sandbox/test_sparse.cpp)
-target_link_libraries(test_sparse tracking)
+#add_executable(test_sparse sandbox/test_sparse.cpp)
+#target_link_libraries(test_sparse tracking)
 
 add_executable(tracker_node tracker_node.cpp)
 target_link_libraries(tracker_node tracking simulation clouds tf cv_bridge ${OpenCV_LIBS} ${ROS_LIBRARIES} boost_signals)

@@ -18,6 +18,24 @@ osg::ref_ptr<osg::Vec4Array> toVec4Array(const std::vector<btVector4>& in) {
     return out;
 }
 
+osg::ref_ptr<osg::Vec3Array> toVec3Array(const Eigen::MatrixXf& in) {
+		assert(in.cols() == 3);
+    osg::ref_ptr<osg::Vec3Array> out = new osg::Vec3Array();
+    out->reserve(in.rows());
+    for (int row=0; row < in.rows(); row++)
+    	out->push_back(osg::Vec3(in(row, 0), in(row, 1), in(row, 2)));
+    return out;
+}
+
+osg::ref_ptr<osg::Vec4Array> toVec4Array(const Eigen::MatrixXf& in) {
+		assert(in.cols() == 4);
+    osg::ref_ptr<osg::Vec4Array> out = new osg::Vec4Array();
+    out->reserve(in.rows());
+    for (int row=0; row < in.rows(); row++)
+    	out->push_back(osg::Vec4(in(row, 0), in(row, 1), in(row, 2), in(row, 3)));
+    return out;
+}
+
 static const btMatrix3x3 HAPTIC_ROTATION(btQuaternion(-M_PI/2., 0., 0.));
 static inline btMatrix3x3 toHapticBtMatrix(const Matrix3d &m) {
     // note: the rows are permuted

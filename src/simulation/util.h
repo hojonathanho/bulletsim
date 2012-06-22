@@ -2,6 +2,8 @@
 #define __UTIL_H__
 
 #include <LinearMath/btTransform.h>
+#include <Eigen/Dense>
+#include <Eigen/Geometry>
 #include <osg/Vec3d>
 #include <osg/Geometry>
 #include <openrave/openrave.h>
@@ -52,6 +54,8 @@ namespace util {
 
   osg::ref_ptr<osg::Vec3Array> toVec3Array(const std::vector<btVector3>&);
   osg::ref_ptr<osg::Vec4Array> toVec4Array(const std::vector<btVector4>&);
+  osg::ref_ptr<osg::Vec3Array> toVec3Array(const Eigen::MatrixXf& in);
+  osg::ref_ptr<osg::Vec4Array> toVec4Array(const Eigen::MatrixXf& in);
 
   // Nan/Inf checking
   inline bool isfinite(const btVector3 &v) {

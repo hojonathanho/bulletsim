@@ -1,3 +1,4 @@
+#pragma once
 #include <iostream>
 #include <algorithm>
 #include <vector>
@@ -25,4 +26,14 @@ int argMedian(const std::vector<T>& v) {
 	for (int i=0; i<v.size(); i++)
 		if (v[i] == m) return i;
 	return -1;
+}
+
+template <typename T>
+T mean(const std::vector<T>& v) {
+	if (v.size() == 0) return 0;
+	T result = 0;
+	for (int i=0; i<v.size(); i++)
+		result += v[i];
+	result /= v.size();
+	return result;
 }

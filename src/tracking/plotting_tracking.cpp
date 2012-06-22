@@ -65,6 +65,16 @@ void plotNodesAsSpheres(const vector<btVector3>& nodes, const VectorXf& pVis, co
   spheres->plot(centers, colors, sizes);
 }
 
+void plotNodesAsSpheres(const Eigen::MatrixXf nodes, const Eigen::VectorXf& pVis, const Eigen::MatrixXf& sigs, PlotSpheres::Ptr spheres) {
+	assert(nodes.rows() == pVis.rows());
+	assert(nodes.rows() == sigs.rows());
+	assert(nodes.cols() == sigs.cols());
+	MatrixXf centers = nodes.block(0,0,nodes.rows(),3);
+	MatrixXf colors(nodes.rows(), 4);
+	colors << nodes.block(0,3,nodes.rows(), 3)/255.0, 0.25*VectorXf::Ones(nodes.rows());
+	VectorXf sizes = (sigs.block(0,0,sigs.rows(),3).array().sqrt()/2).rowwise().mean();
+	spheres->plot(util::toVec3Array(centers), util::toVec4Array(colors), toVec(sizes));
+}
 
 void plotObs(const vector<btVector3>& obsPts, const Eigen::VectorXf& inlierFrac, PointCloudPlot::Ptr plot) {
   osg::ref_ptr<osg::Vec4Array> colors = new osg::Vec4Array;
@@ -73,4 +83,11 @@ void plotObs(const vector<btVector3>& obsPts, const Eigen::VectorXf& inlierFrac,
     colors->push_back(osg::Vec4f(0,p,0,.5));
   }
   plot->setPoints(util::toVec3Array(obsPts), colors);
+}
+
+void plotObs(const Eigen::MatrixXf cloud, PointCloudPlot::Ptr plot) {
+	MatrixXf centers = cloud.block(0,0,cloud.rows(),3);
+	MatrixXf colors(cloud.rows(), 4);
+	colors << cloud.block(0,3,cloud.rows(), 3)/255.0, 0.5*VectorXf::Ones(cloud.rows());
+	plot->setPoints(util::toVec3Array(centers), util::toVec4Array(colors));
 }

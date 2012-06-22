@@ -19,54 +19,85 @@
 #include "simulation/bullet_io.h"
 #include "simulation/softbodies.h"
 #include "utils/logging.h"
+#include "utils/vector_alg.h"
 
 using namespace std;
 
 TrackedObject::Ptr toTrackedObject(const bulletsim_msgs::ObjectInit& initMsg, ColorCloudPtr cloud, Environment::Ptr env) {
   if (initMsg.type == "rope") {
-	  vector<btVector3> nodes = toBulletVectors(initMsg.rope.nodes);
+	  vector<btVector3> nodes_o = toBulletVectors(initMsg.rope.nodes);
+	  vector<btVector3> nodes;
+	  for (int i=0; i<nodes_o.size(); i+=3)
+	  	nodes.push_back(nodes_o[i]);
 	  BOOST_FOREACH(btVector3& node, nodes) node += btVector3(0,0,.01);
 	  CapsuleRope::Ptr sim(new CapsuleRope(scaleVecs(nodes,METERS), initMsg.rope.radius*METERS));
 	  env->add(sim);
 	  TrackedObject::Ptr tracked_rope(new TrackedRope(sim));
-
-//	  nodes = tracked_rope->getPoints();
-//		cv::Mat image(1, nodes.size(), CV_8UC3);
-//		for (int j=0; j<nodes.size(); j++) {
-//			pcl::KdTreeFLANN<ColorPoint> kdtree;
-//			kdtree.setInputCloud(cloud);
-//			ColorPoint searchPoint;
-//			searchPoint.x = nodes[j].x();
-//			searchPoint.y = nodes[j].y();
-//			searchPoint.z = nodes[j].z();
-//			// Neighbors within radius search
-//			float radius = ((float) TrackingConfig::fixeds)/10.0; //(fixeds in cm)
-//			std::vector<int> pointIdxRadiusSearch;
-//			std::vector<float> pointRadiusSquaredDistance;
-//			float r,g,b;
-//			r=g=b=0;
-//			vector<unsigned char> R, G, B;
-//			if ( kdtree.radiusSearch (searchPoint, radius, pointIdxRadiusSearch, pointRadiusSquaredDistance) > 0 ) {
-//				for (size_t i = 0; i < pointIdxRadiusSearch.size(); i++) {
-//					r += cloud->points[pointIdxRadiusSearch[i]].r;
-//					g += cloud->points[pointIdxRadiusSearch[i]].g;
-//					b += cloud->points[pointIdxRadiusSearch[i]].b;
-//					R.push_back(cloud->points[pointIdxRadiusSearch[i]].r);
-//					G.push_back(cloud->points[pointIdxRadiusSearch[i]].g);
-//					B.push_back(cloud->points[pointIdxRadiusSearch[i]].b);
-//				}
-//				r /= ((float) pointIdxRadiusSearch.size());
-//				g /= ((float) pointIdxRadiusSearch.size());
-//				b /= ((float) pointIdxRadiusSearch.size());
-//			}
+/*
+	  nodes = tracked_rope->getPoints();
+	  cloud = scaleCloud(cloud,METERS);
+	  int resolution = 5;
+		cv::Mat image(1, nodes.size()*resolution, CV_8UC3);
+		vector<btMatrix3x3> rotations = sim->getRotations();
+		vector<float> half_heights = sim->getHalfHeights();
+		for (int j=0; j<nodes.size(); j++) {
+			pcl::KdTreeFLANN<ColorPoint> kdtree;
+			kdtree.setInputCloud(cloud);
+			ColorPoint searchPoint;
+			searchPoint.x = nodes[j].x();
+			searchPoint.y = nodes[j].y();
+			searchPoint.z = nodes[j].z();
+			// Neighbors within radius search
+			float radius = ((float) TrackingConfig::fixeds)/10.0; //(fixeds in cm)
+			std::vector<int> pointIdxRadiusSearch;
+			std::vector<float> pointRadiusSquaredDistance;
+			float r,g,b;
+			r=g=b=0;
+			vector<unsigned char> R, G, B;
+			Eigen::Matrix3f node_rot = toEigenMatrix(rotations[j]);
+			float node_half_height = half_heights[j];
+			cout << "nodes hh radius " << nodes[j].x() << " " << nodes[j].y() << " " << nodes[j].z() << " " << node_half_height << " " << radius << endl;
+			vector<vector<float> > R_bins(resolution), G_bins(resolution), B_bins(resolution);
+			if ( kdtree.radiusSearch (searchPoint, radius, pointIdxRadiusSearch, pointRadiusSquaredDistance) > 0 ) {
+				for (size_t i = 0; i < pointIdxRadiusSearch.size(); i++) {
+					Eigen::Vector3f alignedPoint = node_rot * (toEigenVector(cloud->points[pointIdxRadiusSearch[i]]) - toEigenVector(searchPoint));
+					int binId = (int) floor( ((float) resolution) * (1.0 + alignedPoint(0)/node_half_height) * 0.5 );
+					if (binId >=0 && binId <resolution) {
+						R_bins[binId].push_back(cloud->points[pointIdxRadiusSearch[i]].r);
+						G_bins[binId].push_back(cloud->points[pointIdxRadiusSearch[i]].g);
+						B_bins[binId].push_back(cloud->points[pointIdxRadiusSearch[i]].b);
+					}
+					r += cloud->points[pointIdxRadiusSearch[i]].r;
+					g += cloud->points[pointIdxRadiusSearch[i]].g;
+					b += cloud->points[pointIdxRadiusSearch[i]].b;
+					R.push_back(cloud->points[pointIdxRadiusSearch[i]].r);
+					G.push_back(cloud->points[pointIdxRadiusSearch[i]].g);
+					B.push_back(cloud->points[pointIdxRadiusSearch[i]].b);
+				}
+				r /= ((float) pointIdxRadiusSearch.size());
+				g /= ((float) pointIdxRadiusSearch.size());
+				b /= ((float) pointIdxRadiusSearch.size());
+			}
 //			image.at<cv::Vec3b>(0,j)[0] = b;
 //			image.at<cv::Vec3b>(0,j)[1] = g;
 //			image.at<cv::Vec3b>(0,j)[2] = r;
-//	//	  image.at<cv::Vec3b>(0,j)[0] = median(B);
-//	//		image.at<cv::Vec3b>(0,j)[1] = median(G);
-//	//		image.at<cv::Vec3b>(0,j)[2] = median(R);
-//		}
-//		sim->setTexture(image);
+	//	  image.at<cv::Vec3b>(0,j)[0] = median(B);
+	//		image.at<cv::Vec3b>(0,j)[1] = median(G);
+	//		image.at<cv::Vec3b>(0,j)[2] = median(R);
+//			for (int binId=0; binId<resolution; binId++) {
+//				image.at<cv::Vec3b>(0,j*resolution+binId)[0] = b;
+//				image.at<cv::Vec3b>(0,j*resolution+binId)[1] = g;
+//				image.at<cv::Vec3b>(0,j*resolution+binId)[2] = r;
+//			}
+			for (int binId=0; binId<resolution; binId++) {
+				image.at<cv::Vec3b>(0,j*resolution+binId)[0] = mean(B_bins[binId]);
+				image.at<cv::Vec3b>(0,j*resolution+binId)[1] = mean(G_bins[binId]);
+				image.at<cv::Vec3b>(0,j*resolution+binId)[2] = mean(R_bins[binId]);
+			}
+		}
+		sim->setTexture(image);
+		cv::imwrite("/home/alex/Desktop/try.jpg", image);
+		*/
 
 	  return tracked_rope;
   }

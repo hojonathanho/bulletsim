@@ -16,11 +16,14 @@ public:
   Eigen::MatrixXf M_estPts;
   Eigen::MatrixXf M_obsPts;
   Eigen::MatrixXf M_stdev;
+  Eigen::MatrixXf M_obsDebug;
 
   PointCloudPlot::Ptr m_obsPlot;
+  PointCloudPlot::Ptr m_obsColorPlot;
+  PointCloudPlot::Ptr m_obsDebugPlot;
   PlotSpheres::Ptr m_estPlot;
   PlotLines::Ptr m_corrPlot;
-  bool m_enableObsPlot, m_enableEstPlot, m_enableCorrPlot;
+  bool m_enableObsPlot, m_enableObsColorPlot, m_enableObsDebugPlot, m_enableEstPlot, m_enableCorrPlot;
 
   SimplePhysicsTracker(TrackedObject::Ptr, VisibilityInterface*, Environment::Ptr);
   void updateInput(ColorCloudPtr filteredCloud);
