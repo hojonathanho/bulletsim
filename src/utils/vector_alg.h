@@ -37,3 +37,12 @@ T mean(const std::vector<T>& v) {
 	result /= v.size();
 	return result;
 }
+
+template <typename T>
+std::vector<T> append(const std::vector<std::vector<T> >& v, int start, int end) {
+	std::vector<T> res;
+	for (int i=start; i<v.size() && i<end; i++)
+		for (int j=0; j<v[i].size(); j++)
+			res.push_back(v[i][j]);
+	return res;
+}

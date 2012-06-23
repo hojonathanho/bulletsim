@@ -223,11 +223,8 @@ public:
 			for (int i=0; i<n; i++)
 				if (children[i]) {
 					cv::Mat splitImage = cv::Mat(image, cv::Rect(i*split_width, 0, split_width, height));
-					if (i==15) cv::imwrite("/home/alex/Desktop/unflipped.jpg", splitImage);
 					cv::flip(splitImage, splitImage, 1);
-					if (i==15) cv::imwrite("/home/alex/Desktop/flipped.jpg", splitImage);
 					splitImage = splitImage.t();
-					if (i==15) cv::imwrite("/home/alex/Desktop/transposed.jpg", splitImage);
 					children[i]->setTexture(splitImage);
 				}
 		}

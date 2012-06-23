@@ -105,10 +105,9 @@ int main(int argc, char* argv[]) {
   ColorCloudPtr cloud = filteredCloud;
   ColorCloudPtr debugCloud(new ColorCloud());
 
-  int x_res = 5;
-  int ang_res = 4;
-	cv::Mat image(1, nodes.size()*x_res, CV_8UC3);
-	cv::Mat image_rev(1, nodes.size()*x_res, CV_8UC3);
+  int x_res = 3;
+  int ang_res = 1;
+	cv::Mat image(ang_res, nodes.size()*x_res, CV_8UC3);
 	vector<btMatrix3x3> rotations = sim->getRotations();
 	vector<float> half_heights = sim->getHalfHeights();
 	for (int j=0; j<nodes.size(); j++) {
@@ -122,60 +121,46 @@ int main(int argc, char* argv[]) {
 		float radius = ((float) TrackingConfig::fixeds)/10.0; //(fixeds in cm)
 		std::vector<int> pointIdxRadiusSearch;
 		std::vector<float> pointRadiusSquaredDistance;
-		float r,g,b;
-		r=g=b=0;
-		vector<unsigned char> R, G, B;
 		Eigen::Matrix3f node_rot = toEigenMatrix(rotations[j]);
 		float node_half_height = half_heights[j];
-		cout << "nodes hh radius " << nodes[j].x() << " " << nodes[j].y() << " " << nodes[j].z() << " " << node_half_height << " " << radius << endl;
-		vector<vector<float> > R_bins(x_res), G_bins(x_res), B_bins(x_res);
+		vector<vector<float> > R_bins(ang_res*x_res), G_bins(ang_res*x_res), B_bins(ang_res*x_res);
 		if ( kdtree.radiusSearch (searchPoint, radius, pointIdxRadiusSearch, pointRadiusSquaredDistance) > 0 ) {
 			for (size_t i = 0; i < pointIdxRadiusSearch.size(); i++) {
 				Eigen::Vector3f alignedPoint = node_rot * (toEigenVector(cloud->points[pointIdxRadiusSearch[i]]) - toEigenVector(searchPoint));
-				int binId = (int) floor( ((float) x_res) * (1.0 + alignedPoint(0)/node_half_height) * 0.5 );
-				if (binId >=0 && binId <x_res) {
-					R_bins[binId].push_back(cloud->points[pointIdxRadiusSearch[i]].r);
-					G_bins[binId].push_back(cloud->points[pointIdxRadiusSearch[i]].g);
-					B_bins[binId].push_back(cloud->points[pointIdxRadiusSearch[i]].b);
+				int xId = (int) floor( ((float) x_res) * (1.0 + alignedPoint(0)/node_half_height) * 0.5 );
+				float angle = atan2(alignedPoint(2), alignedPoint(1))*180.0/M_PI;
+				if (angle >= 90) angle-=90;
+				else angle+=270;
+				angle = 360-angle;
+				//if (angle<0) angle+=360.0;
+				int angId = (int) floor( ((float) ang_res) * angle/360.0 );
+				assert(angId >= 0 && angId < ang_res);
+				if (xId >= 0 && xId < x_res) {
+					R_bins[xId*ang_res+angId].push_back(cloud->points[pointIdxRadiusSearch[i]].r);
+					G_bins[xId*ang_res+angId].push_back(cloud->points[pointIdxRadiusSearch[i]].g);
+					B_bins[xId*ang_res+angId].push_back(cloud->points[pointIdxRadiusSearch[i]].b);
 				}
-				if (binId >=0 && binId <x_res/2 && j%2==0) {
+				if (xId >= 0 && xId < x_res/2 && j%2==0) {
 					debugCloud->push_back(cloud->points[pointIdxRadiusSearch[i]]);
 				}
-				r += cloud->points[pointIdxRadiusSearch[i]].r;
-				g += cloud->points[pointIdxRadiusSearch[i]].g;
-				b += cloud->points[pointIdxRadiusSearch[i]].b;
-				R.push_back(cloud->points[pointIdxRadiusSearch[i]].r);
-				G.push_back(cloud->points[pointIdxRadiusSearch[i]].g);
-				B.push_back(cloud->points[pointIdxRadiusSearch[i]].b);
 			}
-			r /= ((float) pointIdxRadiusSearch.size());
-			g /= ((float) pointIdxRadiusSearch.size());
-			b /= ((float) pointIdxRadiusSearch.size());
 		}
-//			image.at<cv::Vec3b>(0,j)[0] = b;
-//			image.at<cv::Vec3b>(0,j)[1] = g;
-//			image.at<cv::Vec3b>(0,j)[2] = r;
-//	  image.at<cv::Vec3b>(0,j)[0] = median(B);
-//		image.at<cv::Vec3b>(0,j)[1] = median(G);
-//		image.at<cv::Vec3b>(0,j)[2] = median(R);
-//			for (int binId=0; binId<x_res; binId++) {
-//				image.at<cv::Vec3b>(0,j*x_res+binId)[0] = b;
-//				image.at<cv::Vec3b>(0,j*x_res+binId)[1] = g;
-//				image.at<cv::Vec3b>(0,j*x_res+binId)[2] = r;
+		for (int xId=0; xId<x_res; xId++) {
+			for (int angId=0; angId<ang_res; angId++) {
+				image.at<cv::Vec3b>(angId,j*x_res+xId)[0] = mean(append(B_bins, xId*ang_res, (xId+1)*ang_res));
+				image.at<cv::Vec3b>(angId,j*x_res+xId)[1] = mean(append(G_bins, xId*ang_res, (xId+1)*ang_res));
+				image.at<cv::Vec3b>(angId,j*x_res+xId)[2] = mean(append(R_bins, xId*ang_res, (xId+1)*ang_res));
+			}
+		}
+//		for (int xId=0; xId<x_res; xId++) {
+//			for (int angId=0; angId<ang_res; angId++) {
+//				image.at<cv::Vec3b>(angId,j*x_res+xId)[0] = mean(B_bins[xId*ang_res+angId]);
+//				image.at<cv::Vec3b>(angId,j*x_res+xId)[1] = mean(G_bins[xId*ang_res+angId]);
+//				image.at<cv::Vec3b>(angId,j*x_res+xId)[2] = mean(R_bins[xId*ang_res+angId]);
 //			}
-		for (int binId=0; binId<x_res; binId++) {
-			image.at<cv::Vec3b>(0,j*x_res+binId)[0] = mean(B_bins[binId]);
-			image.at<cv::Vec3b>(0,j*x_res+binId)[1] = mean(G_bins[binId]);
-			image.at<cv::Vec3b>(0,j*x_res+binId)[2] = mean(R_bins[binId]);
-		}
-		for (int binId=0; binId<x_res; binId++) {
-			image_rev.at<cv::Vec3b>(0,j*x_res+binId)[0] = mean(B_bins[x_res-1-binId]);
-			image_rev.at<cv::Vec3b>(0,j*x_res+binId)[1] = mean(G_bins[x_res-1-binId]);
-			image_rev.at<cv::Vec3b>(0,j*x_res+binId)[2] = mean(R_bins[x_res-1-binId]);
-		}
+//		}
 	}
 	cv::imwrite("/home/alex/Desktop/fwd.jpg", image);
-	cv::imwrite("/home/alex/Desktop/rev.jpg", image_rev);
 	sim->setTexture(image);
 
 	alg.M_obsDebug = toEigenMatrix(debugCloud);

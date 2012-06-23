@@ -25,10 +25,10 @@ using namespace std;
 
 TrackedObject::Ptr toTrackedObject(const bulletsim_msgs::ObjectInit& initMsg, ColorCloudPtr cloud, Environment::Ptr env) {
   if (initMsg.type == "rope") {
-	  vector<btVector3> nodes_o = toBulletVectors(initMsg.rope.nodes);
-	  vector<btVector3> nodes;
-	  for (int i=0; i<nodes_o.size(); i+=3)
-	  	nodes.push_back(nodes_o[i]);
+	  vector<btVector3> nodes = toBulletVectors(initMsg.rope.nodes);
+//	  vector<btVector3> nodes;
+//	  for (int i=0; i<nodes_o.size(); i+=3)
+//	  	nodes.push_back(nodes_o[i]);
 	  BOOST_FOREACH(btVector3& node, nodes) node += btVector3(0,0,.01);
 	  CapsuleRope::Ptr sim(new CapsuleRope(scaleVecs(nodes,METERS), initMsg.rope.radius*METERS));
 	  env->add(sim);
