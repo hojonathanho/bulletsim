@@ -3,7 +3,7 @@
 #include <Eigen/Dense>
 #include <geometry_msgs/Point.h>
 #include <tf/transform_listener.h>
-#include "clouds/utils_pcl.h"
+#include "clouds/pcl_typedefs.h"
 
 typedef Eigen::Matrix<uint8_t,Eigen::Dynamic,Eigen::Dynamic> MatrixXu;
 
@@ -33,6 +33,5 @@ std::vector<int> argminAlongRows(const Eigen::MatrixXf& d_mn);
 bool isFinite(const Eigen::MatrixXf& x);
 
 std::vector<btVector3> toBulletVectors(ColorCloudPtr in);
-Eigen::MatrixXf toEigenMatrix(ColorCloudPtr in);
 
 btTransform waitForAndGetTransform(const tf::TransformListener& listener, std::string target_frame, std::string source_frame);

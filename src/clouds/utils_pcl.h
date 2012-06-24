@@ -4,17 +4,7 @@
 #include <string>
 #include <Eigen/Dense>
 #include <opencv2/core/core.hpp>
-
-typedef pcl::PointXYZRGB ColorPoint;
-typedef pcl::PointCloud<ColorPoint> ColorCloud;
-typedef pcl::PointCloud<ColorPoint>::ConstPtr ConstColorCloudPtr;
-typedef pcl::PointCloud<ColorPoint>::Ptr ColorCloudPtr;
-
-typedef pcl::PointXYZ Point;
-typedef pcl::PointCloud<Point> Cloud;
-typedef pcl::PointCloud<Point>::ConstPtr ConstCloudPtr;
-typedef pcl::PointCloud<Point>::Ptr CloudPtr;
-
+#include "pcl_typedefs.h"
 
 typedef Eigen::Matrix<bool,Eigen::Dynamic,1> VectorXb;
 typedef Eigen::Matrix<uint8_t,Eigen::Dynamic,Eigen::Dynamic> MatrixXu;
@@ -26,7 +16,6 @@ ColorCloudPtr readPCD(const std::string& pcdfile);
 Eigen::MatrixXi xyz2uv(const Eigen::MatrixXf& xyz);
 
 Eigen::MatrixXf toEigenMatrix(ColorCloudPtr);
-Eigen::MatrixXf toEigenMatrix(const cv::Mat&);
 Eigen::MatrixXf getDepthImage(ColorCloudPtr);
 pcl::PointCloud<pcl::PointXYZ>::Ptr toPointCloud(const std::vector< std::vector<float> >&);
 

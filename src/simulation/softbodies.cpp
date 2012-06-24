@@ -136,13 +136,7 @@ void BulletSoftObject::setTexture(cv::Mat image) {
 }
 
 void BulletSoftObject::preDraw() {
-	if (drawingOn) {
-		transform->setMatrix(osgbCollision::asOsgMatrix(softBody->getWorldTransform()));
-	} else {
-		btScalar m[16];
-		for (int i=0; i<16; i++) m[i]=0.0;
-		transform->setMatrix(osg::Matrix(m));
-	}
+	transform->setMatrix(osgbCollision::asOsgMatrix(softBody->getWorldTransform()));
 
 	if (trigeom->getNumPrimitiveSets() > 0)
 		trigeom->removePrimitiveSet(0); // there should only be one

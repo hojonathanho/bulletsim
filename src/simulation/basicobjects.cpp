@@ -23,7 +23,7 @@ BulletObject::MotionState::Ptr BulletObject::MotionState::clone(BulletObject &ne
     return Ptr(new MotionState(newObj, t));
 }
 
-BulletObject::BulletObject(CI ci, const btTransform &initTrans, bool isKinematic_) : isKinematic(isKinematic_) {
+BulletObject::BulletObject(CI ci, const btTransform &initTrans, bool isKinematic_) : isKinematic(isKinematic_), enable_texture(false) {
     BOOST_ASSERT(ci.m_motionState == NULL);
     if (isKinematic) {
         ci.m_mass = 0;
@@ -40,7 +40,7 @@ BulletObject::BulletObject(CI ci, const btTransform &initTrans, bool isKinematic
 
 }
 
-BulletObject::BulletObject(btScalar mass, btCollisionShape *cs, const btTransform &initTrans, bool isKinematic_) : isKinematic(isKinematic_) {
+BulletObject::BulletObject(btScalar mass, btCollisionShape *cs, const btTransform &initTrans, bool isKinematic_) : isKinematic(isKinematic_), enable_texture(false) {
     motionState.reset(new MotionState(*this, initTrans));
     collisionShape.reset(cs);
 
@@ -72,8 +72,10 @@ void BulletObject::init() {
     ss->setAttributeAndModes(blendFunc);
     ss->setMode(GL_BLEND, osg::StateAttribute::ON);
 //    ss->setRenderingHint(osg::StateSet::TRANSPARENT_BIN);
-    setTextureAfterInit();
-    setColorAfterInit();
+    if (enable_texture)
+    	setTextureAfterInit();
+    else
+    	setColorAfterInit();
 }
 
 osg::ref_ptr<osg::Node> BulletObject::createOSGNode() {
@@ -102,11 +104,8 @@ void BulletObject::preDraw() {
     rigidBody->getMotionState()->getWorldTransform(btTrans);
 
     btScalar m[16];
-    if (drawingOn)
-    	btTrans.getOpenGLMatrix(m);
+   	btTrans.getOpenGLMatrix(m);
 		//transform->setMatrix(osg::Matrix(identityIfBad(m)));
-    else
-    	for (int i=0; i<16; i++) m[i]=0.0;
     transform->setMatrix(osg::Matrix(m));
 }
 
@@ -219,8 +218,8 @@ void BulletObject::MoveAction::step(float dt) {
 
 void BulletObject::setColor(float r, float g, float b, float a) {
 		m_color.reset(new osg::Vec4f(r,g,b,a));
-		m_image.release();
 		if (node) setColorAfterInit();
+		enable_texture = false;
 }
 
 void BulletObject::setColorAfterInit() {
@@ -260,16 +259,18 @@ void BulletObject::setTexture(cv::Mat image) {
 //			}
 //		}
 //	}
-	m_color.reset();
 	if (node) setTextureAfterInit();
+	enable_texture = true;
 }
 
 void BulletObject::setTextureAfterInit() {
 	if (m_image) {
 		// clear out color information
-		m_color.reset(new osg::Vec4f(1,1,1,1));
+		if (m_color)
+			m_color.reset(new osg::Vec4f(1,1,1,m_color->a()));
+		else
+			m_color.reset(new osg::Vec4f(1,1,1,1));
 		setColorAfterInit();
-		m_color.reset();
 
 		osg::Texture2D* texture = new osg::Texture2D;
 		// protect from being optimized away as static state:
@@ -283,6 +284,16 @@ void BulletObject::setTextureAfterInit() {
 		// we just created and enable the texture.
 		state->setTextureAttributeAndModes(0,texture,osg::StateAttribute::ON);
 	}
+}
+
+void BulletObject::adjustTransparency(float increment) {
+	m_color->a() += increment;
+	if (m_color->a() > 1.0f) m_color->a() = 1.0f;
+	if (m_color->a() < 0.0f) m_color->a() = 0.0f;
+	if (enable_texture)
+		setTextureAfterInit();
+	else
+		setColorAfterInit();
 }
 
 void BulletConstraint::init() {

@@ -55,6 +55,11 @@ void callback (const sensor_msgs::PointCloud2ConstPtr& cloudMsg,
 #include "utils/vector_alg.h"
 #include "utils/conversions.h"
 
+void adjustTransparency(TrackedObject::Ptr trackedObj, float increment) {
+	if (trackedObj->m_type == "rope")
+		dynamic_cast<CapsuleRope*>(trackedObj->getSim())->adjustTransparency(increment);
+}
+
 int main(int argc, char* argv[]) {
   Eigen::internal::setNbThreads(2);
   Parser parser;
@@ -118,12 +123,13 @@ int main(int argc, char* argv[]) {
 		searchPoint.y = nodes[j].y();
 		searchPoint.z = nodes[j].z();
 		// Neighbors within radius search
-		float radius = ((float) TrackingConfig::fixeds)/10.0; //(fixeds in cm)
+//		float radius = ((float) TrackingConfig::fixeds)/10.0; //(fixeds in cm)
+		float radius = ((float) 3)/10.0; //(fixeds in cm)
 		std::vector<int> pointIdxRadiusSearch;
 		std::vector<float> pointRadiusSquaredDistance;
 		Eigen::Matrix3f node_rot = toEigenMatrix(rotations[j]);
 		float node_half_height = half_heights[j];
-		vector<vector<float> > R_bins(ang_res*x_res), G_bins(ang_res*x_res), B_bins(ang_res*x_res);
+		vector<vector<float> > B_bins(ang_res*x_res), G_bins(ang_res*x_res), R_bins(ang_res*x_res);
 		if ( kdtree.radiusSearch (searchPoint, radius, pointIdxRadiusSearch, pointRadiusSquaredDistance) > 0 ) {
 			for (size_t i = 0; i < pointIdxRadiusSearch.size(); i++) {
 				Eigen::Vector3f alignedPoint = node_rot * (toEigenVector(cloud->points[pointIdxRadiusSearch[i]]) - toEigenVector(searchPoint));
@@ -136,9 +142,9 @@ int main(int argc, char* argv[]) {
 				int angId = (int) floor( ((float) ang_res) * angle/360.0 );
 				assert(angId >= 0 && angId < ang_res);
 				if (xId >= 0 && xId < x_res) {
-					R_bins[xId*ang_res+angId].push_back(cloud->points[pointIdxRadiusSearch[i]].r);
-					G_bins[xId*ang_res+angId].push_back(cloud->points[pointIdxRadiusSearch[i]].g);
 					B_bins[xId*ang_res+angId].push_back(cloud->points[pointIdxRadiusSearch[i]].b);
+					G_bins[xId*ang_res+angId].push_back(cloud->points[pointIdxRadiusSearch[i]].g);
+					R_bins[xId*ang_res+angId].push_back(cloud->points[pointIdxRadiusSearch[i]].r);
 				}
 				if (xId >= 0 && xId < x_res/2 && j%2==0) {
 					debugCloud->push_back(cloud->points[pointIdxRadiusSearch[i]]);
@@ -166,18 +172,18 @@ int main(int argc, char* argv[]) {
 	alg.M_obsDebug = toEigenMatrix(debugCloud);
 
 
-  scene.addVoidKeyCallback('C',boost::bind(toggle, &alg.m_enableCorrPlot));
   scene.addVoidKeyCallback('c',boost::bind(toggle, &alg.m_enableCorrPlot));
-  scene.addVoidKeyCallback('E',boost::bind(toggle, &alg.m_enableEstPlot));
+  scene.addVoidKeyCallback('C',boost::bind(toggle, &alg.m_enableCorrPlot));
   scene.addVoidKeyCallback('e',boost::bind(toggle, &alg.m_enableEstPlot));
-  scene.addVoidKeyCallback('O',boost::bind(toggle, &alg.m_enableObsPlot));
+  scene.addVoidKeyCallback('E',boost::bind(toggle, &alg.m_enableEstTransPlot));
   scene.addVoidKeyCallback('o',boost::bind(toggle, &alg.m_enableObsPlot));
-  scene.addVoidKeyCallback('L',boost::bind(toggle, &alg.m_enableObsColorPlot));
-  scene.addVoidKeyCallback('l',boost::bind(toggle, &alg.m_enableObsColorPlot));
-  scene.addVoidKeyCallback('B',boost::bind(toggle, &alg.m_enableObsDebugPlot));
-  scene.addVoidKeyCallback('b',boost::bind(toggle, &alg.m_enableObsDebugPlot));
-  scene.addVoidKeyCallback('T',boost::bind(toggle, &dynamic_cast<EnvironmentObject*>(trackedObj->getSim())->drawingOn));
-  scene.addVoidKeyCallback('t',boost::bind(toggle, &dynamic_cast<EnvironmentObject*>(trackedObj->getSim())->drawingOn));
+  scene.addVoidKeyCallback('O',boost::bind(toggle, &alg.m_enableObsTransPlot));
+  scene.addVoidKeyCallback('i',boost::bind(toggle, &alg.m_enableObsInlierPlot));
+  scene.addVoidKeyCallback('I',boost::bind(toggle, &alg.m_enableObsInlierPlot));
+  scene.addVoidKeyCallback('b',boost::bind(toggle, &alg.m_enableDebugPlot));
+  scene.addVoidKeyCallback('B',boost::bind(toggle, &alg.m_enableDebugPlot));
+  scene.addVoidKeyCallback('=',boost::bind(adjustTransparency, trackedObj, 0.1f));
+  scene.addVoidKeyCallback('-',boost::bind(adjustTransparency, trackedObj, -0.1f));
   scene.addVoidKeyCallback('q',boost::bind(exit, 0));
 
   while (ros::ok()) {

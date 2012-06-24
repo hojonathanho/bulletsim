@@ -37,7 +37,6 @@ Eigen::MatrixXf toEigenMatrix(ColorCloudPtr cloud) {
   return cloud->getMatrixXfMap(3,8,0);
 }
 
-
 MatrixXu toBGR(ColorCloudPtr cloud) {
   MatrixXf bgrFloats = cloud->getMatrixXfMap(1,8,4);
   MatrixXu bgrBytes4 = Map<MatrixXu>(reinterpret_cast<uint8_t*>(bgrFloats.data()), bgrFloats.rows(),4);
@@ -60,11 +59,6 @@ cv::Mat toCVMatImage(const ColorCloudPtr cloud) {
 	MatrixXu bgr = toBGR(cloud);
 	cv::Mat image(cloud->height, cloud->width, CV_8UC3, bgr.data());
 	return image;
-}
-
-MatrixXf toEigenMatrix(const cv::Mat& in) {
-	if (in.type() != CV_32FC1) throw runtime_error("input matrix has the wrong type");
-	return Map<MatrixXf>((float*)in.data, in.rows, in.cols);
 }
 
 pcl::PointCloud<pcl::PointXYZ>::Ptr toPointCloud(const std::vector< std::vector<float> >& in) {

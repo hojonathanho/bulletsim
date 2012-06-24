@@ -51,9 +51,8 @@ private:
 public:
     typedef boost::shared_ptr<EnvironmentObject> Ptr;
 
-    bool drawingOn;
-    EnvironmentObject() : drawingOn(true) { }
-    EnvironmentObject(Environment *env_) : env(env_), drawingOn(true) { }
+    EnvironmentObject() { }
+    EnvironmentObject(Environment *env_) : env(env_) { }
     virtual ~EnvironmentObject() { }
 
     Environment *getEnvironment() { return env; }
@@ -227,6 +226,13 @@ public:
 					splitImage = splitImage.t();
 					children[i]->setTexture(splitImage);
 				}
+		}
+
+		void adjustTransparency(float increment) {
+			typename ChildVector::iterator i;
+      for (i = children.begin(); i != children.end(); ++i)
+          if (*i)
+              (*i)->adjustTransparency(increment);
 		}
 };
 

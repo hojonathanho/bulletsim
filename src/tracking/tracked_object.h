@@ -4,6 +4,8 @@
 #include <simulation/softbodies.h>
 #include <simulation/rope.h>
 #include "sparse_utils.h"
+#include "clouds/pcl_typedefs.h"
+#include "utils/cvmat.h"
 
 class TrackedObject {
 public:
@@ -18,6 +20,28 @@ public:
   virtual Eigen::MatrixXf getFeatures() = 0;
   virtual void applyEvidence(const SparseMatrixf& corr, const Eigen::MatrixXf& obsPts) = 0;
   virtual EnvironmentObject* getSim()=0;
+
+  static Eigen::MatrixXf featuresTransform(const Eigen::MatrixXf& features) {
+  	Eigen::MatrixXf out(features);
+  	out.rightCols(3) = colorTransform(out.rightCols(3), CV_BGR2Lab);
+//  	Eigen::MatrixXf out(features);
+  	return out;
+  }
+
+  static Eigen::MatrixXf featuresUntransform(const Eigen::MatrixXf& features) {
+  	Eigen::MatrixXf out(features);
+  	out.rightCols(3) = colorTransform(out.rightCols(3), CV_Lab2BGR);
+//  	Eigen::MatrixXf out(features);
+  	return out;
+  }
+
+  static Eigen::MatrixXf extractFeatures(ColorCloudPtr in) {
+  	Eigen::MatrixXf out(in->size(), 6);
+    for (int i=0; i < in->size(); ++i)
+    	out.row(i) << in->points[i].x, in->points[i].y, in->points[i].z, in->points[i].b/255.0, in->points[i].g/255.0, in->points[i].r/255.0;
+    return featuresTransform(out);
+  }
+
 };
 
 class TrackedRope : public TrackedObject { 

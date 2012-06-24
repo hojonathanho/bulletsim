@@ -147,6 +147,7 @@ PlotSpheres::PlotSpheres() {
   osg::ref_ptr<osg::BlendFunc> blendFunc = new osg::BlendFunc;
   blendFunc->setFunction(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
   stateset->setAttributeAndModes(blendFunc);
+  stateset->setRenderingHint(osg::StateSet::TRANSPARENT_BIN);
   stateset->setMode(GL_BLEND, osg::StateAttribute::ON);
 
   m_geode->setStateSet(stateset);
