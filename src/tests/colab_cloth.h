@@ -49,7 +49,7 @@ public:
     btTransform getWorldTransform(){return cur_tm;}
     void getWorldTransform(btTransform& in){in = cur_tm;}
     void toggle();
-    void toggleattach(btSoftBody * psb);
+    void toggleattach(btSoftBody * psb, double radius = 0);
     void getContactPointsWith(btSoftBody *psb, btCollisionObject *pco, btSoftBody::tRContactArray &rcontacts);
     void appendAnchor(btSoftBody *psb, btSoftBody::Node *node, btRigidBody *body, btScalar influence=1);
     void releaseAllAnchors(btSoftBody * psb) {psb->m_anchors.clear();}
@@ -82,8 +82,11 @@ public:
 
 
 
-    void step_openclose() {
+    void step_openclose(btSoftBody * psb) {
         if (state == GripperState_DONE) return;
+
+        if(state == GripperState_OPENING && bAttached)
+            toggleattach(psb);
 
 
         btTransform top_tm;
@@ -106,16 +109,23 @@ public:
         children[0]->motionState->setKinematicPos(top_tm);
         children[1]->motionState->setKinematicPos(bottom_tm);
 
+//        if(state == GripperState_CLOSING && !bAttached)
+//            toggleattach(psb, 0.5);
+
         double cur_gap_length = (top_tm.getOrigin() - bottom_tm.getOrigin()).length();
         if(state == GripperState_CLOSING && cur_gap_length <= (closed_gap + 2*halfextents[2]))
         {
             state = GripperState_DONE;
             bOpen = false;
+            if(!bAttached)
+                toggleattach(psb);
+
         }
         if(state == GripperState_OPENING && cur_gap_length >= apperture)
         {
             state = GripperState_DONE;
             bOpen = true;
+
         }
 
 //        float frac = fracElapsed();
@@ -430,6 +440,8 @@ public:
     PlotAxes::Ptr left_axes1,left_axes2;
     PlotLines::Ptr rot_lines;
     Eigen::MatrixXf cloth_distance_matrix;
+    int user_mid_point_ind, robot_mid_point_ind;
+    //std::vector<int> cloth_boundary_inds;
 
 
 #ifdef USE_PR2
@@ -486,6 +498,7 @@ public:
     void simulateInNewFork(StepState& innerstate, float sim_time, btTransform& left_gripper1_tm, btTransform& left_gripper2_tm);
     void doJTracking();
     void drawAxes();
+    void regraspWithOneGripper(GripperKinematicObject::Ptr gripper_to_attach, GripperKinematicObject::Ptr  gripper_to_detach);
 
     void run();
 };
