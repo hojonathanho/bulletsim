@@ -9,10 +9,11 @@ public:
   Environment::Ptr m_env;
   TrackedObject::Ptr m_obj;
   VisibilityInterface* m_visInt;
-  Eigen::MatrixXf M_estPts;
-  Eigen::MatrixXf M_obsPts;
-  Eigen::MatrixXf M_stdev;
-  Eigen::MatrixXf M_obsDebug;
+  Eigen::MatrixXf m_estPts;
+  Eigen::MatrixXf m_obsPts;
+  Eigen::MatrixXf m_stdev;
+  Eigen::VectorXf m_prior_dist;
+  Eigen::MatrixXf m_obsDebug;
 
   PointCloudPlot::Ptr m_obsInlierPlot;
   PointCloudPlot::Ptr m_obsPlot;

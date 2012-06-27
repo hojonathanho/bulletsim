@@ -16,6 +16,7 @@ ColorCloudPtr readPCD(const std::string& pcdfile);
 Eigen::MatrixXi xyz2uv(const Eigen::MatrixXf& xyz);
 
 Eigen::MatrixXf toEigenMatrix(ColorCloudPtr);
+Eigen::MatrixXf toEigenMatrix(const cv::Mat&);
 Eigen::MatrixXf getDepthImage(ColorCloudPtr);
 pcl::PointCloud<pcl::PointXYZ>::Ptr toPointCloud(const std::vector< std::vector<float> >&);
 

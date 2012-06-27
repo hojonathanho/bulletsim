@@ -5,7 +5,8 @@
 #include "utils_tracking.h"
 #include "tracked_object.h"
 #include "clouds/utils_pcl.h"
+#include "utils_tracking.h"
 
 TrackedObject::Ptr toTrackedObject(const bulletsim_msgs::ObjectInit& obj, Environment::Ptr);
 bulletsim_msgs::TrackedObject toTrackedObjectMessage(TrackedObject::Ptr obj);
-TrackedObject::Ptr callInitServiceAndCreateObject(ColorCloudPtr, Environment::Ptr); // env only needed for softbodyworldinfo
+TrackedObject::Ptr callInitServiceAndCreateObject(ColorCloudPtr, cv::Mat, CoordinateTransformer*, Environment::Ptr); // env only needed for softbodyworldinfo

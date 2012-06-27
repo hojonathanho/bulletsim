@@ -28,7 +28,7 @@ MatrixXf TrackedRope::getFeatures() {
 	for (int i=0; i < m_nNodes; i++) {
 		features.block(i,0,1,3) = toEigenVector(getSim()->children[i]->rigidBody->getCenterOfMassPosition()).transpose();
 		//TODO: handle the case in which some pixels are black (empty)
-		Vector3f bgr = toEigenMatrix(getSim()->children[i]->getTexture()).colwise().mean();
+		Vector3f bgr = toEigenMatrixImage(getSim()->children[i]->getTexture()).colwise().mean();
 		features.block(i,3,1,3) = bgr.transpose();
 	}
 	//cv::Mat img = toCVMat(features.rightCols(3));

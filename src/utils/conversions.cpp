@@ -163,6 +163,12 @@ Eigen::MatrixXf toEigenMatrix(const std::vector<btVector3>& in) {
   return out;
 }
 
+Eigen::MatrixXf toEigenMatrix(const std::vector<Eigen::Vector3f>& in) {
+  Eigen::MatrixXf out(in.size(), 3);
+  for (int i=0; i<in.size(); i++) out.row(i) = in[i].transpose();
+  return out;
+}
+
 Eigen::MatrixXf toEigenMatrix(const std::vector< std::vector<float> >& in) {
   ENSURE(in.size() > 1) ;
   Eigen::MatrixXf out(in.size(),in[0].size()); 

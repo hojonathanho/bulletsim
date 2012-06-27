@@ -86,53 +86,131 @@ void BulletSoftObject::init() {
     transform = new osg::MatrixTransform;
     transform->addChild(geode);
     getEnvironment()->osg->root->addChild(transform);
+
+    if (enable_texture)
+    	setTextureAfterInit();
+    else
+    	setColorAfterInit();
 }
 
+//void BulletSoftObject::setColor(float r, float g, float b, float a) {
+//	m_image.release();
+//	//clear out texture mapping information
+//	osg::StateSet *ss = geode->getOrCreateStateSet();
+//	ss->getTextureAttributeList().clear();
+//	ss->getTextureModeList().clear();
+//
+//	osg::Vec4Array* colors = new osg::Vec4Array;
+//  colors->push_back(osg::Vec4(r,g,b,a));
+//  trigeom->setColorArray(colors);
+//  trigeom->setColorBinding(osg::Geometry::BIND_OVERALL);
+//  quadgeom->setColorArray(colors);
+//  quadgeom->setColorBinding(osg::Geometry::BIND_OVERALL);
+//
+//  if (a != 1.0f) { // precision problems?
+//    osg::ref_ptr<osg::BlendFunc> blendFunc = new osg::BlendFunc;
+//    blendFunc->setFunction(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+//    osg::StateSet *ss = geode->getOrCreateStateSet();
+//    ss->setAttributeAndModes(blendFunc);
+//    ss->setRenderingHint(osg::StateSet::TRANSPARENT_BIN);
+//  }
+//}
+
 void BulletSoftObject::setColor(float r, float g, float b, float a) {
-	m_image.release();
-	//clear out texture mapping information
-	osg::StateSet *ss = geode->getOrCreateStateSet();
-	ss->getTextureAttributeList().clear();
-	ss->getTextureModeList().clear();
+		m_color.reset(new osg::Vec4f(r,g,b,a));
+		if (geode) setColorAfterInit();
+		enable_texture = false;
+}
 
-	osg::Vec4Array* colors = new osg::Vec4Array;
-  colors->push_back(osg::Vec4(r,g,b,a));
-  trigeom->setColorArray(colors);
-  trigeom->setColorBinding(osg::Geometry::BIND_OVERALL);
-  quadgeom->setColorArray(colors);
-  quadgeom->setColorBinding(osg::Geometry::BIND_OVERALL);
+void BulletSoftObject::setColorAfterInit() {
+  if (m_color) {
+		//clear out texture mapping information
+  	osg::StateSet *ss = geode->getOrCreateStateSet();
+		ss->getTextureAttributeList().clear();
+		ss->getTextureModeList().clear();
 
-  if (a != 1.0f) { // precision problems?
-    osg::ref_ptr<osg::BlendFunc> blendFunc = new osg::BlendFunc;
-    blendFunc->setFunction(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    osg::StateSet *ss = geode->getOrCreateStateSet();
-    ss->setAttributeAndModes(blendFunc);
-    ss->setRenderingHint(osg::StateSet::TRANSPARENT_BIN);
+		osg::Vec4Array* colors = new osg::Vec4Array;
+		colors->push_back(osg::Vec4(m_color->r(),m_color->g(),m_color->b(),m_color->a()));
+		trigeom->setColorArray(colors);
+		trigeom->setColorBinding(osg::Geometry::BIND_OVERALL);
+		quadgeom->setColorArray(colors);
+		quadgeom->setColorBinding(osg::Geometry::BIND_OVERALL);
+
+  	if (m_color->a() != 1.0f) { // precision problems?
+      osg::ref_ptr<osg::BlendFunc> blendFunc = new osg::BlendFunc;
+      blendFunc->setFunction(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+      ss->setAttributeAndModes(blendFunc);
+      ss->setRenderingHint(osg::StateSet::TRANSPARENT_BIN);
+    }
   }
 }
 
+//void BulletSoftObject::setTexture(cv::Mat image) {
+//	//clear out color information
+//	osg::Vec4Array* colors = new osg::Vec4Array;
+//	colors->push_back(osg::Vec4(1,1,1,1));
+//	trigeom->setColorArray(colors);
+//	trigeom->setColorBinding(osg::Geometry::BIND_OVERALL);
+//
+//	//hack to convert cv::Mat images to osg::Image images
+//	cv::imwrite("/tmp/images/image.jpg", image);
+//	m_image = osgDB::readImageFile("/tmp/images/image.jpg");
+//
+//	osg::Texture2D* texture = new osg::Texture2D;
+//	// protect from being optimized away as static state:
+//	texture->setDataVariance(osg::Object::DYNAMIC);
+//	// Assign the texture to the image we read from file:
+//	texture->setImage(m_image.get());
+//	// Create a new StateSet with default settings:
+//	//osg::StateSet* stateOne = new osg::StateSet();
+//	osg::StateSet* state = geode->getOrCreateStateSet();
+//	// Assign texture unit 0 of our new StateSet to the texture
+//	// we just created and enable the texture.
+//	state->setTextureAttributeAndModes(0,texture,osg::StateAttribute::ON);
+//}
+
 void BulletSoftObject::setTexture(cv::Mat image) {
-	//clear out color information
-	osg::Vec4Array* colors = new osg::Vec4Array;
-	colors->push_back(osg::Vec4(1,1,1,1));
-	trigeom->setColorArray(colors);
-	trigeom->setColorBinding(osg::Geometry::BIND_OVERALL);
+	m_cvimage = image;
 
 	//hack to convert cv::Mat images to osg::Image images
 	cv::imwrite("/tmp/images/image.jpg", image);
 	m_image = osgDB::readImageFile("/tmp/images/image.jpg");
 
-	osg::Texture2D* texture = new osg::Texture2D;
-	// protect from being optimized away as static state:
-	texture->setDataVariance(osg::Object::DYNAMIC);
-	// Assign the texture to the image we read from file:
-	texture->setImage(m_image.get());
-	// Create a new StateSet with default settings:
-	//osg::StateSet* stateOne = new osg::StateSet();
-	osg::StateSet* state = geode->getOrCreateStateSet();
-	// Assign texture unit 0 of our new StateSet to the texture
-	// we just created and enable the texture.
-	state->setTextureAttributeAndModes(0,texture,osg::StateAttribute::ON);
+	if (geode) setTextureAfterInit();
+	enable_texture = true;
+}
+
+void BulletSoftObject::setTextureAfterInit() {
+	if (m_image) {
+		// clear out color information
+		if (m_color)
+			m_color.reset(new osg::Vec4f(1,1,1,m_color->a()));
+		else
+			m_color.reset(new osg::Vec4f(1,1,1,1));
+		setColorAfterInit();
+
+		osg::Texture2D* texture = new osg::Texture2D;
+		// protect from being optimized away as static state:
+		texture->setDataVariance(osg::Object::DYNAMIC);
+		// Assign the texture to the image we read from file:
+		texture->setImage(m_image.get());
+		// Create a new StateSet with default settings:
+		//osg::StateSet* stateOne = new osg::StateSet();
+		osg::StateSet* state = geode->getOrCreateStateSet();
+		// Assign texture unit 0 of our new StateSet to the texture
+		// we just created and enable the texture.
+		state->setTextureAttributeAndModes(0,texture,osg::StateAttribute::ON);
+	}
+}
+
+void BulletSoftObject::adjustTransparency(float increment) {
+	m_color->a() += increment;
+	if (m_color->a() > 1.0f) m_color->a() = 1.0f;
+	if (m_color->a() < 0.0f) m_color->a() = 0.0f;
+	if (enable_texture)
+		setTextureAfterInit();
+	else
+		setColorAfterInit();
 }
 
 void BulletSoftObject::preDraw() {

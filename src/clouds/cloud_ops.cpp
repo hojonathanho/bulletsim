@@ -455,6 +455,19 @@ ColorCloudPtr chessBoardCorners(const ColorCloudPtr in, int width_cb, int height
 	return out;
 }
 
+void pointToImageInd(ColorPoint point, ColorCloudPtr cloud, cv::Mat image) {
+	pcl::KdTreeFLANN<ColorPoint> kdtree;
+	kdtree.setInputCloud (cloud);
+	// K nearest neighbor search
+	int K = 1;
+	std::vector<int> pointIdxNKNSearch(K);
+	std::vector<float> pointNKNSquaredDistance(K);
+	if ( kdtree.nearestKSearch (point, K, pointIdxNKNSearch, pointNKNSquaredDistance) > 0 )
+	{
+		ColorPoint found_point = cloud->points[ pointIdxNKNSearch[0] ];
+	}
+}
+
 //returns point cloud that is likely to be from skin
 //YCrCb thresholds from http://waset.org/journals/waset/v43/v43-91.pdf except for Ymin = 40
 //merging from here http://www.csee.wvu.edu/~richas/papers/tkjse.pdf

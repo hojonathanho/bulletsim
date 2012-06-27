@@ -6,6 +6,7 @@
 #include "sparse_utils.h"
 #include "clouds/pcl_typedefs.h"
 #include "utils/cvmat.h"
+#include "utils_tracking.h"
 
 class TrackedObject {
 public:
@@ -64,13 +65,14 @@ public:
   typedef boost::shared_ptr<TrackedTowel> Ptr;
   TrackedTowel(BulletSoftObject::Ptr, int xres, int yres);
   std::vector<btVector3> getPoints();
-  Eigen::MatrixXf getFeatures() {};
+  Eigen::MatrixXf getFeatures();
   void applyEvidence(const SparseMatrixf& corr, const Eigen::MatrixXf& obsPts); // add forces
   BulletSoftObject* getSim() {return dynamic_cast<BulletSoftObject*>(m_sim.get());};
 
 protected:
   std::vector<int> m_node2vert; // maps node index to bullet vertex index
   std::vector< std::vector<int> > m_vert2nodes; // maps bullet vertex index to indices of nodes
+  std::vector<int> m_vert2tex; // maps bullet vertex index to texture coordinate index
   Eigen::VectorXf m_masses;
 
 };
@@ -97,4 +99,5 @@ std::vector<btVector3> calcImpulsesDamped(const std::vector<btVector3>& estPos, 
     const std::vector<btVector3>& obsPts, const SparseMatrixf& corr, const vector<float>& masses, float kp, float kd);
 
 BulletSoftObject::Ptr makeTowel(const vector<btVector3>& points, int resolution_x, int resolution_y, btSoftBodyWorldInfo& worldInfo);
+cv::Mat makeTowelTexture(const vector<btVector3>& corners, cv::Mat image, CoordinateTransformer* transformer);
 

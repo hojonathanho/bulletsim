@@ -7,8 +7,11 @@
 #include <BulletSoftBody/btSoftBodyHelpers.h>
 #include <boost/format.hpp>
 #include "simulation/bullet_io.h"
+#include <pcl/common/transforms.h>
+#include "clouds/utils_pcl.h"
 
 using namespace std;
+using namespace Eigen;
 
 static inline int idx(int row,int col,int nCols) {return col+row*nCols;}
 // mesh vertices are in row major order
@@ -68,7 +71,30 @@ TrackedTowel::TrackedTowel(BulletSoftObject::Ptr sim, int nCols, int nRows) : Tr
 	  }
   }
 
-  const btAlignedObjectArray<btSoftBody::Node>& verts = getSim()->softBody->m_nodes;
+	const btSoftBody::tNodeArray& verts = getSim()->softBody->m_nodes;
+	const btSoftBody::tFaceArray& faces = getSim()->softBody->m_faces;
+  // vertex                         <->   texture coordinate
+	// faces[j].m_n[0]                      texcoords[3*j]
+	// faces[j].m_n[1]                      texcoords[3*j+1]
+	// faces[j].m_n[2]                      texcoords[3*j+2]
+	// verts[i] == faces[j].m_n[c]		<->   texcoords[3*j+c] == texcoords[m_vert2tex[i]]
+  int found = 0;
+  int not_found = 0;
+	for (int i=0; i<verts.size(); i++) {
+  	int j,c;
+  	for(j=0; j<faces.size(); j++) {
+  		for(c=0; c<3; c++) {
+  			if (&verts[i] == faces[j].m_n[c]) break;
+  		}
+			if (&verts[i] == faces[j].m_n[c]) break;
+  	}
+  	m_vert2tex.push_back(3*j+c);
+  }
+
+  for (int iVert=0; iVert<verts.size(); iVert++) {
+  	assert(&verts[iVert] == faces[m_vert2tex[iVert]/3].m_n[m_vert2tex[iVert]%3]);
+  }
+
   m_masses.resize(m_nNodes);
   for (int i=0; i < m_nNodes; ++i) {
     m_masses(i) = 1/verts[m_node2vert[i]].m_im;
@@ -85,7 +111,7 @@ void TrackedTowel::applyEvidence(const SparseMatrixf& corr, const Eigen::MatrixX
     estVel[iNode] = verts[m_node2vert[iNode]].m_v;
   }
 
-  vector<btVector3> nodeImpulses = calcImpulsesDamped(estPos, estVel, toBulletVectors(obsPts), corr, toVec(m_masses), TrackingConfig::kp_cloth, TrackingConfig::kd_cloth);
+  vector<btVector3> nodeImpulses = calcImpulsesDamped(estPos, estVel, toBulletVectors(obsPts.leftCols(3)), corr, toVec(m_masses), TrackingConfig::kp_cloth, TrackingConfig::kd_cloth);
 
   // m_sigs = calcSigs(corr, toEigenMatrix(estPos), toEigenMatrix(obsPts), .1*METERS, .5);
 
@@ -98,6 +124,7 @@ void TrackedTowel::applyEvidence(const SparseMatrixf& corr, const Eigen::MatrixX
     getSim()->softBody->addForce(impulse, iVert);
   }
   
+  //TODO apply evidences to color
 }
 
 vector<btVector3> TrackedTowel::getPoints() {
@@ -108,22 +135,23 @@ vector<btVector3> TrackedTowel::getPoints() {
 	return out;
 }
 
-float cross (const osg::Vec2f& p0, const osg::Vec2f& p1) {
-	return (p0.x()*p1.y() - p0.y()*p1.x());
-}
-
-osg::Vec2f inverseBilerp(const osg::Vec2f& point, const osg::Vec2Array& corners) {
-	float A = cross( (corners[0]-point) , (corners[0]-corners[2]) );
-  float B = ( cross( (corners[0]-point) , (corners[1]-corners[3]) ) + cross( (corners[1]-point) , (corners[0]-corners[2]) ) ) / 2.0;
-  float C = cross( (corners[1]-point) , (corners[1]-corners[3]) );
-  float s = A / (A-C);
-  if ((A - 2*B + C) != 0) {
-  	s = ( (A-B) + sqrt(B*B - A*C) ) / ( A - 2*B + C );
-		if (s < 0 || s > 1)
-			s = ( (A-B) - sqrt(B*B - A*C) ) / ( A - 2*B + C );
-  }
-  float t = ( (1-s)*(corners[0].x()-point.x()) + s*(corners[1].x()-point.x()) ) / ( (1-s)*(corners[0].x()-corners[2].x()) + s*(corners[1].x()-corners[3].x()) );
-  return osg::Vec2f(s,t);
+MatrixXf TrackedTowel::getFeatures() {
+	MatrixXf features(m_nNodes, 6);
+	btAlignedObjectArray<btSoftBody::Node>& verts = getSim()->softBody->m_nodes;
+	const osg::Vec2Array& texcoords = *(getSim()->tritexcoords);
+	cv::Mat tex_image = getSim()->getTexture();
+	for (int i=0; i < m_nNodes; i++) {
+		features.block(i,0,1,3) = toEigenVector(verts[m_node2vert[i]].m_x).transpose();
+		int i_pixel = tex_image.rows-1 - (int) (texcoords[m_vert2tex[m_node2vert[i]]].y() * (tex_image.rows-1));
+		int j_pixel = (int) (texcoords[m_vert2tex[m_node2vert[i]]].x() * (tex_image.cols-1));
+		int range = 20;
+		//TODO weighted average window
+		cv::Mat window_pixels = tex_image(cv::Range(max(i_pixel - range, 0), min(i_pixel + range, tex_image.rows-1)),
+																			cv::Range(max(j_pixel - range, 0), min(j_pixel + range, tex_image.cols-1)));
+		Vector3f bgr = toEigenMatrixImage(window_pixels).colwise().mean();
+		features.block(i,3,1,3) = bgr.transpose();
+	}
+	return featuresTransform(features);
 }
 
 BulletSoftObject::Ptr makeTowel(const vector<btVector3>& points, int resolution_x, int resolution_y, btSoftBodyWorldInfo& worldInfo) {
@@ -159,7 +187,7 @@ BulletSoftObject::Ptr makeTowel(const vector<btVector3>& points, int resolution_
   psb->generateBendingConstraints(2, pm);
 
   // this function was not in the original bullet physics
-  // this allows to swap the texture coordinates to match the swaped faces
+  // this allows to swap the texture coordinates to match the swapped faces
   psb->randomizeConstraints(tex_coords);
 
   psb->setTotalMass(10, true);
@@ -174,4 +202,34 @@ BulletSoftObject::Ptr makeTowel(const vector<btVector3>& points, int resolution_
 	return bso;
 }
 
-
+cv::Mat makeTowelTexture(const vector<btVector3>& corners, cv::Mat image, CoordinateTransformer* transformer) {
+	vector<Vector3f> points = toEigenVectors(corners);
+	BOOST_FOREACH(Vector3f& point, points) point = transformer->camFromWorldEigen * point;
+  MatrixXi src_pixels = xyz2uv(toEigenMatrix(points));
+  MatrixXi dst_pixels(4,2);
+  dst_pixels <<   0,   0,
+									0, 640,
+								480, 640,
+  							480,   0;
+  cv::Mat src_mat(4, 2, CV_32FC1);
+	cv::Mat dst_mat(4, 2, CV_32FC1);
+	for(int i=0; i<src_mat.rows; i++) {
+		for(int j=0; j<src_mat.cols; j++) {
+			src_mat.at<float>(i,j) = (float) src_pixels(i,(j+1)%2);
+			dst_mat.at<float>(i,j) = (float) dst_pixels(i,(j+1)%2);
+		}
+	}
+	cv::Mat H = cv::findHomography(src_mat, dst_mat);
+	cv::Mat tex_image(480, 640, CV_8UC3);
+	cv::warpPerspective(image, tex_image, H, cv::Size(640, 480));
+	cv::Mat tex_image_lab(480, 640, CV_8UC3);
+	cv::cvtColor(tex_image, tex_image_lab, CV_BGR2Lab);
+	for(int i=0; i<tex_image.rows; i++)
+		for(int j=0; j<tex_image.cols; j++)
+			if (tex_image_lab.at<cv::Vec3b>(i,j)[0] < 30 ||
+					tex_image_lab.at<cv::Vec3b>(i,j)[1] < 115) {
+				tex_image.at<cv::Vec3b>(i,j) = cv::Vec3b(0,0,0);
+			}
+	fillBorder(tex_image, 60, 20, 30);
+	return tex_image;
+}

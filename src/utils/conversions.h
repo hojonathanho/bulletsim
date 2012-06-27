@@ -34,6 +34,7 @@ geometry_msgs::Transform toROSTransform(const btTransform& in);
 std::vector<Eigen::Vector3f> toEigenVectors(const std::vector< std::vector<float> >& in);
 std::vector<Eigen::Vector3f> toEigenVectors(const std::vector<btVector3>& in);
 Eigen::MatrixXf toEigenMatrix(const std::vector<btVector3>& in);
+Eigen::MatrixXf toEigenMatrix(const std::vector<Eigen::Vector3f>& in);
 Eigen::MatrixXf toEigenMatrix(const std::vector< std::vector<float> >& in);
 std::vector<btVector3> toBulletVectors(const std::vector<geometry_msgs::Point>&);
 std::vector<btVector3> toBulletVectors(const std::vector<geometry_msgs::Point32>&);

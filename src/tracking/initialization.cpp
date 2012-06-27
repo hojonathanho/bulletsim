@@ -23,21 +23,22 @@
 
 using namespace std;
 
-TrackedObject::Ptr toTrackedObject(const bulletsim_msgs::ObjectInit& initMsg, ColorCloudPtr cloud, Environment::Ptr env) {
+TrackedObject::Ptr toTrackedObject(const bulletsim_msgs::ObjectInit& initMsg, ColorCloudPtr cloud, cv::Mat image, CoordinateTransformer* transformer, Environment::Ptr env) {
   if (initMsg.type == "rope") {
 	  vector<btVector3> nodes = toBulletVectors(initMsg.rope.nodes);
-//	  vector<btVector3> nodes;
-//	  for (int i=0; i<nodes_o.size(); i+=3)
-//	  	nodes.push_back(nodes_o[i]);
+//		//downsample nodes
+//		vector<btVector3> nodes;
+//		for (int i=0; i<nodes_o.size(); i+=3)
+//			nodes.push_back(nodes_o[i]);
 	  BOOST_FOREACH(btVector3& node, nodes) node += btVector3(0,0,.01);
+
 	  CapsuleRope::Ptr sim(new CapsuleRope(scaleVecs(nodes,METERS), initMsg.rope.radius*METERS));
 	  env->add(sim);
 	  TrackedObject::Ptr tracked_rope(new TrackedRope(sim));
-/*
-	  nodes = tracked_rope->getPoints();
-	  cloud = scaleCloud(cloud,METERS);
-	  int resolution = 5;
-		cv::Mat image(1, nodes.size()*resolution, CV_8UC3);
+
+	  int x_res = 3;
+		int ang_res = 1;
+		cv::Mat image(ang_res, nodes.size()*x_res, CV_8UC3);
 		vector<btMatrix3x3> rotations = sim->getRotations();
 		vector<float> half_heights = sim->getHalfHeights();
 		for (int j=0; j<nodes.size(); j++) {
@@ -48,73 +49,64 @@ TrackedObject::Ptr toTrackedObject(const bulletsim_msgs::ObjectInit& initMsg, Co
 			searchPoint.y = nodes[j].y();
 			searchPoint.z = nodes[j].z();
 			// Neighbors within radius search
-			float radius = ((float) TrackingConfig::fixeds)/10.0; //(fixeds in cm)
+	//		float radius = ((float) TrackingConfig::fixeds)/10.0; //(fixeds in cm)
+			float radius = ((float) 3)/10.0; //(fixeds in cm)
 			std::vector<int> pointIdxRadiusSearch;
 			std::vector<float> pointRadiusSquaredDistance;
-			float r,g,b;
-			r=g=b=0;
-			vector<unsigned char> R, G, B;
 			Eigen::Matrix3f node_rot = toEigenMatrix(rotations[j]);
 			float node_half_height = half_heights[j];
-			cout << "nodes hh radius " << nodes[j].x() << " " << nodes[j].y() << " " << nodes[j].z() << " " << node_half_height << " " << radius << endl;
-			vector<vector<float> > R_bins(resolution), G_bins(resolution), B_bins(resolution);
+			vector<vector<float> > B_bins(ang_res*x_res), G_bins(ang_res*x_res), R_bins(ang_res*x_res);
 			if ( kdtree.radiusSearch (searchPoint, radius, pointIdxRadiusSearch, pointRadiusSquaredDistance) > 0 ) {
 				for (size_t i = 0; i < pointIdxRadiusSearch.size(); i++) {
 					Eigen::Vector3f alignedPoint = node_rot * (toEigenVector(cloud->points[pointIdxRadiusSearch[i]]) - toEigenVector(searchPoint));
-					int binId = (int) floor( ((float) resolution) * (1.0 + alignedPoint(0)/node_half_height) * 0.5 );
-					if (binId >=0 && binId <resolution) {
-						R_bins[binId].push_back(cloud->points[pointIdxRadiusSearch[i]].r);
-						G_bins[binId].push_back(cloud->points[pointIdxRadiusSearch[i]].g);
-						B_bins[binId].push_back(cloud->points[pointIdxRadiusSearch[i]].b);
+					int xId = (int) floor( ((float) x_res) * (1.0 + alignedPoint(0)/node_half_height) * 0.5 );
+					float angle = atan2(alignedPoint(2), alignedPoint(1))*180.0/M_PI;
+					if (angle >= 90) angle-=90;
+					else angle+=270;
+					angle = 360-angle;
+					//if (angle<0) angle+=360.0;
+					int angId = (int) floor( ((float) ang_res) * angle/360.0 );
+					assert(angId >= 0 && angId < ang_res);
+					if (xId >= 0 && xId < x_res) {
+						B_bins[xId*ang_res+angId].push_back(cloud->points[pointIdxRadiusSearch[i]].b);
+						G_bins[xId*ang_res+angId].push_back(cloud->points[pointIdxRadiusSearch[i]].g);
+						R_bins[xId*ang_res+angId].push_back(cloud->points[pointIdxRadiusSearch[i]].r);
 					}
-					r += cloud->points[pointIdxRadiusSearch[i]].r;
-					g += cloud->points[pointIdxRadiusSearch[i]].g;
-					b += cloud->points[pointIdxRadiusSearch[i]].b;
-					R.push_back(cloud->points[pointIdxRadiusSearch[i]].r);
-					G.push_back(cloud->points[pointIdxRadiusSearch[i]].g);
-					B.push_back(cloud->points[pointIdxRadiusSearch[i]].b);
+//					if (xId >= 0 && xId < x_res/2 && j%2==0) {
+//						debugCloud->push_back(cloud->points[pointIdxRadiusSearch[i]]);
+//					}
 				}
-				r /= ((float) pointIdxRadiusSearch.size());
-				g /= ((float) pointIdxRadiusSearch.size());
-				b /= ((float) pointIdxRadiusSearch.size());
 			}
-//			image.at<cv::Vec3b>(0,j)[0] = b;
-//			image.at<cv::Vec3b>(0,j)[1] = g;
-//			image.at<cv::Vec3b>(0,j)[2] = r;
-	//	  image.at<cv::Vec3b>(0,j)[0] = median(B);
-	//		image.at<cv::Vec3b>(0,j)[1] = median(G);
-	//		image.at<cv::Vec3b>(0,j)[2] = median(R);
-//			for (int binId=0; binId<resolution; binId++) {
-//				image.at<cv::Vec3b>(0,j*resolution+binId)[0] = b;
-//				image.at<cv::Vec3b>(0,j*resolution+binId)[1] = g;
-//				image.at<cv::Vec3b>(0,j*resolution+binId)[2] = r;
-//			}
-			for (int binId=0; binId<resolution; binId++) {
-				image.at<cv::Vec3b>(0,j*resolution+binId)[0] = mean(B_bins[binId]);
-				image.at<cv::Vec3b>(0,j*resolution+binId)[1] = mean(G_bins[binId]);
-				image.at<cv::Vec3b>(0,j*resolution+binId)[2] = mean(R_bins[binId]);
+	//		for (int xId=0; xId<x_res; xId++) {
+	//			for (int angId=0; angId<ang_res; angId++) {
+	//				image.at<cv::Vec3b>(angId,j*x_res+xId)[0] = mean(append(B_bins, xId*ang_res, (xId+1)*ang_res));
+	//				image.at<cv::Vec3b>(angId,j*x_res+xId)[1] = mean(append(G_bins, xId*ang_res, (xId+1)*ang_res));
+	//				image.at<cv::Vec3b>(angId,j*x_res+xId)[2] = mean(append(R_bins, xId*ang_res, (xId+1)*ang_res));
+	//			}
+	//		}
+			for (int xId=0; xId<x_res; xId++) {
+				for (int angId=0; angId<ang_res; angId++) {
+					image.at<cv::Vec3b>(angId,j*x_res+xId)[0] = mean(B_bins[xId*ang_res+angId]);
+					image.at<cv::Vec3b>(angId,j*x_res+xId)[1] = mean(G_bins[xId*ang_res+angId]);
+					image.at<cv::Vec3b>(angId,j*x_res+xId)[2] = mean(R_bins[xId*ang_res+angId]);
+				}
 			}
 		}
+		//cv::imwrite("/home/alex/Desktop/fwd.jpg", image);
 		sim->setTexture(image);
-		cv::imwrite("/home/alex/Desktop/try.jpg", image);
-		*/
 
 	  return tracked_rope;
   }
   else if (initMsg.type == "towel_corners") {
 	  const vector<geometry_msgs::Point32>& points = initMsg.towel_corners.polygon.points;
 	  vector<btVector3> corners = scaleVecs(toBulletVectors(points),METERS);
-	  int resolution_x = TrackingConfig::res_x;
-	  int resolution_y = TrackingConfig::res_y;
-//	  int resolution_x = 45;
-//	  int resolution_y = 31;
-	  BulletSoftObject::Ptr sim = makeTowel(corners, resolution_x, resolution_y, env->bullet->softBodyWorldInfo);
-	  assert(!!sim);
-	  env->add(sim);
-	  TrackedObject::Ptr tracked_towel(new TrackedTowel(sim, resolution_x, resolution_y));
 
-	  cv::Mat image = cv::imread("/home/alex/Desktop/image.jpg");
-	  sim->setTexture(image);
+	  BulletSoftObject::Ptr sim = makeTowel(corners, TrackingConfig::res_x, TrackingConfig::res_y, env->bullet->softBodyWorldInfo);
+	  cv::Mat tex_image = makeTowelTexture(corners, image, transformer);
+		sim->setTexture(tex_image);
+	  TrackedObject::Ptr tracked_towel(new TrackedTowel(sim, TrackingConfig::res_x, TrackingConfig::res_y));
+
+	  env->add(sim);
 
 	  return tracked_towel;
   }
@@ -149,14 +141,14 @@ bulletsim_msgs::TrackedObject toTrackedObjectMessage(TrackedObject::Ptr obj) {
   return msg;
 }
 
-TrackedObject::Ptr callInitServiceAndCreateObject(ColorCloudPtr cloud, Environment::Ptr env) {
+TrackedObject::Ptr callInitServiceAndCreateObject(ColorCloudPtr cloud, cv::Mat image, CoordinateTransformer* transformer, Environment::Ptr env) {
   bulletsim_msgs::Initialization init;
   pcl::toROSMsg(*cloud, init.request.cloud);
   init.request.cloud.header.frame_id = "/ground";
 	
   bool success = ros::service::call(initializationService, init);
   if (success)
-  	return toTrackedObject(init.response.objectInit, cloud, env);
+  	return toTrackedObject(init.response.objectInit, scaleCloud(cloud,METERS), image, transformer, env);
   else {
 		ROS_ERROR("initialization failed");
 		return TrackedObject::Ptr();

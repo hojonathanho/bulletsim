@@ -55,6 +55,11 @@ cv::Mat toCVMat(Eigen::MatrixXf in) {
   return cv::Mat(in.rows(), in.cols(), CV_32FC1, in.data());
 }
 
+MatrixXf toEigenMatrix(const cv::Mat& in) {
+	if (in.type() != CV_32FC1) throw runtime_error("input matrix has the wrong type");
+	return Map<MatrixXf>((float*)in.data, in.rows, in.cols);
+}
+
 cv::Mat toCVMatImage(const ColorCloudPtr cloud) {
 	MatrixXu bgr = toBGR(cloud);
 	cv::Mat image(cloud->height, cloud->width, CV_8UC3, bgr.data());
