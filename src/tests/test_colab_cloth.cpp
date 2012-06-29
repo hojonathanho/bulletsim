@@ -860,18 +860,20 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,osgGA::GUIActionA
     switch (ea.getEventType()) {
     case osgGA::GUIEventAdapter::KEYDOWN:
         switch (ea.getKey()) {
-        case 'f':
-            scene.createFork();
-            break;
-        case 'g':
-            {
-            scene.swapFork();
-            }
-            break;
 
-        case 'h':
-            scene.destroyFork();
-            break;
+
+//        case 'f':
+//            scene.createFork();
+//            break;
+//        case 'g':
+//            {
+//            scene.swapFork();
+//            }
+//            break;
+
+//        case 'h':
+//            scene.destroyFork();
+//            break;
 
         case '1':
             scene.inputState.transGrabber0 = true; break;
@@ -936,6 +938,21 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,osgGA::GUIActionA
             break;
         }
 
+        case 'f':
+        {
+            scene.regraspWithOneGripper(scene.right_gripper1,scene.left_gripper1);
+            scene.left_gripper1->setWorldTransform(btTransform(btQuaternion(0,0,0,1), btVector3(0,0,100)));
+            break;
+        }
+
+        case 'g':
+        {
+            scene.regraspWithOneGripper(scene.right_gripper2,scene.left_gripper2);
+            scene.left_gripper2->setWorldTransform(btTransform(btQuaternion(0,0,0,1), btVector3(0,0,110)));
+            break;
+        }
+
+
         case 'k':
             scene.right_gripper1->setWorldTransform(btTransform(btQuaternion(btVector3(1,0,0),-0.2)*scene.right_gripper1->getWorldTransform().getRotation(), scene.right_gripper1->getWorldTransform().getOrigin()));
             break;
@@ -951,6 +968,16 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,osgGA::GUIActionA
 
         case '.':
             scene.right_gripper2->setWorldTransform(btTransform(btQuaternion(btVector3(1,0,0),-0.2)*scene.right_gripper2->getWorldTransform().getRotation(), scene.right_gripper2->getWorldTransform().getOrigin()));
+            break;
+
+
+        case 'y':
+            scene.right_gripper1->setWorldTransform(btTransform(btQuaternion(btVector3(0,1,0),-0.2)*scene.right_gripper1->getWorldTransform().getRotation(), scene.right_gripper1->getWorldTransform().getOrigin()));
+            break;
+
+
+        case 'u':
+            scene.right_gripper2->setWorldTransform(btTransform(btQuaternion(btVector3(0,1,0),-0.2)*scene.right_gripper2->getWorldTransform().getRotation(), scene.right_gripper2->getWorldTransform().getOrigin()));
             break;
 
 
@@ -1149,11 +1176,11 @@ BulletSoftObject::Ptr CustomScene::createCloth(btScalar s, const btVector3 &cent
 
     psb->m_cfg.piterations = 10;//2;
     psb->m_cfg.collisions = btSoftBody::fCollision::CL_SS
-        | btSoftBody::fCollision::CL_RS        | btSoftBody::fCollision::CL_SELF;
+        | btSoftBody::fCollision::CL_RS      ;//  | btSoftBody::fCollision::CL_SELF;
     psb->m_cfg.kDF = 1.0;
     psb->getCollisionShape()->setMargin(0.05);
     btSoftBody::Material *pm = psb->appendMaterial();
-    pm->m_kLST = 0.2;//0.1;
+    //pm->m_kLST = 0.2;//0.1; //makes it rubbery
     psb->m_cfg.kDP = 0.05;
     psb->generateBendingConstraints(2, pm);
     psb->randomizeConstraints();
