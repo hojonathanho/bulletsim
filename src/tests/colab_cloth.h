@@ -14,7 +14,7 @@
 
 
 //#define PROFILER
-//#define USE_PR2
+#define USE_PR2
 #define DO_ROTATION
 //#define USE_QUATERNION //NOT IMPLEMENTED!!!
 //#define USE_TABLE
@@ -25,6 +25,11 @@
 #include <openrave/kinbody.h>
 #include "robots/pr2.h"
 #endif
+
+//WARNING: THIS IS THE WRONG TRANSFORM, WILL NOT WORK FOR ROTATION!
+const btTransform TBullet_PR2GripperRight = btTransform(btQuaternion(btVector3(0,1,0),3.14159265/2),btVector3(0,0,0))*btTransform(btQuaternion(btVector3(0,0,1),3.14159265/2),btVector3(0,0,0))*btTransform(btQuaternion(btVector3(0,1,0),3.14159265/2),btVector3(0,0,0));
+//const btTransform TBullet_PR2GripperRight = btTransform(btQuaternion(btVector3(0,0,1),3.14159265/2),btVector3(0,0,0));
+const btTransform TBullet_PR2GripperLeft = btTransform(btQuaternion(btVector3(0,1,0),3.14159265/2),btVector3(0,0,0))*btTransform(btQuaternion(btVector3(0,0,1),-3.14159265/2),btVector3(0,0,0))*btTransform(btQuaternion(btVector3(0,1,0),3.14159265/2),btVector3(0,0,0));
 
 enum GripperState { GripperState_DONE, GripperState_CLOSING, GripperState_OPENING };
 
@@ -150,7 +155,8 @@ class PR2SoftBodyGripperAction : public Action {
     vector<dReal> vals;
 
     // min/max gripper dof vals
-    static const float CLOSED_VAL = 0.03f, OPEN_VAL = 0.54f;
+    //static const float CLOSED_VAL = 0.03f, OPEN_VAL = 0.54f;
+    static const float CLOSED_VAL = 0.08f, OPEN_VAL = 0.54f;
 
     KinBody::LinkPtr leftFinger, rightFinger;
     const btTransform origLeftFingerInvTrans, origRightFingerInvTrans;
@@ -330,6 +336,9 @@ public:
     {
         if (indices.size() != 1)
             cout << "WARNING: more than one gripper DOF; just choosing first one" << endl;
+
+        vals[0] = CLOSED_VAL;
+        manip->robot->setDOFValues(indices, vals);
         setCloseAction();
     }
 
@@ -357,7 +366,7 @@ public:
 
     void reset() {
         Action::reset();
-        releaseAllAnchors();
+        //releaseAllAnchors();
     }
 
     void step(float dt) {
@@ -368,10 +377,10 @@ public:
         vals[0] = (1.f - frac)*startVal + frac*endVal;
         manip->robot->setDOFValues(indices, vals);
 
-        if (vals[0] == CLOSED_VAL) {
-            attach(true);
-            attach(false);
-        }
+//        if (vals[0] == CLOSED_VAL) {
+//            attach(true);
+//            attach(false);
+//        }
     }
 };
 #endif
@@ -414,7 +423,9 @@ class CustomScene : public Scene {
 public:
 #ifdef USE_PR2
     PR2SoftBodyGripperAction::Ptr leftAction, rightAction;
-#else
+    PR2Manager pr2m;
+#endif
+
     GripperKinematicObject::Ptr left_gripper1, right_gripper1, left_gripper1_orig, right_gripper1_orig, left_gripper1_fork, right_gripper1_fork;
     GripperKinematicObject::Ptr left_gripper2, right_gripper2;
     struct {
@@ -422,7 +433,6 @@ public:
         float dx, dy, lastX, lastY;
     } inputState;
 
-#endif
     int num_auto_grippers;
     bool bTracking, bInTrackingLoop;
     PointReflector::Ptr point_reflector;
@@ -445,11 +455,10 @@ public:
 
 
 #ifdef USE_PR2
-    PR2Manager pr2m;
-
-    CustomScene() : pr2m(*this) { }
+        CustomScene() : pr2m(*this){
 #else
-    CustomScene(){
+        CustomScene(){
+#endif
         bTracking = bInTrackingLoop = false;
         inputState.transGrabber0 =  inputState.rotateGrabber0 =
                 inputState.transGrabber1 =  inputState.rotateGrabber1 =
@@ -485,7 +494,6 @@ public:
         fork.reset();
     }
 
-#endif
 
     BulletSoftObject::Ptr createCloth(btScalar s, const btVector3 &center);
     void createFork();

@@ -820,6 +820,18 @@ void CustomScene::doJTracking()
             cout << endl;
             left_gripper1->applyTransform(transtm1);
             left_gripper2->applyTransform(transtm2);
+
+#ifdef USE_PR2
+            btTransform left1(left_gripper1->getWorldTransform());
+            btTransform TOR_newtrans = left1*TBullet_PR2GripperRight;
+            TOR_newtrans.setOrigin(left1.getOrigin());
+            pr2m.pr2Right->moveByIK(TOR_newtrans,SceneConfig::enableRobotCollision, true);
+
+            btTransform left2(left_gripper2->getWorldTransform());
+            TOR_newtrans = left2*TBullet_PR2GripperLeft;
+            TOR_newtrans.setOrigin(left2.getOrigin());
+            pr2m.pr2Left->moveByIK(TOR_newtrans,SceneConfig::enableRobotCollision, true);
+#endif
             //stepFor(BulletConfig::dt, jacobian_sim_time);
         }
         break;
@@ -875,56 +887,59 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,osgGA::GUIActionA
 //            scene.destroyFork();
 //            break;
 
-        case '1':
-            scene.inputState.transGrabber0 = true; break;
-        case 'q':
-            scene.inputState.rotateGrabber0 = true; break;
 
-        case '2':
-            scene.inputState.transGrabber1 = true; break;
-        case 'w':
-            scene.inputState.rotateGrabber1 = true; break;
+        //'1', '2', 'q', 'w' reservered for PR2!
 
         case '3':
+            scene.inputState.transGrabber0 = true; break;
+        case 'a':
+            scene.inputState.rotateGrabber0 = true; break;
+
+        case '4':
+            scene.inputState.transGrabber1 = true; break;
+        case 's':
+            scene.inputState.rotateGrabber1 = true; break;
+
+        case '5':
             scene.inputState.transGrabber2 = true; break;
         case 'e':
             scene.inputState.rotateGrabber2 = true; break;
 
-        case '4':
+        case '6':
             scene.inputState.transGrabber3 = true; break;
         case 'r':
             scene.inputState.rotateGrabber3 = true; break;
 
 #ifdef USE_PR2
-        case 'a':
+        case '9':
             scene.leftAction->reset();
             scene.leftAction->toggleAction();
             scene.runAction(scene.leftAction, BulletConfig::dt);
 
             break;
-        case 's':
+        case '0':
 
             scene.rightAction->reset();
             scene.rightAction->toggleAction();
             scene.runAction(scene.rightAction, BulletConfig::dt);
 
             break;
-#else
-        case 'a':
-            scene.left_gripper1->toggle();
-            break;
+#endif
+//        case 'a':
+//            scene.left_gripper1->toggle();
+//            break;
 
-        case 's':
-            scene.left_gripper2->toggle();
-            break;
+//        case 's':
+//            scene.left_gripper2->toggle();
+//            break;
 
-        case 'z':
-            scene.left_gripper1->toggleattach(scene.clothptr->softBody.get());
-            break;
+//        case 'z':
+//            scene.left_gripper1->toggleattach(scene.clothptr->softBody.get());
+//            break;
 
-        case 'x':
-            scene.left_gripper2->toggleattach(scene.clothptr->softBody.get());
-            break;
+//        case 'x':
+//            scene.left_gripper2->toggleattach(scene.clothptr->softBody.get());
+//            break;
 
         case 'c':
         {
@@ -1031,20 +1046,20 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,osgGA::GUIActionA
 
     case osgGA::GUIEventAdapter::KEYUP:
         switch (ea.getKey()) {
-        case '1':
+        case '3':
             scene.inputState.transGrabber0 = false; break;
             break;
-        case 'q':
+        case 'a':
             scene.inputState.rotateGrabber0 = false; break;
-        case '2':
+        case '4':
             scene.inputState.transGrabber1 = false; break;
-        case 'w':
+        case 's':
             scene.inputState.rotateGrabber1 = false; break;
-        case '3':
+        case '5':
             scene.inputState.transGrabber2 = false; break;
         case 'e':
             scene.inputState.rotateGrabber2 = false; break;
-        case '4':
+        case '6':
             scene.inputState.transGrabber3 = false; break;
         case 'r':
             scene.inputState.rotateGrabber3 = false; break;
@@ -1137,13 +1152,26 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,osgGA::GUIActionA
 //                plot_line.push_back(origTrans.getOrigin() + 100*(newTrans.getOrigin()- origTrans.getOrigin()));
 //                plot_color.push_back(btVector4(1,0,0,1));
 //                scene.drag_line->setPoints(plot_line,plot_color);
+                //btTransform TBullet_PR2Gripper = btTransform(btQuaternion(btVector3(0,1,0),3.14159265/2),btVector3(0,0,0));
+                //btTransform TOR_newtrans = TBullet_PR2Gripper*newTrans;
+                //TOR_newtrans.setOrigin(newTrans.getOrigin());
                 if (scene.inputState.transGrabber0 || scene.inputState.rotateGrabber0)
                 {
                     scene.left_gripper1->setWorldTransform(newTrans);
+#ifdef USE_PR2
+                    btTransform TOR_newtrans = newTrans*TBullet_PR2GripperRight;
+                    TOR_newtrans.setOrigin(newTrans.getOrigin());
+                    scene.pr2m.pr2Right->moveByIK(TOR_newtrans,SceneConfig::enableRobotCollision, true);
+#endif
                 }
                 else if(scene.inputState.transGrabber1 || scene.inputState.rotateGrabber1)
                 {
                     scene.left_gripper2->setWorldTransform(newTrans);
+#ifdef USE_PR2
+                    btTransform TOR_newtrans = newTrans*TBullet_PR2GripperLeft;
+                    TOR_newtrans.setOrigin(newTrans.getOrigin());
+                    scene.pr2m.pr2Left->moveByIK(TOR_newtrans,SceneConfig::enableRobotCollision, true);
+#endif
                 }
                 else if(scene.inputState.transGrabber2 || scene.inputState.rotateGrabber2)
                 {
@@ -1157,7 +1185,6 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,osgGA::GUIActionA
             }
         }
         break;
-#endif
     }
     return false;
 }
@@ -1180,7 +1207,7 @@ BulletSoftObject::Ptr CustomScene::createCloth(btScalar s, const btVector3 &cent
     psb->m_cfg.kDF = 1.0;
     psb->getCollisionShape()->setMargin(0.05);
     btSoftBody::Material *pm = psb->appendMaterial();
-    //pm->m_kLST = 0.2;//0.1; //makes it rubbery
+    //pm->m_kLST = 0.2;//0.1; //makes it rubbery (handles self collisions better)
     psb->m_cfg.kDP = 0.05;
     psb->generateBendingConstraints(2, pm);
     psb->randomizeConstraints();
@@ -1220,11 +1247,11 @@ void CustomScene::createFork() {
     tmpRobot = boost::static_pointer_cast<RaveRobotObject>(p);
     cout << (tmpRobot->getEnvironment() == env.get()) << endl;
     cout << (tmpRobot->getEnvironment() == fork->env.get()) << endl;
-#else
+#endif
     left_gripper1_fork = boost::static_pointer_cast<GripperKinematicObject> (fork->forkOf(left_gripper1));
     right_gripper1_fork = boost::static_pointer_cast<GripperKinematicObject> (fork->forkOf(right_gripper1));
     clothptr_fork = boost::static_pointer_cast<BulletSoftObject> (fork->forkOf(clothptr));
-#endif
+
 }
 
 void CustomScene::destroyFork() {
@@ -1253,7 +1280,7 @@ void CustomScene::swapFork() {
     pr2m.pr2 = origRobot;
     pr2m.pr2Left = pr2m.pr2->getManipByIndex(leftidx);
     pr2m.pr2Right = pr2m.pr2->getManipByIndex(rightidx);
-#else
+#endif
     if(left_gripper1.get() == left_gripper1_orig.get())
     {
         left_gripper1 = left_gripper1_fork;
@@ -1267,7 +1294,7 @@ void CustomScene::swapFork() {
         clothptr = clothptr_orig;
     }
 
-#endif
+
 
 /*    vector<int> indices; vector<dReal> vals;
     for (int i = 0; i < tmpRobot->robot->GetDOF(); ++i) {
@@ -1341,19 +1368,19 @@ void CustomScene::run() {
 
 
     const float dt = BulletConfig::dt;
-    const float table_height = .5;
+    const float table_height = .7;
 
 #ifdef USE_TABLE
     const float table_thickness = .05;
     BoxObject::Ptr table(
         new BoxObject(0, GeneralConfig::scale * btVector3(.75,.75,table_thickness/2),
-            btTransform(btQuaternion(0, 0, 0, 1), GeneralConfig::scale * btVector3(1.2, 0, table_height-table_thickness/2))));
+            btTransform(btQuaternion(0, 0, 0, 1), GeneralConfig::scale * btVector3(1.0, 0, table_height-table_thickness/2))));
     table->rigidBody->setFriction(1);
     env->add(table);
 #endif
 
     BulletSoftObject::Ptr cloth(
-            createCloth(GeneralConfig::scale * 0.25, GeneralConfig::scale * btVector3(0.9, 0, table_height+0.01)));
+            createCloth(GeneralConfig::scale * 0.25, GeneralConfig::scale * btVector3(0.7, 0, table_height+0.01)));
 
 
     btSoftBody* psb = cloth->softBody.get();
@@ -1366,6 +1393,14 @@ void CustomScene::run() {
 
 #ifdef USE_PR2
     pr2m.pr2->ignoreCollisionWith(psb);
+    pr2m.pr2->ignoreCollisionWith(left_gripper1->getChildren()[0]->rigidBody.get());
+    pr2m.pr2->ignoreCollisionWith(left_gripper1->getChildren()[1]->rigidBody.get());
+    pr2m.pr2->ignoreCollisionWith(left_gripper2->getChildren()[0]->rigidBody.get());
+    pr2m.pr2->ignoreCollisionWith(left_gripper2->getChildren()[1]->rigidBody.get());
+    pr2m.pr2->ignoreCollisionWith(right_gripper1->getChildren()[0]->rigidBody.get());
+    pr2m.pr2->ignoreCollisionWith(right_gripper1->getChildren()[1]->rigidBody.get());
+    pr2m.pr2->ignoreCollisionWith(right_gripper2->getChildren()[0]->rigidBody.get());
+    pr2m.pr2->ignoreCollisionWith(right_gripper2->getChildren()[1]->rigidBody.get());
 #endif
 
 
@@ -1378,7 +1413,7 @@ void CustomScene::run() {
     leftAction->setTarget(psb);
     rightAction.reset(new PR2SoftBodyGripperAction(pr2m.pr2Right, "r_gripper_l_finger_tip_link", "r_gripper_r_finger_tip_link", 1));
     rightAction->setTarget(psb);
-#else
+#endif
 
 
     //btVector3 pos(0,0,0);
@@ -1689,9 +1724,6 @@ void CustomScene::run() {
 //    {
 
 //    }
-
-
-#endif
 
 
 
