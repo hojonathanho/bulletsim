@@ -3,6 +3,7 @@
 #include <Eigen/Dense>
 #include <geometry_msgs/Point.h>
 #include <tf/transform_listener.h>
+#include "utils/config.h"
 #include "clouds/pcl_typedefs.h"
 
 typedef Eigen::Matrix<uint8_t,Eigen::Dynamic,Eigen::Dynamic> MatrixXu;
@@ -16,8 +17,8 @@ public:
   Eigen::Affine3f worldFromCamEigen;
   btTransform camFromWorldUnscaled;
   Eigen::Affine3f camFromWorldEigen;
-  inline btVector3 toWorldFromCam(const btVector3& camVec);
-  inline btVector3 toCamFromWorld(const btVector3& camVec);
+  inline btVector3 toWorldFromCam(const btVector3& camVec) { return METERS * (worldFromCamUnscaled * camVec); }
+  inline btVector3 toCamFromWorld(const btVector3& worldVec) { return worldFromCamUnscaled.inverse() * ( worldVec / METERS); }
   std::vector<btVector3> toWorldFromCamN(const std::vector<btVector3>& camVecs);
   std::vector<btVector3> toCamFromWorldN(const std::vector<btVector3>& worldVecs);
   Eigen::MatrixXf toCamFromWorldMatrixXf(const Eigen::MatrixXf&);

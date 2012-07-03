@@ -13,13 +13,11 @@
 #include <pcl/ros/conversions.h>
 #include <pcl/common/transforms.h>
 #include <pcl/point_cloud.h>
-#include <pcl/kdtree/kdtree_flann.h>
 #include "tracked_object.h"
 #include <tf/tf.h>
 #include "simulation/bullet_io.h"
 #include "simulation/softbodies.h"
 #include "utils/logging.h"
-#include "utils/vector_alg.h"
 
 using namespace std;
 
@@ -34,66 +32,10 @@ TrackedObject::Ptr toTrackedObject(const bulletsim_msgs::ObjectInit& initMsg, Co
 
 	  CapsuleRope::Ptr sim(new CapsuleRope(scaleVecs(nodes,METERS), initMsg.rope.radius*METERS));
 	  env->add(sim);
-	  TrackedObject::Ptr tracked_rope(new TrackedRope(sim));
-
-	  int x_res = 3;
-		int ang_res = 1;
-		cv::Mat image(ang_res, nodes.size()*x_res, CV_8UC3);
-		vector<btMatrix3x3> rotations = sim->getRotations();
-		vector<float> half_heights = sim->getHalfHeights();
-		for (int j=0; j<nodes.size(); j++) {
-			pcl::KdTreeFLANN<ColorPoint> kdtree;
-			kdtree.setInputCloud(cloud);
-			ColorPoint searchPoint;
-			searchPoint.x = nodes[j].x();
-			searchPoint.y = nodes[j].y();
-			searchPoint.z = nodes[j].z();
-			// Neighbors within radius search
-	//		float radius = ((float) TrackingConfig::fixeds)/10.0; //(fixeds in cm)
-			float radius = ((float) 3)/10.0; //(fixeds in cm)
-			std::vector<int> pointIdxRadiusSearch;
-			std::vector<float> pointRadiusSquaredDistance;
-			Eigen::Matrix3f node_rot = toEigenMatrix(rotations[j]);
-			float node_half_height = half_heights[j];
-			vector<vector<float> > B_bins(ang_res*x_res), G_bins(ang_res*x_res), R_bins(ang_res*x_res);
-			if ( kdtree.radiusSearch (searchPoint, radius, pointIdxRadiusSearch, pointRadiusSquaredDistance) > 0 ) {
-				for (size_t i = 0; i < pointIdxRadiusSearch.size(); i++) {
-					Eigen::Vector3f alignedPoint = node_rot * (toEigenVector(cloud->points[pointIdxRadiusSearch[i]]) - toEigenVector(searchPoint));
-					int xId = (int) floor( ((float) x_res) * (1.0 + alignedPoint(0)/node_half_height) * 0.5 );
-					float angle = atan2(alignedPoint(2), alignedPoint(1))*180.0/M_PI;
-					if (angle >= 90) angle-=90;
-					else angle+=270;
-					angle = 360-angle;
-					//if (angle<0) angle+=360.0;
-					int angId = (int) floor( ((float) ang_res) * angle/360.0 );
-					assert(angId >= 0 && angId < ang_res);
-					if (xId >= 0 && xId < x_res) {
-						B_bins[xId*ang_res+angId].push_back(cloud->points[pointIdxRadiusSearch[i]].b);
-						G_bins[xId*ang_res+angId].push_back(cloud->points[pointIdxRadiusSearch[i]].g);
-						R_bins[xId*ang_res+angId].push_back(cloud->points[pointIdxRadiusSearch[i]].r);
-					}
-//					if (xId >= 0 && xId < x_res/2 && j%2==0) {
-//						debugCloud->push_back(cloud->points[pointIdxRadiusSearch[i]]);
-//					}
-				}
-			}
-	//		for (int xId=0; xId<x_res; xId++) {
-	//			for (int angId=0; angId<ang_res; angId++) {
-	//				image.at<cv::Vec3b>(angId,j*x_res+xId)[0] = mean(append(B_bins, xId*ang_res, (xId+1)*ang_res));
-	//				image.at<cv::Vec3b>(angId,j*x_res+xId)[1] = mean(append(G_bins, xId*ang_res, (xId+1)*ang_res));
-	//				image.at<cv::Vec3b>(angId,j*x_res+xId)[2] = mean(append(R_bins, xId*ang_res, (xId+1)*ang_res));
-	//			}
-	//		}
-			for (int xId=0; xId<x_res; xId++) {
-				for (int angId=0; angId<ang_res; angId++) {
-					image.at<cv::Vec3b>(angId,j*x_res+xId)[0] = mean(B_bins[xId*ang_res+angId]);
-					image.at<cv::Vec3b>(angId,j*x_res+xId)[1] = mean(G_bins[xId*ang_res+angId]);
-					image.at<cv::Vec3b>(angId,j*x_res+xId)[2] = mean(R_bins[xId*ang_res+angId]);
-				}
-			}
-		}
-		//cv::imwrite("/home/alex/Desktop/fwd.jpg", image);
-		sim->setTexture(image);
+	  TrackedRope::Ptr tracked_rope(new TrackedRope(sim));
+		cv::Mat tex_image = tracked_rope->makeTexture(cloud);
+		//cv::imwrite("/home/alex/Desktop/fwd.jpg", tex_image);
+		sim->setTexture(tex_image);
 
 	  return tracked_rope;
   }
@@ -102,9 +44,9 @@ TrackedObject::Ptr toTrackedObject(const bulletsim_msgs::ObjectInit& initMsg, Co
 	  vector<btVector3> corners = scaleVecs(toBulletVectors(points),METERS);
 
 	  BulletSoftObject::Ptr sim = makeTowel(corners, TrackingConfig::res_x, TrackingConfig::res_y, env->bullet->softBodyWorldInfo);
-	  cv::Mat tex_image = makeTowelTexture(corners, image, transformer);
+	  TrackedTowel::Ptr tracked_towel(new TrackedTowel(sim, TrackingConfig::res_x, TrackingConfig::res_y));
+	  cv::Mat tex_image = tracked_towel->makeTexture(corners, image, transformer);
 		sim->setTexture(tex_image);
-	  TrackedObject::Ptr tracked_towel(new TrackedTowel(sim, TrackingConfig::res_x, TrackingConfig::res_y));
 
 	  env->add(sim);
 

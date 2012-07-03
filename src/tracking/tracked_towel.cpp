@@ -90,10 +90,28 @@ TrackedTowel::TrackedTowel(BulletSoftObject::Ptr sim, int nCols, int nRows) : Tr
   	}
   	m_vert2tex.push_back(3*j+c);
   }
-
   for (int iVert=0; iVert<verts.size(); iVert++) {
   	assert(&verts[iVert] == faces[m_vert2tex[iVert]/3].m_n[m_vert2tex[iVert]%3]);
   }
+
+  /*
+	m_face2verts = vector< vector<int> > (faces.size());
+	for (int j=0; j>faces.size(); j++) {
+		m_face2verts[j] = vector<int> (3);
+		for(int c=0; c<3; c++) {
+			int i;
+			for (i=0; i<verts.size(); i++) {
+				if (&verts[i] == faces[j].m_n[c]) break;
+			}
+			m_face2verts[j][c] = i;
+		}
+	}
+	for(int j=0; j<faces.size(); j++) {
+		for (int c=0; c<3; c++) {
+			assert(&verts[m_face2verts[j][c]] == faces[j].m_n[c]);
+		}
+	}
+	*/
 
   m_masses.resize(m_nNodes);
   for (int i=0; i < m_nNodes; ++i) {
@@ -132,6 +150,14 @@ vector<btVector3> TrackedTowel::getPoints() {
 	btAlignedObjectArray<btSoftBody::Node>& verts = getSim()->softBody->m_nodes;
 	for (int iNode=0; iNode < m_nNodes; ++iNode)
 		out[iNode] = verts[m_node2vert[iNode]].m_x;
+	return out;
+}
+
+vector<btVector3> TrackedTowel::getNormals() {
+	vector<btVector3> out(m_nNodes);
+	btAlignedObjectArray<btSoftBody::Node>& verts = getSim()->softBody->m_nodes;
+	for (int iNode=0; iNode < m_nNodes; ++iNode)
+		out[iNode] = verts[m_node2vert[iNode]].m_n;
 	return out;
 }
 
@@ -202,7 +228,7 @@ BulletSoftObject::Ptr makeTowel(const vector<btVector3>& points, int resolution_
 	return bso;
 }
 
-cv::Mat makeTowelTexture(const vector<btVector3>& corners, cv::Mat image, CoordinateTransformer* transformer) {
+cv::Mat TrackedTowel::makeTexture(const vector<btVector3>& corners, cv::Mat image, CoordinateTransformer* transformer) {
 	vector<Vector3f> points = toEigenVectors(corners);
 	BOOST_FOREACH(Vector3f& point, points) point = transformer->camFromWorldEigen * point;
   MatrixXi src_pixels = xyz2uv(toEigenMatrix(points));
@@ -232,4 +258,37 @@ cv::Mat makeTowelTexture(const vector<btVector3>& corners, cv::Mat image, Coordi
 			}
 	fillBorder(tex_image, 60, 20, 30);
 	return tex_image;
+}
+
+cv::Mat TrackedTowel::makeTexturePC(ColorCloudPtr cloud) {
+	const btSoftBody::tNodeArray& verts = getSim()->softBody->m_nodes;
+	const btSoftBody::tFaceArray& faces = getSim()->softBody->m_faces;
+	for (int iFace=0; iFace<faces.size(); iFace++) {
+		btVector3 normal = faces[iFace].m_normal;
+		btVector3 v0 = faces[iFace].m_n[0]->m_x;
+		btVector3 v1 = faces[iFace].m_n[1]->m_x;
+		btVector3 v2 = faces[iFace].m_n[2]->m_x;
+		btVector3 center = (v0+v1+v2)/3.0;
+		//radius search around center
+		//filter out points that are outside triangle
+		//project points into triangle
+		//assign triangle to patch in tex image (test: make a triangle black)
+		//i need texture index
+		int iTex0 = m_vert2tex[m_face2verts[iFace][0]];
+		int iTex1 = m_vert2tex[m_face2verts[iFace][1]];
+		int iTex2 = m_vert2tex[m_face2verts[iFace][2]];
+
+		pcl::KdTreeFLANN<ColorPoint> kdtree;
+		kdtree.setInputCloud(cloud);
+		ColorPoint searchPoint = toColorPoint(center);
+		// Neighbors within radius search
+		float radius = ((float) 3)/10.0; //(fixeds in cm)
+		std::vector<int> pointIdxRadiusSearch;
+		std::vector<float> pointRadiusSquaredDistance;
+		if ( kdtree.radiusSearch (searchPoint, radius, pointIdxRadiusSearch, pointRadiusSquaredDistance) > 0 ) {
+			for (size_t i = 0; i < pointIdxRadiusSearch.size(); i++) {
+				ColorPoint pt = cloud->points[pointIdxRadiusSearch[i]];
+			}
+		}
+	}
 }

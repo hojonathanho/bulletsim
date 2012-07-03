@@ -31,6 +31,12 @@ void drawCorrLines(PlotLines::Ptr lines, const vector<btVector3>& aPts, const ve
       linePoints.push_back(aPts[it.row()]);
       linePoints.push_back(bPts[it.col()]);
   }
+//	btVector3 cam_pos(-1.68829, -0.149108, 8.07206);
+//  for(int i=0; i<aPts.size(); i++) {
+//		btVector3 point_to_cam = (cam_pos-aPts[i]).normalized();
+//  	linePoints.push_back(aPts[i]+0.01*point_to_cam);
+//  	linePoints.push_back(cam_pos);
+//  }
   lines->setPoints(linePoints);
 }
 
@@ -71,7 +77,8 @@ void plotNodesAsSpheres(const Eigen::MatrixXf nodes, const Eigen::VectorXf& pVis
 	assert(nodes.cols() == sigs.cols());
 	MatrixXf centers = nodes.leftCols(3);
 	MatrixXf colors(nodes.rows(), 4);
-	colors << nodes.rightCols(3).rowwise().reverse(), 0.25*VectorXf::Ones(nodes.rows());
+	//colors << nodes.rightCols(3).rowwise().reverse(), 0.25*VectorXf::Ones(nodes.rows());
+	colors << nodes.rightCols(3).rowwise().reverse(), pVis;
 	VectorXf sizes = (sigs.leftCols(3).array().sqrt()/2).rowwise().mean();
 	spheres->plot(util::toVec3Array(centers), util::toVec4Array(colors), toVec(sizes));
 }
@@ -79,7 +86,8 @@ void plotNodesAsSpheres(const Eigen::MatrixXf nodes, const Eigen::VectorXf& pVis
 void plotObs(const vector<btVector3>& obsPts, const Eigen::VectorXf& inlierFrac, PointCloudPlot::Ptr plot) {
   osg::ref_ptr<osg::Vec4Array> colors = new osg::Vec4Array;
   for (int i=0; i < inlierFrac.size(); i++) {
-    float p = inlierFrac(i);
+    float p = 1.0;
+  	//float p = inlierFrac(i);
     colors->push_back(osg::Vec4f(0,p,0,.5));
   }
   plot->setPoints(util::toVec3Array(obsPts), colors);

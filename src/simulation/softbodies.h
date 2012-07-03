@@ -40,6 +40,9 @@ public:
     void setTexture(cv::Mat image);
 		void adjustTransparency(float increment);
 
+		bool checkIntersection(const btVector3& start, const btVector3& end);
+		vector<btVector3> getIntersectionPoints(const btVector3& start, const btVector3& end);
+
     // custom anchor management
     typedef int AnchorHandle;
     AnchorHandle addAnchor(btSoftBody::Node *node, btRigidBody *body, btScalar influence=1);

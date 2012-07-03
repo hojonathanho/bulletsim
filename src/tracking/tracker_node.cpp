@@ -111,7 +111,8 @@ int main(int argc, char* argv[]) {
 
   // actual tracking algorithm
   //  DepthImageVisibility visInterface(transformer);
-    DepthImageVisibility visInterface(transformer);
+    //DepthImageVisibility visInterface(transformer);
+    OSGVisibility visInterface(transformer);
     SimplePhysicsTracker alg(trackedObj, &visInterface, scene.env);
 
 //  TrackedObject::Ptr tracked_rope = trackedObj;
@@ -141,7 +142,7 @@ int main(int argc, char* argv[]) {
 
   while (ros::ok()) {
     alg.updateInput(filteredCloud);
-    visInterface.updateInput(depthImage);
+    //visInterface.updateInput(depthImage);
     pending = false;
     while (ros::ok() && !pending) {
       alg.doIteration();

@@ -13,6 +13,8 @@
 #include <BulletSoftBody/btSoftBodyData.h>
 #include <osgbCollision/Utils.h>
 #include <osgUtil/SmoothingVisitor>
+#include <osgUtil/IntersectionVisitor>
+#include <osgUtil/LineSegmentIntersector>
 
 using std::isfinite;
 using util::isfinite;
@@ -211,6 +213,29 @@ void BulletSoftObject::adjustTransparency(float increment) {
 		setTextureAfterInit();
 	else
 		setColorAfterInit();
+}
+
+//http://www.openscenegraph.org/projects/osg/browser/OpenSceneGraph/trunk/examples/osgintersection/osgintersection.cpp?rev=5662
+bool BulletSoftObject::checkIntersection(const btVector3& start, const btVector3& end) {
+	osg::ref_ptr<osgUtil::LineSegmentIntersector> intersector = new osgUtil::LineSegmentIntersector(util::toOSGVector(start), util::toOSGVector(end));
+	osgUtil::IntersectionVisitor intersectVisitor( intersector.get() );
+	getOSGNode()->accept(intersectVisitor);
+	return intersector->containsIntersections();
+}
+
+vector<btVector3> BulletSoftObject::getIntersectionPoints(const btVector3& start, const btVector3& end) {
+	osg::ref_ptr<osgUtil::LineSegmentIntersector> intersector = new osgUtil::LineSegmentIntersector(util::toOSGVector(start), util::toOSGVector(end));
+	osgUtil::IntersectionVisitor intersectVisitor( intersector.get() );
+	getOSGNode()->accept(intersectVisitor);
+	vector<btVector3> inter_points;
+	if ( intersector->containsIntersections() ) {
+			osgUtil::LineSegmentIntersector::Intersections& intersections = intersector->getIntersections();
+			for(osgUtil::LineSegmentIntersector::Intersections::iterator itr = intersections.begin();	itr != intersections.end();	++itr) {
+					const osgUtil::LineSegmentIntersector::Intersection& intersection = *itr;
+					inter_points.push_back(util::toBtVector(intersection.localIntersectionPoint));
+			}
+	}
+	return inter_points;
 }
 
 void BulletSoftObject::preDraw() {

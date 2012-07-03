@@ -7,6 +7,11 @@
 #include "clouds/pcl_typedefs.h"
 #include "utils/cvmat.h"
 #include "utils_tracking.h"
+#include <pcl/ros/conversions.h>
+#include <pcl/common/transforms.h>
+#include <pcl/point_cloud.h>
+#include <pcl/kdtree/kdtree_flann.h>
+#include "clouds/utils_pcl.h"
 
 class TrackedObject {
 public:
@@ -55,6 +60,7 @@ public:
   Eigen::MatrixXf getFeatures();
   void applyEvidence(const SparseMatrixf& corr, const Eigen::MatrixXf& obsPts);
   CapsuleRope* getSim() {return dynamic_cast<CapsuleRope*>(m_sim.get());}
+  cv::Mat makeTexture(ColorCloudPtr cloud);
 
 protected:
   Eigen::VectorXf m_masses;
@@ -65,14 +71,18 @@ public:
   typedef boost::shared_ptr<TrackedTowel> Ptr;
   TrackedTowel(BulletSoftObject::Ptr, int xres, int yres);
   std::vector<btVector3> getPoints();
+  std::vector<btVector3> getNormals();
   Eigen::MatrixXf getFeatures();
   void applyEvidence(const SparseMatrixf& corr, const Eigen::MatrixXf& obsPts); // add forces
   BulletSoftObject* getSim() {return dynamic_cast<BulletSoftObject*>(m_sim.get());};
+  cv::Mat makeTexture(const vector<btVector3>& corners, cv::Mat image, CoordinateTransformer* transformer);
+  cv::Mat makeTexturePC(ColorCloudPtr cloud);
 
 protected:
   std::vector<int> m_node2vert; // maps node index to bullet vertex index
   std::vector< std::vector<int> > m_vert2nodes; // maps bullet vertex index to indices of nodes
   std::vector<int> m_vert2tex; // maps bullet vertex index to texture coordinate index
+  std::vector< std::vector<int> > m_face2verts;
   Eigen::VectorXf m_masses;
 
 };
@@ -99,5 +109,4 @@ std::vector<btVector3> calcImpulsesDamped(const std::vector<btVector3>& estPos, 
     const std::vector<btVector3>& obsPts, const SparseMatrixf& corr, const vector<float>& masses, float kp, float kd);
 
 BulletSoftObject::Ptr makeTowel(const vector<btVector3>& points, int resolution_x, int resolution_y, btSoftBodyWorldInfo& worldInfo);
-cv::Mat makeTowelTexture(const vector<btVector3>& corners, cv::Mat image, CoordinateTransformer* transformer);
 

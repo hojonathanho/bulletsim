@@ -145,6 +145,7 @@ class PreprocessorNode {
 public:
   ros::NodeHandle& m_nh;
   ros::Publisher m_pubCloud;
+  ros::Publisher m_pubCloudBorder;
   ros::Publisher m_pubCloudComp;
   ros::Publisher m_polyPub;
   tf::TransformBroadcaster br;
@@ -170,7 +171,11 @@ public:
     if (!m_inited) {
     	ColorCloudPtr cloud_green = colorSpaceFilter(cloud_in, 0, 255, 100, 255, 0, 255, CV_BGR2Lab, true);
     	cloud_green = clusterFilter(cloud_green, 0.01, 100);
-    	initTable(cloud_green);
+    	if (cloud_green->size() < 50) {
+    		ROS_WARN("The green table cannot be seen. The table couldn't be initialized.");
+    	} else {
+    		initTable(cloud_green);
+    	}
     }
 
     //ColorCloudPtr cloud_out(new ColorCloud());
@@ -184,9 +189,9 @@ public:
 
 		//Filter out hands and skin-color objects
 		//input cloud for skinFilter has to be dense
-		ColorCloudPtr cloud_skin = skinFilter(cloud_in);
-		cloud_skin = downsampleCloud(cloud_skin, 0.02);
-		cloud_out = filterNeighbors(cloud_out, cloud_skin, LocalConfig::skinRadius, LocalConfig::skinColorDist, true);
+//		ColorCloudPtr cloud_skin = skinFilter(cloud_in);
+//		cloud_skin = downsampleCloud(cloud_skin, 0.02);
+//		cloud_out = filterNeighbors(cloud_out, cloud_skin, LocalConfig::skinRadius, LocalConfig::skinColorDist, true);
 
 		if (LocalConfig::removeOutliers) cloud_out = removeOutliers(cloud_out, 1, 10);
 		if (LocalConfig::clusterMinSize > 0) cloud_out = clusterFilter(cloud_out, LocalConfig::clusterTolerance, LocalConfig::clusterMinSize);
@@ -196,12 +201,26 @@ public:
     msg_out.header = msg_in.header;
     m_pubCloud.publish(msg_out);
 
-    sensor_msgs::PointCloud2 msg_out_comp;
-		pcl::toROSMsg(*cloud_skin, msg_out_comp);
-		msg_out_comp.header = msg_in.header;
-		m_pubCloudComp.publish(msg_out_comp);
+    ColorCloudPtr cloud_border = colorSpaceFilter(cloud_in, 0, 255, 0, 255, 190, 255, CV_BGR2Lab, false);
+    if (LocalConfig::downsample > 0) cloud_border = downsampleCloud(cloud_border, LocalConfig::downsample);
+    cloud_border = orientedBoxFilter(cloud_border, toEigenMatrix(m_transform.getBasis()), m_mins, m_maxes);
+		if (LocalConfig::removeOutliers) cloud_border = removeOutliers(cloud_border, 1, 10);
+		if (LocalConfig::clusterMinSize > 0) cloud_border = clusterFilter(cloud_border, LocalConfig::clusterTolerance, LocalConfig::clusterMinSize);
+		sensor_msgs::PointCloud2 msg_out_border;
+		pcl::toROSMsg(*cloud_border, msg_out_border);
+		msg_out_border.header = msg_in.header;
+		m_pubCloudBorder.publish(msg_out_border);
+
+//    sensor_msgs::PointCloud2 msg_out_comp;
+//		pcl::toROSMsg(*cloud_skin, msg_out_comp);
+//		msg_out_comp.header = msg_in.header;
+//		m_pubCloudComp.publish(msg_out_comp);
 
     br.sendTransform(tf::StampedTransform(m_transform, ros::Time::now(), msg_in.header.frame_id, "ground"));
+
+    MatrixXu bgr = toBGR(cloud_in);
+    cv::Mat image(cloud_in->height,cloud_in->width, CV_8UC3, bgr.data());
+    cv::imwrite("/home/alex/Desktop/yellow.jpg", image);
 
 //		MatrixXu bgr = toBGR(cloud_in);
 //	  cv::Mat image(cloud_in->height,cloud_in->width, CV_8UC3, bgr.data());
@@ -313,12 +332,16 @@ public:
     m_inited(false),
     m_nh(nh),
     m_pubCloud(nh.advertise<sensor_msgs::PointCloud2>(outputNS+"/points",5)),
+    m_pubCloudBorder(nh.advertise<sensor_msgs::PointCloud2>(outputNS+"/pointsBorder",5)),
     m_pubCloudComp(nh.advertise<sensor_msgs::PointCloud2>(outputNS+"/pointsComp",5)),
     m_polyPub(nh.advertise<geometry_msgs::PolygonStamped>(outputNS+"/polygon",5)),
     m_sub(nh.subscribe(LocalConfig::inputTopic, 1, &PreprocessorNode::callback, this)),
   	m_pubImg1(nh.advertise<sensor_msgs::Image>(outputNS+"/image1",5)),
 		m_pubImg2(nh.advertise<sensor_msgs::Image>(outputNS+"/image2",5)),
-		m_pubImg3(nh.advertise<sensor_msgs::Image>(outputNS+"/image3",5))
+		m_pubImg3(nh.advertise<sensor_msgs::Image>(outputNS+"/image3",5)),
+		m_mins(-10,-10,-10),
+		m_maxes(10,10,10),
+		m_transform(toBulletTransform(Affine3f::Identity()))
     {
     }
 

@@ -13,7 +13,10 @@ public:
   Eigen::MatrixXf m_obsPts;
   Eigen::MatrixXf m_stdev;
   Eigen::VectorXf m_prior_dist;
+  Eigen::VectorXf m_outlier_dist; //m_obsPts - m_estPts for the fake node responsible for an outlier observation. same for all obsPts.
   Eigen::MatrixXf m_obsDebug;
+
+  ColorCloudPtr m_obsCloud;
 
   PointCloudPlot::Ptr m_obsInlierPlot;
   PointCloudPlot::Ptr m_obsPlot;

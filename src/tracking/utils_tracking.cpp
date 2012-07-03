@@ -25,14 +25,6 @@ void CoordinateTransformer::reset(const btTransform &wfc) {
   camFromWorldEigen = worldFromCamEigen.inverse();
 }
 
-inline btVector3 CoordinateTransformer::toWorldFromCam(const btVector3& camVec) {
-  return METERS * (worldFromCamUnscaled * camVec);
-}
-
-inline btVector3 CoordinateTransformer::toCamFromWorld(const btVector3& worldVec) {
-  return worldFromCamUnscaled.inverse() * ( worldVec / METERS);
-}
-
 vector<btVector3> CoordinateTransformer::toWorldFromCamN(const vector<btVector3>& camVecs) {
   vector<btVector3> worldVecs(camVecs.size());
   for (int i=0; i<camVecs.size(); i++) worldVecs[i] = toWorldFromCam(camVecs[i]);

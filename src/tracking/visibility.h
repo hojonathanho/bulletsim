@@ -21,3 +21,11 @@ public:
 	Eigen::VectorXf checkNodeVisibility(TrackedObject::Ptr);
 	void updateInput(const cv::Mat&);
 };
+
+class OSGVisibility : public VisibilityInterface {
+public:
+  CoordinateTransformer* m_transformer;
+  OSGVisibility(CoordinateTransformer* transformer) : m_transformer(transformer) {}
+  Eigen::VectorXf checkNodeVisibility(TrackedObject::Ptr);
+  vector<btVector3> getIntersectionPoints(TrackedObject::Ptr);
+};

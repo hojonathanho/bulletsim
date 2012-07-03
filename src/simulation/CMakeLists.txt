@@ -3,6 +3,7 @@ include_directories(
     ${BULLET_DIR}/Extras/HACD
     ${BULLETSIM_SOURCE_DIR}/lib/haptics
     ${BULLETSIM_SOURCE_DIR}/src
+    ${PCL_INCLUDE_DIRS}
 )
 
 FIND_PACKAGE( OpenCV REQUIRED )
