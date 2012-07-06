@@ -67,6 +67,27 @@ void adjustTransparency(TrackedObject::Ptr trackedObj, float increment) {
 		dynamic_cast<BulletSoftObject*>(trackedObj->getSim())->adjustTransparency(increment);
 }
 
+#include <BulletSoftBody/btSoftBodyHelpers.h>
+#include "../../lib/bullet-2.79/Demos/GimpactTestDemo/BunnyMesh.h"
+BulletSoftObject::Ptr makeBunnyMesh(btSoftBodyWorldInfo& worldInfo) {
+	btSoftBody*	psb=btSoftBodyHelpers::CreateFromTriMesh(worldInfo,	gVerticesBunny,
+				&gIndicesBunny[0][0],
+				BUNNY_NUM_TRIANGLES);
+
+	btSoftBody::Material*	pm=psb->appendMaterial();
+	pm->m_kLST				=	0.5;
+	pm->m_flags				-=	btSoftBody::fMaterial::DebugDraw;
+	psb->generateBendingConstraints(2,pm);
+	psb->m_cfg.piterations	=	2;
+	psb->m_cfg.kDF			=	0.5;
+	psb->randomizeConstraints();
+	psb->scale(btVector3(6,6,6));
+	psb->setTotalMass(100,true);
+
+	BulletSoftObject::Ptr bso = BulletSoftObject::Ptr(new BulletSoftObject(psb));
+	return bso;
+}
+
 int main(int argc, char* argv[]) {
   Eigen::internal::setNbThreads(2);
   Parser parser;
@@ -102,12 +123,16 @@ int main(int argc, char* argv[]) {
   Scene scene;
   scene.startViewer();
 
-
   TrackedObject::Ptr trackedObj = callInitServiceAndCreateObject(scaleCloud(filteredCloud,1/METERS), rgbImage, transformer, scene.env);
   if (!trackedObj) throw runtime_error("initialization of object failed.");
   //scene.env->add(trackedObj->m_sim);
   //dynamic_cast<BulletObject*>(trackedObj->getSim())->setTexture();
   //dynamic_cast<BulletSoftObject*>(trackedObj->getSim())->setColor(1,0,0,1);
+
+//  BulletSoftObject::Ptr bunny = makeBunnyMesh(scene.env->bullet->softBodyWorldInfo);
+//  bunny->setColor(0,1,0,1);
+//  scene.env->add(bunny);
+
 
   // actual tracking algorithm
   //  DepthImageVisibility visInterface(transformer);
@@ -146,6 +171,7 @@ int main(int argc, char* argv[]) {
     pending = false;
     while (ros::ok() && !pending) {
       alg.doIteration();
+    	scene.env->step(.03,2,.015);
       LOG_DEBUG("did iteration");
       scene.viewer.frame();
       ros::spinOnce();

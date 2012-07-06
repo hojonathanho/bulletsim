@@ -48,9 +48,10 @@ VectorXf OSGVisibility::checkNodeVisibility(TrackedObject::Ptr obj) {
 			if (sim->checkIntersection(points[i]-0.01*view, cam_pos)) {
 				vis(i) = 0;
 			} else {
-				vis(i) = abs(view.dot(normals[i]));
-				assert(vis(i)>=0);
-				assert(vis(i)<=1);
+				vis(i) = 1;
+//				vis(i) = abs(view.dot(normals[i]));
+//				assert(vis(i)>=0);
+//				assert(vis(i)<=1);
 			}
 		}
 	} else {

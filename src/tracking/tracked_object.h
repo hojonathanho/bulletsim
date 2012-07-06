@@ -19,29 +19,32 @@ public:
   EnvironmentObject::Ptr m_sim;
   std::string m_type;
   int m_nNodes;
+  int m_nFeatures;
   Eigen::VectorXf m_sigs;
 
   TrackedObject(EnvironmentObject::Ptr sim, string type) : m_sim(sim), m_type(type) {}
   virtual std::vector<btVector3> getPoints() = 0;
   virtual Eigen::MatrixXf getFeatures() = 0;
+  virtual Eigen::VectorXf getPriorDist() = 0;
+  virtual Eigen::VectorXf getOutlierDist() = 0;
   virtual void applyEvidence(const SparseMatrixf& corr, const Eigen::MatrixXf& obsPts) = 0;
   virtual EnvironmentObject* getSim()=0;
 
-  static Eigen::MatrixXf featuresTransform(const Eigen::MatrixXf& features) {
+  virtual Eigen::MatrixXf featuresTransform(const Eigen::MatrixXf& features) {
   	Eigen::MatrixXf out(features);
-  	out.rightCols(3) = colorTransform(out.rightCols(3), CV_BGR2Lab);
+  	out.middleCols(3,3) = colorTransform(out.middleCols(3,3), CV_BGR2Lab);
 //  	Eigen::MatrixXf out(features);
   	return out;
   }
 
-  static Eigen::MatrixXf featuresUntransform(const Eigen::MatrixXf& features) {
+  virtual Eigen::MatrixXf featuresUntransform(const Eigen::MatrixXf& features) {
   	Eigen::MatrixXf out(features);
-  	out.rightCols(3) = colorTransform(out.rightCols(3), CV_Lab2BGR);
+  	out.middleCols(3,3) = colorTransform(out.middleCols(3,3), CV_Lab2BGR);
 //  	Eigen::MatrixXf out(features);
   	return out;
   }
 
-  static Eigen::MatrixXf extractFeatures(ColorCloudPtr in) {
+  virtual Eigen::MatrixXf extractFeatures(ColorCloudPtr in) {
   	Eigen::MatrixXf out(in->size(), 6);
     for (int i=0; i < in->size(); ++i)
     	out.row(i) << in->points[i].x, in->points[i].y, in->points[i].z, in->points[i].b/255.0, in->points[i].g/255.0, in->points[i].r/255.0;
@@ -58,6 +61,8 @@ public:
 
   std::vector<btVector3> getPoints();
   Eigen::MatrixXf getFeatures();
+  Eigen::VectorXf getPriorDist();
+  Eigen::VectorXf getOutlierDist();
   void applyEvidence(const SparseMatrixf& corr, const Eigen::MatrixXf& obsPts);
   CapsuleRope* getSim() {return dynamic_cast<CapsuleRope*>(m_sim.get());}
   cv::Mat makeTexture(ColorCloudPtr cloud);
@@ -70,9 +75,12 @@ class TrackedTowel : public TrackedObject {
 public:
   typedef boost::shared_ptr<TrackedTowel> Ptr;
   TrackedTowel(BulletSoftObject::Ptr, int xres, int yres);
+  Eigen::MatrixXf extractFeatures(ColorCloudPtr in);
   std::vector<btVector3> getPoints();
   std::vector<btVector3> getNormals();
   Eigen::MatrixXf getFeatures();
+  Eigen::VectorXf getPriorDist();
+  Eigen::VectorXf getOutlierDist();
   void applyEvidence(const SparseMatrixf& corr, const Eigen::MatrixXf& obsPts); // add forces
   BulletSoftObject* getSim() {return dynamic_cast<BulletSoftObject*>(m_sim.get());};
   cv::Mat makeTexture(const vector<btVector3>& corners, cv::Mat image, CoordinateTransformer* transformer);
@@ -94,7 +102,9 @@ public:
   TrackedBox(BoxObject::Ptr sim);
 
   std::vector<btVector3> getPoints();
-  Eigen::MatrixXf getFeatures() {};
+  Eigen::MatrixXf getFeatures() { std::cout << "getFeatures not implemented yet" << std::endl; assert(0); return Eigen::VectorXf();};
+  Eigen::VectorXf getPriorDist() { std::cout << "getPriorDist not implemented yet" << std::endl; assert(0); return Eigen::VectorXf();};
+  Eigen::VectorXf getOutlierDist() { std::cout << "getOutlierDist not implemented yet" << std::endl; assert(0); return Eigen::VectorXf();};
   void applyEvidence(const SparseMatrixf& corr, const Eigen::MatrixXf& obsPts);
   BoxObject* getSim() {return dynamic_cast<BoxObject*>(m_sim.get());}
 

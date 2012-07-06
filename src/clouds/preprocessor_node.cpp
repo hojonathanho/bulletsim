@@ -181,11 +181,14 @@ public:
     //ColorCloudPtr cloud_out(new ColorCloud());
     ColorCloudPtr cloud_out = cloud_in;
 
-    if (LocalConfig::downsample > 0) cloud_out = downsampleCloud(cloud_out, LocalConfig::downsample);
+//    if (LocalConfig::downsample > 0) cloud_out = downsampleCloud(cloud_out, LocalConfig::downsample);
 		cloud_out = orientedBoxFilter(cloud_out, toEigenMatrix(m_transform.getBasis()), m_mins, m_maxes);
 
-		//Filter out green background
-		cloud_out = colorSpaceFilter(cloud_out, MIN_L, MAX_L, MIN_A, MAX_A, MIN_B, MAX_B, CV_BGR2Lab);
+		//Filter out green background and put yellow back
+		ColorCloudPtr cloud_neg_green = colorSpaceFilter(cloud_out, MIN_L, MAX_L, MIN_A, MAX_A, MIN_B, MAX_B, CV_BGR2Lab);
+		ColorCloudPtr cloud_yellow = colorSpaceFilter(cloud_out, 0, 255, 0, 255, 190, 255, CV_BGR2Lab);
+		*cloud_out = *cloud_neg_green + *cloud_yellow;
+		if (LocalConfig::downsample > 0) cloud_out = downsampleCloud(cloud_out, LocalConfig::downsample);
 
 		//Filter out hands and skin-color objects
 		//input cloud for skinFilter has to be dense
@@ -201,13 +204,9 @@ public:
     msg_out.header = msg_in.header;
     m_pubCloud.publish(msg_out);
 
-    ColorCloudPtr cloud_border = colorSpaceFilter(cloud_in, 0, 255, 0, 255, 190, 255, CV_BGR2Lab, false);
-    if (LocalConfig::downsample > 0) cloud_border = downsampleCloud(cloud_border, LocalConfig::downsample);
-    cloud_border = orientedBoxFilter(cloud_border, toEigenMatrix(m_transform.getBasis()), m_mins, m_maxes);
-		if (LocalConfig::removeOutliers) cloud_border = removeOutliers(cloud_border, 1, 10);
-		if (LocalConfig::clusterMinSize > 0) cloud_border = clusterFilter(cloud_border, LocalConfig::clusterTolerance, LocalConfig::clusterMinSize);
+		cloud_yellow = colorSpaceFilter(cloud_out, 0, 255, 0, 255, 190, 255, CV_BGR2Lab);
 		sensor_msgs::PointCloud2 msg_out_border;
-		pcl::toROSMsg(*cloud_border, msg_out_border);
+		pcl::toROSMsg(*cloud_yellow, msg_out_border);
 		msg_out_border.header = msg_in.header;
 		m_pubCloudBorder.publish(msg_out_border);
 
@@ -218,9 +217,9 @@ public:
 
     br.sendTransform(tf::StampedTransform(m_transform, ros::Time::now(), msg_in.header.frame_id, "ground"));
 
-    MatrixXu bgr = toBGR(cloud_in);
-    cv::Mat image(cloud_in->height,cloud_in->width, CV_8UC3, bgr.data());
-    cv::imwrite("/home/alex/Desktop/yellow.jpg", image);
+//    MatrixXu bgr = toBGR(cloud_in);
+//    cv::Mat image(cloud_in->height,cloud_in->width, CV_8UC3, bgr.data());
+//    cv::imwrite("/home/alex/Desktop/yellow.jpg", image);
 
 //		MatrixXu bgr = toBGR(cloud_in);
 //	  cv::Mat image(cloud_in->height,cloud_in->width, CV_8UC3, bgr.data());

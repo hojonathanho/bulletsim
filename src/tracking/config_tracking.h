@@ -11,7 +11,11 @@ struct TrackingConfig : Config {
   static std::string rgbTopic;
   static std::string fullCloudTopic;
   
-  static float outlierParam;
+  static float pointPriorDist;
+  static float borderPriorDist;
+  static float pointOutlierDist;
+  static float borderOutlierDist;
+  static float epsilon;
   static float kp_rope;
   static float kd_rope;
   static float kp_cloth;
@@ -30,7 +34,11 @@ struct TrackingConfig : Config {
         params.push_back(new Parameter<std::string>("rgbTopic", &rgbTopic, "rgb image topic"));
         params.push_back(new Parameter<std::string>("fullCloudTopic", &fullCloudTopic, "original point cloud topic topic"));
 
-        params.push_back(new Parameter<float>("outlierParam", &outlierParam, "outlier density"));
+        params.push_back(new Parameter<float>("pointPriorDist", &pointPriorDist, ""));
+        params.push_back(new Parameter<float>("borderPriorDist", &borderPriorDist, ""));
+        params.push_back(new Parameter<float>("pointOutlierDist", &pointOutlierDist, "Intuitively, observed points farther than distance=sqrt(3)*pointOutlierDist (special case) from a node are considered outliers. Pick distance/sqrt(3) ~= distance*0.5 ."));
+        params.push_back(new Parameter<float>("borderOutlierDist", &borderOutlierDist, "Doesn't matter for now since only xyz points are considered for outlier test."));
+        params.push_back(new Parameter<float>("epsilon", &epsilon, ""));
         params.push_back(new Parameter<float>("kp_rope", &kp_rope, "proportional gain for rope"));
         params.push_back(new Parameter<float>("kd_rope", &kd_rope, "damping for rope"));
         params.push_back(new Parameter<float>("kp_cloth", &kp_cloth, "proportional gain for cloth"));

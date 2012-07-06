@@ -161,6 +161,8 @@ void SVDCalibration(ColorCloudPtr cloud1, ColorCloudPtr cloud2) {
 			estimation_svd.estimateRigidTransformation(*cloud2_corners, indices, *cloud1_corners, indices, transform_diff);
 			svd_calib_init = true;
 			ROS_INFO("SVD calibration succeeded with %d/%d points", (int) cloud1_corners->size(), nAllPoints);
+			cout << "first  transform " << endl << initial_cb_transform << endl;
+			cout << "second transform " << endl << transform_diff << endl;
 		} else {
 			ROS_WARN("SVD calibration failed. Only %d of a minimum of %d correspondences found.", (int) cloud1_corners->size(), minCorr);
 		}
@@ -287,6 +289,15 @@ int main(int argc, char* argv[]) {
 	typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::PointCloud2, sensor_msgs::PointCloud2> CloudSyncPolicy;
 	message_filters::Synchronizer<CloudSyncPolicy> cloudSync(CloudSyncPolicy(30), cloud1Sub, cloud2Sub);
 	cloudSync.registerCallback(boost::bind(&callback,_1,_2));
+
+//	cout << "waiting for first message" << endl;
+//	sensor_msgs::PointCloud2ConstPtr msg_in1 = ros::topic::waitForMessage<sensor_msgs::PointCloud2>(LocalConfig::inputTopic1, nh);
+//	cout << "got first message" << endl;
+//	cout << "waiting for second message" << endl;
+//	sensor_msgs::PointCloud2ConstPtr msg_in2 = ros::topic::waitForMessage<sensor_msgs::PointCloud2>(LocalConfig::inputTopic2, nh);
+//	cout << "got second message" << endl;
+//	callback(msg_in1, msg_in2);
+//	cout << "finished calibration" << endl;
 
 	ros::spin();
 }

@@ -145,7 +145,10 @@ void estimateCorrespondence(const Eigen::MatrixXf& estPts, const Eigen::MatrixXf
 	for (int i=0; i<estPts.rows(); i++) {
 		sqDistsInvSigma.row(i) = invVariances.row(i) * (obsPts.rowwise() - estPts.row(i)).transpose().array().square().matrix();
 	}
-	sqDistsInvSigma.row(estPts.rows()) = invVariances.row(estPts.rows()).dot(outlierDist.array().square().matrix()) * VectorXf::Ones(sqDistsInvSigma.cols()).transpose();
+	//sqDistsInvSigma.row(estPts.rows()) = invVariances.row(estPts.rows()).dot(outlierDist.array().square().matrix()) * VectorXf::Ones(sqDistsInvSigma.cols()).transpose();
+	//intuition: when an observed point is farther than space_distance = outlierDist.topRows(3).norm() from an estimated point (node), then that observed point is considered an outlier
+	//special case: when pointOutlierDist = outlierDist(0) = outlierDist(1) = outlierDist(2), space_dist = sqrt(3) * pointOutlierDist
+	sqDistsInvSigma.row(estPts.rows()) = invVariances.leftCols(3).row(estPts.rows()).dot(outlierDist.topRows(3).array().square().matrix()) * VectorXf::Ones(sqDistsInvSigma.cols()).transpose();
 
 	MatrixXf pBgivenZ_unscaled = (-sqDistsInvSigma).array().exp();
 	VectorXf negSqrtDetVariances = invSigma.rowwise().prod();
@@ -163,13 +166,19 @@ void estimateCorrespondence(const Eigen::MatrixXf& estPts, const Eigen::MatrixXf
 		if (pVis_kp1(i) != 0)
 			pZgivenB.row(i) *= pVis_kp1(i)/pZgivenB.row(i).sum();
 	}
-	//pZgivenB = ((VectorXf) (pVis_kp1.array() * pZgivenB.rowwise().sum().array().inverse())).asDiagonal() * pZgivenB;
+	//pZgivenB = ((VectorXf) (pVis_kp1.array() * (pZgivenB.rowwise().sum().array()+TrackingConfig::epsilon).inverse())).asDiagonal() * pZgivenB;
 	//normalize cols
 	pZgivenB = pZgivenB * ((VectorXf) pZgivenB.colwise().sum().array().inverse()).asDiagonal();
 
 	corr = toSparseMatrix(pZgivenB.topRows(estPts.rows()), .1);
 
 	assert(isFinite(pZgivenB));
+//	for (int row=0; row < pZgivenB.rows(); row++)
+//		for (int col=0; col<pZgivenB.cols(); col++)
+//			if (!isfinite(pZgivenB(row,col))) {
+//				cout << "infinite" << endl;
+//				pZgivenB(row,col) = 0;
+//			}
 	assert(pZgivenB.rows() == (estPts.rows())+1);
 	assert(pZgivenB.cols() == obsPts.rows());
 }

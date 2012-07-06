@@ -26,13 +26,23 @@ TrackedTowel::TrackedTowel(BulletSoftObject::Ptr sim, int nCols, int nRows) : Tr
   map<intpair,int> coord2node;
   m_vert2nodes = vector< vector<int> >(nRows*nCols); // map from softbody node index to indices of nearby knots
 
-  int decimation = 2;
-  for (int row = 0; row < nRows; row += decimation) {
-    for (int col = 0; col < nCols; col += decimation) {
-      coord2node[intpair(row,col)] = m_node2vert.size();
-      m_node2vert.push_back(idx(row,col,nCols));
-    }
-  }
+//  int decimation = 2;
+//  for (int row = 0; row < nRows; row += decimation) {
+//    for (int col = 0; col < nCols; col += decimation) {
+//      coord2node[intpair(row,col)] = m_node2vert.size();
+//      m_node2vert.push_back(idx(row,col,nCols));
+//    }
+//  }
+
+	int decimation = 2;
+	for (int row = 0; row < nRows; row++) {
+		for (int col = 0; col < nCols; col++) {
+			if (row==0 || row==(nRows-1) || col==0 || col==(nCols-1) || (row%decimation==0 && col%decimation==0)) {
+				coord2node[intpair(row,col)] = m_node2vert.size();
+				m_node2vert.push_back(idx(row,col,nCols));
+			}
+		}
+	}
   m_nNodes = m_node2vert.size();
 
   // now look in a window around each vertex and give it a node for each vertex in this window
@@ -117,6 +127,8 @@ TrackedTowel::TrackedTowel(BulletSoftObject::Ptr sim, int nCols, int nRows) : Tr
   for (int i=0; i < m_nNodes; ++i) {
     m_masses(i) = 1/verts[m_node2vert[i]].m_im;
   }
+
+  m_nFeatures = 7;
 }
 
 void TrackedTowel::applyEvidence(const SparseMatrixf& corr, const Eigen::MatrixXf& obsPts) {
@@ -145,6 +157,16 @@ void TrackedTowel::applyEvidence(const SparseMatrixf& corr, const Eigen::MatrixX
   //TODO apply evidences to color
 }
 
+MatrixXf TrackedTowel::extractFeatures(ColorCloudPtr in) {
+	MatrixXf out(in->size(), m_nFeatures);
+	for (int i=0; i < in->size(); ++i)
+		out.row(i) << in->points[i].x, in->points[i].y, in->points[i].z, in->points[i].b/255.0, in->points[i].g/255.0, in->points[i].r/255.0, 0;
+	MatrixXf lab_colors = colorTransform(out.middleCols(3,3), CV_BGR2Lab);
+	for (int i=0; i < in->size(); ++i)
+		out(i,6) = (lab_colors(i,2) > 190.0/255.0);
+	return featuresTransform(out);
+}
+
 vector<btVector3> TrackedTowel::getPoints() {
 	vector<btVector3> out(m_nNodes);
 	btAlignedObjectArray<btSoftBody::Node>& verts = getSim()->softBody->m_nodes;
@@ -162,7 +184,7 @@ vector<btVector3> TrackedTowel::getNormals() {
 }
 
 MatrixXf TrackedTowel::getFeatures() {
-	MatrixXf features(m_nNodes, 6);
+	MatrixXf features(m_nNodes, m_nFeatures);
 	btAlignedObjectArray<btSoftBody::Node>& verts = getSim()->softBody->m_nodes;
 	const osg::Vec2Array& texcoords = *(getSim()->tritexcoords);
 	cv::Mat tex_image = getSim()->getTexture();
@@ -176,8 +198,22 @@ MatrixXf TrackedTowel::getFeatures() {
 																			cv::Range(max(j_pixel - range, 0), min(j_pixel + range, tex_image.cols-1)));
 		Vector3f bgr = toEigenMatrixImage(window_pixels).colwise().mean();
 		features.block(i,3,1,3) = bgr.transpose();
+		features(i,6) = texcoords[m_vert2tex[m_node2vert[i]]].x() == 0 || texcoords[m_vert2tex[m_node2vert[i]]].x() == 1 ||
+				texcoords[m_vert2tex[m_node2vert[i]]].y() == 0 || texcoords[m_vert2tex[m_node2vert[i]]].y() == 1;
 	}
 	return featuresTransform(features);
+}
+
+VectorXf TrackedTowel::getPriorDist() {
+	VectorXf prior_dist(m_nFeatures);
+	prior_dist << TrackingConfig::pointPriorDist*METERS, TrackingConfig::pointPriorDist*METERS, TrackingConfig::pointPriorDist*METERS, 0.6, 0.3, 0.3, TrackingConfig::borderPriorDist;
+	return prior_dist;
+}
+
+VectorXf TrackedTowel::getOutlierDist() {
+	VectorXf outlier_dist(m_nFeatures);
+	outlier_dist << TrackingConfig::pointOutlierDist*METERS, TrackingConfig::pointOutlierDist*METERS, TrackingConfig::pointOutlierDist*METERS, 0.6, 0.3, 0.3, TrackingConfig::borderOutlierDist;
+	return outlier_dist;
 }
 
 BulletSoftObject::Ptr makeTowel(const vector<btVector3>& points, int resolution_x, int resolution_y, btSoftBodyWorldInfo& worldInfo) {

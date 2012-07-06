@@ -39,17 +39,19 @@ SimplePhysicsTracker::SimplePhysicsTracker(TrackedObject::Ptr obj, VisibilityInt
 	m_env->add(m_debugPlot);
 	m_corrPlot->setDefaultColor(1,1,0,.3);
 
-	m_prior_dist.resize(6);
-	m_prior_dist << (.03*METERS), (.03*METERS), (.03*METERS), 0.6, 0.3, 0.3;
+	m_prior_dist = m_obj->getPriorDist();
 	m_stdev = m_prior_dist.transpose().replicate(m_obj->m_nNodes+1, 1);
 
-	m_outlier_dist.resize(6);
-	m_outlier_dist << TrackingConfig::outlierParam*METERS, TrackingConfig::outlierParam*METERS, TrackingConfig::outlierParam*METERS, 0.6, 0.3, 0.3;
+	m_outlier_dist = m_obj->getOutlierDist();
 }
 
 void SimplePhysicsTracker::updateInput(ColorCloudPtr obsPts) {
-  m_obsPts = TrackedObject::extractFeatures(obsPts);
-  m_obsCloud = obsPts;
+	m_obsPts = m_obj->extractFeatures(obsPts);
+	float min_z = 0.015 * METERS;
+  for (int i=0; i<m_obsPts.rows(); i++)
+  	if (m_obsPts(i,2) < min_z)
+  		m_obsPts(i,2) = min_z;
+	m_obsCloud = obsPts;
 }
 
 void SimplePhysicsTracker::doIteration() {
@@ -64,24 +66,21 @@ void SimplePhysicsTracker::doIteration() {
   estimateCorrespondence(m_estPts, m_stdev, vis, m_obsPts, m_outlier_dist, pZgivenB, corr);
   cout << "estimateCorrespondence " << GetClock() << endl;
 
-//  StartClock();
-//  estimateCorrespondenceCloud(m_obsCloud, m_estPts, m_stdev, vis, m_obsPts, TrackingConfig::outlierParam, corr);
-//  cout << "estimateCorrespondenceCloud " << GetClock() << endl;
-
   VectorXf inlierFrac = colSums(corr);
   if (m_enableObsInlierPlot) plotObs(toBulletVectors(m_obsPts.leftCols(3)), inlierFrac, m_obsInlierPlot);
 	else m_obsInlierPlot->clear();
-	if (m_enableObsPlot) plotObs(TrackedObject::featuresUntransform(m_obsPts), m_obsPlot);
+	if (m_enableObsPlot) plotObs(m_obj->featuresUntransform(m_obsPts), m_obsPlot);
 	else m_obsPlot->clear();
 	if (m_enableObsTransPlot) plotObs(m_obsPts, m_obsTransPlot);
 	else m_obsTransPlot->clear();
-	if (m_enableEstPlot) plotNodesAsSpheres(TrackedObject::featuresUntransform(m_estPts), vis, m_stdev.topRows(m_stdev.rows()-1), m_estPlot);
+	if (m_enableEstPlot) plotNodesAsSpheres(m_obj->featuresUntransform(m_estPts), vis, m_stdev.topRows(m_stdev.rows()-1), m_estPlot);
 	else m_estPlot->clear();
 	if (m_enableEstTransPlot) plotNodesAsSpheres(m_estPts, vis, m_stdev.topRows(m_stdev.rows()-1), m_estTransPlot);
 	else m_estTransPlot->clear();
 	if (m_enableCorrPlot) drawCorrLines(m_corrPlot, toBulletVectors(m_estPts.leftCols(3)), toBulletVectors(m_obsPts.leftCols(3)), corr);
 	else m_corrPlot->clear();
-	if (m_enableDebugPlot) plotObs(m_obsDebug, m_debugPlot);
+  if (m_enableDebugPlot) plotObsBorder(m_obj->featuresUntransform(m_obsPts), m_debugPlot);
+  //if (m_enableDebugPlot) plotObs(m_obsDebug, m_debugPlot);
 	else m_debugPlot->clear();
 
 	StartClock();

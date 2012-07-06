@@ -37,6 +37,18 @@ MatrixXf TrackedRope::getFeatures() {
 	return featuresTransform(features);
 }
 
+VectorXf TrackedRope::getPriorDist() {
+	VectorXf prior_dist(6);
+	prior_dist << TrackingConfig::pointPriorDist*METERS, TrackingConfig::pointPriorDist*METERS, TrackingConfig::pointPriorDist*METERS, 0.6, 0.3, 0.3;
+	return prior_dist;
+}
+
+VectorXf TrackedRope::getOutlierDist() {
+	VectorXf outlier_dist(6);
+	outlier_dist << TrackingConfig::pointOutlierDist*METERS, TrackingConfig::pointOutlierDist*METERS, TrackingConfig::pointOutlierDist*METERS, 0.6, 0.3, 0.3;
+	return outlier_dist;
+}
+
 void TrackedRope::applyEvidence(const SparseMatrixf& corr, const MatrixXf& obsPts) {
   vector<btVector3> estPos(m_nNodes), estVel(m_nNodes);
   for (int i=0; i < m_nNodes; ++i)  {
