@@ -1,8 +1,12 @@
+find_package(PythonLibs REQUIRED)
+
+
 include_directories(
 #  ${WM_INCLUDE_DIR}
   ${PCL_INCLUDE_DIRS}
 #  ${GUROBI_INCLUDE_DIR}
   ${TETGEN_DIR}
+  ${PYTHON_INCLUDE_DIRS}
 )
 
 link_directories(
@@ -12,7 +16,6 @@ link_directories(
   ${TETGEN_DIR}
 )
 
-find_package(PythonLibs)
 
 add_library(knots knots.cpp utils_python.cpp arm_base_traj.cpp trajectory_library.cpp rope_scenes.cpp)
 target_link_libraries(knots simulation robots boost_python ${PYTHON_LIBRARIES})
