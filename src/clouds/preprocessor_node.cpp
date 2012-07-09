@@ -17,11 +17,11 @@ using namespace std;
 using namespace Eigen;
 
 
-static std::string outputNS = "/preprocessor";
+static std::string nodeNS = "/preprocessor";
 static std::string nodeName = "/preprocessor_node";
 
 struct LocalConfig : Config {
-  static std::string outputNS;
+  static std::string nodeNS;
   static std::string inputTopic;
   static std::string nodeName;
   static float zClipLow;
@@ -49,7 +49,7 @@ float LocalConfig::zClipLow = .0025;
 float LocalConfig::zClipHigh = 1000;
 bool LocalConfig::updateParams = true;
 float LocalConfig::downsample = .02;
-bool LocalConfig::removeOutliers = true;
+bool LocalConfig::removeOutliers = false;
 float LocalConfig::clusterTolerance = 0.03;
 float LocalConfig::clusterMinSize = 40;
 
@@ -60,7 +60,7 @@ void getOrSetParam(const ros::NodeHandle& nh, std::string paramName, T& ref, T d
 	if (!nh.getParam(paramName, ref)) {
 		nh.setParam(paramName, defaultVal);
 		ref = defaultVal;
-		ROS_INFO_STREAM("setting " << paramName << "to default value " << defaultVal);
+		ROS_INFO_STREAM("setting " << paramName << " to default value " << defaultVal);
 	}
 }
 void setParams(const ros::NodeHandle& nh) {
@@ -72,8 +72,7 @@ void setParams(const ros::NodeHandle& nh) {
 	getOrSetParam(nh, "max_val", MAX_VAL, 255);
 }
 
-void setParamLoop() {
-	ros::NodeHandle nh(nodeName);
+void setParamLoop(ros::NodeHandle& nh) {
 	while (nh.ok()) {
 		setParams(nh);
 		sleep(1);
@@ -170,8 +169,8 @@ public:
   PreprocessorNode(ros::NodeHandle& nh) :
     m_inited(false),
     m_nh(nh),
-    m_pub(nh.advertise<sensor_msgs::PointCloud2>(outputNS+"/points",5)),
-    m_polyPub(nh.advertise<geometry_msgs::PolygonStamped>(outputNS+"/polygon",5)),
+    m_pub(nh.advertise<sensor_msgs::PointCloud2>("points",5)),
+    m_polyPub(nh.advertise<geometry_msgs::PolygonStamped>("polygon",5)),
     m_sub(nh.subscribe(LocalConfig::inputTopic, 1, &PreprocessorNode::callback, this))
     {
     }
@@ -186,10 +185,10 @@ int main(int argc, char* argv[]) {
 
 
   ros::init(argc, argv,"preprocessor");
-  ros::NodeHandle nh;
+  ros::NodeHandle nh(nodeNS);
 
   setParams(nh);
-  if (LocalConfig::updateParams) boost::thread setParamThread(setParamLoop);
+  if (LocalConfig::updateParams) boost::thread setParamThread(setParamLoop, nh);
 
 
   PreprocessorNode tp(nh);
