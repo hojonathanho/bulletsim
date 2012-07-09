@@ -34,7 +34,7 @@ void SimplePhysicsTracker::doIteration() {
   VectorXf vis = m_visInt->checkNodeVisibility(m_obj);
   m_estPts = m_obj->getPoints();
   SparseMatrixf corr;
-  m_stdev = (.03*METERS)*VectorXf::Ones(m_obj->m_nNodes);
+  m_stdev = (.02*METERS)*VectorXf::Ones(m_obj->m_nNodes);
 
   MatrixXf obsPtsEigen = toEigenMatrix(m_obsPts);
 

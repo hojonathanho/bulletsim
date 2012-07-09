@@ -9,6 +9,7 @@ void toggle(bool* b);
 
 class CoordinateTransformer {
 public:
+  CoordinateTransformer();
   CoordinateTransformer(const btTransform& worldFromCam);
   btTransform worldFromCamUnscaled;
   Eigen::Affine3f worldFromCamEigen;

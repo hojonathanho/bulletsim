@@ -40,3 +40,7 @@ target_link_libraries(test_sparse tracking)
 
 add_executable(tracker_node tracker_node.cpp)
 target_link_libraries(tracker_node tracking simulation clouds tf cv_bridge ${ROS_LIBRARIES} boost_signals)
+
+add_executable(robot_tracker_node robot_tracker_node.cpp)
+target_link_libraries(robot_tracker_node tracking simulation clouds tf cv_bridge ${ROS_LIBRARIES} boost_signals)
+

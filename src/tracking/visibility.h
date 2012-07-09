@@ -21,3 +21,11 @@ public:
 	Eigen::VectorXf checkNodeVisibility(TrackedObject::Ptr);
 	void updateInput(const cv::Mat&);
 };
+
+class BulletRaycastVisibility : public VisibilityInterface {
+public:
+	btDynamicsWorld* m_world;
+	CoordinateTransformer* m_transformer;
+	BulletRaycastVisibility(btDynamicsWorld* world, CoordinateTransformer* transformer);
+	Eigen::VectorXf checkNodeVisibility(TrackedObject::Ptr);
+};
