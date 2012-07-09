@@ -5,6 +5,7 @@
 #include "utils/config.h"
 #include "bullet_io.h"
 #include "utils/logging.h"
+#include <set>
 
 using namespace OpenRAVE;
 using namespace std;
@@ -44,12 +45,23 @@ void Load(Environment::Ptr env, RaveInstance::Ptr rave, const string& filename,
 		throw runtime_error(
 				(boost::format("couldn't load %s!\n") % (filename)).str());
 
+	std::set<string> bodiesAlreadyLoaded;
+	BOOST_FOREACH(EnvironmentObject::Ptr obj, env->objects) {
+		RaveObject* robj = dynamic_cast<RaveObject*>(obj.get());
+		if (robj) bodiesAlreadyLoaded.insert(robj->body->GetName());
+	}
+
 	std::vector<boost::shared_ptr<OpenRAVE::KinBody> > bodies;
 	rave->env->GetBodies(bodies);
-	BOOST_FOREACH(OpenRAVE::KinBodyPtr body, bodies)
-{	if (body->IsRobot()) env->add(RaveRobotObject::Ptr(new RaveRobotObject(rave, boost::dynamic_pointer_cast<RobotBase>(body), btTransform::getIdentity(), CONVEX_HULL, dynamicRobots)));
-	else env->add(RaveObject::Ptr(new RaveObject(rave, body, btTransform::getIdentity(), CONVEX_HULL, true)));
-}
+	BOOST_FOREACH(OpenRAVE::KinBodyPtr body, bodies) {
+		if (bodiesAlreadyLoaded.find(body->GetName()) == bodiesAlreadyLoaded.end()) {
+			if (body->IsRobot()) env->add(RaveRobotObject::Ptr(new RaveRobotObject(rave, boost::dynamic_pointer_cast<RobotBase>(body), btTransform::getIdentity(), CONVEX_HULL, dynamicRobots)));
+			else {
+				cout << "loading " << body->GetName() << endl;;
+				env->add(RaveObject::Ptr(new RaveObject(rave, body, btTransform::getIdentity(), CONVEX_HULL, true)));
+			}
+		}
+	}
 
 }
 
@@ -285,19 +297,17 @@ void RaveObject::initRaveObject(RaveInstance::Ptr rave_, KinBodyPtr body_,
 	const std::vector<KinBody::LinkPtr> &links = body->GetLinks();
 	getChildren().reserve(links.size());
 	// iterate through each link in the robot (to be stored in the children vector)
-	BOOST_FOREACH(KinBody::LinkPtr link, links)
-{
-	BulletObject::Ptr child = createFromLink(link, subshapes, meshes, initTrans, trimeshMode, fmargin, isDynamic);
+	BOOST_FOREACH(KinBody::LinkPtr link, links) {
+		BulletObject::Ptr child = createFromLink(link, subshapes, meshes, initTrans, trimeshMode, fmargin, isDynamic && !link->IsStatic());
+		getChildren().push_back(child);
 
-	getChildren().push_back(child);
-
-	linkMap[link] = child;
-	childPosMap[child] = getChildren().size() - 1;
-	if (child) {
-		collisionObjMap[child->rigidBody.get()] = link;
+		linkMap[link] = child;
+		childPosMap[child] = getChildren().size() - 1;
+		if (child) {
+			collisionObjMap[child->rigidBody.get()] = link;
 		// since the joints are always in contact, we should ignore their collisions
 		// when setting joint positions (OpenRAVE should take care of them anyway)
-		ignoreCollisionWith(child->rigidBody.get());
+			ignoreCollisionWith(child->rigidBody.get());
 	}
 }
 
