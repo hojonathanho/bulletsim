@@ -11,7 +11,6 @@ link_directories("/opt/ros/fuerte/stacks/geometry/tf/lib"
 
 include_directories(
     ${PCL_INCLUDE_DIRS}
-    ${WM_INCLUDE_DIR}
     ${BULLET_INCLUDE_DIR}
     ${JSON_INCLUDE_DIR}
     ${EIGEN3_INCLUDE_DIR}
@@ -20,7 +19,6 @@ include_directories(
 )
 link_directories(
   ${PCL_LIBRARY_DIRS} 
-  ${WM_LIBRARY_DIR}
 )
 
 add_definitions("-DEIGEN_DEFAULT_TO_ROW_MAJOR")
@@ -48,4 +46,3 @@ target_link_libraries(viz_curves ${PCL_LIBRARIES} clouds boost_program_options u
 
 add_executable(get_table_server get_table_server.cpp)
 target_link_libraries(get_table_server clouds ${PCL_LIBRARIES} ${ROS_LIBRARIES} utils boost_program_options)
-
