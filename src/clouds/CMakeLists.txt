@@ -21,7 +21,7 @@ link_directories(
 add_definitions("-DEIGEN_DEFAULT_TO_ROW_MAJOR")
 
 add_library(clouds geom.cpp  get_table2.cpp plane_finding.cpp utils_pcl.cpp cloud_ops.cpp utils_cv.cpp )
-target_link_libraries(clouds utils ${PCL_LIBRARIES} ${WM_LIBRARIES} ${OpenCV_LIBS} ${BULLET_LIBS})
+target_link_libraries(clouds utils ${PCL_LIBRARIES} ${OpenCV_LIBS} ${BULLET_LIBS})
 
 add_executable(preprocessor_node preprocessor_node.cpp)
 target_link_libraries(preprocessor_node clouds comm utils ${PCL_LIBRARIES} ${OpenCV_LIBS} ${ROS_LIBRARIES} tf)

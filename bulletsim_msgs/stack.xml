@@ -1,0 +1,15 @@
+<stack>
+  <name>bulletsim_msgs</name>
+  <version>0.0</version>
+  <description>Willow Garage low-level build system macros and infrastructure.</description>
+  <license>BSD</license>
+  <copyright>Willow Garage</copyright>
+
+
+  <depends>catkin</depends>
+  <depends>hydra_msgs</depends>
+  <depends>sensor_msgs</depends>
+  <depends>pcl</depends>
+  <depends>bulletsim_msgs</depends>
+  <depends>vision_opencv</depends>
+</stack>
