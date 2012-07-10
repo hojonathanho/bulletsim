@@ -2,8 +2,6 @@
 #include "sparse_utils.h"
 #include "utils_tracking.h"
 #include "utils/conversions.h"
-#include "utils/clock.h"
-#include "utils/testing.h"
 #include <fstream>
 #include <pcl/point_cloud.h>
 #include <pcl/kdtree/kdtree_flann.h>
@@ -11,12 +9,6 @@
 
 using namespace Eigen;
 using namespace std;
-
-
-#define PF(exp)\
-	StartClock(); \
-	exp; \
-	cout << "PF " << GetClock() << "\t" << #exp << endl;
 
 Eigen::MatrixXf calcSigs(const SparseMatrixf& corr, const Eigen::MatrixXf& estPts, const Eigen::MatrixXf& obsPts, Eigen::VectorXf priorDist, float priorCount) {
 	assert(corr.rows() == estPts.rows());
@@ -57,74 +49,6 @@ Eigen::MatrixXf calcSigsEigen(const SparseMatrixf& corr, const Eigen::MatrixXf& 
 }
 
 void estimateCorrespondence(const Eigen::MatrixXf& estPts, const Eigen::MatrixXf& sigma, const Eigen::VectorXf& pVis,
-  const Eigen::MatrixXf& obsPts, float pBandOutlier, SparseMatrixf& corr) {
-	assert(estPts.rows() == sigma.rows());
-	assert(estPts.cols() == sigma.cols());
-	assert(estPts.cols() == obsPts.cols());
-	assert(pVis.size() == estPts.rows());
-
-	PF(MatrixXf invSigma = sigma.array().inverse());
-	PF(MatrixXf invVariances = invSigma.array().square());
-	MatrixXf sqdistsSigma(estPts.rows(), obsPts.rows());
-
-//	//The loop below is equivalent to this loops
-//	for (int i=0; i<estPts.rows(); i++) {
-//		for (int j=0; j<obsPts.rows(); j++) {
-//			VectorXf diff = (estPts.row(i) - obsPts.row(j)).transpose();
-//			sqdistsSigma(i,j) = diff.transpose() * invVariances.row(i).asDiagonal() * diff;
-//		}
-//	}
-//	StartClock();
-	for (int i=0; i<estPts.rows(); i++) {
-		sqdistsSigma.row(i) = invVariances.row(i) * (obsPts.rowwise() - estPts.row(i)).transpose().array().square().matrix();
-	}
-//	cout << "PF " << GetClock() << "\t" << "for loop" << endl;
-
-	PF(MatrixXf pBgivenZ_unscaled = (-sqdistsSigma).array().exp());
-	PF(VectorXf negSqrtDetVariances = invSigma.rowwise().prod());
-	PF(MatrixXf pBandZ_unnormed = pVis.cwiseProduct(negSqrtDetVariances).asDiagonal()*pBgivenZ_unscaled);
-
-	PF(VectorXf pB_unnormed = pBandZ_unnormed.colwise().sum());
-	PF(VectorXf pBorOutlier_unnormed = (pB_unnormed.array() + pBandOutlier));
-//    float loglik = pBorOutlier_unnormed.sum();
-	PF(MatrixXf pZgivenB = pBandZ_unnormed * ((VectorXf) pBorOutlier_unnormed.array().inverse()).asDiagonal());
-
-	//PF(pZgivenB = ((VectorXf) pZgivenB.rowwise().sum().array().inverse()).asDiagonal() * pZgivenB);
-	//PF(pZgivenB = pZgivenB * ((VectorXf) pZgivenB.colwise().sum().array().inverse()).asDiagonal());
-
-	StartClock();
-	VectorXf rowSumInverse = pZgivenB.rowwise().sum().array().inverse();
-	for (int i=0; i<rowSumInverse.rows(); i++)
-		if (!isfinite(rowSumInverse(i))) {
-			std::cout << "rowsum " << i << " " << rowSumInverse(i) << endl;
-			rowSumInverse(i) = 1;
-		}
-	pZgivenB = rowSumInverse.asDiagonal() * pZgivenB;
-	cout << "PF " << GetClock() << "\t" << "row sum" << endl;
-
-	StartClock();
-	VectorXf colSumInverse = pZgivenB.colwise().sum().array().inverse();
-	for (int i=0; i<colSumInverse.rows(); i++)
-		if (!isfinite(colSumInverse(i))) {
-			std::cout << "colsum " << i << " " << colSumInverse(i) << endl;
-			colSumInverse(i) = 1;
-		}
-	pZgivenB = pZgivenB * colSumInverse.asDiagonal();
-	cout << "PF " << GetClock() << "\t" << "col sum" << endl;
-
-	PF(corr = toSparseMatrix(pZgivenB, .1));
-
-//	MAT_DIMS(estPts);
-//	MAT_DIMS(obsPts);
-//	MAT_DIMS(pZgivenB);
-//	MAT_DIMS(corr);
-
-	assert(isFinite(pZgivenB));
-	assert(corr.rows() == estPts.rows());
-	assert(corr.cols() == obsPts.rows());
-}
-
-void estimateCorrespondence(const Eigen::MatrixXf& estPts, const Eigen::MatrixXf& sigma, const Eigen::VectorXf& pVis,
   const Eigen::MatrixXf& obsPts, const Eigen::VectorXf& outlierDist, Eigen::MatrixXf& pZgivenB, SparseMatrixf& corr) {
 	assert((estPts.rows()+1) == sigma.rows());
 	assert(estPts.cols() == sigma.cols());
@@ -161,27 +85,36 @@ void estimateCorrespondence(const Eigen::MatrixXf& estPts, const Eigen::MatrixXf
 	VectorXf pB_unnormed = pBandZ_unnormed.colwise().sum();
 	//normalize cols
 	pZgivenB = pBandZ_unnormed * ((VectorXf) pB_unnormed.array().inverse()).asDiagonal();
-	//normalize rows
-	for (int i=0; i<pZgivenB.rows(); i++) {
-		if (pVis_kp1(i) != 0)
-			pZgivenB.row(i) *= pVis_kp1(i)/pZgivenB.row(i).sum();
+
+	//iteratively normalize rows and columns. columns are normalized to one and rows are normalized to the visibility term.
+	int iter = 0;
+	for (int i=0; i<iter; i++) {
+		//normalize rows
+		if (!isFinite(pZgivenB)) cout << "infinity: iter " << i << " rows " << pZgivenB.rows() << " cols " << pZgivenB.cols() << " before row normalization" << endl;
+		pZgivenB = ((VectorXf) (pVis_kp1.array() * (pZgivenB.rowwise().sum().array()+TrackingConfig::epsilon).inverse())).asDiagonal() * pZgivenB;
+		if (!isFinite(pZgivenB)) cout << "infinity: iter " << i << " rows " << pZgivenB.rows() << " cols " << pZgivenB.cols() << " after row normalization" << endl;
+		//normalize cols
+		pZgivenB = pZgivenB * ((VectorXf) pZgivenB.colwise().sum().array().inverse()).asDiagonal();
+		if (!isFinite(pZgivenB)) cout << "infinity: iter " << i << " rows " << pZgivenB.rows() << " cols " << pZgivenB.cols() << " after col normalization" << endl;
 	}
-	//pZgivenB = ((VectorXf) (pVis_kp1.array() * (pZgivenB.rowwise().sum().array()+TrackingConfig::epsilon).inverse())).asDiagonal() * pZgivenB;
-	//normalize cols
-	pZgivenB = pZgivenB * ((VectorXf) pZgivenB.colwise().sum().array().inverse()).asDiagonal();
 
 	corr = toSparseMatrix(pZgivenB.topRows(estPts.rows()), .1);
 
 	assert(isFinite(pZgivenB));
-//	for (int row=0; row < pZgivenB.rows(); row++)
-//		for (int col=0; col<pZgivenB.cols(); col++)
-//			if (!isfinite(pZgivenB(row,col))) {
-//				cout << "infinite" << endl;
-//				pZgivenB(row,col) = 0;
-//			}
+	for (int row=0; row < pZgivenB.rows(); row++)
+		for (int col=0; col<pZgivenB.cols(); col++)
+			if (!isfinite(pZgivenB(row,col))) {
+				cout << "infinite" << endl;
+				pZgivenB(row,col) = 0;
+			}
 	assert(pZgivenB.rows() == (estPts.rows())+1);
 	assert(pZgivenB.cols() == obsPts.rows());
 }
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////// The functions below are experimental only as they apply for special cases //////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // Same as estimateCorrespondence IF all the rows of sigma are the same.
 void estimateCorrespondenceSame(const Eigen::MatrixXf& estPts, const Eigen::MatrixXf& sigma, const Eigen::VectorXf& pVis,
@@ -200,7 +133,7 @@ void estimateCorrespondenceSame(const Eigen::MatrixXf& estPts, const Eigen::Matr
 		//	 }
 		// }
 		// assumes that all the rows of sigma are the same. doesn't assume anything about elements in the rows.
-		PF(MatrixXf sqdistsSigma = pairwiseSquareDist(estPts*invSigma.row(0).asDiagonal(), obsPts*invSigma.row(0).asDiagonal()));
+		MatrixXf sqdistsSigma = pairwiseSquareDist(estPts*invSigma.row(0).asDiagonal(), obsPts*invSigma.row(0).asDiagonal());
 
     MatrixXf tmp1 = (-sqdistsSigma).array().exp();
     VectorXf tmp2 = invSigma.rowwise().prod();
@@ -225,22 +158,19 @@ void estimateCorrespondenceSame(const Eigen::MatrixXf& estPts, const Eigen::Matr
     assert(isFinite(pZgivenB));
 }
 
+//Approximation of estimateCorrespondence using a kdtree. The correspondence of a estimated point is estimated by looking at the k nearest neighbors observation points.
 void estimateCorrespondenceCloud (ColorCloudPtr cloud, const Eigen::MatrixXf& estPts, const Eigen::MatrixXf& sigma, const Eigen::VectorXf& pVis,
-	  const Eigen::MatrixXf& obsPts, float pBandOutlier, SparseMatrixf& corr) {
-	PF(MatrixXf invSigma = sigma.array().inverse());
-	PF(MatrixXf invVariances = invSigma.array().square());
+	  const Eigen::MatrixXf& obsPts, float pBandOutlier, SparseMatrixf& corr, int K) {
+	MatrixXf invSigma = sigma.array().inverse();
+	MatrixXf invVariances = invSigma.array().square();
 	MatrixXf pBgivenZ_unscaled = MatrixXf::Zero(estPts.rows(), obsPts.rows());
 
-//	StartClock();
 	pcl::KdTreeFLANN<ColorPoint> kdtree;
 	kdtree.setInputCloud(cloud);
 	ColorPoint searchPoint;
-	int K = TrackingConfig::fixeds;
 	std::vector<int> pointIdxNKNSearch(K);
 	std::vector<float> pointNKNSquaredDistance(K);
-//	cout << "PF " << GetClock() << "\t" << "kdtree set up" << endl;
 
-//	StartClock();
 	for (int i=0; i<estPts.rows(); i++) {
 		searchPoint = toColorPoint(estPts.block(i,0,1,3).transpose());
 		pointIdxNKNSearch = std::vector<int> (K);
@@ -251,22 +181,20 @@ void estimateCorrespondenceCloud (ColorCloudPtr cloud, const Eigen::MatrixXf& es
 			}
 		}
 	}
-//	cout << "PF " << GetClock() << "\t" << "for loop" << endl;
 
-	PF(VectorXf negSqrtDetVariances = invSigma.rowwise().prod());
-	PF(MatrixXf pBandZ_unnormed = pVis.cwiseProduct(negSqrtDetVariances).asDiagonal()*pBgivenZ_unscaled);
+	VectorXf negSqrtDetVariances = invSigma.rowwise().prod();
+	MatrixXf pBandZ_unnormed = pVis.cwiseProduct(negSqrtDetVariances).asDiagonal()*pBgivenZ_unscaled;
 
-	PF(VectorXf pB_unnormed = pBandZ_unnormed.colwise().sum());
-	PF(VectorXf pBorOutlier_unnormed = (pB_unnormed.array() + pBandOutlier));
+	VectorXf pB_unnormed = pBandZ_unnormed.colwise().sum();
+	VectorXf pBorOutlier_unnormed = (pB_unnormed.array() + pBandOutlier);
 //    float loglik = pBorOutlier_unnormed.sum();
-	PF(MatrixXf pZgivenB = pBandZ_unnormed * ((VectorXf) pBorOutlier_unnormed.array().inverse()).asDiagonal());
-	PF(corr = toSparseMatrix(pZgivenB, .1));
+	MatrixXf pZgivenB = pBandZ_unnormed * ((VectorXf) pBorOutlier_unnormed.array().inverse()).asDiagonal();
+	corr = toSparseMatrix(pZgivenB, .1);
 }
 
+//Assumes that the variances of each feature of a particular node are the same.
 void estimateCorrespondence(const Eigen::MatrixXf& estPts, const Eigen::VectorXf& variances, const Eigen::VectorXf& pVis,
   const Eigen::MatrixXf& obsPts, float pBandOutlier, SparseMatrixf& corr) {
-
-
 //	ofstream out("/tmp/junk.txt");
 //	out << "estPts" << endl << estPts << endl;
 //	out << "obsPts" << endl << obsPts << endl;

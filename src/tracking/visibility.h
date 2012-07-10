@@ -28,4 +28,5 @@ public:
   OSGVisibility(CoordinateTransformer* transformer) : m_transformer(transformer) {}
   Eigen::VectorXf checkNodeVisibility(TrackedObject::Ptr);
   vector<btVector3> getIntersectionPoints(TrackedObject::Ptr);
+	void updateInput(const cv::Mat&) {};
 };

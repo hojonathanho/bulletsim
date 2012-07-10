@@ -144,3 +144,45 @@ MatrixXf colorTransform(const MatrixXf& m, int type) {
 	cvtColor(image, image, type);
 	return toEigenMatrixImage(image);
 }
+
+cv::Mat rotate90(cv::Mat src) {
+	cv::Point2f srcTri[3], dstTri[3];
+
+	// Compute warp matrix
+	srcTri[0].x = 0;
+	srcTri[0].y = 0;
+	srcTri[1].x = src.cols - 1;
+	srcTri[1].y = 0;
+	srcTri[2].x = 0;
+	srcTri[2].y = src.rows - 1;
+
+	dstTri[0].x = 0;
+	dstTri[0].y = src.rows - 1;
+	dstTri[1].x = 0;
+	dstTri[1].y = 0;
+	dstTri[2].x = src.cols - 1;
+	dstTri[2].y = src.rows - 1;
+
+	cv::Mat warp_mat = cv::getAffineTransform( srcTri, dstTri );
+	cv::Mat dst;
+	cv::warpAffine( src, dst, warp_mat, cv::Size(src.cols, src.rows) );
+	return dst;
+}
+
+//Returns the n*90deg version of image_rot that matches closest to image_ref. The dimensions of the input images and the returned image are the same.
+cv::Mat matchRotation(cv::Mat rot_image, cv::Mat ref_image) {
+	cv::Mat diff_image;
+	cv::Mat match_image = rot_image;
+	cv::absdiff(ref_image, rot_image, diff_image);
+	float min_sim_score = toEigenMatrixImage(diff_image).rowwise().norm().sum();
+	for (int i=0; i<3; i++) {
+		rot_image = rotate90(rot_image);
+		cv::absdiff(ref_image, rot_image, diff_image);
+		float sim_score = toEigenMatrixImage(diff_image).rowwise().norm().sum();
+		if (sim_score < min_sim_score) {
+			match_image = rot_image;
+			min_sim_score = sim_score;
+		}
+	}
+	return match_image;
+}

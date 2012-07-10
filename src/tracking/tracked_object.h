@@ -31,17 +31,21 @@ public:
   virtual EnvironmentObject* getSim()=0;
 
   virtual Eigen::MatrixXf featuresTransform(const Eigen::MatrixXf& features) {
-  	Eigen::MatrixXf out(features);
-  	out.middleCols(3,3) = colorTransform(out.middleCols(3,3), CV_BGR2Lab);
-//  	Eigen::MatrixXf out(features);
-  	return out;
+  	if (features.cols() >= 6) {
+  		Eigen::MatrixXf out(features);
+  		out.middleCols(3,3) = colorTransform(out.middleCols(3,3), CV_BGR2Lab);
+  		return out;
+  	}
+  	return features;
   }
 
   virtual Eigen::MatrixXf featuresUntransform(const Eigen::MatrixXf& features) {
-  	Eigen::MatrixXf out(features);
-  	out.middleCols(3,3) = colorTransform(out.middleCols(3,3), CV_Lab2BGR);
-//  	Eigen::MatrixXf out(features);
-  	return out;
+  	if (features.cols() >= 6) {
+  	  Eigen::MatrixXf out(features);
+  		out.middleCols(3,3) = colorTransform(out.middleCols(3,3), CV_Lab2BGR);
+  		return out;
+  	}
+  	return features;
   }
 
   virtual Eigen::MatrixXf extractFeatures(ColorCloudPtr in) {
@@ -102,9 +106,10 @@ public:
   TrackedBox(BoxObject::Ptr sim);
 
   std::vector<btVector3> getPoints();
-  Eigen::MatrixXf getFeatures() { std::cout << "getFeatures not implemented yet" << std::endl; assert(0); return Eigen::VectorXf();};
-  Eigen::VectorXf getPriorDist() { std::cout << "getPriorDist not implemented yet" << std::endl; assert(0); return Eigen::VectorXf();};
-  Eigen::VectorXf getOutlierDist() { std::cout << "getOutlierDist not implemented yet" << std::endl; assert(0); return Eigen::VectorXf();};
+  Eigen::MatrixXf extractFeatures(ColorCloudPtr in);
+  Eigen::MatrixXf getFeatures();
+  Eigen::VectorXf getPriorDist();
+  Eigen::VectorXf getOutlierDist();
   void applyEvidence(const SparseMatrixf& corr, const Eigen::MatrixXf& obsPts);
   BoxObject* getSim() {return dynamic_cast<BoxObject*>(m_sim.get());}
 

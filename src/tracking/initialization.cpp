@@ -31,23 +31,20 @@ TrackedObject::Ptr toTrackedObject(const bulletsim_msgs::ObjectInit& initMsg, Co
 	  BOOST_FOREACH(btVector3& node, nodes) node += btVector3(0,0,.01);
 
 	  CapsuleRope::Ptr sim(new CapsuleRope(scaleVecs(nodes,METERS), initMsg.rope.radius*METERS));
-	  env->add(sim);
 	  TrackedRope::Ptr tracked_rope(new TrackedRope(sim));
 		cv::Mat tex_image = tracked_rope->makeTexture(cloud);
-		//cv::imwrite("/home/alex/Desktop/fwd.jpg", tex_image);
 		sim->setTexture(tex_image);
+	  env->add(sim);
 
 	  return tracked_rope;
   }
   else if (initMsg.type == "towel_corners") {
 	  const vector<geometry_msgs::Point32>& points = initMsg.towel_corners.polygon.points;
 	  vector<btVector3> corners = scaleVecs(toBulletVectors(points),METERS);
-
 	  BulletSoftObject::Ptr sim = makeTowel(corners, TrackingConfig::res_x, TrackingConfig::res_y, env->bullet->softBodyWorldInfo);
 	  TrackedTowel::Ptr tracked_towel(new TrackedTowel(sim, TrackingConfig::res_x, TrackingConfig::res_y));
 	  cv::Mat tex_image = tracked_towel->makeTexture(corners, image, transformer);
 		sim->setTexture(tex_image);
-
 	  env->add(sim);
 
 	  return tracked_towel;
@@ -56,13 +53,12 @@ TrackedObject::Ptr toTrackedObject(const bulletsim_msgs::ObjectInit& initMsg, Co
 	  btScalar mass = 1;
 	  btVector3 halfExtents = toBulletVector(initMsg.box.extents)*0.5*METERS;
 	  Eigen::Matrix3f rotation = (Eigen::Matrix3f) Eigen::AngleAxisf(initMsg.box.angle, Eigen::Vector3f::UnitZ());
-	  btTransform initTrans(toBulletMatrix(rotation), toBulletVector(initMsg.box.center)*METERS);
+	  btTransform initTrans(toBulletMatrix(rotation), (toBulletVector(initMsg.box.center) + btVector3(0,0,.15))*METERS);
 	  BoxObject::Ptr sim(new BoxObject(mass, halfExtents, initTrans));
-	  env->add(sim);
 	  TrackedBox::Ptr tracked_box(new TrackedBox(sim));
-
-	  cv::Mat image = cv::imread("/home/alex/Desktop/image.jpg");
-		sim->setTexture(image);
+		//sim->setTexture(image);
+		sim->setColor(1,0,0,1);
+		env->add(sim);
 
 	  return tracked_box;
   }

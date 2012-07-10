@@ -17,3 +17,7 @@ cv::Mat toCVMatImage(const Eigen::MatrixXf& m, int rows=0, int cols=0);
 //Every row of m is a pixel and every column of m is a color channel
 //type is the openCV color transformation types as used in cvtColor (i.e. CV_BGR2Lab)
 Eigen::MatrixXf colorTransform(const Eigen::MatrixXf& m, int type);
+
+cv::Mat rotate90(cv::Mat src);
+//Returns the n*90deg version of image_rot that matches closest to image_ref. The dimensions of the input images and the returned image are the same.
+cv::Mat matchRotation(cv::Mat rot_image, cv::Mat ref_image);

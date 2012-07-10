@@ -28,7 +28,8 @@ SimplePhysicsTracker::SimplePhysicsTracker(TrackedObject::Ptr obj, VisibilityInt
 	m_enableEstPlot(false),
 	m_enableEstTransPlot(false),
 	m_enableCorrPlot(false),
-	m_enableDebugPlot(false)
+	m_enableDebugPlot(false),
+	m_applyEvidence(true)
 {
 	m_env->add(m_obsInlierPlot);
 	m_env->add(m_obsPlot);
@@ -47,10 +48,10 @@ SimplePhysicsTracker::SimplePhysicsTracker(TrackedObject::Ptr obj, VisibilityInt
 
 void SimplePhysicsTracker::updateInput(ColorCloudPtr obsPts) {
 	m_obsPts = m_obj->extractFeatures(obsPts);
-	float min_z = 0.015 * METERS;
-  for (int i=0; i<m_obsPts.rows(); i++)
-  	if (m_obsPts(i,2) < min_z)
-  		m_obsPts(i,2) = min_z;
+//	float min_z = 0.015 * METERS;
+//  for (int i=0; i<m_obsPts.rows(); i++)
+//  	if (m_obsPts(i,2) < min_z)
+//  		m_obsPts(i,2) = min_z;
 	m_obsCloud = obsPts;
 }
 
@@ -61,10 +62,8 @@ void SimplePhysicsTracker::doIteration() {
   MatrixXf pZgivenB(m_estPts.rows()+1, m_obsPts.rows());
   SparseMatrixf corr(m_estPts.rows(), m_obsPts.rows());
 
-  StartClock();
   // E STEP
   estimateCorrespondence(m_estPts, m_stdev, vis, m_obsPts, m_outlier_dist, pZgivenB, corr);
-  cout << "estimateCorrespondence " << GetClock() << endl;
 
   VectorXf inlierFrac = colSums(corr);
   if (m_enableObsInlierPlot) plotObs(toBulletVectors(m_obsPts.leftCols(3)), inlierFrac, m_obsInlierPlot);
@@ -79,22 +78,16 @@ void SimplePhysicsTracker::doIteration() {
 	else m_estTransPlot->clear();
 	if (m_enableCorrPlot) drawCorrLines(m_corrPlot, toBulletVectors(m_estPts.leftCols(3)), toBulletVectors(m_obsPts.leftCols(3)), corr);
 	else m_corrPlot->clear();
-  if (m_enableDebugPlot) plotObsBorder(m_obj->featuresUntransform(m_obsPts), m_debugPlot);
-  //if (m_enableDebugPlot) plotObs(m_obsDebug, m_debugPlot);
+  if (m_enableDebugPlot) plotObs(m_obsDebug, m_debugPlot);
 	else m_debugPlot->clear();
 
-	StartClock();
   // M STEP
-  m_obj->applyEvidence(corr, m_obsPts);
-  cout << "applyEvidence " << GetClock() << endl;
+  if (m_applyEvidence) m_obj->applyEvidence(corr, m_obsPts);
   //m_stdev = calcSigs(corr, m_estPts, m_obsPts, m_prior_dist, 1);
 
 //  MatrixXf m_stdev2 = m_stdev;
 //  m_stdev2 = calcSigsEigen(corr, m_estPts, m_obsPts, m_prior_dist, 1);
 //  isApproxEq(m_stdev, m_stdev2);
-//  cout << "mean " << m_stdev.colwise().mean() << "\t" << m_stdev.row(0) << endl;
 
-  StartClock();
   m_env->step(.03,2,.015);
-  cout << "step " << GetClock() << endl;
 }

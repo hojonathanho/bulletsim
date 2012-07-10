@@ -77,9 +77,12 @@ void plotNodesAsSpheres(const Eigen::MatrixXf nodes, const Eigen::VectorXf& pVis
 	assert(nodes.cols() == sigs.cols());
 	MatrixXf centers = nodes.leftCols(3);
 	MatrixXf colors(nodes.rows(), 4);
-	//colors << nodes.middleCols(3,3).rowwise().reverse(), 0.25*VectorXf::Ones(nodes.rows());
-	colors << nodes.middleCols(3,3).rowwise().reverse(), pVis;
-	//colors << nodes.middleCols(3,3).rowwise().reverse(), nodes.col(6);
+	if (nodes.cols() >= 6)
+		//colors << nodes.middleCols(3,3).rowwise().reverse(), 0.25*VectorXf::Ones(nodes.rows());
+		colors << nodes.middleCols(3,3).rowwise().reverse(), pVis;
+		//colors << nodes.middleCols(3,3).rowwise().reverse(), nodes.col(6);
+	else
+		colors = Vector4f(1,1,1,1).transpose().replicate(nodes.rows(), 1);
 	VectorXf sizes = (sigs.leftCols(3).array().sqrt()/2).rowwise().mean();
 	spheres->plot(util::toVec3Array(centers), util::toVec4Array(colors), toVec(sizes));
 }
@@ -109,6 +112,9 @@ void plotObsBorder(const Eigen::MatrixXf cloud, PointCloudPlot::Ptr plot) {
 void plotObs(const Eigen::MatrixXf cloud, PointCloudPlot::Ptr plot) {
 	MatrixXf centers = cloud.leftCols(3);
 	MatrixXf colors(cloud.rows(), 4);
-	colors << cloud.middleCols(3,3).rowwise().reverse(), 0.5*VectorXf::Ones(cloud.rows());
+	if (cloud.cols() >= 6)
+		colors << cloud.middleCols(3,3).rowwise().reverse(), 0.5*VectorXf::Ones(cloud.rows());
+	else
+		colors = Vector4f(1,1,1,1).transpose().replicate(cloud.rows(), 1);
 	plot->setPoints(util::toVec3Array(centers), util::toVec4Array(colors));
 }

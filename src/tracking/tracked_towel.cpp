@@ -34,6 +34,7 @@ TrackedTowel::TrackedTowel(BulletSoftObject::Ptr sim, int nCols, int nRows) : Tr
 //    }
 //  }
 
+  // the decimation doesn't apply for the edge nodes
 	int decimation = 2;
 	for (int row = 0; row < nRows; row++) {
 		for (int col = 0; col < nCols; col++) {
@@ -128,7 +129,7 @@ TrackedTowel::TrackedTowel(BulletSoftObject::Ptr sim, int nCols, int nRows) : Tr
     m_masses(i) = 1/verts[m_node2vert[i]].m_im;
   }
 
-  m_nFeatures = 7;
+  m_nFeatures = 6;
 }
 
 void TrackedTowel::applyEvidence(const SparseMatrixf& corr, const Eigen::MatrixXf& obsPts) {
@@ -160,10 +161,10 @@ void TrackedTowel::applyEvidence(const SparseMatrixf& corr, const Eigen::MatrixX
 MatrixXf TrackedTowel::extractFeatures(ColorCloudPtr in) {
 	MatrixXf out(in->size(), m_nFeatures);
 	for (int i=0; i < in->size(); ++i)
-		out.row(i) << in->points[i].x, in->points[i].y, in->points[i].z, in->points[i].b/255.0, in->points[i].g/255.0, in->points[i].r/255.0, 0;
+		out.row(i) << in->points[i].x, in->points[i].y, in->points[i].z, in->points[i].b/255.0, in->points[i].g/255.0, in->points[i].r/255.0; //, 0;
 	MatrixXf lab_colors = colorTransform(out.middleCols(3,3), CV_BGR2Lab);
-	for (int i=0; i < in->size(); ++i)
-		out(i,6) = (lab_colors(i,2) > 190.0/255.0);
+//	for (int i=0; i < in->size(); ++i)
+//		out(i,6) = (lab_colors(i,2) > 190.0/255.0);
 	return featuresTransform(out);
 }
 
@@ -198,21 +199,21 @@ MatrixXf TrackedTowel::getFeatures() {
 																			cv::Range(max(j_pixel - range, 0), min(j_pixel + range, tex_image.cols-1)));
 		Vector3f bgr = toEigenMatrixImage(window_pixels).colwise().mean();
 		features.block(i,3,1,3) = bgr.transpose();
-		features(i,6) = texcoords[m_vert2tex[m_node2vert[i]]].x() == 0 || texcoords[m_vert2tex[m_node2vert[i]]].x() == 1 ||
-				texcoords[m_vert2tex[m_node2vert[i]]].y() == 0 || texcoords[m_vert2tex[m_node2vert[i]]].y() == 1;
+//		features(i,6) = texcoords[m_vert2tex[m_node2vert[i]]].x() == 0 || texcoords[m_vert2tex[m_node2vert[i]]].x() == 1 ||
+//				texcoords[m_vert2tex[m_node2vert[i]]].y() == 0 || texcoords[m_vert2tex[m_node2vert[i]]].y() == 1;
 	}
 	return featuresTransform(features);
 }
 
 VectorXf TrackedTowel::getPriorDist() {
 	VectorXf prior_dist(m_nFeatures);
-	prior_dist << TrackingConfig::pointPriorDist*METERS, TrackingConfig::pointPriorDist*METERS, TrackingConfig::pointPriorDist*METERS, 0.6, 0.3, 0.3, TrackingConfig::borderPriorDist;
+	prior_dist << TrackingConfig::pointPriorDist*METERS, TrackingConfig::pointPriorDist*METERS, TrackingConfig::pointPriorDist*METERS, 0.2, 0.1, 0.1; //, TrackingConfig::borderPriorDist;
 	return prior_dist;
 }
 
 VectorXf TrackedTowel::getOutlierDist() {
 	VectorXf outlier_dist(m_nFeatures);
-	outlier_dist << TrackingConfig::pointOutlierDist*METERS, TrackingConfig::pointOutlierDist*METERS, TrackingConfig::pointOutlierDist*METERS, 0.6, 0.3, 0.3, TrackingConfig::borderOutlierDist;
+	outlier_dist << TrackingConfig::pointOutlierDist*METERS, TrackingConfig::pointOutlierDist*METERS, TrackingConfig::pointOutlierDist*METERS, 1.0, 1.0, 1.0; //, TrackingConfig::borderOutlierDist;
 	return outlier_dist;
 }
 
@@ -240,11 +241,18 @@ BulletSoftObject::Ptr makeTowel(const vector<btVector3>& points, int resolution_
   psb->m_cfg.kSKHR_CL = 0.7;
   psb->m_cfg.kDP = 0.1;
 
+  psb->m_cfg.kDP = 1.0;			// Damping coefficient [0,1]
+  psb->m_cfg.kDG = 10.0;			// Drag coefficient [0,+inf]
+  psb->m_cfg.kLF = 10.0;			// Lift coefficient [0,+inf]
+  psb->m_cfg.kDF = 1.0;			// Dynamic friction coefficient [0,1]
+  psb->m_cfg.kCHR = 0.5;			// Rigid contacts hardness [0,1]
+
   psb->getCollisionShape()->setMargin(0.05);
 
   btSoftBody::Material *pm = psb->appendMaterial();
   pm->m_kLST = 0.1;
-  pm->m_kAST = 0.5;
+  //pm->m_kAST = 0.5;
+  pm->m_kAST = 0.0;
 
   psb->generateBendingConstraints(2, pm);
 
@@ -293,9 +301,16 @@ cv::Mat TrackedTowel::makeTexture(const vector<btVector3>& corners, cv::Mat imag
 				tex_image.at<cv::Vec3b>(i,j) = cv::Vec3b(0,0,0);
 			}
 	fillBorder(tex_image, 60, 20, 30);
+
+	//temporary for debugging. uses a saved (preprocessed) image and rotates it so that it matches the rotation of the current image
+	//cv::Mat pre_image = cv::imread("/home/alex/Desktop/pre_image.jpg");
+	//tex_image = matchRotation(pre_image, tex_image);
+
 	return tex_image;
 }
 
+
+/*
 cv::Mat TrackedTowel::makeTexturePC(ColorCloudPtr cloud) {
 	const btSoftBody::tNodeArray& verts = getSim()->softBody->m_nodes;
 	const btSoftBody::tFaceArray& faces = getSim()->softBody->m_faces;
@@ -328,3 +343,4 @@ cv::Mat TrackedTowel::makeTexturePC(ColorCloudPtr cloud) {
 		}
 	}
 }
+*/

@@ -14,6 +14,11 @@ using namespace Eigen;
 #define MAT_DIMS(mat)\
  	cout << "dimension " << #mat << " " << mat.rows() << " " << mat.cols() << endl;
 
+#define PF(exp)\
+	StartClock(); \
+	exp; \
+	cout << "PF " << GetClock() << "\t" << #exp << endl;
+
 bool isApproxEq(float x, float y) {
 	const double EPSILON = 1E-4;
 	if (x == 0) return fabs(y) <= EPSILON;

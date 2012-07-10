@@ -246,8 +246,8 @@ void callbackPlanar(const sensor_msgs::ImageConstPtr& msg_depth_image, const sen
 	cloudPlanarNarfPub->publish(msg_narf_cloud);
 }
 
-//./bin/cloud_test_node --inputTopic=/kinect1/rgb/age_color --cannyThresh1=200 --cannyThresh2=500 --cannyAptSize=5
-//./bin/cloud_test_node --inputTopic=/kinect1/deptregistered/image --cannyThresh1=10 --cannyThresh2=30 --cannyAptSize=3
+//./bin/cloud_test_node --inputTopic=/kinect1/rgb/image_rect_color --cannyThresh1=200 --cannyThresh2=500 --cannyAptSize=5
+//./bin/cloud_test_node --inputTopic=/kinect1/depth_registered/image_rect --cannyThresh1=10 --cannyThresh2=30 --cannyAptSize=3
 void callbackCanny(const sensor_msgs::ImageConstPtr& msg_img) {
   cv::Mat img = cv_bridge::toCvCopy(msg_img)->image;
 
@@ -257,8 +257,6 @@ void callbackCanny(const sensor_msgs::ImageConstPtr& msg_img) {
   	cvtColor(img, img_gray, CV_BGR2GRAY);
   } else if (img.type() == CV_32F)
   	cv::convertScaleAbs(img, img_gray, 256);
-
-  cout << "type " <<  img_gray.type() << " " << CV_8UC1 << " " << CV_32F << endl;
 
   assert( img_gray.cols%2 == 0 && img_gray.rows%2 == 0);
   cv::Mat canny_img(img_gray.rows/2, img_gray.cols, img_gray.type());

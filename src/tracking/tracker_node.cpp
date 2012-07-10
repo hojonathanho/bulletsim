@@ -11,7 +11,6 @@
 #include <tf/transform_listener.h>
 #include <message_filters/subscriber.h>
 #include <message_filters/time_synchronizer.h>
-//#include <message_filters/sync_policies/exact_time.h>
 #include <message_filters/sync_policies/approximate_time.h>
 #include <bulletsim_msgs/TrackedObject.h>
 
@@ -57,35 +56,13 @@ void callback (const sensor_msgs::PointCloud2ConstPtr& cloudMsg,
   pending = true;
 }
 
-#include "utils/vector_alg.h"
-#include "utils/conversions.h"
-
 void adjustTransparency(TrackedObject::Ptr trackedObj, float increment) {
 	if (trackedObj->m_type == "rope")
 		dynamic_cast<CapsuleRope*>(trackedObj->getSim())->adjustTransparency(increment);
 	if (trackedObj->m_type == "towel")
 		dynamic_cast<BulletSoftObject*>(trackedObj->getSim())->adjustTransparency(increment);
-}
-
-#include <BulletSoftBody/btSoftBodyHelpers.h>
-#include "../../lib/bullet-2.79/Demos/GimpactTestDemo/BunnyMesh.h"
-BulletSoftObject::Ptr makeBunnyMesh(btSoftBodyWorldInfo& worldInfo) {
-	btSoftBody*	psb=btSoftBodyHelpers::CreateFromTriMesh(worldInfo,	gVerticesBunny,
-				&gIndicesBunny[0][0],
-				BUNNY_NUM_TRIANGLES);
-
-	btSoftBody::Material*	pm=psb->appendMaterial();
-	pm->m_kLST				=	0.5;
-	pm->m_flags				-=	btSoftBody::fMaterial::DebugDraw;
-	psb->generateBendingConstraints(2,pm);
-	psb->m_cfg.piterations	=	2;
-	psb->m_cfg.kDF			=	0.5;
-	psb->randomizeConstraints();
-	psb->scale(btVector3(6,6,6));
-	psb->setTotalMass(100,true);
-
-	BulletSoftObject::Ptr bso = BulletSoftObject::Ptr(new BulletSoftObject(psb));
-	return bso;
+	if (trackedObj->m_type == "box")
+		dynamic_cast<BulletObject*>(trackedObj->getSim())->adjustTransparency(increment);
 }
 
 int main(int argc, char* argv[]) {
@@ -111,8 +88,7 @@ int main(int argc, char* argv[]) {
   sync.registerCallback(boost::bind(&callback,_1,_2,_3));
 
   ros::Publisher objPub = nh.advertise<bulletsim_msgs::TrackedObject>(trackedObjectTopic,10);
-	
-	
+
   // wait for first message, then initialize
   while (!pending) {
     ros::spinOnce();
@@ -126,30 +102,11 @@ int main(int argc, char* argv[]) {
   TrackedObject::Ptr trackedObj = callInitServiceAndCreateObject(scaleCloud(filteredCloud,1/METERS), rgbImage, transformer, scene.env);
   if (!trackedObj) throw runtime_error("initialization of object failed.");
   //scene.env->add(trackedObj->m_sim);
-  //dynamic_cast<BulletObject*>(trackedObj->getSim())->setTexture();
-  //dynamic_cast<BulletSoftObject*>(trackedObj->getSim())->setColor(1,0,0,1);
-
-//  BulletSoftObject::Ptr bunny = makeBunnyMesh(scene.env->bullet->softBodyWorldInfo);
-//  bunny->setColor(0,1,0,1);
-//  scene.env->add(bunny);
-
 
   // actual tracking algorithm
-  //  DepthImageVisibility visInterface(transformer);
-    //DepthImageVisibility visInterface(transformer);
-    OSGVisibility visInterface(transformer);
-    SimplePhysicsTracker alg(trackedObj, &visInterface, scene.env);
-
-//  TrackedObject::Ptr tracked_rope = trackedObj;
-//  CapsuleRope* sim = dynamic_cast<CapsuleRope*>(trackedObj->getSim());
-//  vector<btVector3> nodes = tracked_rope->getPoints();
-//  ColorCloudPtr cloud = filteredCloud;
-//  ColorCloudPtr debugCloud(new ColorCloud());
-//
-//
-//
-//	alg.m_obsDebug = toEigenMatrix(debugCloud);
-
+	//DepthImageVisibility visInterface(transformer);
+	OSGVisibility visInterface(transformer);
+	SimplePhysicsTracker alg(trackedObj, &visInterface, scene.env);
 
   scene.addVoidKeyCallback('c',boost::bind(toggle, &alg.m_enableCorrPlot));
   scene.addVoidKeyCallback('C',boost::bind(toggle, &alg.m_enableCorrPlot));
@@ -161,13 +118,14 @@ int main(int argc, char* argv[]) {
   scene.addVoidKeyCallback('I',boost::bind(toggle, &alg.m_enableObsInlierPlot));
   scene.addVoidKeyCallback('b',boost::bind(toggle, &alg.m_enableDebugPlot));
   scene.addVoidKeyCallback('B',boost::bind(toggle, &alg.m_enableDebugPlot));
+  scene.addVoidKeyCallback('a',boost::bind(toggle, &alg.m_applyEvidence));
   scene.addVoidKeyCallback('=',boost::bind(adjustTransparency, trackedObj, 0.1f));
   scene.addVoidKeyCallback('-',boost::bind(adjustTransparency, trackedObj, -0.1f));
   scene.addVoidKeyCallback('q',boost::bind(exit, 0));
 
   while (ros::ok()) {
     alg.updateInput(filteredCloud);
-    //visInterface.updateInput(depthImage);
+    visInterface.updateInput(depthImage);
     pending = false;
     while (ros::ok() && !pending) {
       alg.doIteration();
