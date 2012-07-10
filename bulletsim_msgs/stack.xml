@@ -1,0 +1,13 @@
+<stack>
+  <name>bulletsim_msgs</name>
+  <version>0.0</version>
+  <description>Simulation environment with Bullet physics.</description>
+  <license>BSD</license>
+  <copyright>Robotics Learning Lab</copyright>
+
+  <depends>catkin</depends>
+  <depends>sensor_msgs</depends>
+  <depends>pcl</depends>
+  <depends>bulletsim_msgs</depends>
+  <depends>vision_opencv</depends>
+</stack>
