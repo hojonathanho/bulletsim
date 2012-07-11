@@ -1,1 +1,53 @@
 Simulation environment with Bullet physics
+
+
+** Linux Compilation for Alex's branch **
+
+Install the required dependencies using apt-get (this is incomplete):
+  sudo apt-get install ros-fuerte-desktop-full libopenscenegraph-dev cmake-curses-gui python-networkx
+Maybe these ones too:
+  sudo apt-get install ros-fuerte-openni-camera ros-fuerte-openni-launch
+  
+Install other required dependencies using the synaptic ('sudo synaptic') gui:
+  openrave0.6-dp-dev
+  openrave0.6-dp-plugins-all
+
+Restart the machine.
+
+Let BULLETSIM_SOURCE_DIR be the bullesim directory (i.e. the directory cloned by 'git clone git@github.com:hojonathanho/bulletsim.git').
+Make a build directory, preferrably outside BULLETSIM_SOURCE_DIR. Let BULLETSIM_BUILD_DIR be this build directory.
+
+In BULLETSIM_BUILD_DIR ,
+  mkdir bulletsim_msgs
+  mkdir bulletsim
+
+In BULLETSIM_BUILD_DIR/bullesim_msgs , run
+  cmake BULLETSIM_SOURCE_DIR/bulletsim_msgs
+  make
+  sudo make install
+
+In BULLETSIM_BUILD_DIR , run
+  ccmake BULLETSIM_SOURCE_DIR
+This brings up a cmake gui to change some build parameters. To compile tracking, make sure JOHNS_ADVENTURE is ON. Press 'c' to configure and then 'g' to generate and exit. Now, run
+  cmake BULLETSIM_SOURCE_DIR
+  make
+
+
+** Add a new ros node **
+Add the source file (node.cpp) to the respective CMakeLists.txt file.
+
+In BULLETSIM_BUILD_DIR , run
+  make
+Then,
+  roscd binary_symlinks
+  cd bin
+  ln -s BULLETSIM_BUILD_DIR/bin/node
+
+
+** Add a new ros msg **
+Save the msg file in BULLETSIM_SOURCE_DIR/bulletsim_msgs/msg
+Add the msg file to the BULLETSIM_SOURCE_DIR/bulletsim_msgs/CMakeLists.txt file.
+
+In BULLETSIM_BUILD_DIR/bullesim_msgs , run
+  make
+  sudo make install
