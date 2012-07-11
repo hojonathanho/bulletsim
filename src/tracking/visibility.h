@@ -30,3 +30,12 @@ public:
   vector<btVector3> getIntersectionPoints(TrackedObject::Ptr);
 	void updateInput(const cv::Mat&) {};
 };
+
+class BulletVisibility : public VisibilityInterface {
+public:
+  CoordinateTransformer* m_transformer;
+  BulletVisibility(CoordinateTransformer* transformer) : m_transformer(transformer) {}
+  Eigen::VectorXf checkNodeVisibility(TrackedObject::Ptr);
+	Eigen::VectorXf calcVisibility(const vector<btVector3> nodes, btDynamicsWorld* world, const btVector3& cameraPos);
+	void updateInput(const cv::Mat&) {};
+};

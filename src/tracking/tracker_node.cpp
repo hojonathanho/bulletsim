@@ -105,7 +105,8 @@ int main(int argc, char* argv[]) {
 
   // actual tracking algorithm
 	//DepthImageVisibility visInterface(transformer);
-	OSGVisibility visInterface(transformer);
+	//OSGVisibility visInterface(transformer);
+	BulletVisibility visInterface(transformer);
 	SimplePhysicsTracker alg(trackedObj, &visInterface, scene.env);
 
   scene.addVoidKeyCallback('c',boost::bind(toggle, &alg.m_enableCorrPlot));

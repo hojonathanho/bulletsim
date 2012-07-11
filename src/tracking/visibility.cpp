@@ -3,6 +3,8 @@
 #include "clouds/utils_pcl.h"
 #include "utils/conversions.h"
 #include "simulation/config_bullet.h"
+#include "utils/my_assert.h"
+
 using namespace Eigen;
 
 static const float DEPTH_OCCLUSION_DIST = .03;
@@ -74,4 +76,25 @@ vector<btVector3> OSGVisibility::getIntersectionPoints(TrackedObject::Ptr obj) {
 			inter_points.push_back(inter_points_partial[j]);
 	}
 	return inter_points;
+}
+
+
+VectorXf BulletVisibility::checkNodeVisibility(TrackedObject::Ptr obj) {
+	vector<btVector3> nodes = obj->getPoints();
+	btDynamicsWorld* world = obj->getSim()->getEnvironment()->bullet->dynamicsWorld;
+	btVector3 cameraPos = m_transformer->toWorldFromCam(btVector3(0,0,0));
+	//btVector3 cameraPos = m_transformer->worldFromCamUnscaled.getOrigin()*METERS;
+	return calcVisibility(nodes, world, cameraPos);
+}
+
+VectorXf BulletVisibility::calcVisibility(const vector<btVector3> nodes, btDynamicsWorld* world, const btVector3& cameraPos) {
+  VectorXf vis(nodes.size());
+  for (int i=0; i < nodes.size(); i++) {
+		btVector3 target = nodes[i] + (cameraPos - nodes[i]).normalized() * .005*METERS;
+		btCollisionWorld::ClosestRayResultCallback rayCallback(cameraPos, target);
+		world->rayTest(cameraPos, target, rayCallback);
+		btCollisionObject* hitBody = rayCallback.m_collisionObject;
+		vis[i] = (hitBody==NULL);
+	}
+	return vis;
 }
