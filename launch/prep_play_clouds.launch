@@ -1,7 +1,7 @@
 <launch>
   <arg name="make_sim_frame" default="true"/>
 
-	<node name="tracker" pkg="binary_symlinks" type="tracker_node" output="screen"  args="--pointPriorDist=0.02 --borderPriorDist=0.8 --pointOutlierDist=0.035 --kp_cloth=300 --kd_cloth=20"/>
+	<node name="tracker" pkg="binary_symlinks" type="tracker_node" output="screen"  args="--pointPriorDist=0.02 --pointOutlierDist=0.035"/>
   
   <node pkg="rosbag" type="play" name="rosbag" args="/home/alex/bagfiles/third_fold_pc.bag -r .4" /> 
 

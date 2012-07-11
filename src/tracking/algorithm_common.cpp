@@ -87,7 +87,7 @@ void estimateCorrespondence(const Eigen::MatrixXf& estPts, const Eigen::MatrixXf
 	pZgivenB = pBandZ_unnormed * ((VectorXf) pB_unnormed.array().inverse()).asDiagonal();
 
 	//iteratively normalize rows and columns. columns are normalized to one and rows are normalized to the visibility term.
-	int iter = 0;
+	int iter = 3;
 	for (int i=0; i<iter; i++) {
 		//normalize rows
 		if (!isFinite(pZgivenB)) cout << "infinity: iter " << i << " rows " << pZgivenB.rows() << " cols " << pZgivenB.cols() << " before row normalization" << endl;
