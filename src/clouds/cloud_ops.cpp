@@ -338,12 +338,28 @@ ColorCloudPtr hueFilter(const ColorCloudPtr in, uint8_t minHue, uint8_t maxHue, 
   return maskCloud(in, mask, negative);
 }
 
+//TODO test and faster
+//ColorCloudPtr colorSpaceTransform(const ColorCloudPtr in, int code) {
+//	MatrixXu bgr = toBGR(in);
+//	cv::Mat cvmat(in->height,in->width, CV_8UC3, bgr.data());
+//	cv::cvtColor(cvmat, cvmat, code);
+//	ColorCloudPtr out(new ColorCloud(in));
+//	for (int row=0; row<in->height; row++) {
+//		for (int col=0; col<in->width; col++) {
+//			out->at(col, row).b = cvmat.at<cv::Vec3b>(row, col)[0];
+//			out->at(col, row).g = cvmat.at<cv::Vec3b>(row, col)[1];
+//			out->at(col, row).r = cvmat.at<cv::Vec3b>(row, col)[2];
+//		}
+//	}
+//	return out;
+//}
+
 // As of now, mins should be smaller than maxs
-ColorCloudPtr colorSpaceFilter(const ColorCloudPtr in, uint8_t minx, uint8_t maxx, uint8_t miny, uint8_t maxy, uint8_t minz, uint8_t maxz, int dstCn, bool negative) {
-  MatrixXu bgr = toBGR(in);
-  int nPts = in->size();
+ColorCloudPtr colorSpaceFilter(const ColorCloudPtr in, uint8_t minx, uint8_t maxx, uint8_t miny, uint8_t maxy, uint8_t minz, uint8_t maxz, int code, bool negative) {
+	if (in->size() == 0) return ColorCloudPtr(new ColorCloud(*in));
+	MatrixXu bgr = toBGR(in);
   cv::Mat cvmat(in->height,in->width, CV_8UC3, bgr.data());
-  cv::cvtColor(cvmat, cvmat, dstCn);
+  cv::cvtColor(cvmat, cvmat, code);
   vector<cv::Mat> channels;
   cv::split(cvmat, channels);
 

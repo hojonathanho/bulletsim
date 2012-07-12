@@ -1,0 +1,20 @@
+<launch>
+
+	<arg name="base" default="/home/alex/bagfiles"/>
+	<arg name="name" />
+	<arg name="camera" default="kinect1"/>
+
+	<include file="$(find openni_launch)/launch/openni.launch">
+		<arg name="camera" value="$(arg camera)" />
+		<arg name="load_driver" value="false" />
+		<arg name="depth_registration" value="true" />
+	</include>
+
+	<node pkg="rosbag" type="play" name="rosbag" args="-l $(arg base)/$(arg name).bag" /> 
+
+	<!--
+	<node pkg="rosbag" type="play" name="rosbag" args="-l $(arg base)/$(arg name).bag /kinect1:=/kinect1_rec" /> 
+	<node pkg="image_transport" type="republish" name="image_transport_color" args="theora in:=/kinect1_rec/rgb/image_rect_color raw out:=/kinect1/rgb/image_rect_color" />
+	-->
+
+</launch>

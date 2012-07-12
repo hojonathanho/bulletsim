@@ -7,12 +7,16 @@ Install the required dependencies using apt-get (this is incomplete):
   sudo apt-get install ros-fuerte-desktop-full libopenscenegraph-dev cmake-curses-gui python-networkx
 Maybe these ones too:
   sudo apt-get install ros-fuerte-openni-camera ros-fuerte-openni-launch
-  
-Install other required dependencies using the synaptic ('sudo synaptic') gui:
+
+Prepare to install openrave:
+  sudo add-apt-repository ppa:openrave/release
+  sudo apt-get update
+Now, open the synaptic ('sudo synaptic') gui:
   openrave0.6-dp-dev
   openrave0.6-dp-plugins-all
-
-Restart the machine.
+If the above doesn't appear in synaptic, in the terminal do these first and then do the synaptic step again:
+  sudo apt-get remove openrave*
+  sudo apt-get update
 
 Let BULLETSIM_SOURCE_DIR be the bullesim directory (i.e. the directory cloned by 'git clone git@github.com:hojonathanho/bulletsim.git').
 Make a build directory, preferrably outside BULLETSIM_SOURCE_DIR. Let BULLETSIM_BUILD_DIR be this build directory.

@@ -37,9 +37,8 @@ void minEncRect(const vector<Vector3f>& pts3d, const Vector4f& abcd, vector<
 
 	vector<cv::Point2f> pts2d;
 
-	float MULTIPLIER = 10000; // becacuse cv assumes everything's an int
 	for (int i = 0; i < nPts; ++i)
-		pts2d.push_back(MULTIPLIER * cv::Point2f(pts3d[i].dot(va),
+		pts2d.push_back(cv::Point2f(pts3d[i].dot(va),
 				pts3d[i].dot(vb)));
 
 	cv::RotatedRect rect = cv::minAreaRect(pts2d);

@@ -1,0 +1,14 @@
+<launch>
+
+	<arg name="base" default="/home/alex/bagfiles"/>
+	<arg name="name" />
+	<arg name="camera" default="kinect1"/>
+
+	<node name="rosbag" pkg="rosbag" type="record" args="-O $(arg base)/$(arg name) 
+		/$(arg camera)/depth_registered/image_raw
+		/$(arg camera)/depth_registered/camera_info
+		/$(arg camera)/rgb/image_raw
+		/$(arg camera)/rgb/camera_info
+	" /> 
+
+</launch>

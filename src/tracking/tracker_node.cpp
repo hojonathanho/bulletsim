@@ -66,7 +66,7 @@ void adjustTransparency(TrackedObject::Ptr trackedObj, float increment) {
 }
 
 int main(int argc, char* argv[]) {
-  Eigen::setNbThreads(2);
+  Eigen::internal::setNbThreads(2);
   Parser parser;
   parser.addGroup(TrackingConfig());
   parser.addGroup(GeneralConfig());
