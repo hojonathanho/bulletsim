@@ -1,0 +1,20 @@
+<launch>
+
+	<arg name="base" default="/home/alex/rll/bulletsim/bagfiles"/>
+	<arg name="filename" />
+	<arg name="camera" default="kinect1"/>
+
+	<include file="$(find openni_launch)/launch/openni.launch">
+		<arg name="camera" value="$(arg camera)" />
+		<arg name="load_driver" value="false" />
+		<arg name="depth_registration" value="true" />
+	</include>
+
+	<node name="rosbag_$(arg camera)" pkg="rosbag" type="play" args="-l --clock $(arg base)/$(arg filename).bag -r 0.5" /> 
+
+	<!--
+	<node pkg="rosbag" type="play" name="rosbag" args="-l $(arg base)/$(arg filename).bag /kinect1:=/kinect1_rec" /> 
+	<node pkg="image_transport" type="republish" name="image_transport_color" args="theora in:=/kinect1_rec/rgb/image_rect_color raw out:=/kinect1/rgb/image_rect_color" />
+	-->
+
+</launch>

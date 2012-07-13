@@ -1,0 +1,54 @@
+<launch>
+  <arg name="make_sim_frame" default="true"/>
+
+  <arg name="camera" default="kinect"/>
+  <arg name="online" default="true"/>
+  <arg name="bus1" default="1"/>
+  <arg name="bus2" default="2"/>
+  <arg name="filename"/>
+
+  <group if="$(arg online)">
+    <param name="use_sim_time" value="false" />
+    <include file="$(find openni_launch)/launch/openni.launch">
+      <arg name="camera" value="$(arg camera)1" />
+      <arg name="device_id" value="$(arg bus1)@0" />
+      <arg name="depth_registration" value="true" />
+    </include>
+    <include file="$(find openni_launch)/launch/openni.launch">
+      <arg name="camera" value="$(arg camera)2" />
+      <arg name="device_id" value="$(arg bus2)@0" />
+      <arg name="depth_registration" value="true" />
+    </include>
+  </group>
+  <group unless="$(arg online)">
+    <param name="use_sim_time" value="true" />
+    <include file="play_cloud.launch">
+      <arg name="camera" value="$(arg camera)1" />
+      <arg name="filename" value="$(arg filename)1" />
+    </include>
+    <include file="play_cloud.launch">
+      <arg name="camera" value="$(arg camera)2" />
+      <arg name="filename" value="$(arg filename)2" />
+    </include>
+  </group>
+
+  <node name="drop1" pkg="topic_tools" type="drop" args="/$(arg camera)1/depth_registered/points 2 3 /drop/$(arg camera)1/points"/>
+  <node name="drop2" pkg="topic_tools" type="drop" args="/$(arg camera)2/depth_registered/points 2 3 /drop/$(arg camera)2/points"/>
+  
+  <node name="merger" pkg="binary_symlinks" type="cloud_merger_node" output="screen"
+  			args="--inputTopic1=/drop/$(arg camera)1/points 
+  						--inputTopic2=/drop/$(arg camera)2/points 
+  						--outputTopic=/merger 
+  						--SVDCalibration 1 
+  						--minCorrFraction 0.6 
+  						--chessBoardWidth 6 
+  						--chessBoardHeight 7 
+  						--squareSize 0.0272
+  						--imageCalibration 0 
+  						--ICPCalibration 0" />
+  
+  <group if="$(arg make_sim_frame)">
+    <node name="sim_kinect_frame_publisher" pkg="tf" type="static_transform_publisher" args="0 0 0 0 0 0 1 head_mount_kinect_ir_link camera_link 10"/>
+  </group>
+  
+</launch>
