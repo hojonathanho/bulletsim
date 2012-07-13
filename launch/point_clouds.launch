@@ -4,10 +4,11 @@
 	<arg name="camera" default="kinect1"/>
 	<arg name="online" default="true"/>
 	<arg name="bus" default="1"/>
-	<arg name="file" default="images"/>
+	<arg name="filename"/>
 
 
 	<group if="$(arg online)">
+		<param name="use_sim_time" value="false" />
 		<include file="$(find openni_launch)/launch/openni.launch">
 			<arg name="camera" value="$(arg camera)" />
 			<arg name="device_id" value="$(arg bus)@0" />
@@ -15,9 +16,10 @@
 		</include>
 	</group>
 	<group unless="$(arg online)">
-		<include file="play_cloud_compressed.launch">
+		<param name="use_sim_time" value="true" />
+		<include file="play_cloud.launch">
 			<arg name="camera" value="$(arg camera)" />
-			<arg name="name" value="$(arg file)" />
+			<arg name="filename" value="$(arg filename)" />
 		</include>
 	</group>
 

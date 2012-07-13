@@ -36,6 +36,14 @@ This brings up a cmake gui to change some build parameters. To compile tracking,
   cmake BULLETSIM_SOURCE_DIR
   make
 
+Now make a link between every binary in the build directory and a new package in ros named binary_symlinks
+  roscd
+  roscreate-pkg binary_symlink
+  cd binary_symlink
+  mkdir bin
+  cd bin
+  for node in BULLETSIM_BUILD_DIR/bin/* ; do ln -s $node ; done
+
 
 ** Add a new ros node **
 Add the source file (node.cpp) to the respective CMakeLists.txt file.

@@ -4,7 +4,8 @@
 
 include_directories("/opt/ros/fuerte/stacks/vision_opencv/cv_bridge/include")
 include_directories("/opt/ros/fuerte/stacks/geometry/tf/include"
-										"/opt/ros/fuerte/stacks/geometry/tf/msg_gen/cpp/include")
+					"/opt/ros/fuerte/stacks/geometry/tf/msg_gen/cpp/include"
+					"/opt/ros/fuerte/stacks/geometry/tf/srv_gen/cpp/include")
 
 link_directories("/opt/ros/fuerte/stacks/geometry/tf/lib"
 							   "/opt/ros/fuerte/stacks/vision_opencv/cv_bridge/lib")

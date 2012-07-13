@@ -1,10 +1,10 @@
 <launch>
 
-	<arg name="base" default="/home/alex/bagfiles"/>
-	<arg name="name" />
+	<arg name="base" default="/home/alex/rll/bulletsim/bagfiles"/>
+	<arg name="filename" />
 	<arg name="camera" default="kinect1"/>
 
-	<node name="rosbag" pkg="rosbag" type="record" args="-O $(arg base)/$(arg name) 
+	<node name="rosbag" pkg="rosbag" type="record" args="-O $(arg base)/$(arg filename) 
 		/$(arg camera)/depth_registered/image_raw
 		/$(arg camera)/depth_registered/camera_info
 		/$(arg camera)/rgb/image_raw
