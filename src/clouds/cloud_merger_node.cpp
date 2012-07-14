@@ -1,25 +1,25 @@
-#include "utils/my_exceptions.h"
-#include <ros/ros.h>
-#include <cv_bridge/cv_bridge.h>
-#include <pcl/io/pcd_io.h>
-#include <pcl/point_types.h>
-#include <pcl/registration/transformation_estimation_svd.h>
-#include <pcl/registration/icp.h>
-#include <pcl/ros/conversions.h>
-#include <sensor_msgs/PointCloud2.h>
-#include "clouds/utils_pcl.h"
-#include "clouds/cloud_ops.h"
-#include "get_table2.h"
-#include "get_chessboard_pose.h"
 #include <cmath>
-#include "utils/config.h"
+#include <boost/thread.hpp>
+#include <ros/ros.h>
 #include <tf/transform_broadcaster.h>
 #include <tf/transform_listener.h>
-#include "utils/conversions.h"
-#include <boost/thread.hpp>
+#include <sensor_msgs/PointCloud2.h>
 #include <message_filters/subscriber.h>
 #include <message_filters/time_synchronizer.h>
 #include <message_filters/sync_policies/approximate_time.h>
+#include <pcl/io/pcd_io.h>
+#include <pcl/point_types.h>
+#include <pcl/ros/conversions.h>
+#include <pcl/registration/transformation_estimation_svd.h>
+#include <pcl/registration/icp.h>
+#include <cv_bridge/cv_bridge.h>
+#include "clouds/utils_pcl.h"
+#include "clouds/cloud_ops.h"
+#include "get_chessboard_pose.h"
+#include "utils/my_exceptions.h"
+#include "utils/config.h"
+#include "utils/conversions.h"
+#include "utils_ros.h"
 
 using namespace std;
 using namespace Eigen;
@@ -174,7 +174,7 @@ void imageCalibration(ColorCloudPtr cloud1, ColorCloudPtr cloud2) {
 	double CX = 320-.5;
 	double CY = 240-.5;
 	double F = 525;
-	Matrix3f cam_matrix;
+	Matrix3f cam_matrix(Matrix3f::Identity());
 	cam_matrix(0,0) = cam_matrix(1,1) = F;
 	cam_matrix(0,2) = CX;
 	cam_matrix(1,2) = CY;
@@ -203,12 +203,8 @@ void callback(const sensor_msgs::PointCloud2ConstPtr& msg_in1, const sensor_msgs
 	if (LocalConfig::ICPCalibration && !icp_calib_init)
 		ICPCalibration(cloud_in1, cloud_in2);
 
-	tf::StampedTransform transform1;
-	listener1->lookupTransform ("kinect1_link", msg_in1->header.frame_id, ros::Time(0), transform1);
-	broadcaster1->sendTransform(tf::StampedTransform(toBulletTransform((Eigen::Affine3f) initial_cb_transform) * transform1.asBt().inverse(), msg_in1->header.stamp, "ground", "kinect1_link"));
-	tf::StampedTransform transform2;
-	listener2->lookupTransform ("kinect2_link", msg_in2->header.frame_id, ros::Time(0), transform2);
-	broadcaster2->sendTransform(tf::StampedTransform(toBulletTransform((Eigen::Affine3f) (initial_cb_transform*transform_diff)) * transform2.asBt().inverse(), msg_in2->header.stamp, "ground", "kinect2_link"));
+	broadcastKinectTransform(toBulletTransform((Eigen::Affine3f) initial_cb_transform), msg_in1->header.frame_id, "ground", *broadcaster1, *listener1);
+	broadcastKinectTransform(toBulletTransform((Eigen::Affine3f) (initial_cb_transform*transform_diff)), msg_in2->header.frame_id, "ground", *broadcaster2, *listener2);
 }
 
 int main(int argc, char* argv[]) {
@@ -221,8 +217,8 @@ int main(int argc, char* argv[]) {
 
 	broadcaster1.reset(new tf::TransformBroadcaster());
 	broadcaster2.reset(new tf::TransformBroadcaster());
-	listener1.reset(new tf::TransformListener());//nh, ros::DURATION_MAX));
-	listener2.reset(new tf::TransformListener());//nh, ros::DURATION_MAX));
+	listener1.reset(new tf::TransformListener());
+	listener2.reset(new tf::TransformListener());
 
 	message_filters::Subscriber<sensor_msgs::PointCloud2> cloud1Sub(nh, LocalConfig::inputTopic1, 1);
 	message_filters::Subscriber<sensor_msgs::PointCloud2> cloud2Sub(nh, LocalConfig::inputTopic2, 1);

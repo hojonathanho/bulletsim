@@ -72,6 +72,7 @@ ColorCloudPtr downsampleCloud(const ColorCloudPtr in, float sz) {
 
 ColorCloudPtr removeOutliers(const ColorCloudPtr in, float thresh, int k) {
   ColorCloudPtr out(new ColorCloud());
+  if (in->size() <= k) return out;
   pcl::StatisticalOutlierRemoval<ColorPoint> sor;
   sor.setInputCloud (in);
   sor.setMeanK (k);
