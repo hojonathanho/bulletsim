@@ -1,45 +1,28 @@
-#include "utils/my_exceptions.h"
+#include <cmath>
+#include <boost/thread.hpp>
 #include <ros/ros.h>
-#include <pcl/io/pcd_io.h>
-#include <pcl/point_types.h>
-#include <pcl/registration/icp.h>
-
-#include <pcl/sample_consensus/ransac.h>
-#include <pcl/sample_consensus/sac_model_plane.h>
-
-#include <pcl/sample_consensus/method_types.h>
-#include <pcl/sample_consensus/model_types.h>
-#include <pcl/segmentation/sac_segmentation.h>
-#include <pcl/segmentation/extract_clusters.h>
-#include "pcl/segmentation/extract_polygonal_prism_data.h"
-#include <pcl/surface/convex_hull.h>
-
-#include <pcl/ModelCoefficients.h>
-#include <pcl/sample_consensus/method_types.h>
-#include <pcl/sample_consensus/model_types.h>
-#include <pcl/segmentation/sac_segmentation.h>
-#include <pcl/filters/extract_indices.h>
-
-#include <opencv2/core/core.hpp>
-#include <opencv2/highgui/highgui.hpp>
-#include <cv_bridge/cv_bridge.h>
+#include <tf/transform_broadcaster.h>
+#include <tf/transform_listener.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/image_encodings.h>
+#include <geometry_msgs/PolygonStamped.h>
+#include <pcl/io/pcd_io.h>
+#include <pcl/point_types.h>
 #include <pcl/ros/conversions.h>
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <cv_bridge/cv_bridge.h>
 #include "clouds/utils_pcl.h"
 #include "clouds/cloud_ops.h"
 #include "get_table2.h"
-#include <cmath>
+#include "utils/my_exceptions.h"
 #include "utils/config.h"
-#include <tf/transform_broadcaster.h>
-#include <geometry_msgs/PolygonStamped.h>
 #include "utils/conversions.h"
-#include <boost/thread.hpp>
+#include "utils_ros.h"
 
 using namespace std;
 using namespace Eigen;
-
 
 static std::string outputNS = "/preprocessor";
 static std::string nodeName = "/preprocessor_node";
@@ -130,17 +113,6 @@ void setParamLoop() {
 	}
 }
 
-void printImage(cv::Mat image) {
-	for (int j=0; j<image.cols; j++)
-		printf("j=%d %d %d %d\n", j, image.at<cv::Vec3b>(0,j)[0], image.at<cv::Vec3b>(0,j)[1], image.at<cv::Vec3b>(0,j)[2]);
-}
-
-double clipColor(float c) {
-	if (c<0) c = 0;
-	if(c>255) c = 255;
-	return c;
-}
-
 class PreprocessorNode {
 public:
   ros::NodeHandle& m_nh;
@@ -148,7 +120,8 @@ public:
   ros::Publisher m_pubCloudBorder;
   ros::Publisher m_pubCloudComp;
   ros::Publisher m_polyPub;
-  tf::TransformBroadcaster br;
+  tf::TransformBroadcaster m_broadcaster;
+  tf::TransformListener m_listener;
   ros::Subscriber m_sub;
   ros::Subscriber m_subImg;
   ros::Publisher m_pubImg1;
@@ -215,7 +188,15 @@ public:
 //		msg_out_comp.header = msg_in.header;
 //		m_pubCloudComp.publish(msg_out_comp);
 
-    br.sendTransform(tf::StampedTransform(m_transform, ros::Time::now(), msg_in.header.frame_id, "ground"));
+		broadcastKinectTransform(m_transform.inverse(), msg_in.header.frame_id, "ground", m_broadcaster, m_listener);
+//		string link_frame_id;
+//		if (m_listener.getParent(msg_in.header.frame_id, ros::Time(0), link_frame_id) && m_listener.getParent(link_frame_id, ros::Time(0), link_frame_id)) {
+//		    tf::StampedTransform transform;
+//		    m_listener.lookupTransform (link_frame_id, msg_in.header.frame_id, ros::Time(0), transform);
+//		    m_broadcaster.sendTransform(tf::StampedTransform(m_transform.inverse() * transform.asBt().inverse(), msg_in.header.stamp, "ground", link_frame_id));
+//		} else {
+//				m_broadcaster.sendTransform(tf::StampedTransform(m_transform, msg_in.header.stamp, msg_in.header.frame_id, "ground"));
+//		}
 
 //    MatrixXu bgr = toBGR(cloud_in);
 //    cv::Mat image(cloud_in->height,cloud_in->width, CV_8UC3, bgr.data());
