@@ -34,7 +34,7 @@ add_executable(cloud_merger_node cloud_merger_node.cpp)
 target_link_libraries(cloud_merger_node clouds comm utils ${PCL_LIBRARIES} ${OpenCV_LIBS} ${ROS_LIBRARIES} boost_signals tf cv_bridge)
 
 add_executable(save_cloud_node save_cloud_node.cpp)
-target_link_libraries(save_cloud_node utils ${PCL_LIBRARIES} ${ROS_LIBRARIES})
+target_link_libraries(save_cloud_node utils ${PCL_LIBRARIES} ${ROS_LIBRARIES} tf)
 
 add_executable(cloud_test_node cloud_test_node.cpp)
 target_link_libraries(cloud_test_node clouds comm utils ${PCL_LIBRARIES} ${OpenCV_LIBS} ${ROS_LIBRARIES} boost_signals cv_bridge)
