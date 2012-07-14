@@ -8,6 +8,7 @@ std::string TrackingConfig::fullCloudTopic = "/kinect1/rgb/points";
 float TrackingConfig::pointPriorDist = 0.08;
 float TrackingConfig::pointOutlierDist = 0.05;
 float TrackingConfig::epsilon = 0.001;
+int TrackingConfig::normalizeIter = 1;
 float TrackingConfig::kp_rope = 1;
 float TrackingConfig::kd_rope = 0;
 float TrackingConfig::kp_cloth = 150;

@@ -14,6 +14,7 @@ struct TrackingConfig : Config {
   static float pointPriorDist;
   static float pointOutlierDist;
   static float epsilon;
+  static int normalizeIter;
   static float kp_rope;
   static float kd_rope;
   static float kp_cloth;
@@ -33,6 +34,7 @@ struct TrackingConfig : Config {
         params.push_back(new Parameter<float>("pointPriorDist", &pointPriorDist, "Prior distribution for xyz. This is also the initial values for sigmas xyz."));
         params.push_back(new Parameter<float>("pointOutlierDist", &pointOutlierDist, "Intuitively, observed points farther than distance=sqrt(3)*pointOutlierDist (special case) from a node are considered outliers. Pick distance/sqrt(3) ~= distance*0.5 ."));
         params.push_back(new Parameter<float>("epsilon", &epsilon, "Small normal to prevent terms going to infinity in the row normalization of estimateCorrespondence."));
+        params.push_back(new Parameter<int>("normalizeIter", &normalizeIter, "Iterations of row/column normalization in the estimateCorrespondence algorithm."));
         params.push_back(new Parameter<float>("kp_rope", &kp_rope, "proportional gain for rope"));
         params.push_back(new Parameter<float>("kd_rope", &kd_rope, "damping for rope"));
         params.push_back(new Parameter<float>("kp_cloth", &kp_cloth, "proportional gain for cloth"));

@@ -87,15 +87,11 @@ void estimateCorrespondence(const Eigen::MatrixXf& estPts, const Eigen::MatrixXf
 	pZgivenB = pBandZ_unnormed * ((VectorXf) pB_unnormed.array().inverse()).asDiagonal();
 
 	//iteratively normalize rows and columns. columns are normalized to one and rows are normalized to the visibility term.
-	int iter = 3;
-	for (int i=0; i<iter; i++) {
+	for (int i=0; i<TrackingConfig::normalizeIter; i++) {
 		//normalize rows
-		if (!isFinite(pZgivenB)) cout << "infinity: iter " << i << " rows " << pZgivenB.rows() << " cols " << pZgivenB.cols() << " before row normalization" << endl;
 		pZgivenB = ((VectorXf) (pVis_kp1.array() * (pZgivenB.rowwise().sum().array()+TrackingConfig::epsilon).inverse())).asDiagonal() * pZgivenB;
-		if (!isFinite(pZgivenB)) cout << "infinity: iter " << i << " rows " << pZgivenB.rows() << " cols " << pZgivenB.cols() << " after row normalization" << endl;
 		//normalize cols
 		pZgivenB = pZgivenB * ((VectorXf) pZgivenB.colwise().sum().array().inverse()).asDiagonal();
-		if (!isFinite(pZgivenB)) cout << "infinity: iter " << i << " rows " << pZgivenB.rows() << " cols " << pZgivenB.cols() << " after col normalization" << endl;
 	}
 
 	corr = toSparseMatrix(pZgivenB.topRows(estPts.rows()), .1);
