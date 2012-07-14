@@ -36,11 +36,11 @@ target_link_libraries(cloud_merger_node clouds comm utils ${PCL_LIBRARIES} ${Ope
 add_executable(save_cloud_node save_cloud_node.cpp)
 target_link_libraries(save_cloud_node utils ${PCL_LIBRARIES} ${ROS_LIBRARIES} tf)
 
-add_executable(cloud_test_node cloud_test_node.cpp)
-target_link_libraries(cloud_test_node clouds comm utils ${PCL_LIBRARIES} ${OpenCV_LIBS} ${ROS_LIBRARIES} boost_signals cv_bridge)
+#add_executable(cloud_test_node cloud_test_node.cpp)
+#target_link_libraries(cloud_test_node clouds comm utils ${PCL_LIBRARIES} ${OpenCV_LIBS} ${ROS_LIBRARIES} boost_signals cv_bridge)
 
-add_executable(border_extraction_node border_extraction_node.cpp)
-target_link_libraries(border_extraction_node clouds comm utils ${PCL_LIBRARIES} ${ROS_LIBRARIES} boost_signals)
+#add_executable(border_extraction_node border_extraction_node.cpp)
+#target_link_libraries(border_extraction_node clouds comm utils ${PCL_LIBRARIES} ${ROS_LIBRARIES} boost_signals)
 
 add_executable(viz_curves viz_curves.cpp)
 target_link_libraries(viz_curves ${PCL_LIBRARIES} clouds boost_program_options utils)
