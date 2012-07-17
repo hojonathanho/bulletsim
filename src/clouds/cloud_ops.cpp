@@ -1,10 +1,12 @@
+#include "cloud_ops.h"
 #include <pcl/filters/extract_indices.h>
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/filters/statistical_outlier_removal.h>
-#include "cloud_ops.h"
 #include <pcl/filters/passthrough.h>
+#include <pcl/filters/radius_outlier_removal.h>
 #include <pcl/segmentation/extract_clusters.h>
 #include <pcl/kdtree/kdtree.h>
+#include <pcl/surface/mls.h>
 #include <pcl/ModelCoefficients.h>
 #include <pcl/surface/concave_hull.h>
 #include <pcl/surface/convex_hull.h>
@@ -13,6 +15,8 @@
 #include <pcl/filters/crop_hull.h>
 #include <pcl/sample_consensus/ransac.h>
 #include <pcl/surface/convex_hull.h>
+#include <pcl/range_image/range_image.h>
+#include <pcl/features/range_image_border_extractor.h>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -79,6 +83,40 @@ ColorCloudPtr removeOutliers(const ColorCloudPtr in, float thresh, int k) {
   sor.setStddevMulThresh (thresh);
   sor.filter (*out);
   return out;
+}
+
+ColorCloudPtr removeRadiusOutliers(const ColorCloudPtr in, float radius, int minK) {
+	ColorCloudPtr out(new ColorCloud());
+	pcl::RadiusOutlierRemoval<ColorPoint> outrem;
+	outrem.setInputCloud(in);
+	outrem.setRadiusSearch(radius);
+	outrem.setMinNeighborsInRadius(minK);
+	outrem.filter (*out);
+	return out;
+}
+
+ColorCloudPtr smoothSurface(const ColorCloudPtr in) {
+	ColorCloudPtr out(new ColorCloud());
+
+	// Create a KD-Tree
+	pcl::search::KdTree<ColorPoint>::Ptr tree (new pcl::search::KdTree<ColorPoint>);
+
+	// Output has the PointNormal type in order to store the normals calculated by MLS
+	pcl::PointCloud<ColorPoint> mls_points;
+
+	// Init object (second point type is for the normals, even if unused)
+	pcl::MovingLeastSquares<ColorPoint, pcl::PointNormal> mls;
+
+	// Set parameters
+	mls.setInputCloud (in);
+	mls.setPolynomialFit (true);
+	mls.setSearchMethod (tree);
+	mls.setSearchRadius (0.03);
+
+	// Reconstruct
+	mls.reconstruct (*out);
+
+	return out;
 }
 
 ColorCloudPtr projectOntoPlane(const ColorCloudPtr in, Eigen::Vector4f& coeffs) {
@@ -543,4 +581,68 @@ pcl::PointIndices::Ptr neighborIndices(ColorCloudPtr cloud_in, ColorCloudPtr clo
 			}
 	}
 	return indices_neighbor;
+}
+
+//Returns the border cloud as green points, the veil cloud as red points, and the shadow cloud as blue points.
+ColorCloudPtr extractBorder(ColorCloudPtr cloud_in, ColorCloudPtr cloud_veil, ColorCloudPtr cloud_shadow) {
+	Eigen::Affine3f scene_sensor_pose = Eigen::Affine3f (Eigen::Translation3f (cloud_in->sensor_origin_[0], cloud_in->sensor_origin_[1], cloud_in->sensor_origin_[2])) * Eigen::Affine3f (cloud_in->sensor_orientation_);
+	pcl::RangeImage::CoordinateFrame coordinate_frame = pcl::RangeImage::CAMERA_FRAME;
+	float noise_level = 0.0;
+	float min_range = 0.0f;
+	int border_size = 1;
+	boost::shared_ptr<pcl::RangeImage> range_image_ptr (new pcl::RangeImage);
+	pcl::RangeImage& range_image = *range_image_ptr;
+	range_image.createFromPointCloud (*cloud_in, pcl::deg2rad(0.5), pcl::deg2rad (360.0f), pcl::deg2rad (180.0f),
+																	 scene_sensor_pose, coordinate_frame, noise_level, min_range, border_size);
+	pcl::PointCloud<pcl::PointWithViewpoint> far_ranges;
+	range_image.integrateFarRanges (far_ranges);
+	range_image.setUnseenToMaxRange ();
+
+	pcl::PointCloud<pcl::BorderDescription> border_descriptions;
+	pcl::RangeImageBorderExtractor border_extractor (&range_image);
+	border_extractor.compute (border_descriptions);
+
+	pcl::PointCloud<pcl::PointWithRange>::Ptr border_points_ptr(new pcl::PointCloud<pcl::PointWithRange>),
+																						veil_points_ptr(new pcl::PointCloud<pcl::PointWithRange>),
+																						shadow_points_ptr(new pcl::PointCloud<pcl::PointWithRange>);
+	pcl::PointCloud<pcl::PointWithRange>& border_points = *border_points_ptr,
+																			& veil_points = * veil_points_ptr,
+																			& shadow_points = *shadow_points_ptr;
+	for (int y=0; y< (int)range_image.height; ++y)
+	{
+		for (int x=0; x< (int)range_image.width; ++x)
+		{
+			if (border_descriptions.points[y*range_image.width + x].traits[pcl::BORDER_TRAIT__OBSTACLE_BORDER])
+				border_points.points.push_back (range_image.points[y*range_image.width + x]);
+			if (border_descriptions.points[y*range_image.width + x].traits[pcl::BORDER_TRAIT__VEIL_POINT])
+				veil_points.points.push_back (range_image.points[y*range_image.width + x]);
+			if (border_descriptions.points[y*range_image.width + x].traits[pcl::BORDER_TRAIT__SHADOW_BORDER])
+				shadow_points.points.push_back (range_image.points[y*range_image.width + x]);
+		}
+	}
+
+	ColorCloudPtr cloud_border(new ColorCloud());
+	for (int i=0; i<border_points.size(); i++) {
+		ColorPoint pt(0,255,0);
+		pt.x = border_points.at(i).x;
+		pt.y = border_points.at(i).y;
+		pt.z = border_points.at(i).z;
+		cloud_border->push_back(pt);
+	}
+	for (int i=0; i<veil_points.size(); i++) {
+		ColorPoint pt(255,0,0);
+		pt.x = veil_points.at(i).x;
+		pt.y = veil_points.at(i).y;
+		pt.z = veil_points.at(i).z;
+		cloud_veil->push_back(pt);
+	}
+	for (int i=0; i<shadow_points.size(); i++) {
+		ColorPoint pt(0,255,255);
+		pt.x = shadow_points.at(i).x;
+		pt.y = shadow_points.at(i).y;
+		pt.z = shadow_points.at(i).z;
+		cloud_shadow->push_back(pt);
+	}
+
+	return cloud_border;
 }

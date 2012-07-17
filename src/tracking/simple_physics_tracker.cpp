@@ -48,10 +48,6 @@ SimplePhysicsTracker::SimplePhysicsTracker(TrackedObject::Ptr obj, VisibilityInt
 
 void SimplePhysicsTracker::updateInput(ColorCloudPtr obsPts) {
 	m_obsPts = m_obj->extractFeatures(obsPts);
-//	float min_z = 0.015 * METERS;
-//  for (int i=0; i<m_obsPts.rows(); i++)
-//  	if (m_obsPts(i,2) < min_z)
-//  		m_obsPts(i,2) = min_z;
 	m_obsCloud = obsPts;
 }
 

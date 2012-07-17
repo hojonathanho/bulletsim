@@ -10,6 +10,8 @@
 std::vector< std::vector<int> > findClusters(ColorCloudPtr cloud, float tol=.02, int minSize=100);
 ColorCloudPtr downsampleCloud(const ColorCloudPtr in, float sz);
 ColorCloudPtr removeOutliers(const ColorCloudPtr in, float thresh=1, int k=15);
+ColorCloudPtr removeRadiusOutliers(const ColorCloudPtr in, float radius, int minK);
+ColorCloudPtr smoothSurface(const ColorCloudPtr in);
 ColorCloudPtr findConcaveHull(ColorCloudPtr in, std::vector<pcl::Vertices>& polygons);
 ColorCloudPtr findConvexHull(ColorCloudPtr in, std::vector<pcl::Vertices>& polygons);
 ColorCloudPtr cropToHull(const ColorCloudPtr in, ColorCloudPtr hull, std::vector<pcl::Vertices>& polygons);
@@ -32,3 +34,4 @@ ColorCloudPtr chessBoardCorners(const ColorCloudPtr in, int width_cb, int height
 ColorCloudPtr skinFilter(ColorCloudPtr cloud_dense);
 ColorCloudPtr filterNeighbors(ColorCloudPtr cloud_in, ColorCloudPtr cloud_neighbor, float radius_search, int color_squared_dist, bool negative=false);
 pcl::PointIndices::Ptr neighborIndices(ColorCloudPtr cloud_in, ColorCloudPtr cloud_neighbor, float radius_search, int color_squared_dist);
+ColorCloudPtr extractBorder(ColorCloudPtr cloud_in, ColorCloudPtr cloud_veil = new ColorCloudPtr(), ColorCloudPtr cloud_shadow = new ColorCloudPtr());
