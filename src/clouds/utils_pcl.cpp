@@ -98,3 +98,45 @@ ColorCloudPtr extractInds(ColorCloudPtr in, std::vector<int> inds) {
   }
   return out;
 }
+
+
+bool saveTransform(const string& filename, const Affine3f& t) {
+	ofstream file;
+	file.open(filename.c_str());
+	if (file.fail()) {
+		cout << "Transform couldn't be saved to " << filename << endl;
+		return false;
+	}
+	file.precision(20);
+
+	Matrix4f mat = t.matrix();
+	for (int r=0; r < 4; r++)
+		for (int c=0; c < 4; c++)
+			file << mat(r,c) << " ";
+	file << "\n";
+
+	file.close();
+	cout << "Transform saved to " << filename << endl;
+	return true;
+}
+
+bool loadTransform(const string& filename, Affine3f& t) {
+  ifstream file;
+  file.open(filename.c_str());
+  if (file.fail()) {
+		cout << "Transform couldn't be loaded from " << filename << endl;
+  	return false;
+  }
+
+  Matrix4f mat;
+  while (!file.eof()) {
+		for (int r=0; r < 4; r++)
+			for (int c=0; c < 4; c++)
+				file >> mat(r,c);
+  }
+  t = mat;
+
+  file.close();
+	cout << "Transform loaded from " << filename << endl;
+  return true;
+}

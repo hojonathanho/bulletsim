@@ -27,13 +27,12 @@ using namespace Eigen;
 struct LocalConfig : Config {
   static std::string inputTopic1;
   static std::string inputTopic2;
-  static int imageCalibration;
+  static std::string outputTopic;
+  static int calibrationType;
   static float squareSize;
   static int chessBoardWidth;
   static int chessBoardHeight;
-  static int SVDCalibration;
   static float minCorrFraction;
-  static int ICPCalibration;
   static int maxIterations;
   static int RANSACIterations;
   static float RANSACOutlierRejectionThreshold;
@@ -44,13 +43,12 @@ struct LocalConfig : Config {
   LocalConfig() : Config() {
     params.push_back(new Parameter<string>("inputTopic1", &inputTopic1, "input topic1"));
     params.push_back(new Parameter<string>("inputTopic2", &inputTopic2, "input topic2"));
-    params.push_back(new Parameter<int>("imageCalibration", &imageCalibration, "0 means that image calibration is NOT run"));
+    params.push_back(new Parameter<string>("outputTopic", &outputTopic, "output topic"));
+    params.push_back(new Parameter<int>("calibrationType", &calibrationType, "0: Load from file calibration \n1:SVD calibration \n2: image calibration \n3: ICP calibration."));
     params.push_back(new Parameter<float>("squareSize", &squareSize, "the length (in meters) of the sides of the squares (if imageCalibration!=0)"));
     params.push_back(new Parameter<int>("chessBoardWidth", &chessBoardWidth, "number of inner corners along the width of the chess board (if imageCalibration!=0 or SVDCalibration!=0)"));
     params.push_back(new Parameter<int>("chessBoardHeight", &chessBoardHeight, "number of inner corners along the height of the chess board (if imageCalibration!=0 or SVDCalibration!=0)"));
-    params.push_back(new Parameter<int>("SVDCalibration", &SVDCalibration, "0 means that SVD calibration is NOT run. 2 means that chess board corners points are published into outputTopic/corners1 and outputTopic/corners2."));
     params.push_back(new Parameter<float>("minCorrFraction", &minCorrFraction, "minimum number of valid checker board corner correspondences (i.e. minCorrFraction*chessBoardWidth*chessBoardHeight) in order to run SVD calibration (if SVDCalibration!=0)"));
-    params.push_back(new Parameter<int>("ICPCalibration", &ICPCalibration, "0 means that ICP calibration is NOT run"));
     params.push_back(new Parameter<int>("maxIterations", &maxIterations, "maximum number of iterations the internal optimization should run for (if ICPCalibration!=0)"));
     params.push_back(new Parameter<int>("RANSACIterations", &RANSACIterations, "the number of iterations RANSAC should run for (if ICPCalibration!=0)"));
     params.push_back(new Parameter<float>("RANSACOutlierRejectionThreshold", &RANSACOutlierRejectionThreshold, "the inlier distance threshold for the internal RANSAC outlier rejection loop (if ICPCalibration!=0)"));
@@ -62,13 +60,12 @@ struct LocalConfig : Config {
 
 string LocalConfig::inputTopic1 = "/kinect1/depth_registered/points";
 string LocalConfig::inputTopic2 = "/kinect2/depth_registered/points";
-int LocalConfig::imageCalibration = 0;
+string LocalConfig::outputTopic = "/kinect_merged/points";
+int LocalConfig::calibrationType = 0;
 float LocalConfig::squareSize = 0.0272;
 int LocalConfig::chessBoardWidth = 6;
 int LocalConfig::chessBoardHeight = 7;
-int LocalConfig::SVDCalibration = 1;
 float LocalConfig::minCorrFraction = 0.6;
-int LocalConfig::ICPCalibration = 0;
 int LocalConfig::maxIterations = 100;
 int LocalConfig::RANSACIterations = 10;
 float LocalConfig::RANSACOutlierRejectionThreshold = 0.005;
@@ -81,13 +78,18 @@ typedef boost::shared_ptr< ::sensor_msgs::Image const> ImageConstPtr;
 bool image_calib_init = false;
 bool svd_calib_init = false;
 bool icp_calib_init = false;
-Matrix4f transform_diff = Matrix4f::Identity();
-Matrix4f initial_cb_transform = Matrix4f::Identity();
+bool load_calib_init = false;
+
+Affine3f transform1 = Affine3f::Identity();
+Affine3f transform2 = Affine3f::Identity();
 
 boost::shared_ptr<tf::TransformBroadcaster> broadcaster1;
 boost::shared_ptr<tf::TransformBroadcaster> broadcaster2;
 boost::shared_ptr<tf::TransformListener> listener1;
 boost::shared_ptr<tf::TransformListener> listener2;
+
+boost::shared_ptr<ros::Publisher> cloudPub;
+sensor_msgs::PointCloud2 msg_out;
 
 void SVDCalibration(ColorCloudPtr cloud1, ColorCloudPtr cloud2) {
 	ColorCloudPtr cloud1_corners = chessBoardCorners(cloud1, LocalConfig::chessBoardWidth, LocalConfig::chessBoardHeight);
@@ -126,12 +128,16 @@ void SVDCalibration(ColorCloudPtr cloud1, ColorCloudPtr cloud2) {
 			for (int i=0; i<cloud1_corners->size(); i++)
 				indices.push_back(i);
 			pcl::registration::TransformationEstimationSVD<ColorPoint, ColorPoint> estimation_svd;
-			estimation_svd.estimateRigidTransformation(*cloud1_corners, indices, *cloudref_corners, indices, initial_cb_transform);
-			estimation_svd.estimateRigidTransformation(*cloud2_corners, indices, *cloud1_corners, indices, transform_diff);
+			Matrix4f matrix1, matrix2;
+			estimation_svd.estimateRigidTransformation(*cloud1_corners, indices, *cloudref_corners, indices, matrix1);
+			estimation_svd.estimateRigidTransformation(*cloud2_corners, indices, *cloudref_corners, indices, matrix2);
+			transform1 = (Affine3f) matrix1;
+			transform2 = (Affine3f) matrix2;
+
 			svd_calib_init = true;
 			ROS_INFO("SVD calibration succeeded with %d/%d points", (int) cloud1_corners->size(), nAllPoints);
-			cout << "first  transform " << endl << initial_cb_transform << endl;
-			cout << "second transform " << endl << transform_diff << endl;
+			saveTransform(string(getenv("BULLETSIM_SOURCE_DIR")) + "/data/transforms/kinect1", transform1);
+			saveTransform(string(getenv("BULLETSIM_SOURCE_DIR")) + "/data/transforms/kinect2", transform2);
 		} else {
 			ROS_WARN("SVD calibration failed. Only %d of a minimum of %d correspondences found.", (int) cloud1_corners->size(), minCorr);
 		}
@@ -144,7 +150,7 @@ void SVDCalibration(ColorCloudPtr cloud1, ColorCloudPtr cloud2) {
 }
 
 void ICPCalibration(ColorCloudPtr cloud1, ColorCloudPtr cloud2) {
-	ROS_WARN("ICPCalibration probably doesn't work");
+	ROS_WARN("ICPCalibration doesn't work");
 	pcl::IterativeClosestPoint<ColorPoint, ColorPoint> icp;
 	icp.setInputCloud(downsampleCloud(cloud2, 0.2));
 	icp.setInputTarget(downsampleCloud(cloud1, 0.2));
@@ -156,6 +162,7 @@ void ICPCalibration(ColorCloudPtr cloud1, ColorCloudPtr cloud2) {
 	icp.setEuclideanFitnessEpsilon(LocalConfig::euclideanFitnessEpsilon);
 	ROS_INFO("ICP aligning of the two clouds...");
 	ColorCloud Final;
+	Matrix4f transform_diff;
 	icp.align(Final, transform_diff);
 	if (icp.hasConverged()) {
 		transform_diff = icp.getFinalTransformation();
@@ -179,14 +186,24 @@ void imageCalibration(ColorCloudPtr cloud1, ColorCloudPtr cloud2) {
 	cam_matrix(0,2) = CX;
 	cam_matrix(1,2) = CY;
 
-	Matrix4f transform1, transform2;
-	if (get_chessboard_pose(image1, LocalConfig::chessBoardWidth, LocalConfig::chessBoardHeight, LocalConfig::squareSize, cam_matrix, transform1) &&
-		get_chessboard_pose(image2, LocalConfig::chessBoardWidth, LocalConfig::chessBoardHeight, LocalConfig::squareSize, cam_matrix, transform2)) {
-		transform_diff = transform1*transform2.inverse();
+	Matrix4f matrix1, matrix2;
+	if (get_chessboard_pose(image1, LocalConfig::chessBoardWidth, LocalConfig::chessBoardHeight, LocalConfig::squareSize, cam_matrix, matrix1) &&
+		get_chessboard_pose(image2, LocalConfig::chessBoardWidth, LocalConfig::chessBoardHeight, LocalConfig::squareSize, cam_matrix, matrix2)) {
+		transform1 = (Affine3f) matrix1;
+		transform2 = (Affine3f) matrix2;
 		image_calib_init = true;
 		ROS_INFO("Image calibration suceeded");
 	} else {
 		ROS_WARN("Image calibration failed. Make sure both cameras sees the chess board.");
+	}
+}
+
+void loadCalibration() {
+	if (loadTransform(string(getenv("BULLETSIM_SOURCE_DIR")) + "/data/transforms/kinect1", transform1) &&
+			loadTransform(string(getenv("BULLETSIM_SOURCE_DIR")) + "/data/transforms/kinect2", transform2)) {
+		load_calib_init = true;
+	} else {
+		ROS_WARN("Load from file calibration failed. Make sure the files exist.");
 	}
 }
 
@@ -196,15 +213,27 @@ void callback(const sensor_msgs::PointCloud2ConstPtr& msg_in1, const sensor_msgs
 	pcl::fromROSMsg(*msg_in1, *cloud_in1);
 	pcl::fromROSMsg(*msg_in2, *cloud_in2);
 
-	if (LocalConfig::imageCalibration && !image_calib_init)
-		imageCalibration(cloud_in1, cloud_in2);
-	if (LocalConfig::SVDCalibration && !svd_calib_init)
+	if (LocalConfig::calibrationType == 0 && !load_calib_init)
+		loadCalibration();
+	else if (LocalConfig::calibrationType == 1 && !svd_calib_init)
 		SVDCalibration(cloud_in1, cloud_in2);
-	if (LocalConfig::ICPCalibration && !icp_calib_init)
+	else if (LocalConfig::calibrationType == 2 && !image_calib_init)
+		imageCalibration(cloud_in1, cloud_in2);
+	else if (LocalConfig::calibrationType == 3 && !icp_calib_init)
 		ICPCalibration(cloud_in1, cloud_in2);
 
-	broadcastKinectTransform(toBulletTransform((Eigen::Affine3f) initial_cb_transform), msg_in1->header.frame_id, "ground", *broadcaster1, *listener1);
-	broadcastKinectTransform(toBulletTransform((Eigen::Affine3f) (initial_cb_transform*transform_diff)), msg_in2->header.frame_id, "ground", *broadcaster2, *listener2);
+	broadcastKinectTransform(toBulletTransform(transform1), msg_in1->header.frame_id, "chess_board", *broadcaster1, *listener1);
+	broadcastKinectTransform(toBulletTransform(transform2), msg_in2->header.frame_id, "chess_board", *broadcaster2, *listener2);
+
+	pcl::transformPointCloud(*cloud_in1.get(), *cloud_in1.get(), transform1);
+	pcl::transformPointCloud(*cloud_in2.get(), *cloud_in2.get(), transform2);
+	ColorCloudPtr cloud_out(new ColorCloud(*cloud_in1 + *cloud_in2));
+
+	pcl::toROSMsg(*cloud_out, msg_out);
+	msg_out.header.seq++;
+	msg_out.header.stamp = ros::Time::now();
+	msg_out.header.frame_id = "chess_board";
+	cloudPub->publish(msg_out);
 }
 
 int main(int argc, char* argv[]) {
@@ -219,6 +248,9 @@ int main(int argc, char* argv[]) {
 	broadcaster2.reset(new tf::TransformBroadcaster());
 	listener1.reset(new tf::TransformListener());
 	listener2.reset(new tf::TransformListener());
+
+	cloudPub.reset(new ros::Publisher(nh.advertise<sensor_msgs::PointCloud2>(LocalConfig::outputTopic,5)));
+	msg_out.header.seq = 0;
 
 	message_filters::Subscriber<sensor_msgs::PointCloud2> cloud1Sub(nh, LocalConfig::inputTopic1, 1);
 	message_filters::Subscriber<sensor_msgs::PointCloud2> cloud2Sub(nh, LocalConfig::inputTopic2, 1);

@@ -4,6 +4,7 @@
 #include <pcl/common/transforms.h>
 #include <pcl/point_cloud.h>
 #include <pcl/kdtree/kdtree_flann.h>
+#include <pcl/io/pcd_io.h>
 #include <ros/ros.h>
 #include <cv_bridge/cv_bridge.h>
 #include <cv.h>

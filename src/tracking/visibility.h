@@ -39,3 +39,10 @@ public:
 	Eigen::VectorXf calcVisibility(const vector<btVector3> nodes, btDynamicsWorld* world, const btVector3& cameraPos);
 	void updateInput(const cv::Mat&) {};
 };
+
+class MultiVisibility : public VisibilityInterface {
+public:
+	vector<VisibilityInterface*> visibilities;
+	void addVisibility(VisibilityInterface* visibility) { visibilities.push_back(visibility); }
+  Eigen::VectorXf checkNodeVisibility(TrackedObject::Ptr);
+};

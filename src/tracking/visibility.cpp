@@ -98,3 +98,10 @@ VectorXf BulletVisibility::calcVisibility(const vector<btVector3> nodes, btDynam
 	}
 	return vis;
 }
+
+Eigen::VectorXf MultiVisibility::checkNodeVisibility(TrackedObject::Ptr obj) {
+	VectorXf vis = VectorXf::Zero(obj->m_nNodes);
+	for (int i=0; i<visibilities.size(); i++)
+		vis = vis.cwiseMax(visibilities[i]->checkNodeVisibility(obj));
+	return vis;
+}
