@@ -3,7 +3,7 @@
 #include "utils/conversions.h"
 #include "utils/cvmat.h"
 #include "simulation/bullet_io.h"
-#include "utils/vector_alg.h"
+#include "utils/utils_vector.h"
 
 using namespace std;
 using namespace Eigen;

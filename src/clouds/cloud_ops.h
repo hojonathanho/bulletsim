@@ -5,7 +5,6 @@
 #include <pcl/Vertices.h>
 #include <opencv2/core/core.hpp>
 #include <cv.h>
-#include "utils/vector_alg.h"
 
 std::vector< std::vector<int> > findClusters(ColorCloudPtr cloud, float tol=.02, int minSize=100);
 ColorCloudPtr downsampleCloud(const ColorCloudPtr in, float sz);
