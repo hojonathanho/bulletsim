@@ -1,6 +1,5 @@
 #pragma once
 #include <iostream>
-#include <algorithm>
 #include <vector>
 
 template <typename T>
@@ -50,3 +49,7 @@ std::vector<T> append(const std::vector<std::vector<T> >& v, int start, int end)
 			res.push_back(v[i][j]);
 	return res;
 }
+
+bool cwiseOr(const std::vector<bool>& v);
+
+bool cwiseAnd(const std::vector<bool>& v);

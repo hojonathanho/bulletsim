@@ -18,7 +18,7 @@
 #include "clouds/utils_pcl.h"
 #include "utils_tracking.h"
 #include "utils/logging.h"
-#include "utils/vector_alg.h"
+#include "utils/utils_vector.h"
 #include "visibility.h"
 #include "simple_physics_tracker.h"
 #include "initialization.h"
@@ -60,7 +60,7 @@ void cloudAndImagesCallback (const sensor_msgs::PointCloud2ConstPtr& cloudMsg,
   pcl::transformPointCloud(*filteredCloud, *filteredCloud, transformer->worldFromCamEigen);
 
   pending = true;
-  //cout << "pending " << pending << endl;
+  //cout << "pending All " << pending << endl;
 }
 
 void cloudCallback (const sensor_msgs::PointCloud2ConstPtr& cloudMsg) {
@@ -141,7 +141,7 @@ int main(int argc, char* argv[]) {
   ros::Publisher objPub = nh.advertise<bulletsim_msgs::TrackedObject>(trackedObjectTopic,10);
 
   // wait for first message, then initialize
-  while (!pending || !pending_images[0]) {
+  while (!(pending && cwiseAnd(pending_images))) {
     ros::spinOnce();
     sleep(.001);
     if (!ros::ok()) throw runtime_error("caught signal while waiting for first message");
@@ -158,8 +158,12 @@ int main(int argc, char* argv[]) {
 
   // actual tracking algorithm
 	//DepthImageVisibility visInterface(transformer);
-	OSGVisibility visInterface(transformer);
+	//OSGVisibility visInterface(transformer);
 	//BulletVisibility visInterface(transformer);
+	MultiVisibility visInterface;
+	for (int i=0; i<nCameras; i++) {
+		visInterface.addVisibility(new OSGVisibility(transformer_images[i]));
+	}
 	SimplePhysicsTracker alg(trackedObj, &visInterface, scene.env);
 
   scene.addVoidKeyCallback('c',boost::bind(toggle, &alg.m_enableCorrPlot));
@@ -179,7 +183,7 @@ int main(int argc, char* argv[]) {
 
   while (ros::ok()) {
     alg.updateInput(filteredCloud);
-    visInterface.updateInput(depthImage);
+    //visInterface.updateInput(depthImage);
     pending = false;
     while (ros::ok() && !pending) {
       alg.doIteration();
