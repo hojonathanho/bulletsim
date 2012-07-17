@@ -2,9 +2,11 @@
 
 #include <vector>
 #include <string>
+#include <sstream>
 #include <iostream>
 #include <boost/foreach.hpp>
 #include <boost/program_options.hpp>
+#include "vector_alg.h"
 
 namespace po = boost::program_options;
 
@@ -23,8 +25,16 @@ struct Parameter : ParameterBase {
     m_value = value;
     m_desc = desc;
   }
+
+  template <typename TYPE>
+  std::string textualRepresentation(const TYPE& v) {
+  	std::stringstream ss;
+  	ss << v;
+  	return ss.str();
+  }
+
   void addToBoost(po::options_description& od) {
-    od.add_options()(m_name.c_str(), po::value(m_value)->default_value(*m_value), m_desc.c_str());
+    od.add_options()(m_name.c_str(), po::value(m_value)->default_value(*m_value, textualRepresentation(*m_value)), m_desc.c_str());
   }
 };
 
