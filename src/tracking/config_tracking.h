@@ -11,6 +11,9 @@ struct TrackingConfig : Config {
   static std::string rgbTopic;
   static std::string fullCloudTopic;
   
+  static std::vector<std::string> depthTopics;
+  static std::vector<std::string> rgbTopics;
+
   static float pointPriorDist;
   static float pointOutlierDist;
   static float epsilon;
@@ -31,6 +34,9 @@ struct TrackingConfig : Config {
         params.push_back(new Parameter<std::string>("rgbTopic", &rgbTopic, "rgb image topic"));
         params.push_back(new Parameter<std::string>("fullCloudTopic", &fullCloudTopic, "original point cloud topic topic"));
 
+        params.push_back(new Parameter<std::vector<std::string> >("depthTopics", &depthTopics, "depth image topics"));
+        params.push_back(new Parameter<std::vector<std::string> >("rgbTopics", &rgbTopics, "rgb image topics"));
+
         params.push_back(new Parameter<float>("pointPriorDist", &pointPriorDist, "Prior distribution for xyz. This is also the initial values for sigmas xyz. For cloth pick 0.08; for rope pick 0.03."));
         params.push_back(new Parameter<float>("pointOutlierDist", &pointOutlierDist, "Intuitively, observed points farther than distance=sqrt(3)*pointOutlierDist (special case) from a node are considered outliers. Pick distance/sqrt(3) ~= distance*0.5 ."));
         params.push_back(new Parameter<float>("epsilon", &epsilon, "Small normal to prevent terms going to infinity in the row normalization of estimateCorrespondence."));
@@ -45,6 +51,4 @@ struct TrackingConfig : Config {
         params.push_back(new Parameter<int>("res_x", &res_x, "towel resolution in x"));
         params.push_back(new Parameter<int>("res_y", &res_y, "towel resolution in y"));
     }
-
-    static void conditionalReinitialize(std::string obj_type);
 };
