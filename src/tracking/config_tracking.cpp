@@ -5,12 +5,8 @@ std::string TrackingConfig::depthTopic  = "/kinect1/depth_registered/image_rect"
 std::string TrackingConfig::rgbTopic = "/kinect1/rgb/image_rect_color";
 std::string TrackingConfig::fullCloudTopic = "/kinect1/rgb/points";
 
-
-std::string depthTopics_a[] = { "/kinect1/depth_registered/image_rect", "/kinect2/depth_registered/image_rect" };
-std::vector<std::string> TrackingConfig::depthTopics = std::vector<std::string>(depthTopics_a, depthTopics_a+sizeof(depthTopics_a)/sizeof(std::string));
-
-std::string rgbTopics_a[] = { "/kinect1/depth_registered/image_rect_color", "/kinect2/depth_registered/image_rect_color" };
-std::vector<std::string> TrackingConfig::rgbTopics = std::vector<std::string>(rgbTopics_a, rgbTopics_a+sizeof(rgbTopics_a)/sizeof(std::string));
+std::string cameraTopics_a[] = { "/kinect1", "/kinect2" };
+std::vector<std::string> TrackingConfig::cameraTopics = std::vector<std::string>(cameraTopics_a, cameraTopics_a+sizeof(cameraTopics_a)/sizeof(std::string));
 
 float TrackingConfig::pointPriorDist = 0.03;
 float TrackingConfig::pointOutlierDist = 0.03;
