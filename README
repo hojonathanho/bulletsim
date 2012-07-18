@@ -53,11 +53,17 @@ for node in $BULLETSIM_BUILD_DIR/bulletsim/bin/* ; do ln -s $node ; done
 
 
 ** Test tracking **
-$BULLETSIM_BUILD_DIR/bulletsim/bin/tracker_node
-roslaunch point_clouds.launch online:=false filename:=knot_tie
+$BULLETSIM_BUILD_DIR/bulletsim/bin/tracker_node --cameraTopics=kinect1
+roslaunch point_clouds.launch online:=false filename:=sample_rope
 
-$BULLETSIM_BUILD_DIR/bulletsim/bin/tracker_node
-roslaunch point_clouds.launch online:=false filename:=double_fold
+$BULLETSIM_BUILD_DIR/bulletsim/bin/tracker_node --cameraTopics=kinect1
+roslaunch point_clouds.launch online:=false filename:=sample_cloth
+
+$BULLETSIM_BUILD_DIR/bulletsim/bin/tracker_node --cameraTopics=kinect1 --cameraTopics=kinect2
+roslaunch multi_point_clouds.launch online:=false filename:=knot_tie
+
+$BULLETSIM_BUILD_DIR/bulletsim/bin/tracker_node --cameraTopics=kinect1 --cameraTopics=kinect2
+roslaunch multi_point_clouds.launch online:=false filename:=double_fold
 
 
 
