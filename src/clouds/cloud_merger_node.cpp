@@ -252,8 +252,8 @@ int main(int argc, char* argv[]) {
 	cloudPub.reset(new ros::Publisher(nh.advertise<sensor_msgs::PointCloud2>(LocalConfig::outputTopic,5)));
 	msg_out.header.seq = 0;
 
-	message_filters::Subscriber<sensor_msgs::PointCloud2> cloud1Sub(nh, LocalConfig::inputTopic1, 1);
-	message_filters::Subscriber<sensor_msgs::PointCloud2> cloud2Sub(nh, LocalConfig::inputTopic2, 1);
+	message_filters::Subscriber<sensor_msgs::PointCloud2> cloud1Sub(nh, LocalConfig::inputTopic1, 20);
+	message_filters::Subscriber<sensor_msgs::PointCloud2> cloud2Sub(nh, LocalConfig::inputTopic2, 20);
 	typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::PointCloud2, sensor_msgs::PointCloud2> CloudSyncPolicy;
 	message_filters::Synchronizer<CloudSyncPolicy> cloudSync(CloudSyncPolicy(30), cloud1Sub, cloud2Sub);
 	cloudSync.registerCallback(boost::bind(&callback,_1,_2));

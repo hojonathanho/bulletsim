@@ -1,0 +1,21 @@
+<launch>
+
+	<arg name="base" default="$(env BULLETSIM_SOURCE_DIR)/data/bagfiles"/>
+	<arg name="filename" />
+	<arg name="camera" default="kinect"/>
+
+	<include file="$(find openni_launch)/launch/openni.launch">
+		<arg name="camera" value="$(arg camera)1" />
+		<arg name="load_driver" value="false" />
+		<arg name="depth_registration" value="true" />
+	</include>
+
+	<include file="$(find openni_launch)/launch/openni.launch">
+		<arg name="camera" value="$(arg camera)2" />
+		<arg name="load_driver" value="false" />
+		<arg name="depth_registration" value="true" />
+	</include>
+
+	<node name="rosbag_$(arg camera)" pkg="rosbag" type="play" args="-k --clock $(arg base)/$(arg filename)1.bag $(arg base)/$(arg filename)2.bag" /> 
+
+</launch>

@@ -189,7 +189,7 @@ public:
 //		msg_out_shadow.header = msg_in.header;
 //		m_pubCloudShadow.publish(msg_out_shadow);
 
-    broadcastKinectTransform(m_transform.inverse(), msg_in.header.frame_id, "ground", m_broadcaster, m_listener);
+		broadcastKinectTransform(m_transform.inverse(), msg_in.header.frame_id, "ground", m_broadcaster, m_listener);
 
     geometry_msgs::PolygonStamped polyStamped;
     polyStamped.polygon = m_poly;

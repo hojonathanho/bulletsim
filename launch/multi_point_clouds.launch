@@ -1,5 +1,4 @@
 <launch>
-  <arg name="make_sim_frame" default="true"/>
 
   <arg name="camera" default="kinect"/>
   <arg name="online" default="true"/>
@@ -22,13 +21,9 @@
   </group>
   <group unless="$(arg online)">
     <param name="use_sim_time" value="true" />
-    <include file="play_cloud.launch">
-      <arg name="camera" value="$(arg camera)1" />
-      <arg name="filename" value="$(arg filename)1" />
-    </include>
-    <include file="play_cloud.launch">
-      <arg name="camera" value="$(arg camera)2" />
-      <arg name="filename" value="$(arg filename)2" />
+    <include file="play_two_clouds.launch">
+      <arg name="camera" value="$(arg camera)" />
+      <arg name="filename" value="$(arg filename)" />
     </include>
   </group>
 
@@ -39,8 +34,4 @@
   
   <node name="preprocessor" pkg="binary_symlinks" type="preprocessor_node" output="screen"  args="--inputTopic=/kinect_merged/points --downsample=0.008 --removeOutliers=true --outlierRadius=0.016 --outlierMinK=10 --zClipLow=-0.02"/> 
 
-  <group if="$(arg make_sim_frame)">
-    <node name="sim_kinect_frame_publisher" pkg="tf" type="static_transform_publisher" args="0 0 0 0 0 0 1 head_mount_kinect_ir_link camera_link 10"/>
-  </group>
-  
 </launch>
