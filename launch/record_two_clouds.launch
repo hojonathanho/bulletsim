@@ -1,6 +1,6 @@
 <launch>
 
-	<arg name="base" default="/home/alex/rll/bulletsim/bagfiles"/>
+	<arg name="base" default="$(env BULLETSIM_SOURCE_DIR)/data/bagfiles"/>
 	<arg name="filename" />
 	<arg name="camera" default="kinect"/>
 
