@@ -17,6 +17,7 @@
 #include <pcl/surface/convex_hull.h>
 #include <pcl/range_image/range_image.h>
 #include <pcl/features/range_image_border_extractor.h>
+#include <pcl/registration/transformation_estimation_svd.h>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -497,17 +498,63 @@ ColorCloudPtr chessBoardCorners(const ColorCloudPtr in, int width_cb, int height
 	return out;
 }
 
-void pointToImageInd(ColorPoint point, ColorCloudPtr cloud, cv::Mat image) {
-	pcl::KdTreeFLANN<ColorPoint> kdtree;
-	kdtree.setInputCloud (cloud);
-	// K nearest neighbor search
-	int K = 1;
-	std::vector<int> pointIdxNKNSearch(K);
-	std::vector<float> pointNKNSquaredDistance(K);
-	if ( kdtree.nearestKSearch (point, K, pointIdxNKNSearch, pointNKNSquaredDistance) > 0 )
-	{
-		ColorPoint found_point = cloud->points[ pointIdxNKNSearch[0] ];
+//the transform brings points from the camera coordinate system to the reference (center of chess board) coordinate system
+//i.e. cloudref_corners[i] = transform * cloud_corners[i]
+int getChessBoardPose(const ColorCloudPtr cloud_in, int width_cb, int height_cb, double square_size, Matrix4f& transform) {
+	ColorCloudPtr cloud_corners = chessBoardCorners(cloud_in, width_cb, height_cb);
+	int nAllPoints = width_cb * height_cb;
+	if (cloud_corners->size() == nAllPoints) {
+		ColorCloudPtr cloudref_corners(new ColorCloud());
+		for (int i=0; i<height_cb; i++) {
+			for (int j=(width_cb-1); j>=0; j--) {
+				ColorPoint pt;
+				pt.x = square_size * (j - ((float) width_cb - 1.0)/2.0);
+				pt.y = square_size * (i - ((float) height_cb - 1.0)/2.0);
+				pt.z = 0;
+				cloudref_corners->push_back(pt);
+			}
+		}
+
+		//Filter out the bad points from both point clouds (cloud_corners and cloudref_corners)
+		vector<int> badPoints;
+		for (int i=0; i<cloud_corners->size(); i++) {
+			if (!pointIsFinite(cloud_corners->at(i)))
+				badPoints.push_back(i);
+		}
+
+		for (int i=(badPoints.size()-1); i>=0; i--) {
+			cloud_corners->erase(cloud_corners->begin() + badPoints[i]);
+			cloudref_corners->erase(cloudref_corners->begin() + badPoints[i]);
+		}
+
+//		pcl::PassThrough<ColorPoint> ptfilter (true); // Initializing with true will allow us to extract the removed indices
+//		ptfilter.setInputCloud(cloud_corners);
+//		ptfilter.filter(*cloud_corners);
+//		pcl::IndicesConstPtr invalid_points_indices = ptfilter.getRemovedIndices(); // The invalid_points_indices indexes all non-finite points of cloud_corners
+//
+//		if (invalid_points_indices->size() > 0) {
+//			pcl::ExtractIndices<ColorPoint> extract_indices;
+//			extract_indices.setNegative(true);
+//			extract_indices.setIndices(invalid_points_indices);
+//			extract_indices.setInputCloud(cloudref_corners);
+//			extract_indices.filter(*cloudref_corners);
+//		}
+
+		if (cloud_corners->size()>=0.5*nAllPoints) {
+			pcl::registration::TransformationEstimationSVD<ColorPoint, ColorPoint> estimation_svd;
+			estimation_svd.estimateRigidTransformation(*cloud_corners, *cloudref_corners, transform);
+
+			// There are two possible transforms. One of them represents when the camera looks
+			// at the chess board from above it, and the other one when the camera is at the
+			// mirror position and orientation with respect to the chess board plane.
+			// If the z coordinate (transform(3,2)) of the camera is positive, then the transform
+			// represents when the camera is looks from above.
+			if (transform(2,3) < 0)
+				transform = Vector4f(-1,1,-1,1).asDiagonal() * transform;
+			return cloud_corners->size();
+		}
 	}
+	return 0;
 }
 
 //returns point cloud that is likely to be from skin

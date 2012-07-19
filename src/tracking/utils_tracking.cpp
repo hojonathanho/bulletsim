@@ -101,6 +101,7 @@ btTransform waitForAndGetTransform(const tf::TransformListener& listener, std::s
 			listener.waitForTransform(target_frame, source_frame, ros::Time(0),ros::Duration(.1));
 			listener.lookupTransform(target_frame, source_frame, ros::Time(0), st);
 		} catch (...) {
+			ROS_WARN("An exception was catched from waitForAndGetTransform. Retrying...");
 			continue;
 		}
 		break;
