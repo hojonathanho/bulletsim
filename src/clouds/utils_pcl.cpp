@@ -99,8 +99,7 @@ ColorCloudPtr extractInds(ColorCloudPtr in, std::vector<int> inds) {
   return out;
 }
 
-
-bool saveTransform(const string& filename, const Affine3f& t) {
+bool saveTransform(const string& filename, const Matrix4f& t) {
 	ofstream file;
 	file.open(filename.c_str());
 	if (file.fail()) {
@@ -109,10 +108,9 @@ bool saveTransform(const string& filename, const Affine3f& t) {
 	}
 	file.precision(20);
 
-	Matrix4f mat = t.matrix();
-	for (int r=0; r < 4; r++)
-		for (int c=0; c < 4; c++)
-			file << mat(r,c) << " ";
+	for (int r=0; r<4; r++)
+		for (int c=0; c<4; c++)
+			file << t(r,c) << " ";
 	file << "\n";
 
 	file.close();
@@ -120,7 +118,7 @@ bool saveTransform(const string& filename, const Affine3f& t) {
 	return true;
 }
 
-bool loadTransform(const string& filename, Affine3f& t) {
+bool loadTransform(const string& filename, Matrix4f& t) {
   ifstream file;
   file.open(filename.c_str());
   if (file.fail()) {
@@ -128,15 +126,24 @@ bool loadTransform(const string& filename, Affine3f& t) {
   	return false;
   }
 
-  Matrix4f mat;
   while (!file.eof()) {
-		for (int r=0; r < 4; r++)
-			for (int c=0; c < 4; c++)
-				file >> mat(r,c);
+		for (int r=0; r<4; r++)
+			for (int c=0; c<4; c++)
+				file >> t(r,c);
   }
-  t = mat;
 
   file.close();
 	cout << "Transform loaded from " << filename << endl;
   return true;
+}
+
+bool saveTransform(const std::string& filename, const Affine3f& t) {
+	return saveTransform(filename, t.matrix());
+}
+
+bool loadTransform(const std::string& filename, Affine3f& t) {
+	Matrix4f mat = t.matrix();
+	bool ret = loadTransform(filename, mat);
+	t = (Affine3f) mat;
+	return ret;
 }
