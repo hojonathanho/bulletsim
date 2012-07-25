@@ -114,6 +114,8 @@ void setParamLoop() {
 	}
 }
 
+int image_ind=0;
+
 class PreprocessorNode {
 public:
   ros::NodeHandle& m_nh;
@@ -135,7 +137,6 @@ public:
   btTransform m_transform;
   geometry_msgs::Polygon m_poly;
 
-
   void callback(const sensor_msgs::PointCloud2& msg_in) {
     ColorCloudPtr cloud_in(new ColorCloud());
     pcl::fromROSMsg(msg_in, *cloud_in);
@@ -153,6 +154,8 @@ public:
 //    ColorCloudPtr cloud_veil(new ColorCloud());
 //    ColorCloudPtr cloud_shadow(new ColorCloud());
 //    ColorCloudPtr cloud_border = extractBorder(cloud_in, cloud_veil, cloud_shadow);
+
+    //cv::imwrite("/home/alex/rll/bulletsim/data/images/hand_knot_tie_" + itoa(image_ind++, 4) + ".jpg", toCVMatImage(cloud_in));
 
     ColorCloudPtr cloud_out = cloud_in;
 		cloud_out = orientedBoxFilter(cloud_out, toEigenMatrix(m_transform.getBasis()), m_mins, m_maxes);
