@@ -75,10 +75,13 @@ BulletObject::Ptr makeTable(const vector<btVector3>& corners, float thickness) {
 }
 
 TableRopeScene::TableRopeScene(fs::path ropeFile, bool telekinesis) : GrabbingScene(telekinesis) {
-  vector<double> firstJoints = doubleVecFromFile((KNOT_DATA / "init_joints_train.txt").string());
-  ValuesInds vi = getValuesInds(firstJoints);
-  pr2m->pr2->setDOFValues(vi.second, vi.first);
-  
+//  vector<double> firstJoints = doubleVecFromFile((KNOT_DATA / "init_joints_train.txt").string());
+//  ValuesInds vi = getValuesInds(firstJoints);
+//  setupDefaultROSRave();
+//  pr2m->pr2->setDOFValues(vi.second, vi.first);
+  vector<int> indices(1,pr2m->pr2->robot->GetJointIndex("torso_lift_joint"));
+  vector<double> values(1, .31);
+  pr2m->pr2->setDOFValues(indices, values);
   vector<btVector3> tableCornersWorld = toBulletVectors(floatMatFromFile((KNOT_DATA / "table_corners.txt").string())) * METERS;
   vector<btVector3> controlPointsWorld = toBulletVectors(floatMatFromFile(ropeFile.string())) * METERS;
 

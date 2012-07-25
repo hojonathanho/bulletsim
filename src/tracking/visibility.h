@@ -15,34 +15,43 @@ public:
 
 class DepthImageVisibility : public VisibilityInterface {
 public:
-  CoordinateTransformer* m_transformer;
-  cv::Mat m_depth;
-  DepthImageVisibility(CoordinateTransformer* transformer) : m_transformer(transformer) {}  
+	CoordinateTransformer* m_transformer;
+	cv::Mat m_depth;
+	DepthImageVisibility(CoordinateTransformer* transformer) : m_transformer(transformer) {}  
 	Eigen::VectorXf checkNodeVisibility(TrackedObject::Ptr);
 	void updateInput(const cv::Mat&);
 };
 
 class OSGVisibility : public VisibilityInterface {
 public:
-  CoordinateTransformer* m_transformer;
-  OSGVisibility(CoordinateTransformer* transformer) : m_transformer(transformer) {}
-  Eigen::VectorXf checkNodeVisibility(TrackedObject::Ptr);
-  vector<btVector3> getIntersectionPoints(TrackedObject::Ptr);
+	CoordinateTransformer* m_transformer;
+	OSGVisibility(CoordinateTransformer* transformer) : m_transformer(transformer) {}
+	Eigen::VectorXf checkNodeVisibility(TrackedObject::Ptr);
+	vector<btVector3> getIntersectionPoints(TrackedObject::Ptr);
 	void updateInput(const cv::Mat&) {};
 };
 
+//Alex's version. Not working properly.
 class BulletVisibility : public VisibilityInterface {
 public:
-  CoordinateTransformer* m_transformer;
-  BulletVisibility(CoordinateTransformer* transformer) : m_transformer(transformer) {}
-  Eigen::VectorXf checkNodeVisibility(TrackedObject::Ptr);
+	CoordinateTransformer* m_transformer;
+	BulletVisibility(CoordinateTransformer* transformer) : m_transformer(transformer) {}
+	Eigen::VectorXf checkNodeVisibility(TrackedObject::Ptr);
 	Eigen::VectorXf calcVisibility(const vector<btVector3> nodes, btDynamicsWorld* world, const btVector3& cameraPos);
 	void updateInput(const cv::Mat&) {};
+};
+
+class BulletRaycastVisibility : public VisibilityInterface {
+public:
+	btDynamicsWorld* m_world;
+	CoordinateTransformer* m_transformer;
+	BulletRaycastVisibility(btDynamicsWorld* world, CoordinateTransformer* transformer);
+	Eigen::VectorXf checkNodeVisibility(TrackedObject::Ptr);
 };
 
 class MultiVisibility : public VisibilityInterface {
 public:
 	vector<VisibilityInterface*> visibilities;
 	void addVisibility(VisibilityInterface* visibility) { visibilities.push_back(visibility); }
-  Eigen::VectorXf checkNodeVisibility(TrackedObject::Ptr);
+	Eigen::VectorXf checkNodeVisibility(TrackedObject::Ptr);
 };

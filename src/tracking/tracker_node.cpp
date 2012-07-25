@@ -1,18 +1,18 @@
-#include <sensor_msgs/Image.h>
-#include <sensor_msgs/PointCloud2.h>
 #include <pcl/ros/conversions.h>
 #include <pcl/common/transforms.h>
 #include <pcl/point_cloud.h>
 #include <pcl/kdtree/kdtree_flann.h>
 #include <pcl/io/pcd_io.h>
 #include <ros/ros.h>
-#include <cv_bridge/cv_bridge.h>
-#include <cv.h>
+#include <sensor_msgs/PointCloud2.h>
+#include <sensor_msgs/Image.h>
 #include <tf/tf.h>
 #include <tf/transform_listener.h>
 #include <message_filters/subscriber.h>
 #include <message_filters/time_synchronizer.h>
 #include <message_filters/sync_policies/approximate_time.h>
+#include <cv_bridge/cv_bridge.h>
+#include <cv.h>
 #include <bulletsim_msgs/TrackedObject.h>
 
 #include "clouds/utils_pcl.h"
@@ -33,8 +33,6 @@ namespace cv {
 	typedef Vec<uchar, 3> Vec3b;
 }
 
-cv::Mat depthImage;
-cv::Mat rgbImage;
 vector<cv::Mat> depthImages;
 vector<cv::Mat> rgbImages;
 vector<CoordinateTransformer*> transformer_images;
@@ -45,23 +43,6 @@ CoordinateTransformer* transformer;
 bool pending = false; // new message received, waiting to be processed
 
 tf::TransformListener* listener;
-
-void cloudAndImagesCallback (const sensor_msgs::PointCloud2ConstPtr& cloudMsg,
-			        const sensor_msgs::ImageConstPtr& depthImageMsg,
-			        const sensor_msgs::ImageConstPtr& rgbImageMsg) {
-  LOG_DEBUG("callback");
-  if (transformer == NULL) {
-    transformer = new CoordinateTransformer(waitForAndGetTransform(*listener, "/ground",cloudMsg->header.frame_id));
-  }
-  depthImage = cv_bridge::toCvCopy(depthImageMsg)->image;
-  rgbImage = cv_bridge::toCvCopy(rgbImageMsg)->image;
-  // toCvShare causes segfault ?!
-  pcl::fromROSMsg(*cloudMsg, *filteredCloud);
-  pcl::transformPointCloud(*filteredCloud, *filteredCloud, transformer->worldFromCamEigen);
-
-  pending = true;
-  //cout << "pending All " << pending << endl;
-}
 
 void cloudCallback (const sensor_msgs::PointCloud2ConstPtr& cloudMsg) {
   if (transformer == NULL) {
@@ -116,13 +97,6 @@ int main(int argc, char* argv[]) {
 
   listener = new tf::TransformListener();
 
-//  message_filters::Subscriber<PointCloud2> cloudSub(nh, TrackingConfig::filteredCloudTopic,1);
-//  message_filters::Subscriber<Image> depthImageSub(nh, TrackingConfig::depthTopic, 1);
-//  message_filters::Subscriber<Image> rgbImageSub(nh, TrackingConfig::rgbTopic, 1);
-//	typedef message_filters::sync_policies::ApproximateTime<PointCloud2, Image, Image> ApproxSyncPolicyAll;
-//	message_filters::Synchronizer<ApproxSyncPolicyAll> syncAll(ApproxSyncPolicyAll(30), cloudSub, depthImageSub, rgbImageSub);
-//  syncAll.registerCallback(boost::bind(&cloudAndImagesCallback,_1,_2,_3));
-
   ros::Subscriber cloudSub = nh.subscribe(TrackingConfig::filteredCloudTopic, 1, &cloudCallback);
 
   depthImages.resize(nCameras);
@@ -151,15 +125,10 @@ int main(int argc, char* argv[]) {
   scene.startViewer();
 
   TrackedObject::Ptr trackedObj = callInitServiceAndCreateObject(scaleCloud(filteredCloud,1/METERS), rgbImages[0], transformer_images[0], scene.env);
-
-  //TrackedObject::Ptr trackedObj = callInitServiceAndCreateObject(scaleCloud(filteredCloud,1/METERS), rgbImage, transformer, scene.env);
   if (!trackedObj) throw runtime_error("initialization of object failed.");
   //scene.env->add(trackedObj->m_sim);
 
   // actual tracking algorithm
-	//DepthImageVisibility visInterface(transformer);
-	//OSGVisibility visInterface(transformer);
-	//BulletVisibility visInterface(transformer);
 	MultiVisibility visInterface;
 	for (int i=0; i<nCameras; i++) {
 		visInterface.addVisibility(new OSGVisibility(transformer_images[i]));
@@ -183,7 +152,6 @@ int main(int argc, char* argv[]) {
 
   while (ros::ok()) {
     alg.updateInput(filteredCloud);
-    //visInterface.updateInput(depthImage);
     pending = false;
     while (ros::ok() && !pending) {
       alg.doIteration();

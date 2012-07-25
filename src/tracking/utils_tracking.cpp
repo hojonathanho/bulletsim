@@ -16,6 +16,7 @@ Affine3f Scaling3f(float s) {
   return T;
 }
 
+CoordinateTransformer::CoordinateTransformer() {}
 CoordinateTransformer::CoordinateTransformer(const btTransform& wfc) { reset(wfc); }
 
 void CoordinateTransformer::reset(const btTransform &wfc) {

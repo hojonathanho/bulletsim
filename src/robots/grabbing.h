@@ -68,10 +68,9 @@ public:
     SoftMonitorForGrabbing(RaveRobotObject::Ptr robot, RaveRobotObject::Manipulator::Ptr manip, bool leftGripper) :
         Monitor(manip),
         gripper(new PR2SoftBodyGripper(robot, manip->manip, leftGripper)) { }
-    SoftMonitorForGrabbing(RaveRobotObject::Ptr robot, bool leftGripper);
 
     void setTarget(BulletSoftObject::Ptr sb) { gripper->setTarget(sb); }
     void grab() { gripper->grab(); }
     void release() { gripper->releaseAllAnchors(); }
-    void updateGrabPos() { }
+    void updateGrabPose() { }
 };

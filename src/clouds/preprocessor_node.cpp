@@ -25,11 +25,11 @@
 using namespace std;
 using namespace Eigen;
 
-static std::string outputNS = "/preprocessor";
+static std::string nodeNS = "/preprocessor";
 static std::string nodeName = "/preprocessor_node";
 
 struct LocalConfig : Config {
-  static std::string outputNS;
+  static std::string nodeNS;
   static std::string inputTopic;
   static std::string nodeName;
   static float zClipLow;
@@ -87,7 +87,7 @@ void getOrSetParam(const ros::NodeHandle& nh, std::string paramName, T& ref, T d
 	if (!nh.getParam(paramName, ref)) {
 		nh.setParam(paramName, defaultVal);
 		ref = defaultVal;
-		ROS_INFO_STREAM("setting " << paramName << "to default value " << defaultVal);
+		ROS_INFO_STREAM("setting " << paramName << " to default value " << defaultVal);
 	}
 }
 void setParams(const ros::NodeHandle& nh) {
@@ -106,8 +106,7 @@ void setParams(const ros::NodeHandle& nh) {
 	getOrSetParam(nh, "max_b", MAX_B, 255);
 }
 
-void setParamLoop() {
-	ros::NodeHandle nh(nodeName);
+void setParamLoop(ros::NodeHandle& nh) {
 	while (nh.ok()) {
 		setParams(nh);
 		sleep(1);
@@ -241,11 +240,11 @@ public:
   PreprocessorNode(ros::NodeHandle& nh) :
     m_inited(false),
     m_nh(nh),
-    m_pubCloud(nh.advertise<sensor_msgs::PointCloud2>(outputNS+"/points",5)),
-    m_pubCloudBorder(nh.advertise<sensor_msgs::PointCloud2>(outputNS+"/border/points",5)),
-    m_pubCloudVeil(nh.advertise<sensor_msgs::PointCloud2>(outputNS+"/veil/points",5)),
-    m_pubCloudShadow(nh.advertise<sensor_msgs::PointCloud2>(outputNS+"/shadow/points",5)),
-    m_polyPub(nh.advertise<geometry_msgs::PolygonStamped>(outputNS+"/polygon",5)),
+    m_pubCloud(nh.advertise<sensor_msgs::PointCloud2>(nodeNS+"/points",5)),
+    m_pubCloudBorder(nh.advertise<sensor_msgs::PointCloud2>(nodeNS+"/border/points",5)),
+    m_pubCloudVeil(nh.advertise<sensor_msgs::PointCloud2>(nodeNS+"/veil/points",5)),
+    m_pubCloudShadow(nh.advertise<sensor_msgs::PointCloud2>(nodeNS+"/shadow/points",5)),
+    m_polyPub(nh.advertise<geometry_msgs::PolygonStamped>(nodeNS+"/polygon",5)),
     m_sub(nh.subscribe(LocalConfig::inputTopic, 1, &PreprocessorNode::callback, this)),
 		m_mins(-10,-10,-10),
 		m_maxes(10,10,10),
@@ -260,9 +259,10 @@ int main(int argc, char* argv[]) {
   parser.read(argc, argv);
 
   ros::init(argc, argv,"preprocessor");
-  ros::NodeHandle nh;
+  ros::NodeHandle nh(nodeNS);
 
   setParams(nh);
+  if (LocalConfig::updateParams) boost::thread setParamThread(setParamLoop, nh);
 
   PreprocessorNode tp(nh);
   ros::spin();
