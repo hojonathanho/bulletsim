@@ -154,7 +154,7 @@ public:
 //    ColorCloudPtr cloud_shadow(new ColorCloud());
 //    ColorCloudPtr cloud_border = extractBorder(cloud_in, cloud_veil, cloud_shadow);
 
-    //cv::imwrite("/home/alex/rll/bulletsim/data/images/hand_knot_tie_" + itoa(image_ind++, 4) + ".jpg", toCVMatImage(cloud_in));
+    //cv::imwrite("/home/alex/rll/bulletsim/data/images2/hand_test_" + itoa(image_ind++, 4) + ".jpg", toCVMatImage(cloud_in));
 
     ColorCloudPtr cloud_out = cloud_in;
 		cloud_out = orientedBoxFilter(cloud_out, toEigenMatrix(m_transform.getBasis()), m_mins, m_maxes);
