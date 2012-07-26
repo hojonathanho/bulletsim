@@ -10,3 +10,4 @@ Makefile
 *.a
 bin/
 CMakeCache.txt
+bagfiles
