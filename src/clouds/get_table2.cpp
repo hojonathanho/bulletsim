@@ -31,5 +31,4 @@ MatrixXf getTableCornersRansac(ColorCloudPtr cloud) {
 
   return cornersMat;
   
-  
 }

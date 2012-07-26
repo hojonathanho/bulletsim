@@ -24,6 +24,8 @@
 #include "simulation/simplescene.h"
 #include "config_tracking.h"
 
+#include "grab_detection.h"
+
 using sensor_msgs::PointCloud2;
 using sensor_msgs::Image;
 using namespace std;
@@ -39,6 +41,8 @@ string inputCloudFrame;
 
 sensor_msgs::JointState lastJointMsg;
 
+GrabDetector* leftGrabDetector;
+
 void callback (const sensor_msgs::PointCloud2ConstPtr& cloudMsg) {
 
   btTransform wfc = waitForAndGetTransform(*listener,"base_footprint",cloudMsg->header.frame_id);
@@ -52,6 +56,7 @@ void callback (const sensor_msgs::PointCloud2ConstPtr& cloudMsg) {
 
 void jointCallback(const sensor_msgs::JointState& msg) {
   lastJointMsg = msg;
+  if (leftGrabDetector != NULL) leftGrabDetector->update(msg);
 }
 
 int main(int argc, char* argv[]) {
@@ -92,48 +97,47 @@ int main(int argc, char* argv[]) {
   if (!trackedObj) throw runtime_error("initialization of object failed.");
   scene.env->add(trackedObj->m_sim);
 
-  SoftMonitorForGrabbing lMonitor(pr2m.pr2, pr2m.pr2Left, true);
-  SoftMonitorForGrabbing rMonitor(pr2m.pr2, pr2m.pr2Right, false);
+//  SoftMonitorForGrabbing lMonitor(pr2m.pr2, pr2m.pr2Left, true);
+//  SoftMonitorForGrabbing rMonitor(pr2m.pr2, pr2m.pr2Right, false);
 
-  TrackedTowel::Ptr towel = boost::dynamic_pointer_cast<TrackedTowel>(trackedObj);
+  PR2SoftBodyGripper leftSoftGripper(pr2m.pr2, pr2m.pr2Left->manip, true);
+
+
+  TrackedTowel::Ptr maybeTowel = boost::dynamic_pointer_cast<TrackedTowel>(trackedObj);
   BulletSoftObject::Ptr towelSim;
-  if (towel) {
-	  towelSim.reset(towel->getSim());
-	  lMonitor.setTarget(towelSim);
-	  rMonitor.setTarget(towelSim);
+  bool trackingTowel = !!maybeTowel;
+  if (trackingTowel) {
+	  towelSim.reset(maybeTowel->getSim());
+//	  lMonitor.setTarget(towelSim);
+//	  rMonitor.setTarget(towelSim);
+	  leftSoftGripper.setTarget(towelSim);
+	  leftGrabDetector = new GrabDetector(GrabDetector::LEFT,
+			  boost::bind(&PR2SoftBodyGripper::grab, leftSoftGripper),
+			  boost::bind(&PR2SoftBodyGripper::releaseAllAnchors, leftSoftGripper));
   }
+
 
   BulletRaycastVisibility visInterface(scene.env->bullet->dynamicsWorld, transformer);
   SimplePhysicsTracker alg(trackedObj, &visInterface, scene.env);
 
   Load(scene.env, scene.rave, "/home/joschu/python/lfd/data/table.xml");
   
-  scene.addVoidKeyCallback('C',boost::bind(toggle, &alg.m_enableCorrPlot));
   scene.addVoidKeyCallback('c',boost::bind(toggle, &alg.m_enableCorrPlot));
-  scene.addVoidKeyCallback('E',boost::bind(toggle, &alg.m_enableEstPlot));
   scene.addVoidKeyCallback('e',boost::bind(toggle, &alg.m_enableEstPlot));
-  scene.addVoidKeyCallback('O',boost::bind(toggle, &alg.m_enableObsPlot));
   scene.addVoidKeyCallback('o',boost::bind(toggle, &alg.m_enableObsPlot));
-  scene.addVoidKeyCallback('T',boost::bind(toggle, &dynamic_cast<EnvironmentObject*>(trackedObj->getSim())->drawingOn));
   scene.addVoidKeyCallback('t',boost::bind(toggle, &dynamic_cast<EnvironmentObject*>(trackedObj->getSim())->drawingOn));
   scene.addVoidKeyCallback('q',boost::bind(exit, 0));
-
+  scene.loopState.debugDraw = true;
 
   while (ros::ok()) {
     alg.updateInput(filteredCloud);
     pending = false;
 
-    if (towel) {
-  	  lMonitor.update();
-  	  rMonitor.update();
-    }
-
-
     while (ros::ok() && !pending) {
       ValuesInds vi = getValuesInds(lastJointMsg.position);
       pr2m.pr2->setDOFValues(vi.second, vi.first);
       alg.doIteration();
-      scene.viewer.frame();
+      scene.draw();
       ros::spinOnce();
     }
     LOG_DEBUG("publishing");

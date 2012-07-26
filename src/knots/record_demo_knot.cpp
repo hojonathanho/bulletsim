@@ -50,7 +50,7 @@ int main(int argc, char* argv[]) {
 
   setup_python();
 
-  SceneConfig::enableHaptics = true;
+  SceneConfig::enableHaptics = false;
   GeneralConfig::scale = 10;
   BulletConfig::gravity.m_floats[2] = -30;
   
@@ -69,6 +69,10 @@ int main(int argc, char* argv[]) {
   
   scene.addVoidKeyCallback('R',&toggleRecording);
   scene.addVoidKeyCallback('Q',&setWantsExit);
+  scene.addVoidKeyCallback('A',boost::bind(&TableRopeScene::closeLeft, &scene));
+  scene.addVoidKeyCallback('S',boost::bind(&TableRopeScene::closeRight, &scene));
+  scene.addVoidKeyCallback('a',boost::bind(&TableRopeScene::openLeft, &scene));
+  scene.addVoidKeyCallback('s',boost::bind(&TableRopeScene::openRight, &scene));
 
   vector<RobotAndRopeState> rars;
 
@@ -105,11 +109,11 @@ int main(int argc, char* argv[]) {
     	  RobotAndRopeState last_rar = rars[rars.size()-1];
     	  float leftPosDiff = (last_rar.leftPose.getOrigin() - rar.leftPose.getOrigin()).length();
     	  float rightPosDiff = (last_rar.rightPose.getOrigin() - rar.rightPose.getOrigin()).length();
-    	  float leftAngDiff = (last_rar.leftPose.getRotation().inverse() * rar.leftPose.getRotation()).angle();
-    	  float rightAngDiff = (last_rar.leftPose.getRotation().inverse() * rar.rightPose.getRotation()).angle();
+    	  float leftAngDiff = last_rar.leftPose.getRotation().angle(rar.leftPose.getRotation());
+    	  float rightAngDiff = last_rar.leftPose.getRotation().angle(rar.rightPose.getRotation());
 
     	  if (leftPosDiff > .005*METERS || rightPosDiff > .005*METERS || leftAngDiff > .01 || rightAngDiff > .01)
-    		  rars.push_Back(r);
+    		  rars.push_back(rar);
       }
 
     }
