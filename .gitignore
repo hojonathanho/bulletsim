@@ -10,4 +10,8 @@ Makefile
 *.a
 bin/
 CMakeCache.txt
-bagfiles
+data/bagfiles/
+data/clouds/
+data/depths/
+data/images/
+data/rgbs/
