@@ -111,7 +111,7 @@ private:
     } inputState;
 
 
-    void loadRobot(const btTransform &);
+    void loadRobot();
     void initIK();
     void initHaptics();
 
@@ -135,7 +135,7 @@ public:
     bool lEngaged, rEngaged; // only accept haptic input if engaged
     bool armsDisabled; // hack so I can do demonstrations with fake gripper but still use haptics stuff
 
-    PR2Manager(Scene &s, const btTransform &initTrans=btTransform::getIdentity());
+    PR2Manager(Scene &s);
     void registerSceneCallbacks();
 
     void cycleIKSolution(int manipNum); // manipNum == 0 for left, 1 for right

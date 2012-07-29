@@ -214,6 +214,7 @@ ColorCloudPtr getBiggestCluster(ColorCloudPtr in, float tol) {
 }
 
 ColorCloudPtr clusterFilter(ColorCloudPtr in, float tol, float minSize) {
+	if (in->size() < minSize) return ColorCloudPtr(new ColorCloud());
 	vector< vector<int> > cluster_inds = findClusters(in, tol, minSize);
 	vector<int> filtered_cluster_inds;
 	for (int i=0; i < cluster_inds.size(); i++)

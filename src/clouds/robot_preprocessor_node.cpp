@@ -102,7 +102,6 @@ public:
 		tf::StampedTransform st;
 		try {
 			m_listener.lookupTransform("base_footprint", msg_in.header.frame_id, ros::Time(0), st);
-			printf("tf ok \n");
 		}
 		catch (tf::TransformException e) {
 			printf("tf error: %s\n", e.what());
@@ -120,11 +119,11 @@ public:
 
 		ColorCloudPtr cloud_out = boxFilter(cloud_in, m_mins, m_maxes);
 		cloud_out = hueFilter(cloud_out, MIN_HUE, MAX_HUE, MIN_SAT, MAX_SAT,MIN_VAL, MAX_VAL);
-		if (LocalConfig::downsample > 0)cloud_out = downsampleCloud(cloud_out, LocalConfig::downsample);
+		if (LocalConfig::downsample > 0) cloud_out = downsampleCloud(cloud_out, LocalConfig::downsample);
 		if (LocalConfig::removeOutliers) cloud_out = removeOutliers(cloud_out, 1, 10);
-		if (LocalConfig::clusterMinSize > 0)
+		if (LocalConfig::clusterMinSize > 0 && cloud_out->size() > 50) {
 			cloud_out = clusterFilter(cloud_out, LocalConfig::clusterTolerance,LocalConfig::clusterMinSize);
-
+		}
 		sensor_msgs::PointCloud2 msg_out;
 		pcl::toROSMsg(*cloud_out, msg_out);
 		msg_out.header.frame_id = "base_footprint";

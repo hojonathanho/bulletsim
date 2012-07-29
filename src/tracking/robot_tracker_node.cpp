@@ -44,8 +44,15 @@ sensor_msgs::JointState lastJointMsg;
 GrabDetector* leftGrabDetector;
 
 void callback (const sensor_msgs::PointCloud2ConstPtr& cloudMsg) {
-
-  btTransform wfc = waitForAndGetTransform(*listener,"base_footprint",cloudMsg->header.frame_id);
+	tf::StampedTransform st;
+	try {
+		listener->lookupTransform("base_footprint", cloudMsg->header.frame_id, ros::Time(0), st);
+	}
+	catch (tf::TransformException e) {
+		printf("tf error: %s\n", e.what());
+		return;
+	}
+  btTransform wfc = st.asBt();
   transformer->reset(wfc);
 
   inputCloudFrame = cloudMsg->header.frame_id;
@@ -117,7 +124,8 @@ int main(int argc, char* argv[]) {
   }
 
 
-  BulletRaycastVisibility visInterface(scene.env->bullet->dynamicsWorld, transformer);
+//  BulletRaycastVisibility visInterface(scene.env->bullet->dynamicsWorld, transformer);
+  EverythingIsVisible visInterface;
   SimplePhysicsTracker alg(trackedObj, &visInterface, scene.env);
 
   Load(scene.env, scene.rave, "/home/joschu/python/lfd/data/table.xml");
