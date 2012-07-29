@@ -1,10 +1,9 @@
 <stack>
   <name>bulletsim_msgs</name>
   <version>0.0</version>
-  <description>Willow Garage low-level build system macros and infrastructure.</description>
+  <description>Simulation environment with Bullet physics.</description>
   <license>BSD</license>
-  <copyright>Willow Garage</copyright>
-
+  <copyright>Robotics Learning Lab</copyright>
 
   <depends>catkin</depends>
   <depends>hydra_msgs</depends>

@@ -29,8 +29,8 @@ protected:
   void applyDrawable( osg::Drawable* drawable ) {
     osg::Geometry* geom = drawable->asGeometry();
     if (geom) {
-      geom->setColorArray(colors); 
-      geom->setColorBinding(osg::Geometry::BIND_OVERALL); 
+      geom->setColorArray(colors);
+      //geom->setColorBinding(osg::Geometry::BIND_OVERALL);
     }
 
     osg::ShapeDrawable* sd = dynamic_cast<osg::ShapeDrawable*>(drawable);

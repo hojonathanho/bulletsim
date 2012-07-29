@@ -3,7 +3,10 @@ include_directories(
     ${BULLET_DIR}/Extras/HACD
     ${BULLETSIM_SOURCE_DIR}/lib/haptics
     ${BULLETSIM_SOURCE_DIR}/src
+    ${PCL_INCLUDE_DIRS}
 )
+
+FIND_PACKAGE( OpenCV REQUIRED )
 
 add_library(simulation
     environment.cpp
@@ -27,6 +30,7 @@ target_link_libraries(simulation
     haptics
     osgBullet
     osgWorks
+    ${OpenCV_LIBS}
     ${Boost_LIBRARIES}
     ${OSG_LIBS}
     ${BULLET_LIBS}

@@ -163,6 +163,12 @@ Eigen::MatrixXf toEigenMatrix(const std::vector<btVector3>& in) {
   return out;
 }
 
+Eigen::MatrixXf toEigenMatrix(const std::vector<Eigen::Vector3f>& in) {
+  Eigen::MatrixXf out(in.size(), 3);
+  for (int i=0; i<in.size(); i++) out.row(i) = in[i].transpose();
+  return out;
+}
+
 Eigen::MatrixXf toEigenMatrix(const std::vector< std::vector<float> >& in) {
   ENSURE(in.size() > 1) ;
   Eigen::MatrixXf out(in.size(),in[0].size()); 
@@ -202,4 +208,20 @@ std::vector<geometry_msgs::Point32> toROSPoints32(const std::vector<btVector3>& 
 		out[i].z = in[i].z();
 	}
 	return out;
+}
+
+ColorPoint toColorPoint(const Eigen::Vector3f& vec) {
+	ColorPoint pt;
+	pt.x = vec(0);
+	pt.y = vec(1);
+	pt.z = vec(2);
+	return pt;
+}
+
+ColorPoint toColorPoint(const btVector3& vec) {
+	ColorPoint pt;
+	pt.x = vec.x();
+	pt.y = vec.y();
+	pt.z = vec.z();
+	return pt;
 }

@@ -1,0 +1,21 @@
+<launch>
+
+	<arg name="base" default="$(env BULLETSIM_SOURCE_DIR)/data/bagfiles"/>
+	<arg name="filename" />
+	<arg name="camera" default="kinect"/>
+
+	<node name="rosbag1" pkg="rosbag" type="record" args="-O $(arg base)/$(arg filename)1 
+		/$(arg camera)1/depth_registered/image_raw
+		/$(arg camera)1/depth_registered/camera_info
+		/$(arg camera)1/rgb/image_raw
+		/$(arg camera)1/rgb/camera_info
+	" /> 
+
+	<node name="rosbag2" pkg="rosbag" type="record" args="-O $(arg base)/$(arg filename)2 
+		/$(arg camera)2/depth_registered/image_raw
+		/$(arg camera)2/depth_registered/camera_info
+		/$(arg camera)2/rgb/image_raw
+		/$(arg camera)2/rgb/camera_info
+	" /> 
+
+</launch>

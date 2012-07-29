@@ -1,12 +1,28 @@
 <launch>
-  <arg name="make_sim_frame" default="true"/>
-  <include file="$(find openni_launch)/launch/openni.launch">
-    <arg name="depth_registration" value="true"/>
-  </include>
-  <node name="drop1" pkg="topic_tools" type="drop" args="/camera/depth_registered/points 2 3 /drop/points"/>
-  <!--<node name="drop2" pkg="topic_tools" type="drop" args="/camera/depth_registered/image_rect 0 5 /drop/depth"/>-->
-  <node name="preprocessor" pkg="binary_symlinks" type="preprocessor_node"  args="--inputTopic=/drop/points --downsample=.02 --removeOutliers=1 --zClipLow=0"/>
-  <group if="$(arg make_sim_frame)">
-    <node name="sim_kinect_frame_publisher" pkg="tf" type="static_transform_publisher" args="0 0 0 0 0 0 1 head_mount_kinect_ir_link camera_link 10"/>
-  </group>
+
+	<arg name="camera" default="kinect1"/>
+	<arg name="online" default="true"/>
+	<arg name="bus" default="1"/>
+	<arg name="filename"/>
+
+	<group if="$(arg online)">
+		<param name="use_sim_time" value="false" />
+		<include file="$(find openni_launch)/launch/openni.launch">
+			<arg name="camera" value="$(arg camera)" />
+			<arg name="device_id" value="$(arg bus)@0" />
+			<arg name="depth_registration" value="true" />
+		</include>
+	</group>
+	<group unless="$(arg online)">
+		<param name="use_sim_time" value="true" />
+		<include file="play_cloud.launch">
+			<arg name="camera" value="$(arg camera)" />
+			<arg name="filename" value="$(arg filename)" />
+		</include>
+	</group>
+
+	<node name="drop1" pkg="topic_tools" type="drop" args="/$(arg camera)/depth_registered/points 2 3 /drop/points"/>
+
+	<node name="preprocessor" pkg="binary_symlinks" type="preprocessor_node" output="screen"  args="--inputTopic=/drop/points --downsample=0.008 --removeOutliers=false --outlierRadius=0.016 --outlierMinK=0 --clusterMinSize=5 --zClipLow=-0.02"/> 
+
 </launch>

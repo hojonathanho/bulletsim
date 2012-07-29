@@ -4,6 +4,8 @@
 #include <btBulletDynamicsCommon.h>
 #include <BulletSoftBody/btSoftRigidDynamicsWorld.h>
 #include <BulletSoftBody/btSoftBodyRigidBodyCollisionConfiguration.h>
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
 #include <osgbCollision/GLDebugDrawer.h>
 #include <vector>
 #include <boost/shared_ptr.hpp>
@@ -49,9 +51,8 @@ private:
 public:
     typedef boost::shared_ptr<EnvironmentObject> Ptr;
 
-    bool drawingOn;
-    EnvironmentObject() : drawingOn(true) { }
-    EnvironmentObject(Environment *env_) : env(env_), drawingOn(true) { }
+    EnvironmentObject() { }
+    EnvironmentObject(Environment *env_) : env(env_) { }
     virtual ~EnvironmentObject() { }
 
     Environment *getEnvironment() { return env; }
@@ -205,6 +206,34 @@ public:
             if (*i)
                 (*i)->destroy();
     }
+
+    void setColor(float r, float g, float b, float a) {
+			typename ChildVector::iterator i;
+			for (i = children.begin(); i != children.end(); ++i)
+				if (*i)
+					(*i)->setColor(r,g,b,a);
+    }
+
+		void setTexture(cv::Mat image) {
+			int height = image.size().height;
+			int width = image.size().width;
+			int n = (int) children.size();
+			int split_width = width/n;
+			for (int i=0; i<n; i++)
+				if (children[i]) {
+					cv::Mat splitImage = cv::Mat(image, cv::Rect(i*split_width, 0, split_width, height));
+					cv::flip(splitImage, splitImage, 1);
+					splitImage = splitImage.t();
+					children[i]->setTexture(splitImage);
+				}
+		}
+
+		void adjustTransparency(float increment) {
+			typename ChildVector::iterator i;
+      for (i = children.begin(); i != children.end(); ++i)
+          if (*i)
+              (*i)->adjustTransparency(increment);
+		}
 };
 
 class Action {

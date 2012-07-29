@@ -37,7 +37,6 @@ Eigen::MatrixXf toEigenMatrix(ColorCloudPtr cloud) {
   return cloud->getMatrixXfMap(3,8,0);
 }
 
-
 MatrixXu toBGR(ColorCloudPtr cloud) {
   MatrixXf bgrFloats = cloud->getMatrixXfMap(1,8,4);
   MatrixXu bgrBytes4 = Map<MatrixXu>(reinterpret_cast<uint8_t*>(bgrFloats.data()), bgrFloats.rows(),4);
@@ -59,6 +58,12 @@ cv::Mat toCVMat(Eigen::MatrixXf in) {
 MatrixXf toEigenMatrix(const cv::Mat& in) {
 	if (in.type() != CV_32FC1) throw runtime_error("input matrix has the wrong type");
 	return Map<MatrixXf>((float*)in.data, in.rows, in.cols);
+}
+
+cv::Mat toCVMatImage(const ColorCloudPtr cloud) {
+	MatrixXu bgr = toBGR(cloud);
+	cv::Mat image(cloud->height, cloud->width, CV_8UC3, bgr.data());
+	return image;
 }
 
 pcl::PointCloud<pcl::PointXYZ>::Ptr toPointCloud(const std::vector< std::vector<float> >& in) {
@@ -92,4 +97,53 @@ ColorCloudPtr extractInds(ColorCloudPtr in, std::vector<int> inds) {
     out->push_back(in->points[i]);
   }
   return out;
+}
+
+bool saveTransform(const string& filename, const Matrix4f& t) {
+	ofstream file;
+	file.open(filename.c_str());
+	if (file.fail()) {
+		cout << "Transform couldn't be saved to " << filename << endl;
+		return false;
+	}
+	file.precision(20);
+
+	for (int r=0; r<4; r++)
+		for (int c=0; c<4; c++)
+			file << t(r,c) << " ";
+	file << "\n";
+
+	file.close();
+	cout << "Transform saved to " << filename << endl;
+	return true;
+}
+
+bool loadTransform(const string& filename, Matrix4f& t) {
+  ifstream file;
+  file.open(filename.c_str());
+  if (file.fail()) {
+		cout << "Transform couldn't be loaded from " << filename << endl;
+  	return false;
+  }
+
+  while (!file.eof()) {
+		for (int r=0; r<4; r++)
+			for (int c=0; c<4; c++)
+				file >> t(r,c);
+  }
+
+  file.close();
+	cout << "Transform loaded from " << filename << endl;
+  return true;
+}
+
+bool saveTransform(const std::string& filename, const Affine3f& t) {
+	return saveTransform(filename, t.matrix());
+}
+
+bool loadTransform(const std::string& filename, Affine3f& t) {
+	Matrix4f mat = t.matrix();
+	bool ret = loadTransform(filename, mat);
+	t = (Affine3f) mat;
+	return ret;
 }

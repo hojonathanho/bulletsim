@@ -4,17 +4,7 @@
 #include <string>
 #include <Eigen/Dense>
 #include <opencv2/core/core.hpp>
-
-typedef pcl::PointXYZRGB ColorPoint;
-typedef pcl::PointCloud<ColorPoint> ColorCloud;
-typedef pcl::PointCloud<ColorPoint>::ConstPtr ConstColorCloudPtr;
-typedef pcl::PointCloud<ColorPoint>::Ptr ColorCloudPtr;
-
-typedef pcl::PointXYZ Point;
-typedef pcl::PointCloud<Point> Cloud;
-typedef pcl::PointCloud<Point>::ConstPtr ConstCloudPtr;
-typedef pcl::PointCloud<Point>::Ptr CloudPtr;
-
+#include "pcl_typedefs.h"
 
 typedef Eigen::Matrix<bool,Eigen::Dynamic,1> VectorXb;
 typedef Eigen::Matrix<uint8_t,Eigen::Dynamic,Eigen::Dynamic> MatrixXu;
@@ -30,7 +20,7 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr toPointCloud(const std::vector< std::vector<
 
 MatrixXu toBGR(ColorCloudPtr);
 cv::Mat toCVMat(Eigen::MatrixXf);
-
+cv::Mat toCVMatImage(const ColorCloudPtr cloud);
 
 bool pointIsFinite(const ColorPoint& pt);
 
@@ -39,3 +29,8 @@ inline ColorCloudPtr removeConst(ConstColorCloudPtr cloud) {
 }
 ColorCloudPtr transformPointCloud1(ColorCloudPtr in, Eigen::Affine3f transform);
 ColorCloudPtr extractInds(ColorCloudPtr in, std::vector<int> inds);
+
+bool saveTransform(const std::string& filename, const Eigen::Matrix4f& t);
+bool loadTransform(const std::string& filename, Eigen::Matrix4f& t);
+bool saveTransform(const std::string& filename, const Eigen::Affine3f& t);
+bool loadTransform(const std::string& filename, Eigen::Affine3f& t);

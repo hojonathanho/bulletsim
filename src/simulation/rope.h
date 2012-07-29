@@ -22,4 +22,6 @@ public:
   void destroy();
   std::vector<btVector3> getNodes();
   std::vector<btVector3> getControlPoints();
+  vector<btMatrix3x3> getRotations();
+  vector<float> getHalfHeights();
 };

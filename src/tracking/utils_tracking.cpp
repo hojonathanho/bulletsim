@@ -26,14 +26,6 @@ void CoordinateTransformer::reset(const btTransform &wfc) {
   camFromWorldEigen = worldFromCamEigen.inverse();
 }
 
-inline btVector3 CoordinateTransformer::toWorldFromCam(const btVector3& camVec) {
-  return METERS * (worldFromCamUnscaled * camVec);
-}
-
-inline btVector3 CoordinateTransformer::toCamFromWorld(const btVector3& worldVec) {
-  return worldFromCamUnscaled.inverse() * ( worldVec / METERS);
-}
-
 vector<btVector3> CoordinateTransformer::toWorldFromCamN(const vector<btVector3>& camVecs) {
   vector<btVector3> worldVecs(camVecs.size());
   for (int i=0; i<camVecs.size(); i++) worldVecs[i] = toWorldFromCam(camVecs[i]);
@@ -103,11 +95,22 @@ std::vector<btVector3> toBulletVectors(ColorCloudPtr in) {
   return out;
 }
 
-
-
 btTransform waitForAndGetTransform(const tf::TransformListener& listener, std::string target_frame, std::string source_frame) {
-	listener.waitForTransform(target_frame, source_frame, ros::Time(0),ros::Duration(.1));
 	tf::StampedTransform st;
-	listener.lookupTransform(target_frame, source_frame, ros::Time(0), st);
+	while(1) {
+		try {
+			listener.waitForTransform(target_frame, source_frame, ros::Time(0),ros::Duration(.1));
+			listener.lookupTransform(target_frame, source_frame, ros::Time(0), st);
+		} catch (...) {
+			ROS_WARN("An exception was catched from waitForAndGetTransform. Retrying...");
+			continue;
+		}
+		break;
+	}
 	return st.asBt();
+
+//	listener.waitForTransform(target_frame, source_frame, ros::Time(0),ros::Duration(.1));
+//	tf::StampedTransform st;
+//	listener.lookupTransform(target_frame, source_frame, ros::Time(0), st);
+//	return st.asBt();
 }

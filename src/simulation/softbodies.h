@@ -16,6 +16,8 @@ protected:
     osg::ref_ptr<osg::Vec3Array> quadvertices, quadnormals;
 
 public:
+    osg::ref_ptr<osg::Vec2Array> tritexcoords;
+
     typedef boost::shared_ptr<BulletSoftObject> Ptr;
 
     boost::shared_ptr<btSoftBody> softBody;
@@ -35,6 +37,11 @@ public:
     virtual void saveToFile(ostream &s) const;
 
     void setColor(float,float,float,float);
+    void setTexture(cv::Mat image);
+		void adjustTransparency(float increment);
+
+		bool checkIntersection(const btVector3& start, const btVector3& end);
+		vector<btVector3> getIntersectionPoints(const btVector3& start, const btVector3& end);
 
     // custom anchor management
     typedef int AnchorHandle;
@@ -61,8 +68,16 @@ public:
     bool fullValidCheck() const { return validCheck(false); }
 
 private:
+    bool enable_texture;
+		boost::shared_ptr<osg::Vec4f> m_color;
+		void setColorAfterInit();
+		osg::ref_ptr<osg::Image> m_image;
+		cv::Mat m_cvimage;
+		void setTextureAfterInit();
     AnchorHandle nextAnchorHandle;
     map<AnchorHandle, int> anchormap;
+public:
+		cv::Mat getTexture() { return m_cvimage; }
 };
 
 #endif // _SOFTBODIES_H_

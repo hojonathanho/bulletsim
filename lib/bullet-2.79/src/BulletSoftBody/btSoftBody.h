@@ -829,6 +829,7 @@ public:
 		Material* mat=0);
 	/* Randomize constraints to reduce solver bias							*/ 
 	void				randomizeConstraints();
+	void				randomizeConstraints(float* tex_coords);
 	/* Release clusters														*/ 
 	void				releaseCluster(int index);
 	void				releaseClusters();
