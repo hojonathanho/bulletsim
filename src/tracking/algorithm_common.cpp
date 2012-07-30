@@ -90,6 +90,13 @@ void estimateCorrespondence(const Eigen::MatrixXf& estPts, const Eigen::MatrixXf
 	for (int i=0; i<TrackingConfig::normalizeIter; i++) {
 		//normalize rows
 		pZgivenB = ((VectorXf) (pVis_kp1.array() * (pZgivenB.rowwise().sum().array()+TrackingConfig::epsilon).inverse())).asDiagonal() * pZgivenB;
+
+		for (int i=0; i<pZgivenB.rows()-1; i++) {
+			if (pVis_kp1(i) == 0) {
+				pZgivenB.row(i) *= 0.0;
+			}
+		}
+
 		//normalize cols
 		pZgivenB = pZgivenB * ((VectorXf) pZgivenB.colwise().sum().array().inverse()).asDiagonal();
 	}

@@ -131,7 +131,8 @@ int main(int argc, char* argv[]) {
   // actual tracking algorithm
 	MultiVisibility visInterface;
 	for (int i=0; i<nCameras; i++) {
-		visInterface.addVisibility(new AllOcclusionsVisibility(scene.env->bullet->dynamicsWorld, transformer_images[i]));
+		//visInterface.addVisibility(new AllOcclusionsVisibility(scene.env->bullet->dynamicsWorld, transformer_images[i]));
+		visInterface.addVisibility(new DepthImageVisibility(transformer_images[i]));
 	}
 	SimplePhysicsTracker alg(trackedObj, &visInterface, scene.env);
 
@@ -153,7 +154,8 @@ int main(int argc, char* argv[]) {
   while (ros::ok()) {
     alg.updateInput(filteredCloud);
     //TODO update arbitrary number of depth images
-    dynamic_cast<AllOcclusionsVisibility*>(visInterface.visibilities[0])->updateInput(depthImages[0]);
+    //dynamic_cast<AllOcclusionsVisibility*>(visInterface.visibilities[0])->updateInput(depthImages[0]);
+    dynamic_cast<DepthImageVisibility*>(visInterface.visibilities[0])->updateInput(depthImages[0]);
     pending = false;
     while (ros::ok() && !pending) {
       alg.doIteration();
