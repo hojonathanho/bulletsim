@@ -63,7 +63,13 @@ MatrixXf toEigenMatrix(const cv::Mat& in) {
 cv::Mat toCVMatImage(const ColorCloudPtr cloud) {
 	MatrixXu bgr = toBGR(cloud);
 	cv::Mat image(cloud->height, cloud->width, CV_8UC3, bgr.data());
-	return image;
+	return image.clone();
+}
+
+cv::Mat toCVMatDepthImage(const ColorCloudPtr cloud) {
+	MatrixXf depth = getDepthImage(cloud);
+	cv::Mat image(cloud->height, cloud->width, CV_32FC1, depth.data());
+	return image.clone();
 }
 
 pcl::PointCloud<pcl::PointXYZ>::Ptr toPointCloud(const std::vector< std::vector<float> >& in) {

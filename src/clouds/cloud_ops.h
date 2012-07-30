@@ -23,6 +23,7 @@ Eigen::VectorXf getEnclosingCircle(ColorCloudPtr cloud);
 ColorCloudPtr getBiggestCluster(ColorCloudPtr in, float tol);
 ColorCloudPtr clusterFilter(ColorCloudPtr in, float tol, int minSize);
 ColorCloudPtr maskCloud(const ColorCloudPtr in, const cv::Mat& mask, bool negative=false);
+ColorCloudPtr maskCloudOrganized(const ColorCloudPtr in, const cv::Mat& mask, bool negative=false);
 ColorCloudPtr maskCloud(const ColorCloudPtr in, const VectorXb& mask);
 ColorCloudPtr removeZRange(const ColorCloudPtr in, float minZ, float maxZ);
 void labelCloud(ColorCloudPtr in, const cv::Mat& labels);

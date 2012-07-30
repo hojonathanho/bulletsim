@@ -17,6 +17,7 @@
 #include "clouds/utils_pcl.h"
 #include "clouds/cloud_ops.h"
 #include "get_table2.h"
+#include "utils_cv.h"
 #include "utils/my_exceptions.h"
 #include "utils/config.h"
 #include "utils/conversions.h"
@@ -79,9 +80,6 @@ int LocalConfig::i1 = 0;
 int LocalConfig::i2 = 0;
 int LocalConfig::i3 = 0;
 
-static int MIN_HUE, MAX_HUE, MIN_SAT, MAX_SAT, MIN_VAL, MAX_VAL;
-static int MIN_L, MAX_L, MIN_A, MAX_A, MIN_B, MAX_B;
-
 template <typename T>
 void getOrSetParam(const ros::NodeHandle& nh, std::string paramName, T& ref, T defaultVal) {
 	if (!nh.getParam(paramName, ref)) {
@@ -90,21 +88,7 @@ void getOrSetParam(const ros::NodeHandle& nh, std::string paramName, T& ref, T d
 		ROS_INFO_STREAM("setting " << paramName << " to default value " << defaultVal);
 	}
 }
-void setParams(const ros::NodeHandle& nh) {
-	getOrSetParam(nh, "min_hue", MIN_HUE, 100);
-	getOrSetParam(nh, "max_hue", MAX_HUE, 40);
-	getOrSetParam(nh, "min_sat", MIN_SAT, 100);
-	getOrSetParam(nh, "max_sat", MAX_SAT, 255);
-	getOrSetParam(nh, "min_val", MIN_VAL, 0);
-	getOrSetParam(nh, "max_val", MAX_VAL, 255);
-
-	getOrSetParam(nh, "min_l", MIN_L, 30);
-	getOrSetParam(nh, "max_l", MAX_L, 255);
-	getOrSetParam(nh, "min_a", MIN_A, 115);
-	getOrSetParam(nh, "max_a", MAX_A, 255);
-	getOrSetParam(nh, "min_b", MIN_B, 0);
-	getOrSetParam(nh, "max_b", MAX_B, 255);
-}
+void setParams(const ros::NodeHandle& nh) {}
 
 void setParamLoop(ros::NodeHandle& nh) {
 	while (nh.ok()) {
@@ -113,16 +97,12 @@ void setParamLoop(ros::NodeHandle& nh) {
 	}
 }
 
-int image_ind=0;
-
 class PreprocessorNode {
 public:
   ros::NodeHandle& m_nh;
-  ros::Publisher m_pubCloud;
-  ros::Publisher m_pubCloudBorder;
-  ros::Publisher m_pubCloudVeil;
-  ros::Publisher m_pubCloudShadow;
+  ros::Publisher m_cloudPub;
   ros::Publisher m_polyPub;
+  ros::Publisher m_foregroundPub, m_backgroundPub;
   tf::TransformBroadcaster m_broadcaster;
   tf::TransformListener m_listener;
   ros::Subscriber m_sub;
@@ -136,60 +116,77 @@ public:
   btTransform m_transform;
   geometry_msgs::Polygon m_poly;
 
+  vector<cv::Mat> rgb_bg, depth_bg;
+  int first_count;
+  cv::FileStorage fs;
+
   void callback(const sensor_msgs::PointCloud2& msg_in) {
     ColorCloudPtr cloud_in(new ColorCloud());
     pcl::fromROSMsg(msg_in, *cloud_in);
 
     if (!m_inited) {
-      ColorCloudPtr cloud_green = colorSpaceFilter(cloud_in, 0, 255, 100, 255, 0, 255, CV_BGR2Lab, true);
-    	cloud_green = clusterFilter(cloud_green, 0.01, 100);
-    	if (cloud_green->size() < 50) {
-    		ROS_WARN("The green table cannot be seen. The table couldn't be initialized.");
-    	} else {
-    		initTable(cloud_green);
-    	}
+    	initTable(cloud_in);
     }
 
-//    ColorCloudPtr cloud_veil(new ColorCloud());
-//    ColorCloudPtr cloud_shadow(new ColorCloud());
-//    ColorCloudPtr cloud_border = extractBorder(cloud_in, cloud_veil, cloud_shadow);
+    if (first_count>0) {
+    	rgb_bg.push_back(toCVMatImage(cloud_in));
+    	depth_bg.push_back(toCVMatDepthImage(cloud_in));
 
-    //cv::imwrite("/home/alex/rll/bulletsim/data/images2/hand_test_" + itoa(image_ind++, 4) + ".jpg", toCVMatImage(cloud_in));
+    	if (LocalConfig::i3 == 0) {
+				fs["depth_image_" + itoa(first_count, 2)] >> depth_bg;
+				fs["rgb_image_" + itoa(first_count, 2)] >> rgb_bg;
+			} else {
+				fs << "depth_image_" + itoa(first_count, 2) << depth_bg;
+				fs << "rgb_image_" + itoa(first_count, 2) << rgb_bg;
+				if (first_count == 1) fs.release();
+			}
+
+    	first_count--;
+    	return;
+    }
+
+    cv::Mat rgb = toCVMatImage(cloud_in);
+    cv::Mat depth = toCVMatDepthImage(cloud_in);
 
     ColorCloudPtr cloud_out = cloud_in;
+
+    //RGBD image based filters
+    cv::Mat foreground_RGBD_mask = backgroundSubtractorDepthMask(depth, depth_bg, 0.005) | backgroundSubtractorColorMask(rgb, rgb_bg);
+		cv::Mat non_skin_mask = skinMask(rgb) == 0;
+		cv::Mat foreground_mask = foreground_RGBD_mask & non_skin_mask;
+		cloud_out = maskCloudOrganized(cloud_out, foreground_mask);
+
+		//cloud based filters
 		cloud_out = orientedBoxFilter(cloud_out, toEigenMatrix(m_transform.getBasis()), m_mins, m_maxes);
-
-		//Filter out green background and put yellow back
-		ColorCloudPtr cloud_neg_green = colorSpaceFilter(cloud_out, MIN_L, MAX_L, MIN_A, MAX_A, MIN_B, MAX_B, CV_BGR2Lab);
-		ColorCloudPtr cloud_yellow = colorSpaceFilter(cloud_out, 0, 255, 0, 255, 190, 255, CV_BGR2Lab);
-		*cloud_out = *cloud_neg_green + *cloud_yellow;
-
 		if (LocalConfig::removeOutliers) cloud_out = removeOutliers(cloud_out, 1, 10);
 		if (LocalConfig::downsample > 0) cloud_out = downsampleCloud(cloud_out, LocalConfig::downsample);
 		if (LocalConfig::outlierMinK > 0) cloud_out = removeRadiusOutliers(cloud_out, LocalConfig::outlierRadius, LocalConfig::outlierMinK);
 		if (LocalConfig::clusterMinSize > 0) cloud_out = clusterFilter(cloud_out, LocalConfig::clusterTolerance, LocalConfig::clusterMinSize);
 
-//		cloud_out = filterNeighbors(cloud_out, cloud_shadow, 0.03, 1.0, true);
-
+		//Publish cloud
     sensor_msgs::PointCloud2 msg_out;
-    pcl::toROSMsg(*cloud_out, msg_out);
-    msg_out.header = msg_in.header;
-    m_pubCloud.publish(msg_out);
+		pcl::toROSMsg(*cloud_out, msg_out);
+		msg_out.header = msg_in.header;
+		m_cloudPub.publish(msg_out);
 
-//		sensor_msgs::PointCloud2 msg_out_border;
-//		pcl::toROSMsg(*cloud_border, msg_out_border);
-//		msg_out_border.header = msg_in.header;
-//		m_pubCloudBorder.publish(msg_out_border);
-//
-//		sensor_msgs::PointCloud2 msg_out_veil;
-//		pcl::toROSMsg(*cloud_veil, msg_out_veil);
-//		msg_out_veil.header = msg_in.header;
-//		m_pubCloudVeil.publish(msg_out_veil);
-//
-//		sensor_msgs::PointCloud2 msg_out_shadow;
-//		pcl::toROSMsg(*cloud_shadow, msg_out_shadow);
-//		msg_out_shadow.header = msg_in.header;
-//		m_pubCloudShadow.publish(msg_out_shadow);
+		//Publish image based foreground/background
+    cv::Mat foreground, background;
+    cv::merge(vector<cv::Mat>(3, foreground_mask), foreground_mask);
+    cv::multiply(rgb, foreground_mask, foreground, 1/255.0);
+    cv::subtract(rgb, foreground, background);
+
+    cv_bridge::CvImage foreground_msg;
+    foreground_msg.header   = msg_in.header;
+    foreground_msg.encoding = sensor_msgs::image_encodings::TYPE_8UC3;
+    foreground_msg.image    = foreground;
+    m_foregroundPub.publish(foreground_msg.toImageMsg());
+
+    cv_bridge::CvImage background_msg;
+    background_msg.header   = msg_in.header;
+    background_msg.encoding = sensor_msgs::image_encodings::TYPE_8UC3;
+    background_msg.image    = background;
+    m_backgroundPub.publish(background_msg.toImageMsg());
+
 
 		broadcastKinectTransform(m_transform.inverse(), msg_in.header.frame_id, "ground", m_broadcaster, m_listener);
 
@@ -240,16 +237,21 @@ public:
   PreprocessorNode(ros::NodeHandle& nh) :
     m_inited(false),
     m_nh(nh),
-    m_pubCloud(nh.advertise<sensor_msgs::PointCloud2>(nodeNS+"/points",5)),
-    m_pubCloudBorder(nh.advertise<sensor_msgs::PointCloud2>(nodeNS+"/border/points",5)),
-    m_pubCloudVeil(nh.advertise<sensor_msgs::PointCloud2>(nodeNS+"/veil/points",5)),
-    m_pubCloudShadow(nh.advertise<sensor_msgs::PointCloud2>(nodeNS+"/shadow/points",5)),
+    m_cloudPub(nh.advertise<sensor_msgs::PointCloud2>(nodeNS+"/points",5)),
     m_polyPub(nh.advertise<geometry_msgs::PolygonStamped>(nodeNS+"/polygon",5)),
+    m_foregroundPub(nh.advertise<sensor_msgs::Image>(nodeNS+"/foreground",5)),
+    m_backgroundPub(nh.advertise<sensor_msgs::Image>(nodeNS+"/background",5)),
     m_sub(nh.subscribe(LocalConfig::inputTopic, 1, &PreprocessorNode::callback, this)),
 		m_mins(-10,-10,-10),
 		m_maxes(10,10,10),
-		m_transform(toBulletTransform(Affine3f::Identity()))
+		m_transform(toBulletTransform(Affine3f::Identity())),
+		first_count(5)
     {
+			if (LocalConfig::i3 == 0) {
+					fs = cv::FileStorage("/home/alex/Desktop/preprocessor.yml", cv::FileStorage::READ);
+				} else {
+					fs = cv::FileStorage("/home/alex/Desktop/preprocessor.yml", cv::FileStorage::WRITE);
+			}
     }
 };
 

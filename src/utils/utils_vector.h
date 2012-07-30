@@ -17,6 +17,24 @@ std::ostream& operator<<(std::ostream& os, const std::vector<T>& v)
 }
 
 template <typename T>
+T min(const std::vector<T>& v) {
+	assert(v.size() > 0);
+	T result = v[0];
+	for (int i=1; i<v.size(); i++)
+		result = min(result, v[i]);
+	return result;
+}
+
+template <typename T>
+T max(const std::vector<T>& v) {
+	assert(v.size() > 0);
+	T result = v[0];
+	for (int i=1; i<v.size(); i++)
+		result = max(result, v[i]);
+	return result;
+}
+
+template <typename T>
 T median(const std::vector<T>& v) {
 	if (v.size() == 0) return 0;
 	std::vector<T> v_sort(v);
@@ -55,4 +73,4 @@ bool cwiseOr(const std::vector<bool>& v);
 
 bool cwiseAnd(const std::vector<bool>& v);
 
-std::string itoa(int n, int padding);
+std::string itoa(int n, int padding=0);

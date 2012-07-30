@@ -21,6 +21,7 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
+#include <limits>
 #include "utils_cv.h"
 #include "utils/utils_vector.h"
 
@@ -329,6 +330,33 @@ ColorCloudPtr maskCloud(const ColorCloudPtr in, const cv::Mat& mask, bool negati
   return out;
 }
 
+ColorCloudPtr maskCloudOrganized(const ColorCloudPtr in, const cv::Mat& mask, bool negative) {
+  assert(mask.elemSize() == 1);
+  assert(mask.rows == in->height);
+  assert(mask.cols == in->width);
+
+  ColorPoint nan_point;
+  nan_point.x = numeric_limits<float>::quiet_NaN();
+  nan_point.y = numeric_limits<float>::quiet_NaN();
+  nan_point.z = numeric_limits<float>::quiet_NaN();
+
+  ColorCloudPtr out(new ColorCloud(*in));
+  if (negative) {
+		for (int i=0; i<in->height; i++) {
+			for (int j=0; j<in->width; j++) {
+				if (mask.at<bool>(i,j) > 0) out->at(j,i) = nan_point;
+			}
+		}
+  } else {
+		for (int i=0; i<in->height; i++) {
+			for (int j=0; j<in->width; j++) {
+				if (mask.at<bool>(i,j) <= 0) out->at(j,i) = nan_point;
+			}
+		}
+  }
+
+  return out;
+}
 
 ColorCloudPtr maskCloud(const ColorCloudPtr in, const VectorXb& mask) {
 
@@ -563,7 +591,7 @@ ColorCloudPtr skinFilter(ColorCloudPtr cloud_dense) {
 	MatrixXu bgr = toBGR(cloud_dense);
   cv::Mat image(cloud_dense->height,cloud_dense->width, CV_8UC3, bgr.data());
   cv::Mat skin_mask = skinMask(image);
-  return maskCloud(cloud_dense, skin_mask);
+  return maskCloud(cloud_dense, skin_mask, true);
 }
 
 // if negative false, returns points in cloud_in that are neighbors to any point in cloud_neighbor
