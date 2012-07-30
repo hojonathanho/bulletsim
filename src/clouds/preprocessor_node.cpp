@@ -42,6 +42,9 @@ struct LocalConfig : Config {
   static float clusterMinSize;
   static float outlierRadius;
   static int outlierMinK;
+  static int backgroundCount;
+  static bool backgroundRead;
+  static string backgroundFile;
   static int i0;
   static int i1;
   static int i2;
@@ -58,6 +61,9 @@ struct LocalConfig : Config {
     params.push_back(new Parameter<float>("clusterMinSize", &clusterMinSize, "the clusters found must have at least this number of points. 0 means no filtering"));
     params.push_back(new Parameter<float>("outlierRadius", &outlierRadius, "radius search RadiusOutlierRemoval filter"));
     params.push_back(new Parameter<int>("outlierMinK", &outlierMinK, "minimum neighbors in radius search for RadiusOutlierRemoval filter"));
+    params.push_back(new Parameter<int>("backgroundCount", &backgroundCount, "The first backgroundCount number of images are used for the background."));
+    params.push_back(new Parameter<bool>("backgroundRead", &backgroundRead, "True if the background images should be read from file. False if the background images should be written to file."));
+    params.push_back(new Parameter<string>("backgroundFile", &backgroundFile, "YAML file where the background images should be saved or read"));
     params.push_back(new Parameter<int>("i0", &i0, "miscellaneous variable 0"));
     params.push_back(new Parameter<int>("i1", &i1, "miscellaneous variable 1"));
     params.push_back(new Parameter<int>("i2", &i2, "miscellaneous variable 2"));
@@ -75,6 +81,9 @@ float LocalConfig::clusterTolerance = 0.03;
 float LocalConfig::clusterMinSize = 0;
 float LocalConfig::outlierRadius = 0.016;
 int LocalConfig::outlierMinK = 10;
+int LocalConfig::backgroundCount = 5;
+bool LocalConfig::backgroundRead = true;
+string LocalConfig::backgroundFile = "/home/alex/Desktop/preprocessor.yml";
 int LocalConfig::i0 = 0;
 int LocalConfig::i1 = 0;
 int LocalConfig::i2 = 0;
@@ -132,7 +141,7 @@ public:
     	rgb_bg.push_back(toCVMatImage(cloud_in));
     	depth_bg.push_back(toCVMatDepthImage(cloud_in));
 
-    	if (LocalConfig::i3 == 0) {
+    	if (LocalConfig::backgroundRead) {
 				fs["depth_image_" + itoa(first_count, 2)] >> depth_bg;
 				fs["rgb_image_" + itoa(first_count, 2)] >> rgb_bg;
 			} else {
@@ -245,9 +254,9 @@ public:
 		m_mins(-10,-10,-10),
 		m_maxes(10,10,10),
 		m_transform(toBulletTransform(Affine3f::Identity())),
-		first_count(5)
+		first_count(LocalConfig::backgroundCount)
     {
-			if (LocalConfig::i3 == 0) {
+			if (LocalConfig::backgroundRead) {
 					fs = cv::FileStorage("/home/alex/Desktop/preprocessor.yml", cv::FileStorage::READ);
 				} else {
 					fs = cv::FileStorage("/home/alex/Desktop/preprocessor.yml", cv::FileStorage::WRITE);

@@ -8,7 +8,7 @@
 using namespace Eigen;
 
 static const float DEPTH_OCCLUSION_DIST = .03;
-static const float RAY_SHORTEN_DIST = .02;
+static const float RAY_SHORTEN_DIST = .002;
 
 VectorXf EverythingIsVisible::checkNodeVisibility(TrackedObject::Ptr obj) {
   return VectorXf::Ones(obj->m_nNodes);
@@ -49,7 +49,7 @@ VectorXf OSGVisibility::checkNodeVisibility(TrackedObject::Ptr obj) {
 		vector<btVector3> normals = dynamic_cast<TrackedTowel*>(obj.get())->getNormals();
 		for (int i=0; i<points.size(); i++) {
 			btVector3 view = (points[i]-cam_pos).normalized();
-			if (sim->checkIntersection(points[i]-0.01*view, cam_pos)) {
+			if (sim->checkIntersection(points[i]-RAY_SHORTEN_DIST*METERS*view, cam_pos)) {
 				vis(i) = 0;
 			} else {
 				vis(i) = 1;
@@ -73,32 +73,11 @@ vector<btVector3> OSGVisibility::getIntersectionPoints(TrackedObject::Ptr obj) {
 	vector<btVector3> inter_points;
 	for (int i=0; i<points.size(); i++) {
 		btVector3 point_to_cam = (cam_pos-points[i]).normalized();
-		vector<btVector3> inter_points_partial = sim->getIntersectionPoints(points[i]+0.01*point_to_cam, cam_pos);
+		vector<btVector3> inter_points_partial = sim->getIntersectionPoints(points[i]+RAY_SHORTEN_DIST*METERS*point_to_cam, cam_pos);
 		for (int j=0; j<inter_points_partial.size(); j++)
 			inter_points.push_back(inter_points_partial[j]);
 	}
 	return inter_points;
-}
-
-
-VectorXf BulletVisibility::checkNodeVisibility(TrackedObject::Ptr obj) {
-	vector<btVector3> nodes = obj->getPoints();
-	btDynamicsWorld* world = obj->getSim()->getEnvironment()->bullet->dynamicsWorld;
-	btVector3 cameraPos = m_transformer->toWorldFromCam(btVector3(0,0,0));
-	//btVector3 cameraPos = m_transformer->worldFromCamUnscaled.getOrigin()*METERS;
-	return calcVisibility(nodes, world, cameraPos);
-}
-
-VectorXf BulletVisibility::calcVisibility(const vector<btVector3> nodes, btDynamicsWorld* world, const btVector3& cameraPos) {
-  VectorXf vis(nodes.size());
-  for (int i=0; i < nodes.size(); i++) {
-		btVector3 target = nodes[i] + (cameraPos - nodes[i]).normalized() * .005*METERS;
-		btCollisionWorld::ClosestRayResultCallback rayCallback(cameraPos, target);
-		world->rayTest(cameraPos, target, rayCallback);
-		btCollisionObject* hitBody = rayCallback.m_collisionObject;
-		vis[i] = (hitBody==NULL);
-	}
-	return vis;
 }
 
 
@@ -110,20 +89,16 @@ VectorXf BulletRaycastVisibility::checkNodeVisibility(TrackedObject::Ptr obj) {
 	vector<btVector3> nodes = obj->getPoints();
 	btVector3 cameraPos = m_transformer->worldFromCamUnscaled.getOrigin()*METERS;
 	VectorXf vis(nodes.size());
+
+	float ray_shorten_dist = RAY_SHORTEN_DIST*METERS;
+	if (obj->m_type == "rope") // if the object is a rope, the node is not at the surface of the capsule but at the center of the capsule, hence shorten the ray by an extra distance of the capsule's radius (approximation)
+		ray_shorten_dist += dynamic_cast<CapsuleRope*>(obj->getSim())->radius;
+
 	for (int i=0; i < nodes.size(); ++i) {
-		btVector3 target = nodes[i] + (cameraPos - nodes[i]).normalized() * RAY_SHORTEN_DIST;
+		btVector3 target = nodes[i] + (cameraPos - nodes[i]).normalized() * ray_shorten_dist;
 		btCollisionWorld::ClosestRayResultCallback rayCallback(cameraPos, target);
 		m_world->rayTest(cameraPos, target, rayCallback);
-		btCollisionObject* hitBody = rayCallback.m_collisionObject;
-		vis[i] = (hitBody==NULL);
+		vis[i] = !rayCallback.hasHit();
 	}
-	return vis;
-}
-
-
-Eigen::VectorXf MultiVisibility::checkNodeVisibility(TrackedObject::Ptr obj) {
-	VectorXf vis = VectorXf::Zero(obj->m_nNodes);
-	for (int i=0; i<visibilities.size(); i++)
-		vis = vis.cwiseMax(visibilities[i]->checkNodeVisibility(obj));
 	return vis;
 }

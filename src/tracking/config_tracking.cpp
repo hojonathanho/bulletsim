@@ -8,8 +8,8 @@ std::string TrackingConfig::fullCloudTopic = "/kinect1/rgb/points";
 std::string cameraTopics_a[] = { "/kinect1" };
 std::vector<std::string> TrackingConfig::cameraTopics = std::vector<std::string>(cameraTopics_a, cameraTopics_a+sizeof(cameraTopics_a)/sizeof(std::string));
 
-float TrackingConfig::pointPriorDist = 0.03;
-float TrackingConfig::pointOutlierDist = 0.03;
+float TrackingConfig::pointPriorDist = 0.02;
+float TrackingConfig::pointOutlierDist = 0.02;
 float TrackingConfig::epsilon = 0.001;
 int TrackingConfig::normalizeIter = 2;
 float TrackingConfig::kp_rope = 1;
