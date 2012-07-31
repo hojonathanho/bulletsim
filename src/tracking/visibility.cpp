@@ -91,8 +91,6 @@ VectorXf BulletRaycastVisibility::checkNodeVisibility(TrackedObject::Ptr obj) {
 	VectorXf vis(nodes.size());
 
 	float ray_shorten_dist = RAY_SHORTEN_DIST*METERS;
-	if (obj->m_type == "rope") // if the object is a rope, the node is not at the surface of the capsule but at the center of the capsule, hence shorten the ray by an extra distance of the capsule's radius (approximation)
-		ray_shorten_dist += dynamic_cast<CapsuleRope*>(obj->getSim())->radius;
 
 	for (int i=0; i < nodes.size(); ++i) {
 		btVector3 target = nodes[i] + (cameraPos - nodes[i]).normalized() * ray_shorten_dist;

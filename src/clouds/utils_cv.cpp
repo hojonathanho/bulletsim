@@ -20,13 +20,15 @@ string typeAsString(int type) {
 }
 
 // input and output images are binaries (i.e 0's and 255's). src gets modified.
-cv::Mat connectedComponentsFilter(cv::Mat src, int min_pix) {
+cv::Mat connectedComponentsFilter(cv::Mat src, int min_pix, int dist_pix) {
+	cv::Mat src_tmp;
+	cv::dilate(src, src_tmp, cv::Mat(), cv::Point(-1, -1), dist_pix);
 	cv::Mat dst = cv::Mat::zeros(src.rows, src.cols, CV_8UC1);
 
 	vector<vector<cv::Point> > contours;
 	vector<cv::Vec4i> hierarchy;
 
-	cv::findContours( src, contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_SIMPLE );
+	cv::findContours( src_tmp, contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_SIMPLE );
 
 	// iterate through all the top-level contours,
 	int idx = 0;
@@ -39,15 +41,16 @@ cv::Mat connectedComponentsFilter(cv::Mat src, int min_pix) {
 		else color = cv::Scalar(0);
 		cv::drawContours( dst, contours, idx, color, CV_FILLED, 8, hierarchy );
 	}
+	cv::multiply(src, dst, dst, 1/255.0);
 	return dst;
 }
 
 //src and dst are binary images. removes sparse pixels and small connected components.
-cv::Mat sparseSmallFilter(cv::Mat src, int erode, int dilate, int min_connected_components) {
+cv::Mat sparseSmallFilter(cv::Mat src, int erode, int dilate, int min_connected_components, int tol_connected_components) {
 	cv::Mat dst = src.clone();
 	cv::erode(dst, dst, cv::Mat(), cv::Point(-1, -1), erode);
 	cv::dilate(dst, dst, cv::Mat(), cv::Point(-1, -1), dilate);
-	dst = connectedComponentsFilter(dst, min_connected_components);
+	dst = connectedComponentsFilter(dst, min_connected_components, tol_connected_components);
 	cv::multiply(src, dst, dst, 1/255.0);
 	return dst;
 }
@@ -68,13 +71,13 @@ namespace cv {
 //depth and depth_bg are CV_32FC1
 //the returned image is of type CV_8UC1
 //the threshold is a relative quantity
-cv::Mat backgroundSubtractorDepthMask(cv::Mat depth, vector<cv::Mat> depth_bg, double depth_th, int erode, int dilate, int min_connected_components) {
+cv::Mat backgroundSubtractorDepthMask(cv::Mat depth, vector<cv::Mat> depth_bg, double depth_th, int erode, int dilate, int min_connected_components, int tol_connected_components) {
 	cv::Mat depth_bg_min = min(depth_bg).clone();
 	cv::Mat depth_bg_max = max(depth_bg).clone();
 
 	cv::Mat depth_diff = (depth < (depth_bg_min - depth_bg_min*depth_th)) | (depth > (depth_bg_max + depth_bg_max*depth_th));
 	//cv::imshow("depth_diff_raw", depth_diff);
-	depth_diff = sparseSmallFilter(depth_diff, erode, dilate, min_connected_components);
+	depth_diff = sparseSmallFilter(depth_diff, erode, dilate, min_connected_components, tol_connected_components);
 	//cv::imshow("depth_diff", depth_diff);
 
 	return depth_diff;
@@ -89,7 +92,7 @@ cv::Mat backgroundSubtractorDepthMask(cv::Mat depth, vector<cv::Mat> depth_bg, d
 //cv::merge(vector<cv::Mat>(3, foreground_mask), foreground_mask);
 //cv::multiply(rgb, foreground_mask, foreground, 1/255.0);
 //cv::subtract(rgb, foreground, background);
-cv::Mat backgroundSubtractorColorMask(cv::Mat color, vector<cv::Mat> color_bg, cv::Scalar trans_th, int space_transformation, int erode, int dilate, int min_connected_components) {
+cv::Mat backgroundSubtractorColorMask(cv::Mat color, vector<cv::Mat> color_bg, cv::Scalar trans_th, int space_transformation, int erode, int dilate, int min_connected_components, int tol_connected_components) {
 	vector<cv::Mat> trans_bg(color_bg.size());
 	for (int i=0; i<color_bg.size(); i++)
 		cv::cvtColor(color_bg[i], trans_bg[i], space_transformation);
@@ -104,7 +107,7 @@ cv::Mat backgroundSubtractorColorMask(cv::Mat color, vector<cv::Mat> color_bg, c
 	vector<cv::Mat> trans_diff_channels;
 	cv::split(trans_diff, trans_diff_channels);
 	trans_diff = max(trans_diff_channels);
-	trans_diff = sparseSmallFilter(trans_diff, erode, dilate, min_connected_components);
+	trans_diff = sparseSmallFilter(trans_diff, erode, dilate, min_connected_components, tol_connected_components);
 	//cv::imshow("trans_diff", trans_diff);
 
 	return trans_diff;
@@ -119,35 +122,26 @@ cv::Mat skinMask(cv::Mat src) {
 	cv::Mat srcLab(src.rows, src.cols, CV_8UC3);
 	cv::cvtColor(src, srcLab, CV_BGR2Lab);
 
-	cv::Mat skin_mask = cv::Mat::zeros(src.rows, src.cols, CV_8UC1);
-	for (int i=0; i<src.rows; i++) {
-		for (int j=0; j<src.cols; j++) {
-			cv::Vec3b YCrCb = srcYCrCb.at<cv::Vec3b>(i,j);
-			cv::Vec3b Lab = srcLab.at<cv::Vec3b>(i,j);
-				if (	((YCrCb[0] > 80 &&
-						YCrCb[1] > 135 && YCrCb[1] < 180 &&
-						YCrCb[2] > 85 && YCrCb[2] < 135) ||
-						(Lab[1] > 130 && Lab[1] < 150 &&
-								Lab[2] > 130)) ) {
-				skin_mask.at<char>(i,j) = 255;
-			}
-		}
-	}
+	vector<cv::Mat> srcYCrCb_channels, srcLab_channels;
+	cv::split(srcYCrCb, srcYCrCb_channels);
+	cv::split(srcLab, srcLab_channels);
+	cv::Mat skin_mask = ((srcYCrCb_channels[1] > 140) & (srcYCrCb_channels[1] < 159) & (srcYCrCb_channels[2] > 85) & (srcYCrCb_channels[2] < 135)) |
+			((srcLab_channels[1] > 130) & (srcLab_channels[1] < 150) & (srcLab_channels[2] > 130));
 	//cv::imshow("skin_mask", skin_mask);
 
 	cv::Mat skin_mask_morph = skin_mask.clone();
 	cv::dilate(skin_mask_morph, skin_mask_morph, cv::Mat(), cv::Point(-1, -1), 1);
-	cv::erode(skin_mask_morph, skin_mask_morph, cv::Mat(), cv::Point(-1, -1), 3);
+	cv::erode(skin_mask_morph, skin_mask_morph, cv::Mat(), cv::Point(-1, -1), 4);
 	cv::dilate(skin_mask_morph, skin_mask_morph, cv::Mat(), cv::Point(-1, -1), 4);
 	//cv::imshow("skin_mask_morph", skin_mask_morph);
 
-	cv::Mat large_connected_components = connectedComponentsFilter(skin_mask_morph.clone(), 1000);
+	cv::Mat large_connected_components = connectedComponentsFilter(skin_mask_morph.clone(), 500, 2);
 	//imshow("large_connected_components", large_connected_components);
 
 	cv::multiply(skin_mask, large_connected_components, skin_mask, 1/255.0);
 	//cv::imshow("skin_mask_mult", skin_mask);
 
-	cv::dilate(skin_mask, skin_mask, cv::Mat(), cv::Point(-1, -1), 2);
+	cv::dilate(skin_mask, skin_mask, cv::Mat(), cv::Point(-1, -1), 1);
 	//cv::imshow("skin_mask_dilate", skin_mask);
 
 	return skin_mask;
