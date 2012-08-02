@@ -39,7 +39,7 @@ MatrixXf TrackedRope::getFeatures() {
 
 VectorXf TrackedRope::getPriorDist() {
 	VectorXf prior_dist(6);
-	prior_dist << TrackingConfig::pointPriorDist*METERS, TrackingConfig::pointPriorDist*METERS, TrackingConfig::pointPriorDist*METERS, 0.6, 0.3, 0.3;
+	prior_dist << TrackingConfig::pointPriorDist*METERS, TrackingConfig::pointPriorDist*METERS, TrackingConfig::pointPriorDist*METERS, 0.3, 0.15, 0.15;
 	return prior_dist;
 }
 

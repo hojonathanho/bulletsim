@@ -160,7 +160,7 @@ public:
     ColorCloudPtr cloud_out = cloud_in;
 
     //RGBD image based filters
-    cv::Mat foreground_RGBD_mask = backgroundSubtractorDepthMask(depth, depth_bg, 0.005) | backgroundSubtractorColorMask(rgb, rgb_bg);
+    cv::Mat foreground_RGBD_mask = backgroundSubtractorDepthMask(depth, depth_bg, 0.01) | backgroundSubtractorColorMask(rgb, rgb_bg);
 		cv::Mat non_skin_mask = skinMask(rgb) == 0;
 		cv::Mat foreground_mask = foreground_RGBD_mask & non_skin_mask;
 		cloud_out = maskCloudOrganized(cloud_out, foreground_mask);
