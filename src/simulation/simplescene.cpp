@@ -1,4 +1,5 @@
 #include "simplescene.h"
+#include "mouse_picking.h"
 #include "config_bullet.h"
 #include "config_viewer.h"
 #include "util.h"
@@ -17,12 +18,18 @@ Scene::Scene() {
     env.reset(new Environment(bullet, osg));
 
     // populate the scene with some basic objects
-    ground.reset(new PlaneStaticObject(btVector3(0., 0., 1.), 0., btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0))));
+    //ground.reset(new PlaneStaticObject(btVector3(0., 0., 1.), 0., btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0))));
+    ground.reset(new BoxObject(0, btVector3(5*METERS, 5*METERS, 0.01*METERS), btTransform(btQuaternion(0,0,0,1), btVector3(0,0,-0.01*METERS))));
+    ground->collisionShape->setMargin(0.1);
+    ground->rigidBody->setFriction(1.0);
     env->add(ground);
 
     // default callbacks
     addVoidKeyCallback('p', boost::bind(&Scene::toggleIdle, this));
     addVoidKeyCallback('d', boost::bind(&Scene::toggleDebugDraw, this));
+
+    addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Escape, boost::bind(exit, 0));
+    viewer.addEventHandler(new PickingMouseHandler(*this));
 }
 
 void Scene::startViewer() {

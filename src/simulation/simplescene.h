@@ -36,7 +36,7 @@ struct Scene {
   osg::ref_ptr<EventHandler> manip;
 
 
-  PlaneStaticObject::Ptr ground;
+  BoxObject::Ptr ground;
 
   // callbacks should return true if the default TrackballManipulator::handle behavior
   // should be suppressed. if all callbacks return false, then it won't be suppressed

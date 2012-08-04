@@ -1,3 +1,7 @@
+include_directories( ${TETGEN_DIR}
+    ${PCL_INCLUDE_DIRS} )
+link_directories( ${TETGEN_DIR} )
+
 add_executable(test_simplescene test_simplescene.cpp)
 target_link_libraries(test_simplescene simulation robots)
 
@@ -39,3 +43,9 @@ target_link_libraries(test_scene_record simulation)
 
 add_executable(test_logging test_logging.cpp)
 target_link_libraries(test_logging simulation)
+
+add_executable(test_tetgen test_tetgen.cpp)
+target_link_libraries(test_tetgen simulation)
+
+add_executable(test_picking test_picking.cpp)
+target_link_libraries(test_picking simulation utils)

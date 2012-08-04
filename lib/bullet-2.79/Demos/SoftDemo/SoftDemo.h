@@ -187,7 +187,8 @@ MACRO_SOFT_DEMO(26)//Init_ClusterStackSoft
 MACRO_SOFT_DEMO(27)//Init_ClusterStackMixed
 MACRO_SOFT_DEMO(28)//Init_TetraCube
 MACRO_SOFT_DEMO(29)//Init_TetraBunny
-
+MACRO_SOFT_DEMO(30)//Init_CapsuleCollision
+MACRO_SOFT_DEMO(31)//Init_TableCloth
 
 #endif //CCD_PHYSICS_DEMO_H
 

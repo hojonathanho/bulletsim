@@ -1305,9 +1305,132 @@ static void	Init_TetraCube(SoftDemo* pdemo)
 	pdemo->m_cutting=false;	
 }
 
+static void	Init_CapsuleCollision(SoftDemo* pdemo)
+{
+#ifdef USE_AMD_OPENCL
+	btAlignedObjectArray<btSoftBody*> emptyArray;
+	if (g_openCLSIMDSolver)
+		g_openCLSIMDSolver->optimize(emptyArray);
+#endif //USE_AMD_OPENCL
 
+		//TRACEDEMO
+	const btScalar	s=10;
+	const btScalar	h=15;
+	const int		r=30;
 
+	btTransform startTransform; btCollisionShape* capsuleShape;	btCollisionShape* planeShape;	btRigidBody* body;
+	float margin = 0.5f;
+	float friction = 0.0f;
 
+//	startTransform.setIdentity();
+//	startTransform.setOrigin(btVector3(-s*0.5,h-4,0));
+//	capsuleShape= new btCapsuleShapeZ(1,s*2);
+//	capsuleShape->setMargin( margin );
+//	body=pdemo->localCreateRigidBody(0,startTransform,capsuleShape);
+//	body->setFriction( friction );
+
+	startTransform.setIdentity();
+	startTransform.setOrigin(btVector3(s*0.5,h-4,0));
+	capsuleShape= new btCapsuleShapeZ(1,s*2);
+	capsuleShape->setMargin( margin );
+	body=pdemo->localCreateRigidBody(0,startTransform,capsuleShape);
+	body->setFriction( friction );
+
+	startTransform.setIdentity();
+	startTransform.setRotation(btQuaternion(btVector3(0,0,1), 10.0 * M_PI/180.0));
+	startTransform.setOrigin(btVector3(0,h-15,0));
+	planeShape=new btBoxShape(btVector3(s*2,0.1,s*2));
+	planeShape->setMargin( 0.1 );
+	body=pdemo->localCreateRigidBody(0,startTransform,planeShape);
+	body->setFriction( 1.0 );
+
+	int fixed=0;//4+8;
+	btSoftBody*		psb=btSoftBodyHelpers::CreatePatch(pdemo->m_softBodyWorldInfo,btVector3(-s,h,-s),
+		btVector3(+s,h,-s),
+		btVector3(-s,h,+s),
+		btVector3(+s,h,+s),r,r,fixed,true);
+	pdemo->getSoftDynamicsWorld()->addSoftBody(psb);
+
+//	psb->getCollisionShape()->setMargin(0.5);
+	btSoftBody::Material* pm=psb->appendMaterial();
+	pm->m_kLST		=	0.001;
+	psb->generateBendingConstraints(2,pm);
+	psb->setTotalMass(150);
+
+	psb->generateClusters(512);
+	psb->getCollisionShape()->setMargin(0.2);
+
+	psb->m_cfg.collisions	=	0;
+	psb->m_cfg.collisions += btSoftBody::fCollision::SDF_RS; ///SDF based rigid vs soft
+	//psb->m_cfg.collisions += btSoftBody::fCollision::CL_RS; ///Cluster vs convex rigid vs soft
+	//psb->m_cfg.collisions += btSoftBody::fCollision::VF_SS;	///Vertex vs face soft vs soft handling
+	psb->m_cfg.collisions += btSoftBody::fCollision::CL_SS; ///Cluster vs cluster soft vs soft handling
+	psb->m_cfg.collisions	+= btSoftBody::fCollision::CL_SELF; ///Cluster soft body self collision
+
+	psb->m_cfg.kDF = 1; // Dynamic friction coefficient
+
+	psb->m_cfg.piterations = 50;
+	psb->m_cfg.citerations = 50;
+	psb->m_cfg.diterations = 50;
+	//psb->m_cfg.viterations = 10;
+
+	psb->randomizeConstraints();
+	pdemo->m_cutting=false;
+}
+
+static void Init_TableCloth(SoftDemo* pdemo) {
+	btTransform startTransform; btCollisionShape* boxShape;	btCollisionShape* planeShape;	btRigidBody* body;
+
+	startTransform.setIdentity();
+	startTransform.setOrigin(btVector3(0,0,0));
+	planeShape=new btBoxShape(btVector3(50,0.1,50));
+	//planeShape->setMargin( 0.1 );
+	body=pdemo->localCreateRigidBody(0,startTransform,planeShape);
+	//body->setFriction( 1.0 );
+
+	startTransform.setIdentity();
+	startTransform.setOrigin(btVector3(0,2,0));
+	boxShape=new btBoxShape(btVector3(2.5,1,2.5));
+	boxShape->setMargin( 0.1 );
+	body=pdemo->localCreateRigidBody(100,startTransform,boxShape);
+	body->setFriction( 0.1 );
+
+	const int s = 5;
+	const int z = 10;
+	const int		r=30;
+	int fixed=0;//4+8;
+	btSoftBody*		psb=btSoftBodyHelpers::CreatePatch(pdemo->m_softBodyWorldInfo,btVector3(-s,z,-s),
+		btVector3(+s,z,-s),
+		btVector3(-s,z,+s),
+		btVector3(+s,z,+s),r,r,fixed,true);
+
+//	psb->getCollisionShape()->setMargin(0.5);
+	btSoftBody::Material* pm=psb->appendMaterial();
+	pm->m_kLST		=	0.001;
+	psb->generateBendingConstraints(2,pm);
+	psb->setTotalMass(150);
+
+	psb->generateClusters(100);
+	psb->getCollisionShape()->setMargin(0.2);
+
+	psb->m_cfg.collisions	=	0;
+	psb->m_cfg.collisions += btSoftBody::fCollision::SDF_RS; ///SDF based rigid vs soft
+	//psb->m_cfg.collisions += btSoftBody::fCollision::CL_RS; ///Cluster vs convex rigid vs soft
+	//psb->m_cfg.collisions += btSoftBody::fCollision::VF_SS;	///Vertex vs face soft vs soft handling
+	psb->m_cfg.collisions += btSoftBody::fCollision::CL_SS; ///Cluster vs cluster soft vs soft handling
+	psb->m_cfg.collisions	+= btSoftBody::fCollision::CL_SELF; ///Cluster soft body self collision
+
+	psb->m_cfg.kDF = 1;
+
+	psb->m_cfg.piterations = 50;
+	psb->m_cfg.citerations = 50;
+	psb->m_cfg.diterations = 50;
+//	psb->m_cfg.viterations = 10;
+
+	psb->randomizeConstraints();
+
+	pdemo->getSoftDynamicsWorld()->addSoftBody(psb);
+}
 
 	/* Init		*/ 
 	void (*demofncs[])(SoftDemo*)=
@@ -1343,6 +1466,8 @@ static void	Init_TetraCube(SoftDemo* pdemo)
 		Init_ClusterStackMixed,
 		Init_TetraCube,
 		Init_TetraBunny,
+		Init_CapsuleCollision,
+		Init_TableCloth,
 	};
 
 void	SoftDemo::clientResetScene()

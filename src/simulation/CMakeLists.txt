@@ -4,6 +4,7 @@ include_directories(
     ${BULLETSIM_SOURCE_DIR}/lib/haptics
     ${BULLETSIM_SOURCE_DIR}/src
     ${PCL_INCLUDE_DIRS}
+    ${TETGEN_DIR}
 )
 
 FIND_PACKAGE( OpenCV REQUIRED )
@@ -23,6 +24,8 @@ add_library(simulation
     config_viewer.cpp
     bullet_io.cpp
     fake_gripper.cpp
+    mouse_picking.cpp
+    tetgen_helpers.cpp
 )
 
 target_link_libraries(simulation
@@ -30,6 +33,7 @@ target_link_libraries(simulation
     haptics
     osgBullet
     osgWorks
+    tetgen
     ${OpenCV_LIBS}
     ${Boost_LIBRARIES}
     ${OSG_LIBS}
