@@ -34,6 +34,7 @@ struct BulletInstance {
     ~BulletInstance();
 
     void setGravity(const btVector3 &gravity);
+    void setDefaultGravity();
 
     // Populates out with all objects colliding with obj, possibly ignoring some objects
     // dynamicsWorld->updateAabbs() must be called before contactTest

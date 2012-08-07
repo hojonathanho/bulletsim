@@ -81,7 +81,6 @@ void CustomScene::run() {
     stepFor(dt, 0.5);
 
     BulletInstance::Ptr bullet2(new BulletInstance);
-    bullet2->setGravity(BulletConfig::gravity);
     OSGInstance::Ptr osg2(new OSGInstance);
     osg->root->addChild(osg2->root.get());
     Fork::Ptr fork(new Fork(env, bullet2, osg2));
