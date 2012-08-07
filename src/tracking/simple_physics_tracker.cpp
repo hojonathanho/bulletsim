@@ -56,12 +56,13 @@ SimplePhysicsTracker::SimplePhysicsTracker(TrackedObject::Ptr obj, VisibilityInt
 }
 
 void SimplePhysicsTracker::updateInput(ColorCloudPtr obsPts) {
-	m_obj_features->updateFeatures();
-	m_cloud_features->updateFeatures(obsPts);
+	m_cloud_features->updateInputs(obsPts);
 
-	m_obsPts.resize(m_cloud_features->getFeatures().rows(), m_cloud_features->getFeatures().cols());
+	m_obj_features->updateFeatures();
+	m_cloud_features->updateFeatures();
+
 	m_obsPts = m_cloud_features->getFeatures();
-	m_obsPts.col(2) = m_obsPts.col(2).array() + 0.05*METERS;
+	//m_obsPts.col(2) = m_obsPts.col(2).array() + 0.05*METERS;
 	for (int i=0; i<m_obsPts.rows(); i++) {
 		if (m_obsPts(i,2) < 0.01*METERS) m_obsPts(i,2) = 0.01*METERS;
 	}
@@ -87,9 +88,9 @@ void SimplePhysicsTracker::doIteration() {
   VectorXf inlierFrac = pZgivenC.colwise().sum();
   if (m_enableObsInlierPlot) plotObs(toBulletVectors(m_obsPts.leftCols(3)), inlierFrac, m_obsInlierPlot);
 	else m_obsInlierPlot->clear();
-	if (m_enableObsPlot) plotObs(toEigenMatrix(m_obj->getPoints()), m_obj->getColors(), m_obsPlot);
+	if (m_enableObsPlot) plotObs(m_cloud_features->getFeatures(FeatureExtractor::FT_XYZ), m_cloud_features->getFeatures(FeatureExtractor::FT_BGR), m_obsPlot);
 	else m_obsPlot->clear();
-	if (m_enableObsTransPlot) plotObs(toEigenMatrix(m_obj->getPoints()), m_obj_features->getFeatures(FeatureExtractor::FT_LAB), m_obsTransPlot);
+	if (m_enableObsTransPlot) plotObs(m_cloud_features->getFeatures(FeatureExtractor::FT_XYZ), m_cloud_features->getFeatures(FeatureExtractor::FT_LAB), m_obsTransPlot);
 	else m_obsTransPlot->clear();
 	if (m_enableEstPlot) plotNodesAsSpheres(toEigenMatrix(m_obj->getPoints()), m_obj->getColors(), vis, m_stdev, m_estPlot);
 	else m_estPlot->clear();
