@@ -10,7 +10,7 @@
 using namespace Eigen;
 using namespace std;
 
-SimplePhysicsTracker::SimplePhysicsTracker(TrackedObject::Ptr obj, VisibilityInterface* visInt, Environment::Ptr env) :
+SimplePhysicsTracker::SimplePhysicsTracker(TrackedObject::Ptr obj, VisibilityInterface::Ptr visInt, Environment::Ptr env) :
   m_obj(obj),
   m_visInt(visInt),
   m_env(env),
@@ -47,7 +47,7 @@ SimplePhysicsTracker::SimplePhysicsTracker(TrackedObject::Ptr obj, VisibilityInt
 }
 
 void SimplePhysicsTracker::updateInput(ColorCloudPtr obsPts) {
-	m_obsPts = m_obj->extractFeatures(obsPts);
+	m_obsPts = m_extractor.extractFeatures(obsPts);
 	m_obsCloud = obsPts;
 }
 
@@ -64,11 +64,11 @@ void SimplePhysicsTracker::doIteration() {
   VectorXf inlierFrac = colSums(corr);
   if (m_enableObsInlierPlot) plotObs(toBulletVectors(m_obsPts.leftCols(3)), inlierFrac, m_obsInlierPlot);
 	else m_obsInlierPlot->clear();
-	if (m_enableObsPlot) plotObs(m_obj->featuresUntransform(m_obsPts), m_obsPlot);
+	if (m_enableObsPlot) plotObs(m_obj->getColors(), m_obsPlot);
 	else m_obsPlot->clear();
 	if (m_enableObsTransPlot) plotObs(m_obsPts, m_obsTransPlot);
 	else m_obsTransPlot->clear();
-	if (m_enableEstPlot) plotNodesAsSpheres(m_obj->featuresUntransform(m_estPts), vis, m_stdev.topRows(m_stdev.rows()-1), m_estPlot);
+	if (m_enableEstPlot) plotNodesAsSpheres(m_obj->getColors(), vis, m_stdev.topRows(m_stdev.rows()-1), m_estPlot);
 	else m_estPlot->clear();
 	if (m_enableEstTransPlot) plotNodesAsSpheres(m_estPts, vis, m_stdev.topRows(m_stdev.rows()-1), m_estTransPlot);
 	else m_estTransPlot->clear();

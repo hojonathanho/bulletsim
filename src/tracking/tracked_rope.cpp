@@ -24,19 +24,6 @@ std::vector<btVector3> TrackedRope::getPoints() {
 	return out;
 }
 
-MatrixXf TrackedRope::getFeatures() {
-	MatrixXf features(m_nNodes, 6);
-	for (int i=0; i < m_nNodes; i++) {
-		features.block(i,0,1,3) = toEigenVector(getSim()->children[i]->rigidBody->getCenterOfMassPosition()).transpose();
-		//TODO: handle the case in which some pixels are black (empty)
-		Vector3f bgr = toEigenMatrixImage(getSim()->children[i]->getTexture()).colwise().mean();
-		features.block(i,3,1,3) = bgr.transpose();
-	}
-	//cv::Mat img = toCVMat(features.rightCols(3));
-	//cv::imwrite("/home/alex/Desktop/nodes_img_avg.jpg", img);
-	return featuresTransform(features);
-}
-
 VectorXf TrackedRope::getPriorDist() {
 	VectorXf prior_dist(6);
 	prior_dist << TrackingConfig::pointPriorDist*METERS, TrackingConfig::pointPriorDist*METERS, TrackingConfig::pointPriorDist*METERS, 0.3, 0.15, 0.15;
@@ -60,6 +47,13 @@ void TrackedRope::applyEvidence(const SparseMatrixf& corr, const MatrixXf& obsPt
   for (int i=0; i<m_nNodes; ++i) getSim()->children[i]->rigidBody->applyCentralImpulse(impulses[i]);
 
   //TODO apply evidences to color
+}
+
+void TrackedRope::setColorsFromTexture() {
+	for (int i=0; i < m_nNodes; ++i) {
+		Vector3f bgr = toEigenMatrixImage(getSim()->children[i]->getTexture()).colwise().mean();
+		m_colors.row(i) = bgr.transpose();
+	}
 }
 
 cv::Mat TrackedRope::makeTexture(ColorCloudPtr cloud) {

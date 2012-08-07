@@ -114,3 +114,10 @@ btTransform waitForAndGetTransform(const tf::TransformListener& listener, std::s
 //	listener.lookupTransform(target_frame, source_frame, ros::Time(0), st);
 //	return st.asBt();
 }
+
+
+int calcFeatureDim(const std::vector<FeatureType>& featureTypes) {
+  int dim = 0;
+  BOOST_FOREACH(const FeatureType& ft, featureTypes) dim += FEATURE_SIZES[ft];
+  return dim;
+}
