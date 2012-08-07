@@ -124,17 +124,20 @@ int main(int argc, char* argv[]) {
   Scene scene;
   scene.startViewer();
 
-  TrackedObject::Ptr trackedObj = callInitServiceAndCreateObject(scaleCloud(filteredCloud,1/METERS), rgbImages[0], transformer_images[0], scene.env);
+  TrackedObject::Ptr trackedObj = callInitServiceAndCreateObject(scaleCloud(filteredCloud,1/METERS), rgbImages[0], transformer_images[0]);
+  scene.env->add(trackedObj->m_sim);
   if (!trackedObj) throw runtime_error("initialization of object failed.");
   //scene.env->add(trackedObj->m_sim);
 
   // actual tracking algorithm
-	MultiVisibility visInterface;
+	MultiVisibility::Ptr visInterface(new MultiVisibility());
 	for (int i=0; i<nCameras; i++) {
-		//visInterface.addVisibility(new AllOcclusionsVisibility(scene.env->bullet->dynamicsWorld, transformer_images[i]));
-		visInterface.addVisibility(new DepthImageVisibility(transformer_images[i]));
+		if (trackedObj->m_type == "rope") // Don't do self-occlusion if the trackedObj is a rope
+			visInterface->addVisibility(DepthImageVisibility::Ptr(new DepthImageVisibility(transformer_images[i])));
+		else
+			visInterface->addVisibility(AllOcclusionsVisibility::Ptr(new AllOcclusionsVisibility(scene.env->bullet->dynamicsWorld, transformer_images[i])));
 	}
-	SimplePhysicsTracker alg(trackedObj, &visInterface, scene.env);
+	SimplePhysicsTracker alg(trackedObj, visInterface, scene.env);
 
   scene.addVoidKeyCallback('c',boost::bind(toggle, &alg.m_enableCorrPlot));
   scene.addVoidKeyCallback('C',boost::bind(toggle, &alg.m_enableCorrPlot));
@@ -153,9 +156,8 @@ int main(int argc, char* argv[]) {
 
   while (ros::ok()) {
     alg.updateInput(filteredCloud);
-    //TODO update arbitrary number of depth images
-    //dynamic_cast<AllOcclusionsVisibility*>(visInterface.visibilities[0])->updateInput(depthImages[0]);
-    dynamic_cast<DepthImageVisibility*>(visInterface.visibilities[0])->updateInput(depthImages[0]);
+    //TODO update arbitrary number of depth images)
+    visInterface->visibilities[0]->updateInput(depthImages[0]);
     pending = false;
     while (ros::ok() && !pending) {
       alg.doIteration();

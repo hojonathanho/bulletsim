@@ -133,7 +133,8 @@ int main(int argc, char* argv[]) {
   scene.startViewer();
   setupROSRave(pr2m.pr2->robot, lastJointMsg);
 
-  TrackedObject::Ptr trackedObj = callInitServiceAndCreateObject(scaleCloud(filteredCloud,1/METERS), rgbImages[0], transformer_images[0], scene.env);
+  TrackedObject::Ptr trackedObj = callInitServiceAndCreateObject(scaleCloud(filteredCloud,1/METERS), rgbImages[0], transformer_images[0]);
+  env->add(trackedObj->getSim());
   if (!trackedObj) throw runtime_error("initialization of object failed.");
   //scene.env->add(trackedObj->m_sim);
 

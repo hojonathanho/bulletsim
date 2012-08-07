@@ -21,7 +21,7 @@
 
 using namespace std;
 
-TrackedObject::Ptr toTrackedObject(const bulletsim_msgs::ObjectInit& initMsg, ColorCloudPtr cloud, cv::Mat image, CoordinateTransformer* transformer, Environment::Ptr env) {
+TrackedObject::Ptr toTrackedObject(const bulletsim_msgs::ObjectInit& initMsg, ColorCloudPtr cloud, cv::Mat image, CoordinateTransformer* transformer) {
   if (initMsg.type == "rope") {
 	  vector<btVector3> nodes = toBulletVectors(initMsg.rope.nodes);
 //		//downsample nodes
@@ -34,18 +34,17 @@ TrackedObject::Ptr toTrackedObject(const bulletsim_msgs::ObjectInit& initMsg, Co
 	  TrackedRope::Ptr tracked_rope(new TrackedRope(sim));
 		cv::Mat tex_image = tracked_rope->makeTexture(cloud);
 		sim->setTexture(tex_image);
-	  env->add(sim);
 
 	  return tracked_rope;
   }
   else if (initMsg.type == "towel_corners") {
 	  const vector<geometry_msgs::Point32>& points = initMsg.towel_corners.polygon.points;
 	  vector<btVector3> corners = scaleVecs(toBulletVectors(points),METERS);
-	  BulletSoftObject::Ptr sim = makeTowel(corners, TrackingConfig::res_x, TrackingConfig::res_y, env->bullet->softBodyWorldInfo);
+	  BulletSoftObject::Ptr sim = makeTowel(corners, TrackingConfig::res_x, TrackingConfig::res_y);
 	  TrackedTowel::Ptr tracked_towel(new TrackedTowel(sim, TrackingConfig::res_x, TrackingConfig::res_y));
 	  cv::Mat tex_image = tracked_towel->makeTexture(corners, image, transformer);
 		sim->setTexture(tex_image);
-	  env->add(sim);
+    tracked_towel->setColorsFromTexture();
 
 	  return tracked_towel;
   }
@@ -58,7 +57,6 @@ TrackedObject::Ptr toTrackedObject(const bulletsim_msgs::ObjectInit& initMsg, Co
 	  TrackedBox::Ptr tracked_box(new TrackedBox(sim));
 		//sim->setTexture(image);
 		sim->setColor(1,0,0,1);
-		env->add(sim);
 
 	  return tracked_box;
   }
@@ -79,14 +77,14 @@ bulletsim_msgs::TrackedObject toTrackedObjectMessage(TrackedObject::Ptr obj) {
   return msg;
 }
 
-TrackedObject::Ptr callInitServiceAndCreateObject(ColorCloudPtr cloud, cv::Mat image, CoordinateTransformer* transformer, Environment::Ptr env) {
+TrackedObject::Ptr callInitServiceAndCreateObject(ColorCloudPtr cloud, cv::Mat image, CoordinateTransformer* transformer) {
   bulletsim_msgs::Initialization init;
   pcl::toROSMsg(*cloud, init.request.cloud);
   init.request.cloud.header.frame_id = "/ground";
 	
   bool success = ros::service::call(initializationService, init);
   if (success)
-  	return toTrackedObject(init.response.objectInit, scaleCloud(cloud,METERS), image, transformer, env);
+  	return toTrackedObject(init.response.objectInit, scaleCloud(cloud,METERS), image, transformer);
   else {
 		ROS_ERROR("initialization failed");
 		return TrackedObject::Ptr();

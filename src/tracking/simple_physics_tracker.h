@@ -3,12 +3,18 @@
 #include "clouds/pcl_typedefs.h"
 #include "visibility.h"
 #include "plotting_tracking.h"
+#include "algorithm_common.h"
 
 class SimplePhysicsTracker {
 public:
+  
+  typedef boost::shared_ptr<SimplePhysicsTracker> Ptr;
+  
   Environment::Ptr m_env;
   TrackedObject::Ptr m_obj;
-  VisibilityInterface* m_visInt;
+  VisibilityInterface::Ptr m_visInt;
+  CloudFeatureExtractor m_extractor;
+
   Eigen::MatrixXf m_estPts;
   Eigen::MatrixXf m_obsPts;
   Eigen::MatrixXf m_stdev;
@@ -28,7 +34,7 @@ public:
   bool m_enableObsInlierPlot, m_enableObsPlot, m_enableObsTransPlot, m_enableEstPlot, m_enableEstTransPlot, m_enableCorrPlot, m_enableDebugPlot;
   bool m_applyEvidence;
 
-  SimplePhysicsTracker(TrackedObject::Ptr, VisibilityInterface*, Environment::Ptr);
+  SimplePhysicsTracker(TrackedObject::Ptr, VisibilityInterface::Ptr, Environment::Ptr);
   void updateInput(ColorCloudPtr filteredCloud);
   void doIteration();
 };
