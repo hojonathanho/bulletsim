@@ -227,8 +227,8 @@ void PR2SoftBodyGripper::grab() {
 }
 
 
-PR2Manager::PR2Manager(Scene &s, const btTransform &initTrans) : scene(s), inputState() {
-    loadRobot(initTrans);
+PR2Manager::PR2Manager(Scene &s) : scene(s), inputState() {
+    loadRobot();
     initIK();
     initHaptics();
     registerSceneCallbacks();
@@ -247,17 +247,17 @@ void PR2Manager::registerSceneCallbacks() {
         scene.addPreStepCallback(boost::bind(&PR2Manager::processHapticInput, this));
 }
 
-void PR2Manager::loadRobot(const btTransform &initTrans) {
+void PR2Manager::loadRobot() {
   if (!SceneConfig::enableRobot) return;
 
   OpenRAVE::RobotBasePtr maybeRobot = scene.rave->env->GetRobot("pr2");
 
   if (maybeRobot) { // if pr2 already loaded into openrave, use it
-    pr2.reset(new RaveRobotObject(scene.rave, maybeRobot, initTrans));
+    pr2.reset(new RaveRobotObject(scene.rave, maybeRobot));
     scene.env->add(pr2);
   } else {
     static const char ROBOT_MODEL_FILE[] = "robots/pr2-beta-static.zae";
-    pr2.reset(new RaveRobotObject(scene.rave, ROBOT_MODEL_FILE, initTrans));
+    pr2.reset(new RaveRobotObject(scene.rave, ROBOT_MODEL_FILE));
     scene.env->add(pr2);
   }
 }

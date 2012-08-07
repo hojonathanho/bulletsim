@@ -5,10 +5,10 @@
 include_directories("/opt/ros/fuerte/stacks/vision_opencv/cv_bridge/include")
 include_directories("/opt/ros/fuerte/stacks/geometry/tf/include"
 					"/opt/ros/fuerte/stacks/geometry/tf/msg_gen/cpp/include"
-					"/opt/ros/fuerte/stacks/geometry/tf/srv_gen/cpp/include")
+					"/opt/ros/fuerte/stacks/geometry/tf/srv_gen/cpp/include") # fuck this shit
 
 link_directories("/opt/ros/fuerte/stacks/geometry/tf/lib"
-							   "/opt/ros/fuerte/stacks/vision_opencv/cv_bridge/lib")
+				"/opt/ros/fuerte/stacks/vision_opencv/cv_bridge/lib")
 
 include_directories(
     ${PCL_INCLUDE_DIRS}
@@ -19,7 +19,7 @@ include_directories(
     ${BULLET_DIR}/src
 )
 link_directories(
-  ${PCL_LIBRARY_DIRS} 
+  ${PCL_LIBRARY_DIRS}   
 )
 
 add_definitions("-DEIGEN_DEFAULT_TO_ROW_MAJOR")
@@ -31,6 +31,7 @@ add_executable(save_cloud_image_seq_node save_cloud_image_seq_node.cpp)
 target_link_libraries(save_cloud_image_seq_node clouds comm utils ${PCL_LIBRARIES} ${OpenCV_LIBS} ${ROS_LIBRARIES} boost_signals tf cv_bridge)
 
 add_executable(preprocessor_node preprocessor_node.cpp)
+
 target_link_libraries(preprocessor_node clouds comm utils ${PCL_LIBRARIES} ${OpenCV_LIBS} ${ROS_LIBRARIES} boost_signals tf cv_bridge)
 
 add_executable(cloud_merger_node cloud_merger_node.cpp)
@@ -44,3 +45,6 @@ target_link_libraries(viz_curves ${PCL_LIBRARIES} clouds boost_program_options u
 
 add_executable(get_table_server get_table_server.cpp)
 target_link_libraries(get_table_server clouds ${PCL_LIBRARIES} ${ROS_LIBRARIES} utils boost_program_options)
+
+add_executable(cloud_adjuster_node sandbox/cloud_adjuster_node.cpp)
+target_link_libraries(cloud_adjuster_node clouds utils ${PCL_LIBRARIES} ${ROS_LIBRARIES})

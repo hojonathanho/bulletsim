@@ -141,6 +141,7 @@ GenPR2SoftGripper::Ptr GenPR2SoftGripper::copy(
 }
 
 void GenPR2SoftGripper::releaseAllAnchors() {
+	printf("reeasing anchors\n");
     for (int i = 0; i < anchors.size(); ++i)
         sb->removeAnchor(anchors[i]);
     anchors.clear();
@@ -160,7 +161,7 @@ void GenPR2SoftGripper::dbgDraw(Scene *s) {
     pts.push_back(getInnerPt(gmanip, leftFinger, rightFinger, false));
     pts.push_back(getInnerPt(gmanip, leftFinger, rightFinger, false) + (getManipRot(gmanip) * getClosingDirection(gmanip, false))*0.1*METERS);
 
-    s->plotLines->setPoints(pts);
+//    s->plotLines->setPoints(pts);
 }
 
 void GenPR2SoftGripper::attach(bool left) {

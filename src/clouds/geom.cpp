@@ -4,9 +4,6 @@
 #include <math.h>
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
-//#include <Wm5Core.h>
-//#include <Wm5Mathematics.h>
-//#include <Wm5ContMinBox2.h>
 
 //using namespace Wm5;
 using namespace std;
@@ -21,8 +18,7 @@ void perpBasis(const Vector3f& v1, Vector3f& v2, Vector3f& v3) {
 	v3 = v1.cross(v2);
 }
 
-void minEncRect(const vector<Vector3f>& pts3d, const Vector4f& abcd, vector<
-		Vector3f>& verts3d) {
+void minEncRect(const vector<Vector3f>& pts3d, const Vector4f& abcd, vector<Vector3f>& verts3d) {
 	// ax+by+cz + d = 0
 	// project points to 2d
 
@@ -46,7 +42,7 @@ void minEncRect(const vector<Vector3f>& pts3d, const Vector4f& abcd, vector<
 
 	verts3d.clear();
 	for (int i = 0; i < 4; i++) {
-		verts3d.push_back(va * verts2d[i].x + vb * verts2d[i].y - normal * q);
+		verts3d.push_back(  va * verts2d[i].x + vb * verts2d[i].y - normal * q  );
 	}
 
 }
