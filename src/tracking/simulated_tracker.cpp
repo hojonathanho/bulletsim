@@ -127,10 +127,12 @@ int main(int argc, char *argv[]) {
 		BulletSoftObject::Ptr observed_cloth = initCloth(scene.env->bullet->softBodyWorldInfo, sx, sy, rx, ry, h);
 		observed_cloth->setTexture(flag_tex.clone());
 		TrackedObject::Ptr observed_tracked(new TrackedTowel(observed_cloth, rx, ry));
+		observed_tracked->init();
 
 		TrackedObject::Ptr trackedObj(new TrackedTowel(cloth, rx, ry));
-		EverythingIsVisible visInterface;
-		SimplePhysicsTracker alg(trackedObj, &visInterface, scene.env);
+		trackedObj->init();
+		EverythingIsVisible::Ptr visInterface(new EverythingIsVisible());
+		SimplePhysicsTracker alg(trackedObj, visInterface, scene.env);
 
 		scene.addVoidKeyCallback('c',boost::bind(toggle, &alg.m_enableCorrPlot));
 		scene.addVoidKeyCallback('C',boost::bind(toggle, &alg.m_enableCorrPlot));
@@ -164,18 +166,15 @@ int main(int argc, char *argv[]) {
     while (true) {
     	if (quit) break;
 
-			MatrixXf features = observed_tracked->featuresUntransform(observed_tracked->getFeatures());
+			MatrixXf xyz = toEigenMatrix(observed_tracked->getPoints());
+			MatrixXf rgb = observed_tracked->getColors();
+			assert(xyz.rows() == rgb.rows());
     	ColorCloudPtr cloud(new ColorCloud());
-    	for (int i=0; i<features.rows(); i++) {
-    		ColorPoint pt(1,1,1);
-    		if (features.cols()==6) {
-    			pt.r = features(i,5)*255.0;
-    			pt.g = features(i,4)*255.0;
-    			pt.b = features(i,3)*255.0;
-    		}
-    		pt.x=features(i,0);
-    		pt.y=features(i,1);
-    		pt.z=features(i,2);
+    	for (int i=0; i<xyz.rows(); i++) {
+    		ColorPoint pt(rgb(i,2)*255.0, rgb(i,1)*255.0, rgb(i,0)*255.0);
+    		pt.x = xyz(i,0);
+    		pt.y = xyz(i,1);
+    		pt.z = xyz(i,2);
     		cloud->push_back(pt);
 			}
     	alg.updateInput(cloud);

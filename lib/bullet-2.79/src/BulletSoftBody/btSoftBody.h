@@ -693,6 +693,10 @@ public:
 	{
 		return m_worldInfo;
 	}
+	void setWorldInfo(btSoftBodyWorldInfo* worldInfo) {
+    m_worldInfo = worldInfo;
+	}	
+	
 
 	///@todo: avoid internal softbody shape hack and move collision code to collision library
 	virtual void	setCollisionShape(btCollisionShape* collisionShape)

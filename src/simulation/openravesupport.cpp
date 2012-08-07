@@ -55,30 +55,27 @@ void Load(Environment::Ptr env, RaveInstance::Ptr rave, const string& filename,
 	rave->env->GetBodies(bodies);
 	BOOST_FOREACH(OpenRAVE::KinBodyPtr body, bodies) {
 		if (bodiesAlreadyLoaded.find(body->GetName()) == bodiesAlreadyLoaded.end()) {
-			if (body->IsRobot()) env->add(RaveRobotObject::Ptr(new RaveRobotObject(rave, boost::dynamic_pointer_cast<RobotBase>(body), btTransform::getIdentity(), CONVEX_HULL, dynamicRobots)));
+			if (body->IsRobot()) env->add(RaveRobotObject::Ptr(new RaveRobotObject(rave, boost::dynamic_pointer_cast<RobotBase>(body), CONVEX_HULL, dynamicRobots)));
 			else {
 				cout << "loading " << body->GetName() << endl;;
-				env->add(RaveObject::Ptr(new RaveObject(rave, body, btTransform::getIdentity(), CONVEX_HULL, true)));
+				env->add(RaveObject::Ptr(new RaveObject(rave, body, CONVEX_HULL, true)));
 			}
 		}
 	}
 
 }
 
-RaveObject::RaveObject(RaveInstance::Ptr rave_, KinBodyPtr body_,
-        const btTransform &initTrans,
-		TrimeshMode trimeshMode, bool isDynamic) {
-	initRaveObject(rave_, body_, initTrans, trimeshMode, .0005 * METERS, isDynamic);
+RaveObject::RaveObject(RaveInstance::Ptr rave_, KinBodyPtr body_, TrimeshMode trimeshMode, bool isDynamic) {
+	initRaveObject(rave_, body_, trimeshMode, .0005 * METERS, isDynamic);
 }
 
 void RaveObject::init() {
 	CompoundObject<BulletObject>::init();
 
 	typedef std::map<KinBody::JointPtr, BulletConstraint::Ptr> map_t;
-	BOOST_FOREACH( map_t::value_type &joint_cnt, jointMap )
-{	cout << joint_cnt.first->GetName() << endl;
-	getEnvironment()->addConstraint(joint_cnt.second);
-}
+	BOOST_FOREACH( map_t::value_type &joint_cnt, jointMap ) { 	
+	  getEnvironment()->addConstraint(joint_cnt.second);
+  }
 }
 
 void RaveObject::destroy() {
@@ -86,19 +83,79 @@ void RaveObject::destroy() {
 
 	typedef std::map<KinBody::JointPtr, BulletConstraint::Ptr> map_t;
 	map_t mmap;
-	BOOST_FOREACH( map_t::value_type &joint_cnt, mmap )
-{	getEnvironment()->removeConstraint(joint_cnt.second);
+	BOOST_FOREACH( map_t::value_type &joint_cnt, mmap ) getEnvironment()->removeConstraint(joint_cnt.second);
 }
 
+
+btCompoundShape* shiftTransform(btCompoundShape* boxCompound,btScalar mass,btTransform& shift)
+{
+	btCompoundShape* newBoxCompound;
+	btTransform principal;
+	btVector3 principalInertia;
+	btScalar* masses = new btScalar[boxCompound->getNumChildShapes()];
+	for (int j=0;j<boxCompound->getNumChildShapes();j++)
+	{
+		//evenly distribute mass
+		masses[j]=mass/boxCompound->getNumChildShapes();
+	}
+
+
+	boxCompound->calculatePrincipalAxisTransform(masses,principal,principalInertia);
+
+
+	///create a new compound with world transform/center of mass properly aligned with the principal axis
+
+	///non-recursive compound shapes perform better
+
+#ifdef USE_RECURSIVE_COMPOUND
+
+	btCompoundShape* newCompound = new btCompoundShape();
+	newCompound->addChildShape(principal.inverse(),boxCompound);
+	newBoxCompound = newCompound;
+	//m_collisionShapes.push_back(newCompound);
+
+	//btDefaultMotionState* myMotionState = new btDefaultMotionState(startTransform);
+	//btRigidBody::btRigidBodyConstructionInfo rbInfo(mass,myMotionState,newCompound,principalInertia);
+
+#else
+#ifdef CHANGE_COMPOUND_INPLACE
+	newBoxCompound = boxCompound;
+	for (int i=0;i<boxCompound->getNumChildShapes();i++)
+	{
+		btTransform newChildTransform = principal.inverse()*boxCompound->getChildTransform(i);
+		///updateChildTransform is really slow, because it re-calculates the AABB each time. todo: add option to disable this update
+		boxCompound->updateChildTransform(i,newChildTransform);
+	}
+	bool isDynamic = (mass != 0.f);
+	btVector3 localInertia(0,0,0);
+	if (isDynamic)
+		boxCompound->calculateLocalInertia(mass,localInertia);
+
+#else
+	///creation is faster using a new compound to store the shifted children
+	newBoxCompound = new btCompoundShape();
+	for (int i=0;i<boxCompound->getNumChildShapes();i++)
+	{
+		btTransform newChildTransform = principal.inverse()*boxCompound->getChildTransform(i);
+		///updateChildTransform is really slow, because it re-calculates the AABB each time. todo: add option to disable this update
+		newBoxCompound->addChildShape(newChildTransform,boxCompound->getChildShape(i));
+	}
+
+
+
+#endif
+
+#endif//USE_RECURSIVE_COMPOUND
+
+	shift = principal;
+	return newBoxCompound;
 }
 
 static BulletObject::Ptr createFromLink(KinBody::LinkPtr link,
         std::vector<boost::shared_ptr<btCollisionShape> >& subshapes,
         std::vector<boost::shared_ptr<btStridingMeshInterface> >& meshes,
-        const btTransform &initTrans, TrimeshMode trimeshMode,
+         TrimeshMode trimeshMode,
         float fmargin, bool isDynamic) {
-
-	btVector3 offset(0, 0, 0);
 
 	const std::list<KinBody::Link::GEOMPROPERTIES> &geometries =
 			link->GetGeometries();
@@ -113,8 +170,13 @@ static BulletObject::Ptr createFromLink(KinBody::LinkPtr link,
 	btCompoundShape *compound = new btCompoundShape();
 	compound->setMargin(fmargin);
 
+	float volumeAccumulator(0);
+	btVector3 firstMomentAccumulator(0,0,0);
+
 	for (std::list<KinBody::Link::GEOMPROPERTIES>::const_iterator geom =
 			geometries.begin(); geom != geometries.end(); ++geom) {
+
+		btVector3 offset(0, 0, 0);
 
 		boost::shared_ptr<btCollisionShape> subshape;
 		const KinBody::Link::TRIMESH &mesh = geom->GetCollisionMesh();
@@ -147,13 +209,11 @@ static BulletObject::Ptr createFromLink(KinBody::LinkPtr link,
 				for (size_t i = 0; i < mesh.vertices.size(); ++i)
 					decomp.addPoint(util::toBtVector(mesh.vertices[i]));
 				for (size_t i = 0; i < mesh.indices.size(); i += 3)
-					decomp.addTriangle(mesh.indices[i], mesh.indices[i + 1],
-							mesh.indices[i + 2]);
+					decomp.addTriangle(mesh.indices[i], mesh.indices[i + 1], mesh.indices[i + 2]);
 				subshape = decomp.run(subshapes); // use subshapes to just store smart pointer
 
 			} else {
 
-				offset = computeCentroid(mesh) * METERS * 0;
 
 				btTriangleMesh* ptrimesh = new btTriangleMesh();
 				// for some reason adding indices makes everything crash
@@ -163,24 +223,21 @@ static BulletObject::Ptr createFromLink(KinBody::LinkPtr link,
 				 printf("%d\n", mesh.indices[z]);
 				 printf("-----------\n");*/
 
+				offset = computeCentroid(mesh)*METERS*0;
+
 				for (size_t i = 0; i < mesh.indices.size(); i += 3)
-					ptrimesh->addTriangle(util::toBtVector(GeneralConfig::scale
-							* mesh.vertices[i]) - offset, util::toBtVector(
-							GeneralConfig::scale * mesh.vertices[i + 1])
-							- offset, util::toBtVector(GeneralConfig::scale
-							* mesh.vertices[i + 2]) - offset);
+					ptrimesh->addTriangle(util::toBtVector(mesh.vertices[i])*METERS - offset,
+										  util::toBtVector(mesh.vertices[i+1])*METERS - offset,
+										  util::toBtVector(mesh.vertices[i+2])*METERS - offset);
 				// store the trimesh somewhere so it doesn't get deallocated by the smart pointer
-				meshes.push_back(boost::shared_ptr<btStridingMeshInterface>(
-						ptrimesh));
+				meshes.push_back(boost::shared_ptr<btStridingMeshInterface>(ptrimesh));
 
 				if (trimeshMode == CONVEX_HULL) {
-					boost::shared_ptr<btConvexShape> pconvexbuilder(
-							new btConvexTriangleMeshShape(ptrimesh));
+					boost::shared_ptr<btConvexShape> pconvexbuilder(new btConvexTriangleMeshShape(ptrimesh));
 					pconvexbuilder->setMargin(fmargin);
 
 					//Create a hull shape to approximate Trimesh
-					boost::shared_ptr<btShapeHull> hull(new btShapeHull(
-							pconvexbuilder.get()));
+					boost::shared_ptr<btShapeHull> hull(new btShapeHull(pconvexbuilder.get()));
 					hull->buildHull(fmargin);
 
 					btConvexHullShape *convexShape = new btConvexHullShape();
@@ -207,33 +264,27 @@ static BulletObject::Ptr createFromLink(KinBody::LinkPtr link,
 		// store the subshape somewhere so it doesn't get deallocated by the smart pointer
 		subshapes.push_back(subshape);
 		subshape->setMargin(fmargin);
-		btTransform transform = util::toBtTransform(geom->GetTransform(),
-				GeneralConfig::scale);
+		btTransform transform = util::toBtTransform(geom->GetTransform(),GeneralConfig::scale);
 		transform.setOrigin(transform.getOrigin() + offset);
 		compound->addChildShape(transform, subshape.get());
 	}
 
-	btTransform childTrans = initTrans * util::toBtTransform(link->GetTransform(),
-			GeneralConfig::scale);
+	btTransform childTrans = util::toBtTransform(link->GetTransform(),GeneralConfig::scale);
 
 	float mass = isDynamic ? link->GetMass() : 0;
-	BulletObject::Ptr child(new BulletObject(mass, compound, childTrans,
-			!isDynamic));
-
+	BulletObject::Ptr child(new BulletObject(mass, compound, childTrans,!isDynamic));
+//	child->drawingOn=false;
 	return child;
 
 }
 
-BulletConstraint::Ptr createFromJoint(KinBody::JointPtr joint, std::map<
-		KinBody::LinkPtr, BulletObject::Ptr> linkMap) {
+BulletConstraint::Ptr createFromJoint(KinBody::JointPtr joint, std::map<KinBody::LinkPtr, BulletObject::Ptr> linkMap) {
 
 	KinBody::LinkPtr joint1 = joint->GetFirstAttached();
 	KinBody::LinkPtr joint2 = joint->GetSecondAttached();
 
 	if (!joint1 || !joint2 || !linkMap[joint1] || !linkMap[joint2])
 		return BulletConstraint::Ptr();
-
-	cout << joint->GetName() << endl;
 
 	btRigidBody* body0 = linkMap[joint->GetFirstAttached()]->rigidBody.get();
 	btRigidBody* body1 = linkMap[joint->GetSecondAttached()]->rigidBody.get();
@@ -244,8 +295,8 @@ BulletConstraint::Ptr createFromJoint(KinBody::JointPtr joint, std::map<
 
 	switch ((joint)->GetType()) {
 	case KinBody::Joint::JointHinge: {
-		btVector3 pivotInA = util::toBtVector(t0inv * (joint)->GetAnchor());
-		btVector3 pivotInB = util::toBtVector(t1inv * (joint)->GetAnchor());
+		btVector3 pivotInA = util::toBtVector(t0inv * (joint)->GetAnchor())*METERS;
+		btVector3 pivotInB = util::toBtVector(t1inv * (joint)->GetAnchor())*METERS;
 		btVector3 axisInA = util::toBtVector(t0inv.rotate((joint)->GetAxis(0)));
 		btVector3 axisInB = util::toBtVector(t1inv.rotate((joint)->GetAxis(0)));
 		btHingeConstraint* hinge = new btHingeConstraint(*body0, *body1,
@@ -262,43 +313,41 @@ BulletConstraint::Ptr createFromJoint(KinBody::JointPtr joint, std::map<
 			hinge->setLimit(lower_adj, upper_adj);
 		}
 		cnt = hinge;
-		cout << "hinge" << endl;
+    LOG_INFO("hinge joint");
 		break;
 	}
 	case KinBody::Joint::JointSlider: {
 		Transform tslider;
 		tslider.rot = quatRotateDirection(Vector(1, 0, 0), (joint)->GetAxis(0));
-		btTransform frameInA = util::toBtTransform(t0inv * tslider);
-		btTransform frameInB = util::toBtTransform(t1inv * tslider);
+		btTransform frameInA = util::toBtTransform(t0inv * tslider, METERS);
+		btTransform frameInB = util::toBtTransform(t1inv * tslider, METERS);
 		cnt = new btSliderConstraint(*body0, *body1, frameInA, frameInB, true);
-		cout << "slider" << endl;
+    LOG_INFO("slider joint");
 		break;
 	}
 	case KinBody::Joint::JointUniversal:
 		RAVELOG_ERROR ( "universal joint not supported by bullet\n");
 		break;
-		case KinBody::Joint::JointHinge2:
+	case KinBody::Joint::JointHinge2:
 		RAVELOG_ERROR("hinge2 joint not supported by bullet\n");
 		break;
-		default:
-		cout << boost::format("unknown joint type %d\n")%joint->GetType();
+	default:
+		LOG_INFO("unknown joint type: " << joint->GetType());
 		break;
 	}
 	return BulletConstraint::Ptr(new BulletConstraint(cnt, true));
 }
 
 void RaveObject::initRaveObject(RaveInstance::Ptr rave_, KinBodyPtr body_,
-        const btTransform &initTrans_,
 		TrimeshMode trimeshMode, float fmargin, bool isDynamic) {
 	rave = rave_;
 	body = body_;
-    initTrans = initTrans_;
 
 	const std::vector<KinBody::LinkPtr> &links = body->GetLinks();
 	getChildren().reserve(links.size());
 	// iterate through each link in the robot (to be stored in the children vector)
 	BOOST_FOREACH(KinBody::LinkPtr link, links) {
-		BulletObject::Ptr child = createFromLink(link, subshapes, meshes, initTrans, trimeshMode, fmargin, isDynamic && !link->IsStatic());
+		BulletObject::Ptr child = createFromLink(link, subshapes, meshes, trimeshMode, fmargin, isDynamic && !link->IsStatic());
 		getChildren().push_back(child);
 
 		linkMap[link] = child;
@@ -368,7 +417,7 @@ void RaveObject::updateBullet() {
 		BulletObject::Ptr c = getChildren()[i];
 		if (!c)
 			continue;
-		c->motionState->setKinematicPos(initTrans * util::toBtTransform(transforms[i],
+		c->motionState->setKinematicPos(util::toBtTransform(transforms[i],
 				GeneralConfig::scale));
 	}
 
@@ -386,7 +435,6 @@ EnvironmentObject::Ptr RaveObject::copy(Fork &f) const {
 
 	internalCopy(o, f); // copies all children
 
-    o->initTrans = initTrans;
 	o->rave.reset(new RaveInstance(*rave, OpenRAVE::Clone_Bodies));
 
 	// now we need to set up mappings in the copied robot
@@ -463,14 +511,14 @@ void RaveObject::postCopy(EnvironmentObject::Ptr copy, Fork &f) const {
 		o->ignoreCollisionObjs.insert((btCollisionObject *) f.copyOf(*i));
 }
 
-RaveRobotObject::RaveRobotObject(RaveInstance::Ptr rave_, RobotBasePtr robot_, const btTransform &initTrans, TrimeshMode trimeshMode, bool isDynamic) {
+RaveRobotObject::RaveRobotObject(RaveInstance::Ptr rave_, RobotBasePtr robot_, TrimeshMode trimeshMode, bool isDynamic) {
 	robot = robot_;
-	initRaveObject(rave_, robot_, initTrans, trimeshMode, .0005 * METERS, isDynamic);
+	initRaveObject(rave_, robot_, trimeshMode, .0005 * METERS, isDynamic);
 }
 
-RaveRobotObject::RaveRobotObject(RaveInstance::Ptr rave_, const std::string &uri, const btTransform &initTrans, TrimeshMode trimeshMode, bool isDynamic) {
+RaveRobotObject::RaveRobotObject(RaveInstance::Ptr rave_, const std::string &uri, TrimeshMode trimeshMode, bool isDynamic) {
 	robot = rave_->env->ReadRobotURI(uri);
-	initRaveObject(rave_, robot, initTrans, trimeshMode, .0005 * METERS, isDynamic);
+	initRaveObject(rave_, robot, trimeshMode, .0005 * METERS, isDynamic);
 	rave->env->AddRobot(robot);
 }
 

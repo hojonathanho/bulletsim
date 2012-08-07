@@ -2,6 +2,17 @@
 #include <Eigen/Dense>
 #include "sparse_utils.h"
 #include "clouds/pcl_typedefs.h"
+#include "tracking_defs.h"
+
+class CloudFeatureExtractor {
+public:
+  std::vector<FeatureType> m_featureTypes;
+  int m_featureDim;
+  CloudFeatureExtractor();
+  CloudFeatureExtractor(const std::vector<FeatureType>&);
+  void setFeatureTypes(const std::vector<FeatureType>&);
+  Eigen::MatrixXf extractFeatures(ColorCloudPtr in);
+};
 
 Eigen::MatrixXf calculateStdevNaive(const Eigen::MatrixXf& estPts, const Eigen::MatrixXf& obsPts, const Eigen::MatrixXf& pZgivenC, const Eigen::VectorXf& dPrior, const float& nuPrior);
 Eigen::MatrixXf calculateStdev(const Eigen::MatrixXf& estPts, const Eigen::MatrixXf& obsPts, const Eigen::MatrixXf& pZgivenC, const Eigen::VectorXf& dPrior, const float& nuPrior);

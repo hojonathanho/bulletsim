@@ -2,7 +2,7 @@
 
 	<arg name="camera" default="kinect1"/>
 	<arg name="online" default="true"/>
-	<arg name="bus" default="1"/>
+	<arg name="bus" default="2"/>
 	<arg name="filename"/>
 
 	<group if="$(arg online)">
@@ -22,7 +22,6 @@
 	</group>
 
 	<node name="drop1" pkg="topic_tools" type="drop" args="/$(arg camera)/depth_registered/points 2 3 /drop/points"/>
-
-	<node name="preprocessor" pkg="binary_symlinks" type="preprocessor_node" output="screen"  args="--inputTopic=/drop/points --downsample=0.008 --removeOutliers=true --outlierRadius=0.016 --outlierMinK=0 --clusterMinSize=15 --zClipLow=-0.02 --backgroundRead=false --backgroundFile=/home/alex/Desktop/preprocessor.yml" /> 
+	<node name="preprocessor" pkg="binary_symlinks" type="qpreprocessor_node" output="screen"  args="--inputTopic=/drop/points --downsample=0.008 --removeOutliers=true --outlierRadius=0.016 --outlierMinK=0 --clusterMinSize=15 --zClipLow=-0.02 --backgroundRead=false --backgroundFile=/home/alex/Desktop/preprocessor.yml" /> 
 
 </launch>

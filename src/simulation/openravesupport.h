@@ -57,17 +57,15 @@ protected:
 
   // for the loaded robot, this will create BulletObjects
   // and place them into the children vector
-  void initRaveObject(RaveInstance::Ptr rave_, KinBodyPtr body_, const btTransform &initTrans_, TrimeshMode trimeshMode, float fmargin, bool isDynamic);
+  void initRaveObject(RaveInstance::Ptr rave_, KinBodyPtr body_, TrimeshMode trimeshMode, float fmargin, bool isDynamic);
   RaveObject() {} // for manual copying
-
-  btTransform initTrans;
 
 public:
   typedef boost::shared_ptr<RaveObject> Ptr;
 
   KinBodyPtr body;
 
-  RaveObject(RaveInstance::Ptr rave_, KinBodyPtr body, const btTransform &initTrans_=btTransform::getIdentity(), TrimeshMode trimeshMode                 = CONVEX_HULL, bool isDynamic=true);
+  RaveObject(RaveInstance::Ptr rave_, KinBodyPtr body, TrimeshMode trimeshMode = CONVEX_HULL, bool isDynamic=true);
   // This constructor assumes the robot is already in openrave. Use this if you're loading a bunch of stuff from an
   // xml file, and you want to put everything in bullet
 
@@ -88,10 +86,8 @@ public:
     return i == collisionObjMap.end() ? KinBody::LinkPtr() : i->second;
   }
 
-  void setTransform(const btTransform &t) { initTrans = t; updateBullet(); }
-  btTransform getTransform() const { return initTrans; }
-  btTransform toRaveFrame(const btTransform &t) const { return util::scaleTransform(initTrans.inverse() * t, 1./GeneralConfig::scale); }
-  btTransform toWorldFrame(const btTransform &t) const { return initTrans * util::scaleTransform(t, GeneralConfig::scale); }
+  btTransform toRaveFrame(const btTransform &t) const { return util::scaleTransform(t, 1./GeneralConfig::scale); }
+  btTransform toWorldFrame(const btTransform &t) const { return util::scaleTransform(t, GeneralConfig::scale); }
   // When getting transforms of links, you must remember to scale!
   // or just get the transforms directly from the equivalent Bullet rigid bodies
   btTransform getLinkTransform(KinBody::LinkPtr link) const {
@@ -116,8 +112,8 @@ public:
   typedef boost::shared_ptr<RaveRobotObject> Ptr;
   RobotBasePtr robot;
 
-  RaveRobotObject(RaveInstance::Ptr rave_, RobotBasePtr robot, const btTransform &initTrans=btTransform::getIdentity(), TrimeshMode trimeshMode = CONVEX_HULL, bool isDynamic=false);
-  RaveRobotObject(RaveInstance::Ptr rave_, const std::string &uri, const btTransform &initTrans=btTransform::getIdentity(), TrimeshMode trimeshMode = CONVEX_HULL, bool isDynamic = false);
+  RaveRobotObject(RaveInstance::Ptr rave_, RobotBasePtr robot, TrimeshMode trimeshMode = CONVEX_HULL, bool isDynamic=false);
+  RaveRobotObject(RaveInstance::Ptr rave_, const std::string &uri, TrimeshMode trimeshMode = CONVEX_HULL, bool isDynamic = false);
 
   EnvironmentObject::Ptr copy(Fork &f) const;
 

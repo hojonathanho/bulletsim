@@ -301,6 +301,7 @@ ColorCloudPtr getBiggestCluster(ColorCloudPtr in, float tol) {
 }
 
 ColorCloudPtr clusterFilter(ColorCloudPtr in, float tol, int minSize) {
+	if (in->size() < minSize) return ColorCloudPtr(new ColorCloud());
 	vector< vector<int> > cluster_inds = findClusters(in, tol, minSize);
 	vector<int> filtered_cluster_inds;
 	for (int i=0; i < cluster_inds.size(); i++)
@@ -385,6 +386,7 @@ void labelCloud(ColorCloudPtr in, const cv::Mat& labels) {
 }
 
 ColorCloudPtr hueFilter(const ColorCloudPtr in, uint8_t minHue, uint8_t maxHue, uint8_t minSat, uint8_t maxSat, uint8_t minVal, uint8_t maxVal, bool negative) {
+  if (in->size() == 0) return ColorCloudPtr(new ColorCloud());
   MatrixXu bgr = toBGR(in);
   int nPts = in->size();
   cv::Mat cvmat(in->height,in->width, CV_8UC3, bgr.data());
@@ -392,10 +394,10 @@ ColorCloudPtr hueFilter(const ColorCloudPtr in, uint8_t minHue, uint8_t maxHue, 
   vector<cv::Mat> hsvChannels;
   cv::split(cvmat, hsvChannels);
 
+
   cv::Mat& h = hsvChannels[0];
   cv::Mat& s = hsvChannels[1];
   cv::Mat& v = hsvChannels[2];
-
 
   cv::Mat mask = (minHue < maxHue) ?
     (h > minHue) & (h < maxHue) :
@@ -458,6 +460,22 @@ ColorCloudPtr orientedBoxFilter(ColorCloudPtr cloud_in, const Matrix3f& ori, con
 //	cout << "min" << endl << min << endl;
 //	cout << "max" << endl << max << endl;
 //	cout << "xyz" << endl << xyz << endl;
+	VectorXb mask(xyz.rows());
+	for (int i=0; i < xyz.rows(); i++) {
+		mask(i) = (xyz(i,0) >= mins(0)) &&
+				  (xyz(i,1) >= mins(1)) &&
+				  (xyz(i,2) >= mins(2)) &&
+				  (xyz(i,0) <= maxes(0)) &&
+				  (xyz(i,1) <= maxes(1)) &&
+				  (xyz(i,2) <= maxes(2));
+	}
+	ColorCloudPtr cloud_out = maskCloud(cloud_in, mask);
+	return cloud_out;
+}
+
+ColorCloudPtr boxFilter(ColorCloudPtr cloud_in, const Vector3f& mins, const Vector3f& maxes) {
+	MatrixXf xyz = toEigenMatrix(cloud_in);
+
 	VectorXb mask(xyz.rows());
 	for (int i=0; i < xyz.rows(); i++) {
 		mask(i) = (xyz(i,0) >= mins(0)) &&

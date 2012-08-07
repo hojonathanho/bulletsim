@@ -24,7 +24,6 @@ TrackedBox::TrackedBox(BoxObject::Ptr sim) : TrackedObject(sim, "box") {
 	for (int i=0; i < m_nNodes; i++) {
 		m_masses(i) = (1/invMass)/m_nNodes;
 	}
-	m_nFeatures = 3;
 }
 
 std::vector<btVector3> TrackedBox::getPoints() {
@@ -71,21 +70,10 @@ void TrackedBox::applyEvidence(const Eigen::MatrixXf& corr, const MatrixXf& obsP
 	}
 }
 
-MatrixXf TrackedBox::extractFeatures(ColorCloudPtr in) {
-	MatrixXf out(in->size(), m_nFeatures);
-	for (int i=0; i < in->size(); ++i)
-		out.row(i) << in->points[i].x, in->points[i].y, in->points[i].z;
-	return featuresTransform(out);
-}
-
-MatrixXf TrackedBox::getFeatures() {
-	MatrixXf features(m_nNodes, m_nFeatures);
-	features = toEigenMatrix(getPoints());
-	return featuresTransform(features);
-}
 
 const VectorXf TrackedBox::getPriorDist() {
-	VectorXf prior_dist(m_nFeatures);
+	VectorXf prior_dist(3);
 	prior_dist << TrackingConfig::pointPriorDist*METERS, TrackingConfig::pointPriorDist*METERS, TrackingConfig::pointPriorDist*METERS;
+	cout << "fixme: TrackedBox::getPriorDist()" << endl;
 	return prior_dist;
 }

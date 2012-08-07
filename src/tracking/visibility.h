@@ -5,7 +5,9 @@
 
 class VisibilityInterface {
 public:
+  typedef boost::shared_ptr<VisibilityInterface> Ptr;
 	virtual Eigen::VectorXf checkNodeVisibility(TrackedObject::Ptr) = 0;
+	virtual void updateInput(const cv::Mat&) {}
 };
 
 class EverythingIsVisible : public VisibilityInterface {
@@ -15,6 +17,7 @@ public:
 
 class DepthImageVisibility : public VisibilityInterface {
 public:
+  typedef boost::shared_ptr<DepthImageVisibility> Ptr;
 	CoordinateTransformer* m_transformer;
 	cv::Mat m_depth;
 	DepthImageVisibility(CoordinateTransformer* transformer) : m_transformer(transformer) {}  
@@ -32,6 +35,7 @@ public:
 
 class BulletRaycastVisibility : public VisibilityInterface {
 public:
+  typedef boost::shared_ptr<BulletRaycastVisibility> Ptr;
 	btDynamicsWorld* m_world;
 	CoordinateTransformer* m_transformer;
 	BulletRaycastVisibility(btDynamicsWorld* world, CoordinateTransformer* transformer);
@@ -41,16 +45,14 @@ public:
 //A node is visible if it is visible by DepthImageVisibility and BulletRaycastVisibility
 class AllOcclusionsVisibility : public VisibilityInterface {
 public:
-	DepthImageVisibility* m_depth_image_visibility;
-	BulletRaycastVisibility* m_bullet_raycast_visibility;
-	AllOcclusionsVisibility(btDynamicsWorld* world, CoordinateTransformer* transformer) {
-		m_depth_image_visibility = new DepthImageVisibility(transformer);
-		m_bullet_raycast_visibility = new BulletRaycastVisibility(world, transformer);
-	}
-	~AllOcclusionsVisibility() {
-		delete m_depth_image_visibility;
-		delete m_bullet_raycast_visibility;
-	}
+  typedef boost::shared_ptr<AllOcclusionsVisibility> Ptr;
+  
+	DepthImageVisibility::Ptr m_depth_image_visibility;
+	BulletRaycastVisibility::Ptr m_bullet_raycast_visibility;
+	AllOcclusionsVisibility(btDynamicsWorld* world, CoordinateTransformer* transformer) :
+		m_depth_image_visibility(new DepthImageVisibility(transformer)),
+		m_bullet_raycast_visibility(new BulletRaycastVisibility(world, transformer))
+	{}
 	Eigen::VectorXf checkNodeVisibility(TrackedObject::Ptr obj) {
 		return m_depth_image_visibility->checkNodeVisibility(obj).cwiseMin(m_bullet_raycast_visibility->checkNodeVisibility(obj));
 	}
@@ -61,8 +63,10 @@ public:
 
 class MultiVisibility : public VisibilityInterface {
 public:
-	vector<VisibilityInterface*> visibilities;
-	void addVisibility(VisibilityInterface* visibility) { visibilities.push_back(visibility); }
+  typedef boost::shared_ptr<MultiVisibility> Ptr;
+  
+	vector<VisibilityInterface::Ptr> visibilities;
+	void addVisibility(VisibilityInterface::Ptr visibility) { visibilities.push_back(visibility); }
 	Eigen::VectorXf checkNodeVisibility(TrackedObject::Ptr obj) {
 		Eigen::VectorXf vis = Eigen::VectorXf::Zero(obj->m_nNodes);
 		for (int i=0; i<visibilities.size(); i++)
