@@ -33,6 +33,7 @@ add_library(tracking
 	tracked_box.cpp
 	utils_tracking.cpp
 	visibility.cpp
+	feature_extractor.cpp
 )
 	
 target_link_libraries(tracking

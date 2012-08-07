@@ -130,6 +130,7 @@ int main(int argc, char* argv[]) {
 
   TrackedObject::Ptr trackedObj = callInitServiceAndCreateObject(scaleCloud(filteredCloud,1/METERS), rgbImages[0], transformer_images[0]);
   if (!trackedObj) throw runtime_error("initialization of object failed.");
+  trackedObj->init();
   scene.env->add(trackedObj->m_sim);
 
   // actual tracking algorithm

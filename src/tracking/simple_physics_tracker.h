@@ -4,6 +4,7 @@
 #include "visibility.h"
 #include "plotting_tracking.h"
 #include "algorithm_common.h"
+#include "feature_extractor.h"
 
 class SimplePhysicsTracker {
 public:
@@ -13,7 +14,8 @@ public:
   Environment::Ptr m_env;
   TrackedObject::Ptr m_obj;
   VisibilityInterface::Ptr m_visInt;
-  CloudFeatureExtractor m_extractor;
+  TrackedObjectFeatureExtractor::Ptr m_obj_features;
+  CloudFeatureExtractor::Ptr m_cloud_features;
 
   Eigen::MatrixXf m_estPts;
   Eigen::MatrixXf m_obsPts;
