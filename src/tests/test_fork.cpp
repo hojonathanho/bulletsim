@@ -33,7 +33,6 @@ int main(int argc, char *argv[]) {
     // 0.5 second after, fork the environment and apply a force to the copied sphere
 
     BulletInstance::Ptr bullet2(new BulletInstance);
-    bullet2->setGravity(BulletConfig::gravity);
     OSGInstance::Ptr osg2(new OSGInstance);
     scene.osg->root->addChild(osg2->root.get());
     Fork::Ptr fork(new Fork(scene.env, bullet2, osg2));

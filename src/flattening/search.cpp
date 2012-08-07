@@ -105,7 +105,6 @@ static NodeMoveAction::Spec flattenCloth_greedy_single_internal(const StepState 
             // to try the current action, fork off the initState
             StepState innerstate;
             innerstate.bullet.reset(new BulletInstance);
-            innerstate.bullet->setGravity(BulletConfig::gravity);
             innerstate.osg.reset(new OSGInstance);
             innerstate.fork.reset(new Fork(initState.fork->env, innerstate.bullet, innerstate.osg));
             innerstate.cloth = boost::static_pointer_cast<BulletSoftObject>(
@@ -176,7 +175,7 @@ void flattenCloth_greedy(Scene &scene, BulletSoftObject::Ptr initCloth, NodeActi
 
     StepState stepState;
     stepState.bullet.reset(new BulletInstance);
-    stepState.bullet->setGravity(BulletConfig::gravity);
+    stepState.bullet->setDefaultGravity();
     stepState.osg.reset(new OSGInstance);
     stepState.fork.reset(new Fork(scene.env, stepState.bullet, stepState.osg));
     stepState.cloth = boost::static_pointer_cast<BulletSoftObject>(stepState.fork->forkOf(initCloth));

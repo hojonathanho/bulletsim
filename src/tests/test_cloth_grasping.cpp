@@ -322,7 +322,7 @@ BulletSoftObject::Ptr CustomScene::createCloth(btScalar s, const btVector3 &cent
 
 void CustomScene::createFork() {
     bullet2.reset(new BulletInstance);
-    bullet2->setGravity(BulletConfig::gravity);
+    bullet2->setDefaultGravity();
     osg2.reset(new OSGInstance);
     osg->root->addChild(osg2->root.get());
 

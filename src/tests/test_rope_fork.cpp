@@ -100,7 +100,6 @@ int main(int argc, char *argv[]) {
   Grab* g2;
 
   BulletInstance::Ptr bullet2(new BulletInstance);
-  bullet2->setGravity(BulletConfig::gravity);
   OSGInstance::Ptr osg2(new OSGInstance);
   s.osg->root->addChild(osg2->root.get());
   Fork::Ptr fork(new Fork(s.env, bullet2, osg2));

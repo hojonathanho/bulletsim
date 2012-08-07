@@ -90,7 +90,7 @@ void foldClothAlongLine(Scene &scene, Cloth &c, const btVector3 &a, const btVect
     c.translateCenterToPt(oldcenter);
 
     if (FoldingConfig::disableGravityWhenFolding)
-        scene.bullet->setGravity(BulletConfig::gravity);
+        scene.bullet->setDefaultGravity();
 }
 
 void doRandomFolds(Scene &scene, Cloth &cloth, int nfolds) {

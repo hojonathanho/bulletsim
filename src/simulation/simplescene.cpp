@@ -9,7 +9,6 @@ using namespace std;
 Scene::Scene() {
     osg.reset(new OSGInstance());
     bullet.reset(new BulletInstance());
-    bullet->setGravity(BulletConfig::gravity);
 
     if (SceneConfig::enableRobot)
         rave.reset(new RaveInstance());

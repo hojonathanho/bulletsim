@@ -8,7 +8,6 @@
 
 GraspingActionContext GraspingActionContext::fork() const {
     BulletInstance::Ptr fork_bullet(new BulletInstance);
-    fork_bullet->setGravity(BulletConfig::gravity);
     OSGInstance::Ptr fork_osg(new OSGInstance);
     Fork::Ptr fork(new Fork(env, fork_bullet, fork_osg));
     RaveRobotObject::Ptr fork_robot =

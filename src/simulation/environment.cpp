@@ -1,5 +1,5 @@
 #include "environment.h"
-#include "utils/config.h"
+#include "config_bullet.h"
 
 OSGInstance::OSGInstance() {
     root = new osg::Group;
@@ -18,6 +18,9 @@ BulletInstance::BulletInstance() {
     softBodyWorldInfo.m_broadphase = broadphase;
     softBodyWorldInfo.m_dispatcher = dispatcher;
     softBodyWorldInfo.m_sparsesdf.Initialize();
+
+    setDefaultGravity();
+    
 }
 
 BulletInstance::~BulletInstance() {
@@ -31,6 +34,10 @@ BulletInstance::~BulletInstance() {
 void BulletInstance::setGravity(const btVector3 &gravity) {
     dynamicsWorld->setGravity(gravity);
     softBodyWorldInfo.m_gravity = gravity;
+}
+
+void BulletInstance::setDefaultGravity() {
+  setGravity(BulletConfig::gravity * METERS);
 }
 
 void BulletInstance::contactTest(btCollisionObject *obj,
