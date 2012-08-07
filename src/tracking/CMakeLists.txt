@@ -34,6 +34,7 @@ add_library(tracking
 	utils_tracking.cpp
 	visibility.cpp
 	feature_extractor.cpp
+	tracked_compound.cpp
 )
 	
 target_link_libraries(tracking

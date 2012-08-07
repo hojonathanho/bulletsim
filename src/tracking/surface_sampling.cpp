@@ -256,8 +256,6 @@ void downsamplePoints(const std::vector<btVector3>& oldPts, float voxelSize, std
 	oldCloud->is_dense = true;
 	CloudPtr newCloud = downsampleCloud1(oldCloud, voxelSize);
 	newPts.assign(reinterpret_cast<const btVector3*>(&newCloud->points[0]), reinterpret_cast<const btVector3*>(&newCloud->points[0]+newCloud->size()));
-	printf("sizes: %i %i %i %i\n", oldCloud->size(), oldPts.size(), newCloud->size(), newPts.size());
-	printf("%i %i\n", sizeof(ColorPoint), sizeof(btVector3));
 }
 
 

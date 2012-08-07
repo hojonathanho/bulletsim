@@ -2,14 +2,14 @@
 
 typedef CompoundObject<BulletObject> GenericCompoundObject;
 
-class TrackedArticulated : public TrackedObject {
+class TrackedCompound : public TrackedObject {
 public:
-  typedef boost::shared_ptr<TrackedArticulated> Ptr;
+  typedef boost::shared_ptr<TrackedCompound> Ptr;
 
   std::vector<btVector3> m_relativePos;
   std::vector<int> m_ownerInd;
 
-  TrackedArticulated(GenericCompoundObject::Ptr sim);
+  TrackedCompound(GenericCompoundObject::Ptr sim);
 
   std::vector<btVector3> getPoints();
   const Eigen::VectorXf getPriorDist();

@@ -1,4 +1,4 @@
-#include "tracked_object.h"
+#include "tracked_compound.h"
 #include "config_tracking.h"
 #include "utils/conversions.h"
 #include "utils/cvmat.h"
@@ -8,7 +8,7 @@
 using namespace std;
 using namespace Eigen;
 
-TrackedArticulated::TrackedArticulated(CapsuleRope::Ptr sim) : TrackedObject(sim, "rope") {
+TrackedCompound::TrackedCompound(GenericCompoundObject::Ptr sim) : TrackedObject(sim, "compound") {
   m_nNodes = sim->children.size();
   m_masses.resize(m_nNodes);
   for (int i=0; i < m_nNodes; i++) {
@@ -16,7 +16,7 @@ TrackedArticulated::TrackedArticulated(CapsuleRope::Ptr sim) : TrackedObject(sim
   }
 }
 
-std::vector<btVector3> TrackedArticulated::getPoints() {
+std::vector<btVector3> TrackedCompound::getPoints() {
 	std::vector<btVector3> out(m_nNodes);
 	for (int i=0; i < m_nNodes; ++i) {
 		out[i] = getSim()->children[i]->rigidBody->getCenterOfMassPosition();
@@ -24,14 +24,14 @@ std::vector<btVector3> TrackedArticulated::getPoints() {
 	return out;
 }
 
-const VectorXf TrackedArticulated::getPriorDist() {
+const VectorXf TrackedCompound::getPriorDist() {
 	VectorXf prior_dist(6);
 	prior_dist << TrackingConfig::pointPriorDist*METERS, TrackingConfig::pointPriorDist*METERS, TrackingConfig::pointPriorDist*METERS, 0.3, 0.15, 0.15;
-	cout << "fixme: TrackedArticulated::getPriorDist()" << endl;
+	cout << "fixme: TrackedCompound::getPriorDist()" << endl;
 	return prior_dist;
 }
 
-void TrackedArticulated::applyEvidence(const Eigen::MatrixXf& corr, const MatrixXf& obsPts) {
+void TrackedCompound::applyEvidence(const Eigen::MatrixXf& corr, const MatrixXf& obsPts) {
   vector<btVector3> estPos(m_nNodes), estVel(m_nNodes);
   for (int i=0; i < m_nNodes; ++i)  {
     estPos[i] = getSim()->children[i]->rigidBody->getCenterOfMassPosition();
@@ -42,14 +42,14 @@ void TrackedArticulated::applyEvidence(const Eigen::MatrixXf& corr, const Matrix
   for (int i=0; i<m_nNodes; ++i) getSim()->children[i]->rigidBody->applyCentralImpulse(impulses[i]);
 }
 
-void TrackedArticulated::initColors() {
+void TrackedCompound::initColors() {
 	for (int i=0; i < m_nNodes; ++i) {
 		Vector3f bgr = toEigenMatrixImage(getSim()->children[i]->getTexture()).colwise().mean();
 		m_colors.row(i) = bgr.transpose();
 	}
 }
 
-cv::Mat TrackedArticulated::makeTexture(ColorCloudPtr cloud) {
+cv::Mat TrackedCompound::makeTexture(ColorCloudPtr cloud) {
 	vector<btVector3> nodes = getPoints();
 	int x_res = 3;
 	int ang_res = 1;

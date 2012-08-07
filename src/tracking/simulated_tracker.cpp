@@ -120,12 +120,14 @@ int main(int argc, char *argv[]) {
 		scene.env->add(box);
 
 		BulletSoftObject::Ptr cloth = initCloth(scene.env->bullet->softBodyWorldInfo, sx, sy, rx, ry, h);
-		cv::Mat flag_tex = cv::imread("/home/alex/Desktop/flag.jpg");
-		cloth->setTexture(flag_tex.clone());
+//		cv::Mat flag_tex = cv::imread("/home/alex/Desktop/flag.jpg");
+//		cloth->setTexture(flag_tex.clone());
+		cloth->setColor(1,0,0,1);
 		scene.env->add(cloth);
 
 		BulletSoftObject::Ptr observed_cloth = initCloth(scene.env->bullet->softBodyWorldInfo, sx, sy, rx, ry, h);
-		observed_cloth->setTexture(flag_tex.clone());
+//		observed_cloth->setTexture(flag_tex.clone());
+		observed_cloth->setColor(1,0,0,1);
 		TrackedObject::Ptr observed_tracked(new TrackedTowel(observed_cloth, rx, ry));
 		observed_tracked->init();
 
