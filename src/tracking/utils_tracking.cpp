@@ -10,6 +10,10 @@ void toggle(bool* b){
 	*b = !(*b);
 }
 
+void add(int* n, int increment) {
+	*n += increment;
+}
+
 Affine3f Scaling3f(float s) {
   Affine3f T;
   T = s*Matrix3f::Identity();

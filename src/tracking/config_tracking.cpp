@@ -14,10 +14,10 @@ float TrackingConfig::epsilon = 0.001;
 int TrackingConfig::normalizeIter = 2;
 float TrackingConfig::kp_rope = 1;
 float TrackingConfig::kd_rope = 0;
-float TrackingConfig::kp_cloth = 150;
-float TrackingConfig::kd_cloth = 15;
+float TrackingConfig::kp_cloth = 2000;
+float TrackingConfig::kd_cloth = 50;
 float TrackingConfig::kp_box = 15;
 float TrackingConfig::kd_box = 0.2;
 
-int TrackingConfig::res_x = 45;
-int TrackingConfig::res_y = 31;
+float TrackingConfig::surface_density = 0.01/(0.1*0.1); // 10 grams per 100 cm2
+float TrackingConfig::node_density = 1/0.01; // 1 node per 1 cm

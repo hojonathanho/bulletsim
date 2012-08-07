@@ -6,6 +6,7 @@
 #include "sparse_utils.h"
 #include "clouds/pcl_typedefs.h"
 #include "utils/cvmat.h"
+#include "config_tracking.h"
 #include "utils_tracking.h"
 #include <pcl/ros/conversions.h>
 #include <pcl/common/transforms.h>
@@ -19,15 +20,17 @@ public:
   EnvironmentObject::Ptr m_sim;
   std::string m_type;
   int m_nNodes;
+  std::vector<int> m_activeFeatures;
   int m_nFeatures;
   Eigen::VectorXf m_sigs;
 
   TrackedObject(EnvironmentObject::Ptr sim, string type) : m_sim(sim), m_type(type) {}
   virtual std::vector<btVector3> getPoints() = 0;
   virtual Eigen::MatrixXf getFeatures() = 0;
-  virtual Eigen::VectorXf getPriorDist() = 0;
-  virtual Eigen::VectorXf getOutlierDist() = 0;
-  virtual void applyEvidence(const SparseMatrixf& corr, const Eigen::MatrixXf& obsPts) = 0;
+  virtual const Eigen::VectorXf getPriorDist() = 0;
+  virtual const Eigen::VectorXf getOutlierDist() { return Eigen::VectorXf::Constant(3, TrackingConfig::pointOutlierDist*METERS); }
+  virtual const Eigen::VectorXf getOutlierStdev() { return Eigen::VectorXf::Constant(3, TrackingConfig::pointPriorDist*METERS); }
+  virtual void applyEvidence(const Eigen::MatrixXf& corr, const Eigen::MatrixXf& obsPts) = 0;
   virtual EnvironmentObject* getSim()=0;
 
   virtual Eigen::MatrixXf featuresTransform(const Eigen::MatrixXf& features) {
@@ -65,9 +68,8 @@ public:
 
   std::vector<btVector3> getPoints();
   Eigen::MatrixXf getFeatures();
-  Eigen::VectorXf getPriorDist();
-  Eigen::VectorXf getOutlierDist();
-  void applyEvidence(const SparseMatrixf& corr, const Eigen::MatrixXf& obsPts);
+  const Eigen::VectorXf getPriorDist();
+  void applyEvidence(const Eigen::MatrixXf& corr, const Eigen::MatrixXf& obsPts);
   CapsuleRope* getSim() {return dynamic_cast<CapsuleRope*>(m_sim.get());}
   cv::Mat makeTexture(ColorCloudPtr cloud);
 
@@ -83,9 +85,8 @@ public:
   std::vector<btVector3> getPoints();
   std::vector<btVector3> getNormals();
   Eigen::MatrixXf getFeatures();
-  Eigen::VectorXf getPriorDist();
-  Eigen::VectorXf getOutlierDist();
-  void applyEvidence(const SparseMatrixf& corr, const Eigen::MatrixXf& obsPts); // add forces
+  const Eigen::VectorXf getPriorDist();
+  void applyEvidence(const Eigen::MatrixXf& corr, const Eigen::MatrixXf& obsPts); // add forces
   BulletSoftObject* getSim() {return dynamic_cast<BulletSoftObject*>(m_sim.get());};
   cv::Mat makeTexture(const vector<btVector3>& corners, cv::Mat image, CoordinateTransformer* transformer);
   cv::Mat makeTexturePC(ColorCloudPtr cloud);
@@ -108,9 +109,8 @@ public:
   std::vector<btVector3> getPoints();
   Eigen::MatrixXf extractFeatures(ColorCloudPtr in);
   Eigen::MatrixXf getFeatures();
-  Eigen::VectorXf getPriorDist();
-  Eigen::VectorXf getOutlierDist();
-  void applyEvidence(const SparseMatrixf& corr, const Eigen::MatrixXf& obsPts);
+  const Eigen::VectorXf getPriorDist();
+  void applyEvidence(const Eigen::MatrixXf& corr, const Eigen::MatrixXf& obsPts);
   BoxObject* getSim() {return dynamic_cast<BoxObject*>(m_sim.get());}
 
 protected:
@@ -123,5 +123,7 @@ protected:
 std::vector<btVector3> calcImpulsesDamped(const std::vector<btVector3>& estPos, const std::vector<btVector3>& estVel, 
     const std::vector<btVector3>& obsPts, const SparseMatrixf& corr, const vector<float>& masses, float kp, float kd);
 
-BulletSoftObject::Ptr makeTowel(const vector<btVector3>& points, int resolution_x, int resolution_y, btSoftBodyWorldInfo& worldInfo);
+std::vector<btVector3> calcImpulsesDamped(const std::vector<btVector3>& estPos, const std::vector<btVector3>& estVel,
+  const std::vector<btVector3>& obsPts, const Eigen::MatrixXf& corr, const vector<float>& masses, float kp, float kd) ;
 
+BulletSoftObject::Ptr makeTowel(const vector<btVector3>& points, float node_density, float surface_density, btSoftBodyWorldInfo& worldInfo, int& resolution_x, int& resolution_y);

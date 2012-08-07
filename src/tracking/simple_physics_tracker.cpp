@@ -6,9 +6,13 @@
 #include "utils/conversions.h"
 #include "utils/clock.h"
 #include <fstream>
+#include <boost/thread.hpp>
+#include "utils/testing.h"
 
 using namespace Eigen;
 using namespace std;
+
+//#define CHECK_CORRECTNESS
 
 SimplePhysicsTracker::SimplePhysicsTracker(TrackedObject::Ptr obj, VisibilityInterface* visInt, Environment::Ptr env) :
   m_obj(obj),
@@ -29,7 +33,8 @@ SimplePhysicsTracker::SimplePhysicsTracker(TrackedObject::Ptr obj, VisibilityInt
 	m_enableEstTransPlot(false),
 	m_enableCorrPlot(false),
 	m_enableDebugPlot(false),
-	m_applyEvidence(true)
+	m_applyEvidence(true),
+	m_count(-1)
 {
 	m_env->add(m_obsInlierPlot);
 	m_env->add(m_obsPlot);
@@ -41,49 +46,68 @@ SimplePhysicsTracker::SimplePhysicsTracker(TrackedObject::Ptr obj, VisibilityInt
 	m_corrPlot->setDefaultColor(1,1,0,.3);
 
 	m_prior_dist = m_obj->getPriorDist();
-	m_stdev = m_prior_dist.transpose().replicate(m_obj->m_nNodes+1, 1);
+	m_stdev = m_prior_dist.transpose().replicate(m_obj->m_nNodes, 1);
 
 	m_outlier_dist = m_obj->getOutlierDist();
 }
 
 void SimplePhysicsTracker::updateInput(ColorCloudPtr obsPts) {
 	m_obsPts = m_obj->extractFeatures(obsPts);
+	m_obsPts.col(2) = m_obsPts.col(2).array() + 0.05*METERS;
+	for (int i=0; i<m_obsPts.rows(); i++) {
+		if (m_obsPts(i,2) < 0.01*METERS) m_obsPts(i,2) = 0.01*METERS;
+	}
 	m_obsCloud = obsPts;
 }
 
 void SimplePhysicsTracker::doIteration() {
   VectorXf vis = m_visInt->checkNodeVisibility(m_obj);
-  //VectorXf vis = VectorXf::Ones(m_obj->m_nNodes);
   m_estPts = m_obj->getFeatures();
-  MatrixXf pZgivenB(m_estPts.rows()+1, m_obsPts.rows());
-  SparseMatrixf corr(m_estPts.rows(), m_obsPts.rows());
 
   // E STEP
-  estimateCorrespondence(m_estPts, m_stdev, vis, m_obsPts, m_outlier_dist, pZgivenB, corr);
+  boost::posix_time::ptime e_time = boost::posix_time::microsec_clock::local_time();
+  MatrixXf pZgivenC = calculateResponsibilities(m_estPts, m_obsPts, m_stdev, vis, m_obj->getOutlierDist(), m_obj->getOutlierStdev());
+  cout << "E time " << (boost::posix_time::microsec_clock::local_time() - e_time).total_milliseconds() << endl;
 
-  VectorXf inlierFrac = colSums(corr);
+#ifdef CHECK_CORRECTNESS
+  boost::posix_time::ptime en_time = boost::posix_time::microsec_clock::local_time();
+  MatrixXf pZgivenC_naive = calculateResponsibilitiesNaive(m_estPts, m_obsPts, m_stdev, vis, m_outlier_dist, m_prior_dist);
+  cout << "E naive time " << (boost::posix_time::microsec_clock::local_time() - en_time).total_milliseconds() << endl;
+  assert(isApproxEq(pZgivenC_naive, pZgivenC));
+#endif
+
+  //VectorXf inlierFrac = colSums(corr);
+  VectorXf inlierFrac = pZgivenC.colwise().sum();
   if (m_enableObsInlierPlot) plotObs(toBulletVectors(m_obsPts.leftCols(3)), inlierFrac, m_obsInlierPlot);
 	else m_obsInlierPlot->clear();
 	if (m_enableObsPlot) plotObs(m_obj->featuresUntransform(m_obsPts), m_obsPlot);
 	else m_obsPlot->clear();
 	if (m_enableObsTransPlot) plotObs(m_obsPts, m_obsTransPlot);
 	else m_obsTransPlot->clear();
-	if (m_enableEstPlot) plotNodesAsSpheres(m_obj->featuresUntransform(m_estPts), vis, m_stdev.topRows(m_stdev.rows()-1), m_estPlot);
+	if (m_enableEstPlot) plotNodesAsSpheres(m_obj->featuresUntransform(m_estPts), vis, m_stdev, m_estPlot);
 	else m_estPlot->clear();
-	if (m_enableEstTransPlot) plotNodesAsSpheres(m_estPts, vis, m_stdev.topRows(m_stdev.rows()-1), m_estTransPlot);
+	if (m_enableEstTransPlot) plotNodesAsSpheres(m_estPts, vis, m_stdev, m_estTransPlot);
 	else m_estTransPlot->clear();
-	if (m_enableCorrPlot) drawCorrLines(m_corrPlot, toBulletVectors(m_estPts.leftCols(3)), toBulletVectors(m_obsPts.leftCols(3)), corr);
+	if (m_enableCorrPlot) drawCorrLines(m_corrPlot, toBulletVectors(m_estPts.leftCols(3)), toBulletVectors(m_obsPts.leftCols(3)), pZgivenC, 0.01, m_count);
 	else m_corrPlot->clear();
   if (m_enableDebugPlot) plotObs(m_obsDebug, m_debugPlot);
 	else m_debugPlot->clear();
 
   // M STEP
-  if (m_applyEvidence) m_obj->applyEvidence(corr, m_obsPts);
-  //m_stdev = calcSigs(corr, m_estPts, m_obsPts, m_prior_dist, 1);
+  boost::posix_time::ptime evidence_time = boost::posix_time::microsec_clock::local_time();
+  if (m_applyEvidence) m_obj->applyEvidence(pZgivenC, m_obsPts);
+  cout << "Evidence time " << (boost::posix_time::microsec_clock::local_time() - evidence_time).total_milliseconds() << endl;
 
-//  MatrixXf m_stdev2 = m_stdev;
-//  m_stdev2 = calcSigsEigen(corr, m_estPts, m_obsPts, m_prior_dist, 1);
-//  isApproxEq(m_stdev, m_stdev2);
+  boost::posix_time::ptime m_time = boost::posix_time::microsec_clock::local_time();
+  m_stdev = calculateStdev(m_estPts, m_obsPts, pZgivenC, m_prior_dist, 10);
+  cout << "M time " << (boost::posix_time::microsec_clock::local_time() - m_time).total_milliseconds() << endl;
+
+#ifdef CHECK_CORRECTNESS
+  boost::posix_time::ptime mn_time = boost::posix_time::microsec_clock::local_time();
+  MatrixXf stdev_naive = calculateStdevNaive(m_estPts, m_obsPts, pZgivenC, m_prior_dist, 10);
+  cout << "M naive time " << (boost::posix_time::microsec_clock::local_time() - mn_time).total_milliseconds() << endl;
+  assert(isApproxEq(stdev_naive, m_stdev));
+#endif
 
   m_env->step(.03,2,.015);
 }

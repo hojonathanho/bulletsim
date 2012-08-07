@@ -24,12 +24,16 @@ void PointCloudPlot::setPoints1(const pcl::PointCloud<ColorPoint>::Ptr& cloud, f
   PlotPoints::setPoints(osgPts,osgCols);
 }
 
-void drawCorrLines(PlotLines::Ptr lines, const vector<btVector3>& aPts, const vector<btVector3>& bPts, const SparseMatrixf& corr) {
+void drawCorrLines(PlotLines::Ptr lines, const vector<btVector3>& aPts, const vector<btVector3>& bPts, const SparseMatrixf& corr, int aPtInd) {
   vector<btVector3> linePoints;
+  vector<btVector4> lineColors;
   for (int iRow=0; iRow<corr.rows(); ++iRow)
     for (SparseMatrixf::InnerIterator it(corr,iRow); it; ++it) {
-      linePoints.push_back(aPts[it.row()]);
-      linePoints.push_back(bPts[it.col()]);
+      if (aPtInd<0 || aPtInd==it.row()) {
+				linePoints.push_back(aPts[it.row()]);
+				linePoints.push_back(bPts[it.col()]);
+				lineColors.push_back(btVector4(it.value(),it.value(),0,1));
+      }
   }
 //	btVector3 cam_pos(-1.68829, -0.149108, 8.07206);
 //  for(int i=0; i<aPts.size(); i++) {
@@ -37,16 +41,35 @@ void drawCorrLines(PlotLines::Ptr lines, const vector<btVector3>& aPts, const ve
 //  	linePoints.push_back(aPts[i]+0.01*point_to_cam);
 //  	linePoints.push_back(cam_pos);
 //  }
-  lines->setPoints(linePoints);
+  lines->setPoints(linePoints, lineColors);
 }
 
-void plotNodesAsSpheres(btSoftBody* psb, const VectorXf& pVis, const Eigen::VectorXf& sigs, PlotSpheres::Ptr spheres) {
+// draw all the lines between aPts and Pts that have a corr>threshold.
+// if aPtInd is in the range of aPts, then draw only the lines that comes from aPts[aPtInd]
+void drawCorrLines(PlotLines::Ptr lines, const vector<btVector3>& aPts, const vector<btVector3>& bPts, const Eigen::MatrixXf& corr, float threshold, int aPtInd) {
+  vector<btVector3> linePoints;
+  vector<btVector4> lineColors;
+  float max_corr = corr.maxCoeff(); // color lines by corr, where corr has been mapped [threshold,max_corr] -> [0,1]
+  for (int i=0; i<corr.rows(); ++i)
+    for (int j=0; j<corr.cols(); ++j)
+    	if (corr(i,j) > threshold) {
+    		if (aPtInd<0 || aPtInd>=corr.rows() || aPtInd==i) {
+					linePoints.push_back(aPts[i]);
+					linePoints.push_back(bPts[j]);
+					float color_factor = (corr(i,j)-threshold)/(max_corr-threshold); //basically, it ranges from 0 to 1
+					lineColors.push_back(btVector4(color_factor, color_factor,0,1));
+				}
+    	}
+  lines->setPoints(linePoints, lineColors);
+}
+
+void plotNodesAsSpheres(btSoftBody* psb, const VectorXf& pVis, const Eigen::VectorXf& stdev, PlotSpheres::Ptr spheres) {
   int nPts = pVis.rows();
   using namespace osg;
   ref_ptr<Vec3Array> centers = new Vec3Array();
   ref_ptr<Vec4Array> colors = new Vec4Array();
-  //vector<float> sizes = toVec(sigs.array().sqrt());
-  vector<float> sizes = toVec(sigs.array().sqrt());
+  //vector<float> sizes = toVec(stdev.array().sqrt());
+  vector<float> sizes = toVec(stdev/4.0);
   for (int i=0; i<nPts; i++) {
     const btVector3& v = psb->m_nodes[i].m_x;
     float p = pVis[i];
@@ -56,13 +79,13 @@ void plotNodesAsSpheres(btSoftBody* psb, const VectorXf& pVis, const Eigen::Vect
   spheres->plot(centers, colors, sizes);
 }
 
-void plotNodesAsSpheres(const vector<btVector3>& nodes, const VectorXf& pVis, const Eigen::VectorXf& sigs, PlotSpheres::Ptr spheres) {
+void plotNodesAsSpheres(const vector<btVector3>& nodes, const VectorXf& pVis, const Eigen::VectorXf& stdev, PlotSpheres::Ptr spheres) {
   int nPts = pVis.rows();
   using namespace osg;
   ref_ptr<Vec3Array> centers = new Vec3Array();
   ref_ptr<Vec4Array> colors = new Vec4Array();
-  //vector<float> sizes = toVec(sigs.array().sqrt());
-  vector<float> sizes = toVec(sigs.array().sqrt()/2);
+  //vector<float> sizes = toVec(stdev.array().sqrt());
+  vector<float> sizes = toVec(stdev/4.0);
   for (int i=0; i<nPts; i++) {
     float p = pVis[i];
     centers->push_back(Vec3f(nodes[i].x(), nodes[i].y(), nodes[i].z()));
@@ -71,10 +94,10 @@ void plotNodesAsSpheres(const vector<btVector3>& nodes, const VectorXf& pVis, co
   spheres->plot(centers, colors, sizes);
 }
 
-void plotNodesAsSpheres(const Eigen::MatrixXf nodes, const Eigen::VectorXf& pVis, const Eigen::MatrixXf& sigs, PlotSpheres::Ptr spheres) {
+void plotNodesAsSpheres(const Eigen::MatrixXf nodes, const Eigen::VectorXf& pVis, const Eigen::MatrixXf& stdev, PlotSpheres::Ptr spheres) {
 	assert(nodes.rows() == pVis.rows());
-	assert(nodes.rows() == sigs.rows());
-	assert(nodes.cols() == sigs.cols());
+	assert(nodes.rows() == stdev.rows());
+	assert(nodes.cols() == stdev.cols());
 	MatrixXf centers = nodes.leftCols(3);
 	MatrixXf colors(nodes.rows(), 4);
 	if (nodes.cols() >= 6)
@@ -83,7 +106,7 @@ void plotNodesAsSpheres(const Eigen::MatrixXf nodes, const Eigen::VectorXf& pVis
 		//colors << nodes.middleCols(3,3).rowwise().reverse(), nodes.col(6);
 	else
 		colors = Vector4f(1,1,1,1).transpose().replicate(nodes.rows(), 1);
-	VectorXf sizes = (sigs.leftCols(3).array().sqrt()/2).rowwise().mean();
+	VectorXf sizes = (stdev.leftCols(3)/4.0).rowwise().mean();
 	spheres->plot(util::toVec3Array(centers), util::toVec4Array(colors), toVec(sizes));
 }
 

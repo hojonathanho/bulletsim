@@ -27,6 +27,7 @@ public:
   PointCloudPlot::Ptr m_debugPlot;
   bool m_enableObsInlierPlot, m_enableObsPlot, m_enableObsTransPlot, m_enableEstPlot, m_enableEstTransPlot, m_enableCorrPlot, m_enableDebugPlot;
   bool m_applyEvidence;
+  int m_count;
 
   SimplePhysicsTracker(TrackedObject::Ptr, VisibilityInterface*, Environment::Ptr);
   void updateInput(ColorCloudPtr filteredCloud);

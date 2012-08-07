@@ -24,8 +24,8 @@ struct TrackingConfig : Config {
   static float kp_box;
   static float kd_box;
 
-  static int res_x;
-  static int res_y;
+  static float surface_density;
+  static float node_density;
 
     TrackingConfig() : Config() {
         params.push_back(new Parameter<std::string>("filteredCloudTopic", &filteredCloudTopic, "filtered cloud topic"));
@@ -46,7 +46,7 @@ struct TrackingConfig : Config {
         params.push_back(new Parameter<float>("kp_box", &kp_box, "proportional gain for box"));
         params.push_back(new Parameter<float>("kd_box", &kd_box, "damping for box"));
 
-        params.push_back(new Parameter<int>("res_x", &res_x, "towel resolution in x"));
-        params.push_back(new Parameter<int>("res_y", &res_y, "towel resolution in y"));
+        params.push_back(new Parameter<float>("surface_density", &surface_density, "surface density for towel. (# nodes)/(side length) = (resolution)/(side length)"));
+        params.push_back(new Parameter<float>("node_density", &node_density, "node density for towel. (total mass)/(total area)"));
     }
 };

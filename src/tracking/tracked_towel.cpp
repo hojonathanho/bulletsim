@@ -132,7 +132,7 @@ TrackedTowel::TrackedTowel(BulletSoftObject::Ptr sim, int nCols, int nRows) : Tr
   m_nFeatures = 6;
 }
 
-void TrackedTowel::applyEvidence(const SparseMatrixf& corr, const Eigen::MatrixXf& obsPts) {
+void TrackedTowel::applyEvidence(const Eigen::MatrixXf& corr, const Eigen::MatrixXf& obsPts) {
   vector<btVector3> estPos(m_nNodes);
   vector<btVector3> estVel(m_nNodes);
   
@@ -144,8 +144,6 @@ void TrackedTowel::applyEvidence(const SparseMatrixf& corr, const Eigen::MatrixX
 
   vector<btVector3> nodeImpulses = calcImpulsesDamped(estPos, estVel, toBulletVectors(obsPts.leftCols(3)), corr, toVec(m_masses), TrackingConfig::kp_cloth, TrackingConfig::kd_cloth);
 
-  // m_sigs = calcSigs(corr, toEigenMatrix(estPos), toEigenMatrix(obsPts), .1*METERS, .5);
-
   int nVerts = verts.size();
 
   for (int iVert=0; iVert < nVerts; iVert++) {
@@ -153,18 +151,20 @@ void TrackedTowel::applyEvidence(const SparseMatrixf& corr, const Eigen::MatrixX
     BOOST_FOREACH(int iNode, m_vert2nodes[iVert]) impulse += nodeImpulses[iNode];
     impulse/= m_vert2nodes[iVert].size();
     getSim()->softBody->addForce(impulse, iVert);
+
+    assert(isfinite(impulse.x()) && isfinite(impulse.y()) && isfinite(impulse.z()));
   }
-  
-  //TODO apply evidences to color
 }
 
 MatrixXf TrackedTowel::extractFeatures(ColorCloudPtr in) {
 	MatrixXf out(in->size(), m_nFeatures);
-	for (int i=0; i < in->size(); ++i)
-		out.row(i) << in->points[i].x, in->points[i].y, in->points[i].z, in->points[i].b/255.0, in->points[i].g/255.0, in->points[i].r/255.0; //, 0;
-	MatrixXf lab_colors = colorTransform(out.middleCols(3,3), CV_BGR2Lab);
-//	for (int i=0; i < in->size(); ++i)
-//		out(i,6) = (lab_colors(i,2) > 190.0/255.0);
+	if (m_nFeatures == 6) {
+		for (int i=0; i < in->size(); ++i)
+			out.row(i) << in->points[i].x, in->points[i].y, in->points[i].z, in->points[i].b/255.0, in->points[i].g/255.0, in->points[i].r/255.0;
+	} else {
+		for (int i=0; i < in->size(); ++i)
+			out.row(i) << in->points[i].x, in->points[i].y, in->points[i].z;
+	}
 	return featuresTransform(out);
 }
 
@@ -191,77 +191,114 @@ MatrixXf TrackedTowel::getFeatures() {
 	cv::Mat tex_image = getSim()->getTexture();
 	for (int i=0; i < m_nNodes; i++) {
 		features.block(i,0,1,3) = toEigenVector(verts[m_node2vert[i]].m_x).transpose();
-		int i_pixel = tex_image.rows-1 - (int) (texcoords[m_vert2tex[m_node2vert[i]]].y() * (tex_image.rows-1));
-		int j_pixel = (int) (texcoords[m_vert2tex[m_node2vert[i]]].x() * (tex_image.cols-1));
-		int range = 20;
-		//TODO weighted average window
-		cv::Mat window_pixels = tex_image(cv::Range(max(i_pixel - range, 0), min(i_pixel + range, tex_image.rows-1)),
-																			cv::Range(max(j_pixel - range, 0), min(j_pixel + range, tex_image.cols-1)));
-		Vector3f bgr = toEigenMatrixImage(window_pixels).colwise().mean();
-		features.block(i,3,1,3) = bgr.transpose();
-//		features(i,6) = texcoords[m_vert2tex[m_node2vert[i]]].x() == 0 || texcoords[m_vert2tex[m_node2vert[i]]].x() == 1 ||
-//				texcoords[m_vert2tex[m_node2vert[i]]].y() == 0 || texcoords[m_vert2tex[m_node2vert[i]]].y() == 1;
+
+		if (m_nFeatures == 6) {
+			int i_pixel = tex_image.rows-1 - (int) (texcoords[m_vert2tex[m_node2vert[i]]].y() * (tex_image.rows-1));
+			int j_pixel = (int) (texcoords[m_vert2tex[m_node2vert[i]]].x() * (tex_image.cols-1));
+			int range = 20;
+			//TODO weighted average window
+			cv::Mat window_pixels = tex_image(cv::Range(max(i_pixel - range, 0), min(i_pixel + range, tex_image.rows-1)),
+																				cv::Range(max(j_pixel - range, 0), min(j_pixel + range, tex_image.cols-1)));
+			Vector3f bgr = toEigenMatrixImage(window_pixels).colwise().mean();
+			features.block(i,3,1,3) = bgr.transpose();
+		}
 	}
 	return featuresTransform(features);
 }
 
-VectorXf TrackedTowel::getPriorDist() {
+const VectorXf TrackedTowel::getPriorDist() {
 	VectorXf prior_dist(m_nFeatures);
-	prior_dist << TrackingConfig::pointPriorDist*METERS, TrackingConfig::pointPriorDist*METERS, TrackingConfig::pointPriorDist*METERS, 0.2, 0.1, 0.1; //, TrackingConfig::borderPriorDist;
+	if (m_nFeatures == 6) {
+		prior_dist << TrackingConfig::pointPriorDist*METERS, TrackingConfig::pointPriorDist*METERS, TrackingConfig::pointPriorDist*METERS, 0.2, 0.1, 0.1;
+	} else {
+		prior_dist << TrackingConfig::pointPriorDist*METERS, TrackingConfig::pointPriorDist*METERS, TrackingConfig::pointPriorDist*METERS;
+	}
 	return prior_dist;
 }
 
-VectorXf TrackedTowel::getOutlierDist() {
-	VectorXf outlier_dist(m_nFeatures);
-	outlier_dist << TrackingConfig::pointOutlierDist*METERS, TrackingConfig::pointOutlierDist*METERS, TrackingConfig::pointOutlierDist*METERS, 1.0, 1.0, 1.0; //, TrackingConfig::borderOutlierDist;
-	return outlier_dist;
-}
+//  corners:
+//
+//                        s3 = sx
+//  [0][0]     corners[0] -------- corners[3]   [resx][0]
+//                 |                   |
+//         s0 = sy |                   | s2 = sy
+//                 |                   |
+//  [0][resy]  corners[1] -------- corners[2]  [resx][resy]
+//                        s1 = sx
+//
+// node_density = (# nodes)/(side length) = (resolution)/(side length)
+// surface_density = (total mass)/(total area)
+BulletSoftObject::Ptr makeTowel(const vector<btVector3>& points, float node_density, float surface_density, btSoftBodyWorldInfo& worldInfo, int& resolution_x, int& resolution_y) {
+	vector<btVector3> corners;
+	corners.push_back(points[0]);
+	corners.push_back(points[1]);
+	corners.push_back(points[3]);
+	corners.push_back(points[2]);
 
-BulletSoftObject::Ptr makeTowel(const vector<btVector3>& points, int resolution_x, int resolution_y, btSoftBodyWorldInfo& worldInfo) {
-  btVector3 offset(0,0,.01*METERS);
-  int n_tex_coords = (resolution_x - 1)*(resolution_y -1)*12;
+	float s0 = (corners[0] - corners[1]).length();
+	float s1 = (corners[1] - corners[2]).length();
+	float s2 = (corners[2] - corners[3]).length();
+	float s3 = (corners[3] - corners[0]).length();
+  cout << "towel sizes " << s0 << " " << s1 << " " << s2 << " " << s3 << endl;
+
+  float sx = (s0 + s2)/2.0;
+  float sy = (s1 + s3)/2.0;
+	cout << "towel width height " << sx << " " << sy << endl;
+
+	float area = sx*sy; //(0.30*METERS)*(0.40*METERS);
+  cout << "area " << area << " " << " Check METERS scale" << endl;
+
+	resolution_x = node_density * sx;
+	resolution_y = node_density * sy;
+	cout << "resolution " << node_density << " " << resolution_x << " " << resolution_y << " Check around 57 33" << endl;
+	int n_tex_coords = (resolution_x - 1)*(resolution_y -1)*12;
   float * tex_coords = new float[ n_tex_coords ];
+  btVector3 offset(0,0,0.01*METERS);
   btSoftBody* psb=btSoftBodyHelpers::CreatePatchUV(worldInfo,
-						 points[0]+offset,
-						 points[1]+offset,
-						 points[3]+offset,
-						 points[2]+offset,
+						 corners[0]+offset,
+						 corners[1]+offset,
+						 corners[2]+offset,
+						 corners[3]+offset,
 						 resolution_x, resolution_y,
-						 0/*1+2+4+8*/, false,
+						 0, true,
 						 tex_coords);
 
-  psb->m_cfg.piterations = 8;
-  psb->m_cfg.collisions = btSoftBody::fCollision::CL_RS
-      | btSoftBody::fCollision::CL_SS
-      | btSoftBody::fCollision::CL_SELF;
-  psb->m_cfg.kDF = 0.9;
-  psb->m_cfg.kAHR = 1; // anchor hardness
-  psb->m_cfg.kSSHR_CL = 1.0; // so the cloth doesn't penetrate itself
-  psb->m_cfg.kSRHR_CL = 0.7;
-  psb->m_cfg.kSKHR_CL = 0.7;
-  psb->m_cfg.kDP = 0.1;
-
-  psb->m_cfg.kDP = 1.0;			// Damping coefficient [0,1]
-  psb->m_cfg.kDG = 10.0;			// Drag coefficient [0,+inf]
-  psb->m_cfg.kLF = 10.0;			// Lift coefficient [0,+inf]
-  psb->m_cfg.kDF = 1.0;			// Dynamic friction coefficient [0,1]
-  psb->m_cfg.kCHR = 0.5;			// Rigid contacts hardness [0,1]
-
-  psb->getCollisionShape()->setMargin(0.05);
-
-  btSoftBody::Material *pm = psb->appendMaterial();
-  pm->m_kLST = 0.1;
+  btSoftBody::Material* pm=psb->appendMaterial();
+  pm->m_kLST = 0.01;
   //pm->m_kAST = 0.5;
-  pm->m_kAST = 0.0;
+  //pm->m_kAST = 0.0;
 
-  psb->generateBendingConstraints(2, pm);
+  psb->generateBendingConstraints(2,pm);
+
+  //psb->setTotalMass(surface_density * area, true); // 10 150
+  psb->setTotalMass(0.1); // 10 150
+  cout << "mass " << surface_density * area << " Check 10 150" << endl;
+
+  psb->generateClusters(512);
+	psb->getCollisionShape()->setMargin(0.002*METERS);
+
+  psb->m_cfg.collisions	=	0;
+  psb->m_cfg.collisions += btSoftBody::fCollision::SDF_RS; ///SDF based rigid vs soft
+  //psb->m_cfg.collisions += btSoftBody::fCollision::CL_RS; ///Cluster vs convex rigid vs soft
+  //psb->m_cfg.collisions += btSoftBody::fCollision::VF_SS;	///Vertex vs face soft vs soft handling
+  psb->m_cfg.collisions += btSoftBody::fCollision::CL_SS; ///Cluster vs cluster soft vs soft handling
+  psb->m_cfg.collisions	+= btSoftBody::fCollision::CL_SELF; ///Cluster soft body self collision
+
+  psb->m_cfg.kDF = 1.0; //0.9; // Dynamic friction coefficient
+//  psb->m_cfg.kAHR = 1; // anchor hardness
+//  psb->m_cfg.kSSHR_CL = 1.0; // so the cloth doesn't penetrate itself
+//  psb->m_cfg.kSRHR_CL = 0.7;
+//  psb->m_cfg.kSKHR_CL = 0.7;
+//  psb->m_cfg.kDP = 0.1; //1.0; // Damping coefficient [0,1]
+
+  psb->m_cfg.piterations = 50; //8;
+  psb->m_cfg.citerations = 50;
+  psb->m_cfg.diterations = 50;
+  //	psb->m_cfg.viterations = 10;
 
   // this function was not in the original bullet physics
   // this allows to swap the texture coordinates to match the swapped faces
   psb->randomizeConstraints(tex_coords);
-
-  psb->setTotalMass(10, true);
-  psb->generateClusters(100);
 
   BulletSoftObject::Ptr bso = BulletSoftObject::Ptr(new BulletSoftObject(psb));
 	bso->tritexcoords = new osg::Vec2Array;

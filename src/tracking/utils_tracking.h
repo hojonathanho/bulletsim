@@ -9,6 +9,7 @@
 typedef Eigen::Matrix<uint8_t,Eigen::Dynamic,Eigen::Dynamic> MatrixXu;
 
 void toggle(bool* b);
+void add(int* n, int increment);
 
 class CoordinateTransformer {
 public:

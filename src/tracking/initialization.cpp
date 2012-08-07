@@ -34,18 +34,19 @@ TrackedObject::Ptr toTrackedObject(const bulletsim_msgs::ObjectInit& initMsg, Co
 	  TrackedRope::Ptr tracked_rope(new TrackedRope(sim));
 		cv::Mat tex_image = tracked_rope->makeTexture(cloud);
 		sim->setTexture(tex_image);
-	  env->add(sim);
+	  //env->add(sim);
 
 	  return tracked_rope;
   }
   else if (initMsg.type == "towel_corners") {
 	  const vector<geometry_msgs::Point32>& points = initMsg.towel_corners.polygon.points;
 	  vector<btVector3> corners = scaleVecs(toBulletVectors(points),METERS);
-	  BulletSoftObject::Ptr sim = makeTowel(corners, TrackingConfig::res_x, TrackingConfig::res_y, env->bullet->softBodyWorldInfo);
-	  TrackedTowel::Ptr tracked_towel(new TrackedTowel(sim, TrackingConfig::res_x, TrackingConfig::res_y));
+	  int resolution_x, resolution_y;
+	  BulletSoftObject::Ptr sim = makeTowel(corners, TrackingConfig::node_density/METERS, TrackingConfig::surface_density/(METERS*METERS), env->bullet->softBodyWorldInfo, resolution_x, resolution_y);
+	  TrackedTowel::Ptr tracked_towel(new TrackedTowel(sim, resolution_x, resolution_y));
 	  cv::Mat tex_image = tracked_towel->makeTexture(corners, image, transformer);
 		sim->setTexture(tex_image);
-	  env->add(sim);
+		//env->add(sim);
 
 	  return tracked_towel;
   }
@@ -58,7 +59,7 @@ TrackedObject::Ptr toTrackedObject(const bulletsim_msgs::ObjectInit& initMsg, Co
 	  TrackedBox::Ptr tracked_box(new TrackedBox(sim));
 		//sim->setTexture(image);
 		sim->setColor(1,0,0,1);
-		env->add(sim);
+		//env->add(sim);
 
 	  return tracked_box;
   }

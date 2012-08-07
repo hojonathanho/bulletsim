@@ -54,7 +54,7 @@ std::vector<btVector3> TrackedBox::getPoints() {
 	return out;
 }
 
-void TrackedBox::applyEvidence(const SparseMatrixf& corr, const MatrixXf& obsPts) {
+void TrackedBox::applyEvidence(const Eigen::MatrixXf& corr, const MatrixXf& obsPts) {
 	vector<btVector3> estPos(m_nNodes), estVel(m_nNodes), relPos(m_nNodes);
 	estPos = getPoints();
 
@@ -84,14 +84,8 @@ MatrixXf TrackedBox::getFeatures() {
 	return featuresTransform(features);
 }
 
-VectorXf TrackedBox::getPriorDist() {
+const VectorXf TrackedBox::getPriorDist() {
 	VectorXf prior_dist(m_nFeatures);
 	prior_dist << TrackingConfig::pointPriorDist*METERS, TrackingConfig::pointPriorDist*METERS, TrackingConfig::pointPriorDist*METERS;
 	return prior_dist;
-}
-
-VectorXf TrackedBox::getOutlierDist() {
-	VectorXf outlier_dist(m_nFeatures);
-	outlier_dist << TrackingConfig::pointOutlierDist*METERS, TrackingConfig::pointOutlierDist*METERS, TrackingConfig::pointOutlierDist*METERS;
-	return outlier_dist;
 }

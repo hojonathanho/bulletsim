@@ -81,11 +81,15 @@ void adjustTransparency(TrackedObject::Ptr trackedObj, float increment) {
 
 int main(int argc, char* argv[]) {
   Eigen::internal::setNbThreads(2);
+
+  GeneralConfig::scale = 100;
+  BulletConfig::maxSubSteps = 0;
+  BulletConfig::gravity = btVector3(0,0,0.1);
+
   Parser parser;
   parser.addGroup(TrackingConfig());
   parser.addGroup(GeneralConfig());
   parser.addGroup(BulletConfig());
-  GeneralConfig::scale = 10;
   parser.read(argc, argv);
 
   int nCameras = TrackingConfig::cameraTopics.size();
@@ -126,7 +130,7 @@ int main(int argc, char* argv[]) {
 
   TrackedObject::Ptr trackedObj = callInitServiceAndCreateObject(scaleCloud(filteredCloud,1/METERS), rgbImages[0], transformer_images[0], scene.env);
   if (!trackedObj) throw runtime_error("initialization of object failed.");
-  //scene.env->add(trackedObj->m_sim);
+  scene.env->add(trackedObj->m_sim);
 
   // actual tracking algorithm
 	MultiVisibility visInterface;
@@ -151,6 +155,10 @@ int main(int argc, char* argv[]) {
   scene.addVoidKeyCallback('a',boost::bind(toggle, &alg.m_applyEvidence));
   scene.addVoidKeyCallback('=',boost::bind(adjustTransparency, trackedObj, 0.1f));
   scene.addVoidKeyCallback('-',boost::bind(adjustTransparency, trackedObj, -0.1f));
+
+  scene.addVoidKeyCallback('[',boost::bind(add, &alg.m_count, -1));
+  scene.addVoidKeyCallback(']',boost::bind(add, &alg.m_count, 1));
+
   scene.addVoidKeyCallback('q',boost::bind(exit, 0));
 
   while (ros::ok()) {
