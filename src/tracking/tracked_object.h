@@ -13,7 +13,6 @@
 #include <pcl/point_cloud.h>
 #include <pcl/kdtree/kdtree_flann.h>
 #include "clouds/utils_pcl.h"
-#include "tracking_defs.h"
 
 class TrackedObject {
 public:
@@ -22,10 +21,6 @@ public:
   std::string m_type;
   int m_nNodes;
   Eigen::VectorXf m_sigs;
-  std::vector<FeatureType> m_featureTypes;
-  int m_featureDim;
-  std::vector<int> m_featureStartCol;
-  Eigen::MatrixXf m_features;
   Eigen::MatrixXf m_colors;
 
   TrackedObject(EnvironmentObject::Ptr sim, string type);
@@ -35,10 +30,6 @@ public:
   Eigen::MatrixXf& getColors();
   virtual void initColors() { m_colors = Eigen::MatrixXf::Constant(m_nNodes, 3, 1.0); }
 
-  Eigen::MatrixXf& getFeatures();
-  Eigen::MatrixXf getFeatures(FeatureType feature_type);
-  void updateFeatures(FeatureType feature_type = FEAT_ALL);
-  void initFeatures(FeatureType feature_type = FEAT_ALL);
   virtual const Eigen::VectorXf getPriorDist() = 0;
   virtual const Eigen::VectorXf getOutlierDist() { return Eigen::VectorXf::Constant(3, TrackingConfig::pointOutlierDist*METERS); }
   virtual const Eigen::VectorXf getOutlierStdev() { return Eigen::VectorXf::Constant(3, TrackingConfig::pointPriorDist*METERS); }

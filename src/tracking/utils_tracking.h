@@ -5,7 +5,6 @@
 #include <tf/transform_listener.h>
 #include "utils/config.h"
 #include "clouds/pcl_typedefs.h"
-#include "tracking_defs.h"
 
 typedef Eigen::Matrix<uint8_t,Eigen::Dynamic,Eigen::Dynamic> MatrixXu;
 
@@ -39,6 +38,3 @@ bool isFinite(const Eigen::MatrixXf& x);
 std::vector<btVector3> toBulletVectors(ColorCloudPtr in);
 
 btTransform waitForAndGetTransform(const tf::TransformListener& listener, std::string target_frame, std::string source_frame);
-
-int calcFeatureDim(const std::vector<FeatureType>&);
-std::vector<int> calcFeatureStartCol(const std::vector<FeatureType>& featureTypes);

@@ -1,5 +1,5 @@
 #include "config_tracking.h"
-#include "tracking_defs.h"
+#include "feature_extractor.h"
 
 std::string TrackingConfig::filteredCloudTopic = "/preprocessor/points";
 std::string TrackingConfig::depthTopic  = "/kinect1/depth_registered/image_rect";
@@ -9,7 +9,7 @@ std::string TrackingConfig::fullCloudTopic = "/kinect1/rgb/points";
 static const std::string cameraTopics_a[] = { "/kinect1" };
 std::vector<std::string> TrackingConfig::cameraTopics = std::vector<std::string>(cameraTopics_a, cameraTopics_a+sizeof(cameraTopics_a)/sizeof(std::string));
 
-static const int featureTypes_a[] = {FEAT_XYZ, FEAT_LAB};
+static const int featureTypes_a[] = {FeatureExtractor::FT_XYZ, FeatureExtractor::FT_LAB};
 std::vector<int> TrackingConfig::featureTypes = std::vector<int>(featureTypes_a, featureTypes_a+sizeof(featureTypes_a)/sizeof(int));
 
 

@@ -118,20 +118,3 @@ btTransform waitForAndGetTransform(const tf::TransformListener& listener, std::s
 //	listener.lookupTransform(target_frame, source_frame, ros::Time(0), st);
 //	return st.asBt();
 }
-
-
-int calcFeatureDim(const std::vector<FeatureType>& featureTypes) {
-  int dim = 0;
-  BOOST_FOREACH(const FeatureType& ft, featureTypes) dim += FEATURE_SIZES[ft];
-  return dim;
-}
-
-#include "utils/utils_vector.h"
-std::vector<int> calcFeatureStartCol(const std::vector<FeatureType>& featureTypes) {
-	vector<int> startCol(FEAT_COUNT);
-	startCol[featureTypes[0]] = 0;
-	for (int featInd=1; featInd<featureTypes.size(); featInd++) {
-		startCol[featureTypes[featInd]] = startCol[featureTypes[featInd-1]] + FEATURE_SIZES[featureTypes[featInd-1]];
-	}
-	return startCol;
-}

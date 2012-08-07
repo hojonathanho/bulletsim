@@ -8,48 +8,9 @@
 #include "config_tracking.h"
 #include "simulation/util.h"
 #include "utils/testing.h"
-#include <boost/foreach.hpp>
-#include "clouds/utils_pcl.h"
-#include <opencv2/imgproc/imgproc.hpp>
 
 using namespace Eigen;
 using namespace std;
-
-CloudFeatureExtractor::CloudFeatureExtractor() :
-	m_featureTypes(TrackingConfig::featureTypes),
-	m_featureDim(calcFeatureDim(m_featureTypes))
-{}
-
-CloudFeatureExtractor::CloudFeatureExtractor(const std::vector<FeatureType>& featureTypes) :
-  m_featureTypes(featureTypes),
-  m_featureDim(calcFeatureDim(m_featureTypes))
-{}
-
-Eigen::MatrixXf CloudFeatureExtractor::extractFeatures(ColorCloudPtr in) {
-	Eigen::MatrixXf out(in->size(), m_featureDim);
-  int col = 0;
-  BOOST_FOREACH(FeatureType& ft, m_featureTypes) {
-
-    MatrixXf submat;
-    if (ft == FEAT_XYZ) {
-      submat = toEigenMatrix(in);
-    }
-    else if (ft == FEAT_LAB) {
-      MatrixXu bgr = toBGR(in);
-      cv::Mat cvmat(cv::Size(in->size(),1), CV_8UC3, bgr.data());
-      cv::cvtColor(cvmat, cvmat, CV_BGR2Lab);
-      Map<MatrixXu>lab(cvmat.data,in->size(), 3);
-      submat = lab.cast<float>() / 255.;
-    }
-    else {
-      throw std::runtime_error("feature type not yet implemented");
-    }
-
-    out.middleCols(col,FEATURE_SIZES[FEAT_XYZ]) = submat;
-    col += FEATURE_SIZES[ft];
-
-  }
-}
 
 Eigen::MatrixXf calculateStdevNaive(const Eigen::MatrixXf& estPts, const Eigen::MatrixXf& obsPts, const Eigen::MatrixXf& pZgivenC, const Eigen::VectorXf& dPrior, const float& nuPrior) {
 	int K = estPts.rows(); //nodes

@@ -21,6 +21,8 @@ void plotNodesAsSpheres(btSoftBody* psb, const Eigen::VectorXf& pVis, const Eige
 void plotNodesAsSpheres(btSoftBody* psb, const Eigen::VectorXf& pVis, const Eigen::VectorXf& sigs, PlotSpheres::Ptr spheres);
 void plotNodesAsSpheres(const vector<btVector3>& nodes, const Eigen::VectorXf& pVis, const Eigen::VectorXf& sigs, PlotSpheres::Ptr spheres);
 void plotNodesAsSpheres(const Eigen::MatrixXf nodes, const Eigen::VectorXf& pVis, const Eigen::MatrixXf& sigs, PlotSpheres::Ptr spheres);
+void plotNodesAsSpheres(const Eigen::MatrixXf centers, const Eigen::MatrixXf colors, const Eigen::VectorXf& pVis, const Eigen::MatrixXf& stdev, PlotSpheres::Ptr spheres);
 void plotObs(const vector<btVector3>& obsPts, const Eigen::VectorXf& inlierFrac, PointCloudPlot::Ptr plot);
 void plotObsBorder(const Eigen::MatrixXf cloud, PointCloudPlot::Ptr plot);
 void plotObs(const Eigen::MatrixXf cloud, PointCloudPlot::Ptr plot);
+void plotObs(const Eigen::MatrixXf centers, const Eigen::MatrixXf colors, PointCloudPlot::Ptr plot);

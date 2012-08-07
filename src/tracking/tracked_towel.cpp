@@ -171,7 +171,7 @@ vector<btVector3> TrackedTowel::getNormals() {
 }
 
 const VectorXf TrackedTowel::getPriorDist() {
-	VectorXf prior_dist(m_featureDim);
+	VectorXf prior_dist(6);
 	prior_dist << TrackingConfig::pointPriorDist*METERS, TrackingConfig::pointPriorDist*METERS, TrackingConfig::pointPriorDist*METERS, 0.2, 0.1, 0.1; //, TrackingConfig::borderPriorDist;
 	cout << "fixme: TrackedTowel::getPriorDist()" << endl;
 	return prior_dist;
@@ -225,10 +225,7 @@ BulletSoftObject::Ptr makeTowel(const vector<btVector3>& points, float node_dens
 
   psb->generateBendingConstraints(2,pm);
 
-  //psb->setTotalMass(surface_density * area, true); // 10 150
-  psb->setTotalMass(surface_density * area); // 10 150
-  cout << "mass " << surface_density * area << " CHECK 0.1" << endl;
-  assert(0);
+  psb->setTotalMass(surface_density * area);
 
   psb->generateClusters(512);
 	psb->getCollisionShape()->setMargin(0.002*METERS);
