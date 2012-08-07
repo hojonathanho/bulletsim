@@ -23,6 +23,9 @@
 #include "utils/conversions.h"
 #include "utils_ros.h"
 
+#include "opencv2/video/background_segm.hpp"
+
+
 using namespace std;
 using namespace Eigen;
 
@@ -125,6 +128,7 @@ public:
   btTransform m_transform;
   geometry_msgs::Polygon m_poly;
 
+  cv::BackgroundSubtractorMOG  mog;
   vector<cv::Mat> rgb_bg, depth_bg;
   int first_count;
   cv::FileStorage fs;
@@ -160,9 +164,12 @@ public:
     ColorCloudPtr cloud_out = cloud_in;
 
     //RGBD image based filters
-    cv::Mat foreground_RGBD_mask = backgroundSubtractorDepthMask(depth, depth_bg, 0.01) | backgroundSubtractorColorMask(rgb, rgb_bg);
-		cv::Mat non_skin_mask = skinMask(rgb) == 0;
-		cv::Mat foreground_mask = foreground_RGBD_mask & non_skin_mask;
+    cv::Mat foreground_RGB_mask = backgroundSubtractorColorMask(rgb, rgb_bg);
+    cv::Mat foreground_depth_mask = backgroundSubtractorDepthMask(depth, depth_bg, 0.005);
+    cv::Mat foreground_MOG_mask; mog(rgb, foreground_MOG_mask, 0); // zero learning rate
+    cv::Mat non_skin_mask = skinMask(rgb) == 0;
+		cv::Mat foreground_mask = (foreground_RGB_mask | foreground_RGB_mask | foreground_MOG_mask) & non_skin_mask;
+		//cv::Mat foreground_mask = non_skin_mask;
 		cloud_out = maskCloudOrganized(cloud_out, foreground_mask);
 
 		//cloud based filters
@@ -257,9 +264,9 @@ public:
 		first_count(LocalConfig::backgroundCount)
     {
 			if (LocalConfig::backgroundRead) {
-					fs = cv::FileStorage("/home/alex/Desktop/preprocessor.yml", cv::FileStorage::READ);
+					fs = cv::FileStorage(LocalConfig::backgroundFile, cv::FileStorage::READ);
 				} else {
-					fs = cv::FileStorage("/home/alex/Desktop/preprocessor.yml", cv::FileStorage::WRITE);
+					fs = cv::FileStorage(LocalConfig::backgroundFile, cv::FileStorage::WRITE);
 			}
     }
 };
