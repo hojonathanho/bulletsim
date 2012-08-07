@@ -24,7 +24,8 @@ add_library(tracking
 	initialization.cpp
 	plotting_tracking.cpp
 	simple_physics_tracker.cpp 
-	#physics_tracker.cpp 
+	#physics_tracker.cpp
+	surface_sampling.cpp 
 	sparse_utils.cpp
 	tracked_object.cpp 
 	tracked_rope.cpp

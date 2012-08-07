@@ -93,8 +93,11 @@ public:
   void init();
 };
 
-class Hand : public CompoundObject<CompoundObject<BulletObject> > {
+class Hand : public CompoundObject<BulletObject> {
 public:
+
+	std::vector<CompoundObject<BulletObject>::Ptr > children2;
+
 	enum
 	{
 		PART_PALM = 0,
