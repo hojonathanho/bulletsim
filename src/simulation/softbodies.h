@@ -69,7 +69,7 @@ public:
 
 private:
     bool enable_texture;
-		boost::shared_ptr<osg::Vec4f> m_color;
+		osg::Vec4f m_color;
 		void setColorAfterInit();
 		osg::ref_ptr<osg::Image> m_image;
 		cv::Mat m_cvimage;
@@ -78,6 +78,7 @@ private:
     map<AnchorHandle, int> anchormap;
 public:
 		cv::Mat getTexture() { return m_cvimage; }
+		osg::Vec4f getColor() {return m_color;}
 };
 
 #endif // _SOFTBODIES_H_

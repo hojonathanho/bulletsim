@@ -310,15 +310,25 @@ cv::Mat TrackedTowel::makeTexture(const vector<btVector3>& corners, cv::Mat imag
 void TrackedTowel::initColors() {
 	m_colors.resize(m_nNodes, 3);
 	cv::Mat tex_image = getSim()->getTexture();
-	const osg::Vec2Array& texcoords = *(getSim()->tritexcoords);
-	for (int i=0; i < m_nNodes; i++) {
-		int i_pixel = tex_image.rows-1 - (int) (texcoords[m_vert2tex[m_node2vert[i]]].y() * (tex_image.rows-1));
-		int j_pixel = (int) (texcoords[m_vert2tex[m_node2vert[i]]].x() * (tex_image.cols-1));
-		int range = 20;
-		//TODO weighted average window
-		cv::Mat window_pixels = tex_image(cv::Range(max(i_pixel - range, 0), min(i_pixel + range, tex_image.rows-1)),
-																			cv::Range(max(j_pixel - range, 0), min(j_pixel + range, tex_image.cols-1)));
-		Vector3f bgr = toEigenMatrixImage(window_pixels).colwise().mean();
-		m_colors.row(i) = bgr.transpose();
+	if (!tex_image.empty()) {
+		cout << "initColors using texture" << endl;
+		const osg::Vec2Array& texcoords = *(getSim()->tritexcoords);
+		for (int i=0; i < m_nNodes; i++) {
+			int i_pixel = tex_image.rows-1 - (int) (texcoords[m_vert2tex[m_node2vert[i]]].y() * (tex_image.rows-1));
+			int j_pixel = (int) (texcoords[m_vert2tex[m_node2vert[i]]].x() * (tex_image.cols-1));
+			int range = 20;
+			//TODO weighted average window
+			cv::Mat window_pixels = tex_image(cv::Range(max(i_pixel - range, 0), min(i_pixel + range, tex_image.rows-1)),
+																				cv::Range(max(j_pixel - range, 0), min(j_pixel + range, tex_image.cols-1)));
+			Vector3f bgr = toEigenMatrixImage(window_pixels).colwise().mean();
+			m_colors.row(i) = bgr.transpose();
+		}
+	}
+	else {
+		cout << "initColors using color" << endl;
+		osg::Vec4f color = getSim()->getColor();
+		for (int i=0; i < m_nNodes; i++) {
+			m_colors.row(i) = Eigen::Vector3f(color.r(), color.g(), color.b()).transpose();
+		}
 	}
 }
