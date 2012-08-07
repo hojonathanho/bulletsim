@@ -107,7 +107,6 @@ int main(int argc, char *argv[]) {
     SceneConfig::enableHaptics = false;
     SceneConfig::enableRobot = false;
     GeneralConfig::scale = 20;
-    BulletConfig::gravity *= GeneralConfig::scale;
 
     Parser parser;
     parser.addGroup(GeneralConfig());

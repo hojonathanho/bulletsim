@@ -16,9 +16,6 @@ int main(int argc, char *argv[]) {
 		parser.addGroup(SceneConfig());
 		parser.read(argc, argv);
 
-		// gravity has to be reset after the parse because of the METERS scale
-		BulletConfig::gravity = btVector3(0,0,-0.1*METERS); // 1/10th or /100th of actual gravity, otherwise cloth tends to go through stuff
-
     Scene scene;
 
 		Hand::Ptr hand = makeHand(19, btTransform(btQuaternion::getIdentity(), btVector3(0,0,0.1*METERS)));
