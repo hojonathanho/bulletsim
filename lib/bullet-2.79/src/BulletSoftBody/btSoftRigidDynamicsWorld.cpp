@@ -57,8 +57,6 @@ btSoftRigidDynamicsWorld::btSoftRigidDynamicsWorld(
 	m_sbi.water_normal		=	btVector3(0,0,0);
 	m_sbi.m_gravity.setValue(0,-10,0);
 
-	m_sbi.m_sparsesdf.Initialize();
-
 
 }
 
@@ -128,6 +126,9 @@ void	btSoftRigidDynamicsWorld::solveSoftBodiesConstraints( btScalar timeStep )
 void	btSoftRigidDynamicsWorld::addSoftBody(btSoftBody* body,short int collisionFilterGroup,short int collisionFilterMask)
 {
 	m_softBodies.push_back(body);
+  body->setWorldInfo(&m_sbi);
+  body->updateBounds();  
+  
 
 	// Set the soft body solver that will deal with this body
 	// to be the world's solver

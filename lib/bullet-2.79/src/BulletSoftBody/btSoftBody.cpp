@@ -48,7 +48,7 @@ btSoftBody::btSoftBody(btSoftBodyWorldInfo*	worldInfo,int node_count,  const btV
 		n.m_leaf	=	m_ndbvt.insert(btDbvtVolume::FromCR(n.m_x,margin),&n);
 		n.m_material=	pm;
 	}
-	updateBounds();	
+  // updateBounds();  
 
 }
 
