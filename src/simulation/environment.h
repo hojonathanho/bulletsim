@@ -76,6 +76,9 @@ public:
     virtual void destroy() { }
 
     virtual osg::Node *getOSGNode() const { return NULL; }
+
+    virtual void setColor(float r, float g, float b, float a) {};
+		virtual void adjustTransparency(float increment) {};
 };
 
 struct Environment {

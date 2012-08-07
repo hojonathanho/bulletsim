@@ -602,3 +602,16 @@ osg::ref_ptr<osg::Node> CapsuleObject::createOSGNode() {
     geode->addDrawable(new osg::ShapeDrawable(capsule));
     return geode;
 }
+
+CapsuleObjectY::CapsuleObjectY(btScalar mass_, btScalar radius_, btScalar height_, const btTransform &initTrans) :
+    mass(mass_), radius(radius_), height(height_),
+    BulletObject(mass_, new btCapsuleShape(radius_, height_), initTrans) {
+}
+
+osg::ref_ptr<osg::Node> CapsuleObjectY::createOSGNode() {
+    osg::ref_ptr<osg::Geode> geode = new osg::Geode;
+    osg::ref_ptr<osg::Capsule> capsule = new osg::Capsule(osg::Vec3(0, 0, 0), radius, height);
+    capsule->setRotation(osg::Quat(osg::PI_2, osg::Vec3(1, 0, 0)));
+    geode->addDrawable(new osg::ShapeDrawable(capsule));
+    return geode;
+}

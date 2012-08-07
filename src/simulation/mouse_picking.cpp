@@ -45,6 +45,7 @@ void PickingMouseHandler::shootBox(const btVector3& destination)
 		startTransform.setOrigin(camPos);
 
     BoxObject::Ptr box(new BoxObject(mass, btVector3(0.05*METERS, 0.05*METERS, 0.05*METERS), btTransform(btQuaternion(0,0,0,1), btVector3(0,0,0))));
+    box->setColor(0,1,0,1);
     m_scene.env->add(box);
 
     btRigidBody* body = box->rigidBody.get();
@@ -53,7 +54,7 @@ void PickingMouseHandler::shootBox(const btVector3& destination)
 
 		btVector3 linVel(destination[0]-camPos[0],destination[1]-camPos[1],destination[2]-camPos[2]);
 		linVel.normalize();
-		linVel*=40.0;
+		linVel*=5.0*METERS;
 
 		body->getWorldTransform().setOrigin(camPos);
 		body->getWorldTransform().setRotation(btQuaternion(0,0,0,1));

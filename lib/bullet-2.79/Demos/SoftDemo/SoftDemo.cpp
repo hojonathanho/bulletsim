@@ -1355,7 +1355,7 @@ static void	Init_CapsuleCollision(SoftDemo* pdemo)
 	btSoftBody::Material* pm=psb->appendMaterial();
 	pm->m_kLST		=	0.001;
 	psb->generateBendingConstraints(2,pm);
-	psb->setTotalMass(150);
+	psb->setTotalMass(0.1);
 
 	psb->generateClusters(512);
 	psb->getCollisionShape()->setMargin(0.2);

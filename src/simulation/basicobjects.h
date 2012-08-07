@@ -245,4 +245,21 @@ public:
     osg::ref_ptr<osg::Node> createOSGNode();
 };
 
+// A wrapper for btCapsuleShape
+class CapsuleObjectY : public BulletObject {
+private:
+    btScalar mass, radius, height;
+
+public:
+    typedef boost::shared_ptr<CapsuleObjectY> Ptr;
+
+    CapsuleObjectY(btScalar mass_, btScalar radius_, btScalar height_, const btTransform &initTrans);
+    EnvironmentObject::Ptr copy(Fork &f) const {
+        Ptr o(new CapsuleObjectY(*this));
+        internalCopy(o, f);
+        return o;
+    }
+    osg::ref_ptr<osg::Node> createOSGNode();
+};
+
 #endif // _BASICOBJECTS_H_

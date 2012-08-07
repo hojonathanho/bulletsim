@@ -17,6 +17,7 @@ add_library(simulation
     simplescene.cpp
     softbodies.cpp
     rope.cpp
+    hand.cpp
     plotting.cpp
     convexdecomp.cpp
     recording.cpp

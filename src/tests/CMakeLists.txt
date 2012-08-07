@@ -49,3 +49,6 @@ target_link_libraries(test_tetgen simulation)
 
 add_executable(test_picking test_picking.cpp)
 target_link_libraries(test_picking simulation utils)
+
+add_executable(test_hand test_hand.cpp)
+target_link_libraries(test_hand simulation)

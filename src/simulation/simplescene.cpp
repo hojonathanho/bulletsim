@@ -20,7 +20,7 @@ Scene::Scene() {
     // populate the scene with some basic objects
     //ground.reset(new PlaneStaticObject(btVector3(0., 0., 1.), 0., btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0))));
     ground.reset(new BoxObject(0, btVector3(5*METERS, 5*METERS, 0.01*METERS), btTransform(btQuaternion(0,0,0,1), btVector3(0,0,-0.01*METERS))));
-    ground->collisionShape->setMargin(0.1);
+    ground->collisionShape->setMargin(0.001*METERS);
     ground->rigidBody->setFriction(1.0);
     env->add(ground);
 
