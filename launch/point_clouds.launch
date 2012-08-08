@@ -2,7 +2,7 @@
 
 	<arg name="camera" default="kinect1"/>
 	<arg name="online" default="true"/>
-	<arg name="bus" default="2"/>
+	<arg name="bus" default="1"/>
 	<arg name="filename"/>
 
 	<group if="$(arg online)">

@@ -46,13 +46,13 @@ SimplePhysicsTracker::SimplePhysicsTracker(TrackedObject::Ptr obj, VisibilityInt
 	m_env->add(m_debugPlot);
 	m_corrPlot->setDefaultColor(1,1,0,.3);
 
+	m_obj_features = TrackedObjectFeatureExtractor::Ptr(new TrackedObjectFeatureExtractor(m_obj));
+	m_cloud_features = CloudFeatureExtractor::Ptr(new CloudFeatureExtractor());
+
 	m_prior_dist = m_obj->getPriorDist();
 	m_stdev = m_prior_dist.transpose().replicate(m_obj->m_nNodes, 1);
 
 	m_outlier_dist = m_obj->getOutlierDist();
-
-	m_obj_features = TrackedObjectFeatureExtractor::Ptr(new TrackedObjectFeatureExtractor(m_obj));
-	m_cloud_features = CloudFeatureExtractor::Ptr(new CloudFeatureExtractor());
 }
 
 void SimplePhysicsTracker::updateInput(ColorCloudPtr obsPts) {
@@ -75,7 +75,7 @@ void SimplePhysicsTracker::doIteration() {
 
   // E STEP
   //boost::posix_time::ptime e_time = boost::posix_time::microsec_clock::local_time();
-  MatrixXf pZgivenC = calculateResponsibilities(m_estPts, m_obsPts, m_stdev, vis, m_obj->getOutlierDist(), m_obj->getOutlierStdev());
+  MatrixXf pZgivenC = calculateResponsibilitiesNaive(m_estPts, m_obsPts, m_stdev, vis, m_obj->getOutlierDist(), m_obj->getOutlierStdev());
   //cout << "E time " << (boost::posix_time::microsec_clock::local_time() - e_time).total_milliseconds() << endl;
 
 #ifdef CHECK_CORRECTNESS
@@ -94,7 +94,11 @@ void SimplePhysicsTracker::doIteration() {
 	else m_obsTransPlot->clear();
 	if (m_enableEstPlot) plotNodesAsSpheres(toEigenMatrix(m_obj->getPoints()), m_obj->getColors(), vis, m_stdev, m_estPlot);
 	else m_estPlot->clear();
-	if (m_enableEstTransPlot) plotNodesAsSpheres(toEigenMatrix(m_obj->getPoints()), m_obj_features->getFeatures(FeatureExtractor::FT_LAB), vis, m_stdev, m_estTransPlot);
+	//if (m_enableEstTransPlot) plotNodesAsSpheres(toEigenMatrix(m_obj->getPoints()), m_obj_features->getFeatures(FeatureExtractor::FT_LAB), vis, m_stdev, m_estTransPlot);
+	MatrixXf nodes_naive = calculateNodesNaive(m_estPts, m_obsPts, pZgivenC);
+	//MatrixXf nodes = calculateNodes(m_estPts, m_obsPts, pZgivenC);
+	//assert(isApproxEq(nodes_naive, nodes));
+	if (m_enableEstTransPlot) plotNodesAsSpheres(nodes_naive.leftCols(3), nodes_naive.middleCols(3,3), vis, m_stdev, m_estTransPlot);
 	else m_estTransPlot->clear();
 	if (m_enableCorrPlot) drawCorrLines(m_corrPlot, toBulletVectors(m_obj_features->getFeatures(FeatureExtractor::FT_XYZ)), toBulletVectors(m_obsPts.leftCols(3)), pZgivenC, 0.01, m_count);
 	else m_corrPlot->clear();

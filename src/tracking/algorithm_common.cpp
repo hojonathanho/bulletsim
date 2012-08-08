@@ -12,6 +12,44 @@
 using namespace Eigen;
 using namespace std;
 
+Eigen::MatrixXf calculateNodesNaive(const Eigen::MatrixXf& estPts, const Eigen::MatrixXf& obsPts, const Eigen::MatrixXf& pZgivenC) {
+	int K = estPts.rows(); //nodes
+	int N = obsPts.rows(); //observations
+	int F = estPts.cols(); //features
+
+	assert(obsPts.cols() == F);
+	assert(pZgivenC.rows() == K);
+	assert(pZgivenC.cols() == N);
+
+	MatrixXf nodes(K,F);
+	for (int k=0; k<K; k++) {
+		if (pZgivenC.row(k).sum() == 0.0) { //if visibility is zero, then the node position remains unchanged
+			nodes.row(k) = estPts.row(k);
+		} else {
+			nodes.row(k) = MatrixXf::Zero(1,F);
+			for (int n=0; n<N; n++)
+				nodes.row(k) += pZgivenC(k,n)*obsPts.row(n);
+			nodes.row(k) /= pZgivenC.row(k).sum();
+		}
+	}
+	return nodes;
+}
+
+Eigen::MatrixXf calculateNodes(const Eigen::MatrixXf& estPts, const Eigen::MatrixXf& obsPts, const Eigen::MatrixXf& pZgivenC) {
+	int K = pZgivenC.rows(); //nodes
+	int N = pZgivenC.cols(); //observations
+	int F = obsPts.cols(); //features
+
+	assert(obsPts.rows() == N);
+
+	MatrixXf nodes(K,F);
+	nodes = pZgivenC * obsPts;
+	VectorXf invDenom = pZgivenC.rowwise().sum().array().inverse();
+	for (int f=0; f<F; f++)
+		nodes.col(f) = nodes.col(f).cwiseProduct(invDenom);
+	return nodes;
+}
+
 Eigen::MatrixXf calculateStdevNaive(const Eigen::MatrixXf& estPts, const Eigen::MatrixXf& obsPts, const Eigen::MatrixXf& pZgivenC, const Eigen::VectorXf& dPrior, const float& nuPrior) {
 	int K = estPts.rows(); //nodes
 	int N = obsPts.rows(); //observations
@@ -117,6 +155,7 @@ Eigen::MatrixXf calculateResponsibilitiesNaive(const Eigen::MatrixXf& estPts, co
 			pZgivenC.col(n) /= pZgivenC.col(n).sum();
 	}
 
+	infinityDebug(pZgivenC, "pZgivenC");
 	assert(isFinite(pZgivenC));
 	assert(pZgivenC.rows() == K+1);
 	assert(pZgivenC.cols() == N);
