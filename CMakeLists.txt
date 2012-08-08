@@ -43,7 +43,7 @@ find_package(ROS REQUIRED COMPONENTS
 set(BUILD_SHARED_LIBS 0)
 add_definitions(${PCL_DEFINITIONS})
 add_definitions("-DEIGEN_DEFAULT_TO_ROW_MAJOR")
-#add_definitions("-DBT_NO_PROFILE")
+add_definitions("-DBT_NO_PROFILE")
 
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
 SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fopenmp")

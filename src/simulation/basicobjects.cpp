@@ -56,6 +56,7 @@ BulletObject::BulletObject(btScalar mass, btCollisionShape *cs, const btTransfor
         rigidBody->setCollisionFlags(rigidBody->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);
     }
 	rigidBody->setActivationState(DISABLE_DEACTIVATION);
+	rigidBody->setFriction(BulletConfig::friction);
 
 }
 

@@ -14,7 +14,7 @@ ChooseActionScene::ChooseActionScene() {
   // create cloth
   btScalar s = 1;
   btScalar z = 1;
-  btSoftBody* psb = btSoftBodyHelpers::CreatePatch(env->bullet->softBodyWorldInfo,
+  btSoftBody* psb = btSoftBodyHelpers::CreatePatch(*env->bullet->softBodyWorldInfo,
 						   btVector3(-s,-s,z),
 						   btVector3(+s,-s,z),
 						   btVector3(-s,+s,z),
@@ -43,7 +43,7 @@ ChooseActionScene::ChooseActionScene() {
   psb->setTotalMass(150);
   */
   //cloth = BulletSoftObject::Ptr(new BulletSoftObject(psb));
-  cloth = BulletSoftObject::Ptr(new BulletSoftObject(loadSoftBody(env->bullet->softBodyWorldInfo, "testfile.txt")));
+  cloth = BulletSoftObject::Ptr(new BulletSoftObject(loadSoftBody(*env->bullet->softBodyWorldInfo, "testfile.txt")));
   
   //cout << "saving softbody\n";
   //saveSoftBody(psb, "testfile.txt");

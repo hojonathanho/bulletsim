@@ -49,3 +49,6 @@ target_link_libraries(test_hydra_teleop simulation robots ${ROS_LIBRARIES})
 
 add_executable(test_shadow_hand test_shadow_hand.cpp)
 target_link_libraries(test_shadow_hand simulation utils)
+
+add_executable(test_surface_sampling test_surface_sampling.cpp)
+target_link_libraries(test_surface_sampling simulation utils clouds tracking)

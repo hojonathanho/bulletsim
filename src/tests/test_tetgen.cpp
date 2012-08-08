@@ -22,7 +22,7 @@ const string data_dir = EXPAND(BULLETSIM_DATA_DIR)"/clothing/";
 void	initTetraFile(Scene& scene)
 {
 	//Create your psb
-	btSoftBody* psb=CreateFromTetGenFile(scene.bullet->softBodyWorldInfo,
+	btSoftBody* psb=CreateFromTetGenFile(*scene.bullet->softBodyWorldInfo,
 			DATA("shirt.1.ele"),
 			DATA("shirt.1.face"),
 			DATA("shirt.1.node"),
@@ -55,7 +55,7 @@ void	initTetraFile(Scene& scene)
 
 btSoftBody* makeTetraPrism(Scene& scene, vector<btVector3> corners_base, btVector3 polygon_translation) {
 	//Create your psb
-	btSoftBody* psb=CreatePrism(scene.bullet->softBodyWorldInfo, corners_base, polygon_translation, 1.414, 0.1, false,true,true);
+	btSoftBody* psb=CreatePrism(*scene.bullet->softBodyWorldInfo, corners_base, polygon_translation, 1.414, 0.1, false,true,true);
 
 	scene.env->add(BulletSoftObject::Ptr(new BulletSoftObject(psb)));
 	psb->scale(btVector3(1,1,1));
@@ -159,7 +159,7 @@ void	init3DCloth(Scene& scene)
 	btVector3 polygon_translation = btVector3(0,0,1);
 
 	//Create your psb
-	btSoftBody* psb=CreatePrism(scene.bullet->softBodyWorldInfo, corners_base, polygon_translation, 1.414, 0.4, false,true,true);
+	btSoftBody* psb=CreatePrism(*scene.bullet->softBodyWorldInfo, corners_base, polygon_translation, 1.414, 0.4, false,true,true);
 
 	scene.env->add(BulletSoftObject::Ptr(new BulletSoftObject(psb)));
 	psb->scale(btVector3(1,1,1));

@@ -380,7 +380,7 @@ void pickingPreTickCallback (btDynamicsWorld *world, btScalar timeStep)
 			}
 		}
 		btVector3				delta=handler->m_goal-handler->m_node->m_x;
-		static const btScalar	maxdrag=10;
+		static const btScalar	maxdrag=0.1*METERS;
 		if(delta.length2()>(maxdrag*maxdrag))
 		{
 			delta=delta.normalized()*maxdrag;

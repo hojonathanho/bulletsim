@@ -15,12 +15,12 @@ BulletInstance::BulletInstance() {
     dynamicsWorld = new btSoftRigidDynamicsWorld(dispatcher, broadphase, solver, collisionConfiguration);
     dynamicsWorld->getDispatchInfo().m_enableSPU = true;
 
-    softBodyWorldInfo.m_broadphase = broadphase;
-    softBodyWorldInfo.m_dispatcher = dispatcher;
-    softBodyWorldInfo.m_sparsesdf.Initialize();
-
+    softBodyWorldInfo = &dynamicsWorld->getWorldInfo();
+    softBodyWorldInfo->m_broadphase = broadphase;
+    softBodyWorldInfo->m_dispatcher = dispatcher;
+    softBodyWorldInfo->m_sparsesdf.Initialize();
     setDefaultGravity();
-    
+        
 }
 
 BulletInstance::~BulletInstance() {
@@ -33,7 +33,7 @@ BulletInstance::~BulletInstance() {
 
 void BulletInstance::setGravity(const btVector3 &gravity) {
     dynamicsWorld->setGravity(gravity);
-    softBodyWorldInfo.m_gravity = gravity;
+    softBodyWorldInfo->m_gravity = gravity;
 }
 
 void BulletInstance::setDefaultGravity() {
@@ -107,7 +107,7 @@ void Environment::step(btScalar dt, int maxSubSteps, btScalar fixedTimeStep) {
     bullet->dynamicsWorld->stepSimulation(dt, maxSubSteps, fixedTimeStep);
     for (i = objects.begin(); i != objects.end(); ++i)
         (*i)->preDraw();
-    bullet->softBodyWorldInfo.m_sparsesdf.GarbageCollect();
+    bullet->softBodyWorldInfo->m_sparsesdf.GarbageCollect();
 }
 
 void Fork::copyObjects() {

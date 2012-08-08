@@ -16,9 +16,9 @@
 boost::shared_mutex mutex;
 boost::shared_mutex bullet_mutex;
 
-BulletSoftObject::Ptr initCloth(btSoftBodyWorldInfo& world_info, btScalar sx, btScalar sy, int rx, int ry, btScalar z) {
+BulletSoftObject::Ptr initCloth(Scene& scene, btScalar sx, btScalar sy, int rx, int ry, btScalar z) {
 	int fixed=0;//4+8;
-	btSoftBody*		psb=btSoftBodyHelpers::CreatePatch(world_info,btVector3(-sx,-sy,z),
+	btSoftBody*		psb=btSoftBodyHelpers::CreatePatch(*scene.env->bullet->softBodyWorldInfo,btVector3(-sx,-sy,z),
 		btVector3(+sx,-sy,z),
 		btVector3(-sx,+sy,z),
 		btVector3(+sx,+sy,z),rx,ry,fixed,true);
@@ -100,11 +100,11 @@ int main(int argc, char *argv[]) {
 		scene.env->add(plane);
 
 		CapsuleObject::Ptr capsule(new CapsuleObject(0, 0.01*METERS,s*2, btTransform(btQuaternion(btVector3(0,0,1), 0.0), btVector3(0,-s*0.5,h-0.04*METERS))));
-		capsule->collisionShape->setMargin(0.005*METERS);
+		capsule->collisionShape->setMargin(0.01*METERS);
 		capsule->rigidBody->setFriction(0.0);
 		scene.env->add(capsule);
 
-		BulletSoftObject::Ptr cloth = initCloth(scene.env->bullet->softBodyWorldInfo, s, s, r, r, h);
+		BulletSoftObject::Ptr cloth = initCloth(scene, s, s, r, r, h);
 		cloth->setColor(0,1,0,1);
 		scene.env->add(cloth);
 
@@ -116,6 +116,9 @@ int main(int argc, char *argv[]) {
 
   	scene.startViewer();
 
+
+  	//EXAMPLE FOR THREADING
+  	//the usleep simulated the tracking computation times
   	boost::shared_ptr<boost::thread> deviceThread_ = boost::shared_ptr< boost::thread >(new boost::thread(boost::bind(&simulation, &scene)));
 
   	boost::posix_time::ptime computing_time = boost::posix_time::microsec_clock::local_time();

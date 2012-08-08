@@ -89,6 +89,7 @@ void BulletSoftObject::init() {
     transform->addChild(geode);
     getEnvironment()->osg->root->addChild(transform);
 
+    m_color = osg::Vec4f(1,1,1,1);
     if (enable_texture)
     	setTextureAfterInit();
     else
@@ -119,32 +120,30 @@ void BulletSoftObject::init() {
 //}
 
 void BulletSoftObject::setColor(float r, float g, float b, float a) {
-		m_color.reset(new osg::Vec4f(r,g,b,a));
+		m_color = osg::Vec4f(r,g,b,a);
 		if (geode) setColorAfterInit();
 		enable_texture = false;
 }
 
 void BulletSoftObject::setColorAfterInit() {
-  if (m_color) {
 		//clear out texture mapping information
   	osg::StateSet *ss = geode->getOrCreateStateSet();
 		ss->getTextureAttributeList().clear();
 		ss->getTextureModeList().clear();
 
 		osg::Vec4Array* colors = new osg::Vec4Array;
-		colors->push_back(osg::Vec4(m_color->r(),m_color->g(),m_color->b(),m_color->a()));
+		colors->push_back(osg::Vec4(m_color.r(),m_color.g(),m_color.b(),m_color.a()));
 		trigeom->setColorArray(colors);
 		trigeom->setColorBinding(osg::Geometry::BIND_OVERALL);
 		quadgeom->setColorArray(colors);
 		quadgeom->setColorBinding(osg::Geometry::BIND_OVERALL);
 
-  	if (m_color->a() != 1.0f) { // precision problems?
+  	if (m_color.a() != 1.0f) { // precision problems?
       osg::ref_ptr<osg::BlendFunc> blendFunc = new osg::BlendFunc;
       blendFunc->setFunction(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
       ss->setAttributeAndModes(blendFunc);
       ss->setRenderingHint(osg::StateSet::TRANSPARENT_BIN);
     }
-  }
 }
 
 //void BulletSoftObject::setTexture(cv::Mat image) {
@@ -185,10 +184,6 @@ void BulletSoftObject::setTexture(cv::Mat image) {
 void BulletSoftObject::setTextureAfterInit() {
 	if (m_image) {
 		// clear out color information
-		if (m_color)
-			m_color.reset(new osg::Vec4f(1,1,1,m_color->a()));
-		else
-			m_color.reset(new osg::Vec4f(1,1,1,1));
 		setColorAfterInit();
 
 		osg::Texture2D* texture = new osg::Texture2D;
@@ -206,9 +201,9 @@ void BulletSoftObject::setTextureAfterInit() {
 }
 
 void BulletSoftObject::adjustTransparency(float increment) {
-	m_color->a() += increment;
-	if (m_color->a() > 1.0f) m_color->a() = 1.0f;
-	if (m_color->a() < 0.0f) m_color->a() = 0.0f;
+	m_color.a() += increment;
+	if (m_color.a() > 1.0f) m_color.a() = 1.0f;
+	if (m_color.a() < 0.0f) m_color.a() = 0.0f;
 	if (enable_texture)
 		setTextureAfterInit();
 	else
@@ -293,7 +288,7 @@ EnvironmentObject::Ptr BulletSoftObject::copy(Fork &f) const {
     int i, j;
 
     // create a new softBody with the data
-    btSoftBody * const psb = new btSoftBody(&f.env->bullet->softBodyWorldInfo);
+    btSoftBody * const psb = new btSoftBody(f.env->bullet->softBodyWorldInfo);
     f.registerCopy(orig, psb);
 
     // materials

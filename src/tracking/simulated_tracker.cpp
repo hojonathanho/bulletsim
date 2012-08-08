@@ -110,23 +110,25 @@ int main(int argc, char *argv[]) {
 		scene.env->add(plane);
 
 		CapsuleObject::Ptr capsule(new CapsuleObject(0, 0.02*METERS,sx*2, btTransform(btQuaternion(btVector3(0,0,1), 0.0), btVector3(0,-sy*0.5,h-0.04*METERS))));
-		capsule->collisionShape->setMargin(0.005*METERS);
+		capsule->collisionShape->setMargin(0.002*METERS);
 		capsule->rigidBody->setFriction(0.0);
 		scene.env->add(capsule);
 
-		BoxObject::Ptr box(new BoxObject(0, btVector3(TrackingConfig::pointOutlierDist*METERS/2.0,TrackingConfig::pointOutlierDist*METERS/2.0,TrackingConfig::pointOutlierDist*METERS/2.0), btTransform(btQuaternion(btVector3(1,0,0), 0.0), btVector3(0,0,h-0.1*METERS))));
+		BoxObject::Ptr box(new BoxObject(0, btVector3(TrackingConfig::pointOutlierDist*METERS/2.0,TrackingConfig::pointOutlierDist*METERS/2.0,TrackingConfig::pointOutlierDist*METERS/2.0), btTransform(btQuaternion(btVector3(1,0,0), 0.0), btVector3(0,-0.3*METERS,h-0.1*METERS))));
 		box->collisionShape->setMargin(0.001*METERS);
 		box->rigidBody->setFriction(1.0);
 		box->setColor(1,0,0,1);
 		scene.env->add(box);
 
-		BulletSoftObject::Ptr cloth = initCloth(scene.env->bullet->softBodyWorldInfo, sx, sy, rx, ry, h);
-		cv::Mat flag_tex = cv::imread("/home/alex/Desktop/flag.jpg");
-		cloth->setTexture(flag_tex.clone());
+		BulletSoftObject::Ptr cloth = initCloth(*scene.env->bullet->softBodyWorldInfo, sx, sy, rx, ry, h);
+//		cv::Mat flag_tex = cv::imread("/home/alex/Desktop/flag.jpg");
+//		cloth->setTexture(flag_tex.clone());
+		cloth->setColor(1,0,0,1);
 		scene.env->add(cloth);
 
-		BulletSoftObject::Ptr observed_cloth = initCloth(scene.env->bullet->softBodyWorldInfo, sx, sy, rx, ry, h);
-		observed_cloth->setTexture(flag_tex.clone());
+		BulletSoftObject::Ptr observed_cloth = initCloth(*scene.env->bullet->softBodyWorldInfo, sx, sy, rx, ry, h);
+//		observed_cloth->setTexture(flag_tex.clone());
+		observed_cloth->setColor(1,0,0,1);
 		TrackedObject::Ptr observed_tracked(new TrackedTowel(observed_cloth, rx, ry));
 		observed_tracked->init();
 

@@ -28,7 +28,7 @@ struct BulletInstance {
     btCollisionDispatcher *dispatcher;
     btSequentialImpulseConstraintSolver *solver;
     btSoftRigidDynamicsWorld *dynamicsWorld;
-    btSoftBodyWorldInfo softBodyWorldInfo;
+    btSoftBodyWorldInfo *softBodyWorldInfo;
 
     BulletInstance();
     ~BulletInstance();
