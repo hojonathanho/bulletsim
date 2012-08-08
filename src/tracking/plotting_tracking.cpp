@@ -118,6 +118,19 @@ void plotNodesAsSpheres(const Eigen::MatrixXf centers, const Eigen::MatrixXf col
 	plotNodesAsSpheres(nodes, pVis, stdev, spheres);
 }
 
+// Standard
+void plotSquares(const Eigen::MatrixXf centers, const Eigen::MatrixXf colors, const Eigen::VectorXf& alphas, const Eigen::MatrixXf& half_extents, PlotBoxes::Ptr box_plot) {
+	int K = centers.rows();
+	assert(colors.rows() == K);
+	assert(colors.cols() == 3);
+	assert(alphas.size() == K);
+	assert(half_extents.rows() == K);
+	assert(half_extents.cols() == 3);
+
+	for (int k=0; k<K; k++)
+		box_plot->addBox(osg::Vec3f(centers(k,0), centers(k,1), centers(k,2)), half_extents(k,0), half_extents(k,1), half_extents(k,2), osg::Vec4f(colors(k,0), colors(k,1), colors(k,2), alphas(k)));
+}
+
 void plotObs(const vector<btVector3>& obsPts, const Eigen::VectorXf& inlierFrac, PointCloudPlot::Ptr plot) {
   osg::ref_ptr<osg::Vec4Array> colors = new osg::Vec4Array;
   for (int i=0; i < inlierFrac.size(); i++) {

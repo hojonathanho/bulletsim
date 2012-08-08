@@ -153,6 +153,8 @@ int main(int argc, char* argv[]) {
   scene.addVoidKeyCallback('I',boost::bind(toggle, &alg.m_enableObsInlierPlot));
   scene.addVoidKeyCallback('b',boost::bind(toggle, &alg.m_enableDebugPlot));
   scene.addVoidKeyCallback('B',boost::bind(toggle, &alg.m_enableDebugPlot));
+
+
   scene.addVoidKeyCallback('a',boost::bind(toggle, &alg.m_applyEvidence));
   scene.addVoidKeyCallback('=',boost::bind(adjustTransparency, trackedObj, 0.1f));
   scene.addVoidKeyCallback('-',boost::bind(adjustTransparency, trackedObj, -0.1f));

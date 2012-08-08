@@ -3,6 +3,7 @@
 #include "sparse_utils.h"
 #include "clouds/pcl_typedefs.h"
 
+
 Eigen::MatrixXf calculateNodesNaive(const Eigen::MatrixXf& estPts, const Eigen::MatrixXf& obsPts, const Eigen::MatrixXf& pZgivenC);
 Eigen::MatrixXf calculateNodes(const Eigen::MatrixXf& estPts, const Eigen::MatrixXf& obsPts, const Eigen::MatrixXf& pZgivenC);
 Eigen::MatrixXf calculateStdevNaive(const Eigen::MatrixXf& estPts, const Eigen::MatrixXf& obsPts, const Eigen::MatrixXf& pZgivenC, const Eigen::VectorXf& dPrior, const float& nuPrior);
