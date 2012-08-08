@@ -35,7 +35,7 @@ public:
   PhysicsTracker(TrackedObjectFeatureExtractor::Ptr object_features, FeatureExtractor::Ptr observation_features, VisibilityInterface::Ptr visibility_interface);
   void updateFeatures();
   void expectationStep();
-  void maximizationStep();
+  void maximizationStep(bool apply_evidence=true);
 };
 
 
@@ -44,10 +44,10 @@ public:
 
   typedef boost::shared_ptr<PhysicsTrackerVisualizer> Ptr;
 
-  Scene::Ptr m_scene;
+  Scene* m_scene;
   PhysicsTracker::Ptr m_tracker;
 
-  PhysicsTrackerVisualizer(Scene::Ptr scene, PhysicsTracker::Ptr tracker);
+  PhysicsTrackerVisualizer(Scene* scene, PhysicsTracker::Ptr tracker);
   void update();
 
   PointCloudPlot::Ptr m_obsInlierPlot;

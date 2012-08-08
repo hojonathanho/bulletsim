@@ -12,7 +12,7 @@
 using namespace Eigen;
 using namespace std;
 
-#define CHECK_CORRECTNESS
+//#define CHECK_CORRECTNESS
 
 PhysicsTracker::PhysicsTracker(TrackedObjectFeatureExtractor::Ptr object_features, FeatureExtractor::Ptr observation_features, VisibilityInterface::Ptr visibility_interface) :
 	m_objFeatures(object_features),
@@ -53,9 +53,9 @@ void PhysicsTracker::expectationStep() {
 #endif
 }
 
-void PhysicsTracker::maximizationStep() {
+void PhysicsTracker::maximizationStep(bool apply_evidence) {
   //boost::posix_time::ptime evidence_time = boost::posix_time::microsec_clock::local_time();
-	m_objFeatures->m_obj->applyEvidence(m_pZgivenC, m_obsPts);
+	if (apply_evidence) m_objFeatures->m_obj->applyEvidence(m_pZgivenC, m_obsPts);
   //cout << "Evidence time " << (boost::posix_time::microsec_clock::local_time() - evidence_time).total_milliseconds() << endl;
 
   //boost::posix_time::ptime m_time = boost::posix_time::microsec_clock::local_time();
@@ -71,7 +71,7 @@ void PhysicsTracker::maximizationStep() {
 }
 
 
-PhysicsTrackerVisualizer::PhysicsTrackerVisualizer(Scene::Ptr scene, PhysicsTracker::Ptr tracker) :
+PhysicsTrackerVisualizer::PhysicsTrackerVisualizer(Scene* scene, PhysicsTracker::Ptr tracker) :
 	m_scene(scene),
 	m_tracker(tracker),
 
@@ -132,12 +132,7 @@ void PhysicsTrackerVisualizer::update() {
 
 	if (m_enableEstPlot) plotNodesAsSpheres(toEigenMatrix(obj->getPoints()), obj->getColors(), vis, stdev, m_estPlot);
 	else m_estPlot->clear();
-
-	//if (m_enableEstTransPlot) plotNodesAsSpheres(toEigenMatrix(m_obj->getPoints()), m_obj_features->getFeatures(FeatureExtractor::FT_LAB), vis, m_stdev, m_estTransPlot);
-	MatrixXf nodes_naive = calculateNodesNaive(estPts, obsPts, pZgivenC);
-	//MatrixXf nodes = calculateNodes(m_estPts, m_obsPts, pZgivenC);
-	//assert(isApproxEq(nodes_naive, nodes));
-	if (m_enableEstTransPlot) plotNodesAsSpheres(nodes_naive.leftCols(3), nodes_naive.middleCols(3,3), vis, stdev, m_estTransPlot);
+	if (m_enableEstTransPlot) plotNodesAsSpheres(toEigenMatrix(obj->getPoints()), objFeatures->getFeatures(FeatureExtractor::FT_LAB), vis, stdev, m_estTransPlot);
 	else m_estTransPlot->clear();
 
 	if (m_enableCorrPlot) drawCorrLines(m_corrPlot, toBulletVectors(objFeatures->getFeatures(FeatureExtractor::FT_XYZ)), toBulletVectors(obsFeatures->getFeatures(FeatureExtractor::FT_XYZ)), pZgivenC, 0.01, m_nodeCorrPlot);
