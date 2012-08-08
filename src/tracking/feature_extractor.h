@@ -22,13 +22,10 @@ public:
 	};
 	typedef int FeatureType;
 
-	int m_dim;
-	std::vector<int> m_types;
-	std::vector<int> m_allSizes;
-	std::vector<int> m_allStartCols;
-	std::vector<int> m_sizes;
-  std::vector<int> m_startCols;
-  std::vector<int> m_allType2Ind;
+	//Don't modify them directly
+	static int m_dim;
+	static std::vector<FeatureType> m_types;
+	static int m_allDim;
 
   FeatureExtractor();
 
@@ -36,21 +33,21 @@ public:
   Eigen::MatrixXf& getFeatures() { return m_features; }
   Eigen::MatrixXf getFeatures(FeatureType fType);
 
-  Eigen::MatrixXf all2ActiveFeatures(const Eigen::MatrixXf& all_features) {
-  	Eigen::MatrixXf active_features(all_features.rows(), m_dim);
-  	BOOST_FOREACH(FeatureType& fType, m_types) {
-  		active_features.middleCols(m_startCols[m_allType2Ind[fType]], m_sizes[m_allType2Ind[fType]]) = all_features.middleCols(m_allStartCols[fType], m_allSizes[fType]);
-  	}
-  }
-
   virtual void updateFeatures() = 0;
   virtual Eigen::MatrixXf computeFeature(FeatureType fType) = 0;
+
+  static Eigen::MatrixXf all2ActiveFeatures(const Eigen::MatrixXf& all_features) {
+  	Eigen::MatrixXf active_features(all_features.rows(), m_dim);
+  	BOOST_FOREACH(FeatureType& fType, m_types)
+  		active_features.middleCols(m_startCols[m_allType2Ind[fType]], m_sizes[m_allType2Ind[fType]]) = all_features.middleCols(m_allStartCols[fType], m_allSizes[fType]);
+  	return active_features;
+  }
 
 protected:
   Eigen::MatrixXf m_features;
 
   //Don't touch these
-  inline Eigen::MatrixXf getFeatureCols(FeatureType fType) {
+  Eigen::MatrixXf getFeatureCols(FeatureType fType) {
   	return m_features.middleCols(m_startCols[m_allType2Ind[fType]], m_sizes[m_allType2Ind[fType]]);
   }
   void setFeatureCols(FeatureType fType, const Eigen::MatrixXf& fCols) {
@@ -59,9 +56,16 @@ protected:
   }
 
 private:
+	static std::vector<int> m_allSizes;
+	static std::vector<int> m_allStartCols;
+	static std::vector<int> m_sizes;
+	static std::vector<int> m_startCols;
+	static std::vector<FeatureType> m_allType2Ind;
+
   int calcFeatureDim(const std::vector<FeatureType>& featureTypes);
   void calcFeatureSubsetIndices(const vector<int>& sub_types, const vector<int>& all_sizes, vector<int>&all_startCols, vector<int> &sub_sizes, vector<int>& sub_startCols, vector<int>& all2sub);
 };
+
 
 
 class CloudFeatureExtractor : public FeatureExtractor {
