@@ -24,6 +24,7 @@
 #include "initialization.h"
 #include "simulation/simplescene.h"
 #include "config_tracking.h"
+#include "simulation/hand.h"
 
 #include "tracked_compound.h"
 
@@ -131,12 +132,9 @@ int main(int argc, char* argv[]) {
   scene.startViewer();
 
 
-Hand::Ptr hand = new
-  TrackedCompound trackedHand(new TrackedCompound(hand));
-  TrackedObject::Ptr trackedObj = callInitServiceAndCreateObject(scaleCloud(filteredCloud,1/METERS), rgbImages[0], transformer_images[0]);
-  if (!trackedObj) throw runtime_error("initialization of object failed.");
-  trackedObj->init();
-  scene.env->add(trackedObj->m_sim);
+  Hand::Ptr hand = makeHand(19, btTransform(btQuaternion::getIdentity(), btVector3(0, 0, 0.1 * METERS)));
+  scene.env->add(hand);
+  TrackedObject::Ptr trackedObj(new TrackedCompound(hand, scene.env->bullet->dynamicsWorld));
 
   // actual tracking algorithm
 	MultiVisibility::Ptr visInterface(new MultiVisibility());

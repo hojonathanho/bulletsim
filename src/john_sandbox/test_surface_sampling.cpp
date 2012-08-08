@@ -31,6 +31,11 @@ int main(int argc, char* argv[]) {
 
 	vector<btVector3> surfacePoints;
 	vector<btRigidBody*> ownerBodies;
+
+//	btCollisionConfiguration* colConfig = new btDefaultCollisionConfiguration();
+//	btCollisionWorld* world = new btCollisionWorld(new btCollisionDispatcher(colConfig),new btDbvtBroadphase(),colConfig);
+//	for (int i=0; i < hand->children.size(); i++) world->addCollisionObject(hand->children[i]->rigidBody.get());
+
 	getSurfacePoints(objs, scene.env->bullet->dynamicsWorld, surfacePoints, ownerBodies);
 
 

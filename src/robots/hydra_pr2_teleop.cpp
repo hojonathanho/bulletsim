@@ -16,7 +16,7 @@ HydraPR2Teleop::HydraPR2Teleop(RaveRobotObject::Ptr pr2, Scene* scene)
 {
 	if (!ros::isInitialized()) {
 		int argc = 0;
-		char** argv = {};
+		char** argv;
 		ros::init(argc, argv,"teleoperator",ros::init_options::AnonymousName);
 	}
 	m_nhPtr = ros::NodeHandlePtr(new ros::NodeHandle());

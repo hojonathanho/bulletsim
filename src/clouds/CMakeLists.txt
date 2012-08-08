@@ -31,8 +31,11 @@ add_executable(save_cloud_image_seq_node save_cloud_image_seq_node.cpp)
 target_link_libraries(save_cloud_image_seq_node clouds comm utils ${PCL_LIBRARIES} ${OpenCV_LIBS} ${ROS_LIBRARIES} boost_signals tf cv_bridge)
 
 add_executable(preprocessor_node preprocessor_node.cpp)
-
 target_link_libraries(preprocessor_node clouds comm utils ${PCL_LIBRARIES} ${OpenCV_LIBS} ${ROS_LIBRARIES} boost_signals tf cv_bridge)
+
+add_executable(simple_preprocessor_node simple_preprocessor_node.cpp)
+target_link_libraries(simple_preprocessor_node clouds comm utils ${PCL_LIBRARIES} ${OpenCV_LIBS} ${ROS_LIBRARIES} boost_signals tf cv_bridge)
+
 
 add_executable(cloud_merger_node cloud_merger_node.cpp)
 target_link_libraries(cloud_merger_node clouds comm utils ${PCL_LIBRARIES} ${OpenCV_LIBS} ${ROS_LIBRARIES} boost_signals tf cv_bridge)
