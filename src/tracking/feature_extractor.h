@@ -38,9 +38,14 @@ public:
 
   static Eigen::MatrixXf all2ActiveFeatures(const Eigen::MatrixXf& all_features) {
   	Eigen::MatrixXf active_features(all_features.rows(), m_dim);
-  	BOOST_FOREACH(FeatureType& fType, m_types)
+  	BOOST_FOREACH(FeatureType& fType, m_types) {
   		active_features.middleCols(m_startCols[m_allType2Ind[fType]], m_sizes[m_allType2Ind[fType]]) = all_features.middleCols(m_allStartCols[fType], m_allSizes[fType]);
+  	}
   	return active_features;
+  }
+
+  static Eigen::MatrixXf activeFeatures2Feature(const Eigen::MatrixXf active_features, FeatureType fType) {
+  	return active_features.middleCols(m_startCols[m_allType2Ind[fType]], m_sizes[m_allType2Ind[fType]]);
   }
 
 protected:
@@ -66,7 +71,7 @@ private:
   void calcFeatureSubsetIndices(const vector<int>& sub_types, const vector<int>& all_sizes, vector<int>&all_startCols, vector<int> &sub_sizes, vector<int>& sub_startCols, vector<int>& all2sub);
 };
 
-
+typedef FeatureExtractor FE;
 
 class CloudFeatureExtractor : public FeatureExtractor {
 public:

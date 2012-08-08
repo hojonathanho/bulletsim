@@ -155,7 +155,7 @@ Eigen::MatrixXf calculateResponsibilitiesNaive(const Eigen::MatrixXf& estPts, co
 			pZgivenC.col(n) /= pZgivenC.col(n).sum();
 	}
 
-	infinityDebug(pZgivenC, "pZgivenC");
+	//infinityDebug(pZgivenC, "pZgivenC");
 	assert(isFinite(pZgivenC));
 	assert(pZgivenC.rows() == K+1);
 	assert(pZgivenC.cols() == N);

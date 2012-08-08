@@ -110,16 +110,23 @@ void plotNodesAsSpheres(const Eigen::MatrixXf nodes, const Eigen::VectorXf& pVis
 	spheres->plot(util::toVec3Array(centers), util::toVec4Array(colors), toVec(sizes));
 }
 
+//Standard
 void plotNodesAsSpheres(const Eigen::MatrixXf centers, const Eigen::MatrixXf colors, const Eigen::VectorXf& pVis, const Eigen::MatrixXf& stdev, PlotSpheres::Ptr spheres) {
-	assert(centers.rows() == colors.rows());
-	MatrixXf nodes(centers.rows(), centers.cols() + colors.cols());
-	nodes.leftCols(centers.cols()) = centers;
-	nodes.rightCols(colors.cols()) = colors;
-	plotNodesAsSpheres(nodes, pVis, stdev, spheres);
+	int K = centers.rows();
+	assert(centers.cols() == 3);
+	assert(colors.rows() == K);
+	assert(colors.cols() == 3);
+	assert(pVis.size() == K);
+	assert(stdev.rows() == K);
+
+	MatrixXf rgba(colors.rows(), 4);
+	rgba << colors.rowwise().reverse(), pVis;
+	VectorXf sizes = stdev.rowwise().mean()/4.0;
+	spheres->plot(util::toVec3Array(centers), util::toVec4Array(rgba), toVec(sizes));
 }
 
 // Standard
-void plotSquares(const Eigen::MatrixXf centers, const Eigen::MatrixXf colors, const Eigen::VectorXf& alphas, const Eigen::MatrixXf& half_extents, PlotBoxes::Ptr box_plot) {
+void plotBoxes(const Eigen::MatrixXf centers, const Eigen::MatrixXf colors, const Eigen::VectorXf& alphas, const Eigen::MatrixXf& half_extents, PlotBoxes::Ptr box_plot) {
 	int K = centers.rows();
 	assert(colors.rows() == K);
 	assert(colors.cols() == 3);

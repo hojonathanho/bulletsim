@@ -27,4 +27,4 @@ void plotObsBorder(const Eigen::MatrixXf cloud, PointCloudPlot::Ptr plot);
 void plotObs(const Eigen::MatrixXf cloud, PointCloudPlot::Ptr plot);
 void plotObs(const Eigen::MatrixXf centers, const Eigen::MatrixXf colors, PointCloudPlot::Ptr plot);
 
-void plotSquares(const Eigen::MatrixXf centers, const Eigen::MatrixXf colors, const Eigen::VectorXf& alphas, const Eigen::MatrixXf& half_extents, PlotBoxes::Ptr box_plot);
+void plotBoxes(const Eigen::MatrixXf centers, const Eigen::MatrixXf colors, const Eigen::VectorXf& alphas, const Eigen::MatrixXf& half_extents, PlotBoxes::Ptr box_plot);

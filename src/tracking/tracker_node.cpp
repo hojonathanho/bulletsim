@@ -76,7 +76,7 @@ int main(int argc, char* argv[]) {
 
   GeneralConfig::scale = 100;
   BulletConfig::maxSubSteps = 0;
-  BulletConfig::gravity = btVector3(0,0,0.1);
+  BulletConfig::gravity = btVector3(0,0,-0.1);
 
   Parser parser;
   parser.addGroup(TrackingConfig());

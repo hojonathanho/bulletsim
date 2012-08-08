@@ -5,6 +5,7 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
+#include "feature_extractor.h"
 
 using namespace std;
 using namespace Eigen;
@@ -62,7 +63,7 @@ void TrackedBox::applyEvidence(const Eigen::MatrixXf& corr, const MatrixXf& obsP
 		estVel[i] = getSim()->rigidBody->getVelocityInLocalPoint(relPos[i]);
 		//estVel[i] = getSim()->rigidBody->getLinearVelocity();
 	}
-	vector<btVector3> impulses = calcImpulsesDamped(estPos, estVel, toBulletVectors(obsPts.leftCols(3)), corr, toVec(m_masses), TrackingConfig::kp_box, TrackingConfig::kd_box);
+	vector<btVector3> impulses = calcImpulsesDamped(estPos, estVel, toBulletVectors(FE::activeFeatures2Feature(obsPts, FE::FT_XYZ)), corr, toVec(m_masses), TrackingConfig::kp_box, TrackingConfig::kd_box);
 
 	for (int i=0; i<m_nNodes; ++i) {
         getSim()->rigidBody->applyImpulse(impulses[i], relPos[i]);
