@@ -292,7 +292,7 @@ BulletSoftObject::Ptr CustomScene::createCloth(btScalar s, const btVector3 &cent
     const int divs = 45;
 
     btSoftBody *psb = btSoftBodyHelpers::CreatePatch(
-        env->bullet->softBodyWorldInfo,
+        *env->bullet->softBodyWorldInfo,
         center + btVector3(-s,-s,0),
         center + btVector3(+s,-s,0),
         center + btVector3(-s,+s,0),

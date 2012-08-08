@@ -53,7 +53,7 @@ int main(int argc, char* argv[]) {
 
     Scene s;
     //Create your psb
-    btSoftBody* psb=btSoftBodyHelpers::CreateFromTetGenData(s.env->bullet->softBodyWorldInfo,
+    btSoftBody* psb=btSoftBodyHelpers::CreateFromTetGenData(*s.env->bullet->softBodyWorldInfo,
                                                             ele.c_str(),
                                                             face.c_str(),
                                                             node.c_str(),

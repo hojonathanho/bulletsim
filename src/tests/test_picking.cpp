@@ -10,7 +10,7 @@
 void initCloth(Scene &scene, btScalar s, btScalar z) {
 	const int		r=30;
 	int fixed=0;//4+8;
-	btSoftBody*		psb=btSoftBodyHelpers::CreatePatch(scene.env->bullet->softBodyWorldInfo,btVector3(-s,-s,z),
+	btSoftBody*		psb=btSoftBodyHelpers::CreatePatch(*scene.env->bullet->softBodyWorldInfo,btVector3(-s,-s,z),
 		btVector3(+s,-s,z),
 		btVector3(-s,+s,z),
 		btVector3(+s,+s,z),r,r,fixed,true);

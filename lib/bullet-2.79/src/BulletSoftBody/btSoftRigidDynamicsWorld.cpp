@@ -57,6 +57,7 @@ btSoftRigidDynamicsWorld::btSoftRigidDynamicsWorld(
 	m_sbi.water_normal		=	btVector3(0,0,0);
 	m_sbi.m_gravity.setValue(0,-10,0);
 
+	m_sbi.m_sparsesdf.Initialize();
 
 }
 

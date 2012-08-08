@@ -288,7 +288,7 @@ EnvironmentObject::Ptr BulletSoftObject::copy(Fork &f) const {
     int i, j;
 
     // create a new softBody with the data
-    btSoftBody * const psb = new btSoftBody(&f.env->bullet->softBodyWorldInfo);
+    btSoftBody * const psb = new btSoftBody(f.env->bullet->softBodyWorldInfo);
     f.registerCopy(orig, psb);
 
     // materials

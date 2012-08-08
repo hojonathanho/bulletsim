@@ -36,7 +36,7 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,osgGA::GUIActionA
 
 BulletSoftObject::Ptr CustomScene::createCloth(btScalar s, const btVector3 &center, int divs) {
     btSoftBody *psb = btSoftBodyHelpers::CreatePatch(
-        env->bullet->softBodyWorldInfo,
+        *env->bullet->softBodyWorldInfo,
         center + btVector3(-s,-s,0),
         center + btVector3(+s,-s,0),
         center + btVector3(-s,+s,0),
