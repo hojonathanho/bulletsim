@@ -12,6 +12,7 @@ public:
 
 class EverythingIsVisible : public VisibilityInterface {
 public:
+	typedef boost::shared_ptr<EverythingIsVisible> Ptr;
 	Eigen::VectorXf checkNodeVisibility(TrackedObject::Ptr obj);
 };
 

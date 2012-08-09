@@ -6,6 +6,7 @@
 #include "utils/utils_vector.h"
 #include "tracking/surface_sampling.h"
 #include <boost/foreach.hpp>
+#include "tracking/feature_extractor.h"
 
 using namespace std;
 using namespace Eigen;
@@ -46,11 +47,14 @@ std::vector<btVector3> TrackedCompound::getPoints() {
 	return out;
 }
 
-const VectorXf TrackedCompound::getPriorDist() {
-	VectorXf prior_dist(6);
-	prior_dist << TrackingConfig::pointPriorDist*METERS, TrackingConfig::pointPriorDist*METERS, TrackingConfig::pointPriorDist*METERS, 0.3, 0.15, 0.15;
-	cout << "fixme: TrackedCompound::getPriorDist()" << endl;
-	return prior_dist;
+const Eigen::VectorXf TrackedCompound::getPriorDist() {
+	Eigen::MatrixXf prior_dist(1,FeatureExtractor::m_allDim);
+	prior_dist << TrackingConfig::pointPriorDist*METERS, TrackingConfig::pointPriorDist*METERS, TrackingConfig::pointPriorDist*METERS,  //FT_XYZ
+			0.2, 0.2, 0.2, 	//FT_BGR
+			0.3, 0.15, 0.15,	//FT_LAB
+			1.0, 1.0, 1.0,
+			1.0;
+	return FeatureExtractor::all2ActiveFeatures(prior_dist).transpose();
 }
 
 void TrackedCompound::applyEvidence(const Eigen::MatrixXf& corr, const MatrixXf& obsPts) {

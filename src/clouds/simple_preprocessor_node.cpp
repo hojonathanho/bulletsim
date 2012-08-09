@@ -115,7 +115,7 @@ public:
     msg_out.header = msg_in.header;
     m_pub.publish(msg_out);
 
-    br.sendTransform(tf::StampedTransform(m_transform, ros::Time::now(), msg_in.header.frame_id, "ground"));
+    br.sendTransform(tf::StampedTransform(m_transform, ros::Time::now(), msg_in.header.frame_id, "/ground"));
 
     geometry_msgs::PolygonStamped polyStamped;
     polyStamped.polygon = m_poly;

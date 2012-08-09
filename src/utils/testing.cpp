@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <iostream>
 #include <Eigen/Dense>
+#include <math.h>
 
 using namespace std;
 using namespace Eigen;
@@ -9,7 +10,7 @@ bool isApproxEq(float x, float y) {
 	const double EPSILON = 1E-4;
 	if (x == 0) return fabs(y) <= EPSILON;
 	if (y == 0) return fabs(x) <= EPSILON;
-	return fabs(x - y) / max(fabs(x), fabs(y)) <= EPSILON;
+	return (fabs(x - y) / max(fabs(x), fabs(y)) <= EPSILON) || (isnan(x) && isnan(y));
 }
 
 bool isApproxEq(MatrixXf m0, MatrixXf m1) {

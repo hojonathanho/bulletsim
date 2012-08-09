@@ -55,6 +55,6 @@ target_link_libraries(simulated_tracker tracking simulation clouds tf cv_bridge 
 add_executable(simulated_hand_tracker simulated_hand_tracker.cpp)
 target_link_libraries(simulated_hand_tracker tracking simulation clouds tf cv_bridge ${OpenCV_LIBS} ${ROS_LIBRARIES} boost_signals)
 
-add_executable(hand_tracker_node hand_tracker_node.cpp)
+add_executable(hand_tracker_node hand_tracker_node1.cpp)
 target_link_libraries(hand_tracker_node tracking simulation clouds tf cv_bridge ${OpenCV_LIBS} ${ROS_LIBRARIES} boost_signals)
 
