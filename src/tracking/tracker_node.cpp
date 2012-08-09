@@ -20,7 +20,8 @@
 #include "utils/logging.h"
 #include "utils/utils_vector.h"
 #include "visibility.h"
-#include "simple_physics_tracker.h"
+#include "physics_tracker.h"
+#include "feature_extractor.h"
 #include "initialization.h"
 #include "simulation/simplescene.h"
 #include "config_tracking.h"
@@ -68,15 +69,6 @@ void imagesCallback (const sensor_msgs::ImageConstPtr& depthImageMsg,
 
   pending_images[i] = true;
   //cout << "pending_images[" << i << "] " << pending_images[i] << endl;
-}
-
-void adjustTransparency(TrackedObject::Ptr trackedObj, float increment) {
-	if (trackedObj->m_type == "rope")
-		dynamic_cast<CapsuleRope*>(trackedObj->getSim())->adjustTransparency(increment);
-	if (trackedObj->m_type == "towel")
-		dynamic_cast<BulletSoftObject*>(trackedObj->getSim())->adjustTransparency(increment);
-	if (trackedObj->m_type == "box")
-		dynamic_cast<BulletObject*>(trackedObj->getSim())->adjustTransparency(increment);
 }
 
 int main(int argc, char* argv[]) {
@@ -141,44 +133,36 @@ int main(int argc, char* argv[]) {
 		else
 			visInterface->addVisibility(AllOcclusionsVisibility::Ptr(new AllOcclusionsVisibility(scene.env->bullet->dynamicsWorld, transformer_images[i])));
 	}
-	SimplePhysicsTracker alg(trackedObj, visInterface, scene.env);
 
-  scene.addVoidKeyCallback('c',boost::bind(toggle, &alg.m_enableCorrPlot));
-  scene.addVoidKeyCallback('C',boost::bind(toggle, &alg.m_enableCorrPlot));
-  scene.addVoidKeyCallback('e',boost::bind(toggle, &alg.m_enableEstPlot));
-  scene.addVoidKeyCallback('E',boost::bind(toggle, &alg.m_enableEstTransPlot));
-  scene.addVoidKeyCallback('o',boost::bind(toggle, &alg.m_enableObsPlot));
-  scene.addVoidKeyCallback('O',boost::bind(toggle, &alg.m_enableObsTransPlot));
-  scene.addVoidKeyCallback('i',boost::bind(toggle, &alg.m_enableObsInlierPlot));
-  scene.addVoidKeyCallback('I',boost::bind(toggle, &alg.m_enableObsInlierPlot));
-  scene.addVoidKeyCallback('b',boost::bind(toggle, &alg.m_enableDebugPlot));
-  scene.addVoidKeyCallback('B',boost::bind(toggle, &alg.m_enableDebugPlot));
-  scene.addVoidKeyCallback('a',boost::bind(toggle, &alg.m_applyEvidence));
-  scene.addVoidKeyCallback('=',boost::bind(adjustTransparency, trackedObj, 0.1f));
-  scene.addVoidKeyCallback('-',boost::bind(adjustTransparency, trackedObj, -0.1f));
+	TrackedObjectFeatureExtractor::Ptr objectFeatures(new TrackedObjectFeatureExtractor(trackedObj));
+	CloudFeatureExtractor::Ptr cloudFeatures(new CloudFeatureExtractor());
+	PhysicsTracker::Ptr alg(new PhysicsTracker(objectFeatures, cloudFeatures, visInterface));
+	PhysicsTrackerVisualizer::Ptr trakingVisualizer(new PhysicsTrackerVisualizer(&scene, alg));
 
-  scene.addVoidKeyCallback('[',boost::bind(add, &alg.m_count, -1));
-  scene.addVoidKeyCallback(']',boost::bind(add, &alg.m_count, 1));
-
+	bool applyEvidence = true;
+  scene.addVoidKeyCallback('a',boost::bind(toggle, &applyEvidence));
+  scene.addVoidKeyCallback('=',boost::bind(&EnvironmentObject::adjustTransparency, trackedObj->getSim(), 0.1f));
+  scene.addVoidKeyCallback('-',boost::bind(&EnvironmentObject::adjustTransparency, trackedObj->getSim(), -0.1f));
   scene.addVoidKeyCallback('q',boost::bind(exit, 0));
 
   while (ros::ok()) {
-    alg.updateInput(filteredCloud);
-    //TODO update arbitrary number of depth images)
+  	//Update the inputs of the featureExtractors and visibilities (if they have any inputs)
+  	cloudFeatures->updateInputs(filteredCloud);
+  	//TODO update arbitrary number of depth images)
     visInterface->visibilities[0]->updateInput(depthImages[0]);
     pending = false;
     while (ros::ok() && !pending) {
-      alg.doIteration();
-    	scene.env->step(.03,2,.015);
-      LOG_DEBUG("did iteration");
+    	//Do iteration
+      alg->updateFeatures();
+      alg->expectationStep();
+      alg->maximizationStep(applyEvidence);
+
+      trakingVisualizer->update();
+      scene.env->step(.03,2,.015);
       scene.viewer.frame();
       ros::spinOnce();
     }
-    LOG_DEBUG("publishing");
     //TODO
     //objPub.publish(toTrackedObjectMessage(trackedObj));
   }
-
-
-
 }

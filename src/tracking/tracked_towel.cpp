@@ -9,6 +9,7 @@
 #include "simulation/bullet_io.h"
 #include <pcl/common/transforms.h>
 #include "clouds/utils_pcl.h"
+#include "feature_extractor.h"
 
 using namespace std;
 using namespace Eigen;
@@ -170,11 +171,14 @@ vector<btVector3> TrackedTowel::getNormals() {
 	return out;
 }
 
-const VectorXf TrackedTowel::getPriorDist() {
-	VectorXf prior_dist(6);
-	prior_dist << TrackingConfig::pointPriorDist*METERS, TrackingConfig::pointPriorDist*METERS, TrackingConfig::pointPriorDist*METERS, 0.2, 0.1, 0.1; //, TrackingConfig::borderPriorDist;
-	cout << "fixme: TrackedTowel::getPriorDist()" << endl;
-	return prior_dist;
+const Eigen::VectorXf TrackedTowel::getPriorDist() {
+	Eigen::MatrixXf prior_dist(1,FeatureExtractor::m_allDim);
+	prior_dist << TrackingConfig::pointPriorDist*METERS, TrackingConfig::pointPriorDist*METERS, TrackingConfig::pointPriorDist*METERS,  //FT_XYZ
+			0.2, 0.2, 0.2, 	//FT_BGR
+			0.2, 0.1, 0.1,	//FT_LAB
+			1.0, 1.0, 1.0,
+			1.0;
+	return FeatureExtractor::all2ActiveFeatures(prior_dist).transpose();
 }
 
 //  corners:

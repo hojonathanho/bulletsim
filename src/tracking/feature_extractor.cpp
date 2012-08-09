@@ -15,10 +15,21 @@
 using namespace std;
 using namespace Eigen;
 
+int FeatureExtractor::m_dim = 0;
+vector<FeatureExtractor::FeatureType> FeatureExtractor::m_types = vector<FeatureExtractor::FeatureType>(0);
+int FeatureExtractor::m_allDim = 0;
+vector<int> FeatureExtractor::m_allSizes = vector<int>(0);
+vector<int> FeatureExtractor::m_allStartCols = vector<int>(0);
+vector<int> FeatureExtractor::m_sizes = vector<int>(0);
+vector<int> FeatureExtractor::m_startCols = vector<int>(0);
+vector<FeatureExtractor::FeatureType> FeatureExtractor::m_allType2Ind = vector<FeatureExtractor::FeatureType>(0);
+
 FeatureExtractor::FeatureExtractor() {
 	m_types = TrackingConfig::featureTypes;
 	m_dim = calcFeatureDim(m_types);
 	m_allSizes = vector<int>(FT_SIZES, FT_SIZES+FT_COUNT);
+	m_allDim = 0;
+	BOOST_FOREACH(int dim, m_allSizes) m_allDim+=dim;
 	calcFeatureSubsetIndices(m_types, m_allSizes, m_allStartCols, m_sizes, m_startCols, m_allType2Ind);
 }
 

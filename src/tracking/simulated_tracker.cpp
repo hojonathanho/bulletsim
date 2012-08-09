@@ -21,7 +21,8 @@
 #include "utils/logging.h"
 #include "utils/utils_vector.h"
 #include "tracking/visibility.h"
-#include "tracking/simple_physics_tracker.h"
+#include "physics_tracker.h"
+#include "feature_extractor.h"
 #include "simulation/simplescene.h"
 #include "tracking/config_tracking.h"
 #include "tracking/tracked_object.h"
@@ -109,11 +110,11 @@ int main(int argc, char *argv[]) {
 		scene.env->add(plane);
 
 		CapsuleObject::Ptr capsule(new CapsuleObject(0, 0.02*METERS,sx*2, btTransform(btQuaternion(btVector3(0,0,1), 0.0), btVector3(0,-sy*0.5,h-0.04*METERS))));
-		capsule->collisionShape->setMargin(0.005*METERS);
+		capsule->collisionShape->setMargin(0.002*METERS);
 		capsule->rigidBody->setFriction(0.0);
 		scene.env->add(capsule);
 
-		BoxObject::Ptr box(new BoxObject(0, btVector3(TrackingConfig::pointOutlierDist*METERS/2.0,TrackingConfig::pointOutlierDist*METERS/2.0,TrackingConfig::pointOutlierDist*METERS/2.0), btTransform(btQuaternion(btVector3(1,0,0), 0.0), btVector3(0,0,h-0.1*METERS))));
+		BoxObject::Ptr box(new BoxObject(0, btVector3(TrackingConfig::pointOutlierDist*METERS/2.0,TrackingConfig::pointOutlierDist*METERS/2.0,TrackingConfig::pointOutlierDist*METERS/2.0), btTransform(btQuaternion(btVector3(1,0,0), 0.0), btVector3(0,-0.3*METERS,h-0.1*METERS))));
 		box->collisionShape->setMargin(0.001*METERS);
 		box->rigidBody->setFriction(1.0);
 		box->setColor(1,0,0,1);
@@ -134,31 +135,21 @@ int main(int argc, char *argv[]) {
 		TrackedObject::Ptr trackedObj(new TrackedTowel(cloth, rx, ry));
 		trackedObj->init();
 		EverythingIsVisible::Ptr visInterface(new EverythingIsVisible());
-		SimplePhysicsTracker alg(trackedObj, visInterface, scene.env);
 
-		scene.addVoidKeyCallback('c',boost::bind(toggle, &alg.m_enableCorrPlot));
-		scene.addVoidKeyCallback('C',boost::bind(toggle, &alg.m_enableCorrPlot));
-		scene.addVoidKeyCallback('e',boost::bind(toggle, &alg.m_enableEstPlot));
-		scene.addVoidKeyCallback('E',boost::bind(toggle, &alg.m_enableEstTransPlot));
-		scene.addVoidKeyCallback('o',boost::bind(toggle, &alg.m_enableObsPlot));
-		scene.addVoidKeyCallback('O',boost::bind(toggle, &alg.m_enableObsTransPlot));
-		scene.addVoidKeyCallback('i',boost::bind(toggle, &alg.m_enableObsInlierPlot));
-		scene.addVoidKeyCallback('I',boost::bind(toggle, &alg.m_enableObsInlierPlot));
-		scene.addVoidKeyCallback('b',boost::bind(toggle, &alg.m_enableDebugPlot));
-		scene.addVoidKeyCallback('B',boost::bind(toggle, &alg.m_enableDebugPlot));
-		scene.addVoidKeyCallback('a',boost::bind(toggle, &alg.m_applyEvidence));
-	  scene.addVoidKeyCallback('=',boost::bind(&EnvironmentObject::adjustTransparency, trackedObj->getSim(), 0.1f));
-	  scene.addVoidKeyCallback('-',boost::bind(&EnvironmentObject::adjustTransparency, trackedObj->getSim(), -0.1f));
+		TrackedObjectFeatureExtractor::Ptr objectFeatures(new TrackedObjectFeatureExtractor(trackedObj));
+		TrackedObjectFeatureExtractor::Ptr observedFeatures(new TrackedObjectFeatureExtractor(observed_tracked));
+		PhysicsTracker::Ptr alg(new PhysicsTracker(objectFeatures, observedFeatures, visInterface));
+		PhysicsTrackerVisualizer::Ptr trakingVisualizer(new PhysicsTrackerVisualizer(&scene, alg));
 
-		scene.addVoidKeyCallback('[',boost::bind(add, &alg.m_count, -1));
-		scene.addVoidKeyCallback(']',boost::bind(add, &alg.m_count, 1));
-
+		bool applyEvidence = true;
+		scene.addVoidKeyCallback('a',boost::bind(toggle, &applyEvidence));
+		scene.addVoidKeyCallback('=',boost::bind(&EnvironmentObject::adjustTransparency, trackedObj->getSim(), 0.1f));
+		scene.addVoidKeyCallback('-',boost::bind(&EnvironmentObject::adjustTransparency, trackedObj->getSim(), -0.1f));
+		scene.addVoidKeyCallback('q',boost::bind(exit, 0));
 		scene.addVoidKeyCallback('u',boost::bind(shift, observed_cloth, btVector3(0,0,0.01*METERS)));
 		scene.addVoidKeyCallback('j',boost::bind(shift, observed_cloth, btVector3(0,0,-0.01*METERS)));
 		scene.addVoidKeyCallback('h',boost::bind(shift, observed_cloth, btVector3(0,-0.01*METERS,0)));
 		scene.addVoidKeyCallback('k',boost::bind(shift, observed_cloth, btVector3(0,0.01*METERS,0)));
-		bool quit = false;
-	  scene.addVoidKeyCallback('q',boost::bind(toggle, &quit));
 
 		btSoftBody::tNodeArray& target_nodes = observed_cloth->softBody->m_nodes;
 
@@ -166,22 +157,14 @@ int main(int argc, char *argv[]) {
 
     boost::posix_time::ptime sim_time = boost::posix_time::microsec_clock::local_time();
     while (true) {
-    	if (quit) break;
+    	//Update the inputs of the featureExtractors and visibilities (if they have any inputs)
 
-			MatrixXf xyz = toEigenMatrix(observed_tracked->getPoints());
-			MatrixXf rgb = observed_tracked->getColors();
-			assert(xyz.rows() == rgb.rows());
-    	ColorCloudPtr cloud(new ColorCloud());
-    	for (int i=0; i<xyz.rows(); i++) {
-    		ColorPoint pt(rgb(i,2)*255.0, rgb(i,1)*255.0, rgb(i,0)*255.0);
-    		pt.x = xyz(i,0);
-    		pt.y = xyz(i,1);
-    		pt.z = xyz(i,2);
-    		cloud->push_back(pt);
-			}
-    	alg.updateInput(cloud);
-    	alg.doIteration();
+    	//Do iteration
+    	alg->updateFeatures();
+			alg->expectationStep();
+			alg->maximizationStep(applyEvidence);
 
+			trakingVisualizer->update();
     	scene.step(0.03);
     	cout << (boost::posix_time::microsec_clock::local_time() - sim_time).total_milliseconds() << endl;
     	sim_time = boost::posix_time::microsec_clock::local_time();
