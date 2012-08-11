@@ -147,7 +147,7 @@ int main(int argc, char* argv[]) {
 
   while (ros::ok()) {
   	//Update the inputs of the featureExtractors and visibilities (if they have any inputs)
-  	cloudFeatures->updateInputs(filteredCloud);
+  	cloudFeatures->updateInputs(filteredCloud, rgbImages[0], transformer_images[0]);
   	//TODO update arbitrary number of depth images)
     visInterface->visibilities[0]->updateInput(depthImages[0]);
     pending = false;

@@ -6,6 +6,9 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 
+//the rows of features are the vectors of the data set to be compressed.
+Eigen::MatrixXf compressPCA(const cv::PCA& pca, Eigen::MatrixXf features);
+
 Eigen::Vector3f toEigenVectorImage(const cv::Vec3b& pixel);
 cv::Vec3b toCVMatImage(const Eigen::Vector3f& pixel);
 void fillBorder(cv::Mat image, int border_width=100, int reduce_width=20, int threshold=30);

@@ -37,9 +37,23 @@ void PhysicsTracker::updateFeatures() {
 }
 
 void PhysicsTracker::expectationStep() {
-  //boost::posix_time::ptime e_time = boost::posix_time::microsec_clock::local_time();
-  m_pZgivenC = calculateResponsibilitiesNaive(m_estPts, m_obsPts, m_stdev, m_vis, m_objFeatures->m_obj->getOutlierDist(), m_objFeatures->m_obj->getOutlierStdev());
-  //cout << "E time " << (boost::posix_time::microsec_clock::local_time() - e_time).total_milliseconds() << endl;
+  boost::posix_time::ptime e_time = boost::posix_time::microsec_clock::local_time();
+//	MAT_DIMS(m_estPts)
+//	MAT_DIMS(m_obsPts)
+//	MAT_DIMS(m_stdev)
+//	MAT_DIMS(m_vis)
+//
+//  assert(isFinite(m_estPts));
+//  assert(isFinite(m_obsPts));
+//  assert(isFinite(m_stdev));
+//  assert(isFinite(m_vis));
+
+  m_pZgivenC = calculateResponsibilities(m_estPts, m_obsPts, m_stdev, m_vis, m_objFeatures->m_obj->getOutlierDist(), m_objFeatures->m_obj->getOutlierStdev());
+
+//  MAT_DIMS(m_pZgivenC)
+
+//  cout << "m_pZgivenC finite " << isFinite(m_pZgivenC) << endl;
+  cout << "E time " << (boost::posix_time::microsec_clock::local_time() - e_time).total_milliseconds() << endl;
 
 #ifdef CHECK_CORRECTNESS
   boost::posix_time::ptime en_time = boost::posix_time::microsec_clock::local_time();
@@ -51,16 +65,16 @@ void PhysicsTracker::expectationStep() {
 
 void PhysicsTracker::maximizationStep(bool apply_evidence) {
   //boost::posix_time::ptime evidence_time = boost::posix_time::microsec_clock::local_time();
-	if (apply_evidence) m_objFeatures->m_obj->applyEvidence(m_pZgivenC, m_obsPts);
+	if (apply_evidence && isFinite(m_pZgivenC)) m_objFeatures->m_obj->applyEvidence(m_pZgivenC, m_obsFeatures->getFeatures(FE::FT_XYZ));
   //cout << "Evidence time " << (boost::posix_time::microsec_clock::local_time() - evidence_time).total_milliseconds() << endl;
 
   //boost::posix_time::ptime m_time = boost::posix_time::microsec_clock::local_time();
-  m_stdev = calculateStdev(m_estPts, m_obsPts, m_pZgivenC, m_priorDist, 10);
+  if (isFinite(m_pZgivenC)) m_stdev = calculateStdev(m_estPts, m_obsPts, m_pZgivenC, m_priorDist, 10);
   //cout << "M time " << (boost::posix_time::microsec_clock::local_time() - m_time).total_milliseconds() << endl;
 
 #ifdef CHECK_CORRECTNESS
   boost::posix_time::ptime mn_time = boost::posix_time::microsec_clock::local_time();
-  MatrixXf stdev_naive = calculateStdevNaive(m_estPts, m_obsPts, m_pZgivenC, m_priorDist, 10);
+  MatrixXf stdev_naive = calculateStdevNaive(m_estPts, m_obsPts, m_pZgivenC, m_priorDist, 2);
   cout << "M naive time " << (boost::posix_time::microsec_clock::local_time() - mn_time).total_milliseconds() << endl;
   assert(isApproxEq(stdev_naive, m_stdev));
 #endif
@@ -123,7 +137,7 @@ void PhysicsTrackerVisualizer::update() {
   TrackedObjectFeatureExtractor::Ptr objFeatures = m_tracker->m_objFeatures;
   TrackedObject::Ptr obj = objFeatures->m_obj;
 
-	if (m_enableObsInlierPlot) plotObs(toBulletVectors(FE::activeFeatures2Feature(obsPts, FE::FT_XYZ)), pZgivenC.colwise().sum(), m_obsInlierPlot);
+	if (m_enableObsInlierPlot) plotObs(toBulletVectors(obsFeatures->getFeatures(FE::FT_XYZ)), pZgivenC.colwise().sum(), m_obsInlierPlot);
 	else m_obsInlierPlot->clear();
 
 	if (m_enableObsPlot) plotObs(obsFeatures->getFeatures(FE::FT_XYZ), obsFeatures->getFeatures(FE::FT_BGR), m_obsPlot);
@@ -136,9 +150,10 @@ void PhysicsTrackerVisualizer::update() {
 	if (m_enableEstTransPlot) plotNodesAsSpheres(toEigenMatrix(obj->getPoints()), objFeatures->getFeatures(FE::FT_LAB), vis, FE::activeFeatures2Feature(stdev, FE::FT_XYZ), m_estTransPlot);
 	else m_estTransPlot->clear();
 
-	MatrixXf nodes = calculateNodesNaive(estPts, obsPts, pZgivenC);
-	if (m_enableEstCalcPlot) plotNodesAsSpheres(FE::activeFeatures2Feature(nodes, FE::FT_XYZ), FE::activeFeatures2Feature(nodes, FE::FT_LAB), VectorXf::Ones(nodes.rows()), FE::activeFeatures2Feature(stdev, FE::FT_XYZ), m_estCalcPlot);
-	else m_estCalcPlot->clear();
+	if (m_enableEstCalcPlot) {
+		MatrixXf nodes = calculateNodesNaive(estPts, obsPts, pZgivenC);
+		plotNodesAsSpheres(FE::activeFeatures2Feature(nodes, FE::FT_XYZ), obsFeatures->getFeatures(FE::FT_BGR), VectorXf::Ones(nodes.rows()), FE::activeFeatures2Feature(stdev, FE::FT_XYZ), m_estCalcPlot);
+	} else m_estCalcPlot->clear();
 
 	if (m_enableCorrPlot) drawCorrLines(m_corrPlot, toBulletVectors(objFeatures->getFeatures(FE::FT_XYZ)), toBulletVectors(obsFeatures->getFeatures(FE::FT_XYZ)), pZgivenC, 0.01, m_nodeCorrPlot);
 	else m_corrPlot->clear();

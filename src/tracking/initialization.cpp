@@ -40,9 +40,22 @@ TrackedObject::Ptr toTrackedObject(const bulletsim_msgs::ObjectInit& initMsg, Co
   else if (initMsg.type == "towel_corners") {
 	  const vector<geometry_msgs::Point32>& points = initMsg.towel_corners.polygon.points;
 	  vector<btVector3> corners = scaleVecs(toBulletVectors(points),METERS);
-	  int resolution_x, resolution_y;
-	  BulletSoftObject::Ptr sim = makeTowel(corners, TrackingConfig::node_density/METERS, TrackingConfig::surface_density/(METERS*METERS), resolution_x, resolution_y);
-	  TrackedTowel::Ptr tracked_towel(new TrackedTowel(sim, resolution_x, resolution_y));
+
+	  float sx = (corners[0] - corners[1]).length();
+		float sy = (corners[0] - corners[3]).length();
+		int resolution_x = sx/(TrackingConfig::node_distance*METERS) + 1;
+		int resolution_y = sy/(TrackingConfig::node_distance*METERS) + 1;
+		float mass = (TrackingConfig::surface_density/(METERS*METERS)) * (sx * sy);
+
+	  printf("Created towel with following properties:\n");
+	  printf("Surface density (Mass per area): %f\n", TrackingConfig::surface_density);
+	  printf("Mass: %f\n", mass);
+	  printf("Dimensions and area: %f x %f = %f\n", sx/METERS, sy/METERS, sx*sy/(METERS*METERS));
+	  printf("Node distance (distance between nodes): %f\n", TrackingConfig::node_distance);
+	  printf("Resolution: %d %d\n", resolution_x, resolution_y);
+
+	  BulletSoftObject::Ptr sim = makeTowel(corners, resolution_x, resolution_y, mass);
+	  TrackedTowel::Ptr tracked_towel(new TrackedTowel(sim, resolution_x, resolution_y, sx, sy));
 	  cv::Mat tex_image = tracked_towel->makeTexture(corners, image, transformer);
 		sim->setTexture(tex_image);
 

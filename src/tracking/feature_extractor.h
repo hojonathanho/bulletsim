@@ -1,11 +1,11 @@
 #pragma once
 #include <vector>
 #include <Eigen/Dense>
-#include "sparse_utils.h"
+#include <cv.h>
 #include "clouds/pcl_typedefs.h"
 #include "config_tracking.h"
 #include "tracked_object.h"
-#include "tracking_defs.h"
+#include "utils_tracking.h"
 
 class FeatureExtractor {
 public:
@@ -17,6 +17,8 @@ public:
 		FT_LAB,
 		FT_NORMAL,
 		FT_LABEL,
+		FT_SURF,
+		FT_PCASURF,
 
 		FT_COUNT
 	};
@@ -26,6 +28,7 @@ public:
 	static int m_dim;
 	static std::vector<FeatureType> m_types;
 	static int m_allDim;
+	static const int FT_SIZES[];
 
   FeatureExtractor();
 
@@ -50,6 +53,7 @@ public:
 
 protected:
   Eigen::MatrixXf m_features;
+  static cv::PCA pca_surf;
 
   //Don't touch these
   Eigen::MatrixXf getFeatureCols(FeatureType fType) {
@@ -77,8 +81,11 @@ class CloudFeatureExtractor : public FeatureExtractor {
 public:
 	typedef boost::shared_ptr<CloudFeatureExtractor> Ptr;
 	ColorCloudPtr m_cloud;
+	cv::Mat m_image;
+	CoordinateTransformer* m_transformer;
 
 	void updateInputs(ColorCloudPtr cloud);
+	void updateInputs(ColorCloudPtr cloud, cv::Mat image, CoordinateTransformer* transformer);
 	void updateFeatures();
   Eigen::MatrixXf computeFeature(FeatureType fType);
 };

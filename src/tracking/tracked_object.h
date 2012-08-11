@@ -58,7 +58,7 @@ class TrackedTowel : public TrackedObject {
 public:
   typedef boost::shared_ptr<TrackedTowel> Ptr;
 
-  TrackedTowel(BulletSoftObject::Ptr, int xres, int yres);
+  TrackedTowel(BulletSoftObject::Ptr, int xres, int yres, float sx, float sy);
 
   std::vector<btVector3> getPoints();
   std::vector<btVector3> getNormals();
@@ -66,8 +66,10 @@ public:
   void applyEvidence(const Eigen::MatrixXf& corr, const Eigen::MatrixXf& obsPts); // add forces
   BulletSoftObject* getSim() {return dynamic_cast<BulletSoftObject*>(m_sim.get());};
   cv::Mat makeTexture(const vector<btVector3>& corners, cv::Mat image, CoordinateTransformer* transformer);
+  cv::Point2f textureCoordinate (int node_id);
   void initColors();
-  
+  float m_sx, m_sy; //towel dimensions
+
 protected:
   std::vector<int> m_node2vert; // maps node index to bullet vertex index
   std::vector< std::vector<int> > m_vert2nodes; // maps bullet vertex index to indices of nodes
@@ -98,4 +100,4 @@ protected:
 std::vector<btVector3> calcImpulsesDamped(const std::vector<btVector3>& estPos, const std::vector<btVector3>& estVel,
   const std::vector<btVector3>& obsPts, const Eigen::MatrixXf& corr, const vector<float>& masses, float kp, float kd) ;
 
-BulletSoftObject::Ptr makeTowel(const vector<btVector3>& points, float node_density, float surface_density, int& resolution_x, int& resolution_y);
+BulletSoftObject::Ptr makeTowel(const vector<btVector3>& points, int resolution_x, int resolution_y, float mass);

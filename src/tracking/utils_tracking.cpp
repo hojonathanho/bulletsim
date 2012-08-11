@@ -88,11 +88,6 @@ vector<int> argminAlongRows(const MatrixXf& d_mn) {
   return out;
 }
 
-bool isFinite(const Eigen::MatrixXf& x) {
-  for (int row=0; row < x.rows(); row++) for (int col=0; col<x.cols(); col++) if (!isfinite(x(row,col))) return false;
-  return true;
-}
-
 std::vector<btVector3> toBulletVectors(ColorCloudPtr in) {
   std::vector<btVector3> out(in->size());
   for (int i=0; i < in->size(); ++i) out[i] = btVector3(in->points[i].x,in->points[i].y,in->points[i].z);

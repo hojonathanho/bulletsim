@@ -30,8 +30,9 @@ const Eigen::VectorXf TrackedRope::getPriorDist() {
 	prior_dist << TrackingConfig::pointPriorDist*METERS, TrackingConfig::pointPriorDist*METERS, TrackingConfig::pointPriorDist*METERS,  //FT_XYZ
 			0.2, 0.2, 0.2, 	//FT_BGR
 			0.3, 0.15, 0.15,	//FT_LAB
-			1.0, 1.0, 1.0,
-			1.0;
+			1.0, 1.0, 1.0,  //FT_NORMAL
+			1.0,  //FT_LABEL
+			MatrixXf::Ones(1, FE::FT_SIZES[FE::FT_SURF])*0.4;  //FT_SURF
 	return FeatureExtractor::all2ActiveFeatures(prior_dist).transpose();
 }
 
