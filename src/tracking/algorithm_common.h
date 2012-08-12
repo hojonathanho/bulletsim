@@ -2,7 +2,7 @@
 #include <Eigen/Dense>
 #include "sparse_utils.h"
 #include "clouds/pcl_typedefs.h"
-#include "algorithm_common.hpp"
+//#include "algorithm_common.hpp"
 
 Eigen::MatrixXf calculateNodesNaive(const Eigen::MatrixXf& estPts, const Eigen::MatrixXf& obsPts, const Eigen::MatrixXf& pZgivenC);
 Eigen::MatrixXf calculateNodes(const Eigen::MatrixXf& estPts, const Eigen::MatrixXf& obsPts, const Eigen::MatrixXf& pZgivenC);

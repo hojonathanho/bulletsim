@@ -13,8 +13,10 @@ static const int featureTypes_a[] = {FeatureExtractor::FT_XYZ, FeatureExtractor:
 std::vector<int> TrackingConfig::featureTypes = std::vector<int>(featureTypes_a, featureTypes_a+sizeof(featureTypes_a)/sizeof(int));
 
 
-float TrackingConfig::pointPriorDist = 0.02;
 float TrackingConfig::pointOutlierDist = 0.02;
+float TrackingConfig::pointPriorDist = 0.02;
+float TrackingConfig::colorLPriorDist = 0.4;
+float TrackingConfig::colorABPriorDist = 0.4;
 float TrackingConfig::epsilon = 0.001;
 int TrackingConfig::normalizeIter = 2;
 float TrackingConfig::kp_rope = 1;

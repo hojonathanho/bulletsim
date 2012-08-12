@@ -14,8 +14,10 @@ struct TrackingConfig : Config {
   static std::vector<std::string> cameraTopics;
   static std::vector<int> featureTypes;
 
-  static float pointPriorDist;
   static float pointOutlierDist;
+  static float pointPriorDist;
+  static float colorLPriorDist;
+  static float colorABPriorDist;
   static float epsilon;
   static int normalizeIter;
   static float kp_rope;
@@ -37,9 +39,10 @@ struct TrackingConfig : Config {
 
         params.push_back(new Parameter<std::vector<std::string> >("cameraTopics", &cameraTopics, "camera base topics"));
         params.push_back(new Parameter<std::vector<int> >("featureTypes", &featureTypes, "feature types. see feature_extractor.h"));
-
-        params.push_back(new Parameter<float>("pointPriorDist", &pointPriorDist, "Prior distribution for xyz. This is also the initial values for sigmas xyz. For cloth pick 0.08; for rope pick 0.02."));
         params.push_back(new Parameter<float>("pointOutlierDist", &pointOutlierDist, "Intuitively, observed points farther than distance=sqrt(3)*pointOutlierDist (special case) from a node are considered outliers. Pick distance/sqrt(3) ~= distance*0.5 ."));
+        params.push_back(new Parameter<float>("pointPriorDist", &pointPriorDist, "Prior distribution for xyz. This is also the initial values for sigmas xyz. For cloth pick 0.08; for rope pick 0.02."));
+        params.push_back(new Parameter<float>("colorLPriorDist", &colorLPriorDist, "Prior distribution for the lightness term of the Lab feature."));
+        params.push_back(new Parameter<float>("colorABPriorDist", &colorABPriorDist, "Prior distribution for the chromaticity terms (ab) of the Lab feature."));
         params.push_back(new Parameter<float>("epsilon", &epsilon, "Small normal to prevent terms going to infinity in the row normalization of estimateCorrespondence."));
         params.push_back(new Parameter<int>("normalizeIter", &normalizeIter, "Iterations of row/column normalization in the estimateCorrespondence algorithm."));
         params.push_back(new Parameter<float>("kp_rope", &kp_rope, "proportional gain for rope"));

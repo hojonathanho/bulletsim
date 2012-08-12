@@ -33,14 +33,14 @@ std::vector<btVector3> calcImpulsesDamped(const std::vector<btVector3>& estPos, 
 		// XXX SHOULD THERE BE DT?
   }
 
-  float max_impulse=1;
-  for (int k=0; k<K; k++) {
-  	if (impulses[k].length2() > max_impulse*max_impulse) {
-  		impulses[k].normalize();
-			impulses[k] *= max_impulse;
-  	}
-  }
-  cout << "max impulse mag " << max(impulses).length() << endl;
+//  float max_impulse=1;
+//  for (int k=0; k<K; k++) {
+//  	if (impulses[k].length2() > max_impulse*max_impulse) {
+//  		impulses[k].normalize();
+//			impulses[k] *= max_impulse;
+//  	}
+//  }
+//  cout << "max impulse mag " << max(impulses).length() << endl;
 
   return impulses;
 }

@@ -5,10 +5,10 @@
 #include "utils/conversions.h"
 #include "utils/testing.h"
 #include <boost/foreach.hpp>
+#include <boost/static_assert.hpp>
 #include "clouds/utils_pcl.h"
 #include "opencv2/nonfree/nonfree.hpp"
 #include <opencv2/imgproc/imgproc.hpp>
-#include "utils/testing.h"
 #include <algorithm>
 #include "utils/utils_vector.h"
 #include "utils/cvmat.h"
@@ -17,10 +17,9 @@ using namespace std;
 using namespace Eigen;
 
 //Modify this if you change the FeatureTypes
-const int FeatureExtractor::FT_SIZES[] = { 3, 3, 3, 3, 1, 64, 2 };
-
+const int FeatureExtractor::FT_SIZES[] = { 3, 3, 3, 3, 1, 64, 2};
+vector<FeatureExtractor::FeatureType> FeatureExtractor::m_types = TrackingConfig::featureTypes;
 int FeatureExtractor::m_dim = 0;
-vector<FeatureExtractor::FeatureType> FeatureExtractor::m_types = vector<FeatureExtractor::FeatureType> (0);
 int FeatureExtractor::m_allDim = 0;
 vector<int> FeatureExtractor::m_allSizes = vector<int> (0);
 vector<int> FeatureExtractor::m_allStartCols = vector<int> (0);
@@ -31,29 +30,22 @@ vector<FeatureExtractor::FeatureType> FeatureExtractor::m_allType2Ind = vector<F
 cv::PCA FE::pca_surf = cv::PCA();
 
 FeatureExtractor::FeatureExtractor() {
-	if (sizeof(FT_SIZES) / sizeof(const int) != FT_COUNT)
-		throw runtime_error("The number of FeatureType doesn't match the size of the FT_SIZES array.");
+	BOOST_STATIC_ASSERT_MSG(sizeof(FeatureExtractor::FT_SIZES)/sizeof(FeatureExtractor::FT_SIZES[0]) == FeatureExtractor::FT_COUNT, "The number of FeatureType doesn't match the size of the FT_SIZES array");
 
-	m_types = TrackingConfig::featureTypes;
-	m_dim = calcFeatureDim(m_types);
 	m_allSizes = vector<int> (FT_SIZES, FT_SIZES + FT_COUNT);
-	m_allDim = 0;
-	BOOST_FOREACH(int dim, m_allSizes) m_allDim	+=dim;
+	m_dim = m_allDim = 0;
+	BOOST_FOREACH(int fType, m_types) m_dim	+= FT_SIZES[fType];
+	BOOST_FOREACH(int dim, m_allSizes) m_allDim	+= dim;
 	calcFeatureSubsetIndices(m_types, m_allSizes, m_allStartCols, m_sizes, m_startCols, m_allType2Ind);
 }
 
-Eigen::MatrixXf FeatureExtractor::getFeatures(FeatureType fType) {
-	if (find(m_types.begin(), m_types.end(), fType) == m_types.end())
-		return computeFeature(fType);
-	return getFeatureCols(fType);
-}
-
-int FeatureExtractor::calcFeatureDim(const std::vector<FeatureType>& featureTypes) {
-	int dim = 0;
-	BOOST_FOREACH(const FeatureType& fType, featureTypes) {
-		dim += FT_SIZES[fType];
+Eigen::Block<Eigen::MatrixXf> FeatureExtractor::getFeatures(FeatureType fType) {
+	if (fType == FT_ALL) return Block<MatrixXf>(m_features.derived(), 0, 0, m_features.rows() , m_features.cols());
+	if (find(m_types.begin(), m_types.end(), fType) == m_types.end()) {
+		MatrixXf unactive_feature = computeFeature(fType);
+		return Block<MatrixXf>(unactive_feature.derived(), 0, 0, unactive_feature.rows(), unactive_feature.cols());
 	}
-	return dim;
+	return Block<MatrixXf>(m_features.derived(), 0, m_startCols[m_allType2Ind[fType]], m_features.rows(), m_sizes[m_allType2Ind[fType]]);
 }
 
 //  Example:
@@ -104,7 +96,7 @@ void CloudFeatureExtractor::updateInputs(ColorCloudPtr cloud, cv::Mat image, Coo
 void CloudFeatureExtractor::updateFeatures() {
 	//update ALL the features
 	BOOST_FOREACH(FeatureType& fType, m_types) {
-		setFeatureCols(fType, computeFeature(fType));
+		getFeatures(fType) = computeFeature(fType);
 	}
 }
 
@@ -167,7 +159,7 @@ TrackedObjectFeatureExtractor::TrackedObjectFeatureExtractor(TrackedObject::Ptr 
 	m_features.resize(m_obj->m_nNodes, m_dim);
 	//initialize ALL the features
 	BOOST_FOREACH(FeatureType& fType, m_types) {
-		setFeatureCols(fType, computeFeature(fType));
+		getFeatures(fType) = computeFeature(fType);
 	}
 }
 
@@ -175,7 +167,7 @@ void TrackedObjectFeatureExtractor::updateFeatures() {
 	//update only the features that need to be updated
 	BOOST_FOREACH(FeatureType& fType, m_types) {
 		if (fType == FT_XYZ) {
-			setFeatureCols(fType, computeFeature(fType));
+			getFeatures(fType) = computeFeature(fType);
 		}
 	}
 }

@@ -29,6 +29,7 @@ PhysicsTracker::PhysicsTracker(TrackedObjectFeatureExtractor::Ptr object_feature
 void PhysicsTracker::updateFeatures() {
 	m_objFeatures->updateFeatures();
 	m_obsFeatures->updateFeatures();
+	//m_obsFeatures->getFeatures(FE::FT_XYZ).col(2) += 0.1*METERS;
 
 	m_estPts = m_objFeatures->getFeatures();
 	m_obsPts = m_obsFeatures->getFeatures();
@@ -37,7 +38,7 @@ void PhysicsTracker::updateFeatures() {
 }
 
 void PhysicsTracker::expectationStep() {
-  boost::posix_time::ptime e_time = boost::posix_time::microsec_clock::local_time();
+  //boost::posix_time::ptime e_time = boost::posix_time::microsec_clock::local_time();
 //	MAT_DIMS(m_estPts)
 //	MAT_DIMS(m_obsPts)
 //	MAT_DIMS(m_stdev)
@@ -48,12 +49,12 @@ void PhysicsTracker::expectationStep() {
 //  assert(isFinite(m_stdev));
 //  assert(isFinite(m_vis));
 
-  m_pZgivenC = calculateResponsibilities(m_estPts, m_obsPts, m_stdev, m_vis, m_objFeatures->m_obj->getOutlierDist(), m_objFeatures->m_obj->getOutlierStdev());
+  m_pZgivenC = calculateResponsibilitiesNaive(m_estPts, m_obsPts, m_stdev, m_vis, m_objFeatures->m_obj->getOutlierDist(), m_objFeatures->m_obj->getOutlierStdev());
 
 //  MAT_DIMS(m_pZgivenC)
 
 //  cout << "m_pZgivenC finite " << isFinite(m_pZgivenC) << endl;
-  cout << "E time " << (boost::posix_time::microsec_clock::local_time() - e_time).total_milliseconds() << endl;
+  //cout << "E time " << (boost::posix_time::microsec_clock::local_time() - e_time).total_milliseconds() << endl;
 
 #ifdef CHECK_CORRECTNESS
   boost::posix_time::ptime en_time = boost::posix_time::microsec_clock::local_time();
