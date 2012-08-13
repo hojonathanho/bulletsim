@@ -16,13 +16,13 @@ std::vector<int> TrackingConfig::featureTypes = std::vector<int>(featureTypes_a,
 float TrackingConfig::pointOutlierDist = 0.02;
 float TrackingConfig::pointPriorDist = 0.02;
 float TrackingConfig::colorLPriorDist = 0.4;
-float TrackingConfig::colorABPriorDist = 0.4;
+float TrackingConfig::colorABPriorDist = 0.08;
 float TrackingConfig::epsilon = 0.001;
 int TrackingConfig::normalizeIter = 2;
 float TrackingConfig::kp_rope = 1;
 float TrackingConfig::kd_rope = 0;
-float TrackingConfig::kp_cloth = 2000;
-float TrackingConfig::kd_cloth = 50;
+float TrackingConfig::kp_cloth = 1500;
+float TrackingConfig::kd_cloth = 15;
 float TrackingConfig::kp_box = 15;
 float TrackingConfig::kd_box = 0.2;
 

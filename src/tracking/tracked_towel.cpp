@@ -179,7 +179,8 @@ const Eigen::VectorXf TrackedTowel::getPriorDist() {
 			1.0, 1.0, 1.0,  //FT_NORMAL
 			1.0,  //FT_LABEL
 			MatrixXf::Ones(1, FE::FT_SIZES[FE::FT_SURF])*0.4,  //FT_SURF
-			MatrixXf::Ones(1, FE::FT_SIZES[FE::FT_PCASURF])*0.4;  //FT_PCASURF
+			MatrixXf::Ones(1, FE::FT_SIZES[FE::FT_PCASURF])*0.4,  //FT_PCASURF
+			0.5;  //FT_GRADNORMAL
 	return FeatureExtractor::all2ActiveFeatures(prior_dist).transpose();
 }
 
@@ -298,12 +299,13 @@ void TrackedTowel::initColors() {
 		cout << "initColors using texture" << endl;
 		const osg::Vec2Array& texcoords = *(getSim()->tritexcoords);
 		for (int i=0; i < m_nNodes; i++) {
-			int i_pixel = tex_image.rows-1 - (int) (texcoords[m_vert2tex[m_node2vert[i]]].y() * (tex_image.rows-1));
-			int j_pixel = (int) (texcoords[m_vert2tex[m_node2vert[i]]].x() * (tex_image.cols-1));
+			cv::Point2f pixel = textureCoordinate(i);
+			int i_pixel = pixel.y;
+			int j_pixel = pixel.x;
 			int range = 20;
 			//TODO weighted average window
-			cv::Mat window_pixels = tex_image(cv::Range(max(i_pixel - range, 0), min(i_pixel + range, tex_image.rows-1)),
-																				cv::Range(max(j_pixel - range, 0), min(j_pixel + range, tex_image.cols-1)));
+			cv::Mat window_pixels = windowRange(tex_image, i_pixel, j_pixel, range, range);
+
 			Vector3f bgr = toEigenMatrixImage(window_pixels).colwise().mean();
 			m_colors.row(i) = bgr.transpose();
 		}
@@ -317,10 +319,11 @@ void TrackedTowel::initColors() {
 	}
 }
 
+//order: (x,y) or (j,i)
 cv::Point2f TrackedTowel::textureCoordinate (int node_id) {
 	cv::Mat tex_image = getSim()->getTexture();
 	if (tex_image.empty()) return cv::Point2i(0,0);
 	const osg::Vec2Array& texcoords = *(getSim()->tritexcoords);
-	return cv::Point2f(tex_image.rows-1 - (int) (texcoords[m_vert2tex[m_node2vert[node_id]]].y() * (tex_image.rows-1)),
-			(int) (texcoords[m_vert2tex[m_node2vert[node_id]]].x() * (tex_image.cols-1)));
+	return cv::Point2f( (int) (texcoords[m_vert2tex[m_node2vert[node_id]]].x() * (tex_image.cols-1)) ,
+			tex_image.rows-1 - (int) (texcoords[m_vert2tex[m_node2vert[node_id]]].y() * (tex_image.rows-1)) );
 }

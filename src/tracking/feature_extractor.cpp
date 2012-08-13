@@ -17,8 +17,8 @@ using namespace std;
 using namespace Eigen;
 
 //Modify this if you change the FeatureTypes
-const int FeatureExtractor::FT_SIZES[] = { 3, 3, 3, 3, 1, 64, 2};
-vector<FeatureExtractor::FeatureType> FeatureExtractor::m_types = TrackingConfig::featureTypes;
+const int FeatureExtractor::FT_SIZES[] = { 3, 3, 3, 3, 1, 64, 2, 1};
+vector<FeatureExtractor::FeatureType> FeatureExtractor::m_types = vector<FeatureExtractor::FeatureType> (0);
 int FeatureExtractor::m_dim = 0;
 int FeatureExtractor::m_allDim = 0;
 vector<int> FeatureExtractor::m_allSizes = vector<int> (0);
@@ -31,7 +31,8 @@ cv::PCA FE::pca_surf = cv::PCA();
 
 FeatureExtractor::FeatureExtractor() {
 	BOOST_STATIC_ASSERT_MSG(sizeof(FeatureExtractor::FT_SIZES)/sizeof(FeatureExtractor::FT_SIZES[0]) == FeatureExtractor::FT_COUNT, "The number of FeatureType doesn't match the size of the FT_SIZES array");
-
+	FeatureExtractor::m_types = TrackingConfig::featureTypes;
+	BOOST_FOREACH(int fType, m_types) assert(FT_ALL < fType  &&  fType < FT_COUNT);
 	m_allSizes = vector<int> (FT_SIZES, FT_SIZES + FT_COUNT);
 	m_dim = m_allDim = 0;
 	BOOST_FOREACH(int fType, m_types) m_dim	+= FT_SIZES[fType];
@@ -136,7 +137,7 @@ Eigen::MatrixXf CloudFeatureExtractor::computeFeature(FeatureType fType) {
 		for(int i=0; i<keypoints.size(); i++) {
 			cv::circle(keypoints_image, keypoints[i].pt, keypoints[i].size, cv::Scalar(0,255,0), 1, 8, 0);
 		}
-		cv::imwrite("/home/alex/Desktop/keypoints_cloud.jpg", keypoints_image);
+		//cv::imwrite("/home/alex/Desktop/keypoints_cloud.jpg", keypoints_image);
 
 	} else if (fType == FT_PCASURF) {
 		MatrixXf surf_feature = computeFeature(FT_SURF);
@@ -188,11 +189,10 @@ Eigen::MatrixXf TrackedObjectFeatureExtractor::computeFeature(FeatureType fType)
 		if (tex_image.empty())
 			throw std::runtime_error("unable to make SURF features without any texture image");
 
-		const osg::Vec2Array& texcoords = *(tracked_towel->getSim()->tritexcoords);
 		vector<cv::KeyPoint> keypoints(m_obj->m_nNodes);
 		for (int i = 0; i < m_obj->m_nNodes; i++) {
 			cv::Point2f uv = tracked_towel->textureCoordinate(i);
-			keypoints[i] = cv::KeyPoint(uv.y, uv.x, TrackingConfig::node_pixel);
+			keypoints[i] = cv::KeyPoint(uv.x, uv.y, TrackingConfig::node_pixel);
 		}
 		cv::SURF surf(400, 4, 2, false);
 		cv::Mat mask = cv::Mat::ones(tex_image.rows, tex_image.cols, CV_8UC1);
@@ -208,7 +208,7 @@ Eigen::MatrixXf TrackedObjectFeatureExtractor::computeFeature(FeatureType fType)
 		for(int i=0; i<keypoints.size(); i++) {
 			cv::circle(keypoints_image, keypoints[i].pt, keypoints[i].size, cv::Scalar(0,255,0), 1, 8, 0);
 		}
-		cv::imwrite("/home/alex/Desktop/keypoints_obj.jpg", keypoints_image);
+		//cv::imwrite("/home/alex/Desktop/keypoints_obj.jpg", keypoints_image);
 
 	} else if (fType == FT_PCASURF) {
 		MatrixXf surf_feature = computeFeature(FT_SURF);
@@ -217,6 +217,49 @@ Eigen::MatrixXf TrackedObjectFeatureExtractor::computeFeature(FeatureType fType)
 			pca_surf = cv::PCA(cv_surf_feature, cv::Mat(), CV_PCA_DATA_AS_ROW, FT_SIZES[FT_PCASURF]);
 		}
 		feature = compressPCA(pca_surf, surf_feature);
+
+	} else if (fType == FT_GRADNORM) {
+		feature.resize(m_obj->m_nNodes, FT_SIZES[FT_GRADNORM]);
+		TrackedTowel* tracked_towel = dynamic_cast<TrackedTowel*> (m_obj.get());
+		cv::Mat tex_image = tracked_towel->getSim()->getTexture().clone();
+
+		if (tex_image.empty())
+			throw std::runtime_error("unable to make gradient features without any texture image");
+
+		cv::GaussianBlur( tex_image, tex_image, cv::Size(3,3), 0, 0, cv::BORDER_DEFAULT );
+		cv::cvtColor( tex_image, tex_image, CV_RGB2GRAY );
+
+		cv::Mat grad_x, grad_y, grad;
+
+		/// Gradient X
+		//cv::Scharr( tex_image, grad_x, CV_16S, 1, 0, 1, 0, cv::BORDER_DEFAULT );
+		cv::Sobel( tex_image, grad_x, CV_16S, 1, 0, 3, 1, 0, cv::BORDER_DEFAULT );
+		cv::multiply(grad_x, grad_x, grad_x, 1.0/(255.0*255.0), CV_32FC1);
+
+		/// Gradient Y
+		///cv::Scharr( tex_image, grad_y, CV_16S, 0, 1, 1, 0, cv::BORDER_DEFAULT );
+		cv::Sobel( tex_image, grad_y, CV_16S, 0, 1, 3, 1, 0, cv::BORDER_DEFAULT );
+		cv::multiply(grad_y, grad_y, grad_y, 1.0/(255.0*255.0), CV_32FC1);
+
+		/// Total Gradient
+		cv::sqrt(grad_x + grad_y, grad);
+
+		int range = TrackingConfig::node_pixel;
+		for (int i = 0; i < m_obj->m_nNodes; i++) {
+			cv::Point2f uv = tracked_towel->textureCoordinate(i);
+			cv::Mat window_grad = windowRange(grad, uv.y, uv.x, range, range);
+			feature(i,0) = toEigenMatrix(window_grad).mean();
+		}
+
+		//debug stuff
+//		cv::Mat grad_save = grad * 255.0;
+//		cv::imwrite("/home/alex/Desktop/grad.jpg", grad_save);
+//		cv::Mat grad_debug = grad_save.clone();
+//		for (int i = 0; i < m_obj->m_nNodes; i++) {
+//			cv::Point2f uv = tracked_towel->textureCoordinate(i);
+//			cv::rectangle(grad_debug, uv-cv::Point2f(range,range), uv+cv::Point2f(range,range), cv::Scalar(feature(i,0) * 255), -1, 8, 0);
+//		}
+//		cv::imwrite("/home/alex/Desktop/grad_debug.jpg", grad_debug);
 
 	} else {
 		throw std::runtime_error("feature type not yet implemented");

@@ -20,6 +20,7 @@ public:
 		FT_LABEL,
 		FT_SURF,
 		FT_PCASURF,
+		FT_GRADNORM,
 
 		FT_COUNT
 	};

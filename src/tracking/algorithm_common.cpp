@@ -111,17 +111,8 @@ Eigen::MatrixXf calculateResponsibilitiesNaive(const Eigen::MatrixXf& estPts, co
 	assert(pVis.size() == K);
 	assert(outlierDist.size() <= F);
 
-	assert(isFinite(estPts));
-	assert(isFinite(obsPts));
-	assert(isFinite(stdev));
-	assert(isFinite(pVis));
-	assert(isFinite(outlierDist));
-	assert(isFinite(outlierStdev));
-
 	MatrixXf invStdev = stdev.array().inverse();
-	assert(isFinite(invStdev ));
 	MatrixXf invVariances = invStdev.array().square();
-	assert(isFinite(invVariances ));
 
 	MatrixXf squaredDistsInvVariance(K+1,N);
 	for (int k=0; k<K; k++) {
@@ -131,27 +122,20 @@ Eigen::MatrixXf calculateResponsibilitiesNaive(const Eigen::MatrixXf& estPts, co
 		}
 	}
 	VectorXf outlierInvStdev = outlierStdev.array().inverse();
-	assert(isFinite(outlierInvStdev));
 	VectorXf outlierInvVariances = outlierInvStdev.array().square();
-	assert(isFinite(outlierInvVariances));
 	for (int n=0; n<N; n++)
 		squaredDistsInvVariance(K,n) = outlierDist.transpose() * outlierInvVariances.asDiagonal() * outlierDist;
-	assert(isFinite(squaredDistsInvVariance));
 
 	MatrixXf pZgivenC_exp_part = (-0.5*squaredDistsInvVariance).array().exp();
-	assert(isFinite(pZgivenC_exp_part ));
 	VectorXf sqrtDetInvVariances = invStdev.rowwise().prod();
-	assert(isFinite(sqrtDetInvVariances));
 	MatrixXf pZgivenC(K+1,N);
 	for (int k=0; k<K; k++)
 		pZgivenC.row(k) = sqrtDetInvVariances(k) * pZgivenC_exp_part.row(k) * pVis(k);
 	pZgivenC.row(K) = outlierInvStdev.prod() * pZgivenC_exp_part.row(K);
-	assert(isFinite(pZgivenC));
 
 	//normalize cols
 	for (int n=0; n<pZgivenC.cols(); n++)
 		pZgivenC.col(n) /= pZgivenC.col(n).sum();
-	assert(isFinite(pZgivenC));
 
 	//iteratively normalize rows and columns. columns are normalized to one and rows are normalized to the visibility term.
 	for (int i=0; i<TrackingConfig::normalizeIter; i++) {
@@ -164,13 +148,11 @@ Eigen::MatrixXf calculateResponsibilitiesNaive(const Eigen::MatrixXf& estPts, co
 				pZgivenC.row(k) /= pZgivenC.row(k).sum();
 			}
 		}
-		assert(isFinite(pZgivenC));
 		//pZgivenC.row(K) /= pZgivenC.row(K).sum();
 
 		//normalize cols
 		for (int n=0; n<pZgivenC.cols(); n++)
 			pZgivenC.col(n) /= pZgivenC.col(n).sum();
-		assert(isFinite(pZgivenC));
 	}
 
 	//infinityDebug(pZgivenC, "pZgivenC");
@@ -180,6 +162,7 @@ Eigen::MatrixXf calculateResponsibilitiesNaive(const Eigen::MatrixXf& estPts, co
 	return pZgivenC.topRows(K);
 }
 
+//// with outlier column
 //// gamma(z_nk) = p(z_k = 1 | c_n)
 //Eigen::MatrixXf calculateResponsibilitiesNaive(const Eigen::MatrixXf& estPts, const Eigen::MatrixXf& obsPts, const Eigen::MatrixXf& stdev, const Eigen::VectorXf& pVis, const Eigen::VectorXf& outlierDist, const Eigen::VectorXf& outlierStdev) {
 //	int K = estPts.rows(); //nodes

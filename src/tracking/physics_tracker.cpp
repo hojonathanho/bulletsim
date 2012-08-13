@@ -29,7 +29,8 @@ PhysicsTracker::PhysicsTracker(TrackedObjectFeatureExtractor::Ptr object_feature
 void PhysicsTracker::updateFeatures() {
 	m_objFeatures->updateFeatures();
 	m_obsFeatures->updateFeatures();
-	//m_obsFeatures->getFeatures(FE::FT_XYZ).col(2) += 0.1*METERS;
+	//shift the point cloud in the x coordinate
+	//m_obsFeatures->getFeatures(FE::FT_XYZ).col(2) += VectorXf::Ones(m_obsFeatures->getFeatures(FE::FT_XYZ).rows()) * 0.01*METERS;
 
 	m_estPts = m_objFeatures->getFeatures();
 	m_obsPts = m_obsFeatures->getFeatures();
@@ -39,21 +40,10 @@ void PhysicsTracker::updateFeatures() {
 
 void PhysicsTracker::expectationStep() {
   //boost::posix_time::ptime e_time = boost::posix_time::microsec_clock::local_time();
-//	MAT_DIMS(m_estPts)
-//	MAT_DIMS(m_obsPts)
-//	MAT_DIMS(m_stdev)
-//	MAT_DIMS(m_vis)
-//
-//  assert(isFinite(m_estPts));
-//  assert(isFinite(m_obsPts));
-//  assert(isFinite(m_stdev));
-//  assert(isFinite(m_vis));
-
-  m_pZgivenC = calculateResponsibilitiesNaive(m_estPts, m_obsPts, m_stdev, m_vis, m_objFeatures->m_obj->getOutlierDist(), m_objFeatures->m_obj->getOutlierStdev());
-
-//  MAT_DIMS(m_pZgivenC)
-
-//  cout << "m_pZgivenC finite " << isFinite(m_pZgivenC) << endl;
+	if (isFinite(m_estPts) && isFinite(m_obsPts) && isFinite(m_vis) && isFinite(m_stdev))
+		m_pZgivenC = calculateResponsibilitiesNaive(m_estPts, m_obsPts, m_stdev, m_vis, m_objFeatures->m_obj->getOutlierDist(), m_objFeatures->m_obj->getOutlierStdev());
+	else
+		cout << "WARNING: PhysicsTracker: the input is not finite" << endl;
   //cout << "E time " << (boost::posix_time::microsec_clock::local_time() - e_time).total_milliseconds() << endl;
 
 #ifdef CHECK_CORRECTNESS
@@ -66,11 +56,13 @@ void PhysicsTracker::expectationStep() {
 
 void PhysicsTracker::maximizationStep(bool apply_evidence) {
   //boost::posix_time::ptime evidence_time = boost::posix_time::microsec_clock::local_time();
-	if (apply_evidence && isFinite(m_pZgivenC)) m_objFeatures->m_obj->applyEvidence(m_pZgivenC, m_obsFeatures->getFeatures(FE::FT_XYZ));
+
+	if (apply_evidence && isFinite(m_pZgivenC) && isFinite(m_estPts) && isFinite(m_obsPts))
+		m_objFeatures->m_obj->applyEvidence(m_pZgivenC, m_obsFeatures->getFeatures(FE::FT_XYZ));
   //cout << "Evidence time " << (boost::posix_time::microsec_clock::local_time() - evidence_time).total_milliseconds() << endl;
 
   //boost::posix_time::ptime m_time = boost::posix_time::microsec_clock::local_time();
-  if (isFinite(m_pZgivenC)) m_stdev = calculateStdev(m_estPts, m_obsPts, m_pZgivenC, m_priorDist, 10);
+  if (isFinite(m_pZgivenC)) m_stdev = calculateStdev(m_estPts, m_obsPts, m_pZgivenC, m_priorDist, 1);
   //cout << "M time " << (boost::posix_time::microsec_clock::local_time() - m_time).total_milliseconds() << endl;
 
 #ifdef CHECK_CORRECTNESS

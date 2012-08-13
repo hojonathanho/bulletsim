@@ -32,7 +32,9 @@ const Eigen::VectorXf TrackedRope::getPriorDist() {
 			TrackingConfig::colorLPriorDist, TrackingConfig::colorABPriorDist, TrackingConfig::colorABPriorDist,	//FT_LAB
 			1.0, 1.0, 1.0,  //FT_NORMAL
 			1.0,  //FT_LABEL
-			MatrixXf::Ones(1, FE::FT_SIZES[FE::FT_SURF])*0.4;  //FT_SURF
+			MatrixXf::Ones(1, FE::FT_SIZES[FE::FT_SURF])*0.4,  //FT_SURF
+			MatrixXf::Ones(1, FE::FT_SIZES[FE::FT_PCASURF])*0.4,  //FT_PCASURF
+			0.5;  //FT_GRADNORMAL
 	return FeatureExtractor::all2ActiveFeatures(prior_dist).transpose();
 }
 

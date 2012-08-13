@@ -8,6 +8,9 @@
 
 //the rows of features are the vectors of the data set to be compressed.
 Eigen::MatrixXf compressPCA(const cv::PCA& pca, Eigen::MatrixXf features);
+//Return the sub image of a window of size (2*i_range, 2*j_range) centered at (i_pixel, j_pixel)
+//The returned sub matrix might not have the dimensions of (i_range, j_range) because the window is clamped at the edges
+cv::Mat windowRange(const cv::Mat& image, int i_pixel, int j_pixel, int i_range, int j_range);
 
 Eigen::Vector3f toEigenVectorImage(const cv::Vec3b& pixel);
 cv::Vec3b toCVMatImage(const Eigen::Vector3f& pixel);

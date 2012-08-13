@@ -1,6 +1,8 @@
 #include "cvmat.h"
+#include <algorithm>
 
 using namespace Eigen;
+using namespace std;
 
 Eigen::MatrixXf compressPCA(const cv::PCA& pca, Eigen::MatrixXf features) {
 	int maxComponents = pca.eigenvectors.rows;
@@ -10,6 +12,11 @@ Eigen::MatrixXf compressPCA(const cv::PCA& pca, Eigen::MatrixXf features) {
 		pca.project(cv_features.row(i), cv_comp_features.row(i));
 	}
 	return Map<MatrixXf>((float*)cv_comp_features.data, cv_comp_features.rows, cv_comp_features.cols);
+}
+
+cv::Mat windowRange(const cv::Mat& image, int i_pixel, int j_pixel, int i_range, int j_range) {
+	return image(cv::Range(max(i_pixel - i_range, 0), min(i_pixel + i_range, image.rows-1)),
+			cv::Range(max(j_pixel - j_range, 0), min(j_pixel + j_range, image.cols-1)));
 }
 
 //As usual, cv::Mat is CV_8UC3 BGR
