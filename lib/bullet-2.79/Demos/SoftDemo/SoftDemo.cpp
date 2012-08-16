@@ -1708,7 +1708,7 @@ void	SoftDemo::renderme()
 		m_cameraTargetPosition+=(ps-m_cameraTargetPosition)*0.05;
 	/* Anm			*/ 
 	if(!isIdle())
-		m_animtime=m_clock.getTimeMilliseconds()/1000.f;
+	  m_animtime=0;//m_clock.getTimeMilliseconds()/1000.f;
 	/* Ray cast		*/ 
 	if(m_raycast)
 	{		
@@ -1739,7 +1739,7 @@ void	SoftDemo::renderme()
 		}
 		/* Cast rays	*/ 		
 		{
-			m_clock.reset();
+		  //			m_clock.reset();
 			btVector3*		org=&origins[0];
 			btScalar*				fraction=&fractions[0];
 			btSoftBody**			psbs=&sbs[0];
@@ -1757,7 +1757,7 @@ void	SoftDemo::renderme()
 				}
 				++org;++fraction;
 			}
-			long	ms=btMax<long>(m_clock.getTimeMilliseconds(),1);
+			long	ms=0;//btMax<long>(m_clock.getTimeMilliseconds(),1);
 			long	rayperseconds=(1000*(origins.size()*sbs.size()))/ms;
 			printf("%d ms (%d rays/s)\r\n",int(ms),int(rayperseconds));
 		}
