@@ -141,7 +141,7 @@ void TrackedTowel::applyEvidence(const Eigen::MatrixXf& corr, const Eigen::Matri
     estVel[iNode] = verts[m_node2vert[iNode]].m_v;
   }
 
-  vector<btVector3> nodeImpulses = calcImpulsesDamped(estPos, estVel, toBulletVectors(obsPts.leftCols(3)), corr, toVec(m_masses), TrackingConfig::kp_cloth, TrackingConfig::kd_cloth);
+  vector<btVector3> nodeImpulses = calcImpulsesDamped(estPos, estVel, toBulletVectors(FE::activeFeatures2Feature(obsPts, FE::FT_XYZ)), corr, toVec(m_masses), TrackingConfig::kp_cloth, TrackingConfig::kd_cloth);
 
   int nVerts = verts.size();
 
