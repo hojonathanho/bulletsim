@@ -23,7 +23,7 @@ BulletObject::MotionState::Ptr BulletObject::MotionState::clone(BulletObject &ne
     return Ptr(new MotionState(newObj, t));
 }
 
-BulletObject::BulletObject(CI ci, const btTransform &initTrans, bool isKinematic_) : isKinematic(isKinematic_), enable_texture(false) {
+BulletObject::BulletObject(CI ci, const btTransform &initTrans, bool isKinematic_) : isKinematic(isKinematic_), enable_texture(false), m_color(1,1,1,1) {
     BOOST_ASSERT(ci.m_motionState == NULL);
     if (isKinematic) {
         ci.m_mass = 0;
@@ -40,7 +40,7 @@ BulletObject::BulletObject(CI ci, const btTransform &initTrans, bool isKinematic
 
 }
 
-BulletObject::BulletObject(btScalar mass, btCollisionShape *cs, const btTransform &initTrans, bool isKinematic_) : isKinematic(isKinematic_), enable_texture(false) {
+BulletObject::BulletObject(btScalar mass, btCollisionShape *cs, const btTransform &initTrans, bool isKinematic_) : isKinematic(isKinematic_), enable_texture(false), m_color(1,1,1,1) {
     motionState.reset(new MotionState(*this, initTrans));
     collisionShape.reset(cs);
 
@@ -218,25 +218,23 @@ void BulletObject::MoveAction::step(float dt) {
 }
 
 void BulletObject::setColor(float r, float g, float b, float a) {
-		m_color.reset(new osg::Vec4f(r,g,b,a));
+		m_color = osg::Vec4f(r,g,b,a);
 		if (node) setColorAfterInit();
 		enable_texture = false;
 }
 
 void BulletObject::setColorAfterInit() {
-  if (m_color) {
 		//clear out texture mapping information
   	osg::StateSet *ss = node->getOrCreateStateSet();
 		ss->getTextureAttributeList().clear();
 		ss->getTextureModeList().clear();
 
-  	if (m_color->a() != 1.0f) {
+  	if (m_color.a() != 1.0f) {
   		osg::StateSet *ss = node->getOrCreateStateSet();
   		ss->setRenderingHint(osg::StateSet::TRANSPARENT_BIN);
     }
-    SetColorsVisitor visitor(m_color->r(),m_color->g(),m_color->b(),m_color->a());
+    SetColorsVisitor visitor(m_color.r(),m_color.g(),m_color.b(),m_color.a());
     node->accept(visitor);
-  }
 }
 
 void BulletObject::setTexture(cv::Mat image) {
@@ -267,10 +265,7 @@ void BulletObject::setTexture(cv::Mat image) {
 void BulletObject::setTextureAfterInit() {
 	if (m_image) {
 		// clear out color information
-		if (m_color)
-			m_color.reset(new osg::Vec4f(1,1,1,m_color->a()));
-		else
-			m_color.reset(new osg::Vec4f(1,1,1,1));
+		m_color = osg::Vec4f(1,1,1,m_color.a());
 		setColorAfterInit();
 
 		osg::Texture2D* texture = new osg::Texture2D;
@@ -288,9 +283,9 @@ void BulletObject::setTextureAfterInit() {
 }
 
 void BulletObject::adjustTransparency(float increment) {
-	m_color->a() += increment;
-	if (m_color->a() > 1.0f) m_color->a() = 1.0f;
-	if (m_color->a() < 0.0f) m_color->a() = 0.0f;
+	m_color.a() += increment;
+	if (m_color.a() > 1.0f) m_color.a() = 1.0f;
+	if (m_color.a() < 0.0f) m_color.a() = 0.0f;
 	if (enable_texture)
 		setTextureAfterInit();
 	else

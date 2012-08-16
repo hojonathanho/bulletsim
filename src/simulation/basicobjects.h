@@ -105,7 +105,7 @@ public:
 		void adjustTransparency(float increment);
 private:
 		bool enable_texture;
-		boost::shared_ptr<osg::Vec4f> m_color;
+		osg::Vec4f m_color;
 		void setColorAfterInit();
 		osg::ref_ptr<osg::Image> m_image;
 		cv::Mat m_cvimage;
