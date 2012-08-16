@@ -28,6 +28,7 @@ add_subdirectory(robots)
 add_subdirectory(utils)
 add_subdirectory(comm)
 add_subdirectory(clouds)
+add_subdirectory(scp)
 
 if (TESTS)
 	add_subdirectory(tests)
