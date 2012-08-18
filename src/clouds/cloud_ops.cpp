@@ -31,6 +31,12 @@ using namespace std;
 using namespace Eigen;
 using namespace pcl;
 
+ColorPoint makeNanPoint() {
+	ColorPoint nan_point(numeric_limits<float>::quiet_NaN(), numeric_limits<float>::quiet_NaN(), numeric_limits<float>::quiet_NaN());
+	nan_point.x = nan_point.y = nan_point.z = numeric_limits<float>::quiet_NaN();
+	return nan_point;
+}
+
 vector< vector<int> > findClusters(ColorCloudPtr cloud, float tol, int minSize) {
 	int cloud_size = cloud->size();
 	//HACK: a bug in pcl::EuclideanClusterExtraction causes a segfault when no clusters are returned.
@@ -310,69 +316,94 @@ ColorCloudPtr clusterFilter(ColorCloudPtr in, float tol, int minSize) {
 	return extractInds(in, filtered_cluster_inds);
 }
 
-ColorCloudPtr maskCloud(const ColorCloudPtr in, const cv::Mat& mask, bool negative) {
+ColorCloudPtr maskCloud(const ColorCloudPtr in, const cv::Mat& mask, bool organized, bool negative) {
   assert(mask.elemSize() == 1);
   assert(mask.rows == in->height);
   assert(mask.cols == in->width);
+  ColorCloudPtr out;
 
-  boost::shared_ptr< vector<int> > indicesPtr(new vector<int>());
+  if (organized) {
+		out = ColorCloudPtr(new ColorCloud(*in));
+  	ColorPoint nan_point = makeNanPoint();
 
-  cv::MatConstIterator_<bool> it = mask.begin<bool>(), it_end = mask.end<bool>();
-  for (int i=0; it != it_end; ++it, ++i) {
-    if (*it > 0) indicesPtr->push_back(i);
-  }
-
-  ColorCloudPtr out(new ColorCloud());
-  pcl::ExtractIndices<ColorPoint> ei;
-  ei.setNegative(negative);
-  ei.setInputCloud(in);
-  ei.setIndices(indicesPtr);
-  ei.filter(*out);
-  return out;
-}
-
-ColorCloudPtr maskCloudOrganized(const ColorCloudPtr in, const cv::Mat& mask, bool negative) {
-  assert(mask.elemSize() == 1);
-  assert(mask.rows == in->height);
-  assert(mask.cols == in->width);
-
-  ColorPoint nan_point;
-  nan_point.x = numeric_limits<float>::quiet_NaN();
-  nan_point.y = numeric_limits<float>::quiet_NaN();
-  nan_point.z = numeric_limits<float>::quiet_NaN();
-
-  ColorCloudPtr out(new ColorCloud(*in));
-  if (negative) {
-		for (int i=0; i<in->height; i++) {
-			for (int j=0; j<in->width; j++) {
-				if (mask.at<bool>(i,j) > 0) out->at(j,i) = nan_point;
+  	if (negative) {
+			for (int i=0; i<in->height; i++) {
+				for (int j=0; j<in->width; j++) {
+					if (mask.at<bool>(i,j)) out->at(in->width*i+j) = nan_point;
+				}
+			}
+		} else {
+			for (int i=0; i<in->height; i++) {
+				for (int j=0; j<in->width; j++) {
+					if (!mask.at<bool>(i,j)) out->at(in->width*i+j) = nan_point;
+				}
 			}
 		}
+
   } else {
-		for (int i=0; i<in->height; i++) {
-			for (int j=0; j<in->width; j++) {
-				if (mask.at<bool>(i,j) <= 0) out->at(j,i) = nan_point;
-			}
+
+		boost::shared_ptr< vector<int> > indicesPtr(new vector<int>());
+		cv::MatConstIterator_<bool> it = mask.begin<bool>(), it_end = mask.end<bool>();
+		for (int i=0; it != it_end; ++it, ++i) {
+			if (*it > 0) indicesPtr->push_back(i);
 		}
+
+		out = ColorCloudPtr(new ColorCloud());
+		pcl::ExtractIndices<ColorPoint> ei;
+		ei.setNegative(negative);
+		ei.setInputCloud(in);
+		ei.setIndices(indicesPtr);
+		ei.filter(*out);
   }
 
   return out;
 }
 
-ColorCloudPtr maskCloud(const ColorCloudPtr in, const VectorXb& mask) {
+ColorCloudPtr maskCloud(const ColorCloudPtr in, const VectorXb& mask, bool organized, bool negative) {
+	assert(mask.size() == (in->height*in->width));
+  ColorCloudPtr out;
 
-  ColorCloudPtr out(new ColorCloud());
-  int nOut = mask.sum();
-  out->reserve(nOut);
-  out->header=in->header;
-  out->width = nOut;
-  out->height = 1;
-  out->is_dense = false;
+  if (organized) {
+		out = ColorCloudPtr(new ColorCloud(*in));
+  	ColorPoint nan_point = makeNanPoint();
 
-  int i = 0;
-  BOOST_FOREACH(const ColorPoint& pt, in->points) {
-    if (mask(i)) out->push_back(pt);
-    ++i;
+  	if (negative) {
+  		for (int i=0; i<in->height; i++) {
+				for (int j=0; j<in->width; j++) {
+					if (mask(in->width*i+j)) out->at(in->width*i+j) = nan_point;
+				}
+			}
+		} else {
+			for (int i=0; i<in->height; i++) {
+				for (int j=0; j<in->width; j++) {
+					if (!mask(in->width*i+j)) out->at(in->width*i+j) = nan_point;
+				}
+			}
+		}
+
+  } else {
+
+  	out = ColorCloudPtr(new ColorCloud());
+		int nOut = mask.sum();
+		out->reserve(nOut);
+		out->header=in->header;
+		out->width = nOut;
+		out->height = 1;
+		out->is_dense = false;
+
+		if (negative) {
+			int i = 0;
+			BOOST_FOREACH(const ColorPoint& pt, in->points) {
+				if (!mask(i)) out->push_back(pt);
+				++i;
+			}
+		} else {
+			int i = 0;
+			BOOST_FOREACH(const ColorPoint& pt, in->points) {
+				if (mask(i)) out->push_back(pt);
+				++i;
+			}
+		}
   }
 
   return out;
@@ -385,7 +416,7 @@ void labelCloud(ColorCloudPtr in, const cv::Mat& labels) {
     in->points[i]._unused = labels.at<uint8_t>(uv(i,0), uv(i,1));
 }
 
-ColorCloudPtr hueFilter(const ColorCloudPtr in, uint8_t minHue, uint8_t maxHue, uint8_t minSat, uint8_t maxSat, uint8_t minVal, uint8_t maxVal, bool negative) {
+ColorCloudPtr hueFilter(const ColorCloudPtr in, uint8_t minHue, uint8_t maxHue, uint8_t minSat, uint8_t maxSat, uint8_t minVal, uint8_t maxVal, bool organized, bool negative) {
   if (in->size() == 0) return ColorCloudPtr(new ColorCloud());
   MatrixXu bgr = toBGR(in);
   int nPts = in->size();
@@ -407,13 +438,13 @@ ColorCloudPtr hueFilter(const ColorCloudPtr in, uint8_t minHue, uint8_t maxHue, 
   if (minVal > 0) mask &= (v >= minVal);
   if (maxVal < 255) mask &= (v <= maxVal);
 
-  return maskCloud(in, mask, negative);
+  return maskCloud(in, mask, organized, negative);
 }
 
 // As of now, mins should be smaller than maxs
 // If negative==false, the filtered cloud have points with colors within the given channel ranges
 // If negative==true, the filtered cloud is the complement of the above case
-ColorCloudPtr colorSpaceFilter(const ColorCloudPtr in, uint8_t minx, uint8_t maxx, uint8_t miny, uint8_t maxy, uint8_t minz, uint8_t maxz, int code, bool negative) {
+ColorCloudPtr colorSpaceFilter(const ColorCloudPtr in, uint8_t minx, uint8_t maxx, uint8_t miny, uint8_t maxy, uint8_t minz, uint8_t maxz, int code, bool organized, bool negative) {
 	if (in->size() == 0) return ColorCloudPtr(new ColorCloud(*in));
 	MatrixXu bgr = toBGR(in);
   cv::Mat cvmat(in->height,in->width, CV_8UC3, bgr.data());
@@ -442,24 +473,11 @@ ColorCloudPtr colorSpaceFilter(const ColorCloudPtr in, uint8_t minx, uint8_t max
 	if (minz > 0) mask &= (z >= minz);
 	if (maxz < 255) mask &= (z <= maxz);
 
-  return maskCloud(in, mask, negative);
+  return maskCloud(in, mask, organized, negative);
 }
 
-ColorCloudPtr orientedBoxFilter(ColorCloudPtr cloud_in, const Matrix3f& ori, const Vector3f& mins, const Vector3f& maxes) {
+ColorCloudPtr orientedBoxFilter(ColorCloudPtr cloud_in, const Matrix3f& ori, const Vector3f& mins, const Vector3f& maxes, bool organized, bool negative) {
 	MatrixXf xyz = toEigenMatrix(cloud_in) * ori;
-//	Vector3f min(1000,1000,1000);
-//	Vector3f max(-1000,-1000,-1000);
-//	for (int i=0; i < xyz.rows(); i++) {
-//		for( int j=0; j<3; j++) {
-//			if (xyz(i,j) < min(j))
-//				min(j) = xyz(i,j);
-//			if (xyz(i,j) > max(j))
-//				max(j) = xyz(i,j);
-//		}
-//	}
-//	cout << "min" << endl << min << endl;
-//	cout << "max" << endl << max << endl;
-//	cout << "xyz" << endl << xyz << endl;
 	VectorXb mask(xyz.rows());
 	for (int i=0; i < xyz.rows(); i++) {
 		mask(i) = (xyz(i,0) >= mins(0)) &&
@@ -469,7 +487,7 @@ ColorCloudPtr orientedBoxFilter(ColorCloudPtr cloud_in, const Matrix3f& ori, con
 				  (xyz(i,1) <= maxes(1)) &&
 				  (xyz(i,2) <= maxes(2));
 	}
-	ColorCloudPtr cloud_out = maskCloud(cloud_in, mask);
+	ColorCloudPtr cloud_out = maskCloud(cloud_in, mask, organized, negative);
 	return cloud_out;
 }
 
@@ -609,7 +627,7 @@ ColorCloudPtr skinFilter(ColorCloudPtr cloud_dense) {
 	MatrixXu bgr = toBGR(cloud_dense);
   cv::Mat image(cloud_dense->height,cloud_dense->width, CV_8UC3, bgr.data());
   cv::Mat skin_mask = skinMask(image);
-  return maskCloud(cloud_dense, skin_mask, true);
+  return maskCloud(cloud_dense, skin_mask, false, true);
 }
 
 // if negative false, returns points in cloud_in that are neighbors to any point in cloud_neighbor

@@ -112,7 +112,7 @@ void setParamLoop(ros::NodeHandle& nh) {
 class PreprocessorNode {
 public:
   ros::NodeHandle& m_nh;
-  ros::Publisher m_cloudPub;
+  ros::Publisher m_cloudPub, m_imagePub;
   ros::Publisher m_polyPub;
   ros::Publisher m_foregroundPub, m_backgroundPub;
   tf::TransformBroadcaster m_broadcaster;
@@ -168,12 +168,14 @@ public:
     cv::Mat foreground_depth_mask = backgroundSubtractorDepthMask(depth, depth_bg, 0.005);
     cv::Mat foreground_MOG_mask; mog(rgb, foreground_MOG_mask, 0); // zero learning rate
     cv::Mat non_skin_mask = skinMask(rgb) == 0;
-		cv::Mat foreground_mask = (foreground_RGB_mask | foreground_RGB_mask | foreground_MOG_mask) & non_skin_mask;
+		cv::Mat foreground_mask = (foreground_RGB_mask | foreground_depth_mask) & non_skin_mask;
 		//cv::Mat foreground_mask = non_skin_mask;
-		cloud_out = maskCloudOrganized(cloud_out, foreground_mask);
+		cloud_out = maskCloud(cloud_out, foreground_mask, true);
 
 		//cloud based filters
-		cloud_out = orientedBoxFilter(cloud_out, toEigenMatrix(m_transform.getBasis()), m_mins, m_maxes);
+		cloud_out = orientedBoxFilter(cloud_out, toEigenMatrix(m_transform.getBasis()), m_mins, m_maxes, true);
+		cv::Mat image = toCVMatImage(cloud_out);
+
 		if (LocalConfig::removeOutliers) cloud_out = removeOutliers(cloud_out, 1, 10);
 		if (LocalConfig::downsample > 0) cloud_out = downsampleCloud(cloud_out, LocalConfig::downsample);
 		if (LocalConfig::outlierMinK > 0) cloud_out = removeRadiusOutliers(cloud_out, LocalConfig::outlierRadius, LocalConfig::outlierMinK);
@@ -184,6 +186,13 @@ public:
 		pcl::toROSMsg(*cloud_out, msg_out);
 		msg_out.header = msg_in.header;
 		m_cloudPub.publish(msg_out);
+
+		//Publish image version of cloud
+    cv_bridge::CvImage image_msg;
+    image_msg.header   = msg_in.header;
+    image_msg.encoding = sensor_msgs::image_encodings::TYPE_8UC3;
+    image_msg.image    = image;
+    m_imagePub.publish(image_msg.toImageMsg());
 
 		//Publish image based foreground/background
     cv::Mat foreground, background;
@@ -254,6 +263,7 @@ public:
     m_inited(false),
     m_nh(nh),
     m_cloudPub(nh.advertise<sensor_msgs::PointCloud2>(nodeNS+"/points",5)),
+    m_imagePub(nh.advertise<sensor_msgs::Image>(nodeNS+"/image",5)),
     m_polyPub(nh.advertise<geometry_msgs::PolygonStamped>(nodeNS+"/polygon",5)),
     m_foregroundPub(nh.advertise<sensor_msgs::Image>(nodeNS+"/foreground",5)),
     m_backgroundPub(nh.advertise<sensor_msgs::Image>(nodeNS+"/background",5)),
