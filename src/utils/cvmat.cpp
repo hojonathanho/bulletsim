@@ -203,3 +203,79 @@ cv::Mat matchRotation(cv::Mat rot_image, cv::Mat ref_image) {
 	}
 	return match_image;
 }
+
+// Wrapper for OpenCV's polylines. This one takes a vector instead of an array.
+void polylines(cv::Mat im, vector<vector<cv::Point2f> > points, bool isClosed, const cv::Scalar & color, int thickness, int lineType, int shift){
+	cv::Point ** pts = new cv::Point*[points.size()];
+	for (int ctr_id=0; ctr_id<points.size(); ctr_id++) {
+		pts[ctr_id] = new cv::Point[points[ctr_id].size()];
+		for (int v_id=0; v_id<points[ctr_id].size(); v_id++) {
+			pts[ctr_id][v_id] = points[ctr_id][v_id];
+		}
+	}
+
+	int * npts = new int[points.size()];
+
+	// find number of points for each contour
+	for (int i = 0; i < points.size() ; i++)
+		npts[i] = points[i].size();
+
+	// draw
+	cv::polylines(im, const_cast<const cv::Point**>(pts), npts, points.size(), isClosed, color, thickness, lineType, shift);
+
+	for (int ctr_id=0; ctr_id<points.size(); ctr_id++) delete [] pts[ctr_id];
+	delete [] pts;
+	delete [] npts;
+}
+
+// Given a binary image, finds the corners of the biggest polygon contour.
+vector<cv::Point2f> polyCorners(cv::Mat mask) {
+	vector<vector<cv::Point> > contours;
+	vector<cv::Vec4i> hierarchy;
+
+	cv::findContours( mask, contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_SIMPLE );
+
+	assert(contours.size() != 0);
+
+	// iterate through all the top-level contours,
+	int idx = 0;
+	int idx_max = 0;
+	double area_max = cv::contourArea(cv::Mat(contours[idx_max]));
+	for( ; idx >= 0; idx = hierarchy[idx][0] ) {
+		double area = cv::contourArea(cv::Mat(contours[idx]));
+		if (area > area_max) {
+			idx_max = idx;
+			area_max = area;
+		}
+	}
+
+	cv::Mat curve(contours[idx_max]);
+	curve.convertTo(curve, CV_32FC1);
+	vector<cv::Point2f> poly_points;
+	cv::approxPolyDP(curve, poly_points, 10, true);
+	return poly_points;
+}
+
+// Returns the corners of the rectangle
+vector<cv::Point2f> rectCorners(cv::RotatedRect rect) {
+	vector<cv::Point2f> corners;
+
+	vector<cv::Point2f> unrot_corners;
+	unrot_corners.push_back(cv::Point2f(-rect.size.width/2.0, -rect.size.height/2.0));
+	unrot_corners.push_back(cv::Point2f(-rect.size.width/2.0, rect.size.height/2.0));
+	unrot_corners.push_back(cv::Point2f(rect.size.width/2.0, rect.size.height/2.0));
+	unrot_corners.push_back(cv::Point2f(rect.size.width/2.0, -rect.size.height/2.0));
+
+	float angle = rect.angle * M_PI/180.0;
+	cv::Mat rot(2,2,CV_32FC1);
+	rot.at<float>(0,0) = cos(angle);
+	rot.at<float>(0,1) = -sin(angle);
+	rot.at<float>(1,0) = sin(angle);
+	rot.at<float>(1,1) = cos(angle);
+
+	for (int i=0; i<unrot_corners.size(); i++) {
+		cv::Mat corner = cv::Mat(rect.center) + rot*cv::Mat(unrot_corners[i]);
+		corners.push_back(cv::Point2f(corner.at<float>(0,0), corner.at<float>(0,1)));
+	}
+	return corners;
+}
