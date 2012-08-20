@@ -37,7 +37,10 @@ public:
     virtual void saveToFile(ostream &s) const;
 
     void setColor(float,float,float,float);
+    // just sets the image, not the texture coordinates
     void setTexture(cv::Mat image);
+    // sets the image and the texture coordinates
+    void setTexture(cv::Mat image, const btTransform& camFromWorld);
 		void adjustTransparency(float increment);
 
 		bool checkIntersection(const btVector3& start, const btVector3& end);

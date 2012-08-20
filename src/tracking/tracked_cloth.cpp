@@ -47,9 +47,6 @@ typedef pair<int, int> intpair;
 
 
 BulletSoftObject::Ptr makeCloth(const vector<btVector3>& corners, int resolution_x, int resolution_y, float mass) {
-//	int n_tex_coords = (resolution_x - 1)*(resolution_y -1)*12;
-//  float * tex_coords = new float[ n_tex_coords ];
-//  btVector3 offset(0,0,0.01*METERS);
   btSoftBodyWorldInfo unusedWorldInfo;
   btSoftBody* psb = CreatePolygonPatch(unusedWorldInfo, corners, resolution_x, resolution_y, true);
 
@@ -62,7 +59,6 @@ BulletSoftObject::Ptr makeCloth(const vector<btVector3>& corners, int resolution
 
   psb->setTotalMass(mass);
 
-  //TODO uncomment this when there are no little pieces of faces
   psb->generateClusters(512);
 	psb->getCollisionShape()->setMargin(0.002*METERS);
 
@@ -85,16 +81,9 @@ BulletSoftObject::Ptr makeCloth(const vector<btVector3>& corners, int resolution
   psb->m_cfg.diterations = 50;
   //	psb->m_cfg.viterations = 10;
 
-  // this function was not in the original bullet physics
-  // this allows to swap the texture coordinates to match the swapped faces
   psb->randomizeConstraints();
-  //psb->randomizeConstraints(tex_coords);
 
   BulletSoftObject::Ptr bso = BulletSoftObject::Ptr(new BulletSoftObject(psb));
-//	bso->tritexcoords = new osg::Vec2Array;
-//  for (int i = 0; i < n_tex_coords; i+=2) {
-//  	bso->tritexcoords->push_back(osg::Vec2f(tex_coords[i], tex_coords[i+1]));
-//  }
 
 	return bso;
 }
@@ -124,9 +113,6 @@ vector<btVector3> polyCorners(ColorCloudPtr cloud, cv::Mat image, CoordinateTran
 		Vector3f intersection = cam + t * (rays[i] - cam);
 		corners[i] = toBulletVector(intersection);
 	}
-
-	//DEBUG
-//	util::drawLines(toBulletVectors(rays), vector<btVector3>(rays.size(), toBulletVector(transformer->worldFromCamEigen * Vector3f(0,0,0))), Vector3f(1,1,0), 1, env);
 
 	return corners;
 }
@@ -296,38 +282,6 @@ const Eigen::VectorXf TrackedCloth::getPriorDist() {
 			MatrixXf::Ones(1, FE::FT_SIZES[FE::FT_PCASURF])*0.4,  //FT_PCASURF
 			0.5;  //FT_GRADNORMAL
 	return FeatureExtractor::all2ActiveFeatures(prior_dist).transpose();
-}
-
-cv::Mat TrackedCloth::makeTexture(const vector<btVector3>& corners, cv::Mat image, CoordinateTransformer* transformer) {
-	vector<Vector3f> points = toEigenVectors(corners);
-	BOOST_FOREACH(Vector3f& point, points) point = transformer->camFromWorldEigen * point;
-
-  MatrixXi src_pixels = xyz2uv(toEigenMatrix(points));
-  MatrixXi dst_pixels(4,2);
-
-	int resolution_x = m_sx/(TrackingConfig::node_distance*METERS) + 1;
-	int resolution_y = m_sy/(TrackingConfig::node_distance*METERS) + 1;
-  int tex_sx = TrackingConfig::node_pixel * resolution_x;
-  int tex_sy = TrackingConfig::node_pixel * resolution_y;
-
-  dst_pixels <<   0,   0,
-									0,  tex_sx,
-									tex_sy,  tex_sx,
-									tex_sy,   0;
-  cv::Mat src_mat(4, 2, CV_32FC1);
-	cv::Mat dst_mat(4, 2, CV_32FC1);
-	for(int i=0; i<src_mat.rows; i++) {
-		for(int j=0; j<src_mat.cols; j++) {
-			src_mat.at<float>(i,j) = (float) src_pixels(i,(j+1)%2);
-			dst_mat.at<float>(i,j) = (float) dst_pixels(i,(j+1)%2);
-		}
-	}
-	cv::Mat H = cv::findHomography(src_mat, dst_mat);
-	cv::Mat tex_image(tex_sy, tex_sx, CV_8UC3);
-	cv::warpPerspective(image, tex_image, H, cv::Size(tex_sx, tex_sy));
-	cv::Mat tex_image_lab(tex_sy, tex_sx, CV_8UC3);
-
-	return tex_image;
 }
 
 void TrackedCloth::initColors() {

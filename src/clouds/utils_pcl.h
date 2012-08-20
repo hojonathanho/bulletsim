@@ -4,6 +4,7 @@
 #include <string>
 #include <Eigen/Dense>
 #include <opencv2/core/core.hpp>
+#include <LinearMath/btVector3.h>
 #include "pcl_typedefs.h"
 
 static const float cx = 320-.5;
@@ -16,6 +17,9 @@ typedef Eigen::Matrix<uint8_t,Eigen::Dynamic,Eigen::Dynamic> MatrixXu;
 ColorCloudPtr readPCD(const std::string& pcdfile);
 
 Eigen::MatrixXi xyz2uv(const Eigen::MatrixXf& xyz);
+inline cv::Point2f xyz2uv(const btVector3& point) {
+  return cv::Point2f(f*point.x()/point.z() + cx, f*point.y()/point.z() + cy);
+}
 
 Eigen::MatrixXf toEigenMatrix(ColorCloudPtr);
 Eigen::MatrixXf toEigenMatrix(const cv::Mat&);

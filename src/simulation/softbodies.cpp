@@ -15,6 +15,7 @@
 #include <osgUtil/SmoothingVisitor>
 #include <osgUtil/IntersectionVisitor>
 #include <osgUtil/LineSegmentIntersector>
+#include "clouds/utils_pcl.h"
 
 using std::isfinite;
 using util::isfinite;
@@ -198,6 +199,21 @@ void BulletSoftObject::setTextureAfterInit() {
 		// we just created and enable the texture.
 		state->setTextureAttributeAndModes(0,texture,osg::StateAttribute::ON);
 	}
+}
+
+void BulletSoftObject::setTexture(cv::Mat image, const btTransform& camFromWorld) {
+	btSoftBody::tFaceArray& faces = softBody->m_faces;
+
+	tritexcoords = new osg::Vec2Array;
+	for (int j=0; j<faces.size(); j++) {
+		for (int i=0; i<3; i++) {
+			btVector3 xyz = camFromWorld * faces[j].m_n[i]->m_x;
+			cv::Point2f uv = xyz2uv(xyz);
+			tritexcoords->push_back(osg::Vec2f(uv.x/(float)image.cols, 1.0-uv.y/(float)image.rows));
+		}
+	}
+
+	setTexture(image);
 }
 
 void BulletSoftObject::adjustTransparency(float increment) {
