@@ -248,9 +248,9 @@ Hand::Hand(btScalar mass, vector<vector<float> > radii, vector<vector<float> > h
 	localA.setIdentity(); localB.setIdentity();
 	localA.getBasis().setEulerZYX(0,M_PI_2,-M_PI/8.0); localA.setOrigin(btVector3(btScalar(0.), -heights[Hand::PART_PALM][Palm::PART_THUMB]/2.0, btScalar(0.)));
 	localB.getBasis().setEulerZYX(0,M_PI_2,0); localB.setOrigin(btVector3(btScalar(0.), heights[Hand::PART_THUMB][Thumb::PART_PROXIMAL]/2.0, btScalar(0.)));
-	hingeC =  new btHingeConstraint(*children2[Hand::PART_PALM]->children[Palm::PART_THUMB]->rigidBody, *children2[Hand::PART_THUMB]->children[Thumb::PART_PROXIMAL]->rigidBody, localA, localB);
-	hingeC->setLimit(btScalar(0), btScalar(M_PI_2));
-	m_joints[JOINT_THUMB_KNUCKLES] = BulletConstraint::Ptr(new BulletConstraint(boost::shared_ptr<btHingeConstraint>(hingeC), true));
+	btPoint2PointConstraint* ptp =  new btPoint2PointConstraint(*children2[Hand::PART_PALM]->children[Palm::PART_THUMB]->rigidBody, *children2[Hand::PART_THUMB]->children[Thumb::PART_PROXIMAL]->rigidBody, localA.getOrigin(), localB.getOrigin());
+//	hingeC->setLimit(btScalar(0), btScalar(M_PI_2));
+	m_joints[JOINT_THUMB_KNUCKLES] = BulletConstraint::Ptr(new BulletConstraint(boost::shared_ptr<btPoint2PointConstraint>(ptp), true));
 
 	localA.setIdentity(); localB.setIdentity();
 	localA.getBasis().setEulerZYX(0,M_PI_2,0); localA.setOrigin(btVector3(btScalar(0.), -heights[Hand::PART_PALM][Palm::PART_INDEX]/2.0, btScalar(0.)));

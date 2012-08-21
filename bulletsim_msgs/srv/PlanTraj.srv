@@ -1,0 +1,5 @@
+string side
+float64[] start_joints
+float64[] end_joints
+---
+float64[] trajectory

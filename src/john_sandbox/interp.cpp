@@ -45,7 +45,7 @@ vector<T> interp(const VectorXf& xNew, const VectorXf& xOld, const vector<T>& yO
   return yNew;
 }
 
-MatrixXf interp2d(const VectorXf& xNew, const VectorXf& xOld, MatrixXf yOld) {
+MatrixXf interp2f(const VectorXf& xNew, const VectorXf& xOld, const MatrixXf& yOld) {
 
   int nNew = xNew.size();
   int nOld = xOld.size();
@@ -64,6 +64,27 @@ MatrixXf interp2d(const VectorXf& xNew, const VectorXf& xOld, MatrixXf yOld) {
   }
   return yNew;
 }
+
+MatrixXd interp2d(const VectorXd& xNew, const VectorXd& xOld, const MatrixXd& yOld) {
+
+  int nNew = xNew.size();
+  int nOld = xOld.size();
+  MatrixXd yNew(nNew, yOld.cols());
+  VectorXi new2old = searchsorted(xNew, xOld);
+  for (int iNew=0; iNew < nNew; iNew++) {
+    int iOldAbove = new2old(iNew);
+    if (iOldAbove == 0) 
+      yNew.row(iNew) = yOld.row(0);
+    else if (iOldAbove == nOld)
+      yNew.row(iNew) = yOld.row(nOld-1);
+    else {
+      double t = (xNew(iNew) - xOld(iOldAbove-1)) / (xOld(iOldAbove) - xOld(iOldAbove-1));
+      yNew.row(iNew) = yOld.row(iOldAbove-1)*(1-t) + yOld.row(iOldAbove)*t;
+    }
+  }
+  return yNew;
+}
+
 
 
 float blendFloats(float a, float b, float t) {
@@ -92,7 +113,7 @@ int main() {
   cout << endl;
 
   MatrixXf m(2,1); m << 0,1;
-  MatrixXf mnew = interp2d(xNew, xOld, m);
+  MatrixXf mnew = interp2f(xNew, xOld, m);
   cout << endl << mnew << endl;
 
 }

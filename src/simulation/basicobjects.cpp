@@ -16,6 +16,12 @@
 #include <boost/scoped_array.hpp>
 #include "set_colors_visitor.h"
 
+/*
+ * todo: it would make more sense to create node at construction time
+ * so we don't have to do setColorAfterInit stuff
+ */
+
+
 #define MAX_RAYCAST_DISTANCE 100.0
 
 BulletObject::MotionState::Ptr BulletObject::MotionState::clone(BulletObject &newObj) {
@@ -237,8 +243,9 @@ void BulletObject::setColorAfterInit() {
     node->accept(visitor);
 }
 
-void BulletObject::setTexture(cv::Mat image) {
-	m_cvimage = image;
+void BulletObject::setTexture(const cv::Mat& image) {
+	m_cvimage.reset(new cv::Mat);
+	image.copyTo(*m_cvimage);
 
 	//hack to convert cv::Mat images to osg::Image images
 	cv::imwrite("/tmp/images/image.jpg", image);

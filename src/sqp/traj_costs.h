@@ -3,6 +3,8 @@
 #include "functions.h"
 #include <openrave/openrave.h>
 
+void getArmKinInfo(const OpenRAVE::RobotBasePtr& robot, const OpenRAVE::RobotBase::ManipulatorPtr manip, std::vector<OpenRAVE::KinBody::LinkPtr>& armLinks, std::vector<OpenRAVE::KinBody::JointPtr>& armJoints, std::vector<int>& chainDepthOfBodies);
+
 struct Collision {
 	const btCollisionObject* m_obj0;
 	const btCollisionObject* m_obj1;
@@ -26,16 +28,29 @@ struct CollisionCollector: public btCollisionWorld::ContactResultCallback {
 	}
 };
 
-float collisionCost(btRigidBody* body, btCollisionWorld* world);
-void collisionInfo(btRigidBody* body, btCollisionWorld* world, std::vector<btVector3>& pointsOnBody, std::vector<float>& penDepth);
-void collisionCostAndJointGrad(const std::vector<btRigidBody>& bodies, btCollisionWorld* world, const OpenRAVE::RobotBasePtr& robot,
+float calcCollisionCost(btRigidBody* body, btCollisionWorld* world);
+void calcCollisionInfo(btRigidBody* body, btCollisionWorld* world, std::vector<btVector3>& pointsOnBody, std::vector<double>& dists);
+void calcCollisionCostAndJointGrad(const std::vector<btRigidBody*>& bodies, btCollisionWorld* world, const OpenRAVE::RobotBasePtr& robot,
                                 const std::vector<OpenRAVE::KinBody::JointPtr>& jointsInChain,
                                 const std::vector<int>& chainDepthOfBodies,  /* i.e., how many joints in the kinematic chain precede each rigid body */
-                                float& cost, Eigen::VectorXf& grad);
+                                double& cost, Eigen::VectorXd& grad, int& nColl);
 
+
+class BulletRaveSyncher {
+public:
+	std::vector<OpenRAVE::KinBody::LinkPtr> m_links; // what links are part of the object we're planning with
+	std::vector<btRigidBody*> m_bodies; // what rigid bodies are part of the object we're planning with
+	BulletRaveSyncher(const std::vector<OpenRAVE::KinBody::LinkPtr>& links, const std::vector<btRigidBody*>& bodies) :
+		m_links(links), m_bodies(bodies) {}
+	void updateBullet();
+};
+
+typedef std::pair< std::vector<Eigen::VectorXd>, std::vector<double> > TimestepCollisionInfo;
+typedef std::vector< TimestepCollisionInfo > TrajCollisionInfo;
 
 class CollisionCostEvaluator {
 public:
+  typedef boost::shared_ptr<CollisionCostEvaluator> Ptr;
   OpenRAVE::RobotBasePtr m_robot;
   btCollisionWorld* m_world;
 
@@ -44,6 +59,7 @@ public:
   std::vector<OpenRAVE::KinBody::JointPtr> m_joints; // active degrees of freedom in planning problem (currently assume all hinge joints)
   int m_nJoints; // number of joints
   std::vector<int> m_chainDepthOfBodies; // where does each link lie along the kinematic chain
+  BulletRaveSyncher m_syncher;
 
   CollisionCostEvaluator(OpenRAVE::RobotBasePtr robot, btCollisionWorld* world, const std::vector<OpenRAVE::KinBody::LinkPtr>& links,
 		  const std::vector<btRigidBody*>& bodies, const std::vector<OpenRAVE::KinBody::JointPtr>& joints,
@@ -54,10 +70,14 @@ public:
 	  m_bodies(bodies),
 	  m_joints(joints),
 	  m_chainDepthOfBodies(depthOfBodies),
-	  m_nJoints(joints.size())
+	  m_nJoints(joints.size()),
+	  m_syncher(links, bodies)
   {}
 
-  float calcCost(const Eigen::MatrixXf& x);
-  void calcCostAndGrad(const Eigen::MatrixXf& traj, float& val, Eigen::MatrixXf& deriv);
-  void updateBullet();
+  float calcCost(const Eigen::MatrixXd& x);
+  void calcCostAndGrad(const Eigen::MatrixXd& traj, double& val, Eigen::MatrixXd& deriv);
+  TrajCollisionInfo collectCollisionInfo(const Eigen::MatrixXd& traj);
+  
 };
+
+

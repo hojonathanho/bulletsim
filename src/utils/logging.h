@@ -11,6 +11,14 @@
 #define LOG_ERROR(s) LOG4CPLUS_ERROR(log4cplus::Logger::getRoot(), s)
 #define LOG_FATAL(s) LOG4CPLUS_FATAL(log4cplus::Logger::getRoot(), s)
 
+#define LOG_TRACE_FMT(s, ...) LOG4CPLUS_TRACE_FMT(log4cplus::Logger::getRoot(), s, __VA_ARGS__)
+#define LOG_DEBUG_FMT(s, ...) LOG4CPLUS_DEBUG_FMT(log4cplus::Logger::getRoot(), s, __VA_ARGS__)
+#define LOG_INFO_FMT(s, ...) LOG4CPLUS_INFO_FMT(log4cplus::Logger::getRoot(), s, __VA_ARGS__)
+#define LOG_WARN_FMT(s, ...) LOG4CPLUS_WARN_FMT(log4cplus::Logger::getRoot(), s, __VA_ARGS__)
+#define LOG_ERROR_FMT(s, ...) LOG4CPLUS_ERROR_FMT(log4cplus::Logger::getRoot(), s, __VA_ARGS__)
+#define LOG_FATAL_FMT(s, ...) LOG4CPLUS_FATAL_FMT(log4cplus::Logger::getRoot(), s, __VA_ARGS__)
+
+
 void LoggingInit();
 
 #endif // _LOGGING_H_

@@ -34,7 +34,7 @@ catkin_project(bulletsim_msgs)
 
 add_service_files(
   DIRECTORY srv
-  FILES GetTable.srv Initialization.srv
+  FILES GetTable.srv Initialization.srv PlanTraj.srv
 )
 add_message_files(
   DIRECTORY msg

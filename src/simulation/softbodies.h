@@ -37,7 +37,7 @@ public:
     virtual void saveToFile(ostream &s) const;
 
     void setColor(float,float,float,float);
-    void setTexture(cv::Mat image);
+    void setTexture(const cv::Mat& image);
 		void adjustTransparency(float increment);
 
 		bool checkIntersection(const btVector3& start, const btVector3& end);
@@ -72,12 +72,12 @@ private:
 		osg::Vec4f m_color;
 		void setColorAfterInit();
 		osg::ref_ptr<osg::Image> m_image;
-		cv::Mat m_cvimage;
+		boost::shared_ptr<cv::Mat> m_cvimage;
 		void setTextureAfterInit();
     AnchorHandle nextAnchorHandle;
     map<AnchorHandle, int> anchormap;
 public:
-		cv::Mat getTexture() { return m_cvimage; }
+		cv::Mat& getTexture() { return *m_cvimage; }
 		osg::Vec4f getColor() {return m_color;}
 };
 

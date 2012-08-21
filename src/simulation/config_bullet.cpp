@@ -5,3 +5,5 @@ int BulletConfig::maxSubSteps = 200;
 float BulletConfig::internalTimeStep = 1/200.;
 float BulletConfig::friction = .5;
 float BulletConfig::restitution = 0;
+float BulletConfig::margin = .0005;
+float BulletConfig::linkPadding = 0;

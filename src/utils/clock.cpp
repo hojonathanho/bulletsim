@@ -3,7 +3,7 @@
 #include <sys/time.h>
 #include <time.h>
 
-static long unsigned int startTime;
+static long unsigned int startTime = 0;
 
 /*
  * Starts the clock!  Call this once at the beginning of the program.

@@ -1,6 +1,8 @@
 #include "simulation/fake_gripper.h"
-#include "boost/foreach.hpp"
+#include <boost/foreach.hpp>
 #include "utils/conversions.h"
+#include <osg/Depth>
+#include "simulation/set_colors_visitor.h"
 using namespace std;
 using namespace OpenRAVE;
 using boost::shared_ptr;
@@ -29,6 +31,34 @@ FakeGripper::FakeGripper(RaveRobotObject::Manipulator::Ptr manip) : m_manip(mani
 
   setTransform(btTransform::getIdentity());
 
+}
+
+void FakeObjectCopy::setTransform(const btTransform& tf) {  m_transform->setMatrix(toOsgMatrix(tf));}
+FakeObjectCopy::FakeObjectCopy(BulletObject::Ptr orig) : m_orig(orig) {
+	m_transform = new osg::MatrixTransform(osg::Matrixf::identity());
+	m_transform->addChild(orig->node);
+}
+
+void FakeObjectCopy::setColor(const osg::Vec4f& color) {
+	return; // doesn't work since visitor visits the original node
+  	if (color.a() != 1.0f) {
+  		osg::StateSet *ss = m_transform->getOrCreateStateSet();
+  		ss->setRenderingHint(osg::StateSet::TRANSPARENT_BIN);
+  		osg::Depth* depth = new osg::Depth;
+  		depth->setWriteMask( false );
+  		ss->setAttributeAndModes( depth, osg::StateAttribute::ON );
+    }
+    SetColorsVisitor visitor(color.r(),color.g(),color.b(),color.a());
+    m_transform->accept(visitor);
+}
+
+void FakeObjectCopy::makeChildOf(osg::Group* parent) {
+	m_parent = parent;
+	m_parent->addChild(m_transform);
+}
+
+FakeObjectCopy::~FakeObjectCopy() {
+	if (m_parent) m_parent->removeChild(m_transform);
 }
 
 void TelekineticGripper::prePhysics() {

@@ -9,11 +9,15 @@ class SetColorsVisitor : public osg::NodeVisitor
 {
 
 public:
-  osg::Vec4Array* colors;
-  osg::Vec4 color;
+  osg::ref_ptr<osg::Vec4Array> colors;
 
   SetColorsVisitor(float r, float g, float b, float a ) {
-    color = osg::Vec4(r,g,b,a);
+    osg::Vec4 color(r,g,b,a);
+    colors = new osg::Vec4Array;
+    colors->push_back(color);
+    setTraversalMode(osg::NodeVisitor::TRAVERSE_ALL_CHILDREN );
+  }
+  SetColorsVisitor(const osg::Vec4f& color) {
     colors = new osg::Vec4Array;
     colors->push_back(color);
     setTraversalMode(osg::NodeVisitor::TRAVERSE_ALL_CHILDREN );
@@ -29,13 +33,12 @@ protected:
   void applyDrawable( osg::Drawable* drawable ) {
     osg::Geometry* geom = drawable->asGeometry();
     if (geom) {
-      geom->setColorArray(colors);
+      geom->setColorArray(colors.get());
       //geom->setColorBinding(osg::Geometry::BIND_OVERALL);
     }
-
     osg::ShapeDrawable* sd = dynamic_cast<osg::ShapeDrawable*>(drawable);
     if (sd != 0) {
-      sd->setColor(color);
+      sd->setColor(colors->at(0));
     }
 
   }

@@ -103,7 +103,7 @@ vector<btTransform> findBasePoses1(OpenRAVE::RobotBase::ManipulatorPtr manip, co
     downsampledBaseXY(i,1) = OFFSETS[py::extract<int>(pypath[i])][1];
   }
 
-  Eigen::MatrixXf baseXY = interp2d(VectorXf::LinSpaced(nPosesOrig,0,1), VectorXf::LinSpaced(nPoses,0,1), downsampledBaseXY);
+  Eigen::MatrixXf baseXY = interp2f(VectorXf::LinSpaced(nPosesOrig,0,1), VectorXf::LinSpaced(nPoses,0,1), downsampledBaseXY);
 
   vector<btTransform> basePoses(baseXY.rows());
   for (int i=0; i < basePoses.size(); i++) {

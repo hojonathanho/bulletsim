@@ -11,6 +11,16 @@ using namespace OpenRAVE;
 using namespace std;
 using boost::shared_ptr;
 
+/*
+ * re: margins, see http://www.bulletphysics.org/Bullet/phpBB3/viewtopic.php?f=9&t=2358
+ * there are three places where you can set a margin: 1. convexbuilder, 2. subshape, and 3. compound shape
+ * 1. effectively expands the shape outwards
+ * 2. has a weird effect, seems to double-count the margin, both expanding the shape and the collision detection
+ * 3. has no effect if negative, but some effect if positive?
+ * link padding is currently not being used for shapes other than convex hull
+ */
+
+
 btVector3 computeCentroid(const KinBody::Link::TRIMESH& mesh) {
 	btVector3 sum(0, 0, 0);
 	BOOST_FOREACH(const RaveVector<double>& v, mesh.vertices) {
@@ -66,7 +76,7 @@ void Load(Environment::Ptr env, RaveInstance::Ptr rave, const string& filename,
 }
 
 RaveObject::RaveObject(RaveInstance::Ptr rave_, KinBodyPtr body_, TrimeshMode trimeshMode, bool isDynamic) {
-	initRaveObject(rave_, body_, trimeshMode, .0005 * METERS, isDynamic);
+	initRaveObject(rave_, body_, trimeshMode, BulletConfig::margin * METERS, isDynamic);
 }
 
 void RaveObject::init() {
@@ -168,7 +178,7 @@ static BulletObject::Ptr createFromLink(KinBody::LinkPtr link,
 
 	// each link is a compound of several btCollisionShapes
 	btCompoundShape *compound = new btCompoundShape();
-	compound->setMargin(fmargin);
+	compound->setMargin(0); //margin: compound. seems to have no effect when positive but has an effect when negative
 
 	float volumeAccumulator(0);
 	btVector3 firstMomentAccumulator(0,0,0);
@@ -234,11 +244,11 @@ static BulletObject::Ptr createFromLink(KinBody::LinkPtr link,
 
 				if (trimeshMode == CONVEX_HULL) {
 					boost::shared_ptr<btConvexShape> pconvexbuilder(new btConvexTriangleMeshShape(ptrimesh));
-					pconvexbuilder->setMargin(fmargin);
+					pconvexbuilder->setMargin(BulletConfig::linkPadding*METERS); // margin: hull padding
 
 					//Create a hull shape to approximate Trimesh
 					boost::shared_ptr<btShapeHull> hull(new btShapeHull(pconvexbuilder.get()));
-					hull->buildHull(fmargin);
+					hull->buildHull(-666); // note: margin argument not used
 
 					btConvexHullShape *convexShape = new btConvexHullShape();
 					for (int i = 0; i < hull->numVertices(); ++i)
@@ -263,7 +273,7 @@ static BulletObject::Ptr createFromLink(KinBody::LinkPtr link,
 
 		// store the subshape somewhere so it doesn't get deallocated by the smart pointer
 		subshapes.push_back(subshape);
-		subshape->setMargin(fmargin);
+		subshape->setMargin(0); //margin: subshape. seems to result in padding convex shape AND increases collision dist on top of that
 		btTransform transform = util::toBtTransform(geom->GetTransform(),GeneralConfig::scale);
 		transform.setOrigin(transform.getOrigin() + offset);
 		compound->addChildShape(transform, subshape.get());
@@ -513,12 +523,12 @@ void RaveObject::postCopy(EnvironmentObject::Ptr copy, Fork &f) const {
 
 RaveRobotObject::RaveRobotObject(RaveInstance::Ptr rave_, RobotBasePtr robot_, TrimeshMode trimeshMode, bool isDynamic) {
 	robot = robot_;
-	initRaveObject(rave_, robot_, trimeshMode, .0005 * METERS, isDynamic);
+	initRaveObject(rave_, robot_, trimeshMode, BulletConfig::margin * METERS, isDynamic);
 }
 
 RaveRobotObject::RaveRobotObject(RaveInstance::Ptr rave_, const std::string &uri, TrimeshMode trimeshMode, bool isDynamic) {
 	robot = rave_->env->ReadRobotURI(uri);
-	initRaveObject(rave_, robot, trimeshMode, .0005 * METERS, isDynamic);
+	initRaveObject(rave_, robot, trimeshMode, BulletConfig::margin * METERS, isDynamic);
 	rave->env->AddRobot(robot);
 }
 

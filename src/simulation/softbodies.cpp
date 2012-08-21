@@ -170,8 +170,9 @@ void BulletSoftObject::setColorAfterInit() {
 //	state->setTextureAttributeAndModes(0,texture,osg::StateAttribute::ON);
 //}
 
-void BulletSoftObject::setTexture(cv::Mat image) {
-	m_cvimage = image;
+void BulletSoftObject::setTexture(const cv::Mat& image) {
+	m_cvimage.reset(new cv::Mat);
+	image.copyTo(*m_cvimage);
 
 	//hack to convert cv::Mat images to osg::Image images
 	cv::imwrite("/tmp/images/image.jpg", image);
