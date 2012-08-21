@@ -409,6 +409,20 @@ void ArmPlotter::plotTraj(const MatrixXd& traj) {
   LOG_INFO_FMT("draw time: %.3f", TOC());
 }
 
+void interactiveTrajPlot(const MatrixXd& traj, RaveRobotObject::Manipulator::Ptr arm, BulletRaveSyncher* syncher, Scene* scene) {
+
+  vector<double> curDOFVals = arm->getDOFValues();
+  for (int iStep=0; iStep < traj.rows(); ++iStep) {
+    arm->setDOFValues(toDoubleVec(traj.row(iStep)));
+    syncher->updateBullet();
+    printf("press p to continue\n");
+    scene->step(0);
+    scene->idle(true);
+  }
+  arm->setDOFValues(curDOFVals);
+  syncher->updateBullet();
+}
+
 
 void ComponentizedArmPlanningProblem::doIteration() {
   GRBQuadExpr objective(0);

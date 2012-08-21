@@ -10,13 +10,23 @@ include_directories(
     ${JSON_INCLUDE_DIR}
     ${GUROBI_INCLUDE_DIR}
     ${TETGEN_DIR}
-
     ${BULLETSIM_SOURCE_DIR}/src
 )
+
+include_directories("/opt/ros/fuerte/stacks/vision_opencv/cv_bridge/include")
+include_directories("/opt/ros/fuerte/stacks/geometry/tf/include"
+					"/opt/ros/fuerte/stacks/geometry/tf/msg_gen/cpp/include"
+					"/opt/ros/fuerte/stacks/geometry/tf/srv_gen/cpp/include")
+link_directories("/opt/ros/fuerte/stacks/geometry/tf/lib"
+	"/opt/ros/fuerte/stacks/vision_opencv/cv_bridge/lib")
+
+
 link_directories(
   ${BULLETSIM_BINARY_DIR}/src
-  ${WM_LIBRARY_DIR}
 )
+
+include_directories(/home/joschu/Src/gurobi501/linux64/include)
+link_directories(/home/joschu/Src/gurobi501/linux64/lib)
 
 add_executable(test_plotting test_plotting.cpp)
 target_link_libraries(test_plotting simulation)
@@ -52,3 +62,6 @@ target_link_libraries(test_shadow_hand simulation utils)
 
 add_executable(test_surface_sampling test_surface_sampling.cpp)
 target_link_libraries(test_surface_sampling simulation utils clouds tracking)
+
+add_executable(get_cloud_robot_frame get_cloud_robot_frame.cpp)
+target_link_libraries(get_cloud_robot_frame utils ${ROS_LIBRARIES} clouds tf robots)

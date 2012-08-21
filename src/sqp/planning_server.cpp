@@ -60,6 +60,7 @@ public:
     m_pr2m(pr2m) {}
   
   bool callback(PlanTraj::Request& request, PlanTraj::Response& response) {
+    m_pr2m.pr2->setColor(1,1,1,.4);
 
     ColorCloudPtr dsCloud;
     if (LocalConfig::test) {
@@ -116,6 +117,15 @@ public:
     planner.setPlotter(plotter);
 
     planner.optimize(LocalConfig::nIter);
+    plotter->clear();
+
+    m_pr2m.pr2->setColor(1,1,1,1);
+
+
+    if (LocalConfig::test) {
+      interactiveTrajPlot(planner.getTraj(), arm, &planner.m_cce->m_syncher, &m_scene);
+    }
+
 
     MatrixXd result = planner.getTraj();
     response.trajectory = vector<double>();
@@ -146,7 +156,6 @@ int main(int argc, char* argv[]) {
 			scene.env->bullet->dynamicsWorld->removeRigidBody(rb);
 		}
 	}
-	pr2->setColor(1,1,1,.4);
   scene.startViewer();  
 
   

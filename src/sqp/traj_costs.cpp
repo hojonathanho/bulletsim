@@ -47,7 +47,7 @@ void calcCollisionInfo(btRigidBody* body, btCollisionWorld* world, std::vector<b
   for (int iColl = 0; iColl < nColl; ++iColl) {
     Collision& collision = collisionCollector.m_collisions[iColl];
     points[iColl] = (collision.m_obj0 == body) ? collision.m_world0 : collision.m_world1;
-    normals[iColl] = collision.m_normal;
+    normals[iColl] = (collision.m_obj0 == body) ? collision.m_normal : -collision.m_normal;
     dists[iColl] = collision.m_distance;
   }
 }

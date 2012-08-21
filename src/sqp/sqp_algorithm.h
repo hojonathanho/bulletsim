@@ -15,7 +15,8 @@ typedef std::vector<GRBVar> VarVector;
 class TrajPlotter {
 public:
   typedef boost::shared_ptr<TrajPlotter> Ptr;
-	virtual void plotTraj(const Eigen::MatrixXd& traj) = 0;
+  virtual void plotTraj(const Eigen::MatrixXd& traj) = 0;
+  virtual void clear() {}
 };
 
 class GripperPlotter : public TrajPlotter {
@@ -48,7 +49,11 @@ public:
   ArmPlotter(RaveRobotObject::Manipulator::Ptr rrom, const std::vector<BulletObject::Ptr>& origs, Scene* scene, BulletRaveSyncher*syncher, int decimation);
   void init(RaveRobotObject::Manipulator::Ptr, const std::vector<BulletObject::Ptr>&, Scene*, BulletRaveSyncher*, int decimation);
   void setLength(int n);
+  void clear() {setLength(0);}
 };
+
+void interactiveTrajPlot(const Eigen::MatrixXd& traj, RaveRobotObject::Manipulator::Ptr arm, BulletRaveSyncher* syncher, Scene* scene);
+
 
 GRBEnv* getGRBEnv();
 
