@@ -71,24 +71,21 @@ int main() {
 
 	int nTrials = 5;
 	double tTotal0,tTotal1, tTotal2;
-
-	StartClock();
+TIC();
 	for (int trial=0; trial<nTrials; ++trial) {
 		q = pairwiseSquareDistScaled(m_kf, c_nf, sig_kf);
 	}
-	tTotal0 = GetClock();
-
-	StartClock();
+	tTotal0 TOC();
+TIC();
 	for (int trial=0; trial<nTrials; ++trial) {
 		q = pairwiseSquareDistScaled1(m_kf, c_nf, sig_kf);
 	}
-	tTotal1 = GetClock();
-
-	StartClock();
+	tTotal1 TOC();
+TIC();
 	for (int trial=0; trial<nTrials; ++trial) {
 		q = pairwiseSquareDistScaled2(m_kf, c_nf, sig_kf);
 	}
-	tTotal2 = GetClock();
+	tTotal2 TOC();
 
 
 	printf("0,1,2: %.3f, %.3f, %.3f\n", tTotal0, tTotal1, tTotal2);

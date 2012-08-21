@@ -210,18 +210,3 @@ std::vector<geometry_msgs::Point32> toROSPoints32(const std::vector<btVector3>& 
 	return out;
 }
 
-ColorPoint toColorPoint(const Eigen::Vector3f& vec) {
-	ColorPoint pt;
-	pt.x = vec(0);
-	pt.y = vec(1);
-	pt.z = vec(2);
-	return pt;
-}
-
-ColorPoint toColorPoint(const btVector3& vec) {
-	ColorPoint pt;
-	pt.x = vec.x();
-	pt.y = vec.y();
-	pt.z = vec.z();
-	return pt;
-}

@@ -5,6 +5,7 @@
 #include <Eigen/Dense>
 #include <opencv2/core/core.hpp>
 #include "pcl_typedefs.h"
+#include <LinearMath/btTransform.h>
 
 typedef Eigen::Matrix<bool,Eigen::Dynamic,1> VectorXb;
 typedef Eigen::Matrix<uint8_t,Eigen::Dynamic,Eigen::Dynamic> MatrixXu;
@@ -35,3 +36,18 @@ bool saveTransform(const std::string& filename, const Eigen::Matrix4f& t);
 bool loadTransform(const std::string& filename, Eigen::Matrix4f& t);
 bool saveTransform(const std::string& filename, const Eigen::Affine3f& t);
 bool loadTransform(const std::string& filename, Eigen::Affine3f& t);
+inline ColorPoint toColorPoint(const Eigen::Vector3f& vec) {
+    ColorPoint pt;
+    pt.x = vec(0);
+    pt.y = vec(1);
+    pt.z = vec(2);
+    return pt;
+}
+inline ColorPoint toColorPoint(const btVector3& vec) {
+    ColorPoint pt;
+    pt.x = vec.x();
+    pt.y = vec.y();
+    pt.z = vec.z();
+    return pt;
+}
+inline Eigen::Vector3f toEigenVector(const ColorPoint& pt) {return Eigen::Vector3f(pt.x,pt.y,pt.z);}

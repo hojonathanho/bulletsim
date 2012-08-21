@@ -1,11 +1,6 @@
 include_directories(
     ${PCL_INCLUDE_DIRS}
-#    ${WM_INCLUDE_DIR}
-#    ${BULLET_INCLUDE_DIR}
-#    ${JSON_INCLUDE_DIR}
-#    ${EIGEN3_INCLUDE_DIR}
     ${BULLETSIM_SOURCE_DIR}/src
-#    ${BULLET_DIR}/src
 )
 
 
@@ -15,7 +10,6 @@ include_directories("/opt/ros/fuerte/stacks/geometry/tf/include"
 					"/opt/ros/fuerte/stacks/geometry/tf/srv_gen/cpp/include") # fuck this shit
 link_directories("/opt/ros/fuerte/stacks/geometry/tf/lib"
 	"/opt/ros/fuerte/stacks/vision_opencv/cv_bridge/lib")
-link_directories(${WM_LIBRARY_DIR})
 
 add_library(tracking 
 	algorithm_common.cpp 
@@ -55,7 +49,7 @@ target_link_libraries(simulated_tracker tracking simulation clouds tf cv_bridge 
 add_executable(simulated_hand_tracker simulated_hand_tracker.cpp)
 target_link_libraries(simulated_hand_tracker tracking simulation clouds tf cv_bridge ${OpenCV_LIBS} ${ROS_LIBRARIES} boost_signals)
 
-add_executable(hand_tracker_node hand_tracker_node1.cpp)
+add_executable(hand_tracker_node hand_tracker_node.cpp)
 target_link_libraries(hand_tracker_node tracking simulation clouds tf cv_bridge ${OpenCV_LIBS} ${ROS_LIBRARIES} boost_signals)
 
 add_executable(test_pairwise_dist_scaled sandbox/test_pairwise_dist_scaled.cpp ../utils/clock.cpp)

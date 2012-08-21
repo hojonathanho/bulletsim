@@ -6,7 +6,6 @@
 #include <geometry_msgs/Transform.h>
 #include <geometry_msgs/Point.h>
 #include <geometry_msgs/Point32.h>
-#include "clouds/pcl_typedefs.h"
 
 inline btVector3 toBulletVector(const std::vector<float>& vec) {return btVector3(vec[0],vec[1],vec[2]);}
 inline btVector3 toBulletVector(const Eigen::Vector3f& vec) {return btVector3(vec[0],vec[1],vec[2]);}
@@ -15,7 +14,6 @@ inline btVector3 toBulletVector(const geometry_msgs::Point& pt) { return btVecto
 inline btVector3 toBulletVector(const geometry_msgs::Point32& pt) { return btVector3(pt.x, pt.y, pt.z); }
 inline Eigen::Vector3f toEigenVector(const std::vector<float>& vec) {return Eigen::Vector3f(vec[0],vec[1],vec[2]);}
 inline Eigen::Vector3f toEigenVector(const btVector3& vec) {return Eigen::Vector3f(vec.x(),vec.y(),vec.z());}
-inline Eigen::Vector3f toEigenVector(const ColorPoint& pt) {return Eigen::Vector3f(pt.x,pt.y,pt.z);}
 inline osg::Vec3f toOSGVector(const btVector3 &v) { return osg::Vec3f(v.x(), v.y(), v.z()); }
 Eigen::Matrix3f toEigenMatrix(const btMatrix3x3& basis);
 btMatrix3x3 toBulletMatrix(const Eigen::Matrix3f& rotation);
@@ -42,5 +40,4 @@ std::vector<btVector3> toBulletVectors(const std::vector<geometry_msgs::Point>&)
 std::vector<btVector3> toBulletVectors(const std::vector<geometry_msgs::Point32>&);
 std::vector<geometry_msgs::Point> toROSPoints(const std::vector<btVector3>&);
 std::vector<geometry_msgs::Point32> toROSPoints32(const std::vector<btVector3>&);
-ColorPoint toColorPoint(const Eigen::Vector3f& vec);
-ColorPoint toColorPoint(const btVector3& vec);
+

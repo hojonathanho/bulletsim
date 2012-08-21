@@ -22,6 +22,13 @@
 	</group>
 
 	<node name="drop1" pkg="topic_tools" type="drop" args="/$(arg camera)/depth_registered/points 2 3 /drop/points"/>
-	<node name="preprocessor" pkg="binary_symlinks" type="qpreprocessor_node" output="screen"  args="--inputTopic=/drop/points --downsample=0.008 --removeOutliers=true --outlierRadius=0.016 --outlierMinK=0 --clusterMinSize=15 --zClipLow=-0.02 --backgroundRead=false --backgroundFile=/home/alex/Desktop/preprocessor.yml" /> 
-
+<group ns="preprocessor">>
+ <param name="min_hue" value="0"/>
+ <param name="max_hue" value="255"/>
+ <param name="min_hue" value="0"/>
+ <param name="max_hue" value="255"/>
+ <param name="min_hue" value="0"/>
+ <param name="max_hue" value="255"/>
+</group>
+	<node name="preprocessor" pkg="binary_symlinks" type="simple_preprocessor_node" output="screen"  args="--inputTopic=/drop/points --zClipLow=.4 --downsample=.01 --clusterMinSize=0"/>
 </launch>

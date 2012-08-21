@@ -136,7 +136,7 @@ int main(int argc, char* argv[]) {
   TrackedObject::Ptr trackedObj(new TrackedCompound(hand, scene.env->bullet->dynamicsWorld));
   trackedObj->init();
 
-  btVector3 filterBoxHalfExtents = btVector3(.3,.3,.3)*METERS;
+  btVector3 filterBoxHalfExtents = btVector3(.15,.15,.15)*METERS;
   BoxObject::Ptr filterBox(new BoxObject(0, filterBoxHalfExtents, initHandTrans));
   scene.env->add(filterBox);
   scene.env->bullet->dynamicsWorld->removeRigidBody(filterBox->rigidBody.get());
@@ -172,7 +172,7 @@ int main(int argc, char* argv[]) {
 
   while (ros::ok()) {
   	//Update the inputs of the featureExtractors and visibilities (if they have any inputs)
-	 	allCloud->setPoints1(filteredCloud);
+     	allCloud->setPoints1(filteredCloud);
 	 filteredCloud = boxFilter(filteredCloud, toEigenVector(initHandPos - filterBoxHalfExtents),
 											  toEigenVector(initHandPos + filterBoxHalfExtents));
 	 LOG_DEBUG("cloud size: " << filteredCloud->size());
