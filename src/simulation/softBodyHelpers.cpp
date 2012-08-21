@@ -204,27 +204,28 @@ btSoftBody*	CreateFromSoftBodyExcludeFaces(btSoftBody* softBody, vector<int> exc
 	return psb;
 }
 
+// assumes the polygon is in the xy plane
 struct	ImplicitPolygon : btSoftBody::ImplicitFn
 {
 	vector<btVector3> corners;
-
 	vector<cv::Point> corners_2d;
-	btMatrix3x3 proj_xy_rot;
 
 	ImplicitPolygon() {}
-	ImplicitPolygon(const vector<btVector3>& c, const btMatrix3x3& rot) : corners(c), proj_xy_rot(rot)
+	ImplicitPolygon(const vector<btVector3>& c) : corners(c)
 	{
 		for (int i=0; i<corners.size(); i++) {
-			btVector3 rot_corner = proj_xy_rot * corners[i];
-			corners_2d.push_back(cv::Point(rot_corner.x(), rot_corner.y()));
+			corners_2d.push_back(cv::Point(corners[i].x(), corners[i].y()));
 		}
 	}
 
 	btScalar	Eval(const btVector3& point)
 	{
-		btVector3 rot_point = proj_xy_rot * point;
-		cv::Point2f point_2d(rot_point.x(), rot_point.y());
-		return btScalar(cv::pointPolygonTest(corners_2d, point_2d, true));
+		return btScalar(cv::pointPolygonTest(corners_2d, cv::Point2f(point.x(), point.y()), true));
+	}
+
+	btScalar	EvalFast(const btVector3& point)
+	{
+		return btScalar(cv::pointPolygonTest(corners_2d, cv::Point2f(point.x(), point.y()), false));
 	}
 };
 
@@ -238,55 +239,52 @@ btSoftBody* CreatePolygonPatch(btSoftBodyWorldInfo& worldInfo, std::vector<btVec
 //		util::drawSpheres(corners[i], Vector3f(0,((float)i)*factor,1-((float)i)*factor), 0.5, 4, env);
 //	}
 
-	// compute the rotation for the corners to lie in the plane with normal z
+	// compute the transformation for the corners to lie in the xy plane
 	btVector3 normal = (corners[1] - corners[0]).cross(corners[2] - corners[0]).normalized();
 	btVector3 align(0,0,1);
 	btMatrix3x3 align_rot;
 	minRot(align, normal, align_rot);
+	btTransform align_transform(align_rot, btVector3(0,0,-(align_rot*corners[0]).z()));
 	//if align_rot is nan, there is probably no alignment needed and minRot is buggy for this case
 	if (!util::isfinite(align_rot))
-		align_rot = btMatrix3x3::getIdentity();
+		align_transform = btTransform::getIdentity();
 
-	// rotated corners where their z axis are the same
-	vector<btVector3> rot_corners(corners.size());
-	for (int i=0; i<rot_corners.size(); i++)
-		rot_corners[i] = align_rot * corners[i];
-	float align_offset = rot_corners[0].z();
+	// transform corners so that their z axis are zero
+	vector<btVector3> xy_corners(corners.size());
+	for (int i=0; i<xy_corners.size(); i++)
+		xy_corners[i] = align_transform * corners[i];
 
-	// rotated corners with their z axis dropped off
-	vector<cv::Point2f> corners_2d(rot_corners.size());
+	// transformed corners with their z axis dropped off
+	vector<cv::Point2f> corners_2d(xy_corners.size());
 	for (int i; i<corners_2d.size(); i++)
-		corners_2d[i] = cv::Point2f(rot_corners[i].x(), rot_corners[i].y());
+		corners_2d[i] = cv::Point2f(xy_corners[i].x(), xy_corners[i].y());
 
-	// rectangle corners of the rotated corners
+	// transformed rectangle corners of the transformed corners
 	cv::RotatedRect rect = cv::minAreaRect(corners_2d);
 	vector<cv::Point2f> rect_corners_2d = rectCorners(rect);
 
-	// rectangle corners with their z axis put back in
-	vector<btVector3> rot_rect_corners(rect_corners_2d.size());
-	for (int i=0; i<rot_rect_corners.size(); i++)
-		rot_rect_corners[i] = btVector3(rect_corners_2d[i].x, rect_corners_2d[i].y, align_offset);
+	// transformed rectangle corners with their z axis put back in
+	vector<btVector3> xy_rect_corners(rect_corners_2d.size());
+	for (int i=0; i<xy_rect_corners.size(); i++)
+		xy_rect_corners[i] = btVector3(rect_corners_2d[i].x, rect_corners_2d[i].y, 0);
 
-	btSoftBody* psb = btSoftBodyHelpers::CreatePatch(worldInfo, rot_rect_corners[0], rot_rect_corners[1], rot_rect_corners[3], rot_rect_corners[2], resx, resy, 0, gendiags);
+	btSoftBody* psb = btSoftBodyHelpers::CreatePatch(worldInfo, xy_rect_corners[0], xy_rect_corners[1], xy_rect_corners[3], xy_rect_corners[2], resx, resy, 0, gendiags);
 
 	// Refine the patch around the polygon contour
-	ImplicitPolygon ipolygon(corners, align_rot);
-	psb->refine(&ipolygon,0.00001,false);
+	ImplicitPolygon ipolygon(xy_corners);
+	psb->refine(&ipolygon,0.001,false);
 
 	// Determine the faces that are outside the polygon contour
 	vector<int> exclude_faces_idx;
 	btSoftBody::tFaceArray& faces = psb->m_faces;
 	for (int j=0; j<faces.size(); j++)
-		if (ipolygon.Eval((faces[j].m_n[0]->m_x+faces[j].m_n[1]->m_x+faces[j].m_n[2]->m_x)/3.0) < 0) exclude_faces_idx.push_back(j);
+		if (ipolygon.EvalFast((faces[j].m_n[0]->m_x+faces[j].m_n[1]->m_x+faces[j].m_n[2]->m_x)/3.0) < 0) exclude_faces_idx.push_back(j);
 
 	// Create a new btSoftBody containing only the nodes, faces and links inside the polygon contour
 	psb = CreateFromSoftBodyExcludeFaces(psb, exclude_faces_idx);
 
 	// rotate the nodes back to their unaligned positions
-	btSoftBody::tNodeArray& nodes = psb->m_nodes;
-	btMatrix3x3 align_rot_inverse = align_rot.transpose();
-	for (int i=0; i<nodes.size(); i++)
-		nodes[i].m_x = align_rot_inverse * nodes[i].m_x;
+	psb->transform(align_transform.inverse());
 
 	return psb;
 }

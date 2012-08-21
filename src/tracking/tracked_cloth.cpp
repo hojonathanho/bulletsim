@@ -17,10 +17,9 @@
 #include "simulation/softBodyHelpers.h"
 #include "tracking/utils_tracking.h"
 #include "clouds/plane_finding.h"
-#include "simulation/util.h"
 
 //DEBUG
-#include "plotting_tracking.h"
+#include "simulation/util.h"
 
 using namespace std;
 using namespace Eigen;
@@ -40,196 +39,31 @@ public:
   btVector3 getPoint();
 };
 
-static inline int idx(int row,int col,int nCols) {return col+row*nCols;}
-// mesh vertices are in row major order
-
-typedef pair<int, int> intpair;
-
-
-BulletSoftObject::Ptr makeCloth(const vector<btVector3>& corners, int resolution_x, int resolution_y, float mass) {
-  btSoftBodyWorldInfo unusedWorldInfo;
-  btSoftBody* psb = CreatePolygonPatch(unusedWorldInfo, corners, resolution_x, resolution_y, true);
-
-  btSoftBody::Material* pm=psb->appendMaterial();
-  pm->m_kLST = 0.01;
-  //pm->m_kAST = 0.5;
-  //pm->m_kAST = 0.0;
-
-  psb->generateBendingConstraints(2,pm);
-
-  psb->setTotalMass(mass);
-
-  psb->generateClusters(512);
-	psb->getCollisionShape()->setMargin(0.002*METERS);
-
-  psb->m_cfg.collisions	=	0;
-  psb->m_cfg.collisions += btSoftBody::fCollision::SDF_RS; ///SDF based rigid vs soft
-  //psb->m_cfg.collisions += btSoftBody::fCollision::CL_RS; ///Cluster vs convex rigid vs soft
-  //psb->m_cfg.collisions += btSoftBody::fCollision::VF_SS;	///Vertex vs face soft vs soft handling
-  psb->m_cfg.collisions += btSoftBody::fCollision::CL_SS; ///Cluster vs cluster soft vs soft handling
-  psb->m_cfg.collisions	+= btSoftBody::fCollision::CL_SELF; ///Cluster soft body self collision
-
-  psb->m_cfg.kDF = 1.0; //0.9; // Dynamic friction coefficient
-//  psb->m_cfg.kAHR = 1; // anchor hardness
-//  psb->m_cfg.kSSHR_CL = 1.0; // so the cloth doesn't penetrate itself
-//  psb->m_cfg.kSRHR_CL = 0.7;
-//  psb->m_cfg.kSKHR_CL = 0.7;
-//  psb->m_cfg.kDP = 0.1; //1.0; // Damping coefficient [0,1]
-
-  psb->m_cfg.piterations = 50; //8;
-  psb->m_cfg.citerations = 50;
-  psb->m_cfg.diterations = 50;
-  //	psb->m_cfg.viterations = 10;
-
-  psb->randomizeConstraints();
-
-  BulletSoftObject::Ptr bso = BulletSoftObject::Ptr(new BulletSoftObject(psb));
-
-	return bso;
-}
-
-vector<btVector3> polyCorners(ColorCloudPtr cloud, cv::Mat image, CoordinateTransformer* transformer) {
-	cv::Mat mask;
-	cv::cvtColor(image, mask, CV_BGR2GRAY);
-	vector<cv::Point2f> pixels = polyCorners(mask);
-
-	//unproject the pixel into a ray
-	vector<Vector3f> rays(pixels.size());
-	for (int i=0; i<rays.size(); i++) {
-		rays[i] = Vector3f(pixels[i].x - cx, pixels[i].y - cy, f);
-	}
-
-	//transform the camera origin and rays
-	Vector3f cam = transformer->worldFromCamEigen * Vector3f(0,0,0);
-	BOOST_FOREACH(Vector3f& ray, rays) ray = transformer->worldFromCamEigen * ray;
-
-	//find the intersection of the ray with the plane
-	vector<float> abcd = getPlaneCoeffsRansac(cloud);
-	Vector3f abc(abcd[0], abcd[1], abcd[2]);
-	float d = abcd[3];
-	vector<btVector3> corners(pixels.size());
-	for (int i=0; i<corners.size(); i++) {
-		float t = (abc.dot(cam)+d)/abc.dot(cam-rays[i]);
-		Vector3f intersection = cam + t * (rays[i] - cam);
-		corners[i] = toBulletVector(intersection);
-	}
-
-	return corners;
-}
-
-
-
 TrackedCloth::TrackedCloth(BulletSoftObject::Ptr sim, cv::Mat image,  int nCols, int nRows, float sx, float sy) : TrackedObject(sim, "towel"), m_sx(sx), m_sy(sy) {
-/*
-	cout << "(rows, cols) = " << nRows << "," << nCols << endl;
-  assert(sim->softBody->m_nodes.size() == nRows * nCols);
-  
-  map<intpair,int> coord2node;
-  m_vert2nodes = vector< vector<int> >(nRows*nCols); // map from softbody node index to indices of nearby knots
-
-//  int decimation = 2;
-//  for (int row = 0; row < nRows; row += decimation) {
-//    for (int col = 0; col < nCols; col += decimation) {
-//      coord2node[intpair(row,col)] = m_node2vert.size();
-//      m_node2vert.push_back(idx(row,col,nCols));
-//    }
-//  }
-
-  // the decimation doesn't apply for the edge nodes
-	int decimation = 2;
-	for (int row = 0; row < nRows; row++) {
-		for (int col = 0; col < nCols; col++) {
-			if (row==0 || row==(nRows-1) || col==0 || col==(nCols-1) || (row%decimation==0 && col%decimation==0)) {
-				coord2node[intpair(row,col)] = m_node2vert.size();
-				m_node2vert.push_back(idx(row,col,nCols));
-			}
-		}
+	for (int i=0; i<getSim()->softBody->m_nodes.size(); i++) {
+		m_node2vert.push_back(i);
+		m_vert2nodes.push_back(vector<int>(1,i));
 	}
   m_nNodes = m_node2vert.size();
 
-  // now look in a window around each vertex and give it a node for each vertex in this window
-  int radius = decimation/2;
-  for (int row = 0; row < nRows; ++row)
-    for (int col = 0; col < nCols; ++col)
-      for (int dRow = -radius; dRow <= radius; ++dRow)
-      	for (int dCol = -radius; dCol <= radius; ++dCol) {
-          map<intpair,int>::iterator it = coord2node.find(intpair(row+dRow, col+dCol));
-          if (it != coord2node.end()) {
-            m_vert2nodes[idx(row, col, nCols)].push_back(it->second);
-//            if (row==0) cout << boost::format("(%i, %i), %i, %i") %(row+dRow)%(col+dCol)%idx(row+dRow, col+dCol, nCols)%it->second << endl;
-          }
-      	}
-
-
-  // sanity check: for each vertex, the vertex of its node should be either the same (if it's a node) or linked to it
-//  if (decimation == 2) {
-//    for (int iVert=0; iVert < nRows*nCols; ++iVert) {
-//      BOOST_FOREACH(int iNode, m_vert2nodes[iVert]) {
-//        int nodeVert = m_node2vert[iNode];
-//        if (nodeVert == iVert || sim->softBody->checkLink(nodeVert, iVert)) {
-//        	cout << nodeVert << " is linked to " << iVert << endl;
-//        }
-//        else {
-//        	cout << nodeVert << " is not linked to " << iVert << endl;
-//        	throw runtime_error("fuck");
-//        }
-//      }
-//    }
-//  }
-  for (int iVert = 0; iVert < nRows*nCols; ++iVert) {
-	  BOOST_FOREACH(int iNode, m_vert2nodes[iVert]) {
-//		  cout << iVert << " " << iNode << " " << m_node2vert[iNode] << endl;
-		  assert(m_node2vert[iNode] == iVert || sim->softBody->checkLink(m_node2vert[iNode], iVert));
-	  }
-  }
-
 	const btSoftBody::tNodeArray& verts = getSim()->softBody->m_nodes;
-	const btSoftBody::tFaceArray& faces = getSim()->softBody->m_faces;
-  // vertex                         <->   texture coordinate
-	// faces[j].m_n[0]                      texcoords[3*j]
-	// faces[j].m_n[1]                      texcoords[3*j+1]
-	// faces[j].m_n[2]                      texcoords[3*j+2]
-	// verts[i] == faces[j].m_n[c]		<->   texcoords[3*j+c] == texcoords[m_vert2tex[i]]
-	for (int i=0; i<verts.size(); i++) {
-  	int j,c;
-  	for(j=0; j<faces.size(); j++) {
-  		for(c=0; c<3; c++) {
-  			if (&verts[i] == faces[j].m_n[c]) break;
-  		}
-			if (&verts[i] == faces[j].m_n[c]) break;
-  	}
-  	m_vert2tex.push_back(3*j+c);
-  }
-  for (int iVert=0; iVert<verts.size(); iVert++) {
-  	assert(&verts[iVert] == faces[m_vert2tex[iVert]/3].m_n[m_vert2tex[iVert]%3]);
-  }
-*/
-  /*
-	m_face2verts = vector< vector<int> > (faces.size());
-	for (int j=0; j>faces.size(); j++) {
-		m_face2verts[j] = vector<int> (3);
-		for(int c=0; c<3; c++) {
-			int i;
-			for (i=0; i<verts.size(); i++) {
-				if (&verts[i] == faces[j].m_n[c]) break;
-			}
-			m_face2verts[j][c] = i;
-		}
-	}
-	for(int j=0; j<faces.size(); j++) {
-		for (int c=0; c<3; c++) {
-			assert(&verts[m_face2verts[j][c]] == faces[j].m_n[c]);
-		}
-	}
-	*/
-/*
   m_masses.resize(m_nNodes);
   for (int i=0; i < m_nNodes; ++i) {
     m_masses(i) = 1/verts[m_node2vert[i]].m_im;
   }
-*/
 }
 
+void TrackedCloth::addForce(const btVector3& force, const int& nodeIdx) {
+	getSim()->softBody->addForce(force, m_node2vert[nodeIdx]);
+}
+
+inline btVector3& TrackedCloth::getPoint(const int& nodeIdx) {
+	return getSim()->softBody->m_nodes[m_node2vert[nodeIdx]].m_x;
+}
+
+inline cv::Point2f TrackedCloth::getTexCoord(const int& nodeIdx) {
+	return getSim()->getTexCoord(m_node2vert[nodeIdx]);
+}
 
 void TrackedCloth::applyEvidence(const Eigen::MatrixXf& corr, const Eigen::MatrixXf& obsPts) {
   vector<btVector3> estPos(m_nNodes);
@@ -289,9 +123,8 @@ void TrackedCloth::initColors() {
 	cv::Mat tex_image = getSim()->getTexture();
 	if (!tex_image.empty()) {
 		cout << "initColors using texture" << endl;
-		const osg::Vec2Array& texcoords = *(getSim()->tritexcoords);
 		for (int i=0; i < m_nNodes; i++) {
-			cv::Point2f pixel = textureCoordinate(i);
+			cv::Point2f pixel = getTexCoord(i);
 			int i_pixel = pixel.y;
 			int j_pixel = pixel.x;
 			int range = 20;
@@ -311,11 +144,76 @@ void TrackedCloth::initColors() {
 	}
 }
 
-//order: (x,y) or (j,i)
-cv::Point2f TrackedCloth::textureCoordinate (int node_id) {
-	cv::Mat tex_image = getSim()->getTexture();
-	if (tex_image.empty()) return cv::Point2i(0,0);
-	const osg::Vec2Array& texcoords = *(getSim()->tritexcoords);
-	return cv::Point2f( (int) (texcoords[m_vert2tex[m_node2vert[node_id]]].x() * (tex_image.cols-1)) ,
-			tex_image.rows-1 - (int) (texcoords[m_vert2tex[m_node2vert[node_id]]].y() * (tex_image.rows-1)) );
+BulletSoftObject::Ptr makeCloth(const vector<btVector3>& corners, int resolution_x, int resolution_y, float mass) {
+  btSoftBodyWorldInfo unusedWorldInfo;
+  btSoftBody* psb = CreatePolygonPatch(unusedWorldInfo, corners, resolution_x, resolution_y, true);
+
+  btSoftBody::Material* pm=psb->appendMaterial();
+  pm->m_kLST = 0.01;
+  //pm->m_kAST = 0.5;
+  //pm->m_kAST = 0.0;
+
+  psb->generateBendingConstraints(2,pm);
+
+  psb->setTotalMass(mass);
+
+  psb->generateClusters(512);
+	psb->getCollisionShape()->setMargin(0.002*METERS);
+
+  psb->m_cfg.collisions	=	0;
+  psb->m_cfg.collisions += btSoftBody::fCollision::SDF_RS; ///SDF based rigid vs soft
+  //psb->m_cfg.collisions += btSoftBody::fCollision::CL_RS; ///Cluster vs convex rigid vs soft
+  //psb->m_cfg.collisions += btSoftBody::fCollision::VF_SS;	///Vertex vs face soft vs soft handling
+  psb->m_cfg.collisions += btSoftBody::fCollision::CL_SS; ///Cluster vs cluster soft vs soft handling
+  psb->m_cfg.collisions	+= btSoftBody::fCollision::CL_SELF; ///Cluster soft body self collision
+
+  psb->m_cfg.kDF = 1.0; //0.9; // Dynamic friction coefficient
+//  psb->m_cfg.kAHR = 1; // anchor hardness
+//  psb->m_cfg.kSSHR_CL = 1.0; // so the cloth doesn't penetrate itself
+//  psb->m_cfg.kSRHR_CL = 0.7;
+//  psb->m_cfg.kSKHR_CL = 0.7;
+//  psb->m_cfg.kDP = 0.1; //1.0; // Damping coefficient [0,1]
+
+  psb->m_cfg.piterations = 50; //8;
+  psb->m_cfg.citerations = 50;
+  psb->m_cfg.diterations = 50;
+  //	psb->m_cfg.viterations = 10;
+
+  psb->randomizeConstraints();
+
+  BulletSoftObject::Ptr bso = BulletSoftObject::Ptr(new BulletSoftObject(psb));
+
+	return bso;
+}
+
+vector<btVector3> polyCorners(ColorCloudPtr cloud, cv::Mat image, CoordinateTransformer* transformer) {
+	cv::Mat mask;
+	cv::cvtColor(image, mask, CV_BGR2GRAY);
+	vector<cv::Point2f> pixels = polyCorners(mask);
+
+	polylines(image, vector<vector<cv::Point2f> >(1, pixels), true, cv::Scalar(255,255,255));
+	cv::imwrite("/home/alex/Desktop/tshirt__poly.jpg", image);
+
+	//unproject the pixel into a ray
+	vector<Vector3f> rays(pixels.size());
+	for (int i=0; i<rays.size(); i++) {
+		rays[i] = Vector3f(pixels[i].x - cx, pixels[i].y - cy, f);
+	}
+
+	//transform the camera origin and rays
+	Vector3f cam = transformer->worldFromCamEigen * Vector3f(0,0,0);
+	BOOST_FOREACH(Vector3f& ray, rays) ray = transformer->worldFromCamEigen * ray;
+
+	//find the intersection of the ray with the plane
+	vector<float> abcd = getPlaneCoeffsRansac(cloud);
+	Vector3f abc(abcd[0], abcd[1], abcd[2]);
+	float d = abcd[3];
+	vector<btVector3> corners(pixels.size());
+	for (int i=0; i<corners.size(); i++) {
+		float t = (abc.dot(cam)+d)/abc.dot(cam-rays[i]);
+		Vector3f intersection = cam + t * (rays[i] - cam);
+		corners[i] = toBulletVector(intersection);
+	}
+
+	return corners;
 }

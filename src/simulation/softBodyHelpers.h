@@ -12,6 +12,9 @@
 #include <BulletSoftBody/btSoftBodyHelpers.h>
 #include <vector>
 
+//DEBUG
+#include "simulation/environment.h"
+
 btSoftBody*	CreateFromSoftBodyExcludeNodes(btSoftBody* softBody, std::vector<int> exclude_nodes_idx);
 btSoftBody*	CreateFromSoftBodyExcludeFaces(btSoftBody* softBody, std::vector<int> exclude_faces_idx);
 

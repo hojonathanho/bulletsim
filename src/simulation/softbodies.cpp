@@ -97,6 +97,26 @@ void BulletSoftObject::init() {
     	setColorAfterInit();
 }
 
+void BulletSoftObject::computeNodeFaceMapping() {
+	const btSoftBody::tNodeArray& nodes = softBody->m_nodes;
+	const btSoftBody::tFaceArray& faces = softBody->m_faces;
+
+	// compute faces to nodes indices and vice versa
+	node2faces = vector<vector<int> >(nodes.size());
+	face2nodes = vector<vector<int> >(faces.size(), vector<int>(3,-1));
+	for (int i=0; i<nodes.size(); i++) {
+		int j,c;
+		for(j=0; j<faces.size(); j++) {
+			for(c=0; c<3; c++) {
+				if (&nodes[i] == faces[j].m_n[c]) {
+					node2faces[i].push_back(j);
+					face2nodes[j][c] = i;
+				}
+			}
+		}
+	}
+}
+
 //void BulletSoftObject::setColor(float r, float g, float b, float a) {
 //	m_image.release();
 //	//clear out texture mapping information
@@ -202,18 +222,28 @@ void BulletSoftObject::setTextureAfterInit() {
 }
 
 void BulletSoftObject::setTexture(cv::Mat image, const btTransform& camFromWorld) {
-	btSoftBody::tFaceArray& faces = softBody->m_faces;
+	const btSoftBody::tFaceArray& faces = softBody->m_faces;
 
 	tritexcoords = new osg::Vec2Array;
 	for (int j=0; j<faces.size(); j++) {
-		for (int i=0; i<3; i++) {
-			btVector3 xyz = camFromWorld * faces[j].m_n[i]->m_x;
+		for (int c=0; c<3; c++) {
+			btVector3 xyz = camFromWorld * faces[j].m_n[c]->m_x;
 			cv::Point2f uv = xyz2uv(xyz);
-			tritexcoords->push_back(osg::Vec2f(uv.x/(float)image.cols, 1.0-uv.y/(float)image.rows));
+			tritexcoords->push_back(osg::Vec2f(uv.x/(float)(image.cols-1), 1.0-uv.y/(float)(image.rows-1)));
 		}
 	}
 
 	setTexture(image);
+}
+
+cv::Point2f BulletSoftObject::getTexCoord(int nodeIdx) {
+	int j = node2faces[nodeIdx][0];
+	int c;
+	for (c=0; c<3; c++)
+		if (face2nodes[j][c] == nodeIdx) break;
+	assert(c < 3);
+	osg::Vec2f texcoord = (*tritexcoords)[3*j+c];
+	return cv::Point2f(texcoord.x()*(float)(getTexture().cols-1), (1.0-texcoord.y())*(float)(getTexture().rows-1));
 }
 
 void BulletSoftObject::adjustTransparency(float increment) {
