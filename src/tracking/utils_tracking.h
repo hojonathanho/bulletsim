@@ -1,8 +1,6 @@
 #pragma once
 #include <btBulletDynamicsCommon.h>
 #include <Eigen/Dense>
-#include <geometry_msgs/Point.h>
-#include <tf/transform_listener.h>
 #include "utils/config.h"
 #include "clouds/pcl_typedefs.h"
 
@@ -41,5 +39,3 @@ bool isFinite(const Eigen::Matrix<T, Eigen::Dynamic, S>& x) {
 }
 
 std::vector<btVector3> toBulletVectors(ColorCloudPtr in);
-
-btTransform waitForAndGetTransform(const tf::TransformListener& listener, std::string target_frame, std::string source_frame);

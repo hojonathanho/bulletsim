@@ -7,12 +7,13 @@
 #include "clouds/pcl_typedefs.h"
 #include "utils/cvmat.h"
 #include "config_tracking.h"
-#include "utils_tracking.h"
 #include <pcl/ros/conversions.h>
 #include <pcl/common/transforms.h>
 #include <pcl/point_cloud.h>
 #include <pcl/kdtree/kdtree_flann.h>
 #include "clouds/utils_pcl.h"
+
+class CoordinateTransformer;
 
 class TrackedObject {
 public:
@@ -60,12 +61,13 @@ public:
 
   TrackedCloth(BulletSoftObject::Ptr, cv::Mat image, int xres, int yres, float sx, float sy);
 
+  cv::Point2f getTexCoord(const int& nodeIdx);
+
   std::vector<btVector3> getPoints();
   std::vector<btVector3> getNormals();
   const Eigen::VectorXf getPriorDist();
   void applyEvidence(const Eigen::MatrixXf& corr, const Eigen::MatrixXf& obsPts); // add forces
   BulletSoftObject* getSim() {return dynamic_cast<BulletSoftObject*>(m_sim.get());};
-  cv::Point2f textureCoordinate (int node_id);
   void initColors();
   float m_sx, m_sy; //towel dimensions
 
@@ -126,4 +128,6 @@ std::vector<btVector3> calcImpulsesDamped(const std::vector<btVector3>& estPos, 
 BulletSoftObject::Ptr makeCloth(const vector<btVector3>& points, int resolution_x, int resolution_y, float mass);
 BulletSoftObject::Ptr makeTowel(const vector<btVector3>& points, int resolution_x, int resolution_y, float mass);
 
+// Find the 3d corners of the polygon. First, it finds the corners in the 2d mask. The 3d corner is given by the
+// intersection between the ray (from camera origin through pixel) and the plane (containing the point cloud)
 std::vector<btVector3> polyCorners(ColorCloudPtr cloud, cv::Mat mask, CoordinateTransformer* transformer);

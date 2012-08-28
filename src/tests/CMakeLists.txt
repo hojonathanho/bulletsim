@@ -1,5 +1,6 @@
 include_directories( ${TETGEN_DIR}
     ${PCL_INCLUDE_DIRS} )
+
 link_directories( ${TETGEN_DIR} )
 
 add_executable(test_simplescene test_simplescene.cpp)
@@ -52,3 +53,6 @@ target_link_libraries(test_picking simulation utils)
 
 add_executable(test_hand test_hand.cpp)
 target_link_libraries(test_hand simulation)
+
+add_executable(test_phasespace test_phasespace.cpp)
+target_link_libraries(test_phasespace simulation tracking utils)

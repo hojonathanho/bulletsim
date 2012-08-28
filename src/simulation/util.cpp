@@ -39,8 +39,6 @@ osg::ref_ptr<osg::Vec4Array> toVec4Array(const Eigen::MatrixXf& in) {
     return out;
 }
 
-
-
 void drawSpheres(vector<btVector3> points, Vector3f color, float alpha, float radius, Environment::Ptr env) {
 	PlotSpheres::Ptr plot_spheres(new PlotSpheres());
 	env->add(plot_spheres);
@@ -72,6 +70,12 @@ void drawLines(vector<btVector3> points0, vector<btVector3> points1, Vector3f co
 	plot_lines->setPoints(linePoints, lineColors);
 }
 
+void drawAxes(btTransform transform, float size, Environment::Ptr env) {
+	PlotAxes::Ptr plot_axes(new PlotAxes());
+	env->add(plot_axes);
+
+	plot_axes->setup(transform, size);
+}
 
 static const btMatrix3x3 HAPTIC_ROTATION(btQuaternion(-M_PI/2., 0., 0.));
 static inline btMatrix3x3 toHapticBtMatrix(const Matrix3d &m) {

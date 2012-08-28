@@ -17,6 +17,7 @@
 #include "simulation/softBodyHelpers.h"
 #include "tracking/utils_tracking.h"
 #include "clouds/plane_finding.h"
+#include "utils_tracking.h"
 
 //DEBUG
 #include "simulation/util.h"
@@ -51,14 +52,6 @@ TrackedCloth::TrackedCloth(BulletSoftObject::Ptr sim, cv::Mat image,  int nCols,
   for (int i=0; i < m_nNodes; ++i) {
     m_masses(i) = 1/verts[m_node2vert[i]].m_im;
   }
-}
-
-void TrackedCloth::addForce(const btVector3& force, const int& nodeIdx) {
-	getSim()->softBody->addForce(force, m_node2vert[nodeIdx]);
-}
-
-inline btVector3& TrackedCloth::getPoint(const int& nodeIdx) {
-	return getSim()->softBody->m_nodes[m_node2vert[nodeIdx]].m_x;
 }
 
 inline cv::Point2f TrackedCloth::getTexCoord(const int& nodeIdx) {

@@ -622,6 +622,30 @@ int getChessBoardPose(const ColorCloudPtr cloud_in, int width_cb, int height_cb,
 	return 0;
 }
 
+// Returns the point in cloud that corresponds to pixel. If such point is invalid, the point is the one around a 3x3 pixel window.
+// If all of those points are invalid, then the point is invalid.
+ColorPoint getCorrespondingPoint(ColorCloudPtr cloud, cv::Point2i pixel) {
+	int index = pixel.y*cloud->width+pixel.x;
+	if (!pointIsFinite(cloud->at(pixel.x, pixel.y))) {
+		vector<float> ranges;
+		vector<int> indexes;
+		for (int i=-1; i<=1; i++) {
+			if (((pixel.x+i) < 0) || ((pixel.x+i) > cloud->width)) continue;
+			for (int j=-1; j<=1; j++) {
+				if (((pixel.y+i) < 0) || ((pixel.y+i) > cloud->height)) continue;
+				if (pointIsFinite(cloud->at(pixel.x+i, pixel.y+j))) {
+					ColorPoint pt = cloud->at(pixel.x+i, pixel.y+j);
+					ranges.push_back(pt.x*pt.x + pt.y*pt.y + pt.z*pt.z);
+					indexes.push_back((pixel.y+j)*cloud->width+(pixel.x+i));
+				}
+			}
+		}
+		int medianInd = argMedian(ranges);
+		if (medianInd > 0 && medianInd < indexes.size()) index = indexes[medianInd];
+	}
+	return cloud->at(index);
+}
+
 //Filters out the points that are likely to be skin
 ColorCloudPtr skinFilter(ColorCloudPtr cloud_dense) {
 	MatrixXu bgr = toBGR(cloud_dense);

@@ -50,6 +50,7 @@ void TrackedRope::applyEvidence(const Eigen::MatrixXf& corr, const MatrixXf& obs
 }
 
 void TrackedRope::initColors() {
+	m_colors.resize(m_nNodes, 3);
 	for (int i=0; i < m_nNodes; ++i) {
 		Vector3f bgr = toEigenMatrixImage(getSim()->children[i]->getTexture()).colwise().mean();
 		m_colors.row(i) = bgr.transpose();
@@ -71,8 +72,7 @@ cv::Mat TrackedRope::makeTexture(ColorCloudPtr cloud) {
 		searchPoint.y = nodes[j].y();
 		searchPoint.z = nodes[j].z();
 		// Neighbors within radius search
-//		float radius = ((float) TrackingConfig::fixeds)/10.0; //(fixeds in cm)
-		float radius = ((float) 3)/10.0; //(fixeds in cm)
+		float radius = 0.03*METERS;
 		std::vector<int> pointIdxRadiusSearch;
 		std::vector<float> pointRadiusSquaredDistance;
 		Eigen::Matrix3f node_rot = toEigenMatrix(rotations[j]);

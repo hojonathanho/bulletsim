@@ -33,6 +33,7 @@ ColorCloudPtr orientedBoxFilter(ColorCloudPtr cloud_in, const Eigen::Matrix3f& o
 ColorCloudPtr boxFilter(ColorCloudPtr cloud_in, const Eigen::Vector3f& mins, const Eigen::Vector3f& maxes);
 ColorCloudPtr chessBoardCorners(const ColorCloudPtr in, int width_cb, int height_cb);
 int getChessBoardPose(const ColorCloudPtr cloud_in, int width_cb, int height_cb, double square_size, Eigen::Matrix4f& transform);
+ColorPoint getCorrespondingPoint(ColorCloudPtr cloud, cv::Point2i pixel);
 ColorCloudPtr skinFilter(ColorCloudPtr cloud_dense);
 ColorCloudPtr filterNeighbors(ColorCloudPtr cloud_in, ColorCloudPtr cloud_neighbor, float radius_search, int color_squared_dist, bool negative=false);
 pcl::PointIndices::Ptr neighborIndices(ColorCloudPtr cloud_in, ColorCloudPtr cloud_neighbor, float radius_search, int color_squared_dist);

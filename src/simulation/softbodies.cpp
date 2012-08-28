@@ -16,6 +16,7 @@
 #include <osgUtil/IntersectionVisitor>
 #include <osgUtil/LineSegmentIntersector>
 #include "clouds/utils_pcl.h"
+#include <opencv2/imgproc/imgproc.hpp>
 
 using std::isfinite;
 using util::isfinite;
@@ -117,29 +118,6 @@ void BulletSoftObject::computeNodeFaceMapping() {
 	}
 }
 
-//void BulletSoftObject::setColor(float r, float g, float b, float a) {
-//	m_image.release();
-//	//clear out texture mapping information
-//	osg::StateSet *ss = geode->getOrCreateStateSet();
-//	ss->getTextureAttributeList().clear();
-//	ss->getTextureModeList().clear();
-//
-//	osg::Vec4Array* colors = new osg::Vec4Array;
-//  colors->push_back(osg::Vec4(r,g,b,a));
-//  trigeom->setColorArray(colors);
-//  trigeom->setColorBinding(osg::Geometry::BIND_OVERALL);
-//  quadgeom->setColorArray(colors);
-//  quadgeom->setColorBinding(osg::Geometry::BIND_OVERALL);
-//
-//  if (a != 1.0f) { // precision problems?
-//    osg::ref_ptr<osg::BlendFunc> blendFunc = new osg::BlendFunc;
-//    blendFunc->setFunction(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-//    osg::StateSet *ss = geode->getOrCreateStateSet();
-//    ss->setAttributeAndModes(blendFunc);
-//    ss->setRenderingHint(osg::StateSet::TRANSPARENT_BIN);
-//  }
-//}
-
 void BulletSoftObject::setColor(float r, float g, float b, float a) {
 		m_color = osg::Vec4f(r,g,b,a);
 		if (geode) setColorAfterInit();
@@ -167,36 +145,20 @@ void BulletSoftObject::setColorAfterInit() {
     }
 }
 
-//void BulletSoftObject::setTexture(cv::Mat image) {
-//	//clear out color information
-//	osg::Vec4Array* colors = new osg::Vec4Array;
-//	colors->push_back(osg::Vec4(1,1,1,1));
-//	trigeom->setColorArray(colors);
-//	trigeom->setColorBinding(osg::Geometry::BIND_OVERALL);
-//
-//	//hack to convert cv::Mat images to osg::Image images
-//	cv::imwrite("/tmp/images/image.jpg", image);
-//	m_image = osgDB::readImageFile("/tmp/images/image.jpg");
-//
-//	osg::Texture2D* texture = new osg::Texture2D;
-//	// protect from being optimized away as static state:
-//	texture->setDataVariance(osg::Object::DYNAMIC);
-//	// Assign the texture to the image we read from file:
-//	texture->setImage(m_image.get());
-//	// Create a new StateSet with default settings:
-//	//osg::StateSet* stateOne = new osg::StateSet();
-//	osg::StateSet* state = geode->getOrCreateStateSet();
-//	// Assign texture unit 0 of our new StateSet to the texture
-//	// we just created and enable the texture.
-//	state->setTextureAttributeAndModes(0,texture,osg::StateAttribute::ON);
-//}
-
 void BulletSoftObject::setTexture(cv::Mat image) {
-	m_cvimage = image;
+	m_cvimage = image.clone();
 
 	//hack to convert cv::Mat images to osg::Image images
-	cv::imwrite("/tmp/images/image.jpg", image);
-	m_image = osgDB::readImageFile("/tmp/images/image.jpg");
+	cv::imwrite("/tmp/image.jpg", image);
+	m_image = osgDB::readImageFile("/tmp/image.jpg");
+
+//	cv::cvtColor(image, image, CV_BGR2RGB);
+//	cv::flip(image, image, 0);
+//	m_image = new osg::Image();
+//	m_image->setImage(image.cols, image.rows, 3,
+//														 GL_LINE_STRIP, GL_RGB, GL_UNSIGNED_BYTE,
+//														 (unsigned char*)(image.data),
+//														 osg::Image::NO_DELETE, 1);
 
 	if (geode) setTextureAfterInit();
 	enable_texture = true;
@@ -254,6 +216,38 @@ void BulletSoftObject::adjustTransparency(float increment) {
 		setTextureAfterInit();
 	else
 		setColorAfterInit();
+}
+
+int BulletSoftObject::getIndex(const btTransform& transform) {
+	const btVector3 pos = transform.getOrigin();
+	const btSoftBody::tFaceArray& faces = softBody->m_faces;
+	int j_nearest = -1;
+	float nearest_length2 = DBL_MAX;
+	for (int j=0; j<faces.size(); j++) {
+		const btVector3 center = (faces[j].m_n[0]->m_x + faces[j].m_n[1]->m_x + faces[j].m_n[2]->m_x)/3.0;
+		const float length2 = (pos-center).length2();
+		if (length2 < nearest_length2) {
+			j_nearest = j;
+			nearest_length2 = length2;
+		}
+	}
+	return j_nearest;
+}
+
+int BulletSoftObject::getIndexSize() {
+	return softBody->m_faces.size();
+}
+
+btTransform BulletSoftObject::getIndexTransform(int index) {
+	const btSoftBody::Face& face = softBody->m_faces[index];
+
+	btMatrix3x3 rot;
+	rot[0] = (face.m_n[1]->m_x - face.m_n[0]->m_x).normalized();
+	rot[2] = face.m_normal;
+	rot[1] = btCross(rot[2], rot[0]);
+	rot = rot.transpose(); // because I wanted to set the cols, not rows
+
+	return btTransform(rot, face.m_n[0]->m_x);
 }
 
 //http://www.openscenegraph.org/projects/osg/browser/OpenSceneGraph/trunk/examples/osgintersection/osgintersection.cpp?rev=5662

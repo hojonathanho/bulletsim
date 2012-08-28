@@ -10,6 +10,7 @@
 #include <pcl/common/transforms.h>
 #include "clouds/utils_pcl.h"
 #include "feature_extractor.h"
+#include "utils_tracking.h"
 
 using namespace std;
 using namespace Eigen;

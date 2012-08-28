@@ -50,6 +50,11 @@ public:
     cv::Point2f getTexCoord(int nodeIdx);
 		void adjustTransparency(float increment);
 
+		// for softbody transforms. look at EnvironmentObject for precise definition.
+    int getIndex(const btTransform& transform);
+    int getIndexSize();
+    btTransform getIndexTransform(int index);
+
 		bool checkIntersection(const btVector3& start, const btVector3& end);
 		vector<btVector3> getIntersectionPoints(const btVector3& start, const btVector3& end);
 

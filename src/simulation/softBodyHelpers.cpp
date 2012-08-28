@@ -9,9 +9,9 @@
 #include "util.h"
 #include <algorithm>
 #include "utils/utils_vector.h"
-#include "clouds/geom.h"
 #include "utils/conversions.h"
 #include "utils/cvmat.h"
+#include "utils/config.h"
 
 using namespace std;
 
@@ -242,10 +242,12 @@ btSoftBody* CreatePolygonPatch(btSoftBodyWorldInfo& worldInfo, std::vector<btVec
 	// compute the transformation for the corners to lie in the xy plane
 	btVector3 normal = (corners[1] - corners[0]).cross(corners[2] - corners[0]).normalized();
 	btVector3 align(0,0,1);
-	btMatrix3x3 align_rot;
-	minRot(align, normal, align_rot);
+	btScalar angle = align.angle(normal);
+	btVector3 axis = normal.cross(align);
+	btMatrix3x3 align_rot(btQuaternion(axis, angle));
+
 	btTransform align_transform(align_rot, btVector3(0,0,-(align_rot*corners[0]).z()));
-	//if align_rot is nan, there is probably no alignment needed and minRot is buggy for this case
+	//if align_rot is nan, there is probably no alignment needed (degenerate case)
 	if (!util::isfinite(align_rot))
 		align_transform = btTransform::getIdentity();
 
@@ -272,7 +274,7 @@ btSoftBody* CreatePolygonPatch(btSoftBodyWorldInfo& worldInfo, std::vector<btVec
 
 	// Refine the patch around the polygon contour
 	ImplicitPolygon ipolygon(xy_corners);
-	psb->refine(&ipolygon,0.001,false);
+	psb->refine(&ipolygon, 0.00001 * METERS, false);
 
 	// Determine the faces that are outside the polygon contour
 	vector<int> exclude_faces_idx;

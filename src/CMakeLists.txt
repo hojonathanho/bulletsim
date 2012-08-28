@@ -15,6 +15,7 @@ include_directories(
     ${EIGEN3_INCLUDE_DIR}
     ${JSON_INCLUDE_DIR}
     ${LOG4CPLUS_INCLUDE_DIRS}
+    ${PHASESPACE_INCLUDE_DIR}
 )
 link_directories(${BULLETSIM_BINARY_DIR}/src)
 option(TESTS OFF)

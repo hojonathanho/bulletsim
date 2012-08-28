@@ -10,6 +10,7 @@
 #include <vector>
 #include <boost/shared_ptr.hpp>
 #include <iostream>
+#include <stdexcept>
 using namespace std;
 
 struct OSGInstance {
@@ -80,6 +81,14 @@ public:
 
     virtual void setColor(float r, float g, float b, float a) {};
 		virtual void adjustTransparency(float increment) {};
+
+		//gets the index of the closest part of the object (face, capsule, rigid_body, etc)
+		//for rigid bodies, there is only one index so this will always return 0
+		virtual int getIndex(const btTransform& transform) { std::runtime_error("getIndex() hasn't been defined yet"); }
+		virtual int getIndexSize() { std::runtime_error("getIndex() hasn't been defined yet"); }
+		//gets the transform of the indexed part
+		//for rigid bodies, this just returns the rigid body's transform
+		virtual btTransform getIndexTransform(int index) { std::runtime_error("getIndexTransform() hasn't been defined yet"); }
 };
 
 struct Environment {
@@ -238,6 +247,32 @@ public:
           if (*i)
               (*i)->adjustTransparency(increment);
 		}
+
+		int getIndex(const btTransform& transform) {
+			const btVector3 pos = transform.getOrigin();
+			int j_nearest = -1;
+			float nearest_length2 = DBL_MAX;
+			for (int i=0; i<children.size(); i++) {
+				int j = i*children[i]->getIndexSize() + children[i]->getIndex(transform);
+				const btVector3 center = children[i]->getIndexTransform(j % children[i]->getIndexSize()).getOrigin();
+				const float length2 = (pos - center).length2();
+				if (length2 < nearest_length2) {
+					j_nearest = j;
+					nearest_length2 = length2;
+				}
+			}
+			return j_nearest;
+		}
+
+		int getIndexSize() {
+			return children.size() * children[0]->getIndexSize();
+		}
+
+		btTransform getIndexTransform(int index) {
+			const int index_size = children[0]->getIndexSize();
+			return children[index/index_size]->getIndexTransform(index % index_size);
+		}
+
 };
 
 class Action {

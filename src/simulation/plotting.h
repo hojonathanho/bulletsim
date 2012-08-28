@@ -110,6 +110,7 @@ public:
   PlotAxes(osg::Vec3f origin, osg::Vec3f x, osg::Vec3f y, osg::Vec3f z, float size);
   void setup(osg::Vec3f origin, osg::Vec3f x, osg::Vec3f y, osg::Vec3f z, float size);
   void setup(const btTransform &tf, float size);
+  void clear();
 };
 
 class PlotCurve : public osg::Geode {
