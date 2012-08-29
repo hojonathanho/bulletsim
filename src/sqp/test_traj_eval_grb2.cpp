@@ -62,6 +62,7 @@ int main(int argc, char *argv[]) {
 	parser.addGroup(LocalConfig());
 	parser.read(argc, argv);
 
+
 	const float table_height = .65;
 	const float table_thickness = .1;
 
@@ -103,6 +104,8 @@ int main(int argc, char *argv[]) {
   planner.setup(rarm, pr2, scene.env->bullet->dynamicsWorld);
   planner.setProblem(startJoints, endJoints, LocalConfig::nSteps);
 #endif
+	
+	cout << "hello" << endl; 
 
 
   TrajPlotter::Ptr plotter;

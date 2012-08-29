@@ -82,6 +82,12 @@ std::vector<float> toVec(const Eigen::VectorXf& in) {
   return out;
 }
 
+std::vector<double> toVec(const Eigen::VectorXd& in) {
+  std::vector<double> out(in.rows());
+  for (int i=0; i < out.size(); i++) out[i] = in[i];
+  return out;
+}
+
 Eigen::VectorXf toVectorXf(const std::vector<float>& in) {
   Eigen::VectorXf out(in.size());
   for (int i=0; i<in.size(); i++) out[i] = in[i];

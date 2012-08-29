@@ -17,18 +17,22 @@ include_directories(
     ${LOG4CPLUS_INCLUDE_DIRS}
 )
 link_directories(${BULLETSIM_BINARY_DIR}/src)
-option(TESTS OFF)
-option(JOHNS_ADVENTURES ON)
+option(TESTS ON)
+option(JOHNS_ADVENTURES OFF)
 option(JONATHANS_ADVENTURES OFF)
+option(SAMEEPS_ADVENTURES ON) 
 
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 
 add_subdirectory(simulation)
 add_subdirectory(robots)
 add_subdirectory(utils)
-add_subdirectory(comm)
-add_subdirectory(clouds)
+add_subdirectory(sqp)
+add_subdirectory(bscp)
+#add_subdirectory(comm)
+#add_subdirectory(clouds)
 
+add_subdirectory(tests)
 if (TESTS)
 	add_subdirectory(tests)
 endif(TESTS)

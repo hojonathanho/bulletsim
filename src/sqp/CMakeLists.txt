@@ -6,8 +6,8 @@ include_directories(
     ${EIGEN3_INCLUDE_DIR}
 )
 
-include_directories(/home/joschu/Src/gurobi501/linux64/include)
-link_directories(/home/joschu/Src/gurobi501/linux64/lib)
+include_directories(/usr/local/gurobi501/linux64/include)
+link_directories(/usr/local/gurobi501/linux64/lib)
 
 add_executable(test_grb_eigen test_grb_eigen.cpp)
 target_link_libraries(test_grb_eigen gurobi_c++ gurobi50)
@@ -22,8 +22,8 @@ target_link_libraries(test_traj_eval_grb sqp)
 
 include_directories(${PCL_INCLUDE_DIRS})
 
-add_executable(planning_server planning_server.cpp)
-target_link_libraries(planning_server ${ROS_LIBRARIES} sqp clouds)
+#add_executable(planning_server planning_server.cpp)
+#target_link_libraries(planning_server ${ROS_LIBRARIES} sqp clouds)
 
-add_executable(interact_with_point_cloud interact_with_point_cloud.cpp)
-target_link_libraries(interact_with_point_cloud clouds sqp)
+#add_executable(interact_with_point_cloud interact_with_point_cloud.cpp)
+#target_link_libraries(interact_with_point_cloud clouds sqp)

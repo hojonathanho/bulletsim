@@ -167,7 +167,8 @@ static BulletObject::Ptr createFromLink(KinBody::LinkPtr link,
          TrimeshMode trimeshMode,
         float fmargin, bool isDynamic) {
 
-	const std::list<KinBody::Link::GEOMPROPERTIES> &geometries =
+	//const std::list<KinBody::Link::GEOMPROPERTIES> &geometries =
+  const std::vector<boost::shared_ptr<OpenRAVE::KinBody::Link::Geometry> > &geometries = 
 			link->GetGeometries();
 	// sometimes the OpenRAVE link might not even have any geometry data associated with it
 	// (this is the case with the PR2 model). therefore just add an empty BulletObject
@@ -183,8 +184,9 @@ static BulletObject::Ptr createFromLink(KinBody::LinkPtr link,
 	float volumeAccumulator(0);
 	btVector3 firstMomentAccumulator(0,0,0);
 
-	for (std::list<KinBody::Link::GEOMPROPERTIES>::const_iterator geom =
-			geometries.begin(); geom != geometries.end(); ++geom) {
+	//for (std::list<KinBody::Link::GEOMPROPERTIES>::const_iterator geom =
+	//		geometries.begin(); geom != geometries.end(); ++geom) {
+  BOOST_FOREACH(boost::shared_ptr<OpenRAVE::KinBody::Link::Geometry> geom, geometries) {
 
 		btVector3 offset(0, 0, 0);
 

@@ -25,6 +25,8 @@ find_package(osgGA REQUIRED)
 find_package(osgText REQUIRED)
 find_package(osgUtil REQUIRED)
 find_package(osgViewer REQUIRED)
+find_package(Gurobi REQUIRED)
+
 set(OSG_LIBS ${OPENTHREADS_LIBRARY} ${OSG_LIBRARY} ${OSGDB_LIBRARY} ${OSGGA_LIBRARY} ${OSGTEXT_LIBRARY} ${OSGUTIL_LIBRARY} ${OSGVIEWER_LIBRARY})
 set(OSG_INCLUDE_DIRS ${OPENTHREADS_LIBRARY_INCLUDE_DIR} ${OSG_LIBRARY_INCLUDE_DIR} ${OSGDB_LIBRARY_INCLUDE_DIR} ${OSGGA_LIBRARY_INCLUDE_DIR} ${OSGTEXT_LIBRARY_INCLUDE_DIR} ${OSGUTIL_LIBRARY_INCLUDE_DIR} ${OSGVIEWER_LIBRARY_INCLUDE_DIR})
 
@@ -36,7 +38,7 @@ find_package(ROS REQUIRED COMPONENTS
  roscpp rosconsole message_filters
  cpp_common rostime roscpp_traits
  roscpp_serialization
- bulletsim_msgs
+ #bulletsim_msgs
 )
 
 
@@ -66,8 +68,9 @@ set(WM_ROOT "~/Src/GeometricTools/WildMagic5")
 set(WM_INCLUDE_DIR "${WM_ROOT}/SDK/Include")
 set(WM_LIBRARY_DIR "${WM_ROOT}/SDK/Library/Debug")
 set(WM_LIBRARIES Wm5Core Wm5Imagics Wm5Mathematics Wm5Physics)
-set(GUROBI_INCLUDE_DIR "$ENV{GUROBI_HOME}/include")
-set(GUROBI_LIBRARY_DIR "$ENV{GUROBI_HOME}/lib")
+#set(GUROBI_INCLUDE_DIR "$ENV{GUROBI_HOME}/include")
+#set(GUROBI_LIBRARY_DIR "$ENV{GUROBI_HOME}/lib")
+
 
 add_subdirectory(lib)
 add_subdirectory(src)
