@@ -7,7 +7,7 @@
 using namespace std;
 using namespace Eigen;
 
-const int MarkerBody::m_validity_num_frames = 10;
+const int MarkerBody::m_validity_num_frames = 100;
 const float MarkerBody::m_min_confidence = 1.0;
 
 
@@ -162,10 +162,8 @@ MarkerSystem::MarkerSystem(std::vector<MarkerBody::Ptr> marker_bodies, Affine3f 
   // start streaming
   owlSetInteger(OWL_STREAMING, OWL_ENABLE);
 
-  Vector3f tf_t(transform.translation());
-  tf_t *= 1000.0/METERS;
-	Quaternionf tf_q(transform.rotation());
-	float pose[7] = { tf_t(0), tf_t(1), tf_t(2), tf_q.w(), tf_q.x(), tf_q.y(), tf_q.z() };
+  float pose[7];
+  toOwlPose(transform, pose);
 	owlLoadPose(pose);
 }
 
@@ -195,14 +193,22 @@ void MarkerSystem::updateMarkers()
 		return;
 	}
 
+	//boost::unique_lock< boost::shared_mutex > lock(marker_mutex);
 	for (int iBody=0; iBody<m_marker_bodies.size(); iBody++) {
 		m_marker_bodies[iBody]->updateMarkers(markers, m_marker_count, rigids, m_rigid_count);
 	}
+	//lock.unlock();
 }
 
 
+void MarkerSystem::updateMarkers(Eigen::Affine3f transform) {
+  float pose[7];
+  toOwlPose(transform, pose);
+	owlLoadPose(pose);
+	updateMarkers();
+}
 
-void MarkerSystem::blockUntilValid() {
+void MarkerSystem::blockUntilAllValid() {
 	bool all_valid = false;
 	while (!all_valid) {
 		updateMarkers();
@@ -212,6 +218,19 @@ void MarkerSystem::blockUntilValid() {
 		if (ind == m_marker_bodies.size()) all_valid = true;
 		//usleep(15000);
 	}
+}
+
+void MarkerSystem::toOwlPose(const Eigen::Affine3f& transform, float* pose) {
+	Vector3f tf_t(transform.translation());
+	tf_t *= 1000.0/METERS;
+	Quaternionf tf_q(transform.rotation());
+	for (int c=0; c<3; c++) pose[c] = tf_t(c);
+	pose[3] = tf_q.w();
+	pose[4] = tf_q.x();
+	pose[5] = tf_q.y();
+	pose[6] = tf_q.z();
+	//float pose[7] = { tf_t(0), tf_t(1), tf_t(2), tf_q.w(), tf_q.x(), tf_q.y(), tf_q.z() };
+	//return pose;
 }
 
 void MarkerSystem::owl_print_error(const char *s, int n)

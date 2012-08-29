@@ -10,7 +10,7 @@
 
 #define MARKER_COUNT 4
 
-#define SERVER_NAME "localhost"
+#define SERVER_NAME "169.229.222.231"
 #define INIT_FLAGS 0
 
 float RIGID_BODY[MARKER_COUNT][3] = {

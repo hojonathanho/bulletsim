@@ -11,6 +11,11 @@
 #include "simulation/environment.h"
 #include "simulation/plotting.h"
 
+//#include <boost/thread.hpp>
+//#include <boost/thread/mutex.hpp>
+//#include <boost/thread/shared_mutex.hpp>
+//#include <boost/thread/locks.hpp>
+
 #define PHASESPACE_SERVER_NAME "169.229.222.231"
 #define PHASESPACE_INIT_FLAGS 0
 //#define PHASESPACE_INIT_FLAGS OWL_POSTPROCESS
@@ -156,11 +161,15 @@ public:
   int m_rigid_count;
   int m_marker_count;
 
+  //boost::shared_mutex marker_mutex;
+
   MarkerSystem(std::vector<MarkerBody::Ptr> marker_bodies, Eigen::Affine3f transform=Eigen::Affine3f::Identity());
   ~MarkerSystem();
 
 	void updateMarkers();
-	void blockUntilValid();
+	void updateMarkers(Eigen::Affine3f transform);
+	void blockUntilAllValid();
+	void toOwlPose(const Eigen::Affine3f& transform, float* pose);
   void owl_print_error(const char *s, int n);
 };
 
