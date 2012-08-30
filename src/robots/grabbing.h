@@ -20,7 +20,7 @@ public:
 
 };
 
-BulletObject::Ptr getNearestBody(vector<BulletObject::Ptr> bodies, btVector3 pos, int& argmin);
+BulletObject::Ptr getNearestBody(const vector<BulletObject::Ptr>& bodies, const btVector3& pos, int& argmin);
 
 class Monitor {
 protected:

@@ -4,11 +4,13 @@
 #include "utils/conversions.h"
 #include "simulation/config_bullet.h"
 #include "utils/my_assert.h"
+#include "simulation/bullet_io.h"
 
 using namespace Eigen;
 
 static const float DEPTH_OCCLUSION_DIST = .03;
-static const float RAY_SHORTEN_DIST = .002;
+static const float RAY_SHORTEN_DIST = .1;
+static const float MIN_DEPTH = .4;
 
 VectorXf EverythingIsVisible::checkNodeVisibility(TrackedObject::Ptr obj) {
   return VectorXf::Ones(obj->m_nNodes);
@@ -85,18 +87,48 @@ BulletRaycastVisibility::BulletRaycastVisibility(btDynamicsWorld* world, Coordin
 	: m_world(world), m_transformer(transformer) {
 }
 
+#ifdef PLOT_RAYCAST
+#include "plotting_tracking.h"
+#endif
+
 VectorXf BulletRaycastVisibility::checkNodeVisibility(TrackedObject::Ptr obj) {
 	vector<btVector3> nodes = obj->getPoints();
 	btVector3 cameraPos = m_transformer->worldFromCamUnscaled.getOrigin()*METERS;
 	VectorXf vis(nodes.size());
 
 	float ray_shorten_dist = RAY_SHORTEN_DIST*METERS;
+	float min_depth = MIN_DEPTH*METERS;
+
+#ifdef PLOT_RAYCAST
+    static PlotLines::Ptr rayTestLines;
+    static PlotPoints::Ptr rayHitPoints;
+    if (!rayTestLines) {
+      rayTestLines.reset(new PlotLines(4));
+      rayHitPoints.reset(new PlotPoints(30));
+      getGlobalEnv()->add(rayTestLines);
+      rayTestLines->setColor(1,1,1,1);
+      printf("adding ray test lines to env\n");
+    }
+    vector<btVector3> linePoints;
+    vector<btVector3> hitPoints;
+#endif
 
 	for (int i=0; i < nodes.size(); ++i) {
-		btVector3 target = nodes[i] + (cameraPos - nodes[i]).normalized() * ray_shorten_dist;
-		btCollisionWorld::ClosestRayResultCallback rayCallback(cameraPos, target);
-		m_world->rayTest(cameraPos, target, rayCallback);
+	  btVector3 rayDir = (nodes[i] - cameraPos).normalized();
+		btVector3 rayEnd = nodes[i] - ray_shorten_dist * rayDir;
+		btVector3 rayStart = cameraPos + min_depth * rayDir;
+		btCollisionWorld::ClosestRayResultCallback rayCallback(rayStart, rayEnd);
+		m_world->rayTest(rayStart, rayEnd, rayCallback);
 		vis[i] = !rayCallback.hasHit();
+
+#ifdef PLOT_RAYCAST
+		if (rayCallback.hasHit()) hitPoints.push_back(rayCallback.m_hitPointWorld);
+		linePoints.push_back(rayStart);
+		linePoints.push_back(rayEnd);
+#endif
 	}
+#ifdef PLOT_RAYCAST
+	rayTestLines->setPoints(linePoints);
+#endif
 	return vis;
 }

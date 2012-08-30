@@ -24,10 +24,11 @@ Scene::Scene() {
     env->add(ground);
 
     // default callbacks
-    addVoidKeyCallback('p', boost::bind(&Scene::toggleIdle, this));
-    addVoidKeyCallback('d', boost::bind(&Scene::toggleDebugDraw, this));
+    addVoidKeyCallback('p', boost::bind(&Scene::toggleIdle, this), "pause simulation");
+    addVoidKeyCallback('d', boost::bind(&Scene::toggleDebugDraw, this), "toggle debug draw");
+    addVoidKeyCallback('h', boost::bind(&Scene::help, this), "display help info");
 
-    addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Escape, boost::bind(exit, 0));
+    addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Escape, boost::bind(exit, 0), "(escape) exit");
     viewer.addEventHandler(new PickingMouseHandler(*this));
 }
 
@@ -53,6 +54,14 @@ void Scene::startViewer() {
 void Scene::toggleDebugDraw() {
     loopState.debugDraw = !loopState.debugDraw;
     dbgDraw->setEnabled(loopState.debugDraw);
+}
+
+void Scene::help() {
+  printf("key bindings:\n");
+  for (multimap<int,string>::iterator it = keyCallbackDescs.begin(); it != keyCallbackDescs.end(); ++it) {
+    printf("%c: %s\n", (char)it->first, it->second.c_str());
+  }
+
 }
 
 void Scene::step(float dt, int maxsteps, float internaldt) {
@@ -160,17 +169,18 @@ void Scene::runAction(Action &a, float dt) {
     }
 }
 
-void Scene::addKeyCallback(int c, Callback cb) {
+void Scene::addKeyCallback(int c, Callback cb, std::string desc) {
     if (keyCallbacks.count(c) != 0)
         cout << "warning: key " << c << " is bound to multiple callbacks" << endl;
     keyCallbacks.insert(make_pair(c, cb));
+    keyCallbackDescs.insert(make_pair(c, desc));
 }
 
 void Scene::addVoidCallback(osgGA::GUIEventAdapter::EventType t, VoidCallback cb) {
     addCallback(t, boost::bind<bool>(VoidCallbackWrapper(cb)));
 }
-void Scene::addVoidKeyCallback(int c, VoidCallback cb) {
-    addKeyCallback(c, boost::bind<bool>(VoidCallbackWrapper(cb)));
+void Scene::addVoidKeyCallback(int c, VoidCallback cb, std::string desc) {
+    addKeyCallback(c, boost::bind<bool>(VoidCallbackWrapper(cb)), desc);
 }
 
 void Scene::addPreStepCallback(VoidCallback cb) {

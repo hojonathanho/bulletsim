@@ -6,6 +6,9 @@
 #include "clouds/utils_pcl.h"
 #include "sparse_utils.h"
 
+void setGlobalEnv(Environment::Ptr env);
+Environment::Ptr getGlobalEnv();
+
 class PointCloudPlot : public PlotPoints {
 public:
   typedef boost::shared_ptr<PointCloudPlot> Ptr;  

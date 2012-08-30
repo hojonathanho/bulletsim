@@ -37,8 +37,8 @@ target_link_libraries(tracking
 add_executable(tracker_node tracker_node.cpp)
 target_link_libraries(tracker_node tracking simulation clouds tf cv_bridge ${OpenCV_LIBS} ${ROS_LIBRARIES} boost_signals)
 
-#add_executable(robot_tracker_node robot_tracker_node.cpp)
-#target_link_libraries(robot_tracker_node tracking simulation clouds tf cv_bridge ${ROS_LIBRARIES} boost_signals)
+add_executable(robot_tracker_node robot_tracker_node.cpp)
+target_link_libraries(robot_tracker_node tracking simulation clouds tf cv_bridge ${ROS_LIBRARIES} boost_signals)
 
 #add_executable(threaded_tracker_node threaded_tracker_node.cpp)
 #target_link_libraries(threaded_tracker_node tracking simulation clouds tf cv_bridge ${OpenCV_LIBS} ${ROS_LIBRARIES} boost_signals)
@@ -52,5 +52,5 @@ target_link_libraries(simulated_hand_tracker tracking simulation clouds tf cv_br
 add_executable(hand_tracker_node hand_tracker_node.cpp)
 target_link_libraries(hand_tracker_node tracking simulation clouds tf cv_bridge ${OpenCV_LIBS} ${ROS_LIBRARIES} boost_signals)
 
-add_executable(test_pairwise_dist_scaled sandbox/test_pairwise_dist_scaled.cpp ../utils/clock.cpp)
-target_link_libraries(test_pairwise_dist_scaled gomp)
+#add_executable(test_pairwise_dist_scaled sandbox/test_pairwise_dist_scaled.cpp ../utils/clock.cpp)
+#target_link_libraries(test_pairwise_dist_scaled gomp)

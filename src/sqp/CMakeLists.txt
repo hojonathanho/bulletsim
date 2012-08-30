@@ -21,9 +21,17 @@ target_link_libraries(test_traj_eval_grb sqp)
 
 
 include_directories(${PCL_INCLUDE_DIRS})
+include_directories("/opt/ros/fuerte/stacks/geometry/tf/include"
+					"/opt/ros/fuerte/stacks/geometry/tf/msg_gen/cpp/include"
+					"/opt/ros/fuerte/stacks/geometry/tf/srv_gen/cpp/include")
+
+link_directories("/opt/ros/fuerte/stacks/geometry/tf/lib")
 
 add_executable(planning_server planning_server.cpp)
-target_link_libraries(planning_server ${ROS_LIBRARIES} sqp clouds)
+target_link_libraries(planning_server ${ROS_LIBRARIES} sqp clouds tf)
 
 add_executable(interact_with_point_cloud interact_with_point_cloud.cpp)
 target_link_libraries(interact_with_point_cloud clouds sqp)
+
+add_executable(test_ros_ser test_ros_ser.cpp)
+target_link_libraries(test_ros_ser ${ROS_LIBRARIES})

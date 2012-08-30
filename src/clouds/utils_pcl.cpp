@@ -153,3 +153,44 @@ bool loadTransform(const std::string& filename, Affine3f& t) {
 	t = (Affine3f) mat;
 	return ret;
 }
+
+ColorCloudPtr addColor(CloudPtr in) {
+  ColorCloudPtr out(new ColorCloud());
+  out->points.reserve(in->size());
+  BOOST_FOREACH(Point& p, in->points) {
+    ColorPoint cpt;
+    cpt.x = p.x;
+    cpt.y = p.y;
+    cpt.z = p.z;
+    cpt.r = 255;
+    cpt.g = 0;
+    cpt.b = 0;
+    out->points.push_back(cpt);
+  }
+  out->width = in->width;
+  out->height = in->height;
+  out->is_dense = in->is_dense;
+  out->header = in->header;
+  return out;
+}
+
+
+
+
+ColorCloudPtr fromROSMsg1(const sensor_msgs::PointCloud2& msg) {
+  bool colorFound = false;
+  BOOST_FOREACH(const sensor_msgs::PointField& field, msg.fields) {
+    if (field.name == "r") colorFound = true;
+  }
+  if (colorFound) {
+    ColorCloudPtr cloud(new ColorCloud());
+    pcl::fromROSMsg(msg,*cloud);
+    return cloud;
+  }
+  else {
+    CloudPtr cloud(new Cloud());
+    pcl::fromROSMsg(msg, *cloud);
+    return addColor(cloud);
+
+  }
+}

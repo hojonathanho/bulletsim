@@ -46,11 +46,12 @@ struct Scene {
   void addCallback(osgGA::GUIEventAdapter::EventType t, Callback cb) { callbacks.insert(make_pair(t, cb)); }
   typedef multimap<int, Callback> KeyCallbackMap;
   KeyCallbackMap keyCallbacks;
-  void addKeyCallback(int c, Callback cb);
+  multimap<int, std::string> keyCallbackDescs;
+  void addKeyCallback(int c, Callback cb, std::string desc="");
 
   typedef boost::function<void(void)> VoidCallback;
   void addVoidCallback(osgGA::GUIEventAdapter::EventType t, VoidCallback cb);
-  void addVoidKeyCallback(int c, VoidCallback cb);
+  void addVoidKeyCallback(int c, VoidCallback cb, std::string desc="");
     struct VoidCallbackWrapper {
         VoidCallback fn;
         VoidCallbackWrapper(VoidCallback fn_) : fn(fn_) { }
@@ -81,6 +82,7 @@ struct Scene {
   void startViewer();
 
   void toggleDebugDraw();
+  void help();
 
   // TODO: remove all dt params and use CFG.bullet.dt instead
 

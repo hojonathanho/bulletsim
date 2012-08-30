@@ -28,7 +28,6 @@ struct RaveInstance {
 void Load(Environment::Ptr env, RaveInstance::Ptr rave, const string& name, bool dynamicRobots = false);
 // copy constructor. will never call RaveInitialize or RaveDestroy
 
-
 enum TrimeshMode {
   CONVEX_DECOMP, // use HACD convex decomposition
   CONVEX_HULL, // use btShapeHull
@@ -105,6 +104,8 @@ public:
 
   // IK support
 };
+
+RaveObject::Ptr getObjectByName(Environment::Ptr env, RaveInstance::Ptr rave, const string& name);
 
 
 class RaveRobotObject : public RaveObject {

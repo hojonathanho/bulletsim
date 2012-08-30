@@ -6,6 +6,14 @@
 using namespace std;
 using namespace Eigen;
 
+static Environment::Ptr gEnv;
+void setGlobalEnv(Environment::Ptr env) {
+  gEnv = env;
+}
+Environment::Ptr getGlobalEnv() {
+  return gEnv;
+}
+
 inline bool pointIsFinite(const ColorPoint& pt) {
   return isfinite(pt.x) && isfinite(pt.y) && isfinite(pt.z);
 }

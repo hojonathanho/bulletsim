@@ -131,7 +131,7 @@ int main(int argc, char* argv[]) {
 		if (trackedObj->m_type == "rope") // Don't do self-occlusion if the trackedObj is a rope
 			visInterface->addVisibility(DepthImageVisibility::Ptr(new DepthImageVisibility(transformer_images[i])));
 		else
-			visInterface->addVisibility(AllOcclusionsVisibility::Ptr(new AllOcclusionsVisibility(scene.env->bullet->dynamicsWorld, transformer_images[i])));
+			visInterface->addVisibility(AllOcclusionsVisibility::Ptr(new AllOcclusionsVisibility(scene.env->bullet->dynamicsWorld, transformer_images[i]->camFromWorldUnscaled*METERS)));
 	}
 
 	TrackedObjectFeatureExtractor::Ptr objectFeatures(new TrackedObjectFeatureExtractor(trackedObj));
@@ -140,10 +140,10 @@ int main(int argc, char* argv[]) {
 	PhysicsTrackerVisualizer::Ptr trakingVisualizer(new PhysicsTrackerVisualizer(&scene, alg));
 
 	bool applyEvidence = true;
-  scene.addVoidKeyCallback('a',boost::bind(toggle, &applyEvidence));
+  scene.addVoidKeyCallback('a',boost::bind(toggle, &applyEvidence), "apply evidence");
   scene.addVoidKeyCallback('=',boost::bind(&EnvironmentObject::adjustTransparency, trackedObj->getSim(), 0.1f));
   scene.addVoidKeyCallback('-',boost::bind(&EnvironmentObject::adjustTransparency, trackedObj->getSim(), -0.1f));
-  scene.addVoidKeyCallback('q',boost::bind(exit, 0));
+  scene.addVoidKeyCallback('q',boost::bind(exit, 0), "quit");
 
   while (ros::ok()) {
   	//Update the inputs of the featureExtractors and visibilities (if they have any inputs)

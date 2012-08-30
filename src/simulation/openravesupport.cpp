@@ -75,6 +75,16 @@ void Load(Environment::Ptr env, RaveInstance::Ptr rave, const string& filename,
 
 }
 
+RaveObject::Ptr getObjectByName(Environment::Ptr env, RaveInstance::Ptr rave, const string& name) {
+  BOOST_FOREACH(EnvironmentObject::Ptr obj, env->objects) {
+    RaveObject::Ptr maybeRO = boost::dynamic_pointer_cast<RaveObject>(obj);
+    if (maybeRO && maybeRO->body->GetName() == name) {
+      return maybeRO;
+    }
+  }
+  return RaveObject::Ptr();
+}
+
 RaveObject::RaveObject(RaveInstance::Ptr rave_, KinBodyPtr body_, TrimeshMode trimeshMode, bool isDynamic) {
 	initRaveObject(rave_, body_, trimeshMode, BulletConfig::margin * METERS, isDynamic);
 }

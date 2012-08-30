@@ -2,6 +2,7 @@
 #include <Eigen/Dense>
 #include "simulation/util.h"
 #include "utils/config.h"
+#include "utils/logging.h"
 using namespace std;
 using namespace OpenRAVE;
 using namespace Eigen;
@@ -47,7 +48,8 @@ static bool isClosed(RaveRobotObject::Manipulator::Ptr manip, float closedThresh
   return manip->getGripperAngle() < closedThreshold;
 }
 
-BulletObject::Ptr getNearestBody(vector<BulletObject::Ptr> bodies, btVector3 pos, int& argmin) {
+BulletObject::Ptr getNearestBody(const vector<BulletObject::Ptr>& bodies, const btVector3& pos, int& argmin) {
+  assert(bodies.size() > 0);
   VectorXf dists(bodies.size());
   for (int i=0; i < bodies.size(); i++) dists[i] = (bodies[i]->rigidBody->getCenterOfMassPosition() - pos).length();
   dists.minCoeff(&argmin);
@@ -95,8 +97,12 @@ void MonitorForGrabbing::grab() {
   int i;
   BulletObject::Ptr nearestObj = getNearestBody(m_bodies, curPose.getOrigin(), i);
   if (nearestObj->rigidBody->getCenterOfMassPosition().distance(curPose.getOrigin()) < .05*METERS) {
+    LOG_INFO("object is close enough: grabbing");
     m_grab = new Grab(nearestObj->rigidBody.get(), curPose.getOrigin(), m_world);
     nearestObj->setColor(0,0,1,1);
+  }
+  else {
+    LOG_INFO("object is too far away");
   }
 
 }

@@ -6,6 +6,7 @@
 #include <opencv2/core/core.hpp>
 #include "pcl_typedefs.h"
 #include <LinearMath/btTransform.h>
+#include <sensor_msgs/PointCloud2.h>
 
 typedef Eigen::Matrix<bool,Eigen::Dynamic,1> VectorXb;
 typedef Eigen::Matrix<uint8_t,Eigen::Dynamic,Eigen::Dynamic> MatrixXu;
@@ -51,3 +52,5 @@ inline ColorPoint toColorPoint(const btVector3& vec) {
     return pt;
 }
 inline Eigen::Vector3f toEigenVector(const ColorPoint& pt) {return Eigen::Vector3f(pt.x,pt.y,pt.z);}
+
+ColorCloudPtr fromROSMsg1(const sensor_msgs::PointCloud2& msg);
