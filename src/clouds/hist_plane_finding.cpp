@@ -8,6 +8,7 @@ using namespace std;
 
 static const float MIN_HEIGHT = .5;
 static const float MAX_HEIGHT = 1.5;
+static const float HIST_RES = .004;
 
 VectorXf clipSet(const VectorXf& in, float low, float high) {
   vector<float> vals;

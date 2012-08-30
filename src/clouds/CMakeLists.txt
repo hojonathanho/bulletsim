@@ -24,7 +24,7 @@ link_directories(
 
 add_definitions("-DEIGEN_DEFAULT_TO_ROW_MAJOR")
 
-add_library(clouds geom.cpp get_table2.cpp get_chessboard_pose.cpp plane_finding.cpp utils_pcl.cpp cloud_ops.cpp utils_cv.cpp utils_ros.cpp )
+add_library(clouds geom.cpp get_table2.cpp get_chessboard_pose.cpp plane_finding.cpp utils_pcl.cpp cloud_ops.cpp utils_cv.cpp utils_ros.cpp table.cpp)
 target_link_libraries(clouds utils ${PCL_LIBRARIES} ${OpenCV_LIBS} ${BULLET_LIBS})
 
 add_executable(save_cloud_image_seq_node save_cloud_image_seq_node.cpp)
@@ -51,3 +51,7 @@ target_link_libraries(get_table_server clouds ${PCL_LIBRARIES} ${ROS_LIBRARIES} 
 
 add_executable(cloud_adjuster_node sandbox/cloud_adjuster_node.cpp)
 target_link_libraries(cloud_adjuster_node clouds utils ${PCL_LIBRARIES} ${ROS_LIBRARIES})
+
+
+add_executable(robot_preprocessor_node robot_preprocessor_node.cpp)
+target_link_libraries(robot_preprocessor_node clouds utils robots ${PCL_LIBRARIES} ${ROS_LIBRARIES} tf)

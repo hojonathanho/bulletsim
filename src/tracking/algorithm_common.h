@@ -1,8 +1,9 @@
 #pragma once
 #include <Eigen/Dense>
+#if 0
 #include "sparse_utils.h"
 #include "clouds/pcl_typedefs.h"
-
+#endif
 
 Eigen::MatrixXf calculateNodesNaive(const Eigen::MatrixXf& estPts, const Eigen::MatrixXf& obsPts, const Eigen::MatrixXf& pZgivenC);
 Eigen::MatrixXf calculateNodes(const Eigen::MatrixXf& estPts, const Eigen::MatrixXf& obsPts, const Eigen::MatrixXf& pZgivenC);
@@ -14,7 +15,7 @@ Eigen::MatrixXf calculateResponsibilities(const Eigen::MatrixXf& estPts, const E
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////// DEPRECATED //////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
+#if 0
 Eigen::MatrixXf calcSigs(const SparseMatrixf& corr, const Eigen::MatrixXf& estPts, const Eigen::MatrixXf& obsPts, Eigen::VectorXf priorDist, float priorCount);
 
 Eigen::MatrixXf calcSigsEigen(const SparseMatrixf& corr, const Eigen::MatrixXf& estPts, const Eigen::MatrixXf& obsPts, Eigen::VectorXf priorDist, float priorCount);
@@ -34,3 +35,4 @@ void estimateCorrespondenceCloud (ColorCloudPtr cloud, const Eigen::MatrixXf& es
 
 void estimateCorrespondence(const Eigen::MatrixXf& estPts, const Eigen::VectorXf& stdev, const Eigen::VectorXf& vis, 
   const Eigen::MatrixXf& m_obsPts, float pBandOutlier, SparseMatrixf& corr);
+#endif

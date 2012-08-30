@@ -47,7 +47,7 @@ struct LocalConfig : Config {
     params.push_back(new Parameter<bool>("test", &test, "run test case"));
     params.push_back(new Parameter<float>("voxelSize", &voxelSize, "voxel size"));
     params.push_back(new Parameter<bool>("idleEachIter", &idleEachIter, "idle each iter. NOT IMPLEMENTED"));
-    params.push_back(new Parameter<string>("loadProblem", &loadProblem, "load problem"));
+    params.push_back(new Parameter<bool>("saveProblem", &saveProblem, "save problem"));
     params.push_back(new Parameter<string>("loadProblem", &loadProblem, "load problem"));
   }
 };
@@ -86,6 +86,10 @@ public:
     if (m_collisionBoxes) m_scene.env->remove(m_collisionBoxes);
     m_collisionBoxes = collisionBoxesFromPointCloud(dsCloud, .02);
     m_scene.env->add(m_collisionBoxes);
+
+    setupROSRave(m_pr2m.pr2->robot, request.joint_states);
+    ValuesInds vi = getValuesInds(request.joint_states.position);
+    m_pr2m.pr2->setDOFValues(vi.second, vi.first);
 
     RaveRobotObject::Manipulator::Ptr arm;
     if (request.side == "r") arm = m_pr2m.pr2Right;
@@ -140,10 +144,7 @@ public:
       ROS_ERROR("Planner couldn't get a point point clouds");
       return false;
     }
-    sensor_msgs::JointStateConstPtr msg2 = ros::topic::waitForMessage<sensor_msgs::JointState>("/joint_states", *m_nh, ros::Duration(1));
-    setupROSRave(m_pr2m.pr2->robot, *msg2);
-    ValuesInds vi = getValuesInds(msg2->position);
-    m_pr2m.pr2->setDOFValues(vi.second, vi.first);
+
     ColorCloudPtr fullCloud = fromROSMsg1(*msg);
     ColorCloudPtr dsCloud = downsampleCloud(fullCloud, .02);
 
@@ -152,13 +153,14 @@ public:
     dsCloud = transformPointCloud1(dsCloud, toEigenTransform(st.asBt()));
 
     if (LocalConfig::saveProblem) {
-      int secs = (int)GetClock()/1000;
+      long unsigned int secs = (long unsigned int)GetClock()/1000;
       stringstream probName;
       assert(fs::exists(probRoot));
+      probName << secs;
       fs::path probPath = probRoot / probName.str();
       fs::create_directory(probPath);
       pcl::io::savePCDFileBinary((probPath / "cloud.pcd").string(), *dsCloud);
-      msgToFile(request, (probRoot / "req.msg").string());
+      msgToFile(request, (probPath / "req.msg").string());
     }
     plan(dsCloud, request, response);
 
@@ -208,7 +210,11 @@ int main(int argc, char* argv[]) {
 
   }
   else if (LocalConfig::loadProblem.size() > 0) {
-
+    ColorCloudPtr dsCloud = readPCD((probRoot / LocalConfig::loadProblem / "cloud.pcd").string());
+    PlanTraj::Request req = msgFromFile<PlanTraj::Request>((probRoot / LocalConfig::loadProblem / "req.msg").string());
+    PlanTraj::Response resp;
+    PlanningServer server(NULL, scene, pr2m, 0);
+    server.plan(dsCloud, req, resp);
   }
   else {
     ros::init(argc, argv, "planning_server");
