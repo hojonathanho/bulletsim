@@ -68,6 +68,41 @@ inline void ekf_cov_update(Robot &r, const VectorXd& x_t, const VectorXd& u_t, c
 }
 
 
+inline void ekf_mean_noise_model(Robot &r, const VectorXd& x_t, const VectorXd& u_t,
+		const MatrixXd& rt_Sigma_t, const MatrixXd& M_t, const MatrixXd& N_t,
+		MatrixXd& rt_W_mean) {
+
+	assert(r._NX == x_t.rows());
+	assert(x_t.rows() == rt_Sigma_t.rows());
+	assert(rt_Sigma_t.rows() == rt_Sigma_t.cols());
+
+	MatrixXd A;
+	MatrixXd H;
+
+	r.dfdx(x_t, u_t, A);
+	r.dgdx(x_t, H);
+
+	MatrixXd ARtSigma = A * rt_Sigma_t;
+	MatrixXd Gamma = ARtSigma * ARtSigma.transpose() + M_t * M_t.transpose();
+
+	MatrixXd HGamma = H * Gamma;
+
+	MatrixXd A_K = (HGamma * H.transpose() + N_t * N_t.transpose());
+	PartialPivLU<MatrixXd> solver(A_K);
+	MatrixXd K_transpose = solver.solve(HGamma);
+	MatrixXd K = K_transpose.transpose();
+
+	MatrixXd W_mean = K*HGamma;
+
+	LLT<MatrixXd> lltW_mean(W_mean);
+	rt_W_mean = lltW_mean.matrixL();
+
+
+
+}
+
+
+
 
 
 

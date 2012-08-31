@@ -55,13 +55,13 @@ int main()
   int NX = 4;
   int NU = 2;
   int NB = NX*(NX+3)/2;
-  int NS = 0;
+  int NS = 20;
   double rho_x = 0.1; 
   double rho_u = 0.1;
   int N_iter = 100;
 
   // hack for now
-  MatrixXd W_cov = 0.0000*MatrixXd::Identity(NB,NB);
+  MatrixXd W_cov = MatrixXd::Zero(NB,NB);
   EigenMultivariateNormal<double> sampler(VectorXd::Zero(NB), W_cov);
   
   VectorXd x0(NX);
@@ -90,9 +90,6 @@ int main()
   c.attach_sensor(&s3, s3_f);
   
 
-
-
-
   //initilaize the initial distributions and noise models
   MatrixXd Sigma_0 = 0.0001*MatrixXd::Identity(NX,NX);
   Sigma_0(2,2) = 0.0000000001;
@@ -100,13 +97,13 @@ int main()
   LLT<MatrixXd> lltSigma_0(Sigma_0);
   MatrixXd rt_Sigma_0 = lltSigma_0.matrixL();
 
-  MatrixXd Q_t = 0.0001*MatrixXd::Identity(NX,NX);
+  MatrixXd Q_t = 0.00001*MatrixXd::Identity(NX,NX);
   Q_t(2,2) = 0.0000001;
   Q_t(3,3) = 0.0000000001;
   LLT<MatrixXd> lltQ_t(Q_t);
   MatrixXd M_t = lltQ_t.matrixL(); 
 
-  MatrixXd R_t = 0.0001*MatrixXd::Identity(NZ,NZ);
+  MatrixXd R_t = 0.01*MatrixXd::Identity(NZ,NZ);
   LLT<MatrixXd> lltR_t(R_t);
   MatrixXd N_t = lltR_t.matrixL();
 
@@ -121,47 +118,73 @@ int main()
   vector<MatrixXd> W_bar(T); 
   B_bar[0] = b_0; 
 
-
-  //osg::Node *ellipsoid = drawEllipsoid2D(x0.segment(0,2), z_offset/2+1e-4, Sigma_0.block(0,0,2,2), yellow);
-  //traj_group->addChild(ellipsoid);
   for (int t = 0; t < T; t++) {
     VectorXd u = VectorXd::Random(2) / 3;
     if (t > T/2) u = - 2 * u;  
     U_bar[t] = u;
-    c.belief_dynamics(B_bar[t], U_bar[t], B_bar[t+1]); 
-    VectorXd x_t; MatrixXd rt_Sigma_t; 
-    parse_belief_state(B_bar[t+1], x_t, rt_Sigma_t); 
-    MatrixXd Sigma_t = rt_Sigma_t * rt_Sigma_t.transpose();
+    MatrixXd rt_W_t;
+    c.belief_dynamics(B_bar[t], U_bar[t], B_bar[t+1]);
+    c.belief_noise(B_bar[t], U_bar[t], rt_W_t);
+    sampler.setCovar(rt_W_t * rt_W_t.transpose());
     sampler.generateSamples(W_bar[t], NS);
-
+    //cout << W_bar[t] << endl;
   }
+
+  vector<vector<VectorXd> > W_s_t;
+  index_by_sample(W_bar, W_s_t);
+  vector<VectorXd> test;
+  for (int s = 0; s < NS; s++) {
+	  c.forward_integrate(b_0, U_bar, W_s_t[s], test);
+	  render = c.draw_belief_trajectory(test, blue, orange, traj_group, z_offset/2 + 1e-4);
+  }
+
 
   render = c.draw_belief_trajectory(B_bar, red, yellow, traj_group, z_offset/2 + 1e-4);
 
-  // setup for SCP
-  // Define a goal state
-  VectorXd b_goal = B_bar[T];
-  b_goal.segment(NX, NB-NX) = VectorXd::Zero(NB-NX); // trace
-  // Output variables
-  vector<VectorXd> opt_B, opt_U; // noiseless trajectory
-  MatrixXd K; VectorXd u0;  // control policy 
+//
+//  // setup for SCP
+//  // Define a goal state
+//  VectorXd b_goal = B_bar[T];
+//  b_goal.segment(NX, NB-NX) = VectorXd::Zero(NB-NX); // trace
+//  // Output variables
+//  vector<VectorXd> opt_B, opt_U; // noiseless trajectory
+//  MatrixXd K; VectorXd u0;  // control policy
+//
+//  cout << "calling scp" << endl;
+//  scp_solver(c, B_bar, U_bar, W_bar, rho_x, rho_u, b_goal, N_iter,
+//      opt_B, opt_U, K, u0);
+//
+//  cout << "scp done" << endl;
+//  VectorXd B_bar_T = B_bar[T].segment(NX, NB-NX);
+//  VectorXd opt_B_T = opt_B[T].segment(NX, NB-NX);
+//  cout << "Input trajectory final trace:" << B_bar_T.transpose() * B_bar_T << endl;
+//  cout << "Output trajectory final trace: " << opt_B_T.transpose() * opt_B_T << endl;
+//
+//  c.draw_belief_trajectory(opt_B, blue, orange, traj_group, z_offset/2+1e-4);
+//
+//  //cout << K << endl;
+//
+//  for (int s = 0; s < NS; s++) {
+//    VectorXd b = b_0;
+//    for (int t = 0; t < T; t++) {
+//      VectorXd u_policy = K.block(NU*t,0,NU,NB*(t+1)) * b + u0.segment(t*NU, NU);
+//      VectorXd bt1;
+//      c.belief_dynamics(b.segment(t*NB, NB), u_policy, bt1);
+//      bt1 += W_bar[t].col(s);
+//      //cout << "noise" << endl;
+//      //cout << W_bar[t].col(s).transpose() << endl;
+//      //xt1 += sampler.nextSample();
+//      VectorXd tmp(NB*(t+2));
+//      tmp.segment(0,NB*(t+1)) = b;
+//      tmp.segment(NB*(t+1), NB) = bt1;
+//      b = tmp;
+//      //cout << bt1.transpose() << endl;
+//      c.draw_belief(bt1, blue, orange, traj_group, z_offset/2 + 1e-4);
+//    }
+//  }
 
-  cout << "calling scp" << endl;
-  scp_solver(c, B_bar, U_bar, W_bar, rho_x, rho_u, b_goal, N_iter,
-      opt_B, opt_U, K, u0);
-
-  cout << "scp done" << endl;
-  VectorXd B_bar_T = B_bar[T].segment(NX, NB-NX);
-  VectorXd opt_B_T = opt_B[T].segment(NX, NB-NX); 
-  cout << "Input trajectory final trace:" << B_bar_T.transpose() * B_bar_T << endl; 
-  cout << "Output trajectory final trace: " << opt_B_T.transpose() * opt_B_T << endl;
-
-  c.draw_belief_trajectory(opt_B, blue, orange, traj_group, z_offset/2+1e-4); 
-  
   // visualize
   osg::Geode * fgeode = new osg::Geode; 
-  //osg::StateSet *fstateSet = new osg::StateSet;
-  //fgeode->setStateSet(fstateSet);
   osg::ShapeDrawable *floor = new osg::ShapeDrawable(new osg::Box(osg::Vec3(0.0,0.0,0.0), 1.0, 1.0, z_offset));
   floor->setColor(osg::Vec4(0.1,0.1,0.1,1.0));
   fgeode->addDrawable(floor);
@@ -169,7 +192,7 @@ int main()
   osgViewer::Viewer viewer;
   root->addChild(fgeode); 
   viewer.setSceneData(root);
-  //viewer.setUpViewInWindow(400, 400, 640, 480);
+  viewer.setUpViewInWindow(400, 400, 640, 480);
   return viewer.run();
 
 }

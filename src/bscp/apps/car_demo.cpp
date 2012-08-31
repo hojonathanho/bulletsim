@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "eigen_multivariate_normal.h"
+#include "trajectory_util.h"
 
 using namespace Eigen;
 using namespace std;
@@ -28,13 +29,13 @@ int main()
   int T = 20;
   int NX = 4;
   int NU = 2;
-  int NS = 0;
-  int NUM_TEST = 0;
+  int NS = 20;
+  int NUM_TEST = 10;
   double rho_x = 0.1; 
   double rho_u = 0.1;
-  int N_iter = 100;
+  int N_iter = 20;
   
-  MatrixXd W_cov = 0.0000*MatrixXd::Identity(NX,NX);
+  MatrixXd W_cov = 0.000001*MatrixXd::Identity(NX,NX);
   W_cov(2,2) = 0.00;
   EigenMultivariateNormal<double> sampler(VectorXd::Zero(NX), W_cov);
 
@@ -79,34 +80,57 @@ int main()
   VectorXd x_goal = X_bar[T];
   // Output variables
   vector<VectorXd> opt_X, opt_U; // noiseless trajectory
-  MatrixXd K; VectorXd u0;  // control policy 
+  MatrixXd Q; VectorXd r;  // control policy
 
   scp_solver(c, X_bar, U_bar, W_bar, rho_x, rho_u, x_goal, N_iter,
-      opt_X, opt_U, K, u0, false);
+      opt_X, opt_U, Q, r);
 
-  cout << "scp done" << endl; 
+  cout << Q << endl;
+
+
+  TrajectoryInfo opt_traj(x0);
+  for (int t = 0; t < T; t++) {
+	  //opt_traj.add_and_integrate(opt_U[t], VectorXd::Zero(NX), c);
+	  VectorXd feedback = opt_traj.Q_feedback(c);
+	  VectorXd u_policy = Q.block(t*NU, t*NX, NU, NX) * feedback + r.segment(t*NU, NU);
+	  opt_traj.add_and_integrate(u_policy, VectorXd::Zero(NX), c);
+  }
+  Vector4d green(0.0, 1.0, 0.0, 0.9);
+  render = c.draw_trajectory(opt_traj._X, green, root);
 
   Vector4d blue(0.3, 0.3, 1.0, 0.4);
 
   for (int s = 0; s < NUM_TEST; s++) {
-    VectorXd x = x0;
-    for (int t = 0; t < T; t++) {
-      VectorXd u_policy = K.block(NU*t,0,NU,NX*(t+1)) * x + u0.segment(t*NU, NU); 
-      VectorXd xt1;
-      c.dynamics(x.segment(t*NX, NX), u_policy, xt1);
-      //xt1 += W_bar[t].col(s); 
-      xt1 += sampler.nextSample();
-      VectorXd tmp(NX*(t+2));
-      tmp.segment(0,NX*(t+1)) = x;
-      tmp.segment(NX*(t+1), NX) = xt1; 
-      x = tmp; 
-      c.draw(xt1, blue, root); 
-    }
+	  TrajectoryInfo test_traj(x0);
+	  for (int t = 0; t < T; t++) {
+		  VectorXd feedback = test_traj.Q_feedback(c);
+		  VectorXd u_policy = Q.block(t*NU, t*NX, NU, NX) * feedback + r.segment(t*NU, NU);
+		  test_traj.add_and_integrate(u_policy, W_bar[t].col(s), c);
+	  }
+	  c.draw_trajectory(test_traj._X, blue, root);
   }
 
 
-  Vector4d green(0.0, 1.0, 0.0, 0.9); 
-  render = c.draw_trajectory(opt_X, green, root);
+
+
+//  for (int s = 0; s < NUM_TEST; s++) {
+//    VectorXd x = x0;
+//    for (int t = 0; t < T; t++) {
+//      VectorXd u_policy = K.block(NU*t,0,NU,NX*(t+1)) * x + u0.segment(t*NU, NU);
+//      VectorXd xt1;
+//      c.dynamics(x.segment(t*NX, NX), u_policy, xt1);
+//      xt1 += W_bar[t].col(s);
+//      //xt1 += sampler.nextSample();
+//      VectorXd tmp(NX*(t+2));
+//      tmp.segment(0,NX*(t+1)) = x;
+//      tmp.segment(NX*(t+1), NX) = xt1;
+//      x = tmp;
+//      c.draw(xt1, blue, root);
+//    }
+//  }
+
+
+  //render = c.draw_trajectory(opt_X, green, root);
 
 
   // visualize
@@ -117,7 +141,7 @@ int main()
   root->addChild(fgeode); 
   osgViewer::Viewer viewer;
   viewer.setSceneData(root);
-  //viewer.setUpViewInWindow(400, 400, 640, 480);
+  viewer.setUpViewInWindow(400, 400, 640, 480);
   return viewer.run();
 
 }

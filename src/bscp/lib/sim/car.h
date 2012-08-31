@@ -47,13 +47,13 @@ class Car : public Robot
       double x_dot = v*cos(theta);
       double y_dot = v*sin(theta);
       double theta_dot = v * tan(phi) / _l;
-      
+
       VectorXd xdot(4);
       xdot(0) = x_dot;
       xdot(1) = y_dot;
       xdot(2) = theta_dot;
-      xdot(3) = a; 
-  
+      xdot(3) = a;
+
       fxu = x + _dt * xdot;
 
       /* Quick debug with a linear system */
@@ -68,7 +68,7 @@ class Car : public Robot
       B << 8, 7, 6, 5, 4, 3, 2, 1;
       B = B / 2; 
       fxu = A*x + B*u;
-      */ 
+      */
     }
 
     double x_upper_limit(const int index){ return  1e20; }

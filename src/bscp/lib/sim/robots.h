@@ -63,8 +63,11 @@ class Robot {
 
    // Deterministic Belief Dynamics
    void belief_dynamics(const VectorXd& b, const VectorXd& u, VectorXd& bt1); 
+   void belief_noise(const VectorXd& b, const VectorXd& u, MatrixXd& W);
 
    // Utility
+   // trajectory integration
+   void forward_integrate(const VectorXd& x0, const vector<VectorXd>& u, const vector<VectorXd>& w, vector<VectorXd>& traj_x);
    // dynamics linearization
    void dfdx(const VectorXd &x, const VectorXd &u, MatrixXd &A); 
    void dfdu(const VectorXd &x, const VectorXd &u, MatrixXd &B); 

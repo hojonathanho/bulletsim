@@ -75,6 +75,28 @@ inline void parse_belief_state(const VectorXd& b, VectorXd& x, MatrixXd& rt_Sigm
   rvec2cov(rt_Sigma_vec, rt_Sigma); 
 }
 
+inline void index_by_sample(const vector<MatrixXd>& W_s, vector<vector<VectorXd> >& W_s_t) {
+	int T = W_s.size();
+	int NS = W_s[0].cols();
+
+	W_s_t.resize(NS);
+	for (int s = 0; s < NS; s++) {
+		vector<VectorXd> sample_noise_traj(T);
+		for (int t = 0; t < T; t++) {
+			sample_noise_traj[t] = W_s[t].col(s);
+		}
+		W_s_t[s] = sample_noise_traj;
+	}
+}
+
+inline void toFullVector(const vector<VectorXd>& v, VectorXd& vec) {
+  int T = v.size();
+  int NV = v[0].rows();
+  vec = VectorXd(T*NV);
+  for (int t = 0; t < T; t++) {
+    vec.segment(t*NV, NV) = v[t];
+  }
+}
 
 
 

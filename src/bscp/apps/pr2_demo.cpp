@@ -110,7 +110,7 @@ int main(int argc, char* argv[]) {
   MatrixXd K; VectorXd u0;
 
   scp_solver(pr2_scp, X_bar, U_bar, W_bar, rho_x, rho_u, x_goal, N_iter,
-      opt_X, opt_U, K, u0, false);
+      opt_X, opt_U, K, u0);
 
   cout << "init plotter2" << endl;
   PR2_SCP_Plotter plotter2(&pr2_scp, &scene, T);

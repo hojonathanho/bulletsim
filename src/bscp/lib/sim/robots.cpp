@@ -6,6 +6,23 @@ void Robot::greet() {
   cout << "How's it going?" << endl;
 }
 
+void Robot::forward_integrate(const VectorXd& x0, const vector<VectorXd>& u, const vector<VectorXd>& w, vector<VectorXd>& traj_x) {
+	int T = u.size();
+	bool propagate_beliefs = false;
+	if (x0.rows() == _NB) propagate_beliefs = true;
+	traj_x.resize(T+1);
+	traj_x[0] = x0;
+	for (int t = 0; t < T; t++) {
+		if(propagate_beliefs) {
+			belief_dynamics(traj_x[t], u[t], traj_x[t+1]);
+		} else {
+			dynamics(traj_x[t], u[t], traj_x[t+1]);
+		}
+		traj_x[t+1] += w[t];
+	}
+}
+
+
 void Robot::observe(const VectorXd& x, VectorXd& z) {
   z.resize(_NZ);
   int num_recv = 0; 
@@ -37,6 +54,24 @@ void Robot::belief_dynamics(const VectorXd& b, const VectorXd& u, VectorXd& bt1)
       x_t1, rt_Sigma_t1, false);
 
   build_belief_state(x_t1, rt_Sigma_t1, bt1);
+
+}
+
+// note the belief noise comes in the form L where L*L' = W
+void Robot::belief_noise(const VectorXd& b, const VectorXd& u, MatrixXd& rt_W) {
+	VectorXd x; MatrixXd rt_Sigma;
+	parse_belief_state(b, x, rt_Sigma);
+
+	MatrixXd M_t, N_t;
+	M(x, M_t);
+	N(x, N_t);
+
+	MatrixXd rt_W_x;
+	ekf_mean_noise_model(*this, x, u, rt_Sigma, M_t, N_t, rt_W_x);
+
+	rt_W = MatrixXd::Zero(_NB, _NB);
+	rt_W.block(0,0,_NX,_NX) = rt_W_x;
+
 
 }
 
@@ -91,7 +126,6 @@ void Robot::dp_trajectory(const vector<VectorXd>& X_bar, vector<MatrixXd>& Ps, v
 
   int T = X_bar.size();
   Ps.resize(T); p_offsets.resize(T);
-  cout << "T = " << T << endl;
   for (int t = 0; t < T; t++) {
     MatrixXd P; VectorXd p_offset;
     dpdx(X_bar[t], P, p_offset);

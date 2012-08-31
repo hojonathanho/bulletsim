@@ -28,6 +28,7 @@ class EigenMultivariateNormal
 
   MatrixXd rot;
   VectorXd scl;
+  MatrixXd rotscale;
   VectorXd mean;
   int _size; 
 
@@ -47,29 +48,44 @@ class EigenMultivariateNormal
 
   void setCovar(const MatrixXd& covarMat)
   {
-    Eigen::SelfAdjointEigenSolver<MatrixXd>
-      eigenSolver(covarMat);
-    rot = eigenSolver.eigenvectors();
-    scl = eigenSolver.eigenvalues();
-    for (int ii=0;ii<_size;++ii) {
-      scl(ii) = sqrt(scl(ii));
-    }
+	  LLT<MatrixXd> lltCovarMat(covarMat);
+	  rotscale = lltCovarMat.matrixL();
   }
+
+//  void setCovar(const MatrixXd& covarMat)
+//  {
+//    Eigen::SelfAdjointEigenSolver<MatrixXd>
+//      eigenSolver(covarMat);
+//    rot = eigenSolver.eigenvectors();
+//    scl = eigenSolver.eigenvalues();
+//    for (int ii=0;ii<_size;++ii) {
+//      scl(ii) = sqrt(scl(ii));
+//    }
+//  }
 
   void setMean(const MatrixXd& meanVec)
   {
     mean = meanVec;
   }
 
-  VectorXd nextSample()
-  {
-    VectorXd sampleVec(_size);
-    for (int ii=0;ii<_size;++ii) {
-      sampleVec(ii) = randN()*scl(ii);
-    }
-    sampleVec = rot*sampleVec + mean;
-    return sampleVec;
+  VectorXd nextSample() {
+	  VectorXd sampleVec(_size);
+	  for (int i = 0; i < _size; i++) {
+		  sampleVec(i) = randN();
+	  }
+	  sampleVec = rotscale*sampleVec + mean;
+	  return sampleVec;
   }
+
+//  VectorXd nextSample()
+//  {
+//    VectorXd sampleVec(_size);
+//    for (int ii=0;ii<_size;++ii) {
+//      sampleVec(ii) = randN()*scl(ii);
+//    }
+//    sampleVec = rot*sampleVec + mean;
+//    return sampleVec;
+//  }
 
   void generateSamples(MatrixXd& samples, int NS) { 
     samples = MatrixXd(_size, NS);

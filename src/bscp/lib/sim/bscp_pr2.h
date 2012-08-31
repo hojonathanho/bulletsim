@@ -225,7 +225,7 @@ class PR2_SCP : public Robot
 	}
 
 	void dpdx(const VectorXd& x_bar, MatrixXd& D, VectorXd& d_bar) {
-		dpdx_numerical(x_bar, D, d_bar);
+		dpdx_analytical(x_bar, D, d_bar);
 	}
 
     void dpdx_analytical(const VectorXd& x_bar, MatrixXd& D, VectorXd& d_bar) {

@@ -21,8 +21,10 @@
  * u0: return value containing control policy (affine offset part)
  */
 
-void scp_solver(Robot &r, const vector<VectorXd>& X_bar, const vector<VectorXd>& U_bar, const vector<MatrixXd>& W_bar, const double rho_x, const double rho_u, const VectorXd& x_goal, const int N_iter, vector<VectorXd>& opt_X, vector<VectorXd>& opt_U, MatrixXd& K, VectorXd& u0, const bool BELIEF_DYNAMICS = true);
-
-
+void scp_solver(Robot &r, const vector<VectorXd>& X_bar,
+		const vector<VectorXd>& U_bar, const vector<MatrixXd>& W_bar,
+		const double rho_x, const double rho_u, const VectorXd& x_goal,
+		const int N_iter, vector<VectorXd>& opt_X, vector<VectorXd>& opt_U,
+		MatrixXd& K, VectorXd& u0);
 
 #endif

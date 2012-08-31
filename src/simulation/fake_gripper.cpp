@@ -110,7 +110,7 @@ TelekineticGripper::TelekineticGripper(RaveRobotObject::Manipulator::Ptr manip) 
 EnvironmentObject::Ptr TelekineticGripper::copy(Fork &f) const {
   Ptr o(new TelekineticGripper());
   o->m_tf = m_tf;
-  CompoundObject::internalCopy(o, f);
+  CompoundObject<BulletObject>::internalCopy(o, f);
   return o;
 }
 

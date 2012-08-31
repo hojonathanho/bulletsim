@@ -29,6 +29,8 @@ add_library(simulation
     tetgen_helpers.cpp
 )
 
+message(${OpenCV_LIBS})
+
 target_link_libraries(simulation
     utils
     haptics

@@ -90,34 +90,6 @@ dense_optimize(GRBEnv* env,
 
 
 bool
-solve_linear_system(GRBEnv* env,
-                    const SparseMatrix<double>& A,
-                    const VectorXd& b,
-                    VectorXd& solution
-    )
-{
-  int NUM_VARIABLES = A.cols();
-  int NUM_CONSTRAINTS = A.rows(); 
-  SparseVector<double> c = toSparseVector(VectorXd::Zero(NUM_VARIABLES));
-  SparseMatrix<double> Q = spzeros(NUM_VARIABLES, NUM_VARIABLES); 
-  char sense[NUM_CONSTRAINTS];
-  for (int i = 0; i < NUM_CONSTRAINTS; i++) {
-    sense[i] = GRB_EQUAL; 
-  }
-  double lb[NUM_VARIABLES], ub[NUM_VARIABLES];
-  // default bounds 
-  for (int i = 0; i < NUM_VARIABLES; i++) { 
-    lb[i] = -1e30; // treated as - infinity
-    ub[i] =  1e30; // treated as + infinity 
-  }
-
-  double objvalP; 
-
-  return dense_optimize(env,NUM_VARIABLES,c,Q,A,sense,b,lb,ub,NULL,solution,&objvalP, false);
-
-}
-
-bool
 solve_matrix_linear_system(GRBEnv* env,
                           const SparseMatrix<double>& A,
                           const SparseMatrix<double>& B,
@@ -149,7 +121,7 @@ solve_matrix_linear_system(GRBEnv* env,
   int i, j;
   bool success = false;
   Timer timer = Timer();
-  model.getEnv().set(GRB_IntParam_OutputFlag, 0);
+  //model.getEnv().set(GRB_IntParam_OutputFlag, 0);
   
   assert(A.rows() == B.rows());
   int m = A.rows();
@@ -223,3 +195,36 @@ solve_matrix_linear_system(GRBEnv* env,
   return success;
 
 } 
+
+bool
+solve_linear_system(GRBEnv* env,
+                    const SparseMatrix<double>& A,
+                    const VectorXd& b,
+                    VectorXd& solution
+    )
+{
+	SparseVector<double> sparse_b = toSparseVector(b);
+	MatrixXd mat_sol;
+	solve_matrix_linear_system(env, A, sparse_b, mat_sol);
+	solution = mat_sol.col(0);
+
+//  int NUM_VARIABLES = A.cols();
+//  int NUM_CONSTRAINTS = A.rows();
+//  SparseVector<double> c = toSparseVector(VectorXd::Zero(NUM_VARIABLES));
+//  SparseMatrix<double> Q = spzeros(NUM_VARIABLES, NUM_VARIABLES);
+//  char sense[NUM_CONSTRAINTS];
+//  for (int i = 0; i < NUM_CONSTRAINTS; i++) {
+//    sense[i] = GRB_EQUAL;
+//  }
+//  double lb[NUM_VARIABLES], ub[NUM_VARIABLES];
+//  // default bounds
+//  for (int i = 0; i < NUM_VARIABLES; i++) {
+//    lb[i] = -1e30; // treated as - infinity
+//    ub[i] =  1e30; // treated as + infinity
+//  }
+//
+//  double objvalP;
+//
+//  return dense_optimize(env,NUM_VARIABLES,c,Q,A,sense,b,lb,ub,NULL,solution,&objvalP, false);
+
+}
