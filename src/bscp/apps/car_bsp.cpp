@@ -19,6 +19,7 @@
 #include "scp_solver.h"
 #include "timer.h"
 #include "eigen_multivariate_normal.h"
+#include "trajectory_util.h"
 
 using namespace Eigen;
 using namespace std;
@@ -48,6 +49,7 @@ int main()
   Vector4d orange(1.0, 0.55, 0.0, 0.8);
   Vector4d white(1.0, 1.0, 1.0, 0.1); 
   Vector4d brown(139/255.0,69/255.0,19/255.0,0.8);
+  Vector4d transparent(0.0,0.0,0.0,0.0);
 
 
   // intialize the robot
@@ -55,10 +57,11 @@ int main()
   int NX = 4;
   int NU = 2;
   int NB = NX*(NX+3)/2;
-  int NS = 20;
+  int NS = 5;
+  int NUM_TEST = 1;
   double rho_x = 0.1; 
   double rho_u = 0.1;
-  int N_iter = 100;
+  int N_iter = 30;
 
   // hack for now
   MatrixXd W_cov = MatrixXd::Zero(NB,NB);
@@ -135,25 +138,45 @@ int main()
   vector<VectorXd> test;
   for (int s = 0; s < NS; s++) {
 	  c.forward_integrate(b_0, U_bar, W_s_t[s], test);
-	  render = c.draw_belief_trajectory(test, blue, orange, traj_group, z_offset/2 + 1e-4);
+	  render = c.draw_belief_trajectory(test, red, transparent, traj_group, z_offset/2 + 1e-4);
   }
 
 
   render = c.draw_belief_trajectory(B_bar, red, yellow, traj_group, z_offset/2 + 1e-4);
 
 //
-//  // setup for SCP
-//  // Define a goal state
-//  VectorXd b_goal = B_bar[T];
-//  b_goal.segment(NX, NB-NX) = VectorXd::Zero(NB-NX); // trace
-//  // Output variables
-//  vector<VectorXd> opt_B, opt_U; // noiseless trajectory
-//  MatrixXd K; VectorXd u0;  // control policy
-//
-//  cout << "calling scp" << endl;
-//  scp_solver(c, B_bar, U_bar, W_bar, rho_x, rho_u, b_goal, N_iter,
-//      opt_B, opt_U, K, u0);
-//
+  // setup for SCP
+  // Define a goal state
+  VectorXd b_goal = B_bar[T];
+  b_goal.segment(NX, NB-NX) = VectorXd::Zero(NB-NX); // trace
+  // Output variables
+  vector<VectorXd> opt_B, opt_U; // noiseless trajectory
+  MatrixXd Q; VectorXd r;  // control policy
+
+  cout << "calling scp" << endl;
+  scp_solver(c, B_bar, U_bar, W_bar, rho_x, rho_u, b_goal, N_iter,
+      opt_B, opt_U, Q, r);
+
+  TrajectoryInfo opt_traj(b_0);
+    for (int t = 0; t < T; t++) {
+  	  //opt_traj.add_and_integrate(opt_U[t], VectorXd::Zero(NX), c);
+  	  VectorXd feedback = opt_traj.Q_feedback(c);
+  	  VectorXd u_policy = Q.block(t*NU, t*NB, NU, NB) * feedback + r.segment(t*NU, NU);
+  	  opt_traj.add_and_integrate(u_policy, VectorXd::Zero(NB), c);
+    }
+    c.draw_belief_trajectory(opt_traj._X, blue, orange, traj_group, z_offset/2+1e-4);
+
+    for (int s = 0; s < NUM_TEST; s++) {
+  	  TrajectoryInfo test_traj(b_0);
+  	  for (int t = 0; t < T; t++) {
+  		  VectorXd feedback = test_traj.Q_feedback(c);
+  	  	  VectorXd u_policy = Q.block(t*NU, t*NB, NU, NB) * feedback + r.segment(t*NU, NU);
+  		  test_traj.add_and_integrate(u_policy, W_bar[t].col(s), c);
+  		  //test_traj.add_and_integrate(u_policy, sampler.nextSample(), c);
+  	  }
+  	  c.draw_belief_trajectory(test_traj._X, blue, transparent, traj_group, z_offset/2+1e-4);
+    }
+
 //  cout << "scp done" << endl;
 //  VectorXd B_bar_T = B_bar[T].segment(NX, NB-NX);
 //  VectorXd opt_B_T = opt_B[T].segment(NX, NB-NX);

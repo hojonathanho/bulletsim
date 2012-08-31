@@ -54,7 +54,8 @@ void scp_solver(Robot &r, const vector<VectorXd>& X_bar, const vector<VectorXd>&
     nominal.integrate(r); //shooting
 
     for (int s = 0; s < NS; s++) {
-    	samples[s].set(opt_X, opt_U); //hack for now
+    	//samples[s].set(opt_X, opt_U); //hack for now
+    	samples[s].set(opt_X, opt_sample_U[s]);
     	samples[s].integrate(r);
     }
 

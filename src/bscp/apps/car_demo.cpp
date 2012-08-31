@@ -29,13 +29,13 @@ int main()
   int T = 20;
   int NX = 4;
   int NU = 2;
-  int NS = 20;
+  int NS = 10;
   int NUM_TEST = 10;
   double rho_x = 0.1; 
   double rho_u = 0.1;
-  int N_iter = 20;
+  int N_iter = 50;
   
-  MatrixXd W_cov = 0.000001*MatrixXd::Identity(NX,NX);
+  MatrixXd W_cov = 0.00001*MatrixXd::Identity(NX,NX);
   W_cov(2,2) = 0.00;
   EigenMultivariateNormal<double> sampler(VectorXd::Zero(NX), W_cov);
 
@@ -59,17 +59,17 @@ int main()
   }
 
 
-  Vector4d purple(1.0, 0.0, 1.0, 0.4);
-  for (int s = 0; s < NUM_TEST; s++) {
-    VectorXd x = x0;   
-    for (int t = 0; t < T; t++) {
-      VectorXd xt1;
-      c.dynamics(x, U_bar[t], xt1);
-      xt1 += sampler.nextSample();
-      c.draw(xt1, purple, root); 
-      x = xt1;
-    }
-  }
+//  Vector4d purple(1.0, 0.0, 1.0, 0.4);
+//  for (int s = 0; s < NUM_TEST; s++) {
+//    VectorXd x = x0;
+//    for (int t = 0; t < T; t++) {
+//      VectorXd xt1;
+//      c.dynamics(x, U_bar[t], xt1);
+//      xt1 += sampler.nextSample();
+//      c.draw(xt1, purple, root);
+//      x = xt1;
+//    }
+//  }
 
   Vector4d red(1.0, 0.0, 0.0, 0.9); 
   render = c.draw_trajectory(X_bar, red, root);
@@ -85,7 +85,7 @@ int main()
   scp_solver(c, X_bar, U_bar, W_bar, rho_x, rho_u, x_goal, N_iter,
       opt_X, opt_U, Q, r);
 
-  cout << Q << endl;
+  //cout << Q << endl;
 
 
   TrajectoryInfo opt_traj(x0);
@@ -106,6 +106,7 @@ int main()
 		  VectorXd feedback = test_traj.Q_feedback(c);
 		  VectorXd u_policy = Q.block(t*NU, t*NX, NU, NX) * feedback + r.segment(t*NU, NU);
 		  test_traj.add_and_integrate(u_policy, W_bar[t].col(s), c);
+		  //test_traj.add_and_integrate(u_policy, sampler.nextSample(), c);
 	  }
 	  c.draw_trajectory(test_traj._X, blue, root);
   }
@@ -141,7 +142,7 @@ int main()
   root->addChild(fgeode); 
   osgViewer::Viewer viewer;
   viewer.setSceneData(root);
-  viewer.setUpViewInWindow(400, 400, 640, 480);
+  viewer.setUpViewInWindow(100, 100, 800, 800);
   return viewer.run();
 
 }
