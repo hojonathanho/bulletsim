@@ -31,6 +31,7 @@ TaskExecuter::State TaskExecuter::nextState(State s, Transition t) const {
 }
 
 TaskExecuter::Transition TaskExecuter::execState(State s) {
+  LOG_INFO("state machine: executing state " << s);
   switch (s) {
   case ST_FAILURE:
   case ST_SUCCESS:
