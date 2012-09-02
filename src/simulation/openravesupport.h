@@ -120,7 +120,7 @@ public:
 
   void setDOFValues(const vector<int> &indices, const vector<dReal> &vals);
   vector<double> getDOFValues(const vector<int> &indices);
-
+  vector<double> getDOFValues();
 
   struct Manipulator {
     RaveRobotObject *robot;

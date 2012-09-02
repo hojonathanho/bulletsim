@@ -450,6 +450,12 @@ vector<double> RaveRobotObject::getDOFValues(const vector<int>& indices) {
 	return out;
 }
 
+vector<double> RaveRobotObject::getDOFValues() {
+	vector<double> out;
+	robot->GetDOFValues(out);
+	return out;
+}
+
 EnvironmentObject::Ptr RaveObject::copy(Fork &f) const {
 	Ptr o(new RaveObject());
 
