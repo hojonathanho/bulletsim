@@ -28,33 +28,64 @@ inline void readMatrixFromFile(MatrixXd &m, const char *filename) {
   readMatrix(m, ifs);
 }
 
+
+//inline void rcov2vec_old(const MatrixXd& rcov, VectorXd& vec) {
+//  int c = 0;
+//  int n = rcov.rows();
+//  vec = VectorXd(n*(n+1)/2);
+//  for (int i = 0; i < n; i++) {
+//    for (int j = 0; j <= i; j++) {
+//      vec(c) = rcov(i,j);
+//      c += 1;
+//    }
+//  }
+//}
+//
+//inline void rvec2cov_old(const VectorXd& vec, MatrixXd& rcov) {
+//  int c = 0;
+//  int k = vec.rows();
+//  int n = (sqrt(8*k+1) - 1) / 2;
+//
+//  rcov = MatrixXd::Zero(n,n);
+//  for (int i = 0; i < n; i++) {
+//    for (int j = 0; j <= i; j++) {
+//      rcov(i,j) = vec(c);
+//      c += 1;
+//    }
+//  }
+//}
+
 //rcov is sqrt(cov) = L
 //vec is a vector representation
+// puts it into a column-based ordering
+// [x11 0; x21 x22] -> [x11; x21; x22]
 inline void rcov2vec(const MatrixXd& rcov, VectorXd& vec) {
-  int c = 0; 
+  int c = 0;
   int n = rcov.rows();
   vec = VectorXd(n*(n+1)/2);
-  for (int i = 0; i < n; i++) { 
-    for (int j = 0; j <= i; j++) {
-      vec(c) = rcov(i,j);
-      c += 1; 
+  for (int col = 0; col < n; col++) {
+    for (int row = col; row < n; row++) {
+      vec(c) = rcov(row,col);
+      c += 1;
     }
   }
 }
 
+
 inline void rvec2cov(const VectorXd& vec, MatrixXd& rcov) {
   int c = 0;
-  int k = vec.rows(); 
+  int k = vec.rows();
   int n = (sqrt(8*k+1) - 1) / 2;
 
   rcov = MatrixXd::Zero(n,n);
-  for (int i = 0; i < n; i++) { 
-    for (int j = 0; j <= i; j++) {
-      rcov(i,j) = vec(c);
+  for (int col = 0; col < n; col++) {
+    for (int row = col; row < n; row++) {
+      rcov(row,col) = vec(c);
       c += 1;
     }
-  } 
+  }
 }
+
 
 inline void build_belief_state(const VectorXd& x, const MatrixXd& rt_Sigma, VectorXd& b) {
   int n = x.rows();

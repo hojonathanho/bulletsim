@@ -531,28 +531,28 @@ void convex_gurobi_solver(const TrajectoryInfo &nominal,
 
   ind += NP; // p
 
-//
-//  for (int s = 0; s < NS; s++) {
-//	  for (int t = 0; t < T+1; t++) {
-//		  for (int i = 0; i < NX; i++) {
-//			  lb[ind + s*(T+1)*NX + t*NX + i] = samples[s]._X_lower_limit[t][i];
-//			  ub[ind + s*(T+1)*NX + t*NX + i] = samples[s]._X_upper_limit[t][i];
-//		  }
-//	  }
-//  }
-//
-//  ind += NX*NS*(T+1); // sample_x
-//
-//  for (int s = 0; s < NS; s++) {
-//	  for (int t = 0; t < T; t++) {
-//		  for (int i = 0; i < NU; i++) {
-//			  lb[ind + s*T*NU + t*N + i] = samples[s]._U_lower_limit[t][i];
-//			  ub[ind + s*T*NU + t*NU + i] = samples[s]._U_upper_limit[t][i];
-//		  }
-//	  }
-//  }
-//
-//  ind += NU*NS*T; // sample_u
+
+  for (int s = 0; s < NS; s++) {
+	  for (int t = 0; t < T+1; t++) {
+		  for (int i = 0; i < NX; i++) {
+			  lb[ind + s*(T+1)*NX + t*NX + i] = samples[s]._X_lower_limit[t][i];
+			  ub[ind + s*(T+1)*NX + t*NX + i] = samples[s]._X_upper_limit[t][i];
+		  }
+	  }
+  }
+
+  ind += NX*NS*(T+1); // sample_x
+
+  for (int s = 0; s < NS; s++) {
+	  for (int t = 0; t < T; t++) {
+		  for (int i = 0; i < NU; i++) {
+			  lb[ind + s*T*NU + t*NU + i] = samples[s]._U_lower_limit[t][i];
+			  ub[ind + s*T*NU + t*NU + i] = samples[s]._U_upper_limit[t][i];
+		  }
+	  }
+  }
+
+  ind += NU*NS*T; // sample_u
 
 
 
@@ -561,7 +561,7 @@ void convex_gurobi_solver(const TrajectoryInfo &nominal,
     constraint_sense[i] = GRB_EQUAL;
   }
   for (int i = b.rows() - NP; i < b.rows(); i++) {
-	constraint_sense[i] = GRB_GREATER_EQUAL;
+  	constraint_sense[i] = GRB_GREATER_EQUAL;
   }
 
   VectorXd opt_sol;

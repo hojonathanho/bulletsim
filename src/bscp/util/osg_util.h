@@ -9,6 +9,8 @@
 #include <osg/MatrixTransform>
 #include <osg/Depth>
 #include <osg/BlendFunc>
+#include <osg/ShapeDrawable>
+#include <osg/CullFace>
 
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
@@ -24,6 +26,8 @@ inline void init_transparency_group(osg::Group *group) {
   depth->setWriteMask( true );
   stateSet->setAttributeAndModes( depth, osg::StateAttribute::ON );
   stateSet->setMode( GL_LIGHTING, osg::StateAttribute::OFF );
+  stateSet->setAttributeAndModes(new osg::CullFace(osg::CullFace::FRONT));
+  stateSet->setAttributeAndModes(new osg::CullFace(osg::CullFace::BACK));
   osg::BlendFunc *func = new osg::BlendFunc();
   func->setFunction(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
   stateSet->setAttributeAndModes(func);

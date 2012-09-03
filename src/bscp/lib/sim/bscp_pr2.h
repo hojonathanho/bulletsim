@@ -9,6 +9,8 @@
 #include "utils/conversions.h"
 #include "utils/clock.h"
 #include "simulation/fake_gripper.h"
+#include "osg_util.h"
+#include "eigen_io_util.h"
 
 using namespace std; 
 using namespace Eigen;
@@ -87,31 +89,11 @@ class PR2_SCP : public Robot
 
       _arm_links.resize(0);
       _arm_joints.resize(0);
-      //getArmKinInfoFull(_pr2->robot, _manip->manip, _arm_links, _arm_joints, _chain_depth_of_bodies);
       getArmKinInfo(_pr2->robot,_arm_links, _arm_joints);
       for (int i = 0; i < _arm_links.size(); i++) {
       	  _bt_arm_links.push_back( _pr2->associatedObj(_arm_links[i])->rigidBody.get() );
       }
       _sync = new BulletRaveSyncer(_arm_links, _bt_arm_links);
- //     MatrixXd D; VectorXd d_bar;
- //     calc_contact_dist_approx(toEigenVectord(_pr2->getDOFValues(_active_dof_indices)), D, d_bar);
- //     cout << D << endl;
- //     cout << d_bar << endl;
-
-
-/*
-      vector<VectorXd> D_vec; vector<double> d_costs;
-      vector<btRigidBody*> rigid_bodies(0);
-      for (int i = 0; i < _arm_links.size(); i++) {
-      	  rigid_bodies.push_back( _pr2->associatedObj(_arm_links[i])->rigidBody.get() );
-      }
-      calcMultiBodyJointSpaceCollisionInfo(rigid_bodies, world, _arm_joints, _chain_depth_of_bodies, D_vec, d_costs);
-
-      for (int i = 0; i < D_vec.size(); i++) {
-
-    	  cout << D_vec[i].transpose() << endl;
-      }
-*/
 
 
       M_set = false;
@@ -119,65 +101,27 @@ class PR2_SCP : public Robot
 
     }
 
-    double x_upper_limit(const int i) { return _upper_joint_limits[i]; }
-    double x_lower_limit(const int i) { return _lower_joint_limits[i]; }
-    double u_upper_limit(const int i) { return  0.1; }
+    double x_upper_limit(const int i) {
+    	if (i < _NX) {
+    		return _upper_joint_limits[i];
+    	} else {
+    		return 1e20;
+    	}
+    }
+    double x_lower_limit(const int i) {
+    	if (i < _NX) {
+    		return _lower_joint_limits[i];
+    	} else {
+    		return -1e20;
+    	}
+    }
+    double u_upper_limit(const int i) { return   0.1; }
     double u_lower_limit(const int i) { return  -0.1; }
 
     vector<btRigidBody*> get_bullet_links() { return _bt_arm_links; }
     vector<KinBody::LinkPtr> get_OpenRAVE_links() { return _arm_links; }
 
-/*
-    void getArmKinInfoFull(const RobotBasePtr& robot, const RobotBase::ManipulatorPtr manip, std::vector<KinBody::LinkPtr>& armLinks, std::vector<KinBody::JointPtr>& armJoints, std::vector<int>& chainDepthOfBodies) {
-      int rootLinkInd               = robot->GetLink("torso_lift_link")->GetIndex();
-      BOOST_FOREACH(int ind, manip->GetArmIndices()) armJoints.push_back(robot->GetJointFromDOFIndex(ind));
-      KinBody::JointPtr& firstJoint = armJoints[0];
-
-      BOOST_FOREACH(KinBody::LinkPtr link, robot->GetLinks()) {
-        vector<KinBody::JointPtr> jointChain;
-        robot->GetChain(rootLinkInd, link->GetIndex(), jointChain);
-        if (link->GetGeometries().size() && count(jointChain.begin(), jointChain.end(), firstJoint)) armLinks.push_back(link);
-      }
-
-      int nLinks                    = armLinks.size();
-
-      chainDepthOfBodies            = vector<int>(nLinks,0);
-      for (int iLink                = 0; iLink < armLinks.size(); ++iLink) {
-        int linkInd                 = armLinks[iLink]->GetIndex();
-        vector<KinBody::JointPtr> jointChain;
-        robot->GetChain(rootLinkInd, armLinks[iLink]->GetIndex(), jointChain);
-        BOOST_FOREACH(KinBody::JointPtr& joint0, armJoints) {
-          BOOST_FOREACH(KinBody::JointPtr& joint1, jointChain) {
-            if (joint0 == joint1) chainDepthOfBodies[iLink]++;
-          }
-        }
-      }
-    }
-*/
-
-/*
-    void calcMultiBodyJointSpaceCollisionInfo(const std::vector<btRigidBody*>& bodies, btCollisionWorld* world, const vector<KinBody::JointPtr>& jointsInChain, const vector<int>& chainDepthOfBodies, std::vector<Eigen::VectorXd>& collJacs, std::vector<
-        double>& collDists) {
-      int nJoints = jointsInChain.size();
-
-      for (int iBody = 0; iBody < bodies.size(); ++iBody) {
-        std::vector<double> dists;
-        std::vector<btVector3> normals, points;
-        calcCollisionInfo(bodies[iBody], world, points, normals, dists);
-        for (int iColl = 0; iColl < dists.size(); ++iColl) {
-          VectorXd collJac(nJoints);
-          for (int iJoint = 0; iJoint < chainDepthOfBodies[iBody]; ++iJoint) {
-            const KinBody::JointPtr& joint = jointsInChain[iJoint];
-            collJac(iJoint) = (points[iColl] - util::toBtVector(joint->GetAnchor())) .cross(util::toBtVector(jointsInChain[iJoint]->GetAxis())) .dot(normals[iColl]);
-            // note: there's also an openrave function in KinBody to calculate jacobian that is more general
-          }
-          collJacs.push_back(collJac);
-          collDists.push_back(dists[iColl]);
-        }
-      }
-    }*/
-
-    void p(const VectorXd& x_bar, VectorXd &p) {
+    void penetration(const VectorXd& x_bar, VectorXd &p) {
     	//vector<double> currentDOF = _pr2->getDOFValues(_active_dof_indices);
     	_pr2->robot->SetDOFValues(toVec(x_bar), 1, _active_dof_indices); // does NOT update Bullet
     	_sync->updateBullet(); // explicitly update bullet
@@ -206,31 +150,64 @@ class PR2_SCP : public Robot
         //_pr2->setDOFValues(_active_dof_indices, currentDOF);
     }
 
-	void dpdx_numerical(const VectorXd& x_bar, MatrixXd& D, VectorXd& d_bar) {
-		int NX = x_bar.rows();
-		D = MatrixXd::Zero(_arm_links.size(), NX);
-		for (int i = 0; i < NX; i++) {
-			VectorXd eps_vec = VectorXd::Zero(NX);
+    void dfdx(const VectorXd &x, const VectorXd &u, MatrixXd &A) {
+    	A = MatrixXd::Identity(_NX, _NX);
+    }
+    void dfdu(const VectorXd &x, const VectorXd &u, MatrixXd &B) {
+    	B = MatrixXd::Identity(_NX, _NX);
+    }
+
+    void dbdu(const VectorXd &b, const VectorXd &u, MatrixXd &B) {
+    	B = MatrixXd::Zero(_NB, _NX);
+    	B.block(0,0,_NX,_NX) = MatrixXd::Identity(_NX, _NX);
+    }
+
+    void dbdb(const VectorXd &b, const VectorXd& u, MatrixXd& A) {
+    	A = MatrixXd::Zero(_NB, _NB);
+		for (int i = 0; i < _NX; i++) {
+			VectorXd eps_vec = VectorXd::Zero(_NB);
 			eps_vec(i) = _eps;
-			VectorXd x_pos = x_bar + eps_vec;
-			VectorXd x_neg = x_bar - eps_vec;
-			VectorXd px_pos(NX);
-			VectorXd px_neg(NX);
-			p(x_pos, px_pos);
-			p(x_neg, px_neg);
-			D.col(i) = (px_pos - px_neg) / (2 * _eps);
+			VectorXd b_pos = b + eps_vec;
+			VectorXd b_neg = b - eps_vec;
+			VectorXd bb_pos(_NB); VectorXd bb_neg(_NB);
+			belief_dynamics(b_pos, u, bb_pos);
+			belief_dynamics(b_neg, u, bb_neg);
+			A.col(i) = (bb_pos - bb_neg) / (2 * _eps);
 		}
-		p(x_bar, d_bar);
-		d_bar = d_bar - D * x_bar;
+
+		VectorXd x; MatrixXd rt_Sigma;
+		parse_belief_state(b, x, rt_Sigma);
+		MatrixXd A_x; MatrixXd H_x;
+		dfdx(x, u, A_x);
+		dgdx(x, H_x);
+
+		for (int i = _NX; i < _NB; i++) {
+			VectorXd eps_vec = VectorXd::Zero(_NB);
+			eps_vec(i) = _eps;
+			VectorXd b_pos = b + eps_vec;
+			VectorXd b_neg = b - eps_vec;
+			VectorXd bb_pos(_NB); VectorXd bb_neg(_NB);
+			belief_dynamics_fixed_model(b_pos, u, A_x, H_x, bb_pos);
+			belief_dynamics_fixed_model(b_neg, u, A_x, H_x, bb_neg);
+			A.col(i) = (bb_pos - bb_neg) / (2 * _eps);
+		}
+
+
+    }
+
+    void dpdx(const VectorXd& x, MatrixXd& D) {
+    	VectorXd d_offset;
+    	dp_analytical(x, D, d_offset);
+    }
+
+
+	void dp(const VectorXd& x_bar, MatrixXd& D, VectorXd& d_offset) {
+		dp_analytical(x_bar, D, d_offset);
 	}
 
-	void dpdx(const VectorXd& x_bar, MatrixXd& D, VectorXd& d_bar) {
-		dpdx_analytical(x_bar, D, d_bar);
-	}
-
-    void dpdx_analytical(const VectorXd& x_bar, MatrixXd& D, VectorXd& d_bar) {
+    void dp_analytical(const VectorXd& x_bar, MatrixXd& D, VectorXd& d_bar) {
     	//returns d(x) \approx Dx + d_bar; d_bar = d(x_bar) - Dx_bar;
-    	vector<double> currentDOF = _pr2->getDOFValues(_active_dof_indices);
+    	//vector<double> currentDOF = _pr2->getDOFValues(_active_dof_indices);
     	_pr2->setDOFValues(_active_dof_indices, toVec(x_bar)); //updates Bullet
 
     	/*double max_dist = 0.0;
@@ -352,7 +329,7 @@ class PR2_SCP : public Robot
         }
         */
 
-        _pr2->setDOFValues(_active_dof_indices, currentDOF);
+        //_pr2->setDOFValues(_active_dof_indices, currentDOF);
     }
 
     void getArmKinInfo(const RobotBasePtr& robot, std::vector<KinBody::LinkPtr>& armLinks, std::vector<KinBody::JointPtr>& armJoints) {
@@ -379,7 +356,7 @@ class PR2_SCP : public Robot
       normals.resize(nColl);
       dists.resize(nColl);
 
-      for (int iColl = 0; iColl < nColl; iColl++) { 
+      for (int iColl = 0; iColl < nColl; iColl++) {
         Collision &collision = collisionCollector.m_collisions[iColl];
         points[iColl] = (collision.m_obj0 == body) ? collision.m_world0 : collision.m_world1;
         normals[iColl] = (collision.m_obj0 == body) ? collision.m_normal : -collision.m_normal;
@@ -389,10 +366,10 @@ class PR2_SCP : public Robot
 
 
     void dynamics(const VectorXd &x, const VectorXd &u, VectorXd &fxu) {
-      fxu = x + u; 
-      for (int i = 0; i < _NX; i++) { 
+      fxu = x + u;
+      for (int i = 0; i < _NX; i++) {
         if (fxu[i] < _lower_joint_limits[i]) fxu[i] = _lower_joint_limits[i];
-        if (fxu[i] > _upper_joint_limits[i]) fxu[i] = _upper_joint_limits[i]; 
+        if (fxu[i] > _upper_joint_limits[i]) fxu[i] = _upper_joint_limits[i];
       }
     }
 
@@ -423,6 +400,34 @@ class PR2_SCP : public Robot
 
     osg::Node* draw_belief(VectorXd b, Vector4d mean_color, Vector4d ellipsoid_color, osg::Group* parent, double z_offset=0) { 
       return NULL;
+    }
+
+    Vector3d xyz(const VectorXd& x) {
+       	//vector<double> currentDOF = _pr2->getDOFValues(_active_dof_indices);
+        _pr2->robot->SetDOFValues(toVec(x), 1, _active_dof_indices);
+        btTransform manip_transform = _manip->getTransform();
+        Affine3f eig_transform = toEigenTransform(manip_transform);
+        Vector3f ret_f = eig_transform.translation();
+        Vector3d ret = Vector3d(ret_f(0), ret_f(1), ret_f(2));
+        //_pr2->robot->SetDOFValues(currentDOF, 1, _active_dof_indices);
+        return ret;
+    }
+
+    void dxyz(const VectorXd& x, MatrixXd& Jxyz) {
+       	//vector<double> currentDOF = _pr2->getDOFValues(_active_dof_indices);
+        _pr2->robot->SetDOFValues(toVec(x), 1, _active_dof_indices);
+    	vector<double> jac_v;
+    	Vector3d current_point = xyz(x);
+		RaveVector<double> p = util::toRaveVector(btVector3(current_point(0), current_point(1), current_point(2)));
+		_pr2->robot->CalculateActiveJacobian(_manip->manip->GetEndEffector()->GetIndex(),
+				p, jac_v);
+		Jxyz = MatrixXd::Zero(3, x.rows());
+		for (int r = 0; r < 3; r++) {
+			for (int c = 0; c < x.rows(); c++) {
+				Jxyz(r, c) = jac_v[r * x.rows() + c];
+			}
+		}
+       // _pr2->robot->SetDOFValues(currentDOF, 1, _active_dof_indices);
     }
 };
 
@@ -463,15 +468,30 @@ public:
 	   }
 	   m_pr2->_pr2->setDOFValues(m_pr2->_active_dof_indices, curDOFVals); // updates Bullet
 
-
 	   //m_scene->step(0); //this seems to be evil?
-
-
   }
 
-  //void init(RaveRobotObject::Manipulator::Ptr, const std::vector<BulletObject::Ptr>&, Scene*, BulletRaveSyncher*, int decimation);
-  //void setLength(int n);
-  //void clear() {setLength(0);}
+  void draw_belief_trajectory(vector<VectorXd> &traj, const Vector4d& mean_color,
+		  const Vector4d& cov_color, osg::Group* parent) {
+
+	  int T = traj.size();
+	  vector<VectorXd> mean(T);
+	  vector<MatrixXd> rt_cov(T);
+	  for (int t = 0; t < T; t++) {
+		  parse_belief_state(traj[t], mean[t], rt_cov[t]);
+	  }
+	  draw_trajectory(mean, mean_color);
+
+	  for (int t = 0; t < T; t++) {
+		  Vector3d pos_x;
+		  Matrix3d cov_x;
+		  m_pr2->unscented_transform_xyz(mean[t], rt_cov[t]*rt_cov[t].transpose(),
+				  pos_x, cov_x);
+		  parent->addChild(drawEllipsoid(pos_x,cov_x,cov_color));
+	  }
+  }
+
+
 };
 
 

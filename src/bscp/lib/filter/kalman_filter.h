@@ -7,6 +7,35 @@
 using namespace Eigen; 
 using namespace std; 
 
+inline void ekf_update_fixed_model(Robot& r, const VectorXd& x_t, const VectorXd& u_t, const MatrixXd& rt_Sigma_t, const VectorXd& z_t1,
+		const MatrixXd& A_t, const MatrixXd& H_t, const MatrixXd& M_t, const MatrixXd& N_t,
+		VectorXd& x_t1, MatrixXd& rt_Sigma_t1, const bool RECV_OBSERVATION) {
+
+	  MatrixXd ARtSigma = A_t*rt_Sigma_t;
+	  MatrixXd Gamma = ARtSigma * ARtSigma.transpose() + M_t * M_t.transpose();
+
+	  MatrixXd HGamma = H_t*Gamma;
+
+	  MatrixXd A_K = (HGamma*H_t.transpose() + N_t*N_t.transpose());
+	  PartialPivLU<MatrixXd> solver(A_K);
+	  MatrixXd K_transpose = solver.solve(HGamma);
+	  MatrixXd K = K_transpose.transpose();
+
+	  r.dynamics(x_t, u_t, x_t1);
+	  if (RECV_OBSERVATION) {
+	    VectorXd exp_obs;
+	    r.observe(x_t1, exp_obs);
+	    x_t1 += K*(z_t1 - exp_obs);
+	  }
+
+	  MatrixXd Sigma_t1 = Gamma - K*H_t*Gamma;
+	  LLT<MatrixXd> lltSigma_t1(Sigma_t1);
+	  rt_Sigma_t1 = lltSigma_t1.matrixL();
+
+
+}
+
+
 /* 
  * Square root Kalman filter
  * Robot r for dynamics and jacobians
@@ -33,31 +62,35 @@ inline void ekf_update(Robot& r, const VectorXd& x_t, const VectorXd& u_t, const
 
   r.dfdx(x_t,u_t,A);
   r.dgdx(x_t,H);
-
-  MatrixXd ARtSigma = A*rt_Sigma_t; 
-  MatrixXd Gamma = ARtSigma * ARtSigma.transpose() + M_t * M_t.transpose();
   
-  MatrixXd HGamma = H*Gamma; 
+  ekf_update_fixed_model(r, x_t, u_t, rt_Sigma_t, z_t1, A, H, M_t, N_t, x_t1, rt_Sigma_t1, RECV_OBSERVATION);
 
-  MatrixXd A_K = (HGamma*H.transpose() + N_t*N_t.transpose());
-  PartialPivLU<MatrixXd> solver(A_K); 
-  MatrixXd K_transpose = solver.solve(HGamma);
-  MatrixXd K = K_transpose.transpose();
+//  MatrixXd ARtSigma = A*rt_Sigma_t;
+//  MatrixXd Gamma = ARtSigma * ARtSigma.transpose() + M_t * M_t.transpose();
+//
+//  MatrixXd HGamma = H*Gamma;
+//
+//  MatrixXd A_K = (HGamma*H.transpose() + N_t*N_t.transpose());
+//  PartialPivLU<MatrixXd> solver(A_K);
+//  MatrixXd K_transpose = solver.solve(HGamma);
+//  MatrixXd K = K_transpose.transpose();
+//
+//  r.dynamics(x_t, u_t, x_t1);
+//  if (RECV_OBSERVATION) {
+//    VectorXd exp_obs;
+//    r.observe(x_t1, exp_obs);
+//    x_t1 += K*(z_t1 - exp_obs);
+//  }
+//
+//  MatrixXd Sigma_t1 = Gamma - K*H*Gamma;
+//  LLT<MatrixXd> lltSigma_t1(Sigma_t1);
+//  rt_Sigma_t1 = lltSigma_t1.matrixL();
 
-  r.dynamics(x_t, u_t, x_t1);
-  if (RECV_OBSERVATION) {
-    VectorXd exp_obs;
-    r.observe(x_t1, exp_obs); 
-    x_t1 += K*(z_t1 - exp_obs);  
-  }
-
-  MatrixXd Sigma_t1 = Gamma - K*H*Gamma;
-  LLT<MatrixXd> lltSigma_t1(Sigma_t1);
-  rt_Sigma_t1 = lltSigma_t1.matrixL();
-  //cout << "Sigma_t1" << endl; 
-  //cout << Sigma_t1 << endl;
 
 }
+
+
+
 
 //wrapper for above only considering covariance
 inline void ekf_cov_update(Robot &r, const VectorXd& x_t, const VectorXd& u_t, const MatrixXd& rt_Sigma_t, const MatrixXd& M_t, const MatrixXd& N_t, MatrixXd& rt_Sigma_t1) {

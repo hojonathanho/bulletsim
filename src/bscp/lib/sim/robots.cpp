@@ -28,15 +28,16 @@ void Robot::observe(const VectorXd& x, VectorXd& z) {
   int num_recv = 0; 
   for (int i = 0; i < sensors.size(); i++) {
     VectorXd z_i;
-    sensors[i]->observe(sensor_fns[i](x), z_i);
+    sensors[i]->observe(sensor_fns[i](*this, x), z_i);
     z.segment(num_recv, z_i.rows()) = z_i;
     num_recv += z_i.rows();
   }
 }
 
-void Robot::attach_sensor(Sensor* sensor, SensorFunc f) {
+void Robot::attach_sensor(Sensor* sensor, SensorFunc g_i, SensorFuncJacobian dg_i) {
   sensors.push_back(sensor);
-  sensor_fns.push_back(f);
+  sensor_fns.push_back(g_i);
+  sensor_fns_jac.push_back(dg_i);
   _NZ += sensor->NZ(); 
 }
 
@@ -54,6 +55,23 @@ void Robot::belief_dynamics(const VectorXd& b, const VectorXd& u, VectorXd& bt1)
       x_t1, rt_Sigma_t1, false);
 
   build_belief_state(x_t1, rt_Sigma_t1, bt1);
+
+}
+
+void Robot::belief_dynamics_fixed_model(const VectorXd& b, const VectorXd& u, const MatrixXd& A, const MatrixXd& C, VectorXd& bt1) {
+	VectorXd x; MatrixXd rt_Sigma;
+	parse_belief_state(b, x, rt_Sigma);
+
+	MatrixXd M_t, N_t;
+	M(x, M_t);
+	N(x, N_t);
+
+	VectorXd x_t1;
+	MatrixXd rt_Sigma_t1;
+	ekf_update_fixed_model(*this, x, u, rt_Sigma, VectorXd::Zero(0), A, C, M_t, N_t, x_t1,
+			rt_Sigma_t1, false);
+
+	build_belief_state(x_t1, rt_Sigma_t1, bt1);
 
 }
 
@@ -122,50 +140,194 @@ void Robot::df_trajectory(const vector<VectorXd>& X_bar, const vector<VectorXd>&
     As[t] = A; Bs[t] = B; Cs[t] = C; 
   }
 }
+
+void Robot::dpdx(const VectorXd& x, MatrixXd& P){
+	VectorXd px;
+	penetration(x, px);
+	P = MatrixXd::Zero(px.rows(), _NX);
+	for (int i = 0; i < _NX; i++) {
+		VectorXd eps_vec = VectorXd::Zero(_NX);
+		eps_vec(i) = _eps;
+		VectorXd x_pos = x + eps_vec;
+		VectorXd x_neg = x - eps_vec;
+		VectorXd px_pos(_NX);
+		VectorXd px_neg(_NX);
+		penetration(x_pos, px_pos);
+		penetration(x_neg, px_neg);
+		P.col(i) = (px_pos - px_neg) / (2 * _eps);
+	}
+}
+
+void Robot::dp(const VectorXd& x, MatrixXd& P, VectorXd& p_offset) {
+	dpdx(x,P);
+	penetration(x,p_offset);
+	p_offset = p_offset - P*x;
+}
+
 void Robot::dp_trajectory(const vector<VectorXd>& X_bar, vector<MatrixXd>& Ps, vector<VectorXd>& p_offsets) {
 
   int T = X_bar.size();
   Ps.resize(T); p_offsets.resize(T);
   for (int t = 0; t < T; t++) {
     MatrixXd P; VectorXd p_offset;
-    dpdx(X_bar[t], P, p_offset);
+    dp(X_bar[t], P, p_offset);
     Ps[t] = P; p_offsets[t] = p_offset;
   }
 }
 
+
+void Robot::bpenetration(const VectorXd& b, VectorXd& p) {
+	VectorXd mu_x; MatrixXd rt_cov_x;
+	parse_belief_state(b, mu_x, rt_cov_x);
+
+	vector<VectorXd> pos_samples(_NX), neg_samples(_NX);
+	for (int i = 0 ; i < _NX; i++) {
+		pos_samples[i] = mu_x + rt_cov_x.col(i);
+		neg_samples[i] = mu_x - rt_cov_x.col(i);
+	}
+
+	vector<VectorXd> pos_transform(_NX), neg_transform(_NX);
+	for (int i = 0; i < _NX; i++) {
+		penetration(pos_samples[i], pos_transform[i]);
+		penetration(neg_samples[i], neg_transform[i]);
+	}
+
+	p = VectorXd::Zero(pos_transform[0].rows());
+	for (int i = 0; i < _NX; i++ ) {
+		p += pos_transform[i];
+		p += neg_transform[i];
+	}
+
+	p /= (_NX*2.0);
+}
+
+//void Robot::dbpdx(const VectorXd &b, MatrixXd& P) {
+//	VectorXd mu_x; MatrixXd rt_Sigma_x;
+//	parse_belief_state(b, mu_x, rt_Sigma_x);
+//	VectorXd px;
+//	penetration(mu_x, px);
+//	P = MatrixXd::Zero(px.rows(), _NB);
+//	for (int i = 0; i < _NB; i++) {
+//		VectorXd eps_vec = VectorXd::Zero(_NB);
+//		eps_vec(i) = _eps;
+//		VectorXd b_pos = b + eps_vec;
+//		VectorXd b_neg = b - eps_vec;
+//		VectorXd pb_pos(_NB);
+//		VectorXd pb_neg(_NB);
+//		bpenetration(b_pos, pb_pos);
+//		bpenetration(b_neg, pb_neg);
+//		P.col(i) = (pb_pos - pb_neg) / (2 * _eps);
+//	}
+//}
+
+void Robot::dbpdx(const VectorXd &b, MatrixXd& P) {
+	VectorXd mu_x; MatrixXd rt_cov_x;
+	parse_belief_state(b, mu_x, rt_cov_x);
+
+	vector<VectorXd> pos_samples(_NX), neg_samples(_NX);
+	for (int i = 0 ; i < _NX; i++) {
+		pos_samples[i] = mu_x + rt_cov_x.col(i);
+		neg_samples[i] = mu_x - rt_cov_x.col(i);
+	}
+	vector<MatrixXd> pos_transform(_NX), neg_transform(_NX);
+	for (int i = 0; i < _NX; i++) {
+		dpdx(pos_samples[i], pos_transform[i]);
+		dpdx(neg_samples[i], neg_transform[i]);
+	}
+
+	P = MatrixXd::Zero(pos_transform[0].rows(), _NB);
+
+	int ind = 0;
+
+	for (int i = 0; i < _NX; i++) {
+		MatrixXd P_sub = MatrixXd::Zero(pos_transform[i].rows(), pos_transform[i].cols());
+		P_sub += pos_transform[i];
+		P_sub -= neg_transform[i];
+		P_sub /= (_NX * 2.0);
+		P.block(0,_NX+ind, P_sub.rows(), _NX - i) = P_sub.block(0,i,P_sub.rows(), _NX-i);
+		ind += _NX - i;
+	}
+
+	MatrixXd P_sub = MatrixXd::Zero(pos_transform[0].rows(), _NX);
+	for (int i = 0; i < _NX; i++) {
+		P_sub += pos_transform[i];
+		P_sub += neg_transform[i];
+	}
+	P_sub /= (_NX * 2.0);
+	P.block(0,0,P_sub.rows(), _NX) = P_sub;
+
+}
+
+void Robot::dbp(const VectorXd& b, MatrixXd& P, VectorXd& p_offset) {
+	dbpdx(b,P);
+	bpenetration(b,p_offset);
+	p_offset = p_offset - P*b;
+}
+
+
 void Robot::dbp_trajectory(const vector<VectorXd>& B_bar, vector<MatrixXd>& Ps, vector<VectorXd>& p_offsets) {
 	int T = B_bar.size();
-	int NB = B_bar[0].rows();
-	Ps.resize(T); p_offsets.resize(T);
-	MatrixXd Ps_tmp = MatrixXd::Zero(0, NB);
-	VectorXd p_offsets_tmp = VectorXd::Zero(0);
+	Ps.resize(T);
+	p_offsets.resize(T);
 	for (int t = 0; t < T; t++) {
-		Ps[t] = Ps_tmp;
-		p_offsets[t] = p_offsets_tmp;
+		MatrixXd P; VectorXd p_offset;
+		dbp(B_bar[t], P, p_offset);
+		Ps[t] = P;
+		p_offsets[t] = p_offset;
 	}
 }
 
 
-void Robot::dgdx(const VectorXd& x, MatrixXd& C) {
-  C = MatrixXd::Zero(_NZ, _NX);
-  for (int i = 0; i < _NX; i++) {
-    VectorXd eps_vec = VectorXd::Zero(_NX);
-    eps_vec(i) = _eps;
-    VectorXd x_pos = x + eps_vec;
-    VectorXd x_neg = x - eps_vec;
-    VectorXd gx_pos(_NX); VectorXd gx_neg(_NX); 
-    observe(x_pos, gx_pos);
-    observe(x_neg, gx_neg);
-    C.col(i) = (gx_pos - gx_neg) / (2*_eps); 
-  }
-}
+//void Robot::dgdx(const VectorXd& x, MatrixXd& C) {
+//  C = MatrixXd::Zero(_NZ, _NX);
+//  for (int i = 0; i < _NX; i++) {
+//    VectorXd eps_vec = VectorXd::Zero(_NX);
+//    eps_vec(i) = _eps;
+//    VectorXd x_pos = x + eps_vec;
+//    VectorXd x_neg = x - eps_vec;
+//    VectorXd gx_pos(_NX); VectorXd gx_neg(_NX);
+//    observe(x_pos, gx_pos);
+//    observe(x_neg, gx_neg);
+//    C.col(i) = (gx_pos - gx_neg) / (2*_eps);
+//  }
+//}
 
 void Robot::dg(const VectorXd& x, MatrixXd& C, VectorXd& d){
   // approximates g(x) = Cx + d where d = g(xb)-C*xb
   // xb is the linearization point
-  dgdx(x,C); 
+  dgdx(x,C);
   observe(x, d);
   d = d - C*x; 
+}
+
+void Robot::dgdx(const VectorXd& x, MatrixXd& C) {
+	C = MatrixXd::Zero(_NZ, _NX);
+	int num_recv = 0;
+	for (int i = 0; i < sensors.size(); i++) {
+		MatrixXd T;
+		if (sensor_fns_jac[i] == NULL) {
+			dtdx(x, sensor_fns[i], T);
+		} else {
+			T = sensor_fns_jac[i](*this, x);
+		}
+		MatrixXd G_i;
+		sensors[i]->dgdx(sensor_fns[i](*this, x), _eps, G_i);
+		C.block(num_recv,0,G_i.rows(),_NX) = G_i * T;
+	}
+}
+
+void Robot::dtdx(const VectorXd &x, SensorFunc& f, MatrixXd& T) {
+	int NT = f(*this, x).rows();
+	T = MatrixXd::Zero(NT, _NX);
+	for (int i = 0; i < _NX; i++) {
+		VectorXd eps_vec = VectorXd::Zero(_NX);
+		eps_vec(i) = _eps;
+		VectorXd x_pos = x + eps_vec;
+		VectorXd x_neg = x - eps_vec;
+		VectorXd t_pos = f(*this, x_pos);
+		VectorXd t_neg = f(*this, x_neg);
+		T.col(i) = (t_pos - t_neg) / (2 * _eps);
+	}
 }
 
 void Robot::dbdb(const VectorXd &b, const VectorXd &u, MatrixXd &A) {
@@ -217,6 +379,20 @@ void Robot::db_trajectory(const vector<VectorXd>& B_bar, const vector<VectorXd>&
   }
 }
 
+void Robot::dxyz(const VectorXd & x, MatrixXd& Jxyz) {
+	Jxyz = MatrixXd::Zero(3, _NX);
+	for (int i = 0; i < _NX; i++) {
+		VectorXd eps_vec = VectorXd::Zero(_NX);
+		eps_vec(i) = _eps;
+		VectorXd x_pos = x + eps_vec;
+		VectorXd x_neg = x - eps_vec;
+		VectorXd xyz_pos = xyz(x_pos);
+		VectorXd xyz_neg = xyz(x_neg);
+		Jxyz.col(i) = (xyz_pos - xyz_neg) / (2 * _eps);
+	}
+}
+
+
 vector<osg::Node*> Robot::draw_trajectory(vector<VectorXd> &traj_x, Vector4d color, osg::Group* parent) {
   int T = traj_x.size();
   vector<osg::Node*> render;
@@ -235,5 +411,45 @@ vector<osg::Node*> Robot::draw_belief_trajectory(vector<VectorXd> &traj_b, Vecto
     render.push_back(draw_belief(traj_b[t], mean_color, ellipsoid_color, parent, z_offset));
   }
   return render;
+}
+
+void Robot::unscented_transform_xyz(const VectorXd& mu_x, const MatrixXd& cov_x,
+		   Vector3d& mu_y, Matrix3d& Sigma_y) {
+	int NX = mu_x.rows();
+	int NY = 3;
+	double L = NX;
+	double h = 3.0 - L;
+	LLT<MatrixXd> lltOfCovX((L+h) * cov_x);
+	MatrixXd sqrt_mat = lltOfCovX.matrixL();
+	vector<VectorXd> pos_samples(L), neg_samples(L);
+	vector<double> weights(L);
+	for (int i =0 ; i < L; i++) {
+		pos_samples[i] = mu_x + sqrt_mat.col(i);
+		neg_samples[i] = mu_x - sqrt_mat.col(i);
+		weights[i] = 1.0 / (2.0 * (L + h));
+	}
+
+	vector<Vector3d> pos_transform(L), neg_transform(L);
+	for (int i = 0; i < L; i++) {
+		pos_transform[i] = xyz(pos_samples[i]);
+		neg_transform[i] = xyz(neg_samples[i]);
+	}
+
+	mu_y = (h / (L + h)) * xyz(mu_x);
+	for (int i = 0; i < L; i++ ) {
+		mu_y += weights[i] * pos_transform[i];
+		mu_y += weights[i] * neg_transform[i];
+	}
+
+	Sigma_y = 2.0 * (xyz(mu_x) - mu_y) * ((xyz(mu_x) - mu_y).transpose());
+
+	for (int i = 0; i < L; i++) {
+		Vector3d diff_pos = pos_transform[i] - mu_y;
+		Vector3d diff_neg = neg_transform[i] - mu_y;
+		Sigma_y += weights[i] * diff_pos * diff_pos.transpose();
+		Sigma_y += weights[i] * diff_neg * diff_neg.transpose();
+	}
+
+
 }
 

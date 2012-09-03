@@ -22,7 +22,12 @@ add_executable(gurobi_demo gurobi_demo.cpp)
 target_link_libraries(gurobi_demo ${GUROBI_LIBRARIES})
 
 find_package(Boost REQUIRED COMPONENTS program_options system exception prg_exec_monitor filesystem signals)
-message(${Boost_LIBRARIES})
 
 add_executable(pr2_demo pr2_demo.cpp)
 target_link_libraries(pr2_demo opt scp_robots simulation robots ${BULLET_LIBS} ${OpenRAVE_LIBRARIES} ${Boost_LIBRARIES})
+
+add_executable(pr2_ekf pr2_ekf.cpp)
+target_link_libraries(pr2_ekf opt scp_robots simulation robots ${BULLET_LIBS} ${OpenRAVE_LIBRARIES} ${Boost_LIBRARIES})
+
+add_executable(pr2_beacons pr2_beacons.cpp)
+target_link_libraries(pr2_beacons opt scp_robots simulation robots ${BULLET_LIBS} ${OpenRAVE_LIBRARIES} ${Boost_LIBRARIES})

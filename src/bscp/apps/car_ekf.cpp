@@ -17,15 +17,11 @@
 #include <stdio.h>
 #include "kalman_filter.h"
 #include "timer.h"
+#include "sensor_functions.h"
+
 
 using namespace Eigen;
 using namespace std;
-//#include "sensor_functions.h"
-VectorXd testin(const VectorXd& r) {
-  return r.segment(0,2);  
-}
-
-//typedef VectorXd (*SensorFunc2)(const VectorXd&);
 
 int main()
 {
@@ -61,19 +57,19 @@ int main()
   Vector2d beacon_1_pos(-0.2,0.3); 
   BeaconSensor s1(beacon_1_pos);
   s1.draw(beacon_1_pos, brown, traj_group);
-  SensorFunc s1_f = &CarBeaconFunc;
+  Robot::SensorFunc s1_f = &CarBeaconFunc;
   c.attach_sensor(&s1, s1_f);
 
   Vector2d beacon_2_pos(0.2,0.1); 
   BeaconSensor s2(beacon_2_pos);
   s2.draw(beacon_2_pos, brown, traj_group);
-  SensorFunc s2_f = &CarBeaconFunc;
+  Robot::SensorFunc s2_f = &CarBeaconFunc;
   c.attach_sensor(&s2, s2_f);
 
   Vector2d beacon_3_pos(-0.3,0.1); 
   BeaconSensor s3(beacon_3_pos);
   s3.draw(beacon_3_pos, brown, traj_group);
-  SensorFunc s3_f = &CarBeaconFunc;
+  Robot::SensorFunc s3_f = &CarBeaconFunc;
   c.attach_sensor(&s3, s3_f);
 
   //initilaize the initial distributions and noise models

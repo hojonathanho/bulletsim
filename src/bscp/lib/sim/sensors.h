@@ -9,8 +9,6 @@
 using namespace std; 
 using namespace Eigen;
 
-typedef VectorXd (*SensorFunc)(const VectorXd&);
-
 
 class Sensor { 
   public:
@@ -26,15 +24,29 @@ class Sensor {
    int NZ() { 
      return _NZ;
    }
-   // x = sensor_state(robot_state); ,  z = g(x) 
+   // x = sensor_state(robot_state); , z = g(x)
    virtual void observe(const VectorXd &x, VectorXd &z) = 0;
    
+   // x = sensor_state(robot_state); C = \partial g
+   // this is for an use in a chain rule; implementing classes may (should) override with an analytical version
+   virtual void dgdx(const VectorXd& x, double eps, MatrixXd& C) {
+	   int NX = x.rows();
+	   C = MatrixXd::Zero(_NZ, NX);
+	   for (int i = 0; i < NX; i++) {
+	     VectorXd eps_vec = VectorXd::Zero(NX);
+	     eps_vec(i) = eps;
+	     VectorXd x_pos = x + eps_vec;
+	     VectorXd x_neg = x - eps_vec;
+	     VectorXd gx_pos(NX); VectorXd gx_neg(NX);
+	     observe(x_pos, gx_pos);
+	     observe(x_neg, gx_neg);
+	     C.col(i) = (gx_pos - gx_neg) / (2*eps);
+	   }
+   }
+
    virtual osg::Node* draw(const MatrixXd& sensor_state, const Vector4d& color, osg::Group *parent) =0;
 
 };
-
-
-VectorXd CarBeaconFunc(const VectorXd& x);
 
 
 #endif

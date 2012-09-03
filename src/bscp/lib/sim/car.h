@@ -71,16 +71,20 @@ class Car : public Robot
       */
     }
 
-    double x_upper_limit(const int index){ return  1e20; }
+    double x_upper_limit(const int index){ return  1e20; } //if you set this, beaware of belief space
     double x_lower_limit(const int index){ return -1e20; }
     double u_upper_limit(const int index){ return  1e20; }
     double u_lower_limit(const int index){ return -1e20; }
 
-    void dpdx(const VectorXd &x, MatrixXd& P, VectorXd& p_offset){
-    	// no collisions right now, so:
-    	P = MatrixXd::Zero(0,_NX);
-    	p_offset = VectorXd::Zero(0);
+    void penetration(const VectorXd &x, VectorXd& p) {
+    	p = VectorXd::Zero(0);
     }
+
+//    void dpdx(const VectorXd &x, MatrixXd& P, VectorXd& p_offset){
+//    	// no collisions right now, so:
+//    	P = MatrixXd::Zero(0,_NX);
+//    	p_offset = VectorXd::Zero(0);
+//    }
 
     void M(const VectorXd& x, MatrixXd& M) {
      assert(M_set == true);
@@ -101,6 +105,12 @@ class Car : public Robot
      _N = N;
      N_set = true;
     }
+
+    Vector3d xyz(const VectorXd& x) {
+    	Vector3d ret(x(0), x(1), 0);
+    	return ret;
+    }
+
 
     osg::Node* draw(VectorXd x, Vector4d color, osg::Group* parent) {
 

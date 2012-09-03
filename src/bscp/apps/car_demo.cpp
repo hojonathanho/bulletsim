@@ -26,11 +26,11 @@ int main()
   vector<osg::Node*> render;
 
   // intialize the robot
-  int T = 20;
+  int T = 8;
   int NX = 4;
   int NU = 2;
-  int NS = 10;
-  int NUM_TEST = 10;
+  int NS = 0;
+  int NUM_TEST = 0;
   double rho_x = 0.1; 
   double rho_u = 0.1;
   int N_iter = 50;
@@ -71,7 +71,7 @@ int main()
 //    }
 //  }
 
-  Vector4d red(1.0, 0.0, 0.0, 0.9); 
+  Vector4d red(1.0, 0.0, 0.0, 0.4);
   render = c.draw_trajectory(X_bar, red, root);
 
   //Setup for SCP
@@ -95,7 +95,7 @@ int main()
 	  VectorXd u_policy = Q.block(t*NU, t*NX, NU, NX) * feedback + r.segment(t*NU, NU);
 	  opt_traj.add_and_integrate(u_policy, VectorXd::Zero(NX), c);
   }
-  Vector4d green(0.0, 1.0, 0.0, 0.9);
+  Vector4d green(0.0, 1.0, 0.0, 0.4);
   render = c.draw_trajectory(opt_traj._X, green, root);
 
   Vector4d blue(0.3, 0.3, 1.0, 0.4);

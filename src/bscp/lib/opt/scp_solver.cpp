@@ -14,6 +14,11 @@ void scp_solver(Robot &r, const vector<VectorXd>& X_bar, const vector<VectorXd>&
   int NS = W_bar[0].cols();
   assert(T+1 == X_bar.size());
 
+  cout << "NX = " << NX << endl;
+  cout << "NU = " << NU << endl;
+  cout << "T  = " << T  << endl;
+  cout << "NS = " << NS << endl;
+
 
   vector<VectorXd> X_scp(T+1), U_scp(T); 
   for (int i = 0; i < T+1; i++) 
@@ -49,7 +54,12 @@ void scp_solver(Robot &r, const vector<VectorXd>& X_bar, const vector<VectorXd>&
     //Send to convex solver
     convex_gurobi_solver(nominal, samples, x_goal, opt_X, opt_U, opt_K, opt_u0,
     		opt_sample_X, opt_sample_U, false);//iter == (N_iter - 1));
-
+//    cout << "X: " << opt_X[0].transpose() << endl;
+//    for (int i = 0; i < opt_U.size(); i++) {
+//    	cout << "U: " << opt_U[i].transpose() << endl;
+//    	cout << "X: " << opt_X[i+1].transpose() << endl;
+//
+//    }
     nominal.set(opt_X, opt_U);
     nominal.integrate(r); //shooting
 

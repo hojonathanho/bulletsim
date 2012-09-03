@@ -6,7 +6,11 @@
 #include "eigen_io_util.h"
 #include "osg_util.h"
 #include <osgViewer/Viewer>
+#include <osgViewer/View>
+#include <osgViewer/CompositeViewer>
 #include <osg/Group> 
+#include <osg/Camera>
+#include <osg/GraphicsContext>
 #include <osg/Geode>
 #include <osg/StateSet>
 #include <osg/Math>
@@ -20,6 +24,7 @@
 #include "timer.h"
 #include "eigen_multivariate_normal.h"
 #include "trajectory_util.h"
+#include "sensor_functions.h"
 
 using namespace Eigen;
 using namespace std;
@@ -39,10 +44,10 @@ int main()
   osg::Group* root = new osg::Group();
   osg::Group* traj_group = new osg::Group();
   root->addChild(traj_group);
-
   init_transparency_group(traj_group);
   vector<osg::Node*> render;
   double z_offset = 0.01;
+
   Vector4d yellow(1.0,1.0,0.1,0.4);  
   Vector4d red(1.0, 0.0, 0.0, 0.8); 
   Vector4d blue(0.2, 0.2, 1.0, 0.8);
@@ -57,11 +62,11 @@ int main()
   int NX = 4;
   int NU = 2;
   int NB = NX*(NX+3)/2;
-  int NS = 5;
-  int NUM_TEST = 1;
+  int NS = 0;
+  int NUM_TEST = 0;
   double rho_x = 0.1; 
   double rho_u = 0.1;
-  int N_iter = 30;
+  int N_iter = 50;
 
   // hack for now
   MatrixXd W_cov = MatrixXd::Zero(NB,NB);
@@ -77,19 +82,19 @@ int main()
   Vector2d beacon_1_pos(-0.2,0.3); 
   BeaconSensor s1(beacon_1_pos);
   s1.draw(beacon_1_pos, brown, traj_group);
-  SensorFunc s1_f = &CarBeaconFunc;
+  Robot::SensorFunc s1_f = &CarBeaconFunc;
   c.attach_sensor(&s1, s1_f);
 
   Vector2d beacon_2_pos(0.2,0.1); 
   BeaconSensor s2(beacon_2_pos);
   s2.draw(beacon_2_pos, brown, traj_group);
-  SensorFunc s2_f = &CarBeaconFunc;
+  Robot::SensorFunc s2_f = &CarBeaconFunc;
   c.attach_sensor(&s2, s2_f);
 
   Vector2d beacon_3_pos(-0.3,0.1); 
   BeaconSensor s3(beacon_3_pos);
   s3.draw(beacon_3_pos, brown, traj_group);
-  SensorFunc s3_f = &CarBeaconFunc;
+  Robot::SensorFunc s3_f = &CarBeaconFunc;
   c.attach_sensor(&s3, s3_f);
   
 
@@ -144,7 +149,6 @@ int main()
 
   render = c.draw_belief_trajectory(B_bar, red, yellow, traj_group, z_offset/2 + 1e-4);
 
-//
   // setup for SCP
   // Define a goal state
   VectorXd b_goal = B_bar[T];
@@ -211,11 +215,39 @@ int main()
   osg::ShapeDrawable *floor = new osg::ShapeDrawable(new osg::Box(osg::Vec3(0.0,0.0,0.0), 1.0, 1.0, z_offset));
   floor->setColor(osg::Vec4(0.1,0.1,0.1,1.0));
   fgeode->addDrawable(floor);
+  root->addChild(fgeode);
 
-  osgViewer::Viewer viewer;
-  root->addChild(fgeode); 
-  viewer.setSceneData(root);
-  viewer.setUpViewInWindow(400, 400, 640, 480);
-  return viewer.run();
+  // create a context that spans the entire x screen
+  int width = 800;
+  int height = 800;
+  osg::ref_ptr<osgViewer::CompositeViewer> compositeViewer = new osgViewer::CompositeViewer;
+//  osg::ref_ptr<osg::GraphicsContext::Traits> traits = new osg::GraphicsContext::Traits;
+//
+//  traits->x = 0;
+//  traits->y = 0;
+//  traits->width = width;
+//  traits->height = height;
+//  traits->windowDecoration = false;
+//  traits->doubleBuffer = true;
+//  traits->sharedContext = 0;
+//  traits->overrideRedirect = true;
+//  osg::ref_ptr<osg::GraphicsContext> gc = osg::GraphicsContext::createGraphicsContext(traits.get());
+  osgViewer::View* v0 = new osgViewer::View();
+  v0->setSceneData(root);
+  v0->setUpViewInWindow(0,0,width,height);
+//  osg::ref_ptr<osg::Camera> cam = v0->getCamera();
+//  cam->setGraphicsContext(gc.get());
+//  cam->setViewport(0, 0, width/2, height);
+  compositeViewer->addView(v0);
 
+  //second screen
+  osgViewer::View* v1 = new osgViewer::View();
+  v1->setSceneData(root);
+  v1->setUpViewInWindow(100,100,width,height);
+//  osg::ref_ptr<osg::Camera> cam2 = v1->getCamera();
+//  cam2->setGraphicsContext(gc.get());
+//  cam2->setViewport(width/2, 0, width/2, height);
+  compositeViewer->addView(v1);
+
+  return compositeViewer->run();
 }

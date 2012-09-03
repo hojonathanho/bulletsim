@@ -26,6 +26,13 @@ class StateSensor : public Sensor
       }
     }
 
+    void dgdx(const VectorXd& x, double eps, MatrixXd& C) {
+    	C = MatrixXd::Zero(_NZ, x.rows());
+    	for (int i = 0; i < _NZ; i++) {
+    		C(i,_state_indices(i)) = 1.0;
+    	}
+    }
+
 
    osg::Node* draw(const MatrixXd& sensor_state, const Vector4d& color, osg::Group* parent) {
 
