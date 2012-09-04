@@ -8,12 +8,17 @@ namespace lfd {
 class ExecutionModule : public PyModule {
 public:
   ExecutionModule();
+  ~ExecutionModule();
 
-  void testing();
+  py::object init(const string &task, py::object tableBounds);
+  py::object selectTrajectory(py::object points, py::object currRobotJointVals, py::object currStep);
+};
 
-  py::object init(const string &task);
-  py::object selectTrajectory(py::object points, py::object currRobotJointVals);
-//  py::object selectTraj();
+class CurvePerturbation : public PyModule {
+public:
+  CurvePerturbation();
+  py::object perturbCurve(py::object curve, double s=0.01);
+  vector<btVector3> perturbCurve(const vector<btVector3> &pts, double s=0.01);
 };
 
 } // namespace lfd

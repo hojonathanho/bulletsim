@@ -8,6 +8,8 @@ namespace py = boost::python;
 #include <boost/filesystem.hpp>
 namespace fs = boost::filesystem;
 
+#include <btBulletDynamicsCommon.h>
+
 struct PyGlobals {
   static py::object main_module;
   static py::object main_namespace;
@@ -17,6 +19,10 @@ struct PyGlobals {
 
 static inline float ff(py::object o) {return py::extract<float>(o);}
 static inline int ii(py::object o) {return py::extract<int>(PyGlobals::builtin_module.attr("int")(o));}
+
+// returns a Nx3 matrix
+py::object pointVecToNP(const vector<btVector3> &v);
+vector<btVector3> NPnx3ToPointVec(py::object n);
 
 #define NP PyGlobals::numpy_module
 

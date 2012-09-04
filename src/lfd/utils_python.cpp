@@ -46,3 +46,25 @@ py::object Python_importFile(const fs::path &path) {
 PyModule::PyModule(const fs::path &path) {
   module = Python_importFile(path);
 }
+
+py::object pointVecToNP(const vector<btVector3> &v) {
+  py::object o = NP.attr("empty")(py::make_tuple(v.size(), 3));
+  for (int i = 0; i < v.size(); ++i) {
+    o[i][0] = v[i].x();
+    o[i][1] = v[i].y();
+    o[i][2] = v[i].z();
+  }
+  return o;
+}
+
+vector<btVector3> NPnx3ToPointVec(py::object n) {
+  vector<btVector3> v;
+  for (int i = 0; i < py::len(n); ++i) {
+    v.push_back(btVector3(
+      py::extract<btScalar>(n[i][0]),
+      py::extract<btScalar>(n[i][1]),
+      py::extract<btScalar>(n[i][2])
+    ));
+  }
+  return v;
+}

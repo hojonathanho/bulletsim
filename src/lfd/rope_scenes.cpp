@@ -8,6 +8,58 @@
 
 fs::path KNOT_DATA  = fs::path(EXPAND(BULLETSIM_DATA_DIR) "/knots");
 
+static const char LEFT_GRIPPER_LEFT_FINGER_NAME[] = "l_gripper_l_finger_tip_link";
+static const char LEFT_GRIPPER_RIGHT_FINGER_NAME[] = "l_gripper_r_finger_tip_link";
+static const char RIGHT_GRIPPER_LEFT_FINGER_NAME[] = "r_gripper_l_finger_tip_link";
+static const char RIGHT_GRIPPER_RIGHT_FINGER_NAME[] = "r_gripper_r_finger_tip_link";
+
+static inline btTransform getManipRot(RaveRobotObject::Manipulator::Ptr manip) {
+  btTransform trans(manip->getTransform());
+  trans.setOrigin(btVector3(0, 0, 0));
+  return trans;
+}
+// Returns the direction that the specified finger will move when closing
+// (manipulator frame)
+static inline btVector3 getClosingDirection(RaveRobotObject::Manipulator::Ptr manip, bool left) {
+  // points straight down in the PR2 initial position (manipulator frame)
+  btVector3 toolDir = util::toBtVector(manip->manip->GetLocalToolDirection());
+  // vector normal to the direction that the gripper fingers move in the manipulator frame
+  // (on the PR2 this points back into the arm)
+  btVector3 closingNormal(-1, 0, 0);
+  return (left ? 1 : -1) * toolDir.cross(closingNormal);
+}
+// Finds some innermost point on the gripper
+static inline btVector3 getInnerPt(RaveRobotObject::Manipulator::Ptr manip, KinBody::LinkPtr leftFinger, KinBody::LinkPtr rightFinger, bool left) {
+  btTransform trans(manip->robot->getLinkTransform(left ? leftFinger : rightFinger));
+  // we get an innermost point on the gripper by transforming a point
+  // on the center of the gripper when it is closed
+  return trans * (METERS/20.*btVector3(0.234402, (left ? 1 : -1) * -0.299, 0));
+}
+
+// Returns true is pt is on the inner side of the specified finger of the gripper
+static inline bool onInnerSide(RaveRobotObject::Manipulator::Ptr manip, const btVector3 &pt, KinBody::LinkPtr leftFinger, KinBody::LinkPtr rightFinger, bool left) {
+  // then the innerPt and the closing direction define the plane
+  return (getManipRot(manip) * getClosingDirection(manip, left)).dot(pt - getInnerPt(manip, leftFinger, rightFinger, left)) > 0;
+}
+
+static bool inGraspRegion(RaveRobotObject::Manipulator::Ptr manip, const btVector3 &pt, KinBody::LinkPtr leftFinger, KinBody::LinkPtr rightFinger) {
+  // extra padding for more anchors (for stability)
+  static const float TOLERANCE = 0.00;
+
+  // check that pt is behind the gripper tip
+  btVector3 x = manip->getTransform().inverse() * pt;
+  if (x.z() > GeneralConfig::scale*(0.02 + TOLERANCE)) return false;
+
+  // check that pt is within the finger width
+  if (abs(x.x()) > GeneralConfig::scale*(0.01 + TOLERANCE)) return false;
+
+  // check that pt is between the fingers
+  if (!onInnerSide(manip, pt, leftFinger, rightFinger, true) ||
+      !onInnerSide(manip, pt, leftFinger, rightFinger, false))
+    return false;
+
+  return true;
+}
 
 void MonitorForGrabbingWithTelekinesis::grab() {
   // grabs nearest object
@@ -18,7 +70,8 @@ void MonitorForGrabbingWithTelekinesis::grab() {
   BulletObject::Ptr nearestObj = getNearestBody(m_bodies, curPose.getOrigin(), iNear);
   cout << "grab: " << m_i << endl;
 
-    if (nearestObj->rigidBody->getCenterOfMassPosition().distance(curPose.getOrigin()) < .05*METERS) {
+//    if (nearestObj->rigidBody->getCenterOfMassPosition().distance(curPose.getOrigin()) < .05*METERS) {
+  if (inGraspRegion(m_manip, nearestObj->rigidBody->getCenterOfMassPosition(), m_leftFinger, m_rightFinger)) {
 //  if (true) {
     m_grab = new Grab(nearestObj->rigidBody.get(), curPose.getOrigin(), m_world);
     m_i = iNear;
@@ -32,11 +85,10 @@ void MonitorForGrabbingWithTelekinesis::updateGrabPose() {
   m_grab->updatePose(curPose);
 }
 
-
 GrabbingScene::GrabbingScene(bool telekinesis)  {
   pr2m.reset(new PR2Manager(*this));
-  m_lMonitor.reset(new MonitorForGrabbingWithTelekinesis(pr2m->pr2Left, env->bullet->dynamicsWorld,telekinesis));
-  m_rMonitor.reset(new MonitorForGrabbingWithTelekinesis(pr2m->pr2Right, env->bullet->dynamicsWorld, telekinesis));
+  m_lMonitor.reset(new MonitorForGrabbingWithTelekinesis(pr2m->pr2Left, env->bullet->dynamicsWorld,telekinesis, pr2m->pr2->robot->GetLink(LEFT_GRIPPER_LEFT_FINGER_NAME), pr2m->pr2->robot->GetLink(LEFT_GRIPPER_RIGHT_FINGER_NAME)));
+  m_rMonitor.reset(new MonitorForGrabbingWithTelekinesis(pr2m->pr2Right, env->bullet->dynamicsWorld, telekinesis, pr2m->pr2->robot->GetLink(RIGHT_GRIPPER_LEFT_FINGER_NAME), pr2m->pr2->robot->GetLink(RIGHT_GRIPPER_RIGHT_FINGER_NAME)));
   pr2m->setHapticCb(hapticLeft0Hold, boost::bind(&GrabbingScene::closeLeft, this));
   pr2m->setHapticCb(hapticLeft1Hold, boost::bind(&GrabbingScene::openLeft, this));
   pr2m->setHapticCb(hapticRight0Hold, boost::bind(&GrabbingScene::closeRight, this));
@@ -74,7 +126,7 @@ BulletObject::Ptr makeTable(const vector<btVector3>& corners, float thickness) {
   return BulletObject::Ptr(new BoxObject(0,halfExtents,btTransform(btQuaternion(0,0,0,1),origin)));
 }
 
-TableRopeScene::TableRopeScene(const vector<btVector3> &tableCornersWorld, const vector<btVector3>& controlPointsWorld, bool telekinesis) : GrabbingScene(telekinesis) {
+TableRopeScene::TableRopeScene(const vector<btVector3> &tableCornersWorld_, const vector<btVector3>& controlPointsWorld, bool telekinesis) : GrabbingScene(telekinesis), tableCornersWorld(tableCornersWorld_) {
 //  vector<double> firstJoints = doubleVecFromFile((KNOT_DATA / "init_joints_train.txt").string());
 //  ValuesInds vi = getValuesInds(firstJoints);
 //  setupDefaultROSRave();
@@ -96,7 +148,7 @@ TableRopeScene::TableRopeScene(const vector<btVector3> &tableCornersWorld, const
 /*  PlotPoints::Ptr ropePts(new PlotPoints(10));
   ropePts->setPoints(controlPointsWorld);
   env->add(ropePts);*/
-  m_rope.reset(new CapsuleRope(controlPointsWorld, .0075*METERS));
+  m_rope.reset(new CapsuleRope(controlPointsWorld, .005*METERS, .1, 1, .5, .4, .9));
   env->add(m_rope);
   env->add(m_table);
   setGrabBodies(m_rope->children);

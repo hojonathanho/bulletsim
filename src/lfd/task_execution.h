@@ -35,6 +35,7 @@ private:
 
   TableRopeScene &scene;
   ExecutionModule pymod; // some actions are implemented in python
+  int currStep;
 
   State nextState(State s, Transition t) const;
   Transition execState(State s);

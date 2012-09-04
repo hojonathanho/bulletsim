@@ -11,9 +11,10 @@ namespace fs = boost::filesystem;
 struct MonitorForGrabbingWithTelekinesis : public MonitorForGrabbing {
   btTransform m_telePose;
   bool m_telekinesis;
+  KinBody::LinkPtr m_leftFinger, m_rightFinger;
 
-  MonitorForGrabbingWithTelekinesis(RaveRobotObject::Manipulator::Ptr manip, btDynamicsWorld* dynamicsWorld, bool telekinesis)
-    : m_telekinesis(telekinesis), m_telePose(btTransform::getIdentity()), MonitorForGrabbing(manip, dynamicsWorld) {}
+  MonitorForGrabbingWithTelekinesis(RaveRobotObject::Manipulator::Ptr manip, btDynamicsWorld* dynamicsWorld, bool telekinesis, KinBody::LinkPtr leftFinger, KinBody::LinkPtr rightFinger)
+    : m_telekinesis(telekinesis), m_telePose(btTransform::getIdentity()), MonitorForGrabbing(manip, dynamicsWorld), m_leftFinger(leftFinger), m_rightFinger(rightFinger) {}
 
   void grab();
 
@@ -83,8 +84,9 @@ btTransform operator*(const btTransform& in, float a);
 struct TableRopeScene : public GrabbingScene {
   CapsuleRope::Ptr m_rope;
   BulletObject::Ptr m_table;
+  const vector<btVector3> tableCornersWorld;
 
-  TableRopeScene(const vector<btVector3> &tableCornersWorld, const vector<btVector3>& controlPointsWorld, bool telekinesis=false);
+  TableRopeScene(const vector<btVector3> &tableCornersWorld_, const vector<btVector3>& controlPointsWorld, bool telekinesis=false);
 
   CapsuleRope::Ptr getRope() const { return m_rope; }
 };

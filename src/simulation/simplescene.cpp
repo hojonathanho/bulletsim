@@ -30,6 +30,8 @@ Scene::Scene() {
 
     addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Escape, boost::bind(exit, 0), "(escape) exit");
     viewer.addEventHandler(new PickingMouseHandler(*this));
+
+    drawingOn = false; // no drawing until startViewer()
 }
 
 void Scene::startViewer() {

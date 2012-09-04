@@ -68,7 +68,7 @@ void createRopeTransforms(vector<btTransform>& transforms, vector<btScalar>& len
 }
 
 
-CapsuleRope::CapsuleRope(const vector<btVector3>& ctrlPoints, btScalar radius_, float angStiffness_, float angDamping_, float linDamping_, float angLimit_) {
+CapsuleRope::CapsuleRope(const vector<btVector3>& ctrlPoints, btScalar radius_, float angStiffness_, float angDamping_, float linDamping_, float angLimit_, float linStopErp_) {
   radius = radius_;
   angStiffness = angStiffness_;
   angDamping = angDamping_;
@@ -90,6 +90,7 @@ CapsuleRope::CapsuleRope(const vector<btVector3>& ctrlPoints, btScalar radius_, 
 
     if (i>0) {
       boost::shared_ptr<btPoint2PointConstraint> jointPtr(new btPoint2PointConstraint(*children[i-1]->rigidBody,*children[i]->rigidBody,btVector3(len/2,0,0),btVector3(-len/2,0,0)));
+      jointPtr->setParam(BT_CONSTRAINT_STOP_ERP, linStopErp_);
       joints.push_back(BulletConstraint::Ptr(new BulletConstraint(jointPtr, true)));
 
       boost::shared_ptr<btGeneric6DofSpringConstraint> springPtr = createBendConstraint(len,children[i-1]->rigidBody,children[i]->rigidBody,angDamping,angStiffness,angLimit);

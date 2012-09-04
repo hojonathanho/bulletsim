@@ -47,8 +47,17 @@ TaskExecuter::Transition TaskExecuter::execState(State s) {
 }
 
 TaskExecuter::State TaskExecuter::run(State start) {
-  pymod.init("overhand_knot");
+  py::list tableBounds;
+  tableBounds.append(scene.tableCornersWorld[0].x() / GeneralConfig::scale);
+  tableBounds.append(scene.tableCornersWorld[2].x() / GeneralConfig::scale);
+  tableBounds.append(scene.tableCornersWorld[0].y() / GeneralConfig::scale);
+  tableBounds.append(scene.tableCornersWorld[2].y() / GeneralConfig::scale);
+  tableBounds.append(scene.tableCornersWorld[0].z() / GeneralConfig::scale);
+  tableBounds.append(scene.tableCornersWorld[2].z() / GeneralConfig::scale);
+  pymod.init("overhand_knot", tableBounds);
+
   State s = start;
+  currStep = 0;
   do {
     Transition t = execState(s);
     State s2 = nextState(s, t);
@@ -77,7 +86,7 @@ TaskExecuter::Transition TaskExecuter::action_lookAtObject() {
   vector<btVector3> ropePts = scene.getRope()->getControlPoints();
   py::object nparr = NP.attr("empty")(py::make_tuple(ropePts.size(), 3));
   for (int i = 0; i < ropePts.size(); ++i) {
-    btVector3 transformed_pt = base_footprint_trans * ropePts[i];
+    btVector3 transformed_pt = base_footprint_trans * ropePts[i] / GeneralConfig::scale;
     nparr[i][0] = transformed_pt.x();
     nparr[i][1] = transformed_pt.y();
     nparr[i][2] = transformed_pt.z();
@@ -89,16 +98,80 @@ TaskExecuter::Transition TaskExecuter::action_lookAtObject() {
 TaskExecuter::Transition TaskExecuter::action_selectTraj() {
   py::object res = pymod.selectTrajectory(
     readData("points"),
-    py::list(scene.pr2m->pr2->getDOFValues())
+    py::list(scene.pr2m->pr2->getDOFValues()),
+    py::object(currStep)
   );
   string status = py::extract<string>(res["status"]);
   if (status == "not_done") {
     saveData("trajectory", res["trajectory"]);
   }
+  ++currStep;
   return transitionFromString(status);
 }
 
+static inline vector<double> pyListToVec(py::object l) {
+  vector<double> v;
+  for (int i = 0; i < py::len(l); ++i) {
+    v.push_back(py::extract<double>(l[i]));
+  }
+  return v;
+}
+
+static inline py::object dictExtract(py::dict d, const string &k) {
+  return d.has_key(k) ? d[k] : py::object();
+}
+
+static inline double clampGripperAngle(double a) {
+  const float MIN_ANGLE = 0.09;
+  return a < MIN_ANGLE ? MIN_ANGLE : a;
+}
+
 TaskExecuter::Transition TaskExecuter::action_execTraj() {
+  py::dict traj = py::extract<py::dict>(readData("trajectory"));
+  // array of numbers (gripper dofs)
+  py::object lGripperTraj = dictExtract(traj, "l_gripper");
+  py::object rGripperTraj = dictExtract(traj, "r_gripper");
+  // array of arrays of numbers (dofs of the whole arm)
+  py::object lArmTraj = dictExtract(traj, "l_arm");
+  py::object rArmTraj = dictExtract(traj, "r_arm");
+  // array of booleans
+  py::object lGrabTraj = dictExtract(traj, "l_grab");
+  py::object rGrabTraj = dictExtract(traj, "r_grab");
+
+  const int steps = py::extract<int>(traj["steps"]);
+
+  assert(lGripperTraj == py::object() || steps == py::len(lGripperTraj));
+  assert(rGripperTraj == py::object() || steps == py::len(rGripperTraj));
+  assert(lArmTraj == py::object() || steps == py::len(lArmTraj));
+  assert(rArmTraj == py::object() || steps == py::len(rArmTraj));
+  assert(lGrabTraj == py::object() || steps == py::len(lGrabTraj));
+  assert(rGrabTraj == py::object() || steps == py::len(rGrabTraj));
+
+  RaveRobotObject::Ptr pr2 = scene.pr2m->pr2;
+  scene.setGrabBodies(scene.getRope()->getChildren());
+  for (int i = 0; i < steps; ++i) {
+    if (lArmTraj != py::object()) scene.pr2m->pr2Left->setDOFValues(pyListToVec(lArmTraj[i]));
+    if (lGripperTraj != py::object()) scene.pr2m->pr2Left->setGripperAngle(clampGripperAngle(py::extract<double>(lGripperTraj[i])));
+    if (lGrabTraj != py::object()) {
+      if (py::extract<bool>(lGrabTraj[i]) && (i == 0 || !py::extract<bool>(lGrabTraj[i-1]))) {
+        scene.m_lMonitor->grab();
+      } else if (!py::extract<bool>(lGrabTraj[i]) && (i == 0 || py::extract<bool>(lGrabTraj[i-1]))) {
+        scene.m_lMonitor->release();
+      }
+    }
+
+    if (rArmTraj != py::object()) scene.pr2m->pr2Right->setDOFValues(pyListToVec(rArmTraj[i]));
+    if (rGripperTraj != py::object()) scene.pr2m->pr2Right->setGripperAngle(clampGripperAngle(py::extract<double>(rGripperTraj[i])));
+    if (rGrabTraj != py::object()) {
+      if (py::extract<bool>(rGrabTraj[i]) && (i == 0 || !py::extract<bool>(rGrabTraj[i-1]))) {
+        scene.m_rMonitor->grab();
+      } else if (!py::extract<bool>(rGrabTraj[i]) && (i == 0 || py::extract<bool>(rGrabTraj[i-1]))) {
+        scene.m_rMonitor->release();
+      }
+    }
+
+    scene.step(DT);
+  }
 }
 
 } // namespace lfd
