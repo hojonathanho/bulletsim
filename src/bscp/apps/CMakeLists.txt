@@ -18,6 +18,10 @@ target_link_libraries(car_ekf scp_robots opt ${OSG_LIBS} ${GUROBI_LIBRARIES})
 add_executable(car_bsp car_bsp.cpp)
 target_link_libraries(car_bsp scp_robots opt ${OSG_LIBS} ${GUROBI_LIBRARIES})
 
+add_executable(car_localizer car_localizer.cpp)
+target_link_libraries(car_localizer scp_robots opt ${OSG_LIBS} ${GUROBI_LIBRARIES})
+
+
 add_executable(gurobi_demo gurobi_demo.cpp)
 target_link_libraries(gurobi_demo ${GUROBI_LIBRARIES})
 
@@ -31,3 +35,7 @@ target_link_libraries(pr2_ekf opt scp_robots simulation robots ${BULLET_LIBS} ${
 
 add_executable(pr2_beacons pr2_beacons.cpp)
 target_link_libraries(pr2_beacons opt scp_robots simulation robots ${BULLET_LIBS} ${OpenRAVE_LIBRARIES} ${Boost_LIBRARIES})
+
+
+add_executable(pr2_localizer pr2_localizer.cpp)
+target_link_libraries(pr2_localizer opt scp_robots simulation robots ${BULLET_LIBS} ${OpenRAVE_LIBRARIES} ${Boost_LIBRARIES})

@@ -85,7 +85,6 @@ class Robot {
    //observation linearization
    virtual void dgdx(const VectorXd &x, MatrixXd& C);
    virtual void dg(const VectorXd& x, MatrixXd& C, VectorXd& d);
-   //virtual void dgdx_new(const VectorXd& x, MatrixXd& C);
    virtual void dtdx(const VectorXd &x, SensorFunc& f, MatrixXd& T);
 
 

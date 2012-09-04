@@ -162,38 +162,7 @@ class PR2_SCP : public Robot
     	B.block(0,0,_NX,_NX) = MatrixXd::Identity(_NX, _NX);
     }
 
-    void dbdb(const VectorXd &b, const VectorXd& u, MatrixXd& A) {
-    	A = MatrixXd::Zero(_NB, _NB);
-		for (int i = 0; i < _NX; i++) {
-			VectorXd eps_vec = VectorXd::Zero(_NB);
-			eps_vec(i) = _eps;
-			VectorXd b_pos = b + eps_vec;
-			VectorXd b_neg = b - eps_vec;
-			VectorXd bb_pos(_NB); VectorXd bb_neg(_NB);
-			belief_dynamics(b_pos, u, bb_pos);
-			belief_dynamics(b_neg, u, bb_neg);
-			A.col(i) = (bb_pos - bb_neg) / (2 * _eps);
-		}
 
-		VectorXd x; MatrixXd rt_Sigma;
-		parse_belief_state(b, x, rt_Sigma);
-		MatrixXd A_x; MatrixXd H_x;
-		dfdx(x, u, A_x);
-		dgdx(x, H_x);
-
-		for (int i = _NX; i < _NB; i++) {
-			VectorXd eps_vec = VectorXd::Zero(_NB);
-			eps_vec(i) = _eps;
-			VectorXd b_pos = b + eps_vec;
-			VectorXd b_neg = b - eps_vec;
-			VectorXd bb_pos(_NB); VectorXd bb_neg(_NB);
-			belief_dynamics_fixed_model(b_pos, u, A_x, H_x, bb_pos);
-			belief_dynamics_fixed_model(b_neg, u, A_x, H_x, bb_neg);
-			A.col(i) = (bb_pos - bb_neg) / (2 * _eps);
-		}
-
-
-    }
 
     void dpdx(const VectorXd& x, MatrixXd& D) {
     	VectorXd d_offset;
