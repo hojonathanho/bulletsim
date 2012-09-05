@@ -34,7 +34,7 @@ class StateSensor : public Sensor
     }
 
 
-   osg::Node* draw(const MatrixXd& sensor_state, const Vector4d& color, osg::Group* parent) {
+   osg::Node* draw(const MatrixXd& sensor_state, const Vector4d& color, osg::Group* parent, double z_offset=0) {
 
      cout << "StateSensor::Draw is not implemented" << endl;
      return NULL; 

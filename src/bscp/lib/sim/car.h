@@ -111,6 +111,15 @@ class Car : public Robot
     	return ret;
     }
 
+    Vector4d quat(const VectorXd& x) {
+        double theta = x(2);
+
+        Matrix3d rot = AngleAxisd(theta, Vector3d(0,0,1.0)).toRotationMatrix();
+        Quaterniond q(rot);
+        Vector4d ret = q.coeffs();
+    	return ret;
+    }
+
 
     osg::Node* draw(VectorXd x, Vector4d color, osg::Group* parent) {
 
@@ -129,7 +138,7 @@ class Car : public Robot
       osg::Quat osg_q(q.x(), q.y(), q.z(), q.w());
 
       osg::Vec4 osg_color(color(0), color(1), color(2), color(3));
-      osg::Box *car_shape = new osg::Box(osg::Vec3(xp, yp, 0.0), 0.01, 0.01, 0.02);
+      osg::Box *car_shape = new osg::Box(osg::Vec3(xp, yp, 0.0), 0.01, 0.01, 0.01);
       car_shape->setRotation(osg_q);
 
       osg::ShapeDrawable *car = new osg::ShapeDrawable(car_shape);

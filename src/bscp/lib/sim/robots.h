@@ -61,12 +61,16 @@ class Robot {
    virtual void N(const VectorXd& x, MatrixXd& N) = 0; // sqrt(R) = N
    virtual osg::Node* draw(VectorXd x, Vector4d color, osg::Group* parent) =0;
    virtual osg::Node* draw_belief(VectorXd b, Vector4d mean_color, Vector4d ellipsoid_color, osg::Group* parent, double z_offset=0) =0; 
-   virtual Vector3d xyz(const VectorXd &x) = 0;
+   virtual Vector3d xyz (const VectorXd &x) = 0;
+   virtual Vector4d quat(const VectorXd &x) = 0;
    
 
    // Wrappers for sensors 
    void observe(const VectorXd& x, VectorXd& z);  // g(x)
    void attach_sensor(Sensor* sensor, SensorFunc g_i, SensorFuncJacobian dg_i = NULL);
+   void draw_sensors(const VectorXd& x, const Vector4d& color, osg::Group *parent, double z_offset=0);
+   void draw_sensor_trajectory(const vector<VectorXd>& X_bar, const Vector4d& color, osg::Group* parent, double z_offset=0);
+   void draw_sensor_belief_trajectory(const vector<VectorXd>& B_bar, const Vector4d& color, osg::Group* parent, double z_offset=0);
 
    // Deterministic Belief Dynamics
    void belief_dynamics(const VectorXd& b, const VectorXd& u, VectorXd& bt1); 
@@ -105,7 +109,8 @@ class Robot {
    virtual void db_trajectory(const vector<VectorXd>& B_bar, const vector<VectorXd>& U_bar, vector<MatrixXd>& As, vector<MatrixXd>& Bs, vector<VectorXd>& Cs);
 
    //Position linearization
-   virtual void dxyz(const VectorXd & x, MatrixXd& Jxyz);
+   virtual void dxyz (const VectorXd& x, MatrixXd& Jxyz );
+   virtual void dquat(const VectorXd& x, MatrixXd& Jquat);
 
 
    //Drawing

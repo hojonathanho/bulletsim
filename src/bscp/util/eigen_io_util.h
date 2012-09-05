@@ -6,6 +6,7 @@
 #include<fstream>
 #include<string>
 #include<math.h>
+#include<Eigen/Geometry>
 
 using namespace Eigen;
 using namespace std; 
@@ -129,6 +130,21 @@ inline void toFullVector(const vector<VectorXd>& v, VectorXd& vec) {
   }
 }
 
+inline void transform2vec(const Matrix4d& mat, VectorXd& vec) {
+	vec = VectorXd(7);
+	vec.segment(0,3) = mat.block(0,3,3,1);
+	Matrix3d rot = mat.block(0,0,3,3);
+	Quaterniond quat(rot);
+	vec.segment(3,4) = quat.coeffs();
+}
+
+inline void vec2transform(const VectorXd& vec, Matrix4d& transform) {
+	transform = Matrix4d::Identity();
+	transform.block(0,3,3,1) = vec.segment(0,3);
+	Quaterniond quat;
+	quat.coeffs() = vec.segment(3,4);
+	transform.block(0,0,3,3) = quat.toRotationMatrix();
+}
 
 
 

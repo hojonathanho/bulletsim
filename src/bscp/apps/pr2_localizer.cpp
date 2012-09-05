@@ -7,6 +7,8 @@
 #include "scp_solver.h"
 #include "osg_util.h"
 #include <osg/Group>
+#include <osgViewer/CompositeViewer>
+#include <osgViewer/View>
 #include "beacon_sensor.h"
 #include "state_sensor.h"
 #include "sensors.h"
@@ -180,37 +182,51 @@ int main(int argc, char* argv[]) {
   PR2_SCP_Plotter plotter(&pr2_scp_l, &scene, T+1);
   plotter.draw_belief_trajectory(B_bar_r, c_red, c_red, traj_group);
 
-
-  // setup for SCP
-  // Define a goal state
-  VectorXd b_goal = B_bar[T];
-
-  b_goal.segment(NX, NB-NX) = VectorXd::Zero(NB-NX); // trace
-
-  // Output variables
-  vector<VectorXd> opt_B, opt_U; // noiseless trajectory
-  MatrixXd Q; VectorXd r;  // control policy
 //
- // cout << "calling scp" << endl;
-  scp_solver(pr2_scp, B_bar, U_bar, W_bar, rho_x, rho_u, b_goal, N_iter,
-      opt_B, opt_U, Q, r);
+//  // setup for SCP
+//  // Define a goal state
+//  VectorXd b_goal = B_bar[T];
+//
+//  b_goal.segment(NX, NB-NX) = VectorXd::Zero(NB-NX); // trace
+//
+//  // Output variables
+//  vector<VectorXd> opt_B, opt_U; // noiseless trajectory
+//  MatrixXd Q; VectorXd r;  // control policy
+////
+// // cout << "calling scp" << endl;
+//  scp_solver(pr2_scp, B_bar, U_bar, W_bar, rho_x, rho_u, b_goal, N_iter,
+//      opt_B, opt_U, Q, r);
+//
+//  TrajectoryInfo opt_traj(b_0);
+//  for (int t = 0; t < T; t++) {
+//	  opt_traj.add_and_integrate(opt_U[t], VectorXd::Zero(NB), pr2_scp);
+//	  //VectorXd feedback = opt_traj.Q_feedback(pr2_scp);
+//	  //VectorXd u_policy = Q.block(t*NU, t*NB, NU, NB) * feedback + r.segment(t*NU, NU);
+//	  //opt_traj.add_and_integrate(u_policy, VectorXd::Zero(NB), pr2_scp);
+//  }
+//  vector<VectorXd> opt_traj_r(T+1);
+//  for (int t = 0; t < T+1; t++) {
+//	  pr2_scp.parse_localizer_belief_state(opt_traj._X[t], opt_traj_r[t]);
+//  }
+//  PR2_SCP_Plotter plotter2(&pr2_scp_l, &scene, T + 1);
+//  plotter2.draw_belief_trajectory(opt_traj_r, c_blue, c_orange, traj_group);
 
-  TrajectoryInfo opt_traj(b_0);
-  for (int t = 0; t < T; t++) {
-	  opt_traj.add_and_integrate(opt_U[t], VectorXd::Zero(NB), pr2_scp);
-	  //VectorXd feedback = opt_traj.Q_feedback(pr2_scp);
-	  //VectorXd u_policy = Q.block(t*NU, t*NB, NU, NB) * feedback + r.segment(t*NU, NU);
-	  //opt_traj.add_and_integrate(u_policy, VectorXd::Zero(NB), pr2_scp);
-  }
-  vector<VectorXd> opt_traj_r(T+1);
-  for (int t = 0; t < T+1; t++) {
-	  pr2_scp.parse_localizer_belief_state(opt_traj._X[t], opt_traj_r[t]);
-  }
-  PR2_SCP_Plotter plotter2(&pr2_scp_l, &scene, T + 1);
-  plotter2.draw_belief_trajectory(opt_traj_r, c_blue, c_orange, traj_group);
+  //use a composite viewer
+  int width = 800;
+  int height = 800;
+  osg::ref_ptr<osgViewer::CompositeViewer> compositeViewer = new osgViewer::CompositeViewer;
+  osgViewer::View* v0 = scene.startView();
+//  osg::ref_ptr<osg::Camera> cam = v0->getCamera();
+//  cam->setGraphicsContext(gc.get());
+//  cam->setViewport(0, 0, width/2, height);
+  compositeViewer->addView(v0);
+  compositeViewer->addView(scene.startView());
+  compositeViewer->removeView(v0);
 
-  scene.startViewer();
-  scene.startLoop();
-  scene.idle(true);
+  compositeViewer->run();
+
+  //scene.startViewer();
+  //scene.startLoop();
+  //scene.idle(true);
 
 }

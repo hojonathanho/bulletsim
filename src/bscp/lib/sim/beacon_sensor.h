@@ -30,7 +30,7 @@ class BeaconSensor : public Sensor
     }
 
 
-   osg::Node* draw(const MatrixXd& sensor_state, const Vector4d& color, osg::Group* parent) {
+   osg::Node* draw(const MatrixXd& sensor_state, const Vector4d& color, osg::Group* parent, double z_offset=0) {
      VectorXd sensor_pos = sensor_state.col(0);
      assert(sensor_pos.rows() == 2 || sensor_pos.rows()==3);
      double xp, yp, zp; 

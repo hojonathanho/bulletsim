@@ -1,5 +1,6 @@
 #pragma once
 #include <osgViewer/Viewer>
+#include <osgViewer/View>
 #include <osgbCollision/GLDebugDrawer.h>
 #include <osgGA/TrackballManipulator>
 #include "environment.h"
@@ -79,6 +80,7 @@ struct Scene {
   // Starts the viewer. Must be called before any step/draw/viewerLoop call
   // and after adding objects to the environment
   void startViewer();
+  osgViewer::View* startView(); // for use with a composite viewer
 
   void toggleDebugDraw();
 

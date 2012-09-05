@@ -50,6 +50,28 @@ void Scene::startViewer() {
     step(0);
 }
 
+osgViewer::View* Scene::startView() {
+    drawingOn = syncTime = true;
+    loopState.looping = loopState.paused = loopState.debugDraw = false;
+
+    dbgDraw.reset(new osgbCollision::GLDebugDrawer());
+    dbgDraw->setDebugMode(btIDebugDraw::DBG_MAX_DEBUG_DRAW_MODE /*btIDebugDraw::DBG_DrawWireframe*/);
+    dbgDraw->setEnabled(false);
+    bullet->dynamicsWorld->setDebugDrawer(dbgDraw.get());
+    osg->root->addChild(dbgDraw->getSceneGraph());
+
+    osgViewer::View *view = new osgViewer::View;
+
+    view->setUpViewInWindow(0, 0, ViewerConfig::windowWidth, ViewerConfig::windowHeight);
+    manip = new EventHandler(*this);
+    manip->setHomePosition(util::toOSGVector(ViewerConfig::cameraHomePosition)*METERS, osg::Vec3(), osg::Z_AXIS);
+    view->setCameraManipulator(manip);
+    view->setSceneData(osg->root.get());
+    //viewer.realize();
+    step(0);
+    return view;
+}
+
 void Scene::toggleDebugDraw() {
     loopState.debugDraw = !loopState.debugDraw;
     dbgDraw->setEnabled(loopState.debugDraw);

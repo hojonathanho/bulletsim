@@ -34,6 +34,26 @@ void Robot::observe(const VectorXd& x, VectorXd& z) {
   }
 }
 
+void Robot::draw_sensors(const VectorXd& x, const Vector4d& color, osg::Group *parent, double z_offset) {
+	for (int i = 0; i < sensors.size(); i++) {
+		sensors[i]->draw(sensor_fns[i](*this, x), color, parent, z_offset);
+	}
+}
+
+void Robot::draw_sensor_trajectory(const vector<VectorXd>& X_bar, const Vector4d& color, osg::Group* parent, double z_offset) {
+	for (int i = 0; i < X_bar.size(); i++) {
+		draw_sensors(X_bar[i], color, parent, z_offset);
+	}
+}
+
+void Robot::draw_sensor_belief_trajectory(const vector<VectorXd>& B_bar, const Vector4d& color, osg::Group* parent, double z_offset) {
+	for (int i = 0; i < B_bar.size(); i++) {
+		VectorXd x; MatrixXd rt_Sigma;
+		parse_belief_state(B_bar[i], x, rt_Sigma);
+		draw_sensors(x, color, parent, z_offset);
+	}
+}
+
 void Robot::attach_sensor(Sensor* sensor, SensorFunc g_i, SensorFuncJacobian dg_i) {
   sensors.push_back(sensor);
   sensor_fns.push_back(g_i);
@@ -426,6 +446,19 @@ void Robot::dxyz(const VectorXd & x, MatrixXd& Jxyz) {
 		VectorXd xyz_pos = xyz(x_pos);
 		VectorXd xyz_neg = xyz(x_neg);
 		Jxyz.col(i) = (xyz_pos - xyz_neg) / (2 * _eps);
+	}
+}
+
+void Robot::dquat(const VectorXd & x, MatrixXd& Jquat) {
+	Jquat = MatrixXd::Zero(4, _NX);
+	for (int i = 0; i < _NX; i++) {
+		VectorXd eps_vec = VectorXd::Zero(_NX);
+		eps_vec(i) = _eps;
+		VectorXd x_pos = x + eps_vec;
+		VectorXd x_neg = x - eps_vec;
+		VectorXd quat_pos = quat(x_pos);
+		VectorXd quat_neg = quat(x_neg);
+		Jquat.col(i) = (quat_pos - quat_neg) / (2 * _eps);
 	}
 }
 

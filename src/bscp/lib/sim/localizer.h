@@ -113,6 +113,12 @@ class Localizer : public Robot {
 	   return _r->xyz(x_r);
    }
    
+   Vector4d quat(const VectorXd& x) {
+	   VectorXd x_r, x_o;
+	   parse_localizer_state(x, x_r, x_o);
+	   return _r->quat(x_r);
+   }
+
    void observe(const VectorXd& x, VectorXd& z) {
 	   VectorXd x_r, x_o;
 	   parse_localizer_state(x, x_r, x_o);
@@ -202,6 +208,15 @@ class Localizer : public Robot {
 		_r->dxyz(x_r, Jxyz_r);
 		Jxyz = MatrixXd::Zero(3, _NX);
 		Jxyz.block(0, 0, 3, _r->_NX) = Jxyz_r;
+   }
+
+   void dquat(const VectorXd & x, MatrixXd& Jquat) {
+		VectorXd x_r, x_o;
+		parse_localizer_state(x, x_r, x_o);
+		MatrixXd Jquat_r;
+		_r->dxyz(x_r, Jquat_r);
+		Jquat = MatrixXd::Zero(4, _NX);
+		Jquat.block(0, 0, 4, _r->_NX) = Jquat_r;
    }
 
 };

@@ -382,6 +382,18 @@ class PR2_SCP : public Robot
         return ret;
     }
 
+    Vector4d quat(const VectorXd& x) {
+       	//vector<double> currentDOF = _pr2->getDOFValues(_active_dof_indices);
+        _pr2->robot->SetDOFValues(toVec(x), 1, _active_dof_indices);
+        btTransform manip_transform = _manip->getTransform();
+        Affine3f eig_transform = toEigenTransform(manip_transform);
+        Quaternionf quat = Quaternionf(eig_transform.rotation());
+        Vector4f ret_f = quat.coeffs();
+        Vector4d ret = Vector4d(ret_f(0), ret_f(1), ret_f(2), ret_f(3));
+        //_pr2->robot->SetDOFValues(currentDOF, 1, _active_dof_indices);
+        return ret;
+    }
+
     void dxyz(const VectorXd& x, MatrixXd& Jxyz) {
        	//vector<double> currentDOF = _pr2->getDOFValues(_active_dof_indices);
         _pr2->robot->SetDOFValues(toVec(x), 1, _active_dof_indices);
@@ -396,6 +408,15 @@ class PR2_SCP : public Robot
 				Jxyz(r, c) = jac_v[r * x.rows() + c];
 			}
 		}
+
+
+       // _pr2->robot->SetDOFValues(currentDOF, 1, _active_dof_indices);
+    }
+
+    void dquat(const VectorXd& x, MatrixXd& Jquat) {
+       	//vector<double> currentDOF = _pr2->getDOFValues(_active_dof_indices);
+        _pr2->robot->SetDOFValues(toVec(x), 1, _active_dof_indices);
+		assert(false);
        // _pr2->robot->SetDOFValues(currentDOF, 1, _active_dof_indices);
     }
 };

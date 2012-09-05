@@ -44,7 +44,7 @@ class Sensor {
 	   }
    }
 
-   virtual osg::Node* draw(const MatrixXd& sensor_state, const Vector4d& color, osg::Group *parent) =0;
+   virtual osg::Node* draw(const MatrixXd& sensor_state, const Vector4d& color, osg::Group *parent, double z_offset=0) =0;
 
 };
 
