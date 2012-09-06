@@ -7,13 +7,15 @@
 #include "scp_solver.h"
 #include "osg_util.h"
 #include <osg/Group>
+#include <osgViewer/CompositeViewer>
+#include <osgViewer/View>
 #include "beacon_sensor.h"
 #include "state_sensor.h"
 #include "sensors.h"
-#include "sensor_functions/PR2BeaconFunc.h";
 #include "trajectory_util.h"
 #include "eigen_multivariate_normal.h"
 #include "timer.h"
+#include "localizer.h"
 
 using namespace std;
 using namespace Eigen;
@@ -69,7 +71,7 @@ int main(int argc, char* argv[]) {
   init_transparency_group(traj_group);
   scene.osg->root->addChild(traj_group);
 
-  const float table_height = 0.65; 
+  const float table_height = 0.73;
   const float table_thickness = 0.08;
   BoxObject::Ptr table(new BoxObject(0, GeneralConfig::scale*btVector3(0.85,0.85,table_thickness / 2), btTransform(btQuaternion(0,0,0,1), GeneralConfig::scale * btVector3(1.4,0.0,table_height-table_thickness))));
 
@@ -77,8 +79,9 @@ int main(int argc, char* argv[]) {
   scene.env->add(table);
 
   // initialize robot
-  int T = 30;
-  int NX = 7;
+  int T = 40;
+  int NL = 0;
+  int NX = 7 + NL*3;
   int NU = 7;
   int NB = NX*(NX+3)/2;
   int NS = 0;
@@ -97,10 +100,13 @@ int main(int argc, char* argv[]) {
 		  scene.env->bullet->dynamicsWorld->removeRigidBody(rb);
 	  }
   }
-  PR2_SCP pr2_scp(pr2, active_dof_indices, scene.env->bullet->dynamicsWorld, rarm);
+  PR2_SCP pr2_scp_l(pr2, active_dof_indices, scene.env->bullet->dynamicsWorld, rarm);
+  Localizer pr2_scp(&pr2_scp_l, NL);
 
-  VectorXd startJoints = Map<const VectorXd>(postures[1], NX);
-  VectorXd endJoints = Map<const VectorXd>(postures[2], NX);
+
+
+  VectorXd startJoints = Map<const VectorXd>(postures[1], 7);
+  VectorXd endJoints = Map<const VectorXd>(postures[4], 7);
   vector<VectorXd> X_bar = makeTraj(startJoints, endJoints, T+1);
   vector<VectorXd> U_bar(T);
   for (int i = 0; i < T; i++) {
@@ -113,21 +119,21 @@ int main(int argc, char* argv[]) {
   EigenMultivariateNormal<double> sampler(VectorXd::Zero(NB), W_cov);
 
   //initialize the sensors
-  int NZ = 3;
+  int NZ = 0;
 //  Vector3d beacon_1_pos(0.8,-0.4,table_height);
 //  BeaconSensor s1(beacon_1_pos);
 //  s1.draw(beacon_1_pos, c_brown, traj_group);
 //  Robot::SensorFunc s1_f = &PR2BeaconFunc;
 //  Robot::SensorFuncJacobian s1_df = &PR2BeaconFuncJacobian;
-//  pr2_scp.attach_sensor(&s1, s1_f, s1_df);
+//  //pr2_scp.attach_sensor(&s1, s1_f, s1_df);
 
-  VectorXd state_indices(3);
-  for (int i = 0; i < 3; i++) state_indices(i) = i;
-
-  StateSensor s2(state_indices);
-  Robot::SensorFunc s2_f = &PR2BeaconFunc;
-  Robot::SensorFuncJacobian s2_df = &PR2BeaconFuncJacobian;
-  pr2_scp.attach_sensor(&s2, s2_f, s2_df);
+//  VectorXd state_indices(3);
+//  for (int i = 0; i < 3; i++) state_indices(i) = i;
+//
+//  StateSensor s2(state_indices);
+//  Robot::SensorFunc s2_f = &PR2BeaconFunc;
+//  Robot::SensorFuncJacobian s2_df = &PR2BeaconFuncJacobian;
+//  pr2_scp.attach_sensor(&s2, s2_f, s2_df);
 
 //  Vector3d beacon_2_pos(0.8,-0.0,table_height);
 //  BeaconSensor s2(beacon_1_pos);
@@ -136,11 +142,12 @@ int main(int argc, char* argv[]) {
 //  pr2_scp.attach_sensor(&s2, s2_f);
 
   //initilaize the initial distributions and noise models
-  MatrixXd Sigma_0 = 0.001*MatrixXd::Identity(NX,NX);
+  MatrixXd Sigma_0 = 0.01*MatrixXd::Identity(NX,NX);
   LLT<MatrixXd> lltSigma_0(Sigma_0);
   MatrixXd rt_Sigma_0 = lltSigma_0.matrixL();
 
-  MatrixXd Q_t = 0.00001*MatrixXd::Identity(NX,NX);
+  MatrixXd Q_t = MatrixXd::Zero(NX,NX);
+  Q_t.block(0,0,7,7) = 0.00001*MatrixXd::Identity(7,7);
   LLT<MatrixXd> lltQ_t(Q_t);
   MatrixXd M_t = lltQ_t.matrixL();
 
@@ -154,7 +161,9 @@ int main(int argc, char* argv[]) {
   pr2_scp.set_N(N_t);
 
   VectorXd b_0;
-  build_belief_state(startJoints, rt_Sigma_0, b_0);
+  VectorXd x0(NX);
+  x0.segment(0,7) = startJoints;
+  build_belief_state(x0, rt_Sigma_0, b_0);
   vector<VectorXd> B_bar(T+1);
   vector<MatrixXd> W_bar(T);
   B_bar[0] = b_0;
@@ -166,57 +175,12 @@ int main(int argc, char* argv[]) {
     sampler.setCovar(rt_W_t * rt_W_t.transpose());
     sampler.generateSamples(W_bar[t], NS);
   }
-
-  PR2_SCP_Plotter plotter(&pr2_scp, &scene, T+1);
-  plotter.draw_belief_trajectory(B_bar, c_red, c_red, traj_group);
-
-//  MatrixXd C_1, C_2;
-//  Timer timer = Timer();
-//  cout << "begin old" << endl;
-//  for (int i = 0; i < 1000; i++) {
-//	  pr2_scp.dgdx(X_bar[0], C_1);
-//  }
-//  cout << "time elapsed = " << timer.elapsed() << endl;
-//  timer.reset();
-//  cout << "begin new: " << timer.elapsed() << endl;
-//  for (int i = 0; i < 1000; i++) {
-//	  pr2_scp.dgdx_new(X_bar[0], C_2);
-//  }
-//  cout << "time elapsed = " << timer.elapsed() << endl;
-//
-//  cout << C_1 << endl;
-//  cout << C_2 << endl;
-
-  Timer timer = Timer();
-//  cout << "beign p test" << endl;
-//  for (int i = 0; i < 15*30; i++) {
-//	  VectorXd p_val;
-//	  MatrixXd P;
-//	  pr2_scp.dp(X_bar[0], P, p_val);
-//  }
-//  cout << "Time elapsed: " << timer.elapsed() << endl;
-
-//  MatrixXd P_1, P_2;
-//  for (int i = 0; i < 100; i++) {
-//	  pr2_scp.dbpdx(B_bar[0], P_1);
-//  }
-//  cout << "Time elapsed: " << timer.elapsed() << endl;
-//  timer.reset();
-//  for (int i = 0; i < 100; i++) {
-//	  pr2_scp.dbpdx_2(B_bar[0], P_2);
-//  }
-//  cout << "Time elapsed: " << timer.elapsed() << endl;
-
-//  MatrixXd D, A;
-//  for (int i = 0; i < 100; i++ )
-//  pr2_scp.dbdb(B_bar[1], U_bar[1], D);
-//  cout << "Time elapsed: " << timer.elapsed() << endl;
-//  timer.reset();
-//
-//  for (int i = 0; i < 100; i++)
-//  pr2_scp.dbdb_new(B_bar[1], U_bar[1], A);
-//  cout << "Time elapsed: " << timer.elapsed() << endl;
-
+  vector<VectorXd> B_bar_r(T+1);
+  for (int t = 0; t < T+1; t++) {
+	  pr2_scp.parse_localizer_belief_state(B_bar[t], B_bar_r[t]);
+  }
+//  PR2_SCP_Plotter plotter(&pr2_scp_l, &scene, T+1);
+//  plotter.draw_belief_trajectory(B_bar_r, c_red, c_red, traj_group);
 
 
   // setup for SCP
@@ -234,17 +198,35 @@ int main(int argc, char* argv[]) {
       opt_B, opt_U, Q, r);
 
   TrajectoryInfo opt_traj(b_0);
-    for (int t = 0; t < T; t++) {
-  	  opt_traj.add_and_integrate(opt_U[t], VectorXd::Zero(NB), pr2_scp);
-  	  //VectorXd feedback = opt_traj.Q_feedback(pr2_scp);
-  	  //VectorXd u_policy = Q.block(t*NU, t*NB, NU, NB) * feedback + r.segment(t*NU, NU);
-  	  //opt_traj.add_and_integrate(u_policy, VectorXd::Zero(NB), pr2_scp);
-    }
-    PR2_SCP_Plotter plotter2(&pr2_scp, &scene, T+1);
-    plotter2.draw_belief_trajectory(opt_traj._X, c_blue, c_orange, traj_group);
+  for (int t = 0; t < T; t++) {
+	  opt_traj.add_and_integrate(opt_U[t], VectorXd::Zero(NB), pr2_scp);
+	  //VectorXd feedback = opt_traj.Q_feedback(pr2_scp);
+	  //VectorXd u_policy = Q.block(t*NU, t*NB, NU, NB) * feedback + r.segment(t*NU, NU);
+	  //opt_traj.add_and_integrate(u_policy, VectorXd::Zero(NB), pr2_scp);
+  }
+  vector<VectorXd> opt_traj_r(T+1);
+  for (int t = 0; t < T+1; t++) {
+	  pr2_scp.parse_localizer_belief_state(opt_traj._X[t], opt_traj_r[t]);
+  }
+  PR2_SCP_Plotter plotter2(&pr2_scp_l, &scene, T + 1);
+  plotter2.draw_belief_trajectory(opt_traj_r, c_blue, c_orange, traj_group);
 
-  scene.startViewer();
-  scene.startLoop();
-  scene.idle(true);
+  //use a composite viewer
+  int width = 800;
+  int height = 800;
+  osg::ref_ptr<osgViewer::CompositeViewer> compositeViewer = new osgViewer::CompositeViewer;
+  osgViewer::View* v0 = scene.startView();
+//  osg::ref_ptr<osg::Camera> cam = v0->getCamera();
+//  cam->setGraphicsContext(gc.get());
+//  cam->setViewport(0, 0, width/2, height);
+  compositeViewer->addView(v0);
+  compositeViewer->addView(scene.startView());
+  compositeViewer->removeView(v0);
+
+  compositeViewer->run();
+
+  //scene.startViewer();
+  //scene.startLoop();
+  //scene.idle(true);
 
 }

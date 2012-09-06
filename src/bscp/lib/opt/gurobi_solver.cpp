@@ -473,7 +473,8 @@ void convex_gurobi_solver(const TrajectoryInfo &nominal,
   VectorXd Qq_obj  = 0.00001     * VectorXd::Ones(NU*NX*T);  // q prior to prevent overfitting on samples
   VectorXd Qx_obj  = 0.0     * VectorXd::Ones(NX*(T+1)); // x
   VectorXd Qu_obj  = 0.01   * VectorXd::Ones(NU*T);     // u
-  VectorXd Qg_obj  = 10.0    * VectorXd::Ones(NX);       // goal_diff
+  VectorXd Qg_obj  = 10000.0    * VectorXd::Ones(NX);       // goal_diff
+  Qg_obj.segment(7,NX-7) = 1.0 * VectorXd::Ones(NX-7);
   VectorXd Qp_obj  = 0.0     * VectorXd::Ones(NP);       // p
   VectorXd Qsx_obj = 0.0     * VectorXd::Ones(NX*NS*(T+1));
   VectorXd Qsu_obj = 0.001/NS * VectorXd::Ones(NU*NS*T);  // sample_control

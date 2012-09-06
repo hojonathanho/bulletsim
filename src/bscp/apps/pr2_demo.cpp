@@ -95,8 +95,8 @@ int main(int argc, char* argv[]) {
 
   PR2_SCP pr2_scp(pr2, active_dof_indices, scene.env->bullet->dynamicsWorld, rarm);
 
-  VectorXd startJoints = Map<const VectorXd>(postures[1], NX);
-  VectorXd endJoints = Map<const VectorXd>(postures[2], NX);
+  VectorXd startJoints = Map<const VectorXd>(postures[0], NX);
+  VectorXd endJoints = Map<const VectorXd>(postures[4], NX);
   vector<VectorXd> X_bar = makeTraj(startJoints, endJoints, T+1);
   vector<VectorXd> U_bar(T);
   vector<MatrixXd> W_bar(T);

@@ -36,6 +36,9 @@ target_link_libraries(pr2_ekf opt scp_robots simulation robots ${BULLET_LIBS} ${
 add_executable(pr2_beacons pr2_beacons.cpp)
 target_link_libraries(pr2_beacons opt scp_robots simulation robots ${BULLET_LIBS} ${OpenRAVE_LIBRARIES} ${Boost_LIBRARIES})
 
+add_executable(pr2_bsp_collision pr2_bsp_collision.cpp)
+target_link_libraries(pr2_bsp_collision opt scp_robots simulation robots ${BULLET_LIBS} ${OpenRAVE_LIBRARIES} ${Boost_LIBRARIES})
+
 
 add_executable(pr2_localizer pr2_localizer.cpp)
 target_link_libraries(pr2_localizer opt scp_robots simulation robots ${BULLET_LIBS} ${OpenRAVE_LIBRARIES} ${Boost_LIBRARIES})

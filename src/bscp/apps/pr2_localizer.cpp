@@ -12,11 +12,12 @@
 #include "beacon_sensor.h"
 #include "state_sensor.h"
 #include "sensors.h"
-#include "sensor_functions.h";
+#include "sensor_functions/LocalizerPR2CameraFunc.h";
 #include "trajectory_util.h"
 #include "eigen_multivariate_normal.h"
 #include "timer.h"
 #include "localizer.h"
+#include "camera_sensor.h"
 
 using namespace std;
 using namespace Eigen;
@@ -49,6 +50,41 @@ const static Vector4d c_orange(1.0, 0.55, 0.0, 0.8);
 const static Vector4d c_white(1.0, 1.0, 1.0, 0.1);
 const static Vector4d c_brown(139/255.0,69/255.0,19/255.0,0.8);
 
+//this is so hacky
+static VectorXd fixed_camera_trans;
+
+inline VectorXd FixedCameraObjectFunc(Robot& r, const VectorXd& x) {
+	Localizer* l = static_cast<Localizer*>(&r);
+	VectorXd x_r, x_o;
+	l->parse_localizer_state(x, x_r, x_o);
+	cout << fixed_camera_trans.transpose() << endl;
+	VectorXd x_transform = fixed_camera_trans;
+	VectorXd ret(7 + x_o.rows());
+	ret.segment(0,7) = x_transform;
+	ret.segment(7,x_o.rows()) = x_o; // for observing objects in the scene
+	return ret;
+}
+
+inline VectorXd FixedCameraPR2Func(Robot& r, const VectorXd& x) {
+	VectorXd camera_transform = fixed_camera_trans;
+	VectorXd ret(7 + 3);
+	ret.segment(0,7) = camera_transform;
+	ret.segment(7,3) = r.xyz(x); // for observing objects in the scene
+	return ret;
+}
+
+inline MatrixXd FixedCameraPR2FuncJac(Robot& r, const VectorXd& x) {
+	MatrixXd ret = MatrixXd::Zero(10, r._NX);
+	MatrixXd Jxyz;
+	r.dxyz(x, Jxyz);
+	ret.block(7,0,3,r._NX) = Jxyz;
+	return ret;
+
+}
+
+
+
+
 
 int main(int argc, char* argv[]) {
 
@@ -72,12 +108,14 @@ int main(int argc, char* argv[]) {
   init_transparency_group(traj_group);
   scene.osg->root->addChild(traj_group);
 
-  const float table_height = 0.65; 
+  const float table_height = 0.73;
   const float table_thickness = 0.08;
   BoxObject::Ptr table(new BoxObject(0, GeneralConfig::scale*btVector3(0.85,0.85,table_thickness / 2), btTransform(btQuaternion(0,0,0,1), GeneralConfig::scale * btVector3(1.4,0.0,table_height-table_thickness))));
 
   table->setColor(0,0,1,1);
   scene.env->add(table);
+
+  Vector3d object_pos(0.9, 0.4, table_height);
 
   // initialize robot
   int T = 30;
@@ -101,12 +139,14 @@ int main(int argc, char* argv[]) {
 		  scene.env->bullet->dynamicsWorld->removeRigidBody(rb);
 	  }
   }
+
+
   PR2_SCP pr2_scp_l(pr2, active_dof_indices, scene.env->bullet->dynamicsWorld, rarm);
   Localizer pr2_scp(&pr2_scp_l, NL);
 
 
   VectorXd startJoints = Map<const VectorXd>(postures[1], 7);
-  VectorXd endJoints = Map<const VectorXd>(postures[2], 7);
+  VectorXd endJoints = Map<const VectorXd>(postures[4], 7);
   vector<VectorXd> X_bar = makeTraj(startJoints, endJoints, T+1);
   vector<VectorXd> U_bar(T);
   for (int i = 0; i < T; i++) {
@@ -119,30 +159,52 @@ int main(int argc, char* argv[]) {
   EigenMultivariateNormal<double> sampler(VectorXd::Zero(NB), W_cov);
 
   //initialize the sensors
-  int NZ = 3;
+  int NZ = 2;
 //  Vector3d beacon_1_pos(0.8,-0.4,table_height);
 //  BeaconSensor s1(beacon_1_pos);
 //  s1.draw(beacon_1_pos, c_brown, traj_group);
 //  Robot::SensorFunc s1_f = &PR2BeaconFunc;
 //  Robot::SensorFuncJacobian s1_df = &PR2BeaconFuncJacobian;
-//  pr2_scp.attach_sensor(&s1, s1_f, s1_df);
+  //pr2_scp.attach_sensor(&s1, s1_f, s1_df);
 
-  VectorXd state_indices(3);
-  for (int i = 0; i < 3; i++) state_indices(i) = i;
-
-  StateSensor s2(state_indices);
-  Robot::SensorFunc s2_f = &PR2BeaconFunc;
-  Robot::SensorFuncJacobian s2_df = &PR2BeaconFuncJacobian;
-  pr2_scp.attach_sensor(&s2, s2_f, s2_df);
-
-//  Vector3d beacon_2_pos(0.8,-0.0,table_height);
-//  BeaconSensor s2(beacon_1_pos);
-//  s2.draw(beacon_2_pos, c_brown, traj_group);
+//  VectorXd state_indices(3);
+//  for (int i = 0; i < 3; i++) state_indices(i) = i;
+//
+//  StateSensor s2(state_indices);
 //  Robot::SensorFunc s2_f = &PR2BeaconFunc;
-//  pr2_scp.attach_sensor(&s2, s2_f);
+//  Robot::SensorFuncJacobian s2_df = &PR2BeaconFuncJacobian;
+//  pr2_scp.attach_sensor(&s2, s2_f, s2_df);
+
+
+  Matrix3d KK = Matrix3d::Identity();
+  KK(0,0) = -640.0; // fx (-1 * fx to fix an issue with rendering)
+  KK(0,1) = 0.0;   // skew
+  KK(0,2) = 320.0; // u0
+  KK(1,1) = 480.0; // fy
+  KK(1,2) = 240.0; // v0
+
+  Matrix4d attached_cam_fixed_offset = Matrix4d::Identity();
+  attached_cam_fixed_offset(0,3) = 0.3;
+  attached_cam_fixed_offset.block(0,0,3,3) = AngleAxisd(5*M_PI/4, Vector3d(0.0,1.0,0.0)).toRotationMatrix();
+  CameraSensor s4 = CameraSensor(1, KK, 640, 480, attached_cam_fixed_offset, 0.05);//, camera_fixed_offset);
+  Robot::SensorFunc s4_f = &LocalizerPR2AttachedCameraFunc;
+  Robot::SensorFuncJacobian s4_fj = &LocalizerPR2AttachedCameraFuncJac;
+  pr2_scp.attach_sensor(&s4, s4_f, s4_fj);
+
+  Matrix4d fixed_cam_position = Matrix4d::Identity();
+  fixed_cam_position(0,3) = 0.8;
+  fixed_cam_position(2,3) = 3.0;
+  transform2vec(fixed_cam_position, fixed_camera_trans); // for setting observations
+  CameraSensor s5 = CameraSensor(1, KK, 640, 480, Matrix4d::Identity(), 0.1);
+  s5.draw(fixed_camera_trans, c_blue, traj_group);
+  //Robot::SensorFunc s5_f = &FixedCameraObjectFunc;
+  Robot::SensorFunc s5_f = &FixedCameraPR2Func;
+  Robot::SensorFuncJacobian s5_fj = &FixedCameraPR2FuncJac;
+  //pr2_scp.attach_sensor(&s5, s5_f, s5_fj);
+
 
   //initilaize the initial distributions and noise models
-  MatrixXd Sigma_0 = 0.001*MatrixXd::Identity(NX,NX);
+  MatrixXd Sigma_0 = 0.01*MatrixXd::Identity(NX,NX); //was 0.01
   LLT<MatrixXd> lltSigma_0(Sigma_0);
   MatrixXd rt_Sigma_0 = lltSigma_0.matrixL();
 
@@ -160,9 +222,11 @@ int main(int argc, char* argv[]) {
   pr2_scp.set_M(M_t);
   pr2_scp.set_N(N_t);
 
+
   VectorXd b_0;
   VectorXd x0(NX);
   x0.segment(0,7) = startJoints;
+  x0.segment(7,3) = object_pos;
   build_belief_state(x0, rt_Sigma_0, b_0);
   vector<VectorXd> B_bar(T+1);
   vector<MatrixXd> W_bar(T);
@@ -170,6 +234,16 @@ int main(int argc, char* argv[]) {
 
   for (int t = 0; t < T; t++) {
     pr2_scp.belief_dynamics(B_bar[t], U_bar[t], B_bar[t+1]);
+
+    MatrixXd H_t, rt_Sigma_t;
+    VectorXd z_t, x_t;
+    parse_belief_state(B_bar[t],x_t,rt_Sigma_t);
+    pr2_scp.observe(x_t, z_t);
+    cout << z_t << endl;
+    pr2_scp.dgdx(x_t, H_t);
+    cout << H_t << endl << endl;
+
+
     MatrixXd rt_W_t;
     pr2_scp.belief_noise(B_bar[t], U_bar[t], rt_W_t);
     sampler.setCovar(rt_W_t * rt_W_t.transpose());
@@ -181,49 +255,58 @@ int main(int argc, char* argv[]) {
   }
   PR2_SCP_Plotter plotter(&pr2_scp_l, &scene, T+1);
   plotter.draw_belief_trajectory(B_bar_r, c_red, c_red, traj_group);
+  pr2_scp.draw_sensor_belief_trajectory(B_bar, c_blue, traj_group);
+  //pr2_scp.draw_object_uncertainty(B_bar[0], c_red, traj_group);
+  pr2_scp.draw_object_uncertainty(B_bar[T], c_blue, traj_group);
 
+
+
+  // setup for SCP
+  // Define a goal state
+  VectorXd b_goal = B_bar[T];
+  b_goal.segment(NX, NB-NX) = VectorXd::Zero(NB-NX); // trace
+
+  // Output variables
+  vector<VectorXd> opt_B, opt_U; // noiseless trajectory
+  MatrixXd Q; VectorXd r;  // control policy
 //
-//  // setup for SCP
-//  // Define a goal state
-//  VectorXd b_goal = B_bar[T];
-//
-//  b_goal.segment(NX, NB-NX) = VectorXd::Zero(NB-NX); // trace
-//
-//  // Output variables
-//  vector<VectorXd> opt_B, opt_U; // noiseless trajectory
-//  MatrixXd Q; VectorXd r;  // control policy
-////
-// // cout << "calling scp" << endl;
-//  scp_solver(pr2_scp, B_bar, U_bar, W_bar, rho_x, rho_u, b_goal, N_iter,
-//      opt_B, opt_U, Q, r);
-//
-//  TrajectoryInfo opt_traj(b_0);
-//  for (int t = 0; t < T; t++) {
-//	  opt_traj.add_and_integrate(opt_U[t], VectorXd::Zero(NB), pr2_scp);
-//	  //VectorXd feedback = opt_traj.Q_feedback(pr2_scp);
-//	  //VectorXd u_policy = Q.block(t*NU, t*NB, NU, NB) * feedback + r.segment(t*NU, NU);
-//	  //opt_traj.add_and_integrate(u_policy, VectorXd::Zero(NB), pr2_scp);
-//  }
-//  vector<VectorXd> opt_traj_r(T+1);
-//  for (int t = 0; t < T+1; t++) {
-//	  pr2_scp.parse_localizer_belief_state(opt_traj._X[t], opt_traj_r[t]);
-//  }
-//  PR2_SCP_Plotter plotter2(&pr2_scp_l, &scene, T + 1);
-//  plotter2.draw_belief_trajectory(opt_traj_r, c_blue, c_orange, traj_group);
+ // cout << "calling scp" << endl;
+  scp_solver(pr2_scp, B_bar, U_bar, W_bar, rho_x, rho_u, b_goal, N_iter,
+      opt_B, opt_U, Q, r);
+
+  TrajectoryInfo opt_traj(b_0);
+  for (int t = 0; t < T; t++) {
+	  opt_traj.add_and_integrate(opt_U[t], VectorXd::Zero(NB), pr2_scp);
+	  //VectorXd feedback = opt_traj.Q_feedback(pr2_scp);
+	  //VectorXd u_policy = Q.block(t*NU, t*NB, NU, NB) * feedback + r.segment(t*NU, NU);
+	  //opt_traj.add_and_integrate(u_policy, VectorXd::Zero(NB), pr2_scp);
+  }
+  vector<VectorXd> opt_traj_r(T+1);
+  for (int t = 0; t < T+1; t++) {
+	  pr2_scp.parse_localizer_belief_state(opt_traj._X[t], opt_traj_r[t]);
+  }
+  PR2_SCP_Plotter plotter2(&pr2_scp_l, &scene, T + 1);
+  plotter2.draw_belief_trajectory(opt_traj_r, c_blue, c_orange, traj_group);
+  pr2_scp.draw_object_uncertainty(opt_traj._X[T], c_green, traj_group);
+  cout << opt_traj._X[T].transpose() << endl;
 
   //use a composite viewer
   int width = 800;
   int height = 800;
   osg::ref_ptr<osgViewer::CompositeViewer> compositeViewer = new osgViewer::CompositeViewer;
-  osgViewer::View* v0 = scene.startView();
-//  osg::ref_ptr<osg::Camera> cam = v0->getCamera();
-//  cam->setGraphicsContext(gc.get());
-//  cam->setViewport(0, 0, width/2, height);
-  compositeViewer->addView(v0);
-  compositeViewer->addView(scene.startView());
-  compositeViewer->removeView(v0);
+  osgViewer::View* v0 = scene.startView(); //v0 is the master view containing the scene data
+  osgViewer::View* v1 = s5.renderCameraView(fixed_camera_trans);
+  v1->setSceneData(v0->getSceneData());
 
-  compositeViewer->run();
+  compositeViewer->addView(v0);
+  compositeViewer->addView(v1);
+
+  compositeViewer->realize();
+
+  while(!compositeViewer->done())
+  {
+	  compositeViewer->frame();
+  }
 
   //scene.startViewer();
   //scene.startLoop();

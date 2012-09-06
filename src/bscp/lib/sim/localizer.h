@@ -107,6 +107,22 @@ class Localizer : public Robot {
 	   return _r->draw_belief(b_r, mean_color, ellipsoid_color, parent, z_offset);
    }
 
+   osg::Node* draw_object_uncertainty(VectorXd b, Vector4d ellipsoid_color, osg::Group* parent, double z_offset=0) {
+	   VectorXd x; MatrixXd rt_Sigma;
+	   parse_belief_state(b, x, rt_Sigma);
+	   MatrixXd Sigma = rt_Sigma * rt_Sigma.transpose();
+	   osg::Group* objects = new osg::Group;
+	   for (int i = 0; i < _num_obj; i++) {
+		   int ind = _r->_NX + 3*i;
+		   Vector3d mean_pos = x.segment(ind, 3);
+		   mean_pos(2) += z_offset;
+		   osg::Node* node = drawEllipsoid(mean_pos, Sigma.block(ind,ind,3,3), ellipsoid_color);
+		   objects->addChild(node);
+	   }
+	   parent->addChild(objects);
+	   return objects;
+   }
+
    Vector3d xyz(const VectorXd &x) {
 	   VectorXd x_r, x_o;
 	   parse_localizer_state(x, x_r, x_o);
@@ -135,7 +151,7 @@ class Localizer : public Robot {
    void dfdx(const VectorXd &x, const VectorXd &u, MatrixXd &A) {
 	   VectorXd x_r, x_o;
 	   parse_localizer_state(x, x_r, x_o);
-	   A = MatrixXd::Zero(_NX, _NX);
+	   A = MatrixXd::Identity(_NX, _NX);
 	   MatrixXd A_r;
 	   _r->dfdx(x_r, u, A_r);
 	   A.block(0,0,_r->_NX,_r->_NX) = A_r;

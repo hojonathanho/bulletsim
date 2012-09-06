@@ -9,7 +9,7 @@
 #include <osg/Group>
 #include "beacon_sensor.h"
 #include "sensors.h"
-#include "sensor_functions.h";
+#include "sensor_functions/PR2BeaconFunc.h";
 
 using namespace std;
 using namespace Eigen;

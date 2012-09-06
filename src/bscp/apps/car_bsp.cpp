@@ -24,7 +24,7 @@
 #include "timer.h"
 #include "eigen_multivariate_normal.h"
 #include "trajectory_util.h"
-#include "sensor_functions.h"
+#include "sensor_functions/CarBeaconFunc.h"
 
 using namespace Eigen;
 using namespace std;

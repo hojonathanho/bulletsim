@@ -108,10 +108,11 @@ class Robot {
    virtual void db(const VectorXd &b, const VectorXd &u, MatrixXd &A, MatrixXd &B, VectorXd &c);
    virtual void db_trajectory(const vector<VectorXd>& B_bar, const vector<VectorXd>& U_bar, vector<MatrixXd>& As, vector<MatrixXd>& Bs, vector<VectorXd>& Cs);
 
-   //Position linearization
+   //Position utils linearization
+   virtual void transform(const VectorXd& x, VectorXd& transform);
    virtual void dxyz (const VectorXd& x, MatrixXd& Jxyz );
    virtual void dquat(const VectorXd& x, MatrixXd& Jquat);
-
+   virtual void dtransform(const VectorXd& x, MatrixXd& Jtransform);
 
    //Drawing
    vector<osg::Node*> draw_trajectory(vector<VectorXd> &traj_x, Vector4d color, osg::Group* parent);

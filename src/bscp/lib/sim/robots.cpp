@@ -333,6 +333,7 @@ void Robot::dgdx(const VectorXd& x, MatrixXd& C) {
 		MatrixXd G_i;
 		sensors[i]->dgdx(sensor_fns[i](*this, x), _eps, G_i);
 		C.block(num_recv,0,G_i.rows(),_NX) = G_i * T;
+		num_recv += G_i.rows(); // fucking update your shit sameep
 	}
 }
 
@@ -435,6 +436,25 @@ void Robot::db_trajectory(const vector<VectorXd>& B_bar, const vector<VectorXd>&
     As[t] = A; Bs[t] = B; Cs[t] = C; 
   }
 }
+
+void Robot::transform(const VectorXd& x, VectorXd& transform) {
+	Vector3d pos = xyz(x);
+	Vector4d q = quat(x);
+	transform = VectorXd(7);
+	transform.segment(0,3) = pos;
+	transform.segment(3,4) = q;
+}
+
+void Robot::dtransform(const VectorXd& x, MatrixXd& Jtransform) {
+	MatrixXd Jxyz, Jquat;
+	dxyz(x, Jxyz);
+	dquat(x, Jquat);
+
+	Jtransform = MatrixXd(7, _NX);
+	Jtransform.block(0,0,3,_NX) = Jxyz;
+	Jtransform.block(3,0,4,_NX) = Jquat;
+}
+
 
 void Robot::dxyz(const VectorXd & x, MatrixXd& Jxyz) {
 	Jxyz = MatrixXd::Zero(3, _NX);

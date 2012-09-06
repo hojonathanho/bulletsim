@@ -29,7 +29,8 @@
 #include "eigen_multivariate_normal.h"
 #include "trajectory_util.h"
 #include "camera_sensor.h"
-#include "sensor_functions.h"
+#include "sensor_functions/CarBeaconFunc.h"
+#include "sensor_functions/LocalizerCarCameraFunc.h"
 
 using namespace Eigen;
 using namespace std;
@@ -66,7 +67,8 @@ Matrix4d ComputeExtrinsics(Matrix4d& cam_world_transform) {
 int main()
 {
   // initialize random number generator
-  srand(time(NULL));
+  //srand(time(NULL));
+  srand(29);
 
   // initialize plotting
   osg::Group* root = new osg::Group();
@@ -92,46 +94,45 @@ int main()
   int NB = NX*(NX+3)/2;
   int NS = 0;
   int NUM_TEST = 0;
-  double rho_x = 0.1; 
+  double rho_x = 0.1;
   double rho_u = 0.1;
-  int N_iter = 50;
+  int N_iter = 200;
 
   // hack for now
   MatrixXd W_cov = MatrixXd::Zero(NB,NB);
   EigenMultivariateNormal<double> sampler(VectorXd::Zero(NB), W_cov);
   
   VectorXd x0(4);
-  x0 << 0.0, 0.0, 0.0, 0.3;
-  Car cl(x0);
+  x0 << -0.4, 0.3, 0.0, 0.3;
+  Vector3d pos_test = Vector3d(-0.2,0.1,0.0);
+  Car car(x0);
   VectorXd l_x0 = VectorXd::Zero(NX);
   l_x0.segment(0,4) = x0;
-  Localizer c(&cl, 1);
+  l_x0.segment(4,3) = pos_test;
+  Localizer c(&car, 1);
 
   //initialize the sensors
-  int NZ = 3; 
-  Vector2d beacon_1_pos(-0.2,0.3); 
-  BeaconSensor s1(beacon_1_pos);
+  int NZ = 5;
+  Vector2d beacon_1_pos(-0.2,0.4);
+  BeaconSensor s1(beacon_1_pos,50);
   s1.draw(beacon_1_pos, brown, traj_group);
   Robot::SensorFunc s1_f = &CarBeaconFunc;
-  cl.attach_sensor(&s1, s1_f);
+  c.attach_sensor(&s1, s1_f);
 
   Vector2d beacon_2_pos(0.2,0.1); 
-  BeaconSensor s2(beacon_2_pos);
+  BeaconSensor s2(beacon_2_pos,50);
   s2.draw(beacon_2_pos, brown, traj_group);
   Robot::SensorFunc s2_f = &CarBeaconFunc;
   c.attach_sensor(&s2, s2_f);
 
-  Vector2d beacon_3_pos(-0.3,0.1); 
-  BeaconSensor s3(beacon_3_pos);
+  Vector2d beacon_3_pos(0.0,0.2);
+  BeaconSensor s3(beacon_3_pos,50);
   s3.draw(beacon_3_pos, brown, traj_group);
   Robot::SensorFunc s3_f = &CarBeaconFunc;
   c.attach_sensor(&s3, s3_f);
   
   Matrix4d camera_transform = Matrix4d::Identity();
   camera_transform.block(0, 0, 3, 3) = AngleAxisd(0.2, Vector3d(0.0,0.0,1.0)).toRotationMatrix();
-//  //*
-//		  AngleAxisd(-M_PI / 2, Vector3d(0.0, 1.0, 0.0)).toRotationMatrix()
-//			* AngleAxisd(-M_PI / 2, Vector3d(0.0, 0.0, 1.0)).toRotationMatrix();
 
   Matrix3d KK = Matrix3d::Identity();
   KK(0,0) = -640.0; // fx (-1 * fx to fix an issue with rendering)
@@ -145,36 +146,45 @@ int main()
 		  AngleAxisd(-M_PI / 2, Vector3d(0.0, 1.0, 0.0)).toRotationMatrix()
 					* AngleAxisd(-M_PI / 2, Vector3d(0.0, 0.0, 1.0)).toRotationMatrix();
   CameraSensor s4 = CameraSensor(1, KK, 640, 480, camera_fixed_offset);
-  AngleAxisd r = AngleAxisd(-0.5, Vector3d(0.0,1.0,0.0));
-  //camera_transform.block(0,0,3,3) = r.toRotationMatrix();
-  //camera_transform(2,3) = z_offset;
-  s4.draw(camera_transform, brown, traj_group, z_offset/2);
-  camera_transform(0,3) = 0.2;
-  s4.draw(camera_transform, red, traj_group, z_offset/2);
+  Robot::SensorFunc s4_f = &LocalizerCarCameraFunc;
+  c.attach_sensor(&s4, s4_f);
 
-  Vector3d pos_test = Vector3d(0.2,0.1,0.0);
-  osg::Node* ell_test =drawEllipsoid(pos_test, 0.0001*Matrix3d::Identity(),orange);
-  traj_group->addChild(ell_test);
+  VectorXd camera_transform_vec;
+  transform2vec(camera_transform, camera_transform_vec);
+
+ // osg::Node* ell_test =drawEllipsoid(pos_test, 0.0001*Matrix3d::Identity(),orange);
+ // traj_group->addChild(ell_test);
 
 
 
 
   //initilaize the initial distributions and noise models
-  MatrixXd Sigma_0 = 0.0001*MatrixXd::Identity(NX,NX);
-  Sigma_0(2,2) = 0.0000000001;
-  Sigma_0(3,3) = 0.000000001;
+  MatrixXd Sigma_0 = 0.001*MatrixXd::Identity(NX,NX);
+  Sigma_0(2,2) = 0.00001;
+  Sigma_0(3,3) = 0.00001;
+  Sigma_0(6,6) = 0;
   LLT<MatrixXd> lltSigma_0(Sigma_0);
   MatrixXd rt_Sigma_0 = lltSigma_0.matrixL();
 
   MatrixXd Q_t = MatrixXd::Zero(NX,NX);
-  Q_t(0,0) = 0.000001;
-  Q_t(1,1) = 0.000001;
-  Q_t(2,2) = 0.0000001;
-  Q_t(3,3) = 0.0000000001;
+  Q_t(0,0) = 0.00001;
+  Q_t(1,1) = 0.00001;
+  Q_t(2,2) = 0.00000001;
+  Q_t(3,3) = 0.000000001;
+  Q_t(4,4) = 1e-10;
+  Q_t(5,5) = 1e-10;
+  Q_t(6,6) = 1e-10;
+
+
   LLT<MatrixXd> lltQ_t(Q_t);
   MatrixXd M_t = lltQ_t.matrixL();
 
   MatrixXd R_t = 0.01*MatrixXd::Identity(NZ,NZ);
+  //R_t(3,3) = 10.0;
+  //R_t(4,4) = 10.0;
+
+  R_t(3,3) = 0.00001;
+  R_t(4,4) = 0.00001;
   LLT<MatrixXd> lltR_t(R_t);
   MatrixXd N_t = lltR_t.matrixL();
 
@@ -194,6 +204,13 @@ int main()
     if (t > T/2) u = - 2 * u;
     U_bar[t] = u;
     MatrixXd rt_W_t;
+    //MatrixXd H_t, rt_Sigma_t;
+    //VectorXd z_t, x_t;
+    //parse_belief_state(B_bar[t],x_t,rt_Sigma_t);
+    //c.observe(x_t, z_t);
+    //cout << z_t << endl;
+    //c.dgdx(x_t, H_t);
+    //cout << H_t << endl << endl;
     c.belief_dynamics(B_bar[t], U_bar[t], B_bar[t+1]);
     c.belief_noise(B_bar[t], U_bar[t], rt_W_t);
     sampler.setCovar(rt_W_t * rt_W_t.transpose());
@@ -213,42 +230,52 @@ int main()
   }
 
   render = c.draw_belief_trajectory(B_bar, red, yellow, traj_group, 1e-4);
-//
-//  // setup for SCP
-//  // Define a goal state
-//  VectorXd b_goal = B_bar[T];
-//  b_goal.segment(NX, NB-NX) = VectorXd::Zero(NB-NX); // trace
-//  // Output variables
-//  vector<VectorXd> opt_B, opt_U; // noiseless trajectory
-//  MatrixXd Q; VectorXd r;  // control policy
-//
-//  cout << "calling scp" << endl;
-//  scp_solver(c, B_bar, U_bar, W_bar, rho_x, rho_u, b_goal, N_iter,
-//      opt_B, opt_U, Q, r);
-//
-//  TrajectoryInfo opt_traj(b_0);
-//    for (int t = 0; t < T; t++) {
-//  	  //opt_traj.add_and_integrate(opt_U[t], VectorXd::Zero(NX), c);
-//  	  VectorXd feedback = opt_traj.Q_feedback(c);
-//  	  VectorXd u_policy = Q.block(t*NU, t*NB, NU, NB) * feedback + r.segment(t*NU, NU);
-//  	  opt_traj.add_and_integrate(u_policy, VectorXd::Zero(NB), c);
-//    }
-//    c.draw_belief_trajectory(opt_traj._X, blue, orange, traj_group, z_offset/2+1e-4);
-//
-//    for (int s = 0; s < NUM_TEST; s++) {
-//  	  TrajectoryInfo test_traj(b_0);
-//  	  for (int t = 0; t < T; t++) {
-//  		  VectorXd feedback = test_traj.Q_feedback(c);
-//  	  	  VectorXd u_policy = Q.block(t*NU, t*NB, NU, NB) * feedback + r.segment(t*NU, NU);
-//  		  test_traj.add_and_integrate(u_policy, W_bar[t].col(s), c);
-//  		  //test_traj.add_and_integrate(u_policy, sampler.nextSample(), c);
-//  	  }
-//  	  c.draw_belief_trajectory(test_traj._X, blue, transparent, traj_group, z_offset/2+1e-4);
-//    }
+  c.draw_object_uncertainty(B_bar[0], yellow, traj_group, 1e-4);
+  c.draw_object_uncertainty(B_bar[T], orange, traj_group, 1e-4);
+  VectorXd test_x; MatrixXd test_rt_Sigma;
+  parse_belief_state(B_bar[T], test_x, test_rt_Sigma);
+  cout << test_rt_Sigma * test_rt_Sigma.transpose();
+  c.draw_sensor_belief_trajectory(B_bar, brown, traj_group, z_offset/2);
+
+
+
+  // setup for SCP
+  // Define a goal state
+  VectorXd b_goal = B_bar[T];
+  b_goal.segment(NX, NB-NX) = VectorXd::Zero(NB-NX); // trace
+  // Output variables
+  vector<VectorXd> opt_B, opt_U; // noiseless trajectory
+  MatrixXd Q; VectorXd r;  // control policy
+
+  cout << "calling scp" << endl;
+  scp_solver(c, B_bar, U_bar, W_bar, rho_x, rho_u, b_goal, N_iter,
+      opt_B, opt_U, Q, r);
+
+  TrajectoryInfo opt_traj(b_0);
+    for (int t = 0; t < T; t++) {
+  	  //opt_traj.add_and_integrate(opt_U[t], VectorXd::Zero(NX), c);
+  	  VectorXd feedback = opt_traj.Q_feedback(c);
+  	  VectorXd u_policy = Q.block(t*NU, t*NB, NU, NB) * feedback + r.segment(t*NU, NU);
+  	  opt_traj.add_and_integrate(u_policy, VectorXd::Zero(NB), c);
+    }
+    c.draw_belief_trajectory(opt_traj._X, blue, orange, traj_group, z_offset/2+1e-4);
+    c.draw_object_uncertainty(opt_traj._X[T], red, traj_group, z_offset/2 + 1e-4);
+    c.draw_sensor_belief_trajectory(opt_traj._X, brown, traj_group, z_offset/2);
+
+    for (int s = 0; s < NUM_TEST; s++) {
+  	  TrajectoryInfo test_traj(b_0);
+  	  for (int t = 0; t < T; t++) {
+  		  VectorXd feedback = test_traj.Q_feedback(c);
+  	  	  VectorXd u_policy = Q.block(t*NU, t*NB, NU, NB) * feedback + r.segment(t*NU, NU);
+  		  test_traj.add_and_integrate(u_policy, W_bar[t].col(s), c);
+  		  //test_traj.add_and_integrate(u_policy, sampler.nextSample(), c);
+  	  }
+  	  c.draw_belief_trajectory(test_traj._X, blue, transparent, traj_group, z_offset/2+1e-4);
+    }
 
 
   // visualize
-  osg::Geode * fgeode = new osg::Geode; 
+  osg::Geode * fgeode = new osg::Geode;
   osg::ShapeDrawable *floor = new osg::ShapeDrawable(new osg::Box(osg::Vec3(0.0,0.0,-z_offset/2), 1.0, 1.0, z_offset));
   floor->setColor(osg::Vec4(0.1,0.1,0.1,1.0));
   fgeode->addDrawable(floor);
@@ -285,8 +312,7 @@ int main()
 //  cout << v1_frustrum << endl;
 
   //third screen
-  camera_transform(0,3) = 0.0;
-  osgViewer::View* v2 = s4.renderCameraView(camera_transform);
+  osgViewer::View* v2 = s4.renderCameraView(camera_transform_vec);
   v2->setSceneData(root);
   compositeViewer->addView(v2);
 
@@ -352,20 +378,20 @@ int main()
 //	  traj_group->addChild(camera_render);
 //	  osg::Node* camera_render = makeFrustumFromCamera(cam2);
 //	  v0_root->addChild(camera_render);
-	  pos_test(0) += 0.0001;
-	  ell_test =drawEllipsoid(pos_test, 0.00001*Matrix3d::Identity(),orange);
-	  traj_group->addChild(ell_test);
+//	  pos_test(0) += 0.0001;
+	  //ell_test =drawEllipsoid(pos_test, 0.00001*Matrix3d::Identity(),orange);
+	  //traj_group->addChild(ell_test);
 
-	  VectorXd test_obs(10);
-	  test_obs.segment(0,3) = camera_transform.block(0,3,3,1);
-	  Matrix3d cam_rot = camera_transform.block(0,0,3,3);
-	  Quaterniond cam_quat(cam_rot);
-	  test_obs.segment(3,4) = cam_quat.coeffs();
-	  test_obs.segment(7,3) = pos_test;
+//	  VectorXd test_obs(10);
+//	  test_obs.segment(0,3) = camera_transform.block(0,3,3,1);
+//	  Matrix3d cam_rot = camera_transform.block(0,0,3,3);
+//	  Quaterniond cam_quat(cam_rot);
+//	  test_obs.segment(3,4) = cam_quat.coeffs();
+//	  test_obs.segment(7,3) = pos_test;
 
-	  VectorXd pxy;
-	  s4.observe(test_obs, pxy);
-	  cout << pxy.transpose() << endl;
+	  //VectorXd pxy;
+	  //s4.observe(test_obs, pxy);
+	  //cout << pxy.transpose() << endl;
 
 
 	  //cout << "lol " << x << endl;
@@ -374,8 +400,8 @@ int main()
 
 	  compositeViewer->frame();
 //	  v0_root->removeChild(camera_render);
-	  traj_group->removeChild(ell_test);
-	  usleep(100);
+	  //traj_group->removeChild(ell_test);
+	  usleep(10000);
   }
 
   return 0;

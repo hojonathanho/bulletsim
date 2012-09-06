@@ -17,7 +17,7 @@
 #include <stdio.h>
 #include "kalman_filter.h"
 #include "timer.h"
-#include "sensor_functions.h"
+#include "sensor_functions/CarBeaconFunc.h"
 
 
 using namespace Eigen;

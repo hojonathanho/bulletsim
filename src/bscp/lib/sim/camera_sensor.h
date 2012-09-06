@@ -98,8 +98,29 @@ class CameraSensor : public Sensor
     	z = VectorXd(_num_obj*2);
     	for (int i = 0; i < _num_obj; i++) {
     		Vector4d XXc = E * Vector4d(obj_pos(i*3), obj_pos(i*3+1), obj_pos(i*3+2), 1.0);
+    		Vector3d pxy;
+    		if (XXc(2) < 0) {
     		Vector3d Xn(XXc(0) / XXc(2), XXc(1) / XXc(2), 1.0);
-    		Vector3d pxy = _KK * Xn;
+				pxy = _KK * Xn;
+				if (pxy(0) < 0)
+					pxy(0) = 0;
+				else if (pxy(0) > _image_width)
+					pxy(0) = _image_width;
+
+				if (pxy(1) < 0)
+					pxy(1) = 0;
+				else if (pxy(1) > _image_height)
+					pxy(1) = _image_height;
+    		} else {
+    			pxy(0) = _image_width;
+    			pxy(1) = _image_height;
+    		}
+
+    		double cx = _image_width/2;
+    		double cy = _image_height/2;
+    		pxy(0) = exp(- abs(pxy(0) - cx)/ _image_width );
+    		pxy(1) = exp(- abs(pxy(1) - cy)/ _image_height );
+    		//cout << pxy.transpose() << endl;
     		z.segment(i*2, 2) = pxy.segment(0,2);
     	}
     }
