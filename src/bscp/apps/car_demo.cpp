@@ -15,6 +15,11 @@
 using namespace Eigen;
 using namespace std;
 
+static VectorXd _goal_offset;
+VectorXd GoalFn(Robot& r, const VectorXd& x) {
+	return x.segment(0,2) - _goal_offset.segment(0,2);
+}
+
 int main()
 {
   // initialize random number generator
@@ -26,11 +31,11 @@ int main()
   vector<osg::Node*> render;
 
   // intialize the robot
-  int T = 8;
+  int T = 20;
   int NX = 4;
   int NU = 2;
-  int NS = 0;
-  int NUM_TEST = 0;
+  int NS = 20;
+  int NUM_TEST = 20;
   double rho_x = 0.1; 
   double rho_u = 0.1;
   int N_iter = 50;
@@ -78,17 +83,18 @@ int main()
 
   // Define a goal state
   VectorXd x_goal = X_bar[T];
+  _goal_offset = x_goal;
   // Output variables
   vector<VectorXd> opt_X, opt_U; // noiseless trajectory
   MatrixXd Q; VectorXd r;  // control policy
 
-  scp_solver(c, X_bar, U_bar, W_bar, rho_x, rho_u, x_goal, N_iter,
+  scp_solver(c, X_bar, U_bar, W_bar, rho_x, rho_u, &GoalFn, NULL, N_iter,
       opt_X, opt_U, Q, r);
 
   //cout << Q << endl;
 
 
-  TrajectoryInfo opt_traj(x0);
+  TrajectoryInfo opt_traj(x0, &GoalFn, NULL);
   for (int t = 0; t < T; t++) {
 	  //opt_traj.add_and_integrate(opt_U[t], VectorXd::Zero(NX), c);
 	  VectorXd feedback = opt_traj.Q_feedback(c);
@@ -101,12 +107,12 @@ int main()
   Vector4d blue(0.3, 0.3, 1.0, 0.4);
 
   for (int s = 0; s < NUM_TEST; s++) {
-	  TrajectoryInfo test_traj(x0);
+	  TrajectoryInfo test_traj(x0, &GoalFn, NULL);
 	  for (int t = 0; t < T; t++) {
 		  VectorXd feedback = test_traj.Q_feedback(c);
 		  VectorXd u_policy = Q.block(t*NU, t*NX, NU, NX) * feedback + r.segment(t*NU, NU);
-		  test_traj.add_and_integrate(u_policy, W_bar[t].col(s), c);
-		  //test_traj.add_and_integrate(u_policy, sampler.nextSample(), c);
+		  //test_traj.add_and_integrate(u_policy, W_bar[t].col(s), c);
+		  test_traj.add_and_integrate(u_policy, sampler.nextSample(), c);
 	  }
 	  c.draw_trajectory(test_traj._X, blue, root);
   }
@@ -136,7 +142,7 @@ int main()
 
   // visualize
   osg::Geode *fgeode = new osg::Geode; 
-  osg::ShapeDrawable *floor = new osg::ShapeDrawable(new osg::Box(osg::Vec3(0.0,0.0,0.0), 1.0, 1.0, 0.01));
+  osg::ShapeDrawable *floor = new osg::ShapeDrawable(new osg::Box(osg::Vec3(0.0,0.0,-0.005), 1.0, 1.0, 0.005));
   floor->setColor(osg::Vec4(0.1,0.1,0.1,0.5));
   fgeode->addDrawable(floor);
   root->addChild(fgeode); 

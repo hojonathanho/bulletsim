@@ -199,7 +199,7 @@ void build_pbar(const vector<VectorXd>& ps, VectorXd& pbar) {
 
 
 void convex_gurobi_solver(const TrajectoryInfo &nominal,
-		const vector<TrajectoryInfo>& samples, const VectorXd& x_goal,
+		const vector<TrajectoryInfo>& samples,
 		vector<VectorXd>& opt_X, vector<VectorXd>& opt_U, MatrixXd &opt_K,
 		VectorXd & opt_u0, vector<vector<VectorXd> >& opt_sample_X,
 		vector<vector<VectorXd> >& opt_sample_U, const bool compute_policy) {
@@ -208,6 +208,7 @@ void convex_gurobi_solver(const TrajectoryInfo &nominal,
   int NU = nominal._U[0].rows();
   int NS = samples.size();
   int T = nominal._U.size();
+  int NG = nominal._goal_offset.rows();
 
 
   // Construct major matrices
@@ -273,15 +274,16 @@ void convex_gurobi_solver(const TrajectoryInfo &nominal,
    * q_vec -> NX*NU*T
    * x -> NX*(T+1) (represents the difference from a nominal trajectory X_bar)
    * u -> NU*T
-   * goal_diff -> NX
+   * goal_diff -> NG
    * p -> NP (represents the distance penetration of each collision)
    * sample_x -> NS*NX*(T+1)
    * sample_u -> NU*NS*T
-   * sample_diff -> NX*NS
+   * sample_diff -> NG*NS
    * sample_p -> to be implemented
    */
 
-  int ALL_VARS = NU*T + NX*NU*T + NX*(T+1) + NU*T + NX + NP + NX*NS*(T+1) + NU*NS*T + NX*NS;
+  int ALL_VARS = NU*T + NX*NU*T + NX*(T+1) + NU*T + NG + NP + NX*NS*(T+1) + NU*NS*T + NG*NS;
+
 
   /* Build constraint matrices */
 
@@ -293,12 +295,13 @@ void convex_gurobi_solver(const TrajectoryInfo &nominal,
   VectorXd x_b(NX*(T+1));
   hcat(spzeros(NX*(T+1), NU*T + NX*NU*T), speye(NX*(T+1)), x_A); // r, q, x
   x_A = hcat(x_A, -H); // u
-  x_A = hcat(x_A, spzeros(NX*(T+1), NX + NP + NX*NS*(T+1) + NU*NS*T + NX*NS)); //goal_diff, p, sample_x, sample_u, sample_diff
+  x_A = hcat(x_A, spzeros(NX*(T+1), NG + NP + NX*NS*(T+1) + NU*NS*T + NG*NS)); //goal_diff, p, sample_x, sample_u, sample_diff
   //hcat(speye(NX*(T+1)), -H, x_A); // X, U
   //x_A = hcat(x_A, spzeros(NX*(T+1), NU*T + NX*NU*T + NX + NP
   //      + NX*NS + NU*NS*T )); // r, q, goal_diff, p, sample_diff, sample_u
 
   x_b = x0 - x_bar;
+
 
   /*
    * CONSTRAINT 2
@@ -312,31 +315,28 @@ void convex_gurobi_solver(const TrajectoryInfo &nominal,
   hcat(-1*speye(NU*T), -Qx0, u_A); // r, q
   u_A = hcat(u_A, spzeros(NU*T, NX*(T+1))); // x
   u_A = hcat(u_A, speye(NU*T)); // u
-  u_A = hcat(u_A, spzeros(NU*T, NX+NP + NX*NS*(T+1) + NU*NS*T + NX*NS)); // goal_diff, p, sample_x, sample_u, sample_diff
+  u_A = hcat(u_A, spzeros(NU*T, NG +NP + NX*NS*(T+1) + NU*NS*T + NG*NS)); // goal_diff, p, sample_x, sample_u, sample_diff
   //hcat(spzeros(NU*T, NX*(T+1)), speye(NU*T), u_A);  // X, U
   //u_A = hcat(u_A, -1*speye(NU*T)); // r
   //u_A = hcat(u_A, -Qx0); // q
   //u_A = hcat(u_A, spzeros(NU*T, NX + NP + NX*NS + NU*NS*T)); // goal_diff, np, sample_diff, sample_u
   u_b = VectorXd::Zero(NU*T);
 
+
   /*
    * CONSTRAINT 3
-   * goal_diff = x_T + x_bar_T - x_goal -> x_T - goal_diff = x_goal - x_bar_T
+   * g = G(x_t + bar_x_t) + g(bar_x_t)
+   * g - Gx_t = G*bar_x_t + g(bar_x_t)
    */
 
   SparseMatrix<double> g_A;
-  VectorXd g_b(NX);
-  hcat(spzeros(NX, NU*T + NX*NU*T + NX*T), speye(NX), g_A); // r, q, X
-  g_A = hcat(g_A, spzeros(NX, NU*T)); // U
-  g_A = hcat(g_A, -speye(NX)); // goal_diff
-  g_A = hcat(g_A, spzeros(NX, NP + NX*NS*(T+1) + NU*T*NS + NS*NX)); //p, sample_x, sample_u, sample_diff
+  VectorXd g_b(NG);
+  hcat(spzeros(NG, NU*T + NX*NU*T + NX*T), -toSparse(nominal._Goal), g_A); // r, q, X
+  g_A = hcat(g_A, spzeros(NG, NU*T)); // U
+  g_A = hcat(g_A, speye(NG)); // goal_diff
+  g_A = hcat(g_A, spzeros(NG, NP + NX*NS*(T+1) + NU*T*NS + NS*NG)); //p, sample_x, sample_u, sample_diff
 
-  //hcat(spzeros(NX, NX*T), speye(NX), g_A); // X
-  //g_A = hcat(g_A, spzeros(NX, NU*T + NU*T + NX*NU*T)); // U, r, q
-  //g_A = hcat(g_A, -speye(NX)); // goal_diff
-  //g_A = hcat(g_A, spzeros(NX, NP + NX*NS + NU*T*NS)); //p, sample_diff, sample_u
-  g_b = x_goal - nominal._X[T];
-
+  g_b = nominal._Goal * nominal._X[T] + nominal._goal_offset;
 
 
   /*
@@ -350,9 +350,9 @@ void convex_gurobi_solver(const TrajectoryInfo &nominal,
   SparseMatrix<double> sx_H;
   for (int s = 0; s < NS; s++) sx_H = blkdiag(sx_H, -s_H[s]);
 
-  hcat(spzeros(NX*NS*(T+1), NU*T + NX*NU*T + NX*(T+1) + NU*T + NX + NP), speye(NX*NS*(T+1)), sx_A); // r, q, x, u, goal_diff, p, sample_x
+  hcat(spzeros(NX*NS*(T+1), NU*T + NX*NU*T + NX*(T+1) + NU*T + NG + NP), speye(NX*NS*(T+1)), sx_A); // r, q, x, u, goal_diff, p, sample_x
   sx_A = hcat(sx_A, sx_H); // sample_u (negative sign taken care of)
-  sx_A = hcat(sx_A, spzeros(NX*NS*(T+1), NX*NS)); // sample_diff
+  sx_A = hcat(sx_A, spzeros(NX*NS*(T+1), NG*NS)); // sample_diff
   for (int s = 0; s < NS; s++)
 	  sx_b.segment(s*NX*(T+1), NX*(T+1)) = s_x0[s] + s_G[s]*samples[s].W_vec() - samples[s].X_vec();
 
@@ -374,9 +374,9 @@ void convex_gurobi_solver(const TrajectoryInfo &nominal,
     su_A_r_block = vcat(su_A_r_block, -speye(NU*T));
   }
   hcat(su_A_r_block, su_A_Q_block, su_A); // r, q
-  su_A = hcat(su_A, spzeros(NU*T*NS, NX*(T+1) + NU*T + NP + NX + NX*NS*(T+1))) ; // x, u, goal_diff, p, sample_x
+  su_A = hcat(su_A, spzeros(NU*T*NS, NX*(T+1) + NU*T + NP + NG + NX*NS*(T+1))) ; // x, u, goal_diff, p, sample_x
   su_A = hcat(su_A, speye(NU*T*NS)); // sample_u
-  su_A = hcat(su_A, spzeros(NU*T*NS, NX*NS)); //sample_diff
+  su_A = hcat(su_A, spzeros(NU*T*NS, NG*NS)); //sample_diff
   su_b = VectorXd::Zero(NU*T*NS);
   //hcat(spzeros(NU*T*NS, NX*(T+1) + NU*T), su_A_r_block, su_A);  // X, U, r
   //su_A = hcat(su_A, su_A_Q_block); // q
@@ -384,50 +384,29 @@ void convex_gurobi_solver(const TrajectoryInfo &nominal,
   //su_A = hcat(su_A, speye(NU*T*NS)); // sample_u
 
 
-
   /*
    * CONSTRAINT 6
-   * sample_diff = sample_x_T + sample_x_bar_T - x_goal
-   * -> sample_x_T - sample_diff = x_goal - sample_x_bar_T
+   * sample_g - Gsample_x_t = G*sample_bar_x_t + g(sample_bar_x_t)
    */
 
   SparseMatrix<double> sd_A;
-  VectorXd sd_b(NX*NS);
+  VectorXd sd_b(NG*NS);
   SparseMatrix<double> sd_A_sample_X_block;
-  SparseMatrix<double> sd_A_sample_X_subblock;
-  hcat(spzeros(NX,NX*T), speye(NX), sd_A_sample_X_subblock);
-  for (int s = 0; s < NS; s++) sd_A_sample_X_block = blkdiag(sd_A_sample_X_block, sd_A_sample_X_subblock);
 
+  for (int s = 0; s < NS; s++) {
+	  SparseMatrix<double> sd_A_sample_X_subblock;
+	  hcat(spzeros(NG,NX*T), -toSparse(samples[s]._Goal), sd_A_sample_X_subblock);
+	  sd_A_sample_X_block = blkdiag(sd_A_sample_X_block, sd_A_sample_X_subblock);
+  }
 
-  hcat(spzeros(NX*NS, NX*(T+1) + NU*T + NU*T + NX*NU*T + NX + NP) , sd_A_sample_X_block,
-		  sd_A); // x, u, r, q, goal_diff, p, sample_x
-  sd_A = hcat(sd_A, spzeros(NX*NS, NU*T*NS)); // sample_u
-  sd_A = hcat(sd_A, -speye(NS*NX)); // sample_diff
+  hcat(spzeros(NG*NS, NU*T + NX*NU*T + NX*(T+1) + NU*T + NG + NP) , sd_A_sample_X_block,
+		  sd_A); // r, q,  x, u, goal_diff, p, sample_x
+  sd_A = hcat(sd_A, spzeros(NG*NS, NU*T*NS)); // sample_u
+  sd_A = hcat(sd_A, speye(NG*NS)); // sample_diff
 
-  for (int s = 0; s < NS; s++)
-	  sd_b.segment(s*NX, NX) = x_goal - samples[s]._X[T];
-
-
-
-
-  //  /*
-  //   * CONSTRAINT 4
-  //   * sample_diff = x_s - x_goal = H_t1 u_s + x0 + G_T1 w_s - x_goal
-  //   *      ->
-  //   * sample_diff - H_t1 u_s = x0 + G_T1 w_s - x_goal
-  //   */
-  //
-  //  SparseMatrix<double> sd_A;
-  //  VectorXd sd_b(NX*NS);
-  //  hcat(spzeros(NX*NS, NX*(T+1) + NU*T + NU*T + NX*NU*T + NX + NP) , speye(NX*NS),
-  //      sd_A); // x, u, r, q, goal_diff, p, sample_diff
-  //  SparseMatrix<double> sd_H;
-  //  for (int s = 0; s < NS; s++) sd_H = blkdiag(-s_H_T1[s], sd_H); THIS IS BACKWARDS
-  //  sd_A = hcat(sd_A, sd_H); // sample_u
-  //  for (int s = 0; s < NS; s++)
-  //    sd_b.segment(s*NX, NX) = s_x0_T1[s] + s_G_T1[s]*samples[s].W_vec() - x_goal;
-  //
-
+  for (int s = 0; s < NS; s++) {
+	  sd_b.segment(s*NG, NG) = samples[s]._Goal * samples[s]._X[T] + samples[s]._goal_offset;
+  }
 
 
   // INEQUALITY CONSTRAINTS
@@ -443,9 +422,9 @@ void convex_gurobi_solver(const TrajectoryInfo &nominal,
   SparseMatrix<double> p_A;
   VectorXd p_b(NP);
   hcat(spzeros(NP, NU*T + NX*NU*T), a*P, p_A); // r, q, X;
-  p_A = hcat(p_A, spzeros(NP, NU*T + NX)); // U, goal_diff
+  p_A = hcat(p_A, spzeros(NP, NU*T + NG)); // U, goal_diff
   p_A = hcat(p_A, speye(NP)); // p
-  p_A = hcat(p_A, spzeros(NP, NX*NS*(T+1) + NU*T*NS + NX*NS)); // sample_x, sample_u, sample_diff
+  p_A = hcat(p_A, spzeros(NP, NX*NS*(T+1) + NU*T*NS + NG*NS)); // sample_x, sample_u, sample_diff
   //hcat(a*P, spzeros(NP, NU*T + NU*T + NX*NU*T + NX), p_A); // X, U, r, q, goal_diff
   //p_A = hcat(p_A, speye(NP)); // p
   //p_A = hcat(p_A, spzeros(NP, NX*NS + NU*T*NS)); // sample_diff, sample_u
@@ -472,13 +451,13 @@ void convex_gurobi_solver(const TrajectoryInfo &nominal,
   VectorXd Qr_obj  = 0.00000     * VectorXd::Ones(NU*T);     // r prior to prevent overfitting on samples
   VectorXd Qq_obj  = 0.00001     * VectorXd::Ones(NU*NX*T);  // q prior to prevent overfitting on samples
   VectorXd Qx_obj  = 0.0     * VectorXd::Ones(NX*(T+1)); // x
-  VectorXd Qu_obj  = 0.01   * VectorXd::Ones(NU*T);     // u
-  VectorXd Qg_obj  = 10000.0    * VectorXd::Ones(NX);       // goal_diff
-  Qg_obj.segment(7,NX-7) = 1.0 * VectorXd::Ones(NX-7);
+  VectorXd Qu_obj  = 0.00001   * VectorXd::Ones(NU*T);     // u
+  VectorXd Qg_obj  = 10.0    * VectorXd::Ones(NG);       // goal_diff
+  //Qg_obj.segment(7,NX-7) = 1.0 * VectorXd::Ones(NX-7);
   VectorXd Qp_obj  = 0.0     * VectorXd::Ones(NP);       // p
   VectorXd Qsx_obj = 0.0     * VectorXd::Ones(NX*NS*(T+1));
   VectorXd Qsu_obj = 0.001/NS * VectorXd::Ones(NU*NS*T);  // sample_control
-  VectorXd Qsg_obj = 1.0/NS * VectorXd::Ones(NX*NS);    // sample_diff
+  VectorXd Qsg_obj = 1.0/NS * VectorXd::Ones(NG*NS);    // sample_diff
 
   diag <<  Qr_obj, Qq_obj, Qx_obj, Qu_obj, Qg_obj, Qp_obj, Qsx_obj, Qsu_obj, Qsg_obj;
   SparseMatrix<double> Q_obj = spdiag(diag);
@@ -488,11 +467,11 @@ void convex_gurobi_solver(const TrajectoryInfo &nominal,
   VectorXd Cq_obj  = 0.0     * VectorXd::Ones(NU*NX*T);     // q
   VectorXd Cx_obj  = 0.0     * VectorXd::Ones(NX*(T+1));    // x
   VectorXd Cu_obj  = 0.0     * VectorXd::Ones(NU*T);        // u
-  VectorXd Cg_obj  = 0.0     * VectorXd::Ones(NX);          // goal_diff
+  VectorXd Cg_obj  = 0.0     * VectorXd::Ones(NG);          // goal_diff
   VectorXd Cp_obj  = 1.0     * VectorXd::Ones(NP);          // p
   VectorXd Csx_obj = 0.0     * VectorXd::Ones(NX*NS*(T+1)); // sample_x
   VectorXd Csu_obj = 0.0     * VectorXd::Ones(NU*NS*T);     // sample_u
-  VectorXd Csg_obj = 0.0     * VectorXd::Ones(NX*NS);       // sample_diff
+  VectorXd Csg_obj = 0.0     * VectorXd::Ones(NG*NS);       // sample_diff
 
   c_dense << Cr_obj, Cq_obj, Cx_obj, Cu_obj, Cg_obj, Cp_obj, Csx_obj, Csu_obj, Csg_obj;
   SparseVector<double> c_obj = toSparseVector(c_dense);
@@ -524,7 +503,7 @@ void convex_gurobi_solver(const TrajectoryInfo &nominal,
 		  ub[ind + t*NU + i] = nominal._U_upper_limit[t][i];
 	  }
   }
-  ind += NU*T + NX; //U, goal_diff
+  ind += NU*T + NG; //U, goal_diff
 
   for (int i = 0; i < NP; i++) {
 	  lb[ind + i] = 0;
@@ -583,11 +562,11 @@ void convex_gurobi_solver(const TrajectoryInfo &nominal,
   VectorXd opt_q  = opt_sol.segment(ind, NU*NX*T); ind += NU*NX*T;
   VectorXd opt_x  = opt_sol.segment(ind, NX*(T+1)); ind += NX*(T+1);
   VectorXd opt_u  = opt_sol.segment(ind, NU*T); ind += NU*T;
-  VectorXd opt_d  = opt_sol.segment(ind, NX); ind += NX;
+  VectorXd opt_d  = opt_sol.segment(ind, NG); ind += NG;
   VectorXd opt_p  = opt_sol.segment(ind, NP); ind += NP;
   VectorXd opt_sx = opt_sol.segment(ind, NX*NS*(T+1)); ind += NX*NS*(T+1);
   VectorXd opt_su = opt_sol.segment(ind, NU*NS*T); ind += NU*NS*T;
-  VectorXd opt_sd = opt_sol.segment(ind, NX*NS); ind += NX*NS;
+  VectorXd opt_sd = opt_sol.segment(ind, NG*NS); ind += NG*NS;
 
   // parse X
   opt_x = opt_x + x_bar;
@@ -619,13 +598,13 @@ void convex_gurobi_solver(const TrajectoryInfo &nominal,
   //cout << opt_r << endl;
 
   // parse opt_sample_X
-  VectorXd opt_sample_x = opt_sd; // wrong for now
+  VectorXd opt_sample_x = opt_sx; // s_x_bar is added in the loop
 
   opt_sample_X.resize(NS);
   for (int s = 0; s < NS; s++) {
-	  vector<VectorXd> opt_sample_X_t(1);
-	  VectorXd opt_sample_x_t = opt_sample_x.segment(s*NX*1, NX*1);
-	  for (int t = 0; t < 1; t++) {
+	  vector<VectorXd> opt_sample_X_t(T+1);
+	  VectorXd opt_sample_x_t = opt_sample_x.segment(s*NX*(T+1), NX*(T+1)) + samples[s].X_vec();
+	  for (int t = 0; t < T+1; t++) {
 		  opt_sample_X_t[t] = opt_sample_x_t.segment(t*NX, NX);
 	  }
 	  opt_sample_X[s] = opt_sample_X_t;

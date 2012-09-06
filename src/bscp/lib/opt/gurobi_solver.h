@@ -38,7 +38,7 @@ void build_ubar(const vector<VectorXd>& U_bar, VectorXd& u_bar);
 void build_sample_matrix(const vector<MatrixXd> &W_bar, MatrixXd & W_s);
 
 void convex_gurobi_solver(const TrajectoryInfo &nominal,
-		const vector<TrajectoryInfo>& samples, const VectorXd& x_goal,
+		const vector<TrajectoryInfo>& samples,
 		vector<VectorXd>& opt_X, vector<VectorXd>& opt_U, MatrixXd &opt_K,
 		VectorXd & opt_u0, vector<vector<VectorXd> >& opt_sample_X,
 		vector<vector<VectorXd> >& opt_sample_U, const bool compute_policy);

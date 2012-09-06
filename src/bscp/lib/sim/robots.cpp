@@ -351,6 +351,31 @@ void Robot::dtdx(const VectorXd &x, SensorFunc& f, MatrixXd& T) {
 	}
 }
 
+void Robot::dgoaldx(const VectorXd& x, GoalFunc& g, MatrixXd& Goal) {
+	int NG = g(*this, x).rows();
+	Goal = MatrixXd::Zero(NG,x.rows());
+	for (int i = 0; i < x.rows(); i++) {
+		VectorXd eps_vec = VectorXd::Zero(x.rows());
+		eps_vec(i) = _eps;
+		VectorXd x_pos = x + eps_vec;
+		VectorXd x_neg = x - eps_vec;
+		VectorXd g_pos = g(*this, x_pos);
+		VectorXd g_neg = g(*this, x_neg);
+		Goal.col(i) = (g_pos - g_neg) / (2 * _eps);
+	}
+}
+
+void Robot::dgoal(const VectorXd& x, GoalFunc& g, GoalFuncJacboian& gj, MatrixXd& Goal, VectorXd& goal_offset) {
+	if (gj != NULL) {
+		Goal = gj(*this, x);
+	} else {
+		dgoaldx(x, g, Goal);
+	}
+
+	goal_offset = g(*this, x) - Goal*x;
+}
+
+
 //void Robot::dbdb(const VectorXd &b, const VectorXd &u, MatrixXd &A) {
 //  A = MatrixXd::Zero(_NB, _NB);
 //  for (int i = 0; i < _NB; i++) {

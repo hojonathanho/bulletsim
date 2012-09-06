@@ -374,7 +374,7 @@ class PR2_SCP : public Robot
     Vector3d camera_xyz(const VectorXd& x) {
 		_pr2->robot->SetDOFValues(toVec(x), 1, _active_dof_indices);
 		btTransform link_transform = util::toBtTransform(
-				_arm_links[6]->GetTransform(), GeneralConfig::scale);
+				_arm_links[7]->GetTransform(), GeneralConfig::scale);
 		Affine3f eig_transform = toEigenTransform(link_transform);
 		Vector3f xyz = eig_transform.translation();
 		Vector3d ret;
@@ -390,7 +390,7 @@ class PR2_SCP : public Robot
     	vector<double> jac_v;
     	Vector3d current_point = camera_xyz(x);
 		RaveVector<double> p = util::toRaveVector(btVector3(current_point(0), current_point(1), current_point(2)));
-		_pr2->robot->CalculateActiveJacobian(_arm_links[6]->GetIndex(),
+		_pr2->robot->CalculateActiveJacobian(_arm_links[7]->GetIndex(),
 				p, jac_v);
 		Jxyz = MatrixXd::Zero(3, x.rows());
 		for (int r = 0; r < 3; r++) {
@@ -404,7 +404,7 @@ class PR2_SCP : public Robot
     Vector4d camera_quat(const VectorXd &x) {
 		_pr2->robot->SetDOFValues(toVec(x), 1, _active_dof_indices);
 		btTransform link_transform = util::toBtTransform(
-				_arm_links[6]->GetTransform(), GeneralConfig::scale);
+				_arm_links[7]->GetTransform(), GeneralConfig::scale);
 		Affine3f eig_transform = toEigenTransform(link_transform);
         Quaternionf quat = Quaternionf(eig_transform.rotation());
         Vector4f quat_vec = quat.coeffs(); // x y z w
@@ -425,7 +425,7 @@ class PR2_SCP : public Robot
     	vector<double> jac_v;
     	Vector4d current_q = camera_quat(x);
     	RaveVector<double> q = RaveVector<double>(current_q(3), current_q(0), current_q(1), current_q(2));
-		_pr2->robot->CalculateActiveRotationJacobian(_arm_links[6]->GetIndex(),
+		_pr2->robot->CalculateActiveRotationJacobian(_arm_links[7]->GetIndex(),
 				q, jac_v);
 		MatrixXd Jquat_wrong_order = MatrixXd::Zero(4, x.rows());
 		for (int r = 0; r < 4; r++) {

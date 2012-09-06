@@ -115,10 +115,10 @@ int main(int argc, char* argv[]) {
   table->setColor(0,0,1,1);
   scene.env->add(table);
 
-  Vector3d object_pos(0.9, 0.4, table_height);
+  Vector3d object_pos(1.2, 0.0, table_height);
 
   // initialize robot
-  int T = 30;
+  int T = 5;
   int NL = 1;
   int NX = 7 + NL*3;
   int NU = 7;
@@ -145,7 +145,7 @@ int main(int argc, char* argv[]) {
   Localizer pr2_scp(&pr2_scp_l, NL);
 
 
-  VectorXd startJoints = Map<const VectorXd>(postures[1], 7);
+  VectorXd startJoints = Map<const VectorXd>(postures[3], 7);
   VectorXd endJoints = Map<const VectorXd>(postures[4], 7);
   vector<VectorXd> X_bar = makeTraj(startJoints, endJoints, T+1);
   vector<VectorXd> U_bar(T);
@@ -184,7 +184,7 @@ int main(int argc, char* argv[]) {
   KK(1,2) = 240.0; // v0
 
   Matrix4d attached_cam_fixed_offset = Matrix4d::Identity();
-  attached_cam_fixed_offset(0,3) = 0.3;
+  attached_cam_fixed_offset(2,3) = -0.1;
   attached_cam_fixed_offset.block(0,0,3,3) = AngleAxisd(5*M_PI/4, Vector3d(0.0,1.0,0.0)).toRotationMatrix();
   CameraSensor s4 = CameraSensor(1, KK, 640, 480, attached_cam_fixed_offset, 0.05);//, camera_fixed_offset);
   Robot::SensorFunc s4_f = &LocalizerPR2AttachedCameraFunc;
@@ -260,35 +260,36 @@ int main(int argc, char* argv[]) {
   pr2_scp.draw_object_uncertainty(B_bar[T], c_blue, traj_group);
 
 
-
-  // setup for SCP
-  // Define a goal state
-  VectorXd b_goal = B_bar[T];
-  b_goal.segment(NX, NB-NX) = VectorXd::Zero(NB-NX); // trace
-
-  // Output variables
-  vector<VectorXd> opt_B, opt_U; // noiseless trajectory
-  MatrixXd Q; VectorXd r;  // control policy
 //
- // cout << "calling scp" << endl;
-  scp_solver(pr2_scp, B_bar, U_bar, W_bar, rho_x, rho_u, b_goal, N_iter,
-      opt_B, opt_U, Q, r);
-
-  TrajectoryInfo opt_traj(b_0);
-  for (int t = 0; t < T; t++) {
-	  opt_traj.add_and_integrate(opt_U[t], VectorXd::Zero(NB), pr2_scp);
-	  //VectorXd feedback = opt_traj.Q_feedback(pr2_scp);
-	  //VectorXd u_policy = Q.block(t*NU, t*NB, NU, NB) * feedback + r.segment(t*NU, NU);
-	  //opt_traj.add_and_integrate(u_policy, VectorXd::Zero(NB), pr2_scp);
-  }
-  vector<VectorXd> opt_traj_r(T+1);
-  for (int t = 0; t < T+1; t++) {
-	  pr2_scp.parse_localizer_belief_state(opt_traj._X[t], opt_traj_r[t]);
-  }
-  PR2_SCP_Plotter plotter2(&pr2_scp_l, &scene, T + 1);
-  plotter2.draw_belief_trajectory(opt_traj_r, c_blue, c_orange, traj_group);
-  pr2_scp.draw_object_uncertainty(opt_traj._X[T], c_green, traj_group);
-  cout << opt_traj._X[T].transpose() << endl;
+//  // setup for SCP
+//  // Define a goal state
+//  VectorXd b_goal = B_bar[T];
+//  b_goal.segment(NX, NB-NX) = VectorXd::Zero(NB-NX); // trace
+//
+//  // Output variables
+//  vector<VectorXd> opt_B, opt_U; // noiseless trajectory
+//  MatrixXd Q; VectorXd r;  // control policy
+////
+// // cout << "calling scp" << endl;
+//  scp_solver(pr2_scp, B_bar, U_bar, W_bar, rho_x, rho_u, b_goal, N_iter,
+//      opt_B, opt_U, Q, r);
+//
+//  TrajectoryInfo opt_traj(b_0);
+//  for (int t = 0; t < T; t++) {
+//	  opt_traj.add_and_integrate(opt_U[t], VectorXd::Zero(NB), pr2_scp);
+//	  //VectorXd feedback = opt_traj.Q_feedback(pr2_scp);
+//	  //VectorXd u_policy = Q.block(t*NU, t*NB, NU, NB) * feedback + r.segment(t*NU, NU);
+//	  //opt_traj.add_and_integrate(u_policy, VectorXd::Zero(NB), pr2_scp);
+//  }
+//  vector<VectorXd> opt_traj_r(T+1);
+//  for (int t = 0; t < T+1; t++) {
+//	  pr2_scp.parse_localizer_belief_state(opt_traj._X[t], opt_traj_r[t]);
+//  }
+//  PR2_SCP_Plotter plotter2(&pr2_scp_l, &scene, T + 1);
+//  plotter2.draw_belief_trajectory(opt_traj_r, c_blue, c_orange, traj_group);
+//  pr2_scp.draw_object_uncertainty(opt_traj._X[T], c_green, traj_group);
+//  pr2_scp.draw_sensor_belief_trajectory(opt_traj._X, c_blue, traj_group);
+//  cout << opt_traj._X[T].transpose() << endl;
 
   //use a composite viewer
   int width = 800;
@@ -297,6 +298,7 @@ int main(int argc, char* argv[]) {
   osgViewer::View* v0 = scene.startView(); //v0 is the master view containing the scene data
   osgViewer::View* v1 = s5.renderCameraView(fixed_camera_trans);
   v1->setSceneData(v0->getSceneData());
+
 
   compositeViewer->addView(v0);
   compositeViewer->addView(v1);

@@ -28,12 +28,16 @@
 
 using namespace Eigen;
 using namespace std;
-//#include "sensor_functions.h"
-VectorXd testin(const VectorXd& r) {
-  return r.segment(0,2);  
-}
 
-//typedef VectorXd (*SensorFunc2)(const VectorXd&);
+
+static VectorXd _goal_offset;
+
+VectorXd GoalFn(Robot &r, const VectorXd& x) {
+	VectorXd ret(x.rows()-2);
+	ret.segment(0,2) = x.segment(0,2) - _goal_offset.segment(0,2);
+	ret.segment(2,ret.rows()-2) = x.segment(4,x.rows()-4);
+	return  ret;
+}
 
 int main()
 {
@@ -62,8 +66,8 @@ int main()
   int NX = 4;
   int NU = 2;
   int NB = NX*(NX+3)/2;
-  int NS = 0;
-  int NUM_TEST = 0;
+  int NS = 10;
+  int NUM_TEST = 10;
   double rho_x = 0.1; 
   double rho_u = 0.1;
   int N_iter = 50;
@@ -143,25 +147,26 @@ int main()
   vector<VectorXd> test;
   for (int s = 0; s < NS; s++) {
 	  c.forward_integrate(b_0, U_bar, W_s_t[s], test);
-	  render = c.draw_belief_trajectory(test, red, transparent, traj_group, z_offset/2 + 1e-4);
+	  render = c.draw_belief_trajectory(test, red, transparent, traj_group, 1e-4);
   }
 
 
-  render = c.draw_belief_trajectory(B_bar, red, yellow, traj_group, z_offset/2 + 1e-4);
+  render = c.draw_belief_trajectory(B_bar, red, yellow, traj_group, 1e-4);
 
   // setup for SCP
   // Define a goal state
   VectorXd b_goal = B_bar[T];
   b_goal.segment(NX, NB-NX) = VectorXd::Zero(NB-NX); // trace
+  _goal_offset = b_goal;
   // Output variables
   vector<VectorXd> opt_B, opt_U; // noiseless trajectory
   MatrixXd Q; VectorXd r;  // control policy
 
   cout << "calling scp" << endl;
-  scp_solver(c, B_bar, U_bar, W_bar, rho_x, rho_u, b_goal, N_iter,
+  scp_solver(c, B_bar, U_bar, W_bar, rho_x, rho_u, &GoalFn, NULL, N_iter,
       opt_B, opt_U, Q, r);
 
-  TrajectoryInfo opt_traj(b_0);
+  TrajectoryInfo opt_traj(b_0, &GoalFn, NULL);
     for (int t = 0; t < T; t++) {
   	  //opt_traj.add_and_integrate(opt_U[t], VectorXd::Zero(NX), c);
   	  VectorXd feedback = opt_traj.Q_feedback(c);
@@ -171,7 +176,7 @@ int main()
     c.draw_belief_trajectory(opt_traj._X, blue, orange, traj_group, z_offset/2+1e-4);
 
     for (int s = 0; s < NUM_TEST; s++) {
-  	  TrajectoryInfo test_traj(b_0);
+  	  TrajectoryInfo test_traj(b_0, &GoalFn, NULL);
   	  for (int t = 0; t < T; t++) {
   		  VectorXd feedback = test_traj.Q_feedback(c);
   	  	  VectorXd u_policy = Q.block(t*NU, t*NB, NU, NB) * feedback + r.segment(t*NU, NU);
@@ -212,7 +217,7 @@ int main()
 
   // visualize
   osg::Geode * fgeode = new osg::Geode; 
-  osg::ShapeDrawable *floor = new osg::ShapeDrawable(new osg::Box(osg::Vec3(0.0,0.0,0.0), 1.0, 1.0, z_offset));
+  osg::ShapeDrawable *floor = new osg::ShapeDrawable(new osg::Box(osg::Vec3(0.0,0.0,-z_offset/2), 1.0, 1.0, z_offset));
   floor->setColor(osg::Vec4(0.1,0.1,0.1,1.0));
   fgeode->addDrawable(floor);
   root->addChild(fgeode);
@@ -221,33 +226,20 @@ int main()
   int width = 800;
   int height = 800;
   osg::ref_ptr<osgViewer::CompositeViewer> compositeViewer = new osgViewer::CompositeViewer;
-//  osg::ref_ptr<osg::GraphicsContext::Traits> traits = new osg::GraphicsContext::Traits;
-//
-//  traits->x = 0;
-//  traits->y = 0;
-//  traits->width = width;
-//  traits->height = height;
-//  traits->windowDecoration = false;
-//  traits->doubleBuffer = true;
-//  traits->sharedContext = 0;
-//  traits->overrideRedirect = true;
-//  osg::ref_ptr<osg::GraphicsContext> gc = osg::GraphicsContext::createGraphicsContext(traits.get());
+
   osgViewer::View* v0 = new osgViewer::View();
   v0->setSceneData(root);
   v0->setUpViewInWindow(0,0,width,height);
-//  osg::ref_ptr<osg::Camera> cam = v0->getCamera();
-//  cam->setGraphicsContext(gc.get());
-//  cam->setViewport(0, 0, width/2, height);
   compositeViewer->addView(v0);
 
-  //second screen
-  osgViewer::View* v1 = new osgViewer::View();
-  v1->setSceneData(root);
-  v1->setUpViewInWindow(100,100,width,height);
-//  osg::ref_ptr<osg::Camera> cam2 = v1->getCamera();
-//  cam2->setGraphicsContext(gc.get());
-//  cam2->setViewport(width/2, 0, width/2, height);
-  compositeViewer->addView(v1);
+//  //second screen
+//  osgViewer::View* v1 = new osgViewer::View();
+//  v1->setSceneData(root);
+//  v1->setUpViewInWindow(100,100,width,height);
+////  osg::ref_ptr<osg::Camera> cam2 = v1->getCamera();
+////  cam2->setGraphicsContext(gc.get());
+////  cam2->setViewport(width/2, 0, width/2, height);
+//  compositeViewer->addView(v1);
 
   return compositeViewer->run();
 }

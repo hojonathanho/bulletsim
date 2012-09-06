@@ -64,6 +64,21 @@ Matrix4d ComputeExtrinsics(Matrix4d& cam_world_transform) {
 }
 //typedef VectorXd (*SensorFunc2)(const VectorXd&);
 
+static VectorXd _goal_offset;
+VectorXd GoalFn(Robot &r, const VectorXd& x) {
+	return x - _goal_offset;
+}
+
+VectorXd TouchingGoalFn(Robot &r, const VectorXd& x) {
+	VectorXd mu_x; MatrixXd rt_Sigma_x;
+	parse_belief_state(x, mu_x, rt_Sigma_x);
+	VectorXd ret(2 + x.rows()-mu_x.rows());
+	ret.segment(0,2) = mu_x.segment(0,2) - mu_x.segment(4,2);
+	ret.segment(2,x.rows()-mu_x.rows()) = x.segment(mu_x.rows(), x.rows()- mu_x.rows());
+	return ret;
+}
+
+
 int main()
 {
   // initialize random number generator
@@ -243,15 +258,16 @@ int main()
   // Define a goal state
   VectorXd b_goal = B_bar[T];
   b_goal.segment(NX, NB-NX) = VectorXd::Zero(NB-NX); // trace
+  _goal_offset = b_goal;
   // Output variables
   vector<VectorXd> opt_B, opt_U; // noiseless trajectory
   MatrixXd Q; VectorXd r;  // control policy
 
   cout << "calling scp" << endl;
-  scp_solver(c, B_bar, U_bar, W_bar, rho_x, rho_u, b_goal, N_iter,
+  scp_solver(c, B_bar, U_bar, W_bar, rho_x, rho_u, &TouchingGoalFn, NULL, N_iter,
       opt_B, opt_U, Q, r);
 
-  TrajectoryInfo opt_traj(b_0);
+  TrajectoryInfo opt_traj(b_0, &GoalFn, NULL);
     for (int t = 0; t < T; t++) {
   	  //opt_traj.add_and_integrate(opt_U[t], VectorXd::Zero(NX), c);
   	  VectorXd feedback = opt_traj.Q_feedback(c);
@@ -263,7 +279,7 @@ int main()
     c.draw_sensor_belief_trajectory(opt_traj._X, brown, traj_group, z_offset/2);
 
     for (int s = 0; s < NUM_TEST; s++) {
-  	  TrajectoryInfo test_traj(b_0);
+  	  TrajectoryInfo test_traj(b_0, &GoalFn, NULL);
   	  for (int t = 0; t < T; t++) {
   		  VectorXd feedback = test_traj.Q_feedback(c);
   	  	  VectorXd u_policy = Q.block(t*NU, t*NB, NU, NB) * feedback + r.segment(t*NU, NU);
@@ -295,112 +311,18 @@ int main()
   compositeViewer->addView(v0);
 
 
-//  double c_alpha = 640.0;
-//  double c_beta = 480.0;
-//  double c_skew = 0.0;
-//  double c_u0 = 320.0;
-//  double c_v0 = 240.0;
-//  int c_img_width = c_alpha;
-//  int c_img_height = c_beta;
-//  double c_near_clip = 1; // set arbitrarily > 0
-//  double c_far_clip = 10000; // set arbitrarily > near_clip
-//
-//  Matrix4d v1_frustrum;
-//  build_opengl_projection_for_intrinsics(v1_frustrum, c_alpha, c_beta, c_skew,
-//		  c_u0, c_v0, c_img_width, c_img_height, c_near_clip, c_far_clip);
-//
-//  cout << v1_frustrum << endl;
-
-  //third screen
-  osgViewer::View* v2 = s4.renderCameraView(camera_transform_vec);
-  v2->setSceneData(root);
-  compositeViewer->addView(v2);
 
   //second screen
-//  osgViewer::View* v1 = new osgViewer::View();
-//  v1->setSceneData(root);
-//  v1->setUpViewInWindow(123,456,c_img_width,c_img_height);
-//  osg::ref_ptr<osg::Camera> cam2 = v1->getCamera();
-  //cam2->setReferenceFrame(osg::Transform::ABSOLUTE_RF);
-//  osg::Matrixd myCameraMatrix;
-//
-//  osg::Matrixd cameraRotation;
-//  osg::Matrixd cameraTrans;
-//  cameraRotation.makeRotate(
-//     osg::DegreesToRadians(0.0), osg::Vec3(0,1,0) ); // heading
-//
-//  cameraTrans.makeTranslate( 0.0, 0.0 , -1.0 );
-//
-//  myCameraMatrix = cameraRotation * cameraTrans;
-//  cam2->setViewMatrix(myCameraMatrix);
-//  //cam2->setGraphicsContext(gc.get());
-//  //cam2->setViewport(width/2, 0, width/2, height);
-//  //cam2->setReferenceFrame(osg::Transform::ABSOLUTE_RF);
-//  //v1->setCamera(cam2);
-//  //v1->getCamera()->setViewMatrixAsLookAt(osg::Vec3d(0.0,0.0,-1.0), osg::Vec3d(0.0,0.0,1.0), osg::Vec3d(0.0,0.0,1.0));
-//  //v1->setCameraManipulator(NULL, false);
-//  osg::Matrixd viewmat = v1->getCamera()->getProjectionMatrix();
-//  for (int i = 0; i < 4; i++) {
-//	  for (int j = 0; j < 4; j++) {
-//		  cout << viewmat(j,i) << " ";
-//	  }
-//	  cout << endl;
-//  }
-//
-//  double a1,a2,a3,a4,near,far;
-//  v1->getCamera()->getProjectionMatrixAsFrustum(a1,a2,a3,a4,near,far);
-//  cout << a1 << " " << a2 <<  " " << a3 << " " << a4 << "  " << endl;
-//  cout << near << " " << far << endl;;
-//  osg::Matrixd viewmat2;
-//  for (int i = 0; i < 4; i++) {
-//	  for (int j = 0; j < 4; j++) {
-//		  viewmat2(j,i) = v1_frustrum(i,j);
-//	  }
-//  }
-//  v1->getCamera()->setProjectionMatrix(viewmat2);
-//  cout << "new" << endl;
-//   v1->getCamera()->getProjectionMatrixAsFrustum(a1,a2,a3,a4,near,far);
-//   cout << a1 << " " << a2 <<  " " << a3 << " " << a4 << "  " << endl;
-//   cout << near << " " << far << endl;;
-//
-//  compositeViewer->addView(v1);
-
+  osgViewer::View* v1 = s4.renderCameraView(camera_transform_vec);
+  v1->setSceneData(root);
+  compositeViewer->addView(v1);
   compositeViewer->realize();
 
-  int x = 0;
 
 
   while(!compositeViewer->done())
   {
-
-//	  traj_group->removeChild(camera_render);
-//	  camera_render = makeFrustumFromCamera(cam2);
-//	  traj_group->addChild(camera_render);
-//	  osg::Node* camera_render = makeFrustumFromCamera(cam2);
-//	  v0_root->addChild(camera_render);
-//	  pos_test(0) += 0.0001;
-	  //ell_test =drawEllipsoid(pos_test, 0.00001*Matrix3d::Identity(),orange);
-	  //traj_group->addChild(ell_test);
-
-//	  VectorXd test_obs(10);
-//	  test_obs.segment(0,3) = camera_transform.block(0,3,3,1);
-//	  Matrix3d cam_rot = camera_transform.block(0,0,3,3);
-//	  Quaterniond cam_quat(cam_rot);
-//	  test_obs.segment(3,4) = cam_quat.coeffs();
-//	  test_obs.segment(7,3) = pos_test;
-
-	  //VectorXd pxy;
-	  //s4.observe(test_obs, pxy);
-	  //cout << pxy.transpose() << endl;
-
-
-	  //cout << "lol " << x << endl;
-	  x++;
-
-
 	  compositeViewer->frame();
-//	  v0_root->removeChild(camera_render);
-	  //traj_group->removeChild(ell_test);
 	  usleep(10000);
   }
 

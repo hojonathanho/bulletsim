@@ -27,6 +27,12 @@ struct TrajectoryInfo {
 	vector<MatrixXd> _P;
 	vector<VectorXd> _p_offset;
 
+	// Goal function (only for the last state)
+	Robot::GoalFunc _g;
+	Robot::GoalFuncJacboian _dg;
+	MatrixXd _Goal;
+	VectorXd _goal_offset;
+
 	// state and control limits around current trajectory
     vector<VectorXd> _X_upper_limit, _X_lower_limit, _U_upper_limit, _U_lower_limit;
 
@@ -36,32 +42,43 @@ struct TrajectoryInfo {
 
 	//these are intended to be private
 
-	TrajectoryInfo(const vector<VectorXd>& X, const vector<VectorXd>& U, const vector<VectorXd>& W, const double rho_x=1e20, const double rho_u=1e20) {
-		init(X, U, W, rho_x, rho_u);
+	TrajectoryInfo(const vector<VectorXd>& X, const vector<VectorXd>& U,
+			const vector<VectorXd>& W, Robot::GoalFunc g,
+			Robot::GoalFuncJacboian dg, const double rho_x = 1e20,
+			const double rho_u = 1e20) {
+		init(X, U, W, g, dg, rho_x, rho_u);
 	}
-	TrajectoryInfo(const vector<VectorXd>& X, const vector<VectorXd>& U, const double rho_x=1e20, const double rho_u=1e20) {
+	TrajectoryInfo(const vector<VectorXd>& X, const vector<VectorXd>& U,
+			Robot::GoalFunc g, Robot::GoalFuncJacboian dg,
+			const double rho_x = 1e20, const double rho_u = 1e20) {
 		int T = U.size();
 		int NX = X[0].rows();
 		vector<VectorXd> W(T);
 		for (int t = 0; t < T; t++ )
 			W[t] = VectorXd::Zero(NX);
-		init(X, U, W, rho_x, rho_u);
+		init(X, U, W, g, dg, rho_x, rho_u);
 	}
 
-	TrajectoryInfo(const VectorXd x0) {
+	TrajectoryInfo(const VectorXd x0, Robot::GoalFunc g, Robot::GoalFuncJacboian dg) {
 		vector<VectorXd> x(0);
 		x.push_back(x0);
 		vector<VectorXd> u(0);
 		vector<VectorXd> w(0);
-		init(x,u,w,1e20,1e20);
+		init(x,u,w,g,dg,1e20,1e20);
 	}
 
-	void init(const vector<VectorXd>& X, const vector<VectorXd>& U, const vector<VectorXd>& W, const double rho_x, const double rho_u) {
+	void init(const vector<VectorXd>& X, const vector<VectorXd>& U,
+			const vector<VectorXd>& W, Robot::GoalFunc g,
+			Robot::GoalFuncJacboian dg, const double rho_x,
+			const double rho_u)
+			 {
 		_X = X;
 		_U = U;
 		_W = W;
 		_rho_x = rho_x;
 		_rho_u = rho_u;
+		_g = g;
+		_dg = dg;
 
 //		cout << "T = " << _T << endl;
 //		cout << "NX = " << _NX << endl;
@@ -150,6 +167,8 @@ struct TrajectoryInfo {
 	void update(Robot &r) {
 		int _T, _NU, _NX;
 
+		assert(_g != NULL);
+
 		_T = _U.size();
 		_NX = _X[0].rows();
 		_NU = _U[0].rows();
@@ -164,6 +183,7 @@ struct TrajectoryInfo {
 	      r.dp_trajectory(_X, _P, _p_offset);
 	    }
 
+	    r.dgoal(_X[_T], _g, _dg, _Goal, _goal_offset);
 
 	    _X_upper_limit.resize(_T+1);
 	    _X_lower_limit.resize(_T+1);

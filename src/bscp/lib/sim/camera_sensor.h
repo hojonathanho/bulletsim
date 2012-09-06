@@ -102,22 +102,40 @@ class CameraSensor : public Sensor
     		if (XXc(2) < 0) {
     		Vector3d Xn(XXc(0) / XXc(2), XXc(1) / XXc(2), 1.0);
 				pxy = _KK * Xn;
-				if (pxy(0) < 0)
-					pxy(0) = 0;
-				else if (pxy(0) > _image_width)
-					pxy(0) = _image_width;
+				//cout << pxy.transpose( ) << endl;
 
-				if (pxy(1) < 0)
-					pxy(1) = 0;
-				else if (pxy(1) > _image_height)
-					pxy(1) = _image_height;
+//				if (pxy(0) < 0)
+//					pxy(0) = 0;
+//				else if (pxy(0) > _image_width)
+//					pxy(0) = _image_width;
+//
+//				if (pxy(1) < 0)
+//					pxy(1) = 0;
+//				else if (pxy(1) > _image_height)
+//					pxy(1) = _image_height;
+
+				// i'm lazy. check in the old frame where 0 is the upper left corner
+				if (pxy(0) < 0 || pxy(0) > _image_width ||
+						pxy(1) < 0 || pxy(1) > _image_height) {
+					// out of the frame, so set to bad signal
+					pxy(0) = _image_width/2;
+					pxy(1) = _image_height/2;
+				} else {
+					// good signal, set 0 to the center
+					pxy(0) -= _image_width / 2;
+					pxy(1) -= _image_height / 2;
+				}
+
+
     		} else {
-    			pxy(0) = _image_width;
-    			pxy(1) = _image_height;
+    			pxy(0) = _image_width/2;
+    			pxy(1) = _image_height/2;
     		}
 
-    		double cx = _image_width/2;
-    		double cy = _image_height/2;
+//    		double cx = _image_width/2;
+//    		double cy = _image_height/2;
+    		double cx = 0;
+    		double cy = 0;
     		pxy(0) = exp(- abs(pxy(0) - cx)/ _image_width );
     		pxy(1) = exp(- abs(pxy(1) - cy)/ _image_height );
     		//cout << pxy.transpose() << endl;

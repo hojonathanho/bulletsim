@@ -24,6 +24,10 @@ class Robot {
     double _dt;
     typedef VectorXd (*SensorFunc)(Robot& r, const VectorXd&);
     typedef MatrixXd (*SensorFuncJacobian)(Robot& r, const VectorXd&);
+    typedef VectorXd (*GoalFunc)(Robot& r, const VectorXd&);
+    typedef MatrixXd (*GoalFuncJacboian)(Robot& r, const VectorXd&);
+
+
 
     vector<Sensor*> sensors;
     vector<SensorFunc> sensor_fns; 
@@ -90,6 +94,10 @@ class Robot {
    virtual void dgdx(const VectorXd &x, MatrixXd& C);
    virtual void dg(const VectorXd& x, MatrixXd& C, VectorXd& d);
    virtual void dtdx(const VectorXd &x, SensorFunc& f, MatrixXd& T);
+
+   //goal linearization
+   void dgoaldx(const VectorXd& x, GoalFunc& g, MatrixXd& Goal);
+   void dgoal(const VectorXd& x, GoalFunc& g, GoalFuncJacboian& gj, MatrixXd& Goal, VectorXd& goal_offset);
 
 
    //collision linearization

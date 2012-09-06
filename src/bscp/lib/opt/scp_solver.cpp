@@ -5,14 +5,18 @@
 #include <algorithm>
 #include "eigen_io_util.h"
 
-
-void scp_solver(Robot &r, const vector<VectorXd>& X_bar, const vector<VectorXd>& U_bar, const vector<MatrixXd>& W_bar, const double rho_x, const double rho_u, const VectorXd& x_goal, const int N_iter, vector<VectorXd>& opt_X, vector<VectorXd>& opt_U, MatrixXd& opt_K, VectorXd& opt_u0) {
+void scp_solver(Robot &r, const vector<VectorXd>& X_bar,
+		const vector<VectorXd>& U_bar, const vector<MatrixXd>& W_bar,
+		const double rho_x, const double rho_u, Robot::GoalFunc g,
+		Robot::GoalFuncJacboian dg, const int N_iter, vector<VectorXd>& opt_X,
+		vector<VectorXd>& opt_U, MatrixXd& opt_K, VectorXd& opt_u0) {
 
   int NX = X_bar[0].rows();
   int NU = U_bar[0].rows();
   int T = U_bar.size();
   int NS = W_bar[0].cols();
   assert(T+1 == X_bar.size());
+  assert(g != NULL);
 
   cout << "NX = " << NX << endl;
   cout << "NU = " << NU << endl;
@@ -28,13 +32,13 @@ void scp_solver(Robot &r, const vector<VectorXd>& X_bar, const vector<VectorXd>&
 
 
 
-  TrajectoryInfo nominal = TrajectoryInfo(X_scp, U_scp, rho_x, rho_u);
+  TrajectoryInfo nominal = TrajectoryInfo(X_scp, U_scp, g, dg, rho_x, rho_u);
 
   vector<vector<VectorXd> > W_s_bar;
   index_by_sample(W_bar, W_s_bar);
   vector<TrajectoryInfo> samples;
   for (int i = 0; i < NS; i++) {
-	  samples.push_back(TrajectoryInfo(X_scp, U_scp, W_s_bar[i], rho_x, rho_u));
+	  samples.push_back(TrajectoryInfo(X_scp, U_scp, W_s_bar[i], g, dg, rho_x, rho_u));
 	  samples[i].integrate(r);
   }
 
@@ -52,7 +56,7 @@ void scp_solver(Robot &r, const vector<VectorXd>& X_bar, const vector<VectorXd>&
     vector<VectorXd> opt_X, opt_U;
     vector<vector<VectorXd> > opt_sample_X, opt_sample_U;
     //Send to convex solver
-    convex_gurobi_solver(nominal, samples, x_goal, opt_X, opt_U, opt_K, opt_u0,
+    convex_gurobi_solver(nominal, samples, opt_X, opt_U, opt_K, opt_u0,
     		opt_sample_X, opt_sample_U, false);//iter == (N_iter - 1));
 //    cout << "X: " << opt_X[0].transpose() << endl;
 //    for (int i = 0; i < opt_U.size(); i++) {

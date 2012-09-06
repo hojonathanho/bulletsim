@@ -47,6 +47,11 @@ const static Vector4d c_white(1.0, 1.0, 1.0, 0.1);
 const static Vector4d c_brown(139/255.0,69/255.0,19/255.0,0.8);
 
 
+static VectorXd _goal_offset;
+VectorXd GoalFn(Robot& r, const VectorXd& x) {
+	return x - _goal_offset;
+}
+
 int main(int argc, char* argv[]) {
 
   //initialize parameters and parser
@@ -222,18 +227,19 @@ int main(int argc, char* argv[]) {
   // setup for SCP
   // Define a goal state
   VectorXd b_goal = B_bar[T];
-
   b_goal.segment(NX, NB-NX) = VectorXd::Zero(NB-NX); // trace
+  _goal_offset = b_goal;
+
 
   // Output variables
   vector<VectorXd> opt_B, opt_U; // noiseless trajectory
   MatrixXd Q; VectorXd r;  // control policy
 //
  // cout << "calling scp" << endl;
-  scp_solver(pr2_scp, B_bar, U_bar, W_bar, rho_x, rho_u, b_goal, N_iter,
+  scp_solver(pr2_scp, B_bar, U_bar, W_bar, rho_x, rho_u, &GoalFn, NULL, N_iter,
       opt_B, opt_U, Q, r);
 
-  TrajectoryInfo opt_traj(b_0);
+  TrajectoryInfo opt_traj(b_0, &GoalFn, NULL);
     for (int t = 0; t < T; t++) {
   	  opt_traj.add_and_integrate(opt_U[t], VectorXd::Zero(NB), pr2_scp);
   	  //VectorXd feedback = opt_traj.Q_feedback(pr2_scp);

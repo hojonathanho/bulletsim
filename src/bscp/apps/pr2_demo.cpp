@@ -31,6 +31,7 @@ vector<VectorXd> makeTraj(const Eigen::VectorXd& startJoints, const Eigen::Vecto
   return traj;
 
 }
+
 const static Vector4d c_yellow(1.0,1.0,0.1,0.4);
 const static Vector4d c_red(1.0, 0.0, 0.0, 0.8);
 const static Vector4d c_green(0.2, 1.0, 0.2, 0.8);
@@ -38,6 +39,19 @@ const static Vector4d c_blue(0.2, 0.2, 1.0, 0.8);
 const static Vector4d c_orange(1.0, 0.55, 0.0, 0.8);
 const static Vector4d c_white(1.0, 1.0, 1.0, 0.1);
 const static Vector4d c_brown(139/255.0,69/255.0,19/255.0,0.8);
+
+static VectorXd _goal_offset;
+VectorXd GoalFn(Robot& r, const VectorXd& x) {
+	VectorXd tx;
+	r.transform(x, tx);
+	return tx - _goal_offset;
+}
+
+MatrixXd GoalFnJac(Robot& r, const VectorXd& x) {
+	MatrixXd ret;
+	r.dtransform(x, ret);
+	return ret;
+}
 
 
 int main(int argc, char* argv[]) {
@@ -95,8 +109,8 @@ int main(int argc, char* argv[]) {
 
   PR2_SCP pr2_scp(pr2, active_dof_indices, scene.env->bullet->dynamicsWorld, rarm);
 
-  VectorXd startJoints = Map<const VectorXd>(postures[0], NX);
-  VectorXd endJoints = Map<const VectorXd>(postures[4], NX);
+  VectorXd startJoints = Map<const VectorXd>(postures[1], NX);
+  VectorXd endJoints = Map<const VectorXd>(postures[2], NX);
   vector<VectorXd> X_bar = makeTraj(startJoints, endJoints, T+1);
   vector<VectorXd> U_bar(T);
   vector<MatrixXd> W_bar(T);
@@ -114,16 +128,27 @@ int main(int argc, char* argv[]) {
 //  plotter.draw_trajectory(X_bar, c_red);
 
   //VectorXd x_goal = Map<const VectorXd>(postures[2], NX);
-  VectorXd x_goal = X_bar[T];
+  VectorXd x_goal;
+  pr2_scp.transform(X_bar[T], x_goal);
+  _goal_offset = x_goal;
   vector<VectorXd> opt_X(0), opt_U(0);
   MatrixXd K; VectorXd u0;
 
-  scp_solver(pr2_scp, X_bar, U_bar, W_bar, rho_x, rho_u, x_goal, N_iter,
+  scp_solver(pr2_scp, X_bar, U_bar, W_bar, rho_x, rho_u, &GoalFn, &GoalFnJac, N_iter,
       opt_X, opt_U, K, u0);
 
   for( int i = 0; i < opt_X.size(); i++ ) {
 	  cout << opt_X[i].transpose() << endl;
   }
+
+  VectorXd x_bar_transform;
+  VectorXd opt_x_transform;
+
+  pr2_scp.transform(X_bar[T], x_bar_transform);
+  pr2_scp.transform(opt_X[T], opt_x_transform);
+
+  cout << "goal   transform: " << x_bar_transform.transpose() << endl;
+  cout << "actual transform: " << opt_x_transform.transpose() << endl;
 
   PR2_SCP_Plotter plotter2(&pr2_scp, &scene, T+1);
   plotter2.draw_trajectory(opt_X, c_green);

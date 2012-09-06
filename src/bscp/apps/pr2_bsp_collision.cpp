@@ -48,6 +48,27 @@ const static Vector4d c_orange(1.0, 0.55, 0.0, 0.8);
 const static Vector4d c_white(1.0, 1.0, 1.0, 0.1);
 const static Vector4d c_brown(139/255.0,69/255.0,19/255.0,0.8);
 
+static VectorXd _goal_offset;
+VectorXd GoalFn(Robot& r, const VectorXd& b) {
+	VectorXd x; MatrixXd rt_Sigma;
+	parse_belief_state(b, x, rt_Sigma);
+	VectorXd tx;
+	r.transform(x, tx);
+	Vector4d cur_quat = tx.segment(3,4);
+	Vector4d goal_quat = _goal_offset.segment(3,4);
+	Quaterniond cur_q;
+	Quaterniond goal_q;
+	cur_q.coeffs() = cur_quat;
+	goal_q.coeffs() = goal_quat;
+	VectorXd ret(7);
+	ret.segment(0,3) = tx.segment(0,3) - _goal_offset.segment(0,3);
+	ret.segment(3,4) = tx.segment(3,4) - _goal_offset.segment(3,4);
+	//ret(3) = cur_q.angularDistance(goal_q);
+	//ret.segment(4,b.rows()-7) = b.segment(7, b.rows()-7);
+	return ret;
+}
+
+
 
 int main(int argc, char* argv[]) {
 
@@ -186,18 +207,24 @@ int main(int argc, char* argv[]) {
   // setup for SCP
   // Define a goal state
   VectorXd b_goal = B_bar[T];
-
   b_goal.segment(NX, NB-NX) = VectorXd::Zero(NB-NX); // trace
+  VectorXd x_goal; MatrixXd rt_Sigma_goal;
+  parse_belief_state(b_goal, x_goal, rt_Sigma_goal);
+
+  _goal_offset = VectorXd::Zero(7);
+  VectorXd tx_goal;
+  pr2_scp.transform(x_goal, tx_goal);
+  _goal_offset.segment(0,7) = tx_goal;
 
   // Output variables
   vector<VectorXd> opt_B, opt_U; // noiseless trajectory
   MatrixXd Q; VectorXd r;  // control policy
 //
  // cout << "calling scp" << endl;
-  scp_solver(pr2_scp, B_bar, U_bar, W_bar, rho_x, rho_u, b_goal, N_iter,
+  scp_solver(pr2_scp, B_bar, U_bar, W_bar, rho_x, rho_u, &GoalFn, NULL, N_iter,
       opt_B, opt_U, Q, r);
 
-  TrajectoryInfo opt_traj(b_0);
+  TrajectoryInfo opt_traj(b_0, &GoalFn, NULL);
   for (int t = 0; t < T; t++) {
 	  opt_traj.add_and_integrate(opt_U[t], VectorXd::Zero(NB), pr2_scp);
 	  //VectorXd feedback = opt_traj.Q_feedback(pr2_scp);
@@ -208,6 +235,8 @@ int main(int argc, char* argv[]) {
   for (int t = 0; t < T+1; t++) {
 	  pr2_scp.parse_localizer_belief_state(opt_traj._X[t], opt_traj_r[t]);
   }
+  cout << _goal_offset.transpose() << endl;
+  cout << (GoalFn(pr2_scp, opt_traj._X[T])).transpose() << endl;
   PR2_SCP_Plotter plotter2(&pr2_scp_l, &scene, T + 1);
   plotter2.draw_belief_trajectory(opt_traj_r, c_blue, c_orange, traj_group);
 
