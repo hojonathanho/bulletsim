@@ -11,10 +11,7 @@
 #include "simulation/environment.h"
 #include "simulation/plotting.h"
 
-//#include <boost/thread.hpp>
-//#include <boost/thread/mutex.hpp>
-//#include <boost/thread/shared_mutex.hpp>
-//#include <boost/thread/locks.hpp>
+#include <boost/thread.hpp>
 
 #define PHASESPACE_SERVER_NAME "169.229.222.231"
 #define PHASESPACE_INIT_FLAGS 0
@@ -25,7 +22,7 @@ typedef int16_t ledid_t;
 class MarkerBody {
 public:
   typedef boost::shared_ptr<MarkerBody> Ptr;
-  enum marker_body_t { RIGID, POINT, SOFT };
+  enum marker_body_t { RIGID, POINT, SOFT, POINT_COLLECTION };
   marker_body_t m_body_type;
   std::vector<ledid_t> m_led_ids;
   std::vector<int> m_last_valid_frame;
@@ -98,6 +95,7 @@ public:
 class MarkerRigid : public MarkerBody {
 public:
   typedef boost::shared_ptr<MarkerRigid> Ptr;
+  int m_rigid_id;
   int m_last_valid_rigid_frame;
   int m_last_rigid_frame;
   std::vector<Eigen::Vector3f> m_marker_positions;
@@ -128,6 +126,13 @@ public:
   inline ledid_t getLedId() { return getLedId(0); }
   inline bool isValid() { return isValid(0); }
   inline Eigen::Vector3f getPosition() { return getPosition(0); }
+};
+
+class MarkerPointCollection : public MarkerBody {
+public:
+  typedef boost::shared_ptr<MarkerPointCollection> Ptr;
+
+  MarkerPointCollection(std::vector<ledid_t> led_ids, Environment::Ptr env=Environment::Ptr()) : MarkerBody(POINT_COLLECTION, led_ids, env) {}
 };
 
 class MarkerSoft : public MarkerBody {
@@ -161,22 +166,29 @@ public:
   int m_rigid_count;
   int m_marker_count;
 
-  //boost::shared_mutex marker_mutex;
 
-  MarkerSystem(std::vector<MarkerBody::Ptr> marker_bodies, Eigen::Affine3f transform=Eigen::Affine3f::Identity());
+  MarkerSystem(std::vector<MarkerBody::Ptr> marker_bodies);
   ~MarkerSystem();
 
 	void updateMarkers();
-	void updateMarkers(Eigen::Affine3f transform);
+	void startUpdateLoopThread();
+	void stopUpdateLoopThread();
+
+	void setPose(Eigen::Affine3f transform);
 	void blockUntilAllValid();
-	void toOwlPose(const Eigen::Affine3f& transform, float* pose);
   void owl_print_error(const char *s, int n);
+
+private:
+  bool m_exit_loop;
+  boost::shared_ptr<boost::thread> m_update_loop_thread;
+	void startUpdateLoop();
 };
 
+MarkerRigid::Ptr createMarkerRigid(std::string rigid_info_filename, Environment::Ptr env=Environment::Ptr());
+Eigen::Affine3f waitForRigidBodyTransform(std::string rigid_info_filename, int iter=1);
+vector<Eigen::Vector3f> waitForMarkerPositions(std::vector<ledid_t> led_ids, Eigen::Affine3f marker_system_transform);
+MarkerSoft::Ptr createMarkerSoftCloth(std::vector<ledid_t> led_ids_front, std::vector<ledid_t> led_ids_back, Eigen::Vector3f frontToBackVector, EnvironmentObject::Ptr sim, Eigen::Affine3f marker_system_transform, Environment::Ptr env=Environment::Ptr());
 bool savePhasespaceRigid(const std::string& filename, const std::vector<ledid_t>& led_ids, const std::vector<Eigen::Vector3f>& positions);
 bool loadPhasespaceRigid(const std::string& filename, std::vector<ledid_t>& led_ids, std::vector<Eigen::Vector3f>& positions);
 
-
 #endif /* PHASESPACE_H_ */
-
-

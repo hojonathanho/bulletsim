@@ -70,6 +70,19 @@ void drawLines(vector<btVector3> points0, vector<btVector3> points1, Vector3f co
 	plot_lines->setPoints(linePoints, lineColors);
 }
 
+void drawPoly(vector<btVector3> points, Vector3f color, float alpha, Environment::Ptr env) {
+	vector<btVector3> pts0;
+	vector<btVector3> pts1;
+	for (int i=0; i<(points.size()-1); i++) {
+		pts0.push_back(points[i]);
+		pts1.push_back(points[i+1]);
+	}
+	pts0.push_back(points[points.size()-1]);
+	pts1.push_back(points[0]);
+
+	drawLines(pts0, pts1, color, alpha, env);
+}
+
 void drawAxes(btTransform transform, float size, Environment::Ptr env) {
 	PlotAxes::Ptr plot_axes(new PlotAxes());
 	env->add(plot_axes);

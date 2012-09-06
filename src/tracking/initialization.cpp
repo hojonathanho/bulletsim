@@ -19,9 +19,15 @@
 #include "simulation/softbodies.h"
 #include "utils/logging.h"
 
+//DEBUG
+#include "physics_tracker.h"
+#include "plotting_tracking.h"
+#include "simulation/util.h"
+using namespace Eigen;
+
 using namespace std;
 
-TrackedObject::Ptr toTrackedObject(const bulletsim_msgs::ObjectInit& initMsg, ColorCloudPtr cloud, cv::Mat image, CoordinateTransformer* transformer) {
+TrackedObject::Ptr toTrackedObject(const bulletsim_msgs::ObjectInit& initMsg, ColorCloudPtr cloud, ColorCloudPtr organized_cloud, cv::Mat image, CoordinateTransformer* transformer) {
   if (initMsg.type == "rope") {
 	  vector<btVector3> nodes = toBulletVectors(initMsg.rope.nodes);
 //		//downsample nodes
@@ -37,6 +43,14 @@ TrackedObject::Ptr toTrackedObject(const bulletsim_msgs::ObjectInit& initMsg, Co
 
 	  return tracked_rope;
   }
+//  else if (initMsg.type == "towel_corners") {
+//	  vector<btVector3> poly_corners = polyCorners(organized_cloud);
+//	  BulletSoftObject::Ptr sim = makeSponge(poly_corners, 0.05*METERS, 4.0*METERS*METERS*METERS/1000000.0, 300);
+//	  sim->softBody->translate(btVector3(0,0,0.1*METERS));
+//
+//	  TrackedCloth::Ptr tracked_towel(new TrackedCloth(sim, cv::Mat(), 10, 10, 10, 10));
+//	  return tracked_towel;
+//  }
   else if (initMsg.type == "towel_corners") {
 	  const vector<geometry_msgs::Point32>& points = initMsg.towel_corners.polygon.points;
 	  vector<btVector3> corners = scaleVecs(toBulletVectors(points),METERS);
@@ -54,10 +68,23 @@ TrackedObject::Ptr toTrackedObject(const bulletsim_msgs::ObjectInit& initMsg, Co
 	  printf("Node distance (distance between nodes): %f\n", TrackingConfig::node_distance);
 	  printf("Resolution: %d %d\n", resolution_x, resolution_y);
 
-	  BulletSoftObject::Ptr sim = makeTowel(corners, resolution_x, resolution_y, mass);
-	  TrackedTowel::Ptr tracked_towel(new TrackedTowel(sim, resolution_x, resolution_y, sx, sy));
-	  cv::Mat tex_image = tracked_towel->makeTexture(corners, image, transformer);
-		sim->setTexture(tex_image);
+	  vector<btVector3> poly_corners = polyCorners(cloud, image, transformer);
+	  //BOOST_FOREACH(btVector3& poly_corner, poly_corners) util::drawSpheres(poly_corner, Vector3f(1,0,0), 0.5, 2, env);
+  	BulletSoftObject::Ptr sim = makeCloth(poly_corners, resolution_x, resolution_y, mass);
+	  sim->setTexture(image, toBulletTransform(transformer->camFromWorldEigen));
+
+	  //Shift the whole cloth upwards in case some of it starts below the table surface
+	  sim->softBody->translate(btVector3(0,0,0.01*METERS));
+
+	  //for (int i=0; i<sim->softBody->m_nodes.size(); i++) {
+//		for (int i=0; i<10; i++) {
+//			util::drawSpheres(sim->softBody->m_nodes[i].m_x, Vector3f(1,0,0), 0.5, 2, env);
+//	  	cv::Point2f pixel = sim->getTexCoord(i);
+//	  	image.at<cv::Vec3b>(pixel.y, pixel.x) = cv::Vec3b(255,255,255);
+//	  }
+//	  cv::imwrite("/home/alex/Desktop/tshirt_tex2.jpg", image);
+
+	  TrackedCloth::Ptr tracked_towel(new TrackedCloth(sim, image, resolution_x, resolution_y, sx, sy));
 
 	  return tracked_towel;
   }
@@ -89,17 +116,20 @@ bulletsim_msgs::TrackedObject toTrackedObjectMessage(TrackedObject::Ptr obj) {
   return msg;
 }
 
-TrackedObject::Ptr callInitServiceAndCreateObject(ColorCloudPtr cloud, cv::Mat image, CoordinateTransformer* transformer) {
+TrackedObject::Ptr callInitServiceAndCreateObject(ColorCloudPtr cloud, ColorCloudPtr organized_cloud, cv::Mat image, CoordinateTransformer* transformer) {
   bulletsim_msgs::Initialization init;
-  pcl::toROSMsg(*cloud, init.request.cloud);
+  pcl::toROSMsg(*scaleCloud(cloud, 1/METERS), init.request.cloud);
   init.request.cloud.header.frame_id = "/ground";
 	
   bool success = ros::service::call(initializationService, init);
   if (success)
-  	return toTrackedObject(init.response.objectInit, scaleCloud(cloud,METERS), image, transformer);
+  	return toTrackedObject(init.response.objectInit, cloud, organized_cloud, image, transformer);
   else {
 		ROS_ERROR("initialization failed");
 		return TrackedObject::Ptr();
   }
+}
 
+TrackedObject::Ptr callInitServiceAndCreateObject(ColorCloudPtr cloud, cv::Mat image, CoordinateTransformer* transformer) {
+	callInitServiceAndCreateObject(scaleCloud(cloud, METERS), ColorCloudPtr(new ColorCloud()), image, transformer);
 }

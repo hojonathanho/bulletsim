@@ -15,6 +15,7 @@
 #include <cv_bridge/cv_bridge.h>
 #include <cv.h>
 #include <bulletsim_msgs/TrackedObject.h>
+#include "clouds/utils_ros.h"
 
 #include "clouds/utils_pcl.h"
 #include "utils_tracking.h"

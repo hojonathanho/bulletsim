@@ -56,3 +56,6 @@ target_link_libraries(test_hand simulation)
 
 add_executable(test_phasespace test_phasespace.cpp)
 target_link_libraries(test_phasespace simulation tracking utils)
+
+add_executable(test_phasespace_rigid test_phasespace_rigid.cpp)
+target_link_libraries(test_phasespace_rigid simulation tracking utils)

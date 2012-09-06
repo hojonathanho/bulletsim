@@ -7,7 +7,7 @@
 
 // change these to match your configuration
 
-#define MARKER_COUNT 4
+#define MARKER_COUNT 32
 #define SERVER_NAME "169.229.222.231"
 #define INIT_FLAGS 0
 

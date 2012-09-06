@@ -4,7 +4,7 @@
 std::string TrackingConfig::filteredCloudTopic = "/preprocessor/points";
 std::string TrackingConfig::depthTopic  = "/kinect1/depth_registered/image_rect";
 std::string TrackingConfig::rgbTopic = "/kinect1/rgb/image_rect_color";
-std::string TrackingConfig::fullCloudTopic = "/kinect1/rgb/points";
+std::string TrackingConfig::fullCloudTopic = "/kinect1/depth_registered/points";
 
 static const std::string cameraTopics_a[] = { "/kinect1" };
 std::vector<std::string> TrackingConfig::cameraTopics = std::vector<std::string>(cameraTopics_a, cameraTopics_a+sizeof(cameraTopics_a)/sizeof(std::string));
@@ -30,3 +30,8 @@ float TrackingConfig::tracked_node_distance = 0.05;
 float TrackingConfig::node_distance = 0.01; // 1 cm between nodes
 float TrackingConfig::surface_density = 0.01/(0.1*0.1); // 10 grams per 100 cm2
 int TrackingConfig::node_pixel = 10;
+
+
+string PhasespaceConfig::kinectInfo_filename = "/home/alex/rll/bulletsim/data/phasespace_rigid_info/pr2head";
+static const ledid_t objLedIds_a[] = { 10,9,14,11,12,8,21,22,23, 13,4,5,6,7,32,33,34,35 };
+vector<ledid_t> PhasespaceConfig::objLedIds = std::vector<ledid_t>(objLedIds_a, objLedIds_a+sizeof(objLedIds_a)/sizeof(ledid_t));

@@ -31,8 +31,10 @@ add_executable(save_cloud_image_seq_node save_cloud_image_seq_node.cpp)
 target_link_libraries(save_cloud_image_seq_node clouds comm utils ${PCL_LIBRARIES} ${OpenCV_LIBS} ${ROS_LIBRARIES} boost_signals tf cv_bridge)
 
 add_executable(preprocessor_node preprocessor_node.cpp)
-
 target_link_libraries(preprocessor_node clouds comm utils ${PCL_LIBRARIES} ${OpenCV_LIBS} ${ROS_LIBRARIES} boost_signals tf cv_bridge)
+
+add_executable(preprocessor_color_node preprocessor_color_node.cpp)
+target_link_libraries(preprocessor_color_node clouds comm utils ${PCL_LIBRARIES} ${OpenCV_LIBS} ${ROS_LIBRARIES} boost_signals tf cv_bridge)
 
 add_executable(cloud_merger_node cloud_merger_node.cpp)
 target_link_libraries(cloud_merger_node clouds comm utils ${PCL_LIBRARIES} ${OpenCV_LIBS} ${ROS_LIBRARIES} boost_signals tf cv_bridge)
@@ -50,4 +52,8 @@ add_executable(cloud_adjuster_node sandbox/cloud_adjuster_node.cpp)
 target_link_libraries(cloud_adjuster_node clouds utils ${PCL_LIBRARIES} ${ROS_LIBRARIES})
 
 add_executable(phasespace_kinect_calibration phasespace_kinect_calibration.cpp)
-target_link_libraries(phasespace_kinect_calibration clouds comm utils ${PCL_LIBRARIES} ${OpenCV_LIBS} ${ROS_LIBRARIES} boost_signals tf cv_bridge simulation tracking)
+target_link_libraries(phasespace_kinect_calibration clouds utils ${PCL_LIBRARIES} ${OpenCV_LIBS} ${ROS_LIBRARIES} simulation tracking)
+
+add_executable(phasespace_transforms_node phasespace_transforms_node.cpp)
+target_link_libraries(phasespace_transforms_node clouds utils ${PCL_LIBRARIES} ${ROS_LIBRARIES} boost_signals tf tracking)
+

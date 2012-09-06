@@ -75,19 +75,20 @@ void MarkerRigid::init(int tracker)
 
 	// activate tracker
 	owlTracker(tracker, OWL_ENABLE);
+
+	m_rigid_id = tracker;
 }
 
 void MarkerRigid::updateMarkers(OWLMarker markers[], int markers_count, OWLRigid rigids[], int rigids_count) {
 	m_last_rigid_frame++;
-	assert(rigids_count <= 1);
-	int iRigid = 0;
+	assert(m_rigid_id < rigids_count);
+	int iRigid = m_rigid_id;
 	if(iRigid!=-1 && rigids[iRigid].cond > m_min_confidence) {
 		m_last_valid_rigid_frame = m_last_rigid_frame;
 		Translation3f translation(rigids[iRigid].pose[0]*METERS/1000.0, rigids[iRigid].pose[1]*METERS/1000.0, rigids[iRigid].pose[2]*METERS/1000.0);
 		Quaternionf rotation(rigids[iRigid].pose[3], rigids[iRigid].pose[4], rigids[iRigid].pose[5], rigids[iRigid].pose[6]);
 		m_transform = translation * rotation;
 	}
-
 	MarkerBody::updateMarkers(markers, markers_count, rigids, rigids_count);
 }
 
@@ -138,7 +139,7 @@ float MarkerSoft::evaluateError()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-MarkerSystem::MarkerSystem(std::vector<MarkerBody::Ptr> marker_bodies, Affine3f transform) :
+MarkerSystem::MarkerSystem(std::vector<MarkerBody::Ptr> marker_bodies) :
 	m_marker_bodies(marker_bodies),
 	m_rigid_count(0),
 	m_marker_count(32)
@@ -161,10 +162,6 @@ MarkerSystem::MarkerSystem(std::vector<MarkerBody::Ptr> marker_bodies, Affine3f 
 
   // start streaming
   owlSetInteger(OWL_STREAMING, OWL_ENABLE);
-
-  float pose[7];
-  toOwlPose(transform, pose);
-	owlLoadPose(pose);
 }
 
 MarkerSystem::~MarkerSystem()
@@ -193,19 +190,36 @@ void MarkerSystem::updateMarkers()
 		return;
 	}
 
-	//boost::unique_lock< boost::shared_mutex > lock(marker_mutex);
 	for (int iBody=0; iBody<m_marker_bodies.size(); iBody++) {
 		m_marker_bodies[iBody]->updateMarkers(markers, m_marker_count, rigids, m_rigid_count);
 	}
-	//lock.unlock();
 }
 
+void MarkerSystem::startUpdateLoop() {
+	while(!m_exit_loop) {
+		updateMarkers();
+		usleep(1000);
+	}
+}
 
-void MarkerSystem::updateMarkers(Eigen::Affine3f transform) {
-  float pose[7];
-  toOwlPose(transform, pose);
+void MarkerSystem::startUpdateLoopThread() {
+	m_exit_loop = false;
+	m_update_loop_thread.reset(new boost::thread(boost::bind(&MarkerSystem::startUpdateLoop, this)));
+}
+
+void MarkerSystem::stopUpdateLoopThread() {
+	m_exit_loop = true;
+	if (m_update_loop_thread)
+		m_update_loop_thread->join();
+	m_update_loop_thread.reset();
+}
+
+void MarkerSystem::setPose(Eigen::Affine3f transform) {
+	Vector3f tf_t(transform.translation());
+	tf_t *= 1000.0/METERS;
+	Quaternionf tf_q(transform.rotation());
+	float pose[7] = { tf_t(0), tf_t(1), tf_t(2), tf_q.w(), tf_q.x(), tf_q.y(), tf_q.z() };
 	owlLoadPose(pose);
-	updateMarkers();
 }
 
 void MarkerSystem::blockUntilAllValid() {
@@ -220,19 +234,6 @@ void MarkerSystem::blockUntilAllValid() {
 	}
 }
 
-void MarkerSystem::toOwlPose(const Eigen::Affine3f& transform, float* pose) {
-	Vector3f tf_t(transform.translation());
-	tf_t *= 1000.0/METERS;
-	Quaternionf tf_q(transform.rotation());
-	for (int c=0; c<3; c++) pose[c] = tf_t(c);
-	pose[3] = tf_q.w();
-	pose[4] = tf_q.x();
-	pose[5] = tf_q.y();
-	pose[6] = tf_q.z();
-	//float pose[7] = { tf_t(0), tf_t(1), tf_t(2), tf_q.w(), tf_q.x(), tf_q.y(), tf_q.z() };
-	//return pose;
-}
-
 void MarkerSystem::owl_print_error(const char *s, int n)
 {
   if(n < 0) printf("%s: %d\n", s, n);
@@ -241,6 +242,67 @@ void MarkerSystem::owl_print_error(const char *s, int n)
   else if(n == OWL_INVALID_ENUM) printf("%s: Invalid Enum\n", s);
   else if(n == OWL_INVALID_OPERATION) printf("%s: Invalid Operation\n", s);
   else printf("%s: 0x%x\n", s, n);
+}
+
+MarkerRigid::Ptr createMarkerRigid(std::string rigid_info_filename, Environment::Ptr env) {
+	vector<ledid_t> led_ids;
+	vector<Vector3f> marker_positions;
+	loadPhasespaceRigid(rigid_info_filename, led_ids, marker_positions);
+	for (int i=0; i<marker_positions.size(); i++)
+		marker_positions[i] *= METERS;
+	MarkerRigid::Ptr marker_rigid(new MarkerRigid(led_ids, marker_positions, env));
+	return marker_rigid;
+}
+
+Eigen::Affine3f waitForRigidBodyTransform(std::string rigid_info_filename, int iter) {
+	MarkerRigid::Ptr marker_rigid = createMarkerRigid(rigid_info_filename);
+	vector<MarkerBody::Ptr> marker_bodies;
+	marker_bodies.push_back(marker_rigid);
+
+	MarkerSystem::Ptr marker_system(new MarkerSystem(marker_bodies));
+
+	cout << "Waiting for rigid body LEDs " << marker_rigid->m_led_ids << " to be seen..." << endl;
+	for (int i=0; i<iter; i++)
+		marker_system->blockUntilAllValid();
+
+	return marker_rigid->getTransform();
+}
+
+vector<Vector3f> waitForMarkerPositions(vector<ledid_t> led_ids, Eigen::Affine3f marker_system_transform) {
+	vector<MarkerPoint::Ptr> marker_points;
+	for (int ind=0; ind<led_ids.size(); ind++)
+		marker_points.push_back(MarkerPoint::Ptr(new MarkerPoint(led_ids[ind])));
+	vector<MarkerBody::Ptr> marker_bodies;
+	for (int ind=0; ind<marker_points.size(); ind++)
+		marker_bodies.push_back(marker_points[ind]);
+
+	MarkerSystem::Ptr marker_system(new MarkerSystem(marker_bodies));
+	marker_system->setPose(marker_system_transform);
+
+	cout << "Waiting for LEDs " << led_ids << " to be seen..." << endl;
+	marker_system->blockUntilAllValid();
+
+	vector<Vector3f> marker_positions;
+	for (int ind=0; ind<led_ids.size(); ind++)
+		marker_positions.push_back(marker_points[ind]->getPosition());
+	return marker_positions;
+}
+
+MarkerSoft::Ptr createMarkerSoftCloth(vector<ledid_t> led_ids_front, vector<ledid_t> led_ids_back, Vector3f frontToBackVector, EnvironmentObject::Ptr sim, Eigen::Affine3f marker_system_transform, Environment::Ptr env) {
+	assert(led_ids_front.size() == led_ids_back.size());
+
+	// For the front LEDs, fill marker_positions with the positions of the seen LEDs
+	// For the back LEDs, assume the marker_position is frontToBackVector offset from the corresponding seen LED
+	vector<Vector3f> marker_positions = waitForMarkerPositions(led_ids_front, marker_system_transform);
+	for (int ind=0; ind<led_ids_front.size(); ind++)
+		marker_positions.push_back(marker_positions[ind] + frontToBackVector);
+
+	// Append front and back LEDs
+	vector<ledid_t> led_ids = led_ids_front;
+	led_ids.insert(led_ids.end(), led_ids_back.begin(), led_ids_back.end());
+
+	MarkerSoft::Ptr marker_soft(new MarkerSoft(led_ids, marker_positions, sim, env));
+	return marker_soft;
 }
 
 bool savePhasespaceRigid(const std::string& filename, const std::vector<ledid_t>& led_ids, const std::vector<Eigen::Vector3f>& positions) {

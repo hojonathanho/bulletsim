@@ -316,7 +316,10 @@ ColorCloudPtr clusterFilter(ColorCloudPtr in, float tol, int minSize) {
 	return extractInds(in, filtered_cluster_inds);
 }
 
-ColorCloudPtr maskCloud(const ColorCloudPtr in, const cv::Mat& mask, bool organized, bool negative) {
+ColorCloudPtr maskCloud(const ColorCloudPtr in, cv::Mat mask, bool organized, bool negative) {
+	if (mask.type() == CV_8UC3)
+		cv::cvtColor(mask, mask, CV_BGR2GRAY);
+
   assert(mask.elemSize() == 1);
   assert(mask.rows == in->height);
   assert(mask.cols == in->width);

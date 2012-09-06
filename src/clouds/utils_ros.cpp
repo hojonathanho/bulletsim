@@ -1,5 +1,11 @@
 #include "utils_ros.h"
 
+using namespace std;
+using sensor_msgs::Image;
+using sensor_msgs::ImageConstPtr;
+using sensor_msgs::PointCloud2;
+using sensor_msgs::PointCloud2ConstPtr;
+
 //Broadcasts the transform from the kinect_rgb_optical frame to the ground frame
 //If kinect_rgb_optical has a grandparent (i.e. kinect_link), then a transform from the kinect_link frame to the ground frame is broadcasted such that the given transform is still as specified above
 void broadcastKinectTransform(const btTransform& transform, const std::string& kinect_rgb_optical, const std::string& ground, tf::TransformBroadcaster& broadcaster, const tf::TransformListener& listener) {
@@ -31,4 +37,40 @@ btTransform waitForAndGetTransform(const tf::TransformListener& listener, std::s
 //	tf::StampedTransform st;
 //	listener.lookupTransform(target_frame, source_frame, ros::Time(0), st);
 //	return st.asBt();
+}
+
+void vectorizeArgumentsAndInvoke(const PointCloud2ConstPtr& cloud_msgs, const ImageConstPtr& image_msgs0, const ImageConstPtr& image_msgs1, void (*callback)(const PointCloud2ConstPtr&, const vector<ImageConstPtr>&)) {
+	vector<ImageConstPtr> image_msgs;
+	image_msgs.push_back(image_msgs0);
+	image_msgs.push_back(image_msgs1);
+	(*callback)(cloud_msgs, image_msgs);
+}
+
+void vectorizeArgumentsAndInvoke(const PointCloud2ConstPtr& cloud_msgs, const ImageConstPtr& image_msgs0, const ImageConstPtr& image_msgs1, const ImageConstPtr& image_msgs2, const ImageConstPtr& image_msgs3, void (*callback)(const PointCloud2ConstPtr&, const vector<ImageConstPtr>&)) {
+	vector<ImageConstPtr> image_msgs;
+	image_msgs.push_back(image_msgs0);
+	image_msgs.push_back(image_msgs1);
+	image_msgs.push_back(image_msgs2);
+	image_msgs.push_back(image_msgs3);
+	(*callback)(cloud_msgs, image_msgs);
+}
+
+void synchronizeAndRegisterCallback(string cloud_topic, vector<string> image_topics, ros::NodeHandle nh, void (*callback)(const PointCloud2ConstPtr&, const vector<ImageConstPtr>&))
+{
+	message_filters::Subscriber<PointCloud2>* cloud_sub = new message_filters::Subscriber<PointCloud2>(nh, cloud_topic, 1);
+	vector<message_filters::Subscriber<Image>*> image_subs(image_topics.size(), NULL);
+	for (int i=0; i<image_topics.size(); i++)
+		image_subs[i] = new message_filters::Subscriber<Image>(nh, image_topics[i], 1);
+
+  if (image_topics.size()==2) {
+  	typedef message_filters::sync_policies::ApproximateTime<PointCloud2, Image, Image> ApproxSyncPolicy;
+  	message_filters::Synchronizer<ApproxSyncPolicy>* sync = new message_filters::Synchronizer<ApproxSyncPolicy>(ApproxSyncPolicy(30), *cloud_sub, *(image_subs[0]), *(image_subs[1]));
+		sync->registerCallback(boost::bind(vectorizeArgumentsAndInvoke,_1,_2,_3,callback));
+  } else if (image_topics.size()==4) {
+  	typedef message_filters::sync_policies::ApproximateTime<PointCloud2, Image, Image, Image, Image> ApproxSyncPolicy;
+		message_filters::Synchronizer<ApproxSyncPolicy>* sync = new message_filters::Synchronizer<ApproxSyncPolicy>(ApproxSyncPolicy(30), *cloud_sub, *(image_subs[0]), *(image_subs[1]), *(image_subs[2]), *(image_subs[3]));
+		sync->registerCallback(boost::bind(vectorizeArgumentsAndInvoke,_1,_2,_3,_4,_5,callback));
+  } else {
+  	runtime_error("This case for synchronizeAndRegisterCallback is not implemented yet.");
+  }
 }

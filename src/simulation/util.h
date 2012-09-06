@@ -78,6 +78,7 @@ namespace util {
   void drawSpheres(vector<btVector3> points, Eigen::Vector3f color, float alpha, float radius, Environment::Ptr env);
   void drawSpheres(btVector3 point, Eigen::Vector3f color, float alpha, float radius, Environment::Ptr env);
   void drawLines(vector<btVector3> points0, vector<btVector3> points1, Eigen::Vector3f color, float alpha, Environment::Ptr env);
+  void drawPoly(vector<btVector3> points, Eigen::Vector3f color, float alpha, Environment::Ptr env);
   void drawAxes(btTransform transform, float size, Environment::Ptr env);
 
 

@@ -12,6 +12,11 @@
 using namespace Eigen;
 using namespace std;
 
+static Environment::Ptr gEnv;
+
+void setGlobalEnvironment(Environment::Ptr env) { gEnv = env; };
+Environment::Ptr getGlobalEnvironment() { return gEnv; }
+
 //#define CHECK_CORRECTNESS
 
 PhysicsTracker::PhysicsTracker(TrackedObjectFeatureExtractor::Ptr object_features, FeatureExtractor::Ptr observation_features, VisibilityInterface::Ptr visibility_interface) :
@@ -29,8 +34,11 @@ PhysicsTracker::PhysicsTracker(TrackedObjectFeatureExtractor::Ptr object_feature
 void PhysicsTracker::updateFeatures() {
 	m_objFeatures->updateFeatures();
 	m_obsFeatures->updateFeatures();
-	//shift the point cloud in the x coordinate
+	//shift the point cloud in the z coordinate
 	//m_obsFeatures->getFeatures(FE::FT_XYZ).col(2) += VectorXf::Ones(m_obsFeatures->getFeatures(FE::FT_XYZ).rows()) * 0.01*METERS;
+	for (int i=0; i<m_obsFeatures->getFeatures(FE::FT_XYZ).rows(); i++)
+		if (m_obsFeatures->getFeatures(FE::FT_XYZ)(i,2) < 0.005)
+			m_obsFeatures->getFeatures(FE::FT_XYZ)(i,2) = 0.005;
 
 	m_estPts = m_objFeatures->getFeatures();
 	m_obsPts = m_obsFeatures->getFeatures();
@@ -40,9 +48,17 @@ void PhysicsTracker::updateFeatures() {
 
 void PhysicsTracker::expectationStep() {
   //boost::posix_time::ptime e_time = boost::posix_time::microsec_clock::local_time();
-	if (isFinite(m_estPts) && isFinite(m_obsPts) && isFinite(m_vis) && isFinite(m_stdev))
+	if (isFinite(m_estPts) && isFinite(m_obsPts) && isFinite(m_vis) && isFinite(m_stdev)) {
+////		float a = 0.1;
+////		float b = 0.9;
+////		VectorXf alpha = a + m_vis.array() * (b-a);
+//		VectorXf alpha = m_vis;
+//		if (m_pZgivenC.rows()!=0) alpha += m_pZgivenC.rowwise().sum();
+//		VectorXf expectedPi = alpha/alpha.sum();
+//		m_pZgivenC = calculateResponsibilitiesNaive(m_estPts, m_obsPts, m_stdev, expectedPi, m_objFeatures->m_obj->getOutlierDist(), m_objFeatures->m_obj->getOutlierStdev());
+
 		m_pZgivenC = calculateResponsibilitiesNaive(m_estPts, m_obsPts, m_stdev, m_vis, m_objFeatures->m_obj->getOutlierDist(), m_objFeatures->m_obj->getOutlierStdev());
-	else
+	} else
 		cout << "WARNING: PhysicsTracker: the input is not finite" << endl;
   //cout << "E time " << (boost::posix_time::microsec_clock::local_time() - e_time).total_milliseconds() << endl;
 

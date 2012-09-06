@@ -1,37 +1,20 @@
 #include "simulation/simplescene.h"
 #include <ros/ros.h>
-#include <message_filters/subscriber.h>
-#include <message_filters/time_synchronizer.h>
-#include <message_filters/sync_policies/approximate_time.h>
 #include <sensor_msgs/PointCloud2.h>
-#include <sensor_msgs/Image.h>
-#include <sensor_msgs/image_encodings.h>
-#include <pcl/io/pcd_io.h>
-#include <pcl/point_types.h>
 #include <pcl/ros/conversions.h>
 #include <pcl/registration/transformation_estimation_svd.h>
-#include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
-#include <cv_bridge/cv_bridge.h>
 #include "pcl_typedefs.h"
-#include "utils_cv.h"
 #include "utils/config.h"
-//#include "utils_pcl.h"
 #include "cloud_ops.h"
 #include "tracking/phasespace.h"
 #include "utils/conversions.h"
-#include "simulation/plotting.h"
 #include "utils/utils_vector.h"
 
 using sensor_msgs::PointCloud2;
-using sensor_msgs::Image;
 using namespace std;
 using namespace Eigen;
-
-namespace cv {
-	typedef Vec<uchar, 3> Vec3b;
-}
 
 void toggle(bool* b){
 	*b = !(*b);
@@ -51,11 +34,12 @@ struct LocalConfig : Config {
   }
 };
 
-string LocalConfig::cloudTopic = "/kinect1/depth_registered/points";
-string LocalConfig::filename = "/home/alex/rll/bulletsim/data/phasespace_rigid_info/pr2head";
-static const ledid_t commonLedIds_a[] = { 8,9,10,11,12,13,14 };
+string LocalConfig::cloudTopic = "/kinect2/depth_registered/points";
+string LocalConfig::filename = "/home/alex/rll/bulletsim/data/phasespace_rigid_info/tripod";
+static const ledid_t commonLedIds_a[] = { 8,9,10,11,12 };
 vector<ledid_t> LocalConfig::commonLedIds = std::vector<ledid_t>(commonLedIds_a, commonLedIds_a+sizeof(commonLedIds_a)/sizeof(ledid_t));
-static const ledid_t kinectLedIds_a[] = { 0,1,2,3 };
+//static const ledid_t kinectLedIds_a[] = { 0,1,2,3 };
+static const ledid_t kinectLedIds_a[] = { 36,37,38,39,40 };
 vector<ledid_t> LocalConfig::kinectLedIds = std::vector<ledid_t>(kinectLedIds_a, kinectLedIds_a+sizeof(kinectLedIds_a)/sizeof(ledid_t));
 
 ColorCloudPtr cloud(new ColorCloud());

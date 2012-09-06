@@ -142,7 +142,7 @@ Eigen::MatrixXf calculateResponsibilitiesNaive(const Eigen::MatrixXf& estPts, co
 		//normalize rows
 		//FIXME does the k+1 row need to be normalized?
 		for (int k=0; k<K; k++) {
-			if (pVis(k) == 0) {
+			if (pVis(k) < TrackingConfig::epsilon) {
 				pZgivenC.row(k) = VectorXf::Zero(N);
 			} else {
 				pZgivenC.row(k) /= pZgivenC.row(k).sum();
@@ -267,7 +267,7 @@ Eigen::MatrixXf calculateResponsibilities(const Eigen::MatrixXf& estPts, const E
 		//normalize rows
 		//FIXME does the k+1 row need to be normalized?
 		for (int k=0; k<K; k++) {
-			if (pVis(k) == 0) {
+			if (pVis(k) < TrackingConfig::epsilon) {
 				pZgivenC.row(k) = VectorXf::Zero(N);
 			} else {
 				pZgivenC.row(k) /= pZgivenC.row(k).sum();

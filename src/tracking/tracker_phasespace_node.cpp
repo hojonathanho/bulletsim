@@ -8,6 +8,9 @@
 #include <sensor_msgs/Image.h>
 #include <tf/tf.h>
 #include <tf/transform_listener.h>
+//#include <message_filters/subscriber.h>
+//#include <message_filters/time_synchronizer.h>
+//#include <message_filters/sync_policies/approximate_time.h>
 #include <cv_bridge/cv_bridge.h>
 #include <cv.h>
 #include <bulletsim_msgs/TrackedObject.h>
@@ -25,6 +28,8 @@
 #include "config_tracking.h"
 #include "utils/conversions.h"
 #include "clouds/cloud_ops.h"
+
+#include "phasespace.h"
 
 using sensor_msgs::PointCloud2;
 using sensor_msgs::Image;
@@ -46,6 +51,8 @@ CoordinateTransformer* transformer;
 bool pending = false; // new message received, waiting to be processed
 
 tf::TransformListener* listener;
+
+Affine3f marker_system_transform;
 
 // TODO this fcn should also mask
 void callback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg, const vector<sensor_msgs::ImageConstPtr>& image_msgs) {
@@ -85,7 +92,7 @@ int main(int argc, char* argv[]) {
 
   listener = new tf::TransformListener();
 
-  transformer = new CoordinateTransformer(waitForAndGetTransform(*listener, "/ground", TrackingConfig::cameraTopics[0]+"_rgb_optical_frame"));
+  transformer = new CoordinateTransformer(waitForAndGetTransform(*listener, "/ground", "kinect1_rgb_optical_frame"));
   for (int i=0; i<nCameras; i++)
   	transformer_images.push_back(new CoordinateTransformer(waitForAndGetTransform(*listener, "/ground", TrackingConfig::cameraTopics[i]+"_rgb_optical_frame")));
 
@@ -105,8 +112,6 @@ int main(int argc, char* argv[]) {
   Scene scene;
   scene.startViewer();
 
-  setGlobalEnvironment(scene.env);
-
   // Get the filtered cloud that is not downsample: get the full cloud and then mask it with the image.
   sensor_msgs::PointCloud2ConstPtr cloud_msg = ros::topic::waitForMessage<sensor_msgs::PointCloud2>(TrackingConfig::fullCloudTopic, nh);
 	ColorCloudPtr first_organized_filtered_cloud(new ColorCloud());
@@ -114,12 +119,44 @@ int main(int argc, char* argv[]) {
 	first_organized_filtered_cloud = maskCloud(first_organized_filtered_cloud, rgb_images[0]);
 	pcl::transformPointCloud(*first_organized_filtered_cloud, *first_organized_filtered_cloud, transformer_images[0]->worldFromCamEigen);
 
-	TrackedObject::Ptr trackedObj = callInitServiceAndCreateObject(filteredCloud, first_organized_filtered_cloud, rgb_images[0], transformer_images[0]);
+  TrackedObject::Ptr trackedObj = callInitServiceAndCreateObject(filteredCloud, first_organized_filtered_cloud, rgb_images[0], transformer_images[0]);
   if (!trackedObj) throw runtime_error("initialization of object failed.");
   trackedObj->init();
   scene.env->add(trackedObj->m_sim);
 
- 	// actual tracking algorithm
+ 	////////////////////////////////////////////////
+	Affine3f cameraToPhasespace = waitForRigidBodyTransform(PhasespaceConfig::kinectInfo_filename, 10);
+	Affine3f cameraToWorld = toEigenTransform(transformer->worldFromCamUnscaled);
+	cameraToWorld.translation() *= METERS;
+	Affine3f phasespaceToWorld = cameraToWorld * cameraToPhasespace.inverse();
+	marker_system_transform = phasespaceToWorld;
+
+	util::drawAxes(toBulletTransform(cameraToWorld), 0.1*METERS, scene.env);
+
+ 	// Contains all the phase space bodies
+ 	vector<MarkerBody::Ptr> marker_bodies;
+
+ 	// Create soft body for cloth
+ 	cout << "Creating soft body cloth..." << endl;
+ 	assert(PhasespaceConfig::objLedIds.size()%2 == 0);
+ 	vector<ledid_t> led_ids_front(PhasespaceConfig::objLedIds.begin(), PhasespaceConfig::objLedIds.begin()+PhasespaceConfig::objLedIds.size()/2.0);
+ 	vector<ledid_t> led_ids_back(PhasespaceConfig::objLedIds.begin()+PhasespaceConfig::objLedIds.size()/2.0, PhasespaceConfig::objLedIds.end());
+ 	MarkerSoft::Ptr marker_soft = createMarkerSoftCloth(led_ids_front, led_ids_back, Vector3f(0,0,-0.02*METERS), trackedObj->m_sim, marker_system_transform, scene.env);
+ 	marker_bodies.push_back(marker_soft);
+
+ 	MarkerSystem::Ptr marker_system(new MarkerSystem(marker_bodies));
+ 	marker_system->setPose(marker_system_transform);
+
+ 	marker_system->startUpdateLoopThread();
+
+	vector<PlotAxes::Ptr> plot_axes;
+	for (int ind=0; ind<PhasespaceConfig::objLedIds.size(); ind++) {
+		plot_axes.push_back(PlotAxes::Ptr (new PlotAxes()));
+		scene.env->add(plot_axes[ind]);
+	}
+ 	////////////////////////////////////////////////
+
+  // actual tracking algorithm
 	MultiVisibility::Ptr visInterface(new MultiVisibility());
 	for (int i=0; i<nCameras; i++) {
 		if (trackedObj->m_type == "rope") // Don't do self-occlusion if the trackedObj is a rope
@@ -148,17 +185,22 @@ int main(int argc, char* argv[]) {
     pending = false;
     while (ros::ok() && !pending) {
     	//Do iteration
-      //alg->updateFeatures();
-      //alg->expectationStep();
-      //alg->maximizationStep(applyEvidence);
+      alg->updateFeatures();
+      alg->expectationStep();
+      alg->maximizationStep(applyEvidence);
 
       scene.env->step(.03,2,.015);
+
+  		for (int i=0; i<marker_bodies.size(); i++)
+  			marker_bodies[i]->plot();
+      for (int ind=0; ind<plot_axes.size(); ind++)
+  			plot_axes[ind]->setup(toBulletTransform(marker_soft->getSimTransform(ind)), 0.02*METERS);
 
       trackingVisualizer->update();
 
       scene.draw();
-      //scene.viewer.frame();
       ros::spinOnce();
     }
  	}
+  marker_system->stopUpdateLoopThread();
 }

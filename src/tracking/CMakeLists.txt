@@ -8,6 +8,10 @@ include_directories(
 #    ${BULLET_DIR}/src
 )
 
+include_directories( ${TETGEN_DIR}
+    ${PCL_INCLUDE_DIRS} )
+
+link_directories( ${TETGEN_DIR} )
 
 include_directories("/opt/ros/fuerte/stacks/vision_opencv/cv_bridge/include") # XXX bad
 include_directories("/opt/ros/fuerte/stacks/geometry/tf/include"
@@ -44,6 +48,9 @@ target_link_libraries(tracking
 	
 add_executable(tracker_node tracker_node.cpp)
 target_link_libraries(tracker_node tracking simulation clouds tf cv_bridge ${OpenCV_LIBS} ${ROS_LIBRARIES} boost_signals)
+
+add_executable(tracker_phasespace_node tracker_phasespace_node.cpp)
+target_link_libraries(tracker_phasespace_node tracking simulation clouds tf cv_bridge ${OpenCV_LIBS} ${ROS_LIBRARIES} boost_signals)
 
 #add_executable(robot_tracker_node robot_tracker_node.cpp)
 #target_link_libraries(robot_tracker_node tracking simulation clouds tf cv_bridge ${ROS_LIBRARIES} boost_signals)

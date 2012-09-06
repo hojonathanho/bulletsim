@@ -131,3 +131,12 @@ BulletSoftObject::Ptr makeTowel(const vector<btVector3>& points, int resolution_
 // Find the 3d corners of the polygon. First, it finds the corners in the 2d mask. The 3d corner is given by the
 // intersection between the ray (from camera origin through pixel) and the plane (containing the point cloud)
 std::vector<btVector3> polyCorners(ColorCloudPtr cloud, cv::Mat mask, CoordinateTransformer* transformer);
+
+
+// Assumes corners are in the xy-plane and the thickness is the z-axis direction
+// good max_tet_vol: 0.0008*METERS*METERS*METERS
+BulletSoftObject::Ptr makeSponge(const std::vector<btVector3>& corners, float thickness, float max_tet_vol, float mass);
+
+// Returns the approximate polygon of the concave hull of the cloud
+// The points are being projected to the xy plane
+std::vector<btVector3> polyCorners(ColorCloudPtr cloud);

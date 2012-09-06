@@ -45,6 +45,17 @@ cv::Mat connectedComponentsFilter(cv::Mat src, int min_pix, int dist_pix) {
 	return dst;
 }
 
+// input and output images are BGR images.
+cv::Mat connectedComponentsFilterColor(cv::Mat src, int min_pix, int dist_pix) {
+	cv::Mat src_gray;
+	cv::cvtColor(src, src_gray, CV_BGR2GRAY);
+	src_gray = src_gray > 0;
+	src_gray = connectedComponentsFilter(src_gray, min_pix, dist_pix);
+	cv::merge(vector<cv::Mat>(3, src_gray), src_gray);
+	cv::multiply(src_gray, src, src, 1/255.0);
+	return src;
+}
+
 //src and dst are binary images. removes sparse pixels and small connected components.
 cv::Mat sparseSmallFilter(cv::Mat src, int erode, int dilate, int min_connected_components, int tol_connected_components) {
 	cv::Mat dst = src.clone();
