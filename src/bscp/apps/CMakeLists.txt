@@ -25,7 +25,7 @@ target_link_libraries(car_localizer scp_robots opt ${OSG_LIBS} ${GUROBI_LIBRARIE
 #add_executable(gurobi_demo gurobi_demo.cpp)
 #target_link_libraries(gurobi_demo ${GUROBI_LIBRARIES})
 
-find_package(Boost REQUIRED COMPONENTS program_options system exception prg_exec_monitor filesystem signals)
+find_package(Boost REQUIRED COMPONENTS program_options system prg_exec_monitor filesystem signals)
 
 add_executable(pr2_demo pr2_demo.cpp)
 target_link_libraries(pr2_demo opt scp_robots simulation robots ${BULLET_LIBS} ${OpenRAVE_LIBRARIES} ${Boost_LIBRARIES})

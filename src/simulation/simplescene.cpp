@@ -68,7 +68,7 @@ osgViewer::View* Scene::startView() {
     view->setCameraManipulator(manip);
     view->setSceneData(osg->root.get());
     //viewer.realize();
-    step(0);
+    //step(0);
     return view;
 }
 

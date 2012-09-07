@@ -12,7 +12,7 @@
 #include "beacon_sensor.h"
 #include "state_sensor.h"
 #include "sensors.h"
-#include "sensor_functions/LocalizerPR2CameraFunc.h";
+#include "sensor_functions/LocalizerPR2CameraFunc.h"
 #include "sensor_functions/PR2BeaconFunc.h"
 #include "trajectory_util.h"
 #include "eigen_multivariate_normal.h"
