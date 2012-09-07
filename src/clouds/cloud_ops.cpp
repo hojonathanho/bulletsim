@@ -327,18 +327,31 @@ ColorCloudPtr maskCloud(const ColorCloudPtr in, cv::Mat mask, bool organized, bo
 
   if (organized) {
 		out = ColorCloudPtr(new ColorCloud(*in));
-  	ColorPoint nan_point = makeNanPoint();
 
   	if (negative) {
 			for (int i=0; i<in->height; i++) {
 				for (int j=0; j<in->width; j++) {
-					if (mask.at<bool>(i,j)) out->at(in->width*i+j) = nan_point;
+					if (mask.at<bool>(i,j)) {
+						out->at(in->width*i+j).x =  numeric_limits<float>::quiet_NaN();
+						out->at(in->width*i+j).y =  numeric_limits<float>::quiet_NaN();
+						out->at(in->width*i+j).z =  numeric_limits<float>::quiet_NaN();
+						out->at(in->width*i+j).r = 0;
+						out->at(in->width*i+j).g = 0;
+						out->at(in->width*i+j).b = 0;
+					}
 				}
 			}
 		} else {
 			for (int i=0; i<in->height; i++) {
 				for (int j=0; j<in->width; j++) {
-					if (!mask.at<bool>(i,j)) out->at(in->width*i+j) = nan_point;
+					if (!mask.at<bool>(i,j)) {
+						out->at(in->width*i+j).x =  numeric_limits<float>::quiet_NaN();
+						out->at(in->width*i+j).y =  numeric_limits<float>::quiet_NaN();
+						out->at(in->width*i+j).z =  numeric_limits<float>::quiet_NaN();
+						out->at(in->width*i+j).r = 0;
+						out->at(in->width*i+j).g = 0;
+						out->at(in->width*i+j).b = 0;
+					}
 				}
 			}
 		}
@@ -368,18 +381,31 @@ ColorCloudPtr maskCloud(const ColorCloudPtr in, const VectorXb& mask, bool organ
 
   if (organized) {
 		out = ColorCloudPtr(new ColorCloud(*in));
-  	ColorPoint nan_point = makeNanPoint();
 
   	if (negative) {
   		for (int i=0; i<in->height; i++) {
 				for (int j=0; j<in->width; j++) {
-					if (mask(in->width*i+j)) out->at(in->width*i+j) = nan_point;
+					if (mask(in->width*i+j)) {
+						out->at(in->width*i+j).x = numeric_limits<float>::quiet_NaN();
+						out->at(in->width*i+j).y = numeric_limits<float>::quiet_NaN();
+						out->at(in->width*i+j).z = numeric_limits<float>::quiet_NaN();
+						out->at(in->width*i+j).r = 0;
+						out->at(in->width*i+j).g = 0;
+						out->at(in->width*i+j).b = 0;
+					}
 				}
 			}
 		} else {
 			for (int i=0; i<in->height; i++) {
 				for (int j=0; j<in->width; j++) {
-					if (!mask(in->width*i+j)) out->at(in->width*i+j) = nan_point;
+					if (!mask(in->width*i+j)) {
+						out->at(in->width*i+j).x = numeric_limits<float>::quiet_NaN();
+						out->at(in->width*i+j).y = numeric_limits<float>::quiet_NaN();
+						out->at(in->width*i+j).z = numeric_limits<float>::quiet_NaN();
+						out->at(in->width*i+j).r = 0;
+						out->at(in->width*i+j).g = 0;
+						out->at(in->width*i+j).b = 0;
+					}
 				}
 			}
 		}

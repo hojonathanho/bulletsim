@@ -10,7 +10,6 @@
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_types.h>
 #include <pcl/ros/conversions.h>
-#include <pcl/filters/filter_indices.h>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <cv_bridge/cv_bridge.h>
@@ -22,9 +21,6 @@
 #include "utils/config.h"
 #include "utils/conversions.h"
 #include "utils_ros.h"
-
-#include "opencv2/video/background_segm.hpp"
-
 
 using namespace std;
 using namespace Eigen;
@@ -45,9 +41,9 @@ struct LocalConfig : Config {
   static float clusterMinSize;
   static float outlierRadius;
   static int outlierMinK;
-  static int backgroundCount;
-  static bool backgroundRead;
-  static string backgroundFile;
+  static float offset;
+  static bool debugMask;
+  static bool debugGreenFilter;
   static int i0;
   static int i1;
   static int i2;
@@ -64,9 +60,9 @@ struct LocalConfig : Config {
     params.push_back(new Parameter<float>("clusterMinSize", &clusterMinSize, "the clusters found must have at least this number of points. 0 means no filtering"));
     params.push_back(new Parameter<float>("outlierRadius", &outlierRadius, "radius search RadiusOutlierRemoval filter"));
     params.push_back(new Parameter<int>("outlierMinK", &outlierMinK, "minimum neighbors in radius search for RadiusOutlierRemoval filter"));
-    params.push_back(new Parameter<int>("backgroundCount", &backgroundCount, "The first backgroundCount number of images are used for the background."));
-    params.push_back(new Parameter<bool>("backgroundRead", &backgroundRead, "True if the background images should be read from file. False if the background images should be written to file."));
-    params.push_back(new Parameter<string>("backgroundFile", &backgroundFile, "YAML file where the background images should be saved or read"));
+    params.push_back(new Parameter<float>("offset", &offset, "offset for the box filter (shrinks the box by offset at each side of the x and y axes)"));
+    params.push_back(new Parameter<bool>("debugMask", &debugMask, "set to true if you want to debug the intermediate mask filters"));
+    params.push_back(new Parameter<bool>("debugGreenFilter", &debugGreenFilter, "set to true if you want to debug the lab threshold parameters. if true, the green and negative green cloud are published, and you can interactively modify the thresholds."));
     params.push_back(new Parameter<int>("i0", &i0, "miscellaneous variable 0"));
     params.push_back(new Parameter<int>("i1", &i1, "miscellaneous variable 1"));
     params.push_back(new Parameter<int>("i2", &i2, "miscellaneous variable 2"));
@@ -84,37 +80,22 @@ float LocalConfig::clusterTolerance = 0.03;
 float LocalConfig::clusterMinSize = 0;
 float LocalConfig::outlierRadius = 0.02;
 int LocalConfig::outlierMinK = 0;
-int LocalConfig::backgroundCount = 5;
-bool LocalConfig::backgroundRead = true;
-string LocalConfig::backgroundFile = "/home/alex/Desktop/preprocessor.yml";
+float LocalConfig::offset = 0.02;
+bool LocalConfig::debugMask = false;
+bool LocalConfig::debugGreenFilter = false;
 int LocalConfig::i0 = 0;
 int LocalConfig::i1 = 0;
 int LocalConfig::i2 = 0;
 int LocalConfig::i3 = 0;
 
-template <typename T>
-void getOrSetParam(const ros::NodeHandle& nh, std::string paramName, T& ref, T defaultVal) {
-	if (!nh.getParam(paramName, ref)) {
-		nh.setParam(paramName, defaultVal);
-		ref = defaultVal;
-		ROS_INFO_STREAM("setting " << paramName << " to default value " << defaultVal);
-	}
-}
-void setParams(const ros::NodeHandle& nh) {}
-
-void setParamLoop(ros::NodeHandle& nh) {
-	while (nh.ok()) {
-		setParams(nh);
-		sleep(1);
-	}
-}
+static int MIN_L=0, MAX_L=255, MIN_A=115, MAX_A=255, MIN_B=0, MAX_B=255;
 
 class PreprocessorNode {
 public:
   ros::NodeHandle& m_nh;
   ros::Publisher m_cloudPub, m_imagePub;
+  ros::Publisher m_cloudGreenPub, m_cloudNotGreenPub;
   ros::Publisher m_polyPub;
-  ros::Publisher m_foregroundPub, m_backgroundPub;
   tf::TransformBroadcaster m_broadcaster;
   tf::TransformListener m_listener;
   ros::Subscriber m_sub;
@@ -128,22 +109,14 @@ public:
   btTransform m_transform;
   geometry_msgs::Polygon m_poly;
 
-  cv::BackgroundSubtractorMOG  mog;
-  vector<cv::Mat> rgb_bg, depth_bg;
-  int first_count;
-  cv::FileStorage fs;
-
   void callback(const sensor_msgs::PointCloud2& msg_in) {
-    ColorCloudPtr cloud_in(new ColorCloud());
+    if (LocalConfig::debugMask || LocalConfig::debugGreenFilter) cv::waitKey(20);
+
+  	ColorCloudPtr cloud_in(new ColorCloud());
     pcl::fromROSMsg(msg_in, *cloud_in);
 
     if (!m_inited) {
-			ColorCloudPtr cloud_green = colorSpaceFilter(cloud_in, 0, 255, 100, 255, 0, 255, CV_BGR2Lab, false, true);
-			cout << "cloud_green->size() green " << cloud_green->size() << endl;
-			*cloud_green = *cloud_in;
-			cout << "cloud_green->size() all " << cloud_green->size() << endl;
-			//cloud_green = clusterFilter(cloud_green, 0.01, 100);
-			cout << "cloud_green->size() cluster " << clusterFilter(cloud_green, 0.01, 100)->size() << endl;
+			ColorCloudPtr cloud_green = colorSpaceFilter(cloud_in, MIN_L, MAX_L, MIN_A, MAX_A, MIN_B, MAX_B, CV_BGR2Lab, true, true);
 			if (cloud_green->size() < 50) {
 				ROS_WARN("The green table cannot be seen. The table couldn't be initialized.");
 			} else {
@@ -151,26 +124,36 @@ public:
 			}
 		}
 
-    cv::Mat rgb = toCVMatImage(cloud_in);
-    cv::Mat depth = toCVMatDepthImage(cloud_in);
-
-    ColorCloudPtr cloud_out = cloud_in;
+    ColorCloudPtr cloud_out(new ColorCloud(*cloud_in));
 
     //Filter out green background and put yellow back
-		ColorCloudPtr cloud_neg_green = colorSpaceFilter(cloud_out, 30, 255, 115, 255, 0, 255, CV_BGR2Lab, true, false);
+		ColorCloudPtr cloud_neg_green = colorSpaceFilter(cloud_out, MIN_L, MAX_L, MIN_A, MAX_A, MIN_B, MAX_B, CV_BGR2Lab, true, false);
 		//ColorCloudPtr cloud_yellow = colorSpaceFilter(cloud_out, 0, 255, 0, 255, 190, 255, CV_BGR2Lab, true, false);
 		*cloud_out = *cloud_neg_green; // + *cloud_yellow;
 
-		//cloud based filters
+		// Cloud-based filters
 		cloud_out = orientedBoxFilter(cloud_out, toEigenMatrix(m_transform.getBasis()), m_mins, m_maxes, true);
-		cv::Mat image = toCVMatImage(cloud_out);
-		image = connectedComponentsFilterColor(image, 50, 2);
-		cv::imwrite("/home/alex/Desktop/prep_color_node.jpg", image);
 
-		cv::Mat image_gray;
-		cv::cvtColor(image, image_gray, CV_BGR2GRAY);
-		image_gray = image_gray > 0;
-		cloud_out = maskCloud(cloud_out, image_gray, true, false);
+		// Image-based filters
+		cv::Mat mask = toCVMatImage(cloud_out);
+		mask = toBinaryMask(mask);
+		if (LocalConfig::debugMask) cv::imshow("mask original", mask);
+		mask = sparseSmallFilter(mask, 1, 2, 100, 2);
+		if (LocalConfig::debugMask) cv::imshow("mask", mask);
+
+		cv::Mat inv_mask = mask == 0;
+		if (LocalConfig::debugMask) cv::imshow("inv_mask original", inv_mask);
+		inv_mask = sparseSmallFilter(inv_mask, 1, 2, 100, 2);
+		if (LocalConfig::debugMask) cv::imshow("inv_mask", inv_mask);
+
+		mask = inv_mask == 0;
+		if (LocalConfig::debugMask) cv::imshow("mask final", mask);
+
+		cv::Mat image = toCVMatImage(cloud_in);
+		image = maskImage(image, mask);
+
+		// Cloud-based filters
+		cloud_out = maskCloud(cloud_in, mask, true, false);
 
 		if (LocalConfig::removeOutliers) cloud_out = removeOutliers(cloud_out, 1, 10);
 		if (LocalConfig::downsample > 0) cloud_out = downsampleCloud(cloud_out, LocalConfig::downsample);
@@ -182,6 +165,30 @@ public:
 		pcl::toROSMsg(*cloud_out, msg_out);
 		msg_out.header = msg_in.header;
 		m_cloudPub.publish(msg_out);
+
+		if (LocalConfig::debugGreenFilter) {
+			cv::namedWindow("lab params");
+			cv::createTrackbar("min l (lightness)     ", "lab params", &MIN_L, 255);
+			cv::createTrackbar("max l (lightness)     ", "lab params", &MAX_L, 255);
+			cv::createTrackbar("min a (green -> red)  ", "lab params", &MIN_A, 255);
+			cv::createTrackbar("max a (green -> red)  ", "lab params", &MAX_A, 255);
+			cv::createTrackbar("min b (blue -> yellow)", "lab params", &MIN_B, 255);
+			cv::createTrackbar("max b (blue -> yellow)", "lab params", &MAX_B, 255);
+
+			//Publish green cloud
+			ColorCloudPtr cloud_green = colorSpaceFilter(cloud_in, MIN_L, MAX_L, MIN_A, MAX_A, MIN_B, MAX_B, CV_BGR2Lab, true, true);
+			sensor_msgs::PointCloud2 msg_green;
+			pcl::toROSMsg(*cloud_green, msg_green);
+			msg_green.header = msg_in.header;
+			m_cloudGreenPub.publish(msg_green);
+
+			//Publish green cloud
+			ColorCloudPtr cloud_not_green = colorSpaceFilter(cloud_in, MIN_L, MAX_L, MIN_A, MAX_A, MIN_B, MAX_B, CV_BGR2Lab, true, false);
+			sensor_msgs::PointCloud2 msg_not_green;
+			pcl::toROSMsg(*cloud_not_green, msg_not_green);
+			msg_not_green.header = msg_in.header;
+			m_cloudNotGreenPub.publish(msg_not_green);
+		}
 
 		//Publish image version of cloud
     cv_bridge::CvImage image_msg;
@@ -221,11 +228,10 @@ public:
 
     m_mins = rotCorners.colwise().minCoeff();
     m_maxes = rotCorners.colwise().maxCoeff();
-    float offset = 0.20;
-    m_mins(0) += offset;
-    m_mins(1) += offset;
-    m_maxes(0) -= offset;
-    m_maxes(1) -= offset;
+    m_mins(0) += LocalConfig::offset;
+    m_mins(1) += LocalConfig::offset;
+    m_maxes(0) -= LocalConfig::offset;
+    m_maxes(1) -= LocalConfig::offset;
     m_mins(2) = rotCorners(0,2) + LocalConfig::zClipLow;
     m_maxes(2) = rotCorners(0,2) + LocalConfig::zClipHigh;
 
@@ -243,18 +249,14 @@ public:
     m_cloudPub(nh.advertise<sensor_msgs::PointCloud2>(nodeNS+"/points",5)),
     m_imagePub(nh.advertise<sensor_msgs::Image>(nodeNS+"/image",5)),
     m_polyPub(nh.advertise<geometry_msgs::PolygonStamped>(nodeNS+"/polygon",5)),
-    m_foregroundPub(nh.advertise<sensor_msgs::Image>(nodeNS+"/foreground",5)),
-    m_backgroundPub(nh.advertise<sensor_msgs::Image>(nodeNS+"/background",5)),
     m_sub(nh.subscribe(LocalConfig::inputTopic, 1, &PreprocessorNode::callback, this)),
 		m_mins(-10,-10,-10),
 		m_maxes(10,10,10),
-		m_transform(toBulletTransform(Affine3f::Identity())),
-		first_count(LocalConfig::backgroundCount)
+		m_transform(toBulletTransform(Affine3f::Identity()))
     {
-			if (LocalConfig::backgroundRead) {
-					fs = cv::FileStorage(LocalConfig::backgroundFile, cv::FileStorage::READ);
-				} else {
-					fs = cv::FileStorage(LocalConfig::backgroundFile, cv::FileStorage::WRITE);
+			if (LocalConfig::debugGreenFilter) {
+				m_cloudGreenPub = nh.advertise<sensor_msgs::PointCloud2>(nodeNS+"/green/points",5);
+				m_cloudNotGreenPub = nh.advertise<sensor_msgs::PointCloud2>(nodeNS+"/not_green/points",5);
 			}
     }
 };
@@ -266,9 +268,6 @@ int main(int argc, char* argv[]) {
 
   ros::init(argc, argv,"preprocessor");
   ros::NodeHandle nh(nodeNS);
-
-  setParams(nh);
-  if (LocalConfig::updateParams) boost::thread setParamThread(setParamLoop, nh);
 
   PreprocessorNode tp(nh);
   ros::spin();
