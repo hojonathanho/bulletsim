@@ -19,6 +19,10 @@ Eigen::MatrixXf toEigenMatrix(ColorCloudPtr);
 Eigen::MatrixXf toEigenMatrix(const cv::Mat&);
 Eigen::MatrixXf getDepthImage(ColorCloudPtr);
 pcl::PointCloud<pcl::PointXYZ>::Ptr toPointCloud(const std::vector< std::vector<float> >&);
+pcl::PointCloud<pcl::PointXYZ>::Ptr toPointCloud(const Eigen::MatrixXf&);
+
+ColorCloudPtr addColor(CloudPtr in, uint8_t r, uint8_t g, uint8_t b);
+
 
 MatrixXu toBGR(ColorCloudPtr);
 cv::Mat toCVMat(Eigen::MatrixXf);
@@ -31,7 +35,7 @@ inline ColorCloudPtr removeConst(ConstColorCloudPtr cloud) {
   return boost::const_pointer_cast< pcl::PointCloud<ColorPoint> >(cloud);
 }
 ColorCloudPtr transformPointCloud1(ColorCloudPtr in, Eigen::Affine3f transform);
-ColorCloudPtr extractInds(ColorCloudPtr in, std::vector<int> inds);
+ColorCloudPtr extractInds(ColorCloudPtr in, const std::vector<int>& inds);
 
 bool saveTransform(const std::string& filename, const Eigen::Matrix4f& t);
 bool loadTransform(const std::string& filename, Eigen::Matrix4f& t);

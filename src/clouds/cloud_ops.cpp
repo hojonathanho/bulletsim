@@ -22,7 +22,9 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <limits>
+#ifndef NOT_BULLETSIM
 #include "utils_cv.h"
+#endif
 #include "utils/utils_vector.h"
 
 typedef ColorPoint PointT;
@@ -31,40 +33,29 @@ using namespace std;
 using namespace Eigen;
 using namespace pcl;
 
-vector< vector<int> > findClusters(ColorCloudPtr cloud, float tol, int minSize) {
-	int cloud_size = cloud->size();
-	//HACK: a bug in pcl::EuclideanClusterExtraction causes a segfault when no clusters are returned.
-	//Hence add a cluster to the point cloud and then remove these indices from the result.
-	ColorPoint pt (255,255,255);
-	for (int i=0; i<minSize; i++)
-		cloud->push_back(pt);
+vector<vector<int> > findClusters(ColorCloudPtr cloud, float tol, int minSize) {
+  int cloud_size = cloud->size();
+  //HACK: a bug in pcl::EuclideanClusterExtraction causes a segfault when no clusters are returned.
+  //Hence add a cluster to the point cloud and then remove these indices from the result.
+  ColorPoint pt(255, 255, 255);
+  for (int i = 0; i < minSize; i++)
+    cloud->push_back(pt);
 
-	std::vector<pcl::PointIndices> cluster_indices;
-	pcl::EuclideanClusterExtraction<ColorPoint> ec;
-  pcl::search::KdTree<ColorPoint>::Ptr tree (new pcl::search::KdTree<ColorPoint>);
+  std::vector<pcl::PointIndices> cluster_indices;
+  pcl::EuclideanClusterExtraction<ColorPoint> ec;
+  pcl::search::KdTree<ColorPoint>::Ptr tree(new pcl::search::KdTree<ColorPoint>);
   tree->setInputCloud(cloud);
-  ec.setClusterTolerance (tol);
-  ec.setMinClusterSize (minSize);
-  ec.setMaxClusterSize (2500000);
-  ec.setSearchMethod (tree);
+  ec.setClusterTolerance(tol);
+  ec.setMinClusterSize(minSize);
+  ec.setMaxClusterSize(2500000);
+  ec.setSearchMethod(tree);
   ec.setInputCloud(cloud);
-  ec.extract (cluster_indices);
+  ec.extract(cluster_indices);
 
-  vector< vector<int> > out;
+  vector<vector<int> > out;
 
-//  //HACK
-//  for (int i=0; i < cluster_indices.size(); i++) {
-//		vector<int> outi;
-//		for (int j=0; j<cluster_indices[i].indices.size(); j++) {
-//			if (cluster_indices[i].indices[j] < cloud_size)
-//				outi.push_back(cluster_indices[i].indices[j]);
-//		}
-//		out.push_back(outi);
-//  }
-
-  //ORIGINAL
- 	for (int i=0; i < cluster_indices.size(); i++) {
-  	out.push_back(cluster_indices[i].indices);
+  for (int i = 0; i < cluster_indices.size(); i++) {
+    out.push_back(cluster_indices[i].indices);
   }
   return out;
 }
@@ -309,6 +300,8 @@ ColorCloudPtr clusterFilter(ColorCloudPtr in, float tol, int minSize) {
 			for (int j=0; j < cluster_inds[i].size(); j++) filtered_cluster_inds.push_back(cluster_inds[i][j]);
 	return extractInds(in, filtered_cluster_inds);
 }
+
+
 
 ColorCloudPtr maskCloud(const ColorCloudPtr in, const cv::Mat& mask, bool negative) {
   assert(mask.elemSize() == 1);
@@ -604,6 +597,7 @@ int getChessBoardPose(const ColorCloudPtr cloud_in, int width_cb, int height_cb,
 	return 0;
 }
 
+#ifndef NOT_BULLETSIM
 //Filters out the points that are likely to be skin
 ColorCloudPtr skinFilter(ColorCloudPtr cloud_dense) {
 	MatrixXu bgr = toBGR(cloud_dense);
@@ -611,6 +605,7 @@ ColorCloudPtr skinFilter(ColorCloudPtr cloud_dense) {
   cv::Mat skin_mask = skinMask(image);
   return maskCloud(cloud_dense, skin_mask, true);
 }
+#endif
 
 // if negative false, returns points in cloud_in that are neighbors to any point in cloud_neighbor
 // if negative true, returns points in cloud_in that are not neighbors to any point in cloud_neighbor
