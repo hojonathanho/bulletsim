@@ -34,8 +34,8 @@ int main()
   int T = 20;
   int NX = 4;
   int NU = 2;
-  int NS = 20;
-  int NUM_TEST = 20;
+  int NS = 0;
+  int NUM_TEST = 0;
   double rho_x = 0.1; 
   double rho_u = 0.1;
   int N_iter = 50;
@@ -62,6 +62,7 @@ int main()
     c.dynamics(X_bar[t], U_bar[t], X_bar[t+1]);
     sampler.generateSamples(W_bar[t], NS);
   }
+
 
 
 //  Vector4d purple(1.0, 0.0, 1.0, 0.4);

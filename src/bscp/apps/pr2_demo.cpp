@@ -7,6 +7,9 @@
 #include "scp_solver.h"
 #include "osg_util.h"
 #include <osg/Group>
+#include "osg_torus.h"
+#include <osg/Light>
+#include <osg/LightSource>
 
 using namespace std;
 using namespace Eigen;
@@ -39,6 +42,7 @@ const static Vector4d c_blue(0.2, 0.2, 1.0, 0.8);
 const static Vector4d c_orange(1.0, 0.55, 0.0, 0.8);
 const static Vector4d c_white(1.0, 1.0, 1.0, 0.1);
 const static Vector4d c_brown(139/255.0,69/255.0,19/255.0,0.8);
+const static Vector4d c_gold(255.0/255.0,204.0/255,0.0/255,1.0);
 
 static VectorXd _goal_offset;
 VectorXd GoalFn(Robot& r, const VectorXd& x) {
@@ -81,7 +85,7 @@ int main(int argc, char* argv[]) {
   int NX = 7;
   int NU = 7;
   int NS = 0;
-  int N_iter = 100;
+  int N_iter = 50;
   double rho_x = 0.1;
   double rho_u = 0.1;
 
@@ -93,6 +97,39 @@ int main(int argc, char* argv[]) {
 
   table->setColor(0,0,1,1);
   scene.env->add(table);
+
+  BoxObject::Ptr obs_1(
+			new BoxObject(0,
+					GeneralConfig::scale
+							* btVector3(0.2, 0.2, 0.1),
+					btTransform(btQuaternion(0, 0, 0, 1),
+							GeneralConfig::scale
+									* btVector3(0.7, -0.5,
+											table_height))));
+  BoxObject::Ptr obs_2(
+			new BoxObject(0,
+					GeneralConfig::scale
+							* btVector3(0.2, 0.2, 0.1),
+					btTransform(btQuaternion(0, 0, 0, 1),
+							GeneralConfig::scale
+									* btVector3(0.7, 0.5,
+											table_height))));
+
+  BoxObject::Ptr obs_3(
+			new BoxObject(0,
+					GeneralConfig::scale
+							* btVector3(0.1, 0.1, 0.2),
+					btTransform(btQuaternion(0, 0, 0, 1),
+							GeneralConfig::scale
+									* btVector3(0.65, 0.0,
+											table_height+ 0.1))));
+  obs_1->setColor(139/255.0,69/255.0,19/255.0,1); // brown
+  obs_2->setColor(139/255.0,69/255.0,19/255.0,1); // brown
+  obs_3->setColor(139/255.0,69/255.0,19/255.0,1); // brown
+
+  scene.env->add(obs_1);
+  scene.env->add(obs_2);
+  scene.env->add(obs_3);
 
   RaveRobotObject::Manipulator::Ptr rarm = pr2m.pr2Right;
   vector<int> active_dof_indices = rarm->manip->GetArmIndices();
@@ -110,7 +147,7 @@ int main(int argc, char* argv[]) {
   PR2_SCP pr2_scp(pr2, active_dof_indices, scene.env->bullet->dynamicsWorld, rarm);
 
   VectorXd startJoints = Map<const VectorXd>(postures[1], NX);
-  VectorXd endJoints = Map<const VectorXd>(postures[2], NX);
+  VectorXd endJoints = Map<const VectorXd>(postures[0], NX);
   vector<VectorXd> X_bar = makeTraj(startJoints, endJoints, T+1);
   vector<VectorXd> U_bar(T);
   vector<MatrixXd> W_bar(T);
@@ -153,7 +190,6 @@ int main(int argc, char* argv[]) {
   PR2_SCP_Plotter plotter2(&pr2_scp, &scene, T+1);
   plotter2.draw_trajectory(opt_X, c_green);
   //cout << opt_X[T] << endl;
-
 
 
 

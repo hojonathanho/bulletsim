@@ -31,6 +31,14 @@ const static double postures[][7] = {
 		{-1.832,  -0.332,   -1.011,  -1.437,   -1.1  ,  -2.106,  3.074}, //3=side
 		{0, 0, 0, 0, 0, 0, 0}}; //4=outstretched
 
+const static double left_postures[][7] = {
+		{-0.4,  1.0,   0.0,  -2.05,  0.0,  -0.1,  0.0}, // 0=untucked
+		{0.062, 	1.287, 		0.1 , -1.554, -3.011, 		-0.268, 2.988}, //1=tucked
+		{-0.33, -0.35,  -2.59, -0.15,  -0.59, -1.41, 0.27}, //2=up
+		{1.832,  0.332,   1.011,  1.437,   1.1  ,  2.106,  3.074}, //3=side
+		{0, 0, 0, 0, 0, 0, 0}}; //4=outstretched
+
+
 vector<VectorXd> makeTraj(const Eigen::VectorXd& startJoints, const Eigen::VectorXd& endJoints, int nSteps) {
   assert(startJoints.rows() == endJoints.rows());
   Eigen::MatrixXd startEndJoints(2, startJoints.rows());
@@ -156,12 +164,42 @@ int main(int argc, char* argv[]) {
 
   const float table_height = 0.73;
   const float table_thickness = 0.08;
-  BoxObject::Ptr table(new BoxObject(0, GeneralConfig::scale*btVector3(0.85,0.85,table_thickness / 2), btTransform(btQuaternion(0,0,0,1), GeneralConfig::scale * btVector3(1.4,0.0,table_height-table_thickness))));
-
+	BoxObject::Ptr table(
+			new BoxObject(0,
+					GeneralConfig::scale
+							* btVector3(0.85, 0.85, table_thickness / 2),
+					btTransform(btQuaternion(0, 0, 0, 1),
+							GeneralConfig::scale
+									* btVector3(1.4, 0.0,
+											table_height - table_thickness))));
   table->setColor(0,0,1,1);
-  scene.env->add(table);
 
-  Vector3d object_pos(0.8, 0.0, table_height + 0.05);
+  BoxObject::Ptr middle_block(
+ 			new BoxObject(0,
+ 					GeneralConfig::scale
+ 							* btVector3(0.1, 0.1, 0.2),
+ 					btTransform(btQuaternion(0, 0, 0, 1),
+ 							GeneralConfig::scale
+ 									* btVector3(0.65, 0.2,
+ 											table_height+ 0.1))));
+  middle_block->setColor(0.3,0.3,0.3,1);
+
+  BoxObject::Ptr button_block(
+ 			new BoxObject(0,
+ 					GeneralConfig::scale
+ 							* btVector3(0.025, 0.025, 0.025),
+ 					btTransform(btQuaternion(0, 0, 0, 1),
+ 							GeneralConfig::scale
+ 									* btVector3(0.65, 0.1,
+ 											table_height+ 0.15))));
+
+  button_block->setColor(1.0,0.0,0.0,1.0);
+
+  scene.env->add(table);
+  scene.env->add(middle_block);
+  scene.env->add(button_block);
+
+  Vector3d object_pos(0.65,0.1-0.025,table_height+0.15);
 
   // initialize robot
   int T = 30;
@@ -170,12 +208,16 @@ int main(int argc, char* argv[]) {
   int NU = 7;
   int NB = NX*(NX+3)/2;
   int NS = 0;
-  int N_iter = 100;
+  int N_iter = 20;
   double rho_x = 0.1;
   double rho_u = 0.1;
 
   PR2Manager pr2m(scene);
   RaveRobotObject::Ptr pr2 = pr2m.pr2;
+  vector<int> left_active_dof = pr2m.pr2Left->manip->GetArmIndices();
+  VectorXd left_out = Map<const VectorXd>(left_postures[3], 7);
+  pr2->setDOFValues(left_active_dof, toVec(left_out));
+
   RaveRobotObject::Manipulator::Ptr rarm = pr2m.pr2Right;
   vector<int> active_dof_indices = rarm->manip->GetArmIndices();
 
@@ -191,7 +233,7 @@ int main(int argc, char* argv[]) {
   Localizer pr2_scp(&pr2_scp_l, NL);
 
 
-  VectorXd startJoints = Map<const VectorXd>(postures[1], 7);
+  VectorXd startJoints = Map<const VectorXd>(postures[3], 7);
   VectorXd endJoints = Map<const VectorXd>(postures[4], 7);
   vector<VectorXd> X_bar = makeTraj(startJoints, endJoints, T+1);
   vector<VectorXd> U_bar(T);
@@ -231,7 +273,7 @@ int main(int argc, char* argv[]) {
 
   Matrix4d attached_cam_fixed_offset = Matrix4d::Identity();
   //attached_cam_fixed_offset(2,3) = -0.05;
-  attached_cam_fixed_offset.block(0,0,3,3) = AngleAxisd(-M_PI/2, Vector3d(0.0,1.0,0.0)).toRotationMatrix();
+  attached_cam_fixed_offset.block(0,0,3,3) = AngleAxisd(M_PI, Vector3d(0.0,1.0,0.0)).toRotationMatrix();
   CameraSensor s4 = CameraSensor(1, KK, 640, 480, attached_cam_fixed_offset, 0.2);//, camera_fixed_offset);
   Robot::SensorFunc s4_f = &LocalizerPR2AttachedCameraFunc;
   Robot::SensorFuncJacobian s4_fj = &LocalizerPR2AttachedCameraFuncJac;
@@ -307,7 +349,7 @@ int main(int argc, char* argv[]) {
 	  pr2_scp.parse_localizer_belief_state(B_bar[t], B_bar_r[t]);
   }
   PR2_SCP_Plotter plotter(&pr2_scp_l, &scene, T+1);
-  plotter.draw_belief_trajectory(B_bar_r, c_red, c_red, traj_group);
+  //plotter.draw_belief_trajectory(B_bar_r, c_red, c_red, traj_group);
   //pr2_scp.draw_sensor_belief_trajectory(B_bar, c_blue, traj_group);
   //pr2_scp.draw_object_uncertainty(B_bar[0], c_red, traj_group);
   //pr2_scp.draw_object_uncertainty(B_bar[T], c_blue, traj_group);

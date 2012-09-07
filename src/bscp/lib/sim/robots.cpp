@@ -199,11 +199,12 @@ void Robot::dp_trajectory(const vector<VectorXd>& X_bar, vector<MatrixXd>& Ps, v
 void Robot::bpenetration(const VectorXd& b, VectorXd& p) {
 	VectorXd mu_x; MatrixXd rt_cov_x;
 	parse_belief_state(b, mu_x, rt_cov_x);
+	double k = sqrt(3);
 
 	vector<VectorXd> pos_samples(_NX), neg_samples(_NX);
 	for (int i = 0 ; i < _NX; i++) {
-		pos_samples[i] = mu_x + rt_cov_x.col(i);
-		neg_samples[i] = mu_x - rt_cov_x.col(i);
+		pos_samples[i] = mu_x + k*rt_cov_x.col(i);
+		neg_samples[i] = mu_x - k*rt_cov_x.col(i);
 	}
 
 	vector<VectorXd> pos_transform(_NX), neg_transform(_NX);
@@ -243,11 +244,12 @@ void Robot::bpenetration(const VectorXd& b, VectorXd& p) {
 void Robot::dbpdx(const VectorXd &b, MatrixXd& P) {
 	VectorXd mu_x; MatrixXd rt_cov_x;
 	parse_belief_state(b, mu_x, rt_cov_x);
+	double k = sqrt(3);
 
 	vector<VectorXd> pos_samples(_NX), neg_samples(_NX);
 	for (int i = 0 ; i < _NX; i++) {
-		pos_samples[i] = mu_x + rt_cov_x.col(i);
-		neg_samples[i] = mu_x - rt_cov_x.col(i);
+		pos_samples[i] = mu_x + k*rt_cov_x.col(i);
+		neg_samples[i] = mu_x - k*rt_cov_x.col(i);
 	}
 	vector<MatrixXd> pos_transform(_NX), neg_transform(_NX);
 	for (int i = 0; i < _NX; i++) {
@@ -259,15 +261,17 @@ void Robot::dbpdx(const VectorXd &b, MatrixXd& P) {
 
 	int ind = 0;
 
+	//partial p / partial L
 	for (int i = 0; i < _NX; i++) {
 		MatrixXd P_sub = MatrixXd::Zero(pos_transform[i].rows(), pos_transform[i].cols());
-		P_sub += pos_transform[i];
-		P_sub -= neg_transform[i];
+		P_sub += k*pos_transform[i];
+		P_sub -= k*neg_transform[i];
 		P_sub /= (_NX * 2.0);
 		P.block(0,_NX+ind, P_sub.rows(), _NX - i) = P_sub.block(0,i,P_sub.rows(), _NX-i);
 		ind += _NX - i;
 	}
 
+	//partial p // partial x
 	MatrixXd P_sub = MatrixXd::Zero(pos_transform[0].rows(), _NX);
 	for (int i = 0; i < _NX; i++) {
 		P_sub += pos_transform[i];
@@ -564,7 +568,44 @@ void Robot::unscented_transform_xyz(const VectorXd& mu_x, const MatrixXd& cov_x,
 		Sigma_y += weights[i] * diff_pos * diff_pos.transpose();
 		Sigma_y += weights[i] * diff_neg * diff_neg.transpose();
 	}
+}
 
+void Robot::unscented_transform_goal(const VectorXd& mu_x, const MatrixXd& cov_x, const Robot::GoalFunc g,
+		   VectorXd& mu_y, MatrixXd& Sigma_y) {
+	int NX = mu_x.rows();
+	double L = NX;
+	double h = 3.0 - L;
+	LLT<MatrixXd> lltOfCovX((L+h) * cov_x);
+	MatrixXd sqrt_mat = lltOfCovX.matrixL();
+	vector<VectorXd> pos_samples(L), neg_samples(L);
+	vector<double> weights(L);
+	for (int i =0 ; i < L; i++) {
+		pos_samples[i] = mu_x + sqrt_mat.col(i);
+		neg_samples[i] = mu_x - sqrt_mat.col(i);
+		weights[i] = 1.0 / (2.0 * (L + h));
+	}
+
+	vector<VectorXd> pos_transform(L), neg_transform(L);
+	for (int i = 0; i < L; i++) {
+		pos_transform[i] = g(*this, pos_samples[i]);
+		neg_transform[i] = g(*this, neg_samples[i]);
+	}
+
+	mu_y = (h / (L + h)) * g(*this, mu_x);
+	for (int i = 0; i < L; i++ ) {
+		mu_y += weights[i] * pos_transform[i];
+		mu_y += weights[i] * neg_transform[i];
+	}
+
+	Sigma_y = 2.0 * (g(*this, mu_x) - mu_y) * ((g(*this, mu_x) - mu_y).transpose());
+
+	for (int i = 0; i < L; i++) {
+		VectorXd diff_pos = pos_transform[i] - mu_y;
+		VectorXd diff_neg = neg_transform[i] - mu_y;
+		Sigma_y += weights[i] * diff_pos * diff_pos.transpose();
+		Sigma_y += weights[i] * diff_neg * diff_neg.transpose();
+	}
 
 }
+
 

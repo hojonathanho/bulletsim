@@ -63,6 +63,7 @@ VectorXd GoalFn(Robot& r, const VectorXd& b) {
 	VectorXd ret(7);
 	ret.segment(0,3) = tx.segment(0,3) - _goal_offset.segment(0,3);
 	ret.segment(3,4) = tx.segment(3,4) - _goal_offset.segment(3,4);
+	ret *= 0.1;
 	//ret(3) = cur_q.angularDistance(goal_q);
 	//ret.segment(4,b.rows()-7) = b.segment(7, b.rows()-7);
 	return ret;

@@ -129,6 +129,8 @@ class Robot {
    //Transforms
    void unscented_transform_xyz(const VectorXd& mu_x, const MatrixXd& cov_x,
 		   Vector3d& mu_y, Matrix3d& Sigma_y);
+   void unscented_transform_goal(const VectorXd& mu_x, const MatrixXd& cov_x, const Robot::GoalFunc g,
+		   VectorXd& mu_y, MatrixXd& Sigma_y);
 
 };
 

@@ -11,32 +11,10 @@
 #include "simulation/fake_gripper.h"
 #include "osg_util.h"
 #include "eigen_io_util.h"
+#include "collision_util.h"
 
 using namespace std; 
 using namespace Eigen;
-
-struct Collision {
-	const btCollisionObject* m_obj0;
-	const btCollisionObject* m_obj1;
-	btVector3 m_world0;
-	btVector3 m_world1;
-	btVector3 m_normal;
-	btScalar m_distance;
-	Collision(const btCollisionObject* obj0, const btCollisionObject* obj1, const btVector3& world0, const btVector3& world1, const btVector3& normal, btScalar distance) :
-		m_obj0(obj0), m_obj1(obj1), m_world0(world0), m_world1(world1), m_normal(normal), m_distance(distance) {
-	}
-	Collision(const Collision& c) :
-		m_obj0(c.m_obj0), m_obj1(c.m_obj1), m_world0(c.m_world0), m_world1(c.m_world1), m_normal(c.m_normal), m_distance(c.m_distance) {
-	}
-};
-
-struct CollisionCollector: public btCollisionWorld::ContactResultCallback {
-	std::vector<Collision> m_collisions;
-	btScalar addSingleResult(btManifoldPoint& pt, const btCollisionObject *colObj0, int, int, const btCollisionObject *colObj1, int, int) {
-		m_collisions.push_back(Collision(colObj0, colObj1, pt.m_positionWorldOnA, pt.m_positionWorldOnB, pt.m_normalWorldOnB, pt.m_distance1));
-		return 0;
-	}
-};
 
 class BulletRaveSyncer {
 public:
@@ -177,7 +155,10 @@ class PR2_SCP : public Robot
     void dp_analytical(const VectorXd& x_bar, MatrixXd& D, VectorXd& d_bar) {
     	//returns d(x) \approx Dx + d_bar; d_bar = d(x_bar) - Dx_bar;
     	//vector<double> currentDOF = _pr2->getDOFValues(_active_dof_indices);
-    	_pr2->setDOFValues(_active_dof_indices, toVec(x_bar)); //updates Bullet
+       	_pr2->robot->SetDOFValues(toVec(x_bar), 1, _active_dof_indices); // does NOT update Bullet
+        _sync->updateBullet(); // explicitly update bullet
+
+
 
     	/*double max_dist = 0.0;
     	btVector3 max_normal, max_point;
@@ -317,23 +298,6 @@ class PR2_SCP : public Robot
 
     }
 
-    void calcCollisionInfo(btRigidBody* body, btCollisionWorld* world, vector<btVector3>& points, vector<btVector3>& normals, vector<double>& dists) {
-      CollisionCollector collisionCollector;
-      world->contactTest(body, collisionCollector);
-      int nColl = collisionCollector.m_collisions.size();
-      points.resize(nColl);
-      normals.resize(nColl);
-      dists.resize(nColl);
-
-      for (int iColl = 0; iColl < nColl; iColl++) {
-        Collision &collision = collisionCollector.m_collisions[iColl];
-        points[iColl] = (collision.m_obj0 == body) ? collision.m_world0 : collision.m_world1;
-        normals[iColl] = (collision.m_obj0 == body) ? collision.m_normal : -collision.m_normal;
-        dists[iColl] = collision.m_distance;
-      }
-    }
-
-
     void dynamics(const VectorXd &x, const VectorXd &u, VectorXd &fxu) {
       fxu = x + u;
       for (int i = 0; i < _NX; i++) {
@@ -372,72 +336,77 @@ class PR2_SCP : public Robot
     }
 
     Vector3d camera_xyz(const VectorXd& x) {
-		_pr2->robot->SetDOFValues(toVec(x), 1, _active_dof_indices);
-		btTransform link_transform = util::toBtTransform(
-				_arm_links[7]->GetTransform(), GeneralConfig::scale);
-		Affine3f eig_transform = toEigenTransform(link_transform);
-		Vector3f xyz = eig_transform.translation();
-		Vector3d ret;
- 		ret(0) = xyz(0);
-		ret(1) = xyz(1);
-		ret(2) = xyz(2);
-		return ret;
+//		_pr2->robot->SetDOFValues(toVec(x), 1, _active_dof_indices);
+//		btTransform link_transform = util::toBtTransform(
+//				_pr2->robot->GetLink("r_forearm_cam_optical_frame")->GetTransform(), GeneralConfig::scale);
+//		Affine3f eig_transform = toEigenTransform(link_transform);
+//		Vector3f xyz = eig_transform.translation();
+//		Vector3d ret;
+// 		ret(0) = xyz(0);
+//		ret(1) = xyz(1);
+//		ret(2) = xyz(2);
+//		return ret;
+
+    	return xyz(x);
     }
 
     void dcamera_xyz(const VectorXd& x, MatrixXd& Jxyz) {
        	//vector<double> currentDOF = _pr2->getDOFValues(_active_dof_indices);
-        _pr2->robot->SetDOFValues(toVec(x), 1, _active_dof_indices);
-    	vector<double> jac_v;
-    	Vector3d current_point = camera_xyz(x);
-		RaveVector<double> p = util::toRaveVector(btVector3(current_point(0), current_point(1), current_point(2)));
-		_pr2->robot->CalculateActiveJacobian(_arm_links[7]->GetIndex(),
-				p, jac_v);
-		Jxyz = MatrixXd::Zero(3, x.rows());
-		for (int r = 0; r < 3; r++) {
-			for (int c = 0; c < x.rows(); c++) {
-				Jxyz(r, c) = jac_v[r * x.rows() + c];
-			}
-		}
+//        _pr2->robot->SetDOFValues(toVec(x), 1, _active_dof_indices);
+//    	vector<double> jac_v;
+//    	Vector3d current_point = camera_xyz(x);
+//		RaveVector<double> p = util::toRaveVector(btVector3(current_point(0), current_point(1), current_point(2)));
+//		_pr2->robot->CalculateActiveJacobian(_pr2->robot->GetLink("r_forearm_cam_optical_frame")->GetIndex(),
+//				p, jac_v);
+//		Jxyz = MatrixXd::Zero(3, x.rows());
+//		for (int r = 0; r < 3; r++) {
+//			for (int c = 0; c < x.rows(); c++) {
+//				Jxyz(r, c) = jac_v[r * x.rows() + c];
+//			}
+//		}
        // _pr2->robot->SetDOFValues(currentDOF, 1, _active_dof_indices);
+    	dxyz(x, Jxyz);
     }
 
     Vector4d camera_quat(const VectorXd &x) {
-		_pr2->robot->SetDOFValues(toVec(x), 1, _active_dof_indices);
-		btTransform link_transform = util::toBtTransform(
-				_arm_links[7]->GetTransform(), GeneralConfig::scale);
-		Affine3f eig_transform = toEigenTransform(link_transform);
-        Quaternionf quat = Quaternionf(eig_transform.rotation());
-        Vector4f quat_vec = quat.coeffs(); // x y z w
-        Vector4d ret;
-        ret(0) = quat_vec(0);
-        ret(1) = quat_vec(1);
-        ret(2) = quat_vec(2);
-        ret(3) = quat_vec(3);
+//		_pr2->robot->SetDOFValues(toVec(x), 1, _active_dof_indices);
+//		btTransform link_transform = util::toBtTransform(
+//				_pr2->robot->GetLink("r_forearm_cam_optical_frame")->GetTransform(), GeneralConfig::scale);
+//		Affine3f eig_transform = toEigenTransform(link_transform);
+//        Quaternionf quat = Quaternionf(eig_transform.rotation());
+//        Vector4f quat_vec = quat.coeffs(); // x y z w
+//        Vector4d ret;
+//        ret(0) = quat_vec(0);
+//        ret(1) = quat_vec(1);
+//        ret(2) = quat_vec(2);
+//        ret(3) = quat_vec(3);
+    	return quat(x);
     }
 
     void dcamera_quat(const VectorXd& x, MatrixXd& Jquat) {
     	//http://openrave.org/docs/latest_stable/geometric_conventions/
     	// note openrave quaternions are w x y z
     	// while eigen/bullet quaternions are x y z w
-
-       	//vector<double> currentDOF = _pr2->getDOFValues(_active_dof_indices);
-        _pr2->robot->SetDOFValues(toVec(x), 1, _active_dof_indices);
-    	vector<double> jac_v;
-    	Vector4d current_q = camera_quat(x);
-    	RaveVector<double> q = RaveVector<double>(current_q(3), current_q(0), current_q(1), current_q(2));
-		_pr2->robot->CalculateActiveRotationJacobian(_arm_links[7]->GetIndex(),
-				q, jac_v);
-		MatrixXd Jquat_wrong_order = MatrixXd::Zero(4, x.rows());
-		for (int r = 0; r < 4; r++) {
-			for (int c = 0; c < x.rows(); c++) {
-				Jquat_wrong_order(r, c) = jac_v[r * x.rows() + c];
-			}
-		}
-		Jquat = MatrixXd::Zero(4, x.rows());
-		Jquat.block(0,0,3,x.rows()) = Jquat_wrong_order.block(1,0,3,x.rows());
-		Jquat.block(3,0,1,x.rows()) = Jquat_wrong_order.block(0,0,1,x.rows());
+//
+//       	//vector<double> currentDOF = _pr2->getDOFValues(_active_dof_indices);
+//        _pr2->robot->SetDOFValues(toVec(x), 1, _active_dof_indices);
+//    	vector<double> jac_v;
+//    	Vector4d current_q = camera_quat(x);
+//    	RaveVector<double> q = RaveVector<double>(current_q(3), current_q(0), current_q(1), current_q(2));
+//		_pr2->robot->CalculateActiveRotationJacobian(_pr2->robot->GetLink("r_forearm_cam_optical_frame")->GetIndex(),
+//				q, jac_v);
+//		MatrixXd Jquat_wrong_order = MatrixXd::Zero(4, x.rows());
+//		for (int r = 0; r < 4; r++) {
+//			for (int c = 0; c < x.rows(); c++) {
+//				Jquat_wrong_order(r, c) = jac_v[r * x.rows() + c];
+//			}
+//		}
+//		Jquat = MatrixXd::Zero(4, x.rows());
+//		Jquat.block(0,0,3,x.rows()) = Jquat_wrong_order.block(1,0,3,x.rows());
+//		Jquat.block(3,0,1,x.rows()) = Jquat_wrong_order.block(0,0,1,x.rows());
 
        // _pr2->robot->SetDOFValues(currentDOF, 1, _active_dof_indices);
+    	dquat(x,Jquat);
     }
 
     VectorXd camera_transform(const VectorXd& x) {

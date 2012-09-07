@@ -170,7 +170,7 @@ int main(int argc, char* argv[]) {
   int NU = 7;
   int NB = NX*(NX+3)/2;
   int NS = 0;
-  int N_iter = 100;
+  int N_iter = 1;
   double rho_x = 0.1;
   double rho_u = 0.1;
 
@@ -305,7 +305,21 @@ int main(int argc, char* argv[]) {
   vector<VectorXd> B_bar_r(T+1);
   for (int t = 0; t < T+1; t++) {
 	  pr2_scp.parse_localizer_belief_state(B_bar[t], B_bar_r[t]);
+	  VectorXd x_t; MatrixXd rt_Sigma_t;
+	  parse_belief_state(B_bar[T],x_t,rt_Sigma_t);
+	  VectorXd vec_transform;
+	  pr2_scp.transform(x_t, vec_transform);
+	  Matrix4d tor_trans;
+	  vec2transform(vec_transform, tor_trans);
+	  Matrix4d rel_trans = Matrix4d::Identity();
+	  rel_trans.block(0,0,3,3) = AngleAxisd(M_PI/2, Vector3d(1.0,0.0,0.0)).toRotationMatrix();
+	  rel_trans(2,3) = 0.1;
+	  tor_trans = tor_trans * rel_trans;
+	  traj_group->addChild(drawTorus(0.13, 0.14, tor_trans, c_gold));
+
   }
+
+
   PR2_SCP_Plotter plotter(&pr2_scp_l, &scene, T+1);
   plotter.draw_belief_trajectory(B_bar_r, c_red, c_red, traj_group);
   //pr2_scp.draw_sensor_belief_trajectory(B_bar, c_blue, traj_group);
@@ -314,36 +328,36 @@ int main(int argc, char* argv[]) {
 
 
 
-  // setup for SCP
-  // Define a goal state
-  VectorXd b_goal = B_bar[T];
-  b_goal.segment(NX, NB-NX) = VectorXd::Zero(NB-NX); // trace
-  _goal_offset = b_goal;
-
-  // Output variables
-  vector<VectorXd> opt_B, opt_U; // noiseless trajectory
-  MatrixXd Q; VectorXd r;  // control policy
+//  // setup for SCP
+//  // Define a goal state
+//  VectorXd b_goal = B_bar[T];
+//  b_goal.segment(NX, NB-NX) = VectorXd::Zero(NB-NX); // trace
+//  _goal_offset = b_goal;
 //
- // cout << "calling scp" << endl;
-  scp_solver(pr2_scp, B_bar, U_bar, W_bar, rho_x, rho_u, &TouchingGoalFn, NULL, N_iter,
-      opt_B, opt_U, Q, r);
-
-  TrajectoryInfo opt_traj(b_0, &GoalFn, NULL);
-  for (int t = 0; t < T; t++) {
-	  opt_traj.add_and_integrate(opt_U[t], VectorXd::Zero(NB), pr2_scp);
-	  //VectorXd feedback = opt_traj.Q_feedback(pr2_scp);
-	  //VectorXd u_policy = Q.block(t*NU, t*NB, NU, NB) * feedback + r.segment(t*NU, NU);
-	  //opt_traj.add_and_integrate(u_policy, VectorXd::Zero(NB), pr2_scp);
-  }
-  vector<VectorXd> opt_traj_r(T+1);
-  for (int t = 0; t < T+1; t++) {
-	  pr2_scp.parse_localizer_belief_state(opt_traj._X[t], opt_traj_r[t]);
-  }
-  PR2_SCP_Plotter plotter2(&pr2_scp_l, &scene, T + 1);
-  plotter2.draw_belief_trajectory(opt_traj_r, c_blue, c_orange, traj_group);
-  pr2_scp.draw_object_uncertainty(opt_traj._X[T], c_green, traj_group);
-  //pr2_scp.draw_sensor_belief_trajectory(opt_traj._X, c_blue, traj_group);
-  cout << opt_traj._X[T].transpose() << endl;
+//  // Output variables
+//  vector<VectorXd> opt_B, opt_U; // noiseless trajectory
+//  MatrixXd Q; VectorXd r;  // control policy
+////
+// // cout << "calling scp" << endl;
+//  scp_solver(pr2_scp, B_bar, U_bar, W_bar, rho_x, rho_u, &TouchingGoalFn, NULL, N_iter,
+//      opt_B, opt_U, Q, r);
+//
+//  TrajectoryInfo opt_traj(b_0, &GoalFn, NULL);
+//  for (int t = 0; t < T; t++) {
+//	  opt_traj.add_and_integrate(opt_U[t], VectorXd::Zero(NB), pr2_scp);
+//	  //VectorXd feedback = opt_traj.Q_feedback(pr2_scp);
+//	  //VectorXd u_policy = Q.block(t*NU, t*NB, NU, NB) * feedback + r.segment(t*NU, NU);
+//	  //opt_traj.add_and_integrate(u_policy, VectorXd::Zero(NB), pr2_scp);
+//  }
+//  vector<VectorXd> opt_traj_r(T+1);
+//  for (int t = 0; t < T+1; t++) {
+//	  pr2_scp.parse_localizer_belief_state(opt_traj._X[t], opt_traj_r[t]);
+//  }
+//  PR2_SCP_Plotter plotter2(&pr2_scp_l, &scene, T + 1);
+//  plotter2.draw_belief_trajectory(opt_traj_r, c_blue, c_orange, traj_group);
+//  pr2_scp.draw_object_uncertainty(opt_traj._X[T], c_green, traj_group);
+//  //pr2_scp.draw_sensor_belief_trajectory(opt_traj._X, c_blue, traj_group);
+//  cout << opt_traj._X[T].transpose() << endl;
 
   //use a composite viewer
   int width = 800;

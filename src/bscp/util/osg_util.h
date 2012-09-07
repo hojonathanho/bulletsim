@@ -15,6 +15,8 @@
 
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
+#include "osg_torus.h"
+
 using namespace Eigen;
 inline void init_transparency_group(osg::Group *group) {
 
@@ -160,6 +162,30 @@ makeFrustumFromCamera( osg::Camera* camera, double size= 0.1 )
     mt->addChild( geode );
 
     return mt;
+}
+
+inline osg::Node* drawTorus(double inner, double outer, const Matrix4d& transform, const Vector4d& color) {
+
+	  osg::Matrix osg_t;
+	  for (int i = 0; i < 4; i++) {
+	    for (int j = 0; j < 4; j++) {
+	      osg_t(j,i) = transform(i,j); // for some stupid reason
+	    }
+	  }
+	  osg::MatrixTransform *mt = new osg::MatrixTransform(osg_t);
+
+	  Torus torus = Torus(inner, outer, 0, 360, 10, 10);
+	  osg::Vec4 osg_color(color(0), color(1), color(2), color(3));
+
+	  torus.setColor(osg_color);
+	  osg::Group* t_group = new osg::Group;
+	  osg::Geode* t_geode = torus();
+
+	  mt->addChild(t_geode);
+	  t_group->addChild(mt);
+
+	  return t_group;
+
 }
 
 
