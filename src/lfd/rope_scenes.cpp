@@ -44,7 +44,7 @@ static inline bool onInnerSide(RaveRobotObject::Manipulator::Ptr manip, const bt
 
 static bool inGraspRegion(RaveRobotObject::Manipulator::Ptr manip, const btVector3 &pt, KinBody::LinkPtr leftFinger, KinBody::LinkPtr rightFinger) {
   // extra padding for more anchors (for stability)
-  static const float TOLERANCE = 0.00;
+  static const float TOLERANCE = 0.02;
 
   // check that pt is behind the gripper tip
   btVector3 x = manip->getTransform().inverse() * pt;
@@ -68,12 +68,13 @@ void MonitorForGrabbingWithTelekinesis::grab() {
 
   int iNear = -1;
   BulletObject::Ptr nearestObj = getNearestBody(m_bodies, curPose.getOrigin(), iNear);
-  cout << "grab: " << m_i << endl;
+  cout << "grab: " << iNear << endl;
 
 //    if (nearestObj->rigidBody->getCenterOfMassPosition().distance(curPose.getOrigin()) < .05*METERS) {
   if (inGraspRegion(m_manip, nearestObj->rigidBody->getCenterOfMassPosition(), m_leftFinger, m_rightFinger)) {
+    cout << "grab success!" << endl;
 //  if (true) {
-    m_grab = new Grab(nearestObj->rigidBody.get(), curPose.getOrigin(), m_world);
+    m_grab = new Grab(nearestObj->rigidBody.get(), curPose, m_world);
     m_i = iNear;
     nearestObj->setColor(0,0,1,1);
   }
@@ -111,8 +112,8 @@ GrabbingScene::GrabbingScene(bool telekinesis)  {
 }
 
 void GrabbingScene::step(float dt) {
-  m_lMonitor->update();
-  m_rMonitor->update();
+  m_lMonitor->updateGrabPose();
+  m_rMonitor->updateGrabPose();
 
   Scene::step(dt);
 }
@@ -151,10 +152,10 @@ TableRopeScene::TableRopeScene(const vector<btVector3> &tableCornersWorld_, cons
   m_rope.reset(new CapsuleRope(
     controlPointsWorld,
     .005*METERS, // radius
-    .1, // angStiffness
+    .5, // angStiffness
     1, // angDamping
-    .5, // linDamping
-    .9, // angLimit
+    .9, // linDamping
+    .8, // angLimit
     .9 // linStopErp
   ));
   env->add(m_rope);

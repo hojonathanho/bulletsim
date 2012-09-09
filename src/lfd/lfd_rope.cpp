@@ -7,9 +7,9 @@
 
 #include "lfd_python_wrapper.h"
 
-const float table_dist_from_robot = 0.3;
+const float table_dist_from_robot = 0.2;
 const float table_width = 1, table_length = 1;
-const float table_height = 0.8;
+const float table_height = 0.7;
 const float rope_len = 1.5;
 const int rope_segments = 150;
 static vector<btVector3> initTableCornersWorld() {
@@ -22,16 +22,18 @@ static vector<btVector3> initTableCornersWorld() {
 }
 
 struct LocalConfig : public Config {
-  static float pert;
+  static string task;
   static string rope;
+  static float pert;
   LocalConfig() : Config() { 
-    params.push_back(new Parameter<float>("pert", &pert, "rope perturbation variance"));
+    params.push_back(new Parameter<string>("task", &task, "task name"));
     params.push_back(new Parameter<string>("rope", &rope, "rope control points file"));
+    params.push_back(new Parameter<float>("pert", &pert, "rope perturbation variance"));
   }
 };
-
-float LocalConfig::pert = 1.;
+string LocalConfig::task;
 string LocalConfig::rope;
+float LocalConfig::pert = 1.;
 
 int main(int argc, char *argv[]) {
   GeneralConfig::scale = 10.;
@@ -78,7 +80,7 @@ int main(int argc, char *argv[]) {
 
   lfd::TaskExecuter ex(scene);
   try {
-    ex.run();
+    ex.run(LocalConfig::task);
   } catch (const py::error_already_set &e) {
     PyErr_Print();
     throw e;

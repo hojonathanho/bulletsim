@@ -46,7 +46,7 @@ TaskExecuter::Transition TaskExecuter::execState(State s) {
   assert(false);
 }
 
-TaskExecuter::State TaskExecuter::run(State start) {
+TaskExecuter::State TaskExecuter::run(const string &taskName, State start) {
   py::list tableBounds;
   tableBounds.append(scene.tableCornersWorld[0].x() / GeneralConfig::scale);
   tableBounds.append(scene.tableCornersWorld[2].x() / GeneralConfig::scale);
@@ -54,7 +54,7 @@ TaskExecuter::State TaskExecuter::run(State start) {
   tableBounds.append(scene.tableCornersWorld[2].y() / GeneralConfig::scale);
   tableBounds.append(scene.tableCornersWorld[0].z() / GeneralConfig::scale);
   tableBounds.append(scene.tableCornersWorld[2].z() / GeneralConfig::scale);
-  pymod.init("overhand_knot", tableBounds);
+  pymod.init(taskName, tableBounds);
 
   State s = start;
   currStep = 0;
@@ -122,8 +122,9 @@ static inline py::object dictExtract(py::dict d, const string &k) {
 }
 
 static inline double clampGripperAngle(double a) {
-  const float MIN_ANGLE = 0.09;
-  return a < MIN_ANGLE ? MIN_ANGLE : a;
+  const float MIN_ANGLE = 0.1;
+  const float scale = 20./3.;
+  return scale*a < MIN_ANGLE ? MIN_ANGLE : scale*a;
 }
 
 TaskExecuter::Transition TaskExecuter::action_execTraj() {
@@ -172,6 +173,8 @@ TaskExecuter::Transition TaskExecuter::action_execTraj() {
 
     scene.step(DT);
   }
+  scene.m_lMonitor->release();
+  scene.m_lMonitor->release();
 }
 
 } // namespace lfd

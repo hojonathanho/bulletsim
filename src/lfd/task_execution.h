@@ -27,8 +27,7 @@ public:
   };
 
   TaskExecuter(TableRopeScene &scene_) : scene(scene_) { }
-  State run(State start);
-  State run() { return run(ST_LOOK_AT_OBJ); }
+  State run(const string &taskName, State start=ST_LOOK_AT_OBJ);
 
 private:
   static Transition transitionFromString(const string &s); 
