@@ -21,91 +21,6 @@ static vector<btVector3> initTableCornersWorld() {
   return v;
 }
 
-static vector<btVector3> initRopeControlPointsWorld(const btVector3 &startPt, const btVector3 &endPt) {
-  vector<btVector3> v;
-  for (int i = 0; i < rope_segments; ++i) {
-    float a = (float)i / rope_segments;
-    v.push_back((1.-a)*startPt + a*endPt);
-  }
-  return v;
-}
-
-static btVector3 randPtWithinBounds(const btVector3 &minv, const btVector3 &maxv) {
-  return btVector3(
-    (float)rand()/RAND_MAX*(maxv.x() - minv.x()) + minv.x(),
-    (float)rand()/RAND_MAX*(maxv.y() - minv.y()) + minv.y(),
-    (float)rand()/RAND_MAX*(maxv.z() - minv.z()) + minv.z()
-  );
-}
-
-static void moveRope(const btVector3 &tableMin, const btVector3 &tableMax, TableRopeScene &scene) {
-/*  btVector3 ropeStart = randPtWithinBounds(tableMin, tableMax);
-  btVector3 ropeMiddle = randPtWithinBounds(tableMin, tableMax);
-  btVector3 ropeEnd = randPtWithinBounds(tableMin, tableMax);*/
-  /*btVector3 ropeStart = tableMin + METERS*btVector3(0.01, 0.01, 0);
-  btVector3 ropeMiddle = btVector3((tableMin.x() + tableMax.x())/2., tableMax.y()-0.01*METERS, tableMin.z());
-  btVector3 ropeEnd = btVector3(tableMax.x() - 0.01*METERS, tableMin.y() + 0.01*METERS, tableMin.z());*/
-  btVector3 ropeStart = btVector3(tableMax.x() - 0.1*METERS, tableMax.y() - 0.1*METERS, tableMin.z());
-  btVector3 ropeMiddle = btVector3((tableMin.x() + tableMax.x())/2., tableMin.y()+0.1*METERS, tableMin.z());
-  btVector3 ropeEnd = btVector3(tableMin.x() + 0.1*METERS, tableMax.y()-0.1*METERS, tableMin.z());
-  // constrain the first and last points of the rope to be in the randomly chosen
-  // locations on the table
-  CapsuleRope::Ptr rope = scene.getRope();
-  boost::shared_ptr<btRigidBody> rbStart = rope->getChildren()[0]->rigidBody;
-  boost::shared_ptr<btRigidBody> rbMid = rope->getChildren()[rope->getChildren().size()/2]->rigidBody;
-  boost::shared_ptr<btRigidBody> rbEnd = rope->getChildren()[rope->getChildren().size() - 1]->rigidBody;
-  btTransform tStart(rbStart->getCenterOfMassTransform()); tStart.setOrigin(ropeStart);
-  btTransform tMid(rbMid->getCenterOfMassTransform()); tMid.setOrigin(ropeMiddle);
-  btTransform tEnd(rbEnd->getCenterOfMassTransform()); tEnd.setOrigin(ropeEnd);
-  // temporarily turn off gravity
-  scene.bullet->setGravity(btVector3(0, 0, 0));
-  for (int i = 0; i < 1000; ++i) {
-    // if any point in the rope is off the table, nudge it inwards
-    /*
-    for (int z = 0; z < rope->getChildren().size(); ++z) {
-      btVector3 origin = rope->getChildren()[z].getCenterOfMassTransform().getOrigin();
-      if (origin.x() > tableMax
-    }*/
-    rbStart->setCenterOfMassTransform(tStart);
-    rbMid->setCenterOfMassTransform(tMid);
-    rbEnd->setCenterOfMassTransform(tEnd);
-    scene.step(DT);
-  }
-  scene.bullet->setGravity(BulletConfig::gravity);
-  scene.stepFor(DT, 0.25);
-}
-
-static void moveRopeVert(const btVector3 &tableMin, const btVector3 &tableMax, TableRopeScene &scene) {
-  btVector3 ropeStart(tableMin.x() + 0.1*METERS, tableMin.y() + 0.4*METERS, tableMin.z());
-  btVector3 ropeMiddle(tableMax.x() - 0.1*METERS, 0.5*(tableMin.y() + tableMax.y()), tableMin.z());
-  btVector3 ropeEnd(tableMin.x() + 0.1*METERS, tableMax.y() - 0.4*METERS, tableMin.z());
-  // constrain the first and last points of the rope to be in the randomly chosen
-  // locations on the table
-  CapsuleRope::Ptr rope = scene.getRope();
-  boost::shared_ptr<btRigidBody> rbStart = rope->getChildren()[0]->rigidBody;
-  boost::shared_ptr<btRigidBody> rbMid = rope->getChildren()[rope->getChildren().size()/2]->rigidBody;
-  boost::shared_ptr<btRigidBody> rbEnd = rope->getChildren()[rope->getChildren().size() - 1]->rigidBody;
-  btTransform tStart(rbStart->getCenterOfMassTransform()); tStart.setOrigin(ropeStart);
-  btTransform tMid(rbMid->getCenterOfMassTransform()); tMid.setOrigin(ropeMiddle);
-  btTransform tEnd(rbEnd->getCenterOfMassTransform()); tEnd.setOrigin(ropeEnd);
-  // temporarily turn off gravity
-  scene.bullet->setGravity(btVector3(0, 0, 0));
-  for (int i = 0; i < 1000; ++i) {
-    rbStart->setCenterOfMassTransform(tStart);
-    rbMid->setCenterOfMassTransform(tMid);
-  //  rbEnd->setCenterOfMassTransform(tEnd);
-    scene.step(DT);
-  }
-  for (int i = 0; i < 1000; ++i) {
-    rbStart->setCenterOfMassTransform(tStart);
-    rbMid->setCenterOfMassTransform(tMid);
-    rbEnd->setCenterOfMassTransform(tEnd);
-    scene.step(DT);
-  }
-  scene.bullet->setGravity(BulletConfig::gravity);
-  scene.stepFor(DT, 0.25);
-}
-
 struct LocalConfig : public Config {
   static float pert;
   static string rope;
@@ -114,6 +29,7 @@ struct LocalConfig : public Config {
     params.push_back(new Parameter<string>("rope", &rope, "rope control points file"));
   }
 };
+
 float LocalConfig::pert = 1.;
 string LocalConfig::rope;
 
@@ -141,10 +57,10 @@ int main(int argc, char *argv[]) {
 
   vector<btVector3> ropeCtlPts = toBulletVectors(floatMatFromFile(LocalConfig::rope)) * METERS;
 
-  if (LocalConfig::pert <= 0.00001) {
+  if (LocalConfig::pert != 0.) {
     try {
       lfd::CurvePerturbation cpert;
-      ropeCtlPts = cpert.perturbCurve(ropeCtlPts, LocalConfig::pert);
+      ropeCtlPts = cpert.perturbCurve(ropeCtlPts, LocalConfig::pert * METERS);
     } catch (const py::error_already_set &e) {
       PyErr_Print();
       throw e;
@@ -153,15 +69,9 @@ int main(int argc, char *argv[]) {
 
   TableRopeScene scene(tableCorners, ropeCtlPts);
   scene.m_table->rigidBody->setFriction(0.9);
-  cout << "defualt margin " << 
-    scene.m_table->rigidBody->getCollisionShape()->getMargin() << endl;
   scene.m_table->rigidBody->getCollisionShape()->setMargin(0.1);
   scene.startViewer();
   scene.stepFor(DT, 1);
-
-/*  btVector3 minRopePos = tableCorners[0];
-  btVector3 maxRopePos = tableCorners[2]; maxRopePos.setX(0.5*(maxRopePos.x() + minRopePos.x()));
-  moveRopeVert(minRopePos, maxRopePos, scene);*/
 
   scene.viewer.frame();
   scene.setDrawing(true);

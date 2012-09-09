@@ -148,7 +148,15 @@ TableRopeScene::TableRopeScene(const vector<btVector3> &tableCornersWorld_, cons
 /*  PlotPoints::Ptr ropePts(new PlotPoints(10));
   ropePts->setPoints(controlPointsWorld);
   env->add(ropePts);*/
-  m_rope.reset(new CapsuleRope(controlPointsWorld, .005*METERS, .1, 1, .5, .4, .9));
+  m_rope.reset(new CapsuleRope(
+    controlPointsWorld,
+    .005*METERS, // radius
+    .1, // angStiffness
+    1, // angDamping
+    .5, // linDamping
+    .9, // angLimit
+    .9 // linStopErp
+  ));
   env->add(m_rope);
   env->add(m_table);
   setGrabBodies(m_rope->children);
