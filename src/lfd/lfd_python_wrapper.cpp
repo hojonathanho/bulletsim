@@ -5,10 +5,6 @@ namespace lfd {
 ExecutionModule::ExecutionModule() : PyModule("/home/jonathan/python/lfd/execution.py") {
 }
 
-ExecutionModule::~ExecutionModule() {
-  getModule().attr("destroy")();
-}
-
 py::object ExecutionModule::init(const string &task, py::object tableBounds) {
   return getModule().attr("init")(task, tableBounds);
 }

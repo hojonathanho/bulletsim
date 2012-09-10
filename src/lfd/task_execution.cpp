@@ -122,7 +122,7 @@ static inline py::object dictExtract(py::dict d, const string &k) {
 }
 
 static inline double clampGripperAngle(double a) {
-  const float MIN_ANGLE = 0.1;
+  const float MIN_ANGLE = 0.08;
   const float scale = 20./3.;
   return scale*a < MIN_ANGLE ? MIN_ANGLE : scale*a;
 }
@@ -171,6 +171,8 @@ TaskExecuter::Transition TaskExecuter::action_execTraj() {
       }
     }
 
+    // yes
+    scene.step(DT);
     scene.step(DT);
   }
   scene.m_lMonitor->release();

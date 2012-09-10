@@ -8,7 +8,6 @@ namespace lfd {
 class ExecutionModule : public PyModule {
 public:
   ExecutionModule();
-  ~ExecutionModule();
 
   py::object init(const string &task, py::object tableBounds);
   py::object selectTrajectory(py::object points, py::object currRobotJointVals, py::object currStep);

@@ -9,21 +9,20 @@ namespace fs = boost::filesystem;
 
 
 struct MonitorForGrabbingWithTelekinesis : public MonitorForGrabbing {
+  vector<BulletConstraint::Ptr> m_grabs;
   btTransform m_telePose;
   bool m_telekinesis;
   KinBody::LinkPtr m_leftFinger, m_rightFinger;
+  Environment::Ptr m_env;
 
-  MonitorForGrabbingWithTelekinesis(RaveRobotObject::Manipulator::Ptr manip, btDynamicsWorld* dynamicsWorld, bool telekinesis, KinBody::LinkPtr leftFinger, KinBody::LinkPtr rightFinger)
-    : m_telekinesis(telekinesis), m_telePose(btTransform::getIdentity()), MonitorForGrabbing(manip, dynamicsWorld), m_leftFinger(leftFinger), m_rightFinger(rightFinger) {}
+  MonitorForGrabbingWithTelekinesis(RaveRobotObject::Manipulator::Ptr manip, Environment::Ptr env, bool telekinesis, KinBody::LinkPtr leftFinger, KinBody::LinkPtr rightFinger)
+    : m_env(env), m_telekinesis(telekinesis), m_telePose(btTransform::getIdentity()), MonitorForGrabbing(manip, env->bullet->dynamicsWorld), m_leftFinger(leftFinger), m_rightFinger(rightFinger) {}
 
   void grab();
+  void release();
 
   void updateGrabPose();
-
 };
-
-
-
 
 struct GrabbingScene : public Scene {
 public:
