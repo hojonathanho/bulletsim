@@ -30,8 +30,3 @@ float TrackingConfig::tracked_node_distance = 0.05;
 float TrackingConfig::node_distance = 0.01; // 1 cm between nodes
 float TrackingConfig::surface_density = 0.01/(0.1*0.1); // 10 grams per 100 cm2
 int TrackingConfig::node_pixel = 10;
-
-
-string PhasespaceConfig::kinectInfo_filename = "/home/alex/rll/bulletsim/data/phasespace_rigid_info/pr2head";
-static const ledid_t objLedIds_a[] = { 10,9,14,11,12,8,21,22,23, 13,4,5,6,7,32,33,34,35 };
-vector<ledid_t> PhasespaceConfig::objLedIds = std::vector<ledid_t>(objLedIds_a, objLedIds_a+sizeof(objLedIds_a)/sizeof(ledid_t));

@@ -44,3 +44,4 @@ std::vector<geometry_msgs::Point> toROSPoints(const std::vector<btVector3>&);
 std::vector<geometry_msgs::Point32> toROSPoints32(const std::vector<btVector3>&);
 ColorPoint toColorPoint(const Eigen::Vector3f& vec);
 ColorPoint toColorPoint(const btVector3& vec);
+Point toPoint(const Eigen::Vector3f& vec);

@@ -40,17 +40,16 @@ add_library(tracking
 	visibility.cpp
 	feature_extractor.cpp
 	tracked_compound.cpp
-	phasespace.cpp
 )
 	
 target_link_libraries(tracking
-	simulation clouds robots ${PHASESPACE_LIBS})
+	simulation clouds robots)
 	
 add_executable(tracker_node tracker_node.cpp)
 target_link_libraries(tracker_node tracking simulation clouds tf cv_bridge ${OpenCV_LIBS} ${ROS_LIBRARIES} boost_signals)
 
 add_executable(tracker_phasespace_node tracker_phasespace_node.cpp)
-target_link_libraries(tracker_phasespace_node tracking simulation clouds tf cv_bridge ${OpenCV_LIBS} ${ROS_LIBRARIES} boost_signals)
+target_link_libraries(tracker_phasespace_node tracking simulation clouds phasespace tf cv_bridge ${OpenCV_LIBS} ${ROS_LIBRARIES} boost_signals)
 
 #add_executable(robot_tracker_node robot_tracker_node.cpp)
 #target_link_libraries(robot_tracker_node tracking simulation clouds tf cv_bridge ${ROS_LIBRARIES} boost_signals)

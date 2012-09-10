@@ -1,39 +1,60 @@
 #include "phasespace.h"
+#include <boost/date_time.hpp>
 #include "utils/conversions.h"
 #include <algorithm>
 #include <boost/foreach.hpp>
 #include <fstream>
+#include "clouds/pcl_typedefs.h"
+#include <pcl/registration/transformation_estimation_svd.h>
 
 using namespace std;
 using namespace Eigen;
 
-const int MarkerBody::m_validity_num_frames = 100;
-const float MarkerBody::m_min_confidence = 1.0;
-
-
-void MarkerBody::init(int tracker)
-{
-	// create point tracker
-	owlTrackeri(tracker, OWL_CREATE, OWL_POINT_TRACKER);
-
-	// set markers
-	for (int ind=0; ind<m_led_ids.size(); ind++)
-		owlMarkeri(MARKER(tracker, getLedId(ind)), OWL_SET_LED, getLedId(ind));
-
-	// activate tracker
-	owlTracker(tracker, OWL_ENABLE);
+Vector3f MarkerBody::getPositionMean(int ind) {
+	deque<Vector3f>& past_position = m_past_positions[ind];
+	if (past_position.size() == 0) return Vector3f::Zero();
+	Vector3f mean(Vector3f::Zero());
+	for (int t=0; t<past_position.size(); t++)
+		mean += past_position[t];
+	mean /= past_position.size();
+	return mean;
 }
 
-void MarkerBody::plot()
+float MarkerBody::getPositionVariance(int ind) {
+	deque<Vector3f>& past_position = m_past_positions[ind];
+	if (past_position.size() == 0) return -1;
+	Vector3f mean = getPositionMean(ind);
+	float var = 0;
+	for (int t=0; t<past_position.size(); t++)
+		var += (past_position[t] - mean).squaredNorm();
+	var /= past_position.size();
+	return var;
+}
+
+void MarkerBody::plot(int ind)
 {
 	if (m_plotSpheres) {
 		osg::ref_ptr<osg::Vec3Array> centers = new osg::Vec3Array();
 		osg::ref_ptr<osg::Vec4Array> rgba = new osg::Vec4Array();
 		vector<float> sizes;
-		for (int ind=0; ind<m_positions.size(); ind++) {
+		if (ind<0 || ind>=m_positions.size()) {
+			for (ind=0; ind<m_positions.size(); ind++) {
+				if (isValid(ind)) {
+					centers->push_back(osg::Vec3(getPosition(ind)(0), getPosition(ind)(1), getPosition(ind)(2)));
+					if (getPositionVariance(ind) < PhasespaceConfig::varianceTol)
+						rgba->push_back(osg::Vec4(1,1,1,1));
+					else
+						rgba->push_back(osg::Vec4(1,0,0,1));
+					sizes.push_back(0.005*METERS);
+				}
+			}
+		} else {
 			if (isValid(ind)) {
 				centers->push_back(osg::Vec3(getPosition(ind)(0), getPosition(ind)(1), getPosition(ind)(2)));
-				rgba->push_back(osg::Vec4(1,1,1,1));
+				if (getPositionVariance(ind) < PhasespaceConfig::varianceTol)
+					rgba->push_back(osg::Vec4(1,1,1,1));
+				else
+					rgba->push_back(osg::Vec4(1,0,0,1));
 				sizes.push_back(0.005*METERS);
 			}
 		}
@@ -47,7 +68,7 @@ void MarkerBody::plot()
 MarkerRigid::MarkerRigid(vector<ledid_t> led_ids, vector<Eigen::Vector3f> marker_positions, Environment::Ptr env) :
 	MarkerBody(RIGID, led_ids, env),
 	m_last_valid_rigid_frame(0),
-	m_last_rigid_frame(m_validity_num_frames),
+	m_last_rigid_frame(PhasespaceConfig::validityNumFrames),
 	m_marker_positions(marker_positions),
 	m_transform(Affine3f::Identity())
 {
@@ -59,50 +80,62 @@ MarkerRigid::MarkerRigid(vector<ledid_t> led_ids, vector<Eigen::Vector3f> marker
 	}
 }
 
-void MarkerRigid::init(int tracker)
-{
-	// create rigid body tracker
-	owlTrackeri(tracker, OWL_CREATE, OWL_RIGID_TRACKER);
+void MarkerRigid::updateMarkers(OWLMarker markers[], int markers_count) {
+	MarkerBody::updateMarkers(markers, markers_count);
 
-	// set markers
+	Cloud marker_positions_cloud;
+	Cloud led_ids_cloud;
 	for (int ind=0; ind<m_led_ids.size(); ind++) {
-		// set markers
-		owlMarkeri(MARKER(tracker, getLedId(ind)), OWL_SET_LED, getLedId(ind));
-		// set marker positions
-		float position[3] = { m_marker_positions[ind](0)*1000.0/METERS, m_marker_positions[ind](1)*1000.0/METERS, m_marker_positions[ind](2)*1000.0/METERS };
-		owlMarkerfv(MARKER(tracker, getLedId(ind)), OWL_SET_POSITION, position);
+		if (isValid(ind)) {
+			marker_positions_cloud.push_back(toPoint(m_marker_positions[ind]));
+			led_ids_cloud.push_back(toPoint(getPosition(ind)));
+		}
 	}
 
-	// activate tracker
-	owlTracker(tracker, OWL_ENABLE);
-
-	m_rigid_id = tracker;
-}
-
-void MarkerRigid::updateMarkers(OWLMarker markers[], int markers_count, OWLRigid rigids[], int rigids_count) {
 	m_last_rigid_frame++;
-	assert(m_rigid_id < rigids_count);
-	int iRigid = m_rigid_id;
-	if(iRigid!=-1 && rigids[iRigid].cond > m_min_confidence) {
+	if (led_ids_cloud.size() >= 3) {
 		m_last_valid_rigid_frame = m_last_rigid_frame;
-		Translation3f translation(rigids[iRigid].pose[0]*METERS/1000.0, rigids[iRigid].pose[1]*METERS/1000.0, rigids[iRigid].pose[2]*METERS/1000.0);
-		Quaternionf rotation(rigids[iRigid].pose[3], rigids[iRigid].pose[4], rigids[iRigid].pose[5], rigids[iRigid].pose[6]);
-		m_transform = translation * rotation;
+		Matrix4f tf;
+		pcl::registration::TransformationEstimationSVD<Point, Point> estimation_svd;
+		estimation_svd.estimateRigidTransformation(marker_positions_cloud, led_ids_cloud, tf);
+		m_transform = Affine3f(tf);
 	}
-	MarkerBody::updateMarkers(markers, markers_count, rigids, rigids_count);
 }
 
-void MarkerRigid::plot()
+void MarkerRigid::plot(int ind)
 {
 	if (m_plotAxes) {
 		if (isValid())  m_plotAxes->setup(toBulletTransform(getTransform()), 0.10*METERS);
 		else            m_plotAxes->clear();
 	}
-	MarkerBody::plot();
+	MarkerBody::plot(ind);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void MarkerRigidStatic::updateMarkers(OWLMarker markers[], int markers_count) {
+	MarkerBody::updateMarkers(markers, markers_count);
+
+	Cloud marker_positions_cloud;
+	Cloud led_ids_cloud;
+	for (int ind=0; ind<m_led_ids.size(); ind++) {
+		if (isValid(ind) && getPositionVariance(ind)<PhasespaceConfig::varianceTol) {
+			marker_positions_cloud.push_back(toPoint(m_marker_positions[ind]));
+			led_ids_cloud.push_back(toPoint(getPosition(ind)));
+		}
+	}
+
+	m_last_rigid_frame++;
+	if (led_ids_cloud.size() >= 3) {
+		m_last_valid_rigid_frame = m_last_rigid_frame;
+		Matrix4f tf;
+		pcl::registration::TransformationEstimationSVD<Point, Point> estimation_svd;
+		estimation_svd.estimateRigidTransformation(marker_positions_cloud, led_ids_cloud, tf);
+		m_transform = Affine3f(tf);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 MarkerSoft::MarkerSoft(std::vector<ledid_t> led_ids, std::vector<Eigen::Vector3f> marker_positions, EnvironmentObject::Ptr sim, Environment::Ptr env) :
 	MarkerBody(SOFT, led_ids, env),
@@ -139,17 +172,57 @@ float MarkerSoft::evaluateError()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-MarkerSystem::MarkerSystem(std::vector<MarkerBody::Ptr> marker_bodies) :
-	m_marker_bodies(marker_bodies),
-	m_rigid_count(0),
-	m_marker_count(32)
+const int MarkerSystemBase::m_marker_count = 48;
+
+bool MarkerSystemBase::isAllValid() {
+	for (int ind=0; ind<m_marker_bodies.size(); ind++)
+		if (!m_marker_bodies[ind]->isValid()) return false;
+	return true;
+}
+
+void MarkerSystemBase::plot() {
+	for (int ind=0; ind<m_marker_bodies.size(); ind++)
+		m_marker_bodies[ind]->plot();
+}
+
+void MarkerSystemBase::blockUntilAllValid() {
+	int cycle_us = 1000000.0/PhasespaceConfig::frequency;
+	boost::posix_time::ptime time = boost::posix_time::microsec_clock::local_time();
+	bool all_valid = false;
+	while (!all_valid) {
+		int ind;
+		for (ind=0; ind<m_marker_bodies.size(); ind++)
+			if (!m_marker_bodies[ind]->isValid()) {
+				cout << "not valid " << ind << " " << m_marker_bodies[ind]->getLedId(ind) << endl;
+				break;
+			}
+		if (ind == m_marker_bodies.size()) all_valid = true;
+		usleep(15000);
+	}
+}
+
+void MarkerSystemBase::updateMarkerBodies(OWLMarker markers[]) {
+	for (int iBody=0; iBody<m_marker_bodies.size(); iBody++)
+		m_marker_bodies[iBody]->updateMarkers(markers, m_marker_count);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+MarkerSystem::MarkerSystem()
 {
 	if(owlInit(PHASESPACE_SERVER_NAME, PHASESPACE_INIT_FLAGS) < 0) { runtime_error("owl initialization failed"); };
 
-	for (int iBody=0; iBody<m_marker_bodies.size(); iBody++) {
-		m_marker_bodies[iBody]->init(iBody);
-		if (m_marker_bodies[iBody]->m_body_type == MarkerBody::RIGID) m_rigid_count++;
-	}
+	int tracker = 0;
+
+	// create point tracker
+	owlTrackeri(tracker, OWL_CREATE, OWL_POINT_TRACKER);
+
+	// set markers
+	for (int ind=0; ind<m_marker_count; ind++)
+		owlMarkeri(MARKER(tracker, ind), OWL_SET_LED, ind);
+
+	// activate tracker
+	owlTracker(tracker, OWL_ENABLE);
 
   // flush requests and check for errors
   if(!owlGetStatus()) {
@@ -158,7 +231,7 @@ MarkerSystem::MarkerSystem(std::vector<MarkerBody::Ptr> marker_bodies) :
 	}
 
   // set default frequency
-  owlSetFloat(OWL_FREQUENCY, OWL_MAX_FREQUENCY);
+  owlSetFloat(OWL_FREQUENCY, PhasespaceConfig::frequency);
 
   // start streaming
   owlSetInteger(OWL_STREAMING, OWL_ENABLE);
@@ -169,14 +242,13 @@ MarkerSystem::~MarkerSystem()
 	owlDone();
 }
 
-void MarkerSystem::updateMarkers()
-{
-	OWLRigid rigids[m_rigid_count];
+void MarkerSystem::updateIteration() {
 	OWLMarker markers[m_marker_count];
+	listenOWLServer(markers);
+	updateMarkerBodies(markers);
+}
 
-	// get the rigid body
-	int r = owlGetRigids(rigids, m_rigid_count);
-
+void MarkerSystem::listenOWLServer(OWLMarker markers[]) {
 	// get the rigid body markers
 	//  note: markers have to be read,
 	//  even if they are not used
@@ -189,16 +261,17 @@ void MarkerSystem::updateMarkers()
 		owl_print_error("error", err);
 		return;
 	}
-
-	for (int iBody=0; iBody<m_marker_bodies.size(); iBody++) {
-		m_marker_bodies[iBody]->updateMarkers(markers, m_marker_count, rigids, m_rigid_count);
-	}
 }
 
 void MarkerSystem::startUpdateLoop() {
+	int cycle_us = 1000000.0/PhasespaceConfig::frequency;
+	boost::posix_time::ptime time = boost::posix_time::microsec_clock::local_time();
 	while(!m_exit_loop) {
-		updateMarkers();
-		usleep(1000);
+		updateIteration();
+
+		int time_diff = (boost::posix_time::microsec_clock::local_time() - time).total_microseconds();
+		if (time_diff < cycle_us) usleep(cycle_us-time_diff);
+		time = boost::posix_time::microsec_clock::local_time();
 	}
 }
 
@@ -214,25 +287,13 @@ void MarkerSystem::stopUpdateLoopThread() {
 	m_update_loop_thread.reset();
 }
 
-void MarkerSystem::setPose(Eigen::Affine3f transform) {
-	Vector3f tf_t(transform.translation());
-	tf_t *= 1000.0/METERS;
-	Quaternionf tf_q(transform.rotation());
-	float pose[7] = { tf_t(0), tf_t(1), tf_t(2), tf_q.w(), tf_q.x(), tf_q.y(), tf_q.z() };
-	owlLoadPose(pose);
-}
-
-void MarkerSystem::blockUntilAllValid() {
-	bool all_valid = false;
-	while (!all_valid) {
-		updateMarkers();
-		int ind;
-		for (ind=0; ind<m_marker_bodies.size(); ind++)
-			if (!m_marker_bodies[ind]->isValid()) break;
-		if (ind == m_marker_bodies.size()) all_valid = true;
-		//usleep(15000);
-	}
-}
+//void MarkerSystem::setPose(Eigen::Affine3f transform) {
+//	Vector3f tf_t(transform.translation());
+//	tf_t *= 1000.0/METERS;
+//	Quaternionf tf_q(transform.rotation());
+//	float pose[7] = { tf_t(0), tf_t(1), tf_t(2), tf_q.w(), tf_q.x(), tf_q.y(), tf_q.z() };
+//	owlLoadPose(pose);
+//}
 
 void MarkerSystem::owl_print_error(const char *s, int n)
 {
@@ -243,6 +304,39 @@ void MarkerSystem::owl_print_error(const char *s, int n)
   else if(n == OWL_INVALID_OPERATION) printf("%s: Invalid Operation\n", s);
   else printf("%s: 0x%x\n", s, n);
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void MarkerSystemPublisher::updateIteration() {
+	OWLMarker markers[m_marker_count];
+	listenOWLServer(markers);
+	updateMarkerBodies(markers);
+	publishPhasespaceMsg(markers);
+}
+
+void MarkerSystemPublisher::publishPhasespaceMsg(OWLMarker markers[]) {
+	if (m_publisher) {
+		bulletsim_msgs::OWLPhasespace phasespace_msg;
+		for (int ind=0; ind<m_marker_count; ind++)
+			phasespace_msg.markers.push_back(toOWLMarkerMsg(markers[ind]));
+		m_publisher->publish(phasespace_msg);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void MarkerSystemPhasespaceMsg::updateIteration(bulletsim_msgs::OWLPhasespace phasespace_msg) {
+	int marker_count = phasespace_msg.markers.size();
+	OWLMarker markers[marker_count];
+	for (int ind=0; ind<marker_count; ind++)
+		markers[ind] = toOWLMarker(phasespace_msg.markers[ind]);
+
+	updateMarkerBodies(markers);
+}
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 MarkerRigid::Ptr createMarkerRigid(std::string rigid_info_filename, Environment::Ptr env) {
 	vector<ledid_t> led_ids;
@@ -259,7 +353,8 @@ Eigen::Affine3f waitForRigidBodyTransform(std::string rigid_info_filename, int i
 	vector<MarkerBody::Ptr> marker_bodies;
 	marker_bodies.push_back(marker_rigid);
 
-	MarkerSystem::Ptr marker_system(new MarkerSystem(marker_bodies));
+	MarkerSystem::Ptr marker_system(new MarkerSystem());
+	marker_system->add(marker_bodies);
 
 	cout << "Waiting for rigid body LEDs " << marker_rigid->m_led_ids << " to be seen..." << endl;
 	for (int i=0; i<iter; i++)
@@ -276,8 +371,10 @@ vector<Vector3f> waitForMarkerPositions(vector<ledid_t> led_ids, Eigen::Affine3f
 	for (int ind=0; ind<marker_points.size(); ind++)
 		marker_bodies.push_back(marker_points[ind]);
 
-	MarkerSystem::Ptr marker_system(new MarkerSystem(marker_bodies));
-	marker_system->setPose(marker_system_transform);
+	MarkerSystem::Ptr marker_system(new MarkerSystem());
+	marker_system->add(marker_bodies);
+	cout << "FIXME: SETPOSE NO LONGER EXISTS" << endl;
+	//marker_system->setPose(marker_system_transform);
 
 	cout << "Waiting for LEDs " << led_ids << " to be seen..." << endl;
 	marker_system->blockUntilAllValid();

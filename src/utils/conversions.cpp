@@ -233,3 +233,11 @@ ColorPoint toColorPoint(const btVector3& vec) {
 	pt.z = vec.z();
 	return pt;
 }
+
+Point toPoint(const Eigen::Vector3f& vec) {
+	Point pt;
+	pt.x = vec(0);
+	pt.y = vec(1);
+	pt.z = vec(2);
+	return pt;
+}

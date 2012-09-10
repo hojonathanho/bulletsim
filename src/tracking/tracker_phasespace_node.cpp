@@ -29,7 +29,7 @@
 #include "utils/conversions.h"
 #include "clouds/cloud_ops.h"
 
-#include "phasespace.h"
+#include "phasespace/phasespace.h"
 
 using sensor_msgs::PointCloud2;
 using sensor_msgs::Image;

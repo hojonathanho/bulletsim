@@ -1,7 +1,6 @@
 #pragma once
 #include "utils/config.h"
 #include <string>
-#include "phasespace.h"
 
 static const std::string trackedObjectTopic = "/tracker/object";
 static const std::string initializationService = "/initialization";
@@ -59,15 +58,4 @@ struct TrackingConfig : Config {
         params.push_back(new Parameter<float>("surface_density", &surface_density, "surface density for towel. (total mass)/(total area)"));
         params.push_back(new Parameter<int>("node_pixel", &node_pixel, "pixels between nodes. nodes are the original nodes, not the decimated ones."));
     }
-};
-
-struct PhasespaceConfig : Config {
-  static std::string kinectInfo_filename;
-  static std::vector<ledid_t> cornersLedIds;
-  static std::vector<ledid_t> objLedIds;
-
-  PhasespaceConfig() : Config() {
-    params.push_back(new Parameter<std::string>("kinectInfo_filename", &kinectInfo_filename, "The rigid body info is loaded from this file."));
-    params.push_back(new Parameter<std::vector<ledid_t> >("objLedIds", &objLedIds, "The order matters. Even. Match front back."));
-  }
 };

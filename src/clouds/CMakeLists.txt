@@ -50,10 +50,3 @@ target_link_libraries(get_table_server clouds ${PCL_LIBRARIES} ${ROS_LIBRARIES} 
 
 add_executable(cloud_adjuster_node sandbox/cloud_adjuster_node.cpp)
 target_link_libraries(cloud_adjuster_node clouds utils ${PCL_LIBRARIES} ${ROS_LIBRARIES})
-
-add_executable(phasespace_kinect_calibration phasespace_kinect_calibration.cpp)
-target_link_libraries(phasespace_kinect_calibration clouds utils ${PCL_LIBRARIES} ${OpenCV_LIBS} ${ROS_LIBRARIES} simulation tracking)
-
-add_executable(phasespace_transforms_node phasespace_transforms_node.cpp)
-target_link_libraries(phasespace_transforms_node clouds utils ${PCL_LIBRARIES} ${ROS_LIBRARIES} boost_signals tf tracking)
-

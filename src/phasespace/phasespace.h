@@ -6,10 +6,13 @@
 #include <boost/shared_ptr.hpp>
 #include <stdint.h>
 #include <owl.h>
+#include "phasespace_utils.h"
+#include <ros/ros.h>
 #include "utils/config.h"
 #include "utils/conversions.h"
 #include "simulation/environment.h"
 #include "simulation/plotting.h"
+#include "config_phasespace.h"
 
 #include <boost/thread.hpp>
 
@@ -27,9 +30,8 @@ public:
   std::vector<ledid_t> m_led_ids;
   std::vector<int> m_last_valid_frame;
   std::vector<int> m_last_frame;
-  static const int m_validity_num_frames;
   std::vector<Eigen::Vector3f> m_positions;
-  static const float m_min_confidence;
+  std::vector<std::deque<Eigen::Vector3f> > m_past_positions;
 
   // for plotting
   Environment::Ptr m_env;
@@ -38,8 +40,9 @@ public:
   	m_body_type(body_type),
   	m_led_ids(led_ids),
     m_last_valid_frame(m_led_ids.size(), 0),
-    m_last_frame(m_led_ids.size(), m_validity_num_frames),
+    m_last_frame(m_led_ids.size(), PhasespaceConfig::validityNumFrames),
     m_positions(m_led_ids.size(), Eigen::Vector3f::Zero()),
+    m_past_positions(m_led_ids.size(), std::deque<Eigen::Vector3f>(0)),
   	m_env(env)
   {
   	if (m_env) {
@@ -48,11 +51,6 @@ public:
   	}
   }
 
-  int getMarkerInd(OWLMarker markers[], int markers_count, ledid_t led_id) {
-  	for (int iMarker=0; iMarker<markers_count; iMarker++)
-  		if (INDEX(markers[iMarker].id) == led_id)	return iMarker;
-  	return -1;
-  }
   inline ledid_t getLedId(int ind) { return m_led_ids[ind]; }
 	int getInd(ledid_t led_id) {
 		for (int ind=0; ind<m_led_ids.size(); ind++)
@@ -60,7 +58,7 @@ public:
 		return -1;
 	}
 
-  inline bool isValid(int ind) { return (m_last_frame[ind] - m_last_valid_frame[ind]) < m_validity_num_frames; }
+  inline bool isValid(int ind) { return (m_last_frame[ind] - m_last_valid_frame[ind]) < PhasespaceConfig::validityNumFrames; }
   bool isValid(ledid_t led_id) { return isValid(getInd(led_id)); }
   // returns true if all the markers are valid
   virtual bool isValid() {
@@ -72,46 +70,57 @@ public:
   inline Eigen::Vector3f getPosition(int ind) { return m_positions[ind]; }
   inline Eigen::Vector3f getPosition(ledid_t led_id) { getPosition(getInd(led_id)); }
 
-  // creates tracker, set markers and activates tracker
-  virtual void init(int tracker);
+  Eigen::Vector3f getPositionMean(int ind);
+  inline Eigen::Vector3f getPositionMean(ledid_t led_id) { getPositionMean(getInd(led_id)); }
+  float getPositionVariance(int ind);
+  inline float getPositionVariance(ledid_t led_id) { getPositionVariance(getInd(led_id)); }
 
   // updates the member variables that changes when phasespace is queried
-  virtual void updateMarkers(OWLMarker markers[], int markers_count, OWLRigid rigids[], int rigids_count) {
+  virtual void updateMarkers(OWLMarker markers[], int markers_count) {
   	for (int ind=0; ind<m_led_ids.size(); ind++) {
   		m_last_frame[ind]++;
-  		int iMarker = getMarkerInd(markers, markers_count, getLedId(ind));
-			if(iMarker!=-1 && markers[iMarker].cond > m_min_confidence) {
+  		if(markers[getLedId(ind)].cond > PhasespaceConfig::minConfidence) {
 				m_last_valid_frame[ind] = m_last_frame[ind];
-				m_positions[ind] = Eigen::Vector3f(markers[iMarker].x, markers[iMarker].y, markers[iMarker].z) * METERS/1000.0;
+				m_positions[ind] = Eigen::Vector3f(markers[getLedId(ind)].x, markers[getLedId(ind)].y, markers[getLedId(ind)].z) * METERS/1000.0;
+
+				if (m_past_positions[ind].size() > PhasespaceConfig::maxPosHistory) m_past_positions[ind].pop_front();
+				m_past_positions[ind].push_back(m_positions[ind]);
 			}
+//  		if (getLedId(ind)) cout << "LED 35 cond " << markers[getLedId(ind)].cond << " " << isValid(ind) << " " << getPosition(ind).transpose() << endl;
 		}
   }
 
   // for plotting
   PlotSpheres::Ptr m_plotSpheres;
-  virtual void plot();
+  // if ind is outside the range [0, m_led_ids.size()], then all the leds are plotted
+  virtual void plot(int ind=-1);
 };
 
 class MarkerRigid : public MarkerBody {
 public:
   typedef boost::shared_ptr<MarkerRigid> Ptr;
-  int m_rigid_id;
   int m_last_valid_rigid_frame;
   int m_last_rigid_frame;
   std::vector<Eigen::Vector3f> m_marker_positions;
   Eigen::Affine3f m_transform;
 
 	MarkerRigid(std::vector<ledid_t> led_ids, std::vector<Eigen::Vector3f> marker_positions, Environment::Ptr env=Environment::Ptr());
-	void init(int tracker);
-	void updateMarkers(OWLMarker markers[], int markers_count, OWLRigid rigids[], int rigids_count);
+	virtual void updateMarkers(OWLMarker markers[], int markers_count);
 
 	using MarkerBody::isValid;
-	inline bool isValid() { return (m_last_rigid_frame - m_last_valid_rigid_frame) < m_validity_num_frames; }
+	inline bool isValid() { return (m_last_rigid_frame - m_last_valid_rigid_frame) < PhasespaceConfig::validityNumFrames; }
 	inline Eigen::Affine3f getTransform() { return m_transform; }
 
 	// for plotting
   PlotAxes::Ptr m_plotAxes;
-	void plot();
+	void plot(int ind=-1);
+};
+
+class MarkerRigidStatic : public MarkerRigid {
+public:
+  typedef boost::shared_ptr<MarkerRigidStatic> Ptr;
+  MarkerRigidStatic(std::vector<ledid_t> led_ids, std::vector<Eigen::Vector3f> marker_positions, Environment::Ptr env=Environment::Ptr()) : MarkerRigid(led_ids, marker_positions, env) {}
+  void updateMarkers(OWLMarker markers[], int markers_count);
 };
 
 class MarkerPoint : public MarkerBody {
@@ -158,30 +167,69 @@ public:
 	float evaluateError();
 };
 
-class MarkerSystem {
+class MarkerSystemBase {
+public:
+  typedef boost::shared_ptr<MarkerSystemBase> Ptr;
+
+  bool isAllValid();
+  void plot();
+  void blockUntilAllValid();
+  void updateMarkerBodies(OWLMarker markers[]);
+
+  virtual ~MarkerSystemBase() {}
+
+protected:
+  MarkerSystemBase() {}
+
+  std::vector<MarkerBody::Ptr> m_marker_bodies;
+  static const int m_marker_count;
+
+public:
+  void add(MarkerBody::Ptr marker_body) { m_marker_bodies.push_back(marker_body); }
+  template<class T>
+  void add(std::vector<boost::shared_ptr<T> > marker_bodies) { m_marker_bodies.insert(m_marker_bodies.end(), marker_bodies.begin(), marker_bodies.end()); }
+};
+
+class MarkerSystem : public MarkerSystemBase {
 public:
   typedef boost::shared_ptr<MarkerSystem> Ptr;
 
-  std::vector<MarkerBody::Ptr> m_marker_bodies;
-  int m_rigid_count;
-  int m_marker_count;
-
-
-  MarkerSystem(std::vector<MarkerBody::Ptr> marker_bodies);
+  MarkerSystem();
   ~MarkerSystem();
 
-	void updateMarkers();
+	virtual void updateIteration();
+
+protected:
+	void listenOWLServer(OWLMarker markers[]);
+
+public:
 	void startUpdateLoopThread();
 	void stopUpdateLoopThread();
 
-	void setPose(Eigen::Affine3f transform);
-	void blockUntilAllValid();
-  void owl_print_error(const char *s, int n);
-
 private:
+	void owl_print_error(const char *s, int n);
+
   bool m_exit_loop;
   boost::shared_ptr<boost::thread> m_update_loop_thread;
 	void startUpdateLoop();
+};
+
+class MarkerSystemPublisher : public MarkerSystem {
+public:
+	typedef boost::shared_ptr<MarkerSystemPublisher> Ptr;
+	MarkerSystemPublisher(boost::shared_ptr<ros::Publisher> publisher) : m_publisher(publisher) {}
+
+private:
+	boost::shared_ptr<ros::Publisher> m_publisher;
+	void updateIteration();
+	void publishPhasespaceMsg(OWLMarker markers[]);
+};
+
+class MarkerSystemPhasespaceMsg : public MarkerSystemBase {
+public:
+  typedef boost::shared_ptr<MarkerSystemPhasespaceMsg> Ptr;
+
+	void updateIteration(bulletsim_msgs::OWLPhasespace phasespace_msg);
 };
 
 MarkerRigid::Ptr createMarkerRigid(std::string rigid_info_filename, Environment::Ptr env=Environment::Ptr());
