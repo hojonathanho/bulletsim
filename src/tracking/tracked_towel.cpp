@@ -10,6 +10,7 @@
 #include <pcl/common/transforms.h>
 #include "clouds/utils_pcl.h"
 #include "feature_extractor.h"
+#include "utils_tracking.h"
 
 using namespace std;
 using namespace Eigen;
@@ -20,7 +21,7 @@ static inline int idx(int row,int col,int nCols) {return col+row*nCols;}
 typedef pair<int, int> intpair;
 
 
-TrackedTowel::TrackedTowel(BulletSoftObject::Ptr sim, int nCols, int nRows) : TrackedObject(sim, "towel") {
+TrackedTowel::TrackedTowel(BulletSoftObject::Ptr sim, int nCols, int nRows, float sx, float sy) : TrackedObject(sim, "towel"), m_sx(sx), m_sy(sy) {
 	cout << "(rows, cols) = " << nRows << "," << nCols << endl;
   assert(sim->softBody->m_nodes.size() == nRows * nCols);
   
@@ -141,7 +142,7 @@ void TrackedTowel::applyEvidence(const Eigen::MatrixXf& corr, const Eigen::Matri
     estVel[iNode] = verts[m_node2vert[iNode]].m_v;
   }
 
-  vector<btVector3> nodeImpulses = calcImpulsesDamped(estPos, estVel, toBulletVectors(FE::activeFeatures2Feature(obsPts, FE::FT_XYZ)), corr, toVec(m_masses), TrackingConfig::kp_cloth, TrackingConfig::kd_cloth);
+  vector<btVector3> nodeImpulses = calcImpulsesDamped(estPos, estVel, toBulletVectors(obsPts), corr, toVec(m_masses), TrackingConfig::kp_cloth, TrackingConfig::kd_cloth);
 
   int nVerts = verts.size();
 
@@ -175,9 +176,12 @@ const Eigen::VectorXf TrackedTowel::getPriorDist() {
 	Eigen::MatrixXf prior_dist(1,FeatureExtractor::m_allDim);
 	prior_dist << TrackingConfig::pointPriorDist*METERS, TrackingConfig::pointPriorDist*METERS, TrackingConfig::pointPriorDist*METERS,  //FT_XYZ
 			0.2, 0.2, 0.2, 	//FT_BGR
-			0.2, 0.1, 0.1,	//FT_LAB
-			1.0, 1.0, 1.0,
-			1.0;
+			TrackingConfig::colorLPriorDist, TrackingConfig::colorABPriorDist, TrackingConfig::colorABPriorDist,	//FT_LAB
+			1.0, 1.0, 1.0,  //FT_NORMAL
+			1.0,  //FT_LABEL
+			MatrixXf::Ones(1, FE::FT_SIZES[FE::FT_SURF])*0.4,  //FT_SURF
+			MatrixXf::Ones(1, FE::FT_SIZES[FE::FT_PCASURF])*0.4,  //FT_PCASURF
+			0.5;  //FT_GRADNORMAL
 	return FeatureExtractor::all2ActiveFeatures(prior_dist).transpose();
 }
 
@@ -193,22 +197,13 @@ const Eigen::VectorXf TrackedTowel::getPriorDist() {
 //
 // node_density = (# nodes)/(side length) = (resolution)/(side length)
 // surface_density = (total mass)/(total area)
-BulletSoftObject::Ptr makeTowel(const vector<btVector3>& points, float node_density, float surface_density, int& resolution_x, int& resolution_y) {
+BulletSoftObject::Ptr makeTowel(const vector<btVector3>& points, int resolution_x, int resolution_y, float mass) {
 	vector<btVector3> corners;
 	corners.push_back(points[0]);
 	corners.push_back(points[1]);
 	corners.push_back(points[3]);
 	corners.push_back(points[2]);
 
-	float s0 = (corners[0] - corners[1]).length();
-	float s1 = (corners[1] - corners[2]).length();
-	float s2 = (corners[2] - corners[3]).length();
-	float s3 = (corners[3] - corners[0]).length();
-  float sx = (s0 + s2)/2.0;
-  float sy = (s1 + s3)/2.0;
-	float area = sx*sy;
-	resolution_x = node_density * sx;
-	resolution_y = node_density * sy;
 	int n_tex_coords = (resolution_x - 1)*(resolution_y -1)*12;
   float * tex_coords = new float[ n_tex_coords ];
   btVector3 offset(0,0,0.01*METERS);
@@ -229,7 +224,7 @@ BulletSoftObject::Ptr makeTowel(const vector<btVector3>& points, float node_dens
 
   psb->generateBendingConstraints(2,pm);
 
-  psb->setTotalMass(surface_density * area);
+  psb->setTotalMass(mass);
 
   psb->generateClusters(512);
 	psb->getCollisionShape()->setMargin(0.002*METERS);
@@ -263,13 +258,6 @@ BulletSoftObject::Ptr makeTowel(const vector<btVector3>& points, float node_dens
   	bso->tritexcoords->push_back(osg::Vec2f(tex_coords[i], tex_coords[i+1]));
   }
 
-  printf("Created towel with following properties:\n");
-  printf("Surface density (Mass per area): %f\n", surface_density);
-  printf("Mass: %f\n", surface_density * area);
-  printf("Dimensions and area: %f x %f = %f\n", sx, sy, area);
-  printf("Node density (nodes per length): %f\n", node_density);
-  printf("Resolution: %d %d\n", resolution_x, resolution_y);
-
 	return bso;
 }
 
@@ -279,10 +267,16 @@ cv::Mat TrackedTowel::makeTexture(const vector<btVector3>& corners, cv::Mat imag
 
   MatrixXi src_pixels = xyz2uv(toEigenMatrix(points));
   MatrixXi dst_pixels(4,2);
+
+	int resolution_x = m_sx/(TrackingConfig::node_distance*METERS) + 1;
+	int resolution_y = m_sy/(TrackingConfig::node_distance*METERS) + 1;
+  int tex_sx = TrackingConfig::node_pixel * resolution_x;
+  int tex_sy = TrackingConfig::node_pixel * resolution_y;
+
   dst_pixels <<   0,   0,
-									0, 640,
-								480, 640,
-  							480,   0;
+									0,  tex_sx,
+									tex_sy,  tex_sx,
+									tex_sy,   0;
   cv::Mat src_mat(4, 2, CV_32FC1);
 	cv::Mat dst_mat(4, 2, CV_32FC1);
 	for(int i=0; i<src_mat.rows; i++) {
@@ -292,21 +286,9 @@ cv::Mat TrackedTowel::makeTexture(const vector<btVector3>& corners, cv::Mat imag
 		}
 	}
 	cv::Mat H = cv::findHomography(src_mat, dst_mat);
-	cv::Mat tex_image(480, 640, CV_8UC3);
-	cv::warpPerspective(image, tex_image, H, cv::Size(640, 480));
-	cv::Mat tex_image_lab(480, 640, CV_8UC3);
-	cv::cvtColor(tex_image, tex_image_lab, CV_BGR2Lab);
-	for(int i=0; i<tex_image.rows; i++)
-		for(int j=0; j<tex_image.cols; j++)
-			if (tex_image_lab.at<cv::Vec3b>(i,j)[0] < 30 ||
-					tex_image_lab.at<cv::Vec3b>(i,j)[1] < 115) {
-				tex_image.at<cv::Vec3b>(i,j) = cv::Vec3b(0,0,0);
-			}
-	fillBorder(tex_image, 60, 20, 30);
-
-	//temporary for debugging. uses a saved (preprocessed) image and rotates it so that it matches the rotation of the current image
-	//cv::Mat pre_image = cv::imread("/home/alex/Desktop/pre_image.jpg");
-	//tex_image = matchRotation(pre_image, tex_image);
+	cv::Mat tex_image(tex_sy, tex_sx, CV_8UC3);
+	cv::warpPerspective(image, tex_image, H, cv::Size(tex_sx, tex_sy));
+	cv::Mat tex_image_lab(tex_sy, tex_sx, CV_8UC3);
 
 	return tex_image;
 }
@@ -318,12 +300,13 @@ void TrackedTowel::initColors() {
 		cout << "initColors using texture" << endl;
 		const osg::Vec2Array& texcoords = *(getSim()->tritexcoords);
 		for (int i=0; i < m_nNodes; i++) {
-			int i_pixel = tex_image.rows-1 - (int) (texcoords[m_vert2tex[m_node2vert[i]]].y() * (tex_image.rows-1));
-			int j_pixel = (int) (texcoords[m_vert2tex[m_node2vert[i]]].x() * (tex_image.cols-1));
+			cv::Point2f pixel = textureCoordinate(i);
+			int i_pixel = pixel.y;
+			int j_pixel = pixel.x;
 			int range = 20;
 			//TODO weighted average window
-			cv::Mat window_pixels = tex_image(cv::Range(max(i_pixel - range, 0), min(i_pixel + range, tex_image.rows-1)),
-																				cv::Range(max(j_pixel - range, 0), min(j_pixel + range, tex_image.cols-1)));
+			cv::Mat window_pixels = windowRange(tex_image, i_pixel, j_pixel, range, range);
+
 			Vector3f bgr = toEigenMatrixImage(window_pixels).colwise().mean();
 			m_colors.row(i) = bgr.transpose();
 		}
@@ -335,4 +318,13 @@ void TrackedTowel::initColors() {
 			m_colors.row(i) = Eigen::Vector3f(color.r(), color.g(), color.b()).transpose();
 		}
 	}
+}
+
+//order: (x,y) or (j,i)
+cv::Point2f TrackedTowel::textureCoordinate (int node_id) {
+	cv::Mat tex_image = getSim()->getTexture();
+	if (tex_image.empty()) return cv::Point2i(0,0);
+	const osg::Vec2Array& texcoords = *(getSim()->tritexcoords);
+	return cv::Point2f( (int) (texcoords[m_vert2tex[m_node2vert[node_id]]].x() * (tex_image.cols-1)) ,
+			tex_image.rows-1 - (int) (texcoords[m_vert2tex[m_node2vert[node_id]]].y() * (tex_image.rows-1)) );
 }

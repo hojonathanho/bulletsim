@@ -14,11 +14,6 @@ pcl::PointCloud<ColorPoint>::Ptr readPCD(const std::string& pcdfile) {
   return cloud;
 }
 
-
-static const float cx = 320-.5;
-static const float cy = 240-.5;
-static const float f = 525;
-
 Eigen::MatrixXi xyz2uv(const Eigen::MatrixXf& xyz) {
  // http://www.pcl-users.org/Using-Kinect-with-PCL-How-to-project-a-3D-point-x-y-z-to-the-depth-rgb-image-and-how-to-unproject-a--td3164499.html
   VectorXf x = xyz.col(0);

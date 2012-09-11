@@ -121,18 +121,19 @@ int main(int argc, char *argv[]) {
 		scene.env->add(box);
 
 		BulletSoftObject::Ptr cloth = initCloth(*scene.env->bullet->softBodyWorldInfo, sx, sy, rx, ry, h);
-//		cv::Mat flag_tex = cv::imread("/home/alex/Desktop/flag.jpg");
-//		cloth->setTexture(flag_tex.clone());
-		cloth->setColor(1,0,0,1);
+		cv::Mat flag_tex = cv::imread("/home/alex/Desktop/flag.jpg");
+		if (flag_tex.empty()) cloth->setColor(1,0,0,1);
+		else cloth->setTexture(flag_tex.clone());
 		scene.env->add(cloth);
 
 		BulletSoftObject::Ptr observed_cloth = initCloth(*scene.env->bullet->softBodyWorldInfo, sx, sy, rx, ry, h);
-//		observed_cloth->setTexture(flag_tex.clone());
+		if (flag_tex.empty()) observed_cloth->setColor(1,0,0,1);
+		else observed_cloth->setTexture(flag_tex.clone());
 		observed_cloth->setColor(1,0,0,1);
-		TrackedObject::Ptr observed_tracked(new TrackedTowel(observed_cloth, rx, ry));
+		TrackedObject::Ptr observed_tracked(new TrackedTowel(observed_cloth, rx, ry, sx, sy));
 		observed_tracked->init();
 
-		TrackedObject::Ptr trackedObj(new TrackedTowel(cloth, rx, ry));
+		TrackedObject::Ptr trackedObj(new TrackedTowel(cloth, rx, ry, sx, sy));
 		trackedObj->init();
 		EverythingIsVisible::Ptr visInterface(new EverythingIsVisible());
 
@@ -151,11 +152,18 @@ int main(int argc, char *argv[]) {
 		scene.addVoidKeyCallback('h',boost::bind(shift, observed_cloth, btVector3(0,-0.01*METERS,0)));
 		scene.addVoidKeyCallback('k',boost::bind(shift, observed_cloth, btVector3(0,0.01*METERS,0)));
 
+		scene.addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Page_Up,boost::bind(shift, observed_cloth, btVector3(0,0,0.01*METERS)));
+		scene.addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Page_Down,boost::bind(shift, observed_cloth, btVector3(0,0,-0.01*METERS)));
+		scene.addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Left,boost::bind(shift, observed_cloth, btVector3(0,-0.01*METERS,0)));
+		scene.addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Right,boost::bind(shift, observed_cloth, btVector3(0,0.01*METERS,0)));
+		scene.addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Up,boost::bind(shift, observed_cloth, btVector3(-0.01*METERS,0,0)));
+		scene.addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Down,boost::bind(shift, observed_cloth, btVector3(0.01*METERS,0,0)));
+
 		btSoftBody::tNodeArray& target_nodes = observed_cloth->softBody->m_nodes;
 
 		scene.startViewer();
 
-    boost::posix_time::ptime sim_time = boost::posix_time::microsec_clock::local_time();
+    //boost::posix_time::ptime sim_time = boost::posix_time::microsec_clock::local_time();
     while (true) {
     	//Update the inputs of the featureExtractors and visibilities (if they have any inputs)
 
@@ -166,8 +174,8 @@ int main(int argc, char *argv[]) {
 
 			trakingVisualizer->update();
     	scene.step(0.03);
-    	cout << (boost::posix_time::microsec_clock::local_time() - sim_time).total_milliseconds() << endl;
-    	sim_time = boost::posix_time::microsec_clock::local_time();
+    	//cout << (boost::posix_time::microsec_clock::local_time() - sim_time).total_milliseconds() << endl;
+    	//sim_time = boost::posix_time::microsec_clock::local_time();
     }
 
     return 0;

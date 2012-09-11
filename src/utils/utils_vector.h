@@ -69,6 +69,14 @@ std::vector<T> append(const std::vector<std::vector<T> >& v, int start, int end)
 	return res;
 }
 
+template <typename T>
+void remove(std::vector<T>& v, const T& e) {
+	typename std::vector<T>::iterator it;
+	while ((it = find(v.begin(), v.end(), e)) != v.end()) {
+		v.erase(it);
+	}
+}
+
 bool cwiseOr(const std::vector<bool>& v);
 
 bool cwiseAnd(const std::vector<bool>& v);

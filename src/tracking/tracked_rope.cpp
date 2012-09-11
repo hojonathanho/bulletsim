@@ -29,9 +29,12 @@ const Eigen::VectorXf TrackedRope::getPriorDist() {
 	Eigen::MatrixXf prior_dist(1,FeatureExtractor::m_allDim);
 	prior_dist << TrackingConfig::pointPriorDist*METERS, TrackingConfig::pointPriorDist*METERS, TrackingConfig::pointPriorDist*METERS,  //FT_XYZ
 			0.2, 0.2, 0.2, 	//FT_BGR
-			0.3, 0.15, 0.15,	//FT_LAB
-			1.0, 1.0, 1.0,
-			1.0;
+			TrackingConfig::colorLPriorDist, TrackingConfig::colorABPriorDist, TrackingConfig::colorABPriorDist,	//FT_LAB
+			1.0, 1.0, 1.0,  //FT_NORMAL
+			1.0,  //FT_LABEL
+			MatrixXf::Ones(1, FE::FT_SIZES[FE::FT_SURF])*0.4,  //FT_SURF
+			MatrixXf::Ones(1, FE::FT_SIZES[FE::FT_PCASURF])*0.4,  //FT_PCASURF
+			0.5;  //FT_GRADNORMAL
 	return FeatureExtractor::all2ActiveFeatures(prior_dist).transpose();
 }
 
@@ -69,8 +72,7 @@ cv::Mat TrackedRope::makeTexture(ColorCloudPtr cloud) {
 		searchPoint.y = nodes[j].y();
 		searchPoint.z = nodes[j].z();
 		// Neighbors within radius search
-//		float radius = ((float) TrackingConfig::fixeds)/10.0; //(fixeds in cm)
-		float radius = ((float) 3)/10.0; //(fixeds in cm)
+		float radius = 0.03*METERS;
 		std::vector<int> pointIdxRadiusSearch;
 		std::vector<float> pointRadiusSquaredDistance;
 		Eigen::Matrix3f node_rot = toEigenMatrix(rotations[j]);

@@ -16,6 +16,7 @@ add_library(simulation
     util.cpp
     simplescene.cpp
     softbodies.cpp
+    softBodyHelpers.cpp
     rope.cpp
     hand.cpp
     plotting.cpp

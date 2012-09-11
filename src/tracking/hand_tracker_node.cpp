@@ -31,6 +31,8 @@
 #include "utils/conversions.h"
 #include "plotting_tracking.h"
 #include <osg/Depth>
+#include "tracking/utils_tracking.h"
+#include "clouds/utils_ros.h"
 using sensor_msgs::PointCloud2;
 using sensor_msgs::Image;
 using namespace std;

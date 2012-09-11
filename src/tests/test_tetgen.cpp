@@ -29,9 +29,10 @@ void	initTetraFile(Scene& scene)
 			false,true,true);
 
 	scene.env->add(BulletSoftObject::Ptr(new BulletSoftObject(psb)));
+
 	psb->scale(btVector3(1,1,1));
 	psb->translate(btVector3(0,0,5));
-	psb->setVolumeMass(300);
+	psb->setVolumeMass(100);
 
 	///fix one vertex
 	//psb->setMass(0,0);
@@ -44,9 +45,11 @@ void	initTetraFile(Scene& scene)
 
 	psb->getCollisionShape()->setMargin(0.01);
 	psb->m_cfg.collisions	=	btSoftBody::fCollision::CL_SS+	btSoftBody::fCollision::CL_RS
-		+ btSoftBody::fCollision::CL_SELF
+		//+ btSoftBody::fCollision::CL_SELF
 		;
-	psb->m_materials[0]->m_kLST=0.8;
+	psb->m_materials[0]->m_kLST=0.08;
+  psb->m_materials[0]->m_kAST		=	0.1;
+  psb->m_materials[0]->m_kVST		=	0.1;
 
 	//psb->generateBendingConstraints(2);
 
@@ -156,7 +159,7 @@ void	init3DCloth(Scene& scene)
 	corners_base.push_back(btVector3(half_extent,-half_extent,0));
 	corners_base.push_back(btVector3(half_extent,half_extent,0));
 	corners_base.push_back(btVector3(-half_extent,half_extent,0));
-	btVector3 polygon_translation = btVector3(0,0,1);
+	btVector3 polygon_translation = btVector3(0,0,4);
 
 	//Create your psb
 	btSoftBody* psb=CreatePrism(*scene.bullet->softBodyWorldInfo, corners_base, polygon_translation, 1.414, 0.4, false,true,true);
@@ -186,6 +189,47 @@ void	init3DCloth(Scene& scene)
 	psb->m_cfg.kDF=1.0;
 }
 
+//
+// Cube Sponge
+//
+void	initSponge(Scene& scene)
+{
+	float half_extent = 1.4*METERS;
+	vector<btVector3> corners_base;
+	corners_base.push_back(btVector3(-half_extent,-half_extent,0));
+	corners_base.push_back(btVector3(half_extent,-half_extent,0));
+	corners_base.push_back(btVector3(half_extent,half_extent,0));
+	corners_base.push_back(btVector3(-half_extent,half_extent,0));
+	btVector3 polygon_translation = btVector3(0,0,0.3*METERS);
+
+	//Create your psb
+	btSoftBody* psb=CreatePrism(*scene.bullet->softBodyWorldInfo, corners_base, polygon_translation, 1.414, 0.8*METERS*METERS*METERS/1000.0, false,true,true);
+
+	scene.env->add(BulletSoftObject::Ptr(new BulletSoftObject(psb)));
+	//psb->scale(btVector3(METERS/10.0,METERS/10.0,METERS/10.0));
+	psb->translate(btVector3(0,0,0.5*METERS));
+	psb->setVolumeMass(300);
+
+	///fix one vertex
+	//psb->setMass(0,0);
+	//psb->setMass(10,0);
+	//psb->setMass(20,0);
+	psb->m_cfg.piterations=1;
+	//psb->generateClusters(128);
+	psb->generateClusters(16);
+	//psb->getCollisionShape()->setMargin(0.5);
+
+	psb->getCollisionShape()->setMargin(0.001*METERS);
+	psb->m_cfg.collisions	=	btSoftBody::fCollision::CL_SS+	btSoftBody::fCollision::CL_RS
+//		+ btSoftBody::fCollision::CL_SELF
+		;
+	psb->m_materials[0]->m_kLST=0.4;
+
+	//psb->generateBendingConstraints(2);
+
+	psb->m_cfg.kDF=1.0;
+}
+
 int main(int argc, char *argv[]) {
     GeneralConfig::scale = 10.;
     BulletConfig::maxSubSteps = 0;
@@ -200,7 +244,8 @@ int main(int argc, char *argv[]) {
 
     //initTetraFile(scene);
     //initTetraPrism(scene);
-    init3DCloth(scene);
+    //init3DCloth(scene);
+    initSponge(scene);
 
     scene.startViewer();
     scene.startLoop();

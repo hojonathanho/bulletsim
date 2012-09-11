@@ -1,3 +1,4 @@
+#include "testing.h"
 #include <stdio.h>
 #include <iostream>
 #include <Eigen/Dense>
@@ -30,7 +31,37 @@ bool isApproxEq(MatrixXf m0, MatrixXf m1) {
 	return (error_cnt == 0);
 }
 
-void infinityDebug(const MatrixXf& mat, const char* mat_name = "mat") {
+bool isApproxEq(const Affine3f& t0, const Affine3f& t1) {
+	for (int i=0; i<16; i++) {
+		if (!isApproxEq(t0.data()[i], t1.data()[i])) return false;
+	}
+	return true;
+}
+
+bool isApproxEq(const btVector3& v0, const btVector3& v1) {
+	for (int i=0; i<3; i++)
+		if (!isApproxEq(v0.m_floats[i], v1.m_floats[i])) return false;
+	return true;
+}
+
+bool isApproxEq(const btMatrix3x3& m0, const btMatrix3x3& m1) {
+	for (int i=0; i<3; i++)
+		if (!isApproxEq(m0[i], m1[i])) return false;
+	return true;
+}
+
+bool isApproxEq(const btTransform& t0, const btTransform& t1) {
+	float t0_m[16];
+	float t1_m[16];
+	t0.getOpenGLMatrix(t0_m);
+	t1.getOpenGLMatrix(t1_m);
+	for (int i=0; i<16; i++) {
+		if (!isApproxEq(t0_m[i], t1_m[i])) return false;
+	}
+	return true;
+}
+
+void infinityDebug(const MatrixXf& mat, const char* mat_name) {
 	int r=0;
 	for (int row=0; row < mat.rows(); row++) {
 		int c=0;

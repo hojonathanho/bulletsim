@@ -103,6 +103,11 @@ public:
 		void setColor(float r, float g, float b, float a);
 		void setTexture(const cv::Mat& image);
 		void adjustTransparency(float increment);
+
+		int getIndex(const btTransform& transform) { return 0; }
+		int getIndexSize() { return 1; }
+		btTransform getIndexTransform(int index) { return rigidBody->getCenterOfMassTransform(); }
+
 private:
 		bool enable_texture;
 		osg::Vec4f m_color;

@@ -15,6 +15,7 @@
 #include <Serialize/BulletFileLoader/btBulletFile.h>
 #include <boost/scoped_array.hpp>
 #include "set_colors_visitor.h"
+#include <opencv2/imgproc/imgproc.hpp>
 
 /*
  * todo: it would make more sense to create node at construction time
@@ -248,23 +249,9 @@ void BulletObject::setTexture(const cv::Mat& image) {
 	image.copyTo(*m_cvimage);
 
 	//hack to convert cv::Mat images to osg::Image images
-	cv::imwrite("/tmp/images/image.jpg", image);
-	m_image = osgDB::readImageFile("/tmp/images/image.jpg");
+	cv::imwrite("/tmp/image.jpg", image);
+	m_image = osgDB::readImageFile("/tmp/image.jpg");
 
-//	m_image = new osg::Image();
-//	m_image->allocateImage(
-//		image.cols,
-//		image.rows,
-//		3,
-//		6407, // GLenum pixelFormat, (GL_RGB, 0x1907)
-//		5121); // GLenum type, (GL_UNSIGNED_BYTE, 0x1401)
-//	for (int i=0; i<image.rows; i++) {
-//		for (int j=0; j<image.cols; j++) {
-//			for (int k=0; k<3; k++) {
-//				m_image->data(j,image.rows-i)[k] = image.at<cv::Vec3b>(i,j)[2-k];
-//			}
-//		}
-//	}
 	if (node) setTextureAfterInit();
 	enable_texture = true;
 }

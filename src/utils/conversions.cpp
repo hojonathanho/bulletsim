@@ -89,12 +89,16 @@ Eigen::VectorXf toVectorXf(const std::vector<float>& in) {
 }
 
 btTransform toBulletTransform(const Eigen::Affine3f& affine) {
-  Eigen::Vector3f transEig = affine.translation();
-  Eigen::Matrix3f rotEig = affine.rotation();
-  Eigen::Quaternionf quatEig = Eigen::Quaternionf(rotEig);
-  btVector3 transBullet = toBulletVector(transEig);
-  btQuaternion quatBullet = btQuaternion(quatEig.x(), quatEig.y(), quatEig.z(), quatEig.w());
-  return btTransform(quatBullet,transBullet);
+	btTransform t;
+	t.setFromOpenGLMatrix(affine.data());
+	return t;
+
+//  Eigen::Vector3f transEig = affine.translation();
+//  Eigen::Matrix3f rotEig = affine.rotation();
+//  Eigen::Quaternionf quatEig = Eigen::Quaternionf(rotEig);
+//  btVector3 transBullet = toBulletVector(transEig);
+//  btQuaternion quatBullet = btQuaternion(quatEig.x(), quatEig.y(), quatEig.z(), quatEig.w());
+//  return btTransform(quatBullet,transBullet);
 }
 
 btTransform toBulletTransform(const geometry_msgs::Transform& in) {
@@ -106,13 +110,17 @@ btTransform toBulletTransform(const geometry_msgs::Transform& in) {
 
 
 Eigen::Affine3f toEigenTransform(const btTransform& transform) {
-  btVector3 transBullet = transform.getOrigin();
-  btQuaternion quatBullet = transform.getRotation();
-  Eigen::Translation3f transEig;
-  transEig = Eigen::Translation3f(toEigenVector(transBullet));
-  Eigen::Matrix3f rotEig = Eigen::Quaternionf(quatBullet.w(),quatBullet.x(),quatBullet.y(),quatBullet.z()).toRotationMatrix();
-  Eigen::Affine3f out = transEig*rotEig;
-  return out;
+  Eigen::Affine3f t;
+  transform.getOpenGLMatrix(t.data());
+  return t;
+
+//	btVector3 transBullet = transform.getOrigin();
+//  btQuaternion quatBullet = transform.getRotation();
+//  Eigen::Translation3f transEig;
+//  transEig = Eigen::Translation3f(toEigenVector(transBullet));
+//  Eigen::Matrix3f rotEig = Eigen::Quaternionf(quatBullet.w(),quatBullet.x(),quatBullet.y(),quatBullet.z()).toRotationMatrix();
+//  Eigen::Affine3f out = transEig*rotEig;
+//  return out;
 }
 
 geometry_msgs::Transform toROSTransform(const Eigen::Affine3f& in) {
@@ -209,4 +217,3 @@ std::vector<geometry_msgs::Point32> toROSPoints32(const std::vector<btVector3>& 
 	}
 	return out;
 }
-

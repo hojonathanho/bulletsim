@@ -4,6 +4,7 @@
 #include <tf/tf.h>
 #include <tf/transform_listener.h>
 #include <bulletsim_msgs/TrackedObject.h>
+#include "clouds/utils_ros.h"
 #include "utils/logging.h"
 #include "visibility.h"
 #include "physics_tracker.h"
@@ -111,6 +112,7 @@ int main(int argc, char* argv[]) {
 // xxx: I'm passing bad arguments to callInitService
   TrackedObject::Ptr trackedObj = callInitServiceAndCreateObject(scaleCloud(filteredCloud,1/METERS), cv::Mat(), 0);
   if (!trackedObj) throw runtime_error("initialization of object failed.");
+  cout << trackedObj->m_type << endl;
   trackedObj->init();
   scene.env->add(trackedObj->m_sim);
 

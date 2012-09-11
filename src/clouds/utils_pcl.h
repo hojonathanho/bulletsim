@@ -4,9 +4,14 @@
 #include <string>
 #include <Eigen/Dense>
 #include <opencv2/core/core.hpp>
+#include <LinearMath/btVector3.h>
 #include "pcl_typedefs.h"
 #include <LinearMath/btTransform.h>
 #include <sensor_msgs/PointCloud2.h>
+
+static const float cx = 320-.5;
+static const float cy = 240-.5;
+static const float f = 525;
 
 typedef Eigen::Matrix<bool,Eigen::Dynamic,1> VectorXb;
 typedef Eigen::Matrix<uint8_t,Eigen::Dynamic,Eigen::Dynamic> MatrixXu;
@@ -14,6 +19,9 @@ typedef Eigen::Matrix<uint8_t,Eigen::Dynamic,Eigen::Dynamic> MatrixXu;
 ColorCloudPtr readPCD(const std::string& pcdfile);
 
 Eigen::MatrixXi xyz2uv(const Eigen::MatrixXf& xyz);
+inline cv::Point2f xyz2uv(const btVector3& point) {
+  return cv::Point2f(f*point.x()/point.z() + cx, f*point.y()/point.z() + cy);
+}
 
 Eigen::MatrixXf toEigenMatrix(ColorCloudPtr);
 Eigen::MatrixXf toEigenMatrix(const cv::Mat&);
@@ -48,6 +56,7 @@ inline ColorPoint toColorPoint(const Eigen::Vector3f& vec) {
     pt.z = vec(2);
     return pt;
 }
+
 inline ColorPoint toColorPoint(const btVector3& vec) {
     ColorPoint pt;
     pt.x = vec.x();
@@ -55,6 +64,15 @@ inline ColorPoint toColorPoint(const btVector3& vec) {
     pt.z = vec.z();
     return pt;
 }
+
+inline Point toPoint(const Eigen::Vector3f& vec) {
+    Point pt;
+    pt.x = vec(0);
+    pt.y = vec(1);
+    pt.z = vec(2);
+    return pt;
+}
+
 inline Eigen::Vector3f toEigenVector(const ColorPoint& pt) {return Eigen::Vector3f(pt.x,pt.y,pt.z);}
 
 ColorCloudPtr fromROSMsg1(const sensor_msgs::PointCloud2& msg);
