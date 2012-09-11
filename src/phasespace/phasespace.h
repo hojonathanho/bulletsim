@@ -182,9 +182,10 @@ protected:
   MarkerSystemBase() {}
 
   std::vector<MarkerBody::Ptr> m_marker_bodies;
-  static const int m_marker_count;
 
 public:
+  static const int m_marker_count;
+
   void add(MarkerBody::Ptr marker_body) { m_marker_bodies.push_back(marker_body); }
   template<class T>
   void add(std::vector<boost::shared_ptr<T> > marker_bodies) { m_marker_bodies.insert(m_marker_bodies.end(), marker_bodies.begin(), marker_bodies.end()); }

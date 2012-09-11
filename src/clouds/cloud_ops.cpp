@@ -160,19 +160,35 @@ ColorCloudPtr findConvexHull(ColorCloudPtr in, std::vector<pcl::Vertices>& polyg
   ColorCloudPtr out(new ColorCloud());
   pcl::ConvexHull<PointT> chull;
   chull.setInputCloud (in);
-//  chull.setDimension(2);
+  chull.setDimension(2);
   chull.reconstruct (*out, polygons);
   return out;
 }
 
-ColorCloudPtr cropToHull(const ColorCloudPtr in, ColorCloudPtr hull_cloud, std::vector<pcl::Vertices>& polygons) {
+ColorCloudPtr cropToHull(const ColorCloudPtr in, ColorCloudPtr hull_cloud, std::vector<pcl::Vertices>& polygons, bool organized) {
   ColorCloudPtr out(new ColorCloud());
   pcl::CropHull<PointT> crop_filter;
   crop_filter.setInputCloud (in);
   crop_filter.setHullCloud (hull_cloud);
   crop_filter.setHullIndices (polygons);
   crop_filter.setDim (2);
-  crop_filter.filter (*out);
+  if (!organized) {
+  	crop_filter.filter (*out);
+  } else {
+  	crop_filter.setCropOutside(false);
+  	vector<int> indices;
+  	crop_filter.filter(indices);
+  	*out = *in;
+
+  	for (int i=0; i<indices.size(); i++) {
+  		out->at(indices[i]).x = numeric_limits<float>::quiet_NaN();
+  		out->at(indices[i]).y = numeric_limits<float>::quiet_NaN();
+  		out->at(indices[i]).z = numeric_limits<float>::quiet_NaN();
+  		out->at(indices[i]).r = 0;
+  		out->at(indices[i]).g = 0;
+  		out->at(indices[i]).b = 0;
+  	}
+  }
   return out;
 }
 

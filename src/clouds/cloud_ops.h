@@ -14,7 +14,7 @@ ColorCloudPtr removeRadiusOutliers(const ColorCloudPtr in, float radius, int min
 ColorCloudPtr smoothSurface(const ColorCloudPtr in);
 ColorCloudPtr findConcaveHull(ColorCloudPtr in, std::vector<pcl::Vertices>& polygons);
 ColorCloudPtr findConvexHull(ColorCloudPtr in, std::vector<pcl::Vertices>& polygons);
-ColorCloudPtr cropToHull(const ColorCloudPtr in, ColorCloudPtr hull, std::vector<pcl::Vertices>& polygons);
+ColorCloudPtr cropToHull(const ColorCloudPtr in, ColorCloudPtr hull, std::vector<pcl::Vertices>& polygons, bool organized=false);
 ColorCloudPtr projectOntoPlane(const ColorCloudPtr in, Eigen::Vector4f& coeffs);
 ColorCloudPtr filterZ(ColorCloudPtr in, float low, float high);
 ColorCloudPtr filterY(ColorCloudPtr in, float low, float high);

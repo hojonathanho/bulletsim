@@ -10,19 +10,12 @@
 #include "simulation/softbodies.h"
 #include "tracking/tracked_object.h"
 #include "tracking/utils_tracking.h"
-#include "tracking/config_tracking.h"
 
 using namespace std;
 using namespace Eigen;
 
 int main(int argc, char *argv[]) {
-	GeneralConfig::scale = 100;
-	BulletConfig::maxSubSteps = 0;
-
 	Parser parser;
-	parser.addGroup(GeneralConfig());
-	parser.addGroup(BulletConfig());
-	parser.addGroup(SceneConfig());
 	parser.addGroup(PhasespaceConfig());
 	parser.read(argc, argv);
 
@@ -30,7 +23,7 @@ int main(int argc, char *argv[]) {
 	scene.env->remove(scene.ground);
 
 	MarkerSystem::Ptr marker_system(new MarkerSystem());
-	marker_system->add(createMarkerRigid(PhasespaceConfig::kinectInfo_filenames[0], scene.env));
+	marker_system->add(createMarkerRigid(string(getenv("BULLETSIM_SOURCE_DIR")) + "/data/phasespace_rigid_info/" + PhasespaceConfig::kinectInfo_filenames[0], scene.env));
 	marker_system->startUpdateLoopThread();
 
 	scene.startViewer();

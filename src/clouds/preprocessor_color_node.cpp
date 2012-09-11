@@ -22,6 +22,18 @@
 #include "utils/conversions.h"
 #include "utils_ros.h"
 
+#include <pcl/filters/passthrough.h>
+#include <pcl/ModelCoefficients.h>
+#include <pcl/point_types.h>
+#include <pcl/sample_consensus/method_types.h>
+#include <pcl/sample_consensus/model_types.h>
+#include <pcl/filters/project_inliers.h>
+#include <pcl/segmentation/sac_segmentation.h>
+#include <pcl/surface/concave_hull.h>
+#include <pcl/segmentation/extract_polygonal_prism_data.h>
+#include <pcl/filters/extract_indices.h>
+#include <pcl/filters/crop_hull.h>
+
 using namespace std;
 using namespace Eigen;
 
@@ -95,6 +107,7 @@ public:
   ros::NodeHandle& m_nh;
   ros::Publisher m_cloudPub, m_imagePub;
   ros::Publisher m_cloudGreenPub, m_cloudNotGreenPub;
+  ros::Publisher m_cloudHullPub;
   ros::Publisher m_polyPub;
   tf::TransformBroadcaster m_broadcaster;
   tf::TransformListener m_listener;
@@ -109,7 +122,12 @@ public:
   btTransform m_transform;
   geometry_msgs::Polygon m_poly;
 
+  //DEBUG
+  ColorCloudPtr cloud_hull;
+  std::vector<pcl::Vertices> polygons;
+
   void callback(const sensor_msgs::PointCloud2& msg_in) {
+  	// Needs this to update the opencv windows
     if (LocalConfig::debugMask || LocalConfig::debugGreenFilter) cv::waitKey(20);
 
   	ColorCloudPtr cloud_in(new ColorCloud());
@@ -122,21 +140,25 @@ public:
 			} else {
 				initTable(cloud_green);
 			}
+
+			setupPolygon(cloud_in);
 		}
 
-    ColorCloudPtr cloud_out(new ColorCloud(*cloud_in));
+    // prism filter
+    ColorCloudPtr cloud_out = cropToHull(cloud_in, cloud_hull, polygons, true);
 
-    //Filter out green background and put yellow back
-		ColorCloudPtr cloud_neg_green = colorSpaceFilter(cloud_out, MIN_L, MAX_L, MIN_A, MAX_A, MIN_B, MAX_B, CV_BGR2Lab, true, false);
-		//ColorCloudPtr cloud_yellow = colorSpaceFilter(cloud_out, 0, 255, 0, 255, 190, 255, CV_BGR2Lab, true, false);
-		*cloud_out = *cloud_neg_green; // + *cloud_yellow;
+    // image-based filters: color, morphological and connected components
+		cv::Mat image = toCVMatImage(cloud_in);
+		cv::Mat neg_green = colorSpaceMask(image, MIN_L, MAX_L, MIN_A, MAX_A, MIN_B, MAX_B, CV_BGR2Lab); // remove green
+		cv::Mat yellow = colorSpaceMask(image, 0, 255, 0, 255, 0, 123, CV_BGR2Lab); // add yellow
+		if (LocalConfig::debugMask) cv::imshow("mask negative green", neg_green);
+		if (LocalConfig::debugMask) cv::imshow("mask yellow", yellow);
 
-		// Cloud-based filters
-		cloud_out = orientedBoxFilter(cloud_out, toEigenMatrix(m_transform.getBasis()), m_mins, m_maxes, true);
+		cv::Mat cropped_image = toCVMatImage(cloud_out);
+		if (LocalConfig::debugMask) cv::imshow("cropped image", yellow);
 
-		// Image-based filters
-		cv::Mat mask = toCVMatImage(cloud_out);
-		mask = toBinaryMask(mask);
+		cv::Mat mask = (neg_green | yellow) & toBinaryMask(cropped_image);
+
 		if (LocalConfig::debugMask) cv::imshow("mask original", mask);
 		mask = sparseSmallFilter(mask, 1, 2, 100, 2);
 		if (LocalConfig::debugMask) cv::imshow("mask", mask);
@@ -147,13 +169,17 @@ public:
 		if (LocalConfig::debugMask) cv::imshow("inv_mask", inv_mask);
 
 		mask = inv_mask == 0;
+		// For some reason, there is white borders on this mask image; remove them
+		mask.col(0) *= 0;
+		mask.col(mask.cols-1) *= 0;
+		mask.row(0) *= 0;
+		mask.row(mask.rows-1) *= 0;
 		if (LocalConfig::debugMask) cv::imshow("mask final", mask);
 
-		cv::Mat image = toCVMatImage(cloud_in);
-		image = maskImage(image, mask);
+		cloud_out = maskCloud(cloud_in, mask);
 
-		// Cloud-based filters
-		cloud_out = maskCloud(cloud_in, mask, true, false);
+		cv::merge(vector<cv::Mat>(3, mask), mask);
+		image &= mask;
 
 		if (LocalConfig::removeOutliers) cloud_out = removeOutliers(cloud_out, 1, 10);
 		if (LocalConfig::downsample > 0) cloud_out = downsampleCloud(cloud_out, LocalConfig::downsample);
@@ -190,6 +216,8 @@ public:
 			m_cloudNotGreenPub.publish(msg_not_green);
 		}
 
+		////////////////////////////////////////////////
+
 		//Publish image version of cloud
     cv_bridge::CvImage image_msg;
     image_msg.header   = msg_in.header;
@@ -197,13 +225,54 @@ public:
     image_msg.image    = image;
     m_imagePub.publish(image_msg.toImageMsg());
 
-		broadcastKinectTransform(m_transform.inverse(), msg_in.header.frame_id, "ground", m_broadcaster, m_listener);
+		//broadcastKinectTransform(m_transform.inverse(), msg_in.header.frame_id, "ground", m_broadcaster, m_listener);
 
     geometry_msgs::PolygonStamped polyStamped;
     polyStamped.polygon = m_poly;
     polyStamped.header.frame_id = msg_in.header.frame_id;
     polyStamped.header.stamp = ros::Time::now();
     m_polyPub.publish(polyStamped);
+  }
+
+  void setupPolygon(ColorCloudPtr cloud) {
+  	ColorCloudPtr cloud_filtered (new ColorCloud(*cloud));
+  	ColorCloudPtr cloud_projected (new ColorCloud);
+
+  	pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
+  	pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
+  	// Create the segmentation object
+  	pcl::SACSegmentation<pcl::PointXYZRGB> seg;
+  	seg.setModelType (pcl::SACMODEL_PLANE);
+  	seg.setMethodType (pcl::SAC_RANSAC);
+  	seg.setDistanceThreshold (0.01);
+
+  	seg.setInputCloud (cloud_filtered);
+  	seg.segment (*inliers, *coefficients);
+
+  	// Project the model inliers
+  	pcl::ProjectInliers<pcl::PointXYZRGB> proj;
+  	proj.setModelType (pcl::SACMODEL_PLANE);
+  	proj.setInputCloud (cloud_filtered);
+  	proj.setModelCoefficients (coefficients);
+  	proj.filter (*cloud_projected);
+
+  	cloud_projected = colorSpaceFilter(cloud_projected, 0,255,0,166,0,255, CV_BGR2Lab, true, true);
+
+		pcl::PassThrough<ColorPoint> ptfilter; // Initializing with true will allow us to extract the removed indices
+		ptfilter.setInputCloud (cloud_projected);
+		ptfilter.filter (*cloud_projected);
+
+  	cloud_hull.reset(new ColorCloud(*findConvexHull(cloud_projected, polygons)));
+
+  	m_poly.points.clear();
+  	for (int i=0; i<cloud_hull->size(); i++) {
+			ColorPoint pt = cloud_hull->at(i);
+			geometry_msgs::Point32 g_pt;
+			g_pt.x = pt.x;
+			g_pt.y = pt.y;
+			g_pt.z = pt.z;
+			m_poly.points.push_back(g_pt);
+		}
   }
 
   void initTable(ColorCloudPtr cloud) {
@@ -258,6 +327,7 @@ public:
 				m_cloudGreenPub = nh.advertise<sensor_msgs::PointCloud2>(nodeNS+"/green/points",5);
 				m_cloudNotGreenPub = nh.advertise<sensor_msgs::PointCloud2>(nodeNS+"/not_green/points",5);
 			}
+			m_cloudHullPub = nh.advertise<sensor_msgs::PointCloud2>(nodeNS+"/hull/points",5);
     }
 };
 
