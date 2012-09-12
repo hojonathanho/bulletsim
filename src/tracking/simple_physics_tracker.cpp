@@ -9,6 +9,7 @@
 #include <boost/thread.hpp>
 #include "utils/testing.h"
 #include "feature_extractor.h"
+#include "utils/logging.h"
 
 using namespace Eigen;
 using namespace std;
@@ -74,9 +75,9 @@ void SimplePhysicsTracker::doIteration() {
   m_estPts = m_obj_features->getFeatures();
 
   // E STEP
-  //boost::posix_time::ptime e_time = boost::posix_time::microsec_clock::local_time();
-  MatrixXf pZgivenC = calculateResponsibilitiesNaive(m_estPts, m_obsPts, m_stdev, vis, m_obj->getOutlierDist(), m_obj->getOutlierStdev());
-  //cout << "E time " << (boost::posix_time::microsec_clock::local_time() - e_time).total_milliseconds() << endl;
+  boost::posix_time::ptime e_time = boost::posix_time::microsec_clock::local_time();
+  MatrixXf pZgivenC = calculateResponsibilities(m_estPts, m_obsPts, m_stdev, vis, m_obj->getOutlierDist(), m_obj->getOutlierStdev());
+  LOG_DEBUG("E time " << (boost::posix_time::microsec_clock::local_time() - e_time).total_milliseconds());
 
 #ifdef CHECK_CORRECTNESS
   boost::posix_time::ptime en_time = boost::posix_time::microsec_clock::local_time();
@@ -106,13 +107,13 @@ void SimplePhysicsTracker::doIteration() {
 	else m_debugPlot->clear();
 
   // M STEP
-  //boost::posix_time::ptime evidence_time = boost::posix_time::microsec_clock::local_time();
+  boost::posix_time::ptime evidence_time = boost::posix_time::microsec_clock::local_time();
   if (m_applyEvidence) m_obj->applyEvidence(pZgivenC, m_obsPts);
-  //cout << "Evidence time " << (boost::posix_time::microsec_clock::local_time() - evidence_time).total_milliseconds() << endl;
+  LOG_DEBUG("Evidence time " << (boost::posix_time::microsec_clock::local_time() - evidence_time).total_milliseconds());
 
-  //boost::posix_time::ptime m_time = boost::posix_time::microsec_clock::local_time();
+  boost::posix_time::ptime m_time = boost::posix_time::microsec_clock::local_time();
   m_stdev = calculateStdev(m_estPts, m_obsPts, pZgivenC, m_prior_dist, 10);
-  //cout << "M time " << (boost::posix_time::microsec_clock::local_time() - m_time).total_milliseconds() << endl;
+  LOG_DEBUG("M time " << (boost::posix_time::microsec_clock::local_time() - m_time).total_milliseconds());
 
 #ifdef CHECK_CORRECTNESS
   boost::posix_time::ptime mn_time = boost::posix_time::microsec_clock::local_time();

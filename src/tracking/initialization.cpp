@@ -131,5 +131,5 @@ TrackedObject::Ptr callInitServiceAndCreateObject(ColorCloudPtr cloud, ColorClou
 }
 
 TrackedObject::Ptr callInitServiceAndCreateObject(ColorCloudPtr cloud, cv::Mat image, CoordinateTransformer* transformer) {
-	callInitServiceAndCreateObject(scaleCloud(cloud, METERS), ColorCloudPtr(new ColorCloud()), image, transformer);
+	return callInitServiceAndCreateObject(scaleCloud(cloud, METERS), ColorCloudPtr(new ColorCloud()), image, transformer);
 }

@@ -145,8 +145,33 @@ void BulletSoftObject::setColorAfterInit() {
     }
 }
 
+//void BulletSoftObject::setTexture(cv::Mat image) {
+//	//clear out color information
+//	osg::Vec4Array* colors = new osg::Vec4Array;
+//	colors->push_back(osg::Vec4(1,1,1,1));
+//	trigeom->setColorArray(colors);
+//	trigeom->setColorBinding(osg::Geometry::BIND_OVERALL);
+//
+//	//hack to convert cv::Mat images to osg::Image images
+//	cv::imwrite("/tmp/images/image.jpg", image);
+//	m_image = osgDB::readImageFile("/tmp/images/image.jpg");
+//
+//	osg::Texture2D* texture = new osg::Texture2D;
+//	// protect from being optimized away as static state:
+//	texture->setDataVariance(osg::Object::DYNAMIC);
+//	// Assign the texture to the image we read from file:
+//	texture->setImage(m_image.get());
+//	// Create a new StateSet with default settings:
+//	//osg::StateSet* stateOne = new osg::StateSet();
+//	osg::StateSet* state = geode->getOrCreateStateSet();
+//	// Assign texture unit 0 of our new StateSet to the texture
+//	// we just created and enable the texture.
+//	state->setTextureAttributeAndModes(0,texture,osg::StateAttribute::ON);
+//}
+
 void BulletSoftObject::setTexture(cv::Mat image) {
-	m_cvimage = image.clone();
+	m_cvimage.reset(new cv::Mat);
+	image.copyTo(*m_cvimage);
 
 	//hack to convert cv::Mat images to osg::Image images
 	cv::imwrite("/tmp/image.jpg", image);

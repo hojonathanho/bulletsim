@@ -7,6 +7,7 @@
 #include <boost/thread.hpp>
 #include "utils/testing.h"
 #include "feature_extractor.h"
+#include "utils/logging.h"
 #include <cv.h>
 
 using namespace Eigen;
@@ -47,7 +48,12 @@ void PhysicsTracker::updateFeatures() {
 }
 
 void PhysicsTracker::expectationStep() {
-  //boost::posix_time::ptime e_time = boost::posix_time::microsec_clock::local_time();
+
+  boost::posix_time::ptime e_time = boost::posix_time::microsec_clock::local_time();
+  m_pZgivenC = calculateResponsibilities(m_estPts, m_obsPts, m_stdev, m_vis, m_objFeatures->m_obj->getOutlierDist(), m_objFeatures->m_obj->getOutlierStdev());
+  LOG_DEBUG("E time " << (boost::posix_time::microsec_clock::local_time() - e_time).total_milliseconds());
+
+#if 0
 	if (isFinite(m_estPts) && isFinite(m_obsPts) && isFinite(m_vis) && isFinite(m_stdev)) {
 ////		float a = 0.1;
 ////		float b = 0.9;
@@ -60,7 +66,8 @@ void PhysicsTracker::expectationStep() {
 		m_pZgivenC = calculateResponsibilitiesNaive(m_estPts, m_obsPts, m_stdev, m_vis, m_objFeatures->m_obj->getOutlierDist(), m_objFeatures->m_obj->getOutlierStdev());
 	} else
 		cout << "WARNING: PhysicsTracker: the input is not finite" << endl;
-  //cout << "E time " << (boost::posix_time::microsec_clock::local_time() - e_time).total_milliseconds() << endl;
+#endif
+
 
 #ifdef CHECK_CORRECTNESS
   boost::posix_time::ptime en_time = boost::posix_time::microsec_clock::local_time();
@@ -71,6 +78,17 @@ void PhysicsTracker::expectationStep() {
 }
 
 void PhysicsTracker::maximizationStep(bool apply_evidence) {
+
+  boost::posix_time::ptime evidence_time = boost::posix_time::microsec_clock::local_time();
+  if (apply_evidence) m_objFeatures->m_obj->applyEvidence(m_pZgivenC, m_obsPts);
+  LOG_DEBUG("Evidence time " << (boost::posix_time::microsec_clock::local_time() - evidence_time).total_milliseconds());
+
+  boost::posix_time::ptime m_time = boost::posix_time::microsec_clock::local_time();
+  m_stdev = calculateStdev(m_estPts, m_obsPts, m_pZgivenC, m_priorDist, TrackingConfig::pointPriorCount);
+  LOG_DEBUG("M time " << (boost::posix_time::microsec_clock::local_time() - m_time).total_milliseconds());
+
+
+#if 0
   //boost::posix_time::ptime evidence_time = boost::posix_time::microsec_clock::local_time();
 
 	if (apply_evidence && isFinite(m_pZgivenC) && isFinite(m_estPts) && isFinite(m_obsPts))
@@ -80,6 +98,7 @@ void PhysicsTracker::maximizationStep(bool apply_evidence) {
   //boost::posix_time::ptime m_time = boost::posix_time::microsec_clock::local_time();
   if (isFinite(m_pZgivenC)) m_stdev = calculateStdev(m_estPts, m_obsPts, m_pZgivenC, m_priorDist, 1);
   //cout << "M time " << (boost::posix_time::microsec_clock::local_time() - m_time).total_milliseconds() << endl;
+#endif
 
 #ifdef CHECK_CORRECTNESS
   boost::posix_time::ptime mn_time = boost::posix_time::microsec_clock::local_time();
@@ -120,19 +139,16 @@ PhysicsTrackerVisualizer::PhysicsTrackerVisualizer(Scene* scene, PhysicsTracker:
 	m_scene->env->add(m_corrPlot);
 	m_corrPlot->setDefaultColor(1,1,0,.3);
 
-	m_scene->addVoidKeyCallback('c',boost::bind(toggle, &m_enableCorrPlot));
-	m_scene->addVoidKeyCallback('C',boost::bind(toggle, &m_enableCorrPlot));
-	m_scene->addVoidKeyCallback('e',boost::bind(toggle, &m_enableEstPlot));
-	m_scene->addVoidKeyCallback('E',boost::bind(toggle, &m_enableEstTransPlot));
-	m_scene->addVoidKeyCallback('o',boost::bind(toggle, &m_enableObsPlot));
-	m_scene->addVoidKeyCallback('O',boost::bind(toggle, &m_enableObsTransPlot));
-	m_scene->addVoidKeyCallback('i',boost::bind(toggle, &m_enableObsInlierPlot));
-	m_scene->addVoidKeyCallback('I',boost::bind(toggle, &m_enableObsInlierPlot));
-	m_scene->addVoidKeyCallback('r',boost::bind(toggle, &m_enableEstCalcPlot));
-	m_scene->addVoidKeyCallback('R',boost::bind(toggle, &m_enableEstCalcPlot));
+	m_scene->addVoidKeyCallback('c',boost::bind(toggle, &m_enableCorrPlot), "correspondence lines");
+	m_scene->addVoidKeyCallback('e',boost::bind(toggle, &m_enableEstPlot), "plot node positions");
+	m_scene->addVoidKeyCallback('E',boost::bind(toggle, &m_enableEstTransPlot), "plot node positions (lab colorspace)");
+	m_scene->addVoidKeyCallback('o',boost::bind(toggle, &m_enableObsPlot), "plot observations");
+	m_scene->addVoidKeyCallback('O',boost::bind(toggle, &m_enableObsTransPlot), "plot observations (lab colorspace)");
+	m_scene->addVoidKeyCallback('i',boost::bind(toggle, &m_enableObsInlierPlot), "plot observations colored by inlier frac");
+	m_scene->addVoidKeyCallback('r',boost::bind(toggle, &m_enableEstCalcPlot), "plot target positions for nodes");
 
-  m_scene->addVoidKeyCallback('[',boost::bind(add, &m_nodeCorrPlot, -1));
-  m_scene->addVoidKeyCallback(']',boost::bind(add, &m_nodeCorrPlot, 1));
+  m_scene->addVoidKeyCallback('[',boost::bind(add, &m_nodeCorrPlot, -1), "??");
+  m_scene->addVoidKeyCallback(']',boost::bind(add, &m_nodeCorrPlot, 1), "??");
 }
 
 void PhysicsTrackerVisualizer::update() {
@@ -160,9 +176,10 @@ void PhysicsTrackerVisualizer::update() {
 	else m_estTransPlot->clear();
 
 	if (m_enableEstCalcPlot) {
-		MatrixXf nodes = calculateNodesNaive(estPts, obsPts, pZgivenC);
-		plotNodesAsSpheres(FE::activeFeatures2Feature(nodes, FE::FT_XYZ), obsFeatures->getFeatures(FE::FT_BGR), VectorXf::Ones(nodes.rows()), FE::activeFeatures2Feature(stdev, FE::FT_XYZ), m_estCalcPlot);
-	} else m_estCalcPlot->clear();
+	    MatrixXf nodes = calculateNodesNaive(estPts, obsPts, pZgivenC);
+	    plotNodesAsSpheres(FE::activeFeatures2Feature(nodes, FE::FT_XYZ), FE::activeFeatures2Feature(nodes, FE::FT_LAB), VectorXf::Ones(nodes.rows()), FE::activeFeatures2Feature(stdev, FE::FT_XYZ), m_estCalcPlot);
+	}
+	else m_estCalcPlot->clear();
 
 	if (m_enableCorrPlot) drawCorrLines(m_corrPlot, toBulletVectors(objFeatures->getFeatures(FE::FT_XYZ)), toBulletVectors(obsFeatures->getFeatures(FE::FT_XYZ)), pZgivenC, 0.01, m_nodeCorrPlot);
 	else m_corrPlot->clear();

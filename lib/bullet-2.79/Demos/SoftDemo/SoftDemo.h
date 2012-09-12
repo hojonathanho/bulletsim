@@ -63,7 +63,7 @@ public:
 	bool								m_cutting;
 	bool								m_raycast;
 	btScalar							m_animtime;
-	btClock								m_clock;
+  //	btClock								m_clock;
 	int									m_lastmousepos[2];
 	btVector3							m_impact;
 	btSoftBody::sRayCast				m_results;

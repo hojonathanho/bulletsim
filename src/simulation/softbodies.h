@@ -43,20 +43,21 @@ public:
     virtual void saveToFile(ostream &s) const;
 
     void setColor(float,float,float,float);
+
     // just sets the image, not the texture coordinates
     void setTexture(cv::Mat image);
     // sets the image and the texture coordinates
     void setTexture(cv::Mat image, const btTransform& camFromWorld);
     cv::Point2f getTexCoord(int nodeIdx);
-		void adjustTransparency(float increment);
+  void adjustTransparency(float increment);
 
 		// for softbody transforms. look at EnvironmentObject for precise definition.
-    int getIndex(const btTransform& transform);
-    int getIndexSize();
-    btTransform getIndexTransform(int index);
+  int getIndex(const btTransform& transform);
+  int getIndexSize();
+  btTransform getIndexTransform(int index);
 
-		bool checkIntersection(const btVector3& start, const btVector3& end);
-		vector<btVector3> getIntersectionPoints(const btVector3& start, const btVector3& end);
+  bool checkIntersection(const btVector3& start, const btVector3& end);
+  vector<btVector3> getIntersectionPoints(const btVector3& start, const btVector3& end);
 
     // custom anchor management
     typedef int AnchorHandle;
@@ -87,12 +88,12 @@ private:
 		osg::Vec4f m_color;
 		void setColorAfterInit();
 		osg::ref_ptr<osg::Image> m_image;
-		cv::Mat m_cvimage;
+		boost::shared_ptr<cv::Mat> m_cvimage;
 		void setTextureAfterInit();
     AnchorHandle nextAnchorHandle;
     map<AnchorHandle, int> anchormap;
 public:
-		cv::Mat getTexture() { return m_cvimage; }
+		cv::Mat& getTexture() { return *m_cvimage; }
 		osg::Vec4f getColor() {return m_color;}
 };
 

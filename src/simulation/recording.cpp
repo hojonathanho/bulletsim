@@ -2,10 +2,14 @@
 #include <boost/filesystem.hpp>
 #include "utils/my_exceptions.h"
 #include "utils/my_assert.h"
+#include <opencv2/highgui/highgui.hpp>
+#include "utils/logging.cpp"
+#include <osgDB/WriteFile>
 namespace fs = boost::filesystem;
 using namespace std;
 
 int RecordingConfig::record = 0;
+string RecordingConfig::dir = "/tmp/snapshots";
 
 bool yesOrNo(char message[]) {
   while (true) {
@@ -31,14 +35,40 @@ void askToResetDir(fs::path p) {
   ENSURE(fs::create_directory(p));
 }
 
+void MyWriteToFile::operator () (const osg::Image& image, const unsigned int context_id) {
+  char fname[30];
+  sprintf(fname,"image%.4i.jpg", n);
+  fs::path savePath = fs::path(m_outPath) / fname;
+  osgDB::writeImageFile(image, savePath.string());
+  ++n;
+  LOG_INFO_FMT("writing %s", savePath.string().c_str());
+}
+
 
 ScreenRecorder::ScreenRecorder(osgViewer::Viewer& viewer) : frameCount(0), m_viewer(viewer) {
-  askToResetDir("screenshots");
-  m_captureHandler = new osgViewer::ScreenCaptureHandler(new osgViewer::ScreenCaptureHandler::WriteToFile("screenshots/img", "jpg", osgViewer::ScreenCaptureHandler::WriteToFile::SEQUENTIAL_NUMBER));
-  //  m_viewer.addEventHandler(m_captureHandler);
+  askToResetDir(RecordingConfig::dir);
+  m_captureHandler = new osgViewer::ScreenCaptureHandler(new MyWriteToFile(RecordingConfig::dir));
+//    m_viewer.addEventHandler(m_captureHandler);
 }
 
 void ScreenRecorder::snapshot() {
-  cout << "taking snapshot!" << endl;
+  LOG_INFO("capturing next frame...");
   m_captureHandler->captureNextFrame(m_viewer);
+  m_captureHandler->setFramesToCapture(1);
+}
+
+ConsecutiveImageWriter::ConsecutiveImageWriter(std::string outPath) :
+  m_outPath(outPath),
+  n(0)
+{
+  askToResetDir(fs::path(outPath));
+}
+
+void ConsecutiveImageWriter::write(cv::Mat mat) {
+  char fname[30];
+  sprintf(fname,"image%.4i.jpg", n);
+  fs::path savePath = fs::path(m_outPath) / fname;
+  cv::imwrite(savePath.string(), mat);
+  LOG_INFO_FMT("writing %s", savePath.string().c_str());
+  ++n;
 }

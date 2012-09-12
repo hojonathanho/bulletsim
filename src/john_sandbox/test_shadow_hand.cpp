@@ -125,7 +125,7 @@ int main(int argc, char* argv[]) {
     matrixFromFile("/tmp/overlap.txt", overlap);
     filterCallback = new MatrixFilterCallback(overlap);  
     
-    scene.env->bullet->dynamicsWorld->getPairCache()->setOverlapFilterCallback(filterCallback);
+//    scene.env->bullet->dynamicsWorld->getPairCache()->setOverlapFilterCallback(filterCallback);
     scene.env->bullet->dispatcher->setNearCallback(&MyNearCallback);
     scene.startViewer();
     scene.startLoop();

@@ -20,13 +20,19 @@
 #include "utils/logging.h"
 #include "utils/utils_vector.h"
 #include "visibility.h"
-#include "simple_physics_tracker.h"
+#include "physics_tracker.h"
+#include "feature_extractor.h"
 #include "initialization.h"
 #include "simulation/simplescene.h"
 #include "config_tracking.h"
-
-#include "tracked_compound.h"
-
+#include "simulation/hand.h"
+#include "tracking/tracked_compound.h"
+#include "clouds/cloud_ops.h"
+#include "utils/conversions.h"
+#include "plotting_tracking.h"
+#include <osg/Depth>
+#include "tracking/utils_tracking.h"
+#include "clouds/utils_ros.h"
 using sensor_msgs::PointCloud2;
 using sensor_msgs::Image;
 using namespace std;
@@ -70,15 +76,6 @@ void imagesCallback (const sensor_msgs::ImageConstPtr& depthImageMsg,
 
   pending_images[i] = true;
   //cout << "pending_images[" << i << "] " << pending_images[i] << endl;
-}
-
-void adjustTransparency(TrackedObject::Ptr trackedObj, float increment) {
-	if (trackedObj->m_type == "rope")
-		dynamic_cast<CapsuleRope*>(trackedObj->getSim())->adjustTransparency(increment);
-	if (trackedObj->m_type == "towel")
-		dynamic_cast<BulletSoftObject*>(trackedObj->getSim())->adjustTransparency(increment);
-	if (trackedObj->m_type == "box")
-		dynamic_cast<BulletObject*>(trackedObj->getSim())->adjustTransparency(increment);
 }
 
 int main(int argc, char* argv[]) {
@@ -130,60 +127,73 @@ int main(int argc, char* argv[]) {
   Scene scene;
   scene.startViewer();
 
+//  BulletObject::Ptr camera(new BulletObject(1, new btConeShapeZ(.2*METERS, .2*METERS),
+//							  util::scaleTransform(transformer->worldFromCamUnscaled, METERS),true));
+//  scene.env->add(camera);
 
-Hand::Ptr hand = new
-  TrackedCompound trackedHand(new TrackedCompound(hand));
-  TrackedObject::Ptr trackedObj = callInitServiceAndCreateObject(scaleCloud(filteredCloud,1/METERS), rgbImages[0], transformer_images[0]);
-  if (!trackedObj) throw runtime_error("initialization of object failed.");
+  btVector3 initHandPos = transformer->toWorldFromCam(btVector3(0,0,.7));
+  btTransform initHandTrans = btTransform(btQuaternion(0,0,1,0), initHandPos);
+  Hand::Ptr hand = makeHand(19, initHandTrans);
+  scene.env->add(hand);
+  TrackedObject::Ptr trackedObj(new TrackedCompound(hand, scene.env->bullet->dynamicsWorld));
   trackedObj->init();
-  scene.env->add(trackedObj->m_sim);
+
+  btVector3 filterBoxHalfExtents = btVector3(.15,.15,.15)*METERS;
+  BoxObject::Ptr filterBox(new BoxObject(0, filterBoxHalfExtents, initHandTrans));
+  scene.env->add(filterBox);
+  scene.env->bullet->dynamicsWorld->removeRigidBody(filterBox->rigidBody.get());
+  filterBox->setColor(0,1,0,.2);
+  osg::Depth* depth = new osg::Depth;
+  depth->setWriteMask( false );
+  filterBox->node->getOrCreateStateSet()->setAttributeAndModes( depth, osg::StateAttribute::ON );
+
+
+
 
   // actual tracking algorithm
 	MultiVisibility::Ptr visInterface(new MultiVisibility());
 	for (int i=0; i<nCameras; i++) {
-		if (trackedObj->m_type == "rope") // Don't do self-occlusion if the trackedObj is a rope
-			visInterface->addVisibility(DepthImageVisibility::Ptr(new DepthImageVisibility(transformer_images[i])));
-		else
-			visInterface->addVisibility(AllOcclusionsVisibility::Ptr(new AllOcclusionsVisibility(scene.env->bullet->dynamicsWorld, transformer_images[i])));
+//		visInterface->addVisibility(BulletRaycastVisibility::Ptr(new BulletRaycastVisibility(scene.env->bullet->dynamicsWorld, transformer)));
+		visInterface->addVisibility(EverythingIsVisible::Ptr(new EverythingIsVisible()));
 	}
-	SimplePhysicsTracker alg(trackedObj, visInterface, scene.env);
 
-  scene.addVoidKeyCallback('c',boost::bind(toggle, &alg.m_enableCorrPlot));
-  scene.addVoidKeyCallback('C',boost::bind(toggle, &alg.m_enableCorrPlot));
-  scene.addVoidKeyCallback('e',boost::bind(toggle, &alg.m_enableEstPlot));
-  scene.addVoidKeyCallback('E',boost::bind(toggle, &alg.m_enableEstTransPlot));
-  scene.addVoidKeyCallback('o',boost::bind(toggle, &alg.m_enableObsPlot));
-  scene.addVoidKeyCallback('O',boost::bind(toggle, &alg.m_enableObsTransPlot));
-  scene.addVoidKeyCallback('i',boost::bind(toggle, &alg.m_enableObsInlierPlot));
-  scene.addVoidKeyCallback('I',boost::bind(toggle, &alg.m_enableObsInlierPlot));
-  scene.addVoidKeyCallback('b',boost::bind(toggle, &alg.m_enableDebugPlot));
-  scene.addVoidKeyCallback('B',boost::bind(toggle, &alg.m_enableDebugPlot));
-  scene.addVoidKeyCallback('a',boost::bind(toggle, &alg.m_applyEvidence));
-  scene.addVoidKeyCallback('=',boost::bind(adjustTransparency, trackedObj, 0.1f));
-  scene.addVoidKeyCallback('-',boost::bind(adjustTransparency, trackedObj, -0.1f));
+	TrackedObjectFeatureExtractor::Ptr objectFeatures(new TrackedObjectFeatureExtractor(trackedObj));
+	CloudFeatureExtractor::Ptr cloudFeatures(new CloudFeatureExtractor());
+	PhysicsTracker::Ptr alg(new PhysicsTracker(objectFeatures, cloudFeatures, visInterface));
+	PhysicsTrackerVisualizer::Ptr trakingVisualizer(new PhysicsTrackerVisualizer(&scene, alg));
 
-  scene.addVoidKeyCallback('[',boost::bind(add, &alg.m_count, -1));
-  scene.addVoidKeyCallback(']',boost::bind(add, &alg.m_count, 1));
 
+	PointCloudPlot::Ptr allCloud(new PointCloudPlot(4));
+	scene.env->add(allCloud);
+
+	bool applyEvidence = true;
+  scene.addVoidKeyCallback('a',boost::bind(toggle, &applyEvidence));
+  scene.addVoidKeyCallback('=',boost::bind(&EnvironmentObject::adjustTransparency, trackedObj->getSim(), 0.1f));
+  scene.addVoidKeyCallback('-',boost::bind(&EnvironmentObject::adjustTransparency, trackedObj->getSim(), -0.1f));
   scene.addVoidKeyCallback('q',boost::bind(exit, 0));
 
   while (ros::ok()) {
-    alg.updateInput(filteredCloud);
-    //TODO update arbitrary number of depth images)
+  	//Update the inputs of the featureExtractors and visibilities (if they have any inputs)
+     	allCloud->setPoints1(filteredCloud);
+	 filteredCloud = boxFilter(filteredCloud, toEigenVector(initHandPos - filterBoxHalfExtents),
+											  toEigenVector(initHandPos + filterBoxHalfExtents));
+	 LOG_DEBUG("cloud size: " << filteredCloud->size());
+ 	cloudFeatures->updateInputs(filteredCloud);
+  	//TODO update arbitrary number of depth images)
     visInterface->visibilities[0]->updateInput(depthImages[0]);
     pending = false;
     while (ros::ok() && !pending) {
-      alg.doIteration();
-    	scene.env->step(.03,2,.015);
-      LOG_DEBUG("did iteration");
+    	//Do iteration
+      alg->updateFeatures();
+      alg->expectationStep();
+      alg->maximizationStep(applyEvidence);
+
+      trakingVisualizer->update();
+      scene.env->step(.03,2,.015);
       scene.viewer.frame();
       ros::spinOnce();
     }
-    LOG_DEBUG("publishing");
     //TODO
     //objPub.publish(toTrackedObjectMessage(trackedObj));
   }
-
-
-
 }

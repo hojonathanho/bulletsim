@@ -25,6 +25,7 @@
 #include "config_tracking.h"
 #include "utils/conversions.h"
 #include "clouds/cloud_ops.h"
+//#include "phasespace/config_phasespace.h"
 
 using sensor_msgs::PointCloud2;
 using sensor_msgs::Image;
@@ -73,7 +74,7 @@ int main(int argc, char* argv[]) {
 
   Parser parser;
   parser.addGroup(TrackingConfig());
-  parser.addGroup(PhasespaceConfig());
+//  parser.addGroup(PhasespaceConfig());
   parser.addGroup(GeneralConfig());
   parser.addGroup(BulletConfig());
   parser.read(argc, argv);
@@ -134,11 +135,11 @@ int main(int argc, char* argv[]) {
 	PhysicsTrackerVisualizer::Ptr trackingVisualizer(new PhysicsTrackerVisualizer(&scene, alg));
 
 	bool applyEvidence = true;
-  scene.addVoidKeyCallback('a',boost::bind(toggle, &applyEvidence));
-  scene.addVoidKeyCallback('=',boost::bind(&EnvironmentObject::adjustTransparency, trackedObj->getSim(), 0.1f));
-  scene.addVoidKeyCallback('-',boost::bind(&EnvironmentObject::adjustTransparency, trackedObj->getSim(), -0.1f));
+  scene.addVoidKeyCallback('a',boost::bind(toggle, &applyEvidence), "apply evidence");
+  scene.addVoidKeyCallback('=',boost::bind(&EnvironmentObject::adjustTransparency, trackedObj->getSim(), 0.1f), "increase opacity");
+  scene.addVoidKeyCallback('-',boost::bind(&EnvironmentObject::adjustTransparency, trackedObj->getSim(), -0.1f), "decrease opacity");
   bool exit_loop = false;
-  scene.addVoidKeyCallback('q',boost::bind(toggle, &exit_loop));
+  scene.addVoidKeyCallback('q',boost::bind(toggle, &exit_loop), "exit");
 
   while (!exit_loop && ros::ok()) {
   	//Update the inputs of the featureExtractors and visibilities (if they have any inputs)

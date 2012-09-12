@@ -18,7 +18,7 @@ VectorXi searchsorted(const VectorXf& x, const VectorXf& y) {
   return out;
 }
 
-MatrixXf interp2d(const VectorXf& xNew, const VectorXf& xOld, const MatrixXf& yOld) {
+MatrixXf interp2f(const VectorXf& xNew, const VectorXf& xOld, const MatrixXf& yOld) {
 
   int nNew = xNew.size();
   int nOld = xOld.size();
@@ -32,6 +32,26 @@ MatrixXf interp2d(const VectorXf& xNew, const VectorXf& xOld, const MatrixXf& yO
       yNew.row(iNew) = yOld.row(nOld-1);
     else {
       float t = (xNew(iNew) - xOld(iOldAbove-1)) / (xOld(iOldAbove) - xOld(iOldAbove-1));
+      yNew.row(iNew) = yOld.row(iOldAbove-1)*(1-t) + yOld.row(iOldAbove)*t;
+    }
+  }
+  return yNew;
+}
+
+MatrixXd interp2d(const VectorXd& xNew, const VectorXd& xOld, const MatrixXd& yOld) {
+
+  int nNew = xNew.size();
+  int nOld = xOld.size();
+  MatrixXd yNew(nNew, yOld.cols());
+  VectorXi new2old = searchsorted(xNew.cast<float>(), xOld.cast<float>());
+  for (int iNew=0; iNew < nNew; iNew++) {
+    int iOldAbove = new2old(iNew);
+    if (iOldAbove == 0) 
+      yNew.row(iNew) = yOld.row(0);
+    else if (iOldAbove == nOld)
+      yNew.row(iNew) = yOld.row(nOld-1);
+    else {
+      double t = (xNew(iNew) - xOld(iOldAbove-1)) / (xOld(iOldAbove) - xOld(iOldAbove-1));
       yNew.row(iNew) = yOld.row(iOldAbove-1)*(1-t) + yOld.row(iOldAbove)*t;
     }
   }

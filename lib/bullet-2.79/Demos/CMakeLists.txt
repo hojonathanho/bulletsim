@@ -21,7 +21,7 @@ IF (USE_GLUT)
 			MultiMaterialDemo SerializeDemo InternalEdgeDemo 
 			MultiThreadedDemo
 			ParticlesOpenCL
-			OpenCLClothDemo
+#			OpenCLClothDemo
 			)
 		ELSE()
 			SET(SharedDemoSubdirs

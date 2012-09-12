@@ -28,7 +28,6 @@ struct RaveInstance {
 void Load(Environment::Ptr env, RaveInstance::Ptr rave, const string& name, bool dynamicRobots = false);
 // copy constructor. will never call RaveInitialize or RaveDestroy
 
-
 enum TrimeshMode {
   CONVEX_DECOMP, // use HACD convex decomposition
   CONVEX_HULL, // use btShapeHull
@@ -105,7 +104,6 @@ public:
 
   // IK support
 };
-
 
 class RaveRobotObject : public RaveObject {
 public:
@@ -188,5 +186,11 @@ protected:
   std::vector<Manipulator::Ptr> createdManips;
   RaveRobotObject() {}
 };
+
+RaveObject::Ptr getObjectByName(Environment::Ptr env, RaveInstance::Ptr rave, const string& name);
+RaveRobotObject::Ptr getRobotByName(Environment::Ptr env, RaveInstance::Ptr rave, const string& name);
+
+
+
 
 #endif // _OPENRAVESUPPORT_H_

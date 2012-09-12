@@ -101,7 +101,7 @@ public:
     MoveAction::Ptr createMoveAction() { return MoveAction::Ptr(new MoveAction(this)); }
     MoveAction::Ptr createMoveAction(const btTransform &start, const btTransform &end, float time) { return MoveAction::Ptr(new MoveAction(this, start, end, time)); }
 		void setColor(float r, float g, float b, float a);
-		void setTexture(cv::Mat image);
+		void setTexture(const cv::Mat& image);
 		void adjustTransparency(float increment);
 
 		int getIndex(const btTransform& transform) { return 0; }
@@ -110,13 +110,13 @@ public:
 
 private:
 		bool enable_texture;
-		boost::shared_ptr<osg::Vec4f> m_color;
+		osg::Vec4f m_color;
 		void setColorAfterInit();
 		osg::ref_ptr<osg::Image> m_image;
-		cv::Mat m_cvimage;
+		boost::shared_ptr<cv::Mat> m_cvimage;
 		void setTextureAfterInit();
 public:
-		cv::Mat getTexture() { return m_cvimage; }
+		cv::Mat& getTexture() { return *m_cvimage; }
 };
 
 class BulletConstraint : public EnvironmentObject {

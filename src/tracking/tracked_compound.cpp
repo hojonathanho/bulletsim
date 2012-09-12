@@ -4,52 +4,94 @@
 #include "utils/cvmat.h"
 #include "simulation/bullet_io.h"
 #include "utils/utils_vector.h"
+#include "tracking/surface_sampling.h"
+#include <boost/foreach.hpp>
+#include "tracking/feature_extractor.h"
 
 using namespace std;
 using namespace Eigen;
 
-TrackedCompound::TrackedCompound(GenericCompoundObject::Ptr sim) : TrackedObject(sim, "compound") {
-  m_nNodes = sim->children.size();
-  m_masses.resize(m_nNodes);
-  for (int i=0; i < m_nNodes; i++) {
-    m_masses(i) = 1/getSim()->children[i]->rigidBody->getInvMass();
+TrackedCompound::TrackedCompound(GenericCompoundObject::Ptr sim, btDynamicsWorld* world) : TrackedObject(sim, "compound") {
+  m_nBodies = sim->children.size();
+  VectorXf bodyMasses(m_nBodies);
+  for (int i=0; i < m_nBodies; i++) {
+	sim->children[i];
+	sim->children[i]->rigidBody;
+    bodyMasses(i) = sim->children[i]->rigidBody->getInvMass();
   }
+
+  getSampledDescription(sim, world, .015*METERS, m_node2body, m_relativePos);
+  m_nNodes = m_node2body.size();
+  for (int i=0; i < m_nNodes; ++i) {
+	  m_body2nodes[m_node2body[i]].push_back(i);
+  }
+
+  m_masses.resize(m_nNodes);
+  for (int i=0; i < m_nBodies; ++i) {
+	  vector<int>& nodes = m_body2nodes[i];
+	  BOOST_FOREACH(int node, nodes) m_masses(node) = bodyMasses(i) / nodes.size();
+  }
+
 }
 
 std::vector<btVector3> TrackedCompound::getPoints() {
-	std::vector<btVector3> out(m_nNodes);
+	vector<btTransform> transforms;
+	transforms.reserve(m_nBodies);
+	BOOST_FOREACH(BulletObject::Ptr& child, getSim()->children) transforms.push_back(child->rigidBody->getCenterOfMassTransform());
+
+	vector<btVector3> out(m_nNodes);
 	for (int i=0; i < m_nNodes; ++i) {
-		out[i] = getSim()->children[i]->rigidBody->getCenterOfMassPosition();
+		int bodyInd = m_node2body[i];
+		out[i] = transforms[bodyInd] * m_relativePos[i];
 	}
 	return out;
 }
 
-const VectorXf TrackedCompound::getPriorDist() {
-	VectorXf prior_dist(6);
-	prior_dist << TrackingConfig::pointPriorDist*METERS, TrackingConfig::pointPriorDist*METERS, TrackingConfig::pointPriorDist*METERS, 0.3, 0.15, 0.15;
-	cout << "fixme: TrackedCompound::getPriorDist()" << endl;
-	return prior_dist;
+const Eigen::VectorXf TrackedCompound::getPriorDist() {
+	Eigen::MatrixXf prior_dist(1,FeatureExtractor::m_allDim);
+	prior_dist << TrackingConfig::pointPriorDist*METERS, TrackingConfig::pointPriorDist*METERS, TrackingConfig::pointPriorDist*METERS,  //FT_XYZ
+			0.2, 0.2, 0.2, 	//FT_BGR
+			0.3, 0.15, 0.15,	//FT_LAB
+			1.0, 1.0, 1.0,
+			1.0;
+	return FeatureExtractor::all2ActiveFeatures(prior_dist).transpose();
 }
 
 void TrackedCompound::applyEvidence(const Eigen::MatrixXf& corr, const MatrixXf& obsPts) {
-  vector<btVector3> estPos(m_nNodes), estVel(m_nNodes);
-  for (int i=0; i < m_nNodes; ++i)  {
-    estPos[i] = getSim()->children[i]->rigidBody->getCenterOfMassPosition();
-    estVel[i] = getSim()->children[i]->rigidBody->getLinearVelocity();
-  }
-  vector<btVector3> impulses = calcImpulsesDamped(estPos, estVel, toBulletVectors(obsPts.leftCols(3)), corr, toVec(m_masses), TrackingConfig::kp_rope, TrackingConfig::kd_rope);
+	vector<btTransform> transforms;
+	transforms.reserve(m_nBodies);
+	vector<btRigidBody*> bodies;
+	bodies.reserve(m_nBodies);
+	BOOST_FOREACH(BulletObject::Ptr& child, getSim()->children) {
+		transforms.push_back(child->rigidBody->getCenterOfMassTransform());
+		bodies.push_back(child->rigidBody.get());
+	}
+	vector<btVector3> pos(m_nNodes);
+	vector<btVector3> vel(m_nNodes);
+	for (int i=0; i < m_nNodes; ++i) {
+		int bodyInd = m_node2body[i];
+		pos[i] = transforms[bodyInd] * m_relativePos[i];
+		vel[i] = bodies[bodyInd]->getVelocityInLocalPoint(m_relativePos[i]);
+	}
+  vector<btVector3> impulses = calcImpulsesDamped(pos, vel, toBulletVectors(obsPts.leftCols(3)), corr, toVec(m_masses), TrackingConfig::kp_rope, TrackingConfig::kd_rope);
 
-  for (int i=0; i<m_nNodes; ++i) getSim()->children[i]->rigidBody->applyCentralImpulse(impulses[i]);
+	for (int i=0; i<m_nNodes; ++i) {
+	  getSim()->children[m_node2body[i]]->rigidBody->applyImpulse(impulses[i], m_relativePos[i]);
+	}
+
 }
 
 void TrackedCompound::initColors() {
-	for (int i=0; i < m_nNodes; ++i) {
+	TrackedObject::initColors();
+	return;
+	for (int i=0; i < m_nBodies; ++i) {
 		Vector3f bgr = toEigenMatrixImage(getSim()->children[i]->getTexture()).colwise().mean();
 		m_colors.row(i) = bgr.transpose();
 	}
 }
 
 cv::Mat TrackedCompound::makeTexture(ColorCloudPtr cloud) {
+#if 0
 	vector<btVector3> nodes = getPoints();
 	int x_res = 3;
 	int ang_res = 1;
@@ -108,4 +150,5 @@ cv::Mat TrackedCompound::makeTexture(ColorCloudPtr cloud) {
 		}
 	}
 	return image;
+#endif
 }

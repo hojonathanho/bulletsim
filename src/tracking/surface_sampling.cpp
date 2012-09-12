@@ -206,7 +206,7 @@ CloudPtr downsampleCloud1(const CloudPtr& in, float sz) {
   return out;
 }
 
-void getSurfacePoints(const std::set<btRigidBody*> objs, const btDynamicsWorld* world, std::vector<btVector3>& surfacePoints, std::vector<btRigidBody*>& ownerBodies) {
+void getSurfacePoints(const std::set<btRigidBody*> objs, const btCollisionWorld* world, std::vector<btVector3>& surfacePoints, std::vector<btRigidBody*>& ownerBodies) {
 	btVector3 sphereCenter;
 	float sphereRadius;
 	getBoundingSphere(objs, sphereCenter, sphereRadius);
@@ -276,7 +276,8 @@ void downsamplePointsOnEachBody(const std::vector<btVector3>& oldPts, const std:
 	}
 }
 
-void getSampledDescription(CompoundObject<BulletObject>::Ptr compoundObj, btDynamicsWorld* world, float voxelSize, std::vector<int>& bodyInds, std::vector<btVector3> pointRelPositions) {
+void getSampledDescription(CompoundObject<BulletObject>::Ptr compoundObj, btCollisionWorld* world, float voxelSize, std::vector<int>& bodyInds, std::vector<btVector3>& pointRelPositions) {
+
 
 	set<btRigidBody*> objs;
 	map<btRigidBody*, int> body2ind;
@@ -293,12 +294,11 @@ void getSampledDescription(CompoundObject<BulletObject>::Ptr compoundObj, btDyna
 	downsamplePointsOnEachBody(surfacePoints, ownerBodies, .015*METERS, dsSurfacePoints, dsOwnerBodies);
 
 	int nPtsDS = dsOwnerBodies.size();
-	bodyInds.resize(ownerBodies.size());
-	pointRelPositions.resize(ownerBodies.size());
+	bodyInds.resize(nPtsDS);
+	pointRelPositions.resize(nPtsDS);
 	for (int i=0; i < nPtsDS; ++i) {
-		bodyInds[i] = body2ind[ownerBodies[i]];
-		pointRelPositions[i] = ownerBodies[i]->getCenterOfMassTransform().invXform(dsSurfacePoints[i]);
+		bodyInds[i] = body2ind[dsOwnerBodies[i]];
+		pointRelPositions[i] = dsOwnerBodies[i]->getCenterOfMassTransform().invXform(dsSurfacePoints[i]);
 	}
-
 }
 

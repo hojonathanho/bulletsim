@@ -1,10 +1,12 @@
 #include "algorithm_common.h"
-#include "sparse_utils.h"
 #include "utils_tracking.h"
 #include "utils/conversions.h"
 #include <fstream>
+#if 0
 #include <pcl/point_cloud.h>
 #include <pcl/kdtree/kdtree_flann.h>
+#include "sparse_utils.h"
+#endif
 #include "config_tracking.h"
 #include "simulation/util.h"
 #include "utils/testing.h"
@@ -155,7 +157,7 @@ Eigen::MatrixXf calculateResponsibilitiesNaive(const Eigen::MatrixXf& estPts, co
 			pZgivenC.col(n) /= pZgivenC.col(n).sum();
 	}
 
-	//infinityDebug(pZgivenC, "pZgivenC");
+//	infinityDebug(pZgivenC, "pZgivenC");
 	assert(isFinite(pZgivenC));
 	assert(pZgivenC.rows() == K+1);
 	assert(pZgivenC.cols() == N);
@@ -286,6 +288,7 @@ Eigen::MatrixXf calculateResponsibilities(const Eigen::MatrixXf& estPts, const E
 }
 
 
+#if 0
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////// DEPRECATED //////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -506,3 +509,5 @@ void estimateCorrespondence(const Eigen::MatrixXf& estPts, const Eigen::VectorXf
     assert(isFinite(pZgivenB));
 
 }
+
+#endif

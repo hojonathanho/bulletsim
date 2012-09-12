@@ -7,14 +7,16 @@ public:
   typedef boost::shared_ptr<TrackedCompound> Ptr;
 
   std::vector<btVector3> m_relativePos;
-  std::vector<int> m_ownerInd;
+  int m_nBodies;
+  std::map<int, std::vector<int> > m_body2nodes;
+  std::vector<int> m_node2body;
 
-  TrackedCompound(GenericCompoundObject::Ptr sim);
+  TrackedCompound(GenericCompoundObject::Ptr sim, btDynamicsWorld* world);
 
   std::vector<btVector3> getPoints();
   const Eigen::VectorXf getPriorDist();
   void applyEvidence(const Eigen::MatrixXf& corr, const Eigen::MatrixXf& obsPts);
-  CapsuleRope* getSim() {return dynamic_cast<CapsuleRope*>(m_sim.get());}
+  GenericCompoundObject* getSim() {return dynamic_cast<GenericCompoundObject*>(m_sim.get());}
   cv::Mat makeTexture(ColorCloudPtr cloud);
   void initColors();
 

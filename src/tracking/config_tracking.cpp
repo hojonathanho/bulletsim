@@ -14,6 +14,7 @@ std::vector<int> TrackingConfig::featureTypes = std::vector<int>(featureTypes_a,
 
 
 float TrackingConfig::pointOutlierDist = 0.02;
+float TrackingConfig::pointPriorCount = 10;
 float TrackingConfig::pointPriorDist = 0.02;
 float TrackingConfig::colorLPriorDist = 0.4;
 float TrackingConfig::colorABPriorDist = 0.08;

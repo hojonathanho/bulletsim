@@ -75,6 +75,16 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr toPointCloud(const std::vector< std::vector<
   return out;
 }
 
+pcl::PointCloud<pcl::PointXYZ>::Ptr toPointCloud(const Eigen::MatrixXf& in) {
+  assert(in.cols() == 3);
+  pcl::PointCloud<pcl::PointXYZ>::Ptr out(new pcl::PointCloud<pcl::PointXYZ>());
+  out->points.reserve(in.rows());
+  out->width = in.rows();
+  out->height = 1;
+  for (int i=0; i < in.rows(); ++i) out->points.push_back(pcl::PointXYZ(in(i,0), in(i,1), in(i,2)));
+  return out;
+}
+
 bool pointIsFinite(const ColorPoint& pt) {
   return std::isfinite(pt.x) && std::isfinite(pt.y) && std::isfinite(pt.z);
 }
@@ -87,7 +97,7 @@ ColorCloudPtr transformPointCloud1(ColorCloudPtr in, Eigen::Affine3f transform) 
   return out;
 }
 
-ColorCloudPtr extractInds(ColorCloudPtr in, std::vector<int> inds) {
+ColorCloudPtr extractInds(ColorCloudPtr in, const std::vector<int>& inds) {
   ColorCloudPtr out(new ColorCloud());
   out->reserve(inds.size());
   out->width = inds.size();
@@ -147,4 +157,91 @@ bool loadTransform(const std::string& filename, Affine3f& t) {
 	bool ret = loadTransform(filename, mat);
 	t = (Affine3f) mat;
 	return ret;
+}
+
+ColorCloudPtr addColor(CloudPtr in, uint8_t r, uint8_t g, uint8_t b) {
+  ColorCloudPtr out(new ColorCloud());
+  out->points.reserve(in->size());
+  BOOST_FOREACH(Point& p, in->points) {
+    ColorPoint cpt;
+    cpt.x = p.x;
+    cpt.y = p.y;
+    cpt.z = p.z;
+    cpt.r = r;
+    cpt.g = g;
+    cpt.b = b;
+    out->points.push_back(cpt);
+  }
+  out->width = in->width;
+  out->height = in->height;
+  out->is_dense = in->is_dense;
+  out->header = in->header;
+  return out;
+}
+
+
+geometry_msgs::Point32 toROSPoint32(const btVector3& vec) {
+	geometry_msgs::Point32 g_pt;
+	g_pt.x = vec.x();
+	g_pt.y = vec.y();
+	g_pt.z = vec.z();
+	return g_pt;
+}
+
+geometry_msgs::Point32 toROSPoint32(const ColorPoint& pt) {
+	geometry_msgs::Point32 g_pt;
+	g_pt.x = pt.x;
+	g_pt.y = pt.y;
+	g_pt.z = pt.z;
+	return g_pt;
+}
+
+ColorPoint toColorPoint(const geometry_msgs::Point32& g_pt) {
+	ColorPoint pt;
+	pt.x = g_pt.x;
+	pt.y = g_pt.y;
+	pt.z = g_pt.z;
+	return pt;
+}
+
+ColorPoint toColorPoint(const Eigen::Vector3f& vec) {
+	ColorPoint pt;
+	pt.x = vec(0);
+	pt.y = vec(1);
+	pt.z = vec(2);
+	return pt;
+}
+
+ColorPoint toColorPoint(const btVector3& vec) {
+	ColorPoint pt;
+	pt.x = vec.x();
+	pt.y = vec.y();
+	pt.z = vec.z();
+	return pt;
+}
+
+Point toPoint(const Eigen::Vector3f& vec) {
+	Point pt;
+	pt.x = vec(0);
+	pt.y = vec(1);
+	pt.z = vec(2);
+	return pt;
+}
+
+ColorCloudPtr fromROSMsg1(const sensor_msgs::PointCloud2& msg) {
+  bool colorFound = false;
+  BOOST_FOREACH(const sensor_msgs::PointField& field, msg.fields) {
+    if (field.name == "r") colorFound = true;
+  }
+  if (colorFound) {
+    ColorCloudPtr cloud(new ColorCloud());
+    pcl::fromROSMsg(msg,*cloud);
+    return cloud;
+  }
+  else {
+    CloudPtr cloud(new Cloud());
+    pcl::fromROSMsg(msg, *cloud);
+    return addColor(cloud, 255, 255, 255);
+
+  }
 }

@@ -26,4 +26,5 @@ std::vector<T> interp(const Eigen::VectorXf& xNew, const Eigen::VectorXf& xOld, 
 }
 
 
-Eigen::MatrixXf interp2d(const Eigen::VectorXf& xNew, const Eigen::VectorXf& xOld, const Eigen::MatrixXf& yOld);
+Eigen::MatrixXf interp2f(const Eigen::VectorXf& xNew, const Eigen::VectorXf& xOld, const Eigen::MatrixXf& yOld);
+Eigen::MatrixXd interp2d(const Eigen::VectorXd& xNew, const Eigen::VectorXd& xOld, const Eigen::MatrixXd& yOld);

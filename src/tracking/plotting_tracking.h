@@ -6,6 +6,9 @@
 #include "clouds/utils_pcl.h"
 #include "sparse_utils.h"
 
+void setGlobalEnv(Environment::Ptr env);
+Environment::Ptr getGlobalEnv();
+
 class PointCloudPlot : public PlotPoints {
 public:
   typedef boost::shared_ptr<PointCloudPlot> Ptr;  
@@ -26,5 +29,4 @@ void plotObs(const vector<btVector3>& obsPts, const Eigen::VectorXf& inlierFrac,
 void plotObsBorder(const Eigen::MatrixXf cloud, PointCloudPlot::Ptr plot);
 void plotObs(const Eigen::MatrixXf cloud, PointCloudPlot::Ptr plot);
 void plotObs(const Eigen::MatrixXf centers, const Eigen::MatrixXf colors, PointCloudPlot::Ptr plot);
-
 void plotBoxes(const Eigen::MatrixXf centers, const Eigen::MatrixXf colors, const Eigen::VectorXf& alphas, const Eigen::MatrixXf& half_extents, PlotBoxes::Ptr box_plot);

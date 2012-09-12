@@ -5,6 +5,7 @@
 #include <boost/foreach.hpp>
 #include <fstream>
 #include "clouds/pcl_typedefs.h"
+#include "clouds/utils_pcl.h"
 #include <pcl/registration/transformation_estimation_svd.h>
 
 using namespace std;

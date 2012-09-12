@@ -15,6 +15,19 @@ public:
 
 };
 
+class FakeObjectCopy {
+public:
+	typedef boost::shared_ptr<FakeObjectCopy> Ptr;
+	BulletObject::Ptr m_orig;
+	osg::ref_ptr<osg::MatrixTransform> m_transform;
+	osg::Group* m_parent;
+	FakeObjectCopy(BulletObject::Ptr orig);
+	~FakeObjectCopy();
+	void setTransform(const btTransform& tf);
+	void makeChildOf(osg::Group* parent);
+	void setColor(const osg::Vec4f& color);
+};
+
 class TelekineticGripper : public CompoundObject<BulletObject> {
   map<KinBody::LinkPtr, int> m_linkToChildMap;
   TelekineticGripper() { }
