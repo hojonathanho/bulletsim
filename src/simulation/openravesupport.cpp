@@ -85,6 +85,10 @@ RaveObject::Ptr getObjectByName(Environment::Ptr env, RaveInstance::Ptr rave, co
   return RaveObject::Ptr();
 }
 
+RaveRobotObject::Ptr getRobotByName(Environment::Ptr env, RaveInstance::Ptr rave, const string& name) {
+  return boost::dynamic_pointer_cast<RaveRobotObject>(getObjectByName(env, rave, name));
+}
+
 RaveObject::RaveObject(RaveInstance::Ptr rave_, KinBodyPtr body_, TrimeshMode trimeshMode, bool isDynamic) {
 	initRaveObject(rave_, body_, trimeshMode, BulletConfig::margin * METERS, isDynamic);
 }

@@ -105,9 +105,6 @@ public:
   // IK support
 };
 
-RaveObject::Ptr getObjectByName(Environment::Ptr env, RaveInstance::Ptr rave, const string& name);
-
-
 class RaveRobotObject : public RaveObject {
 public:
   typedef boost::shared_ptr<RaveRobotObject> Ptr;
@@ -189,5 +186,11 @@ protected:
   std::vector<Manipulator::Ptr> createdManips;
   RaveRobotObject() {}
 };
+
+RaveObject::Ptr getObjectByName(Environment::Ptr env, RaveInstance::Ptr rave, const string& name);
+RaveRobotObject::Ptr getRobotByName(Environment::Ptr env, RaveInstance::Ptr rave, const string& name);
+
+
+
 
 #endif // _OPENRAVESUPPORT_H_

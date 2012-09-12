@@ -56,3 +56,6 @@ target_link_libraries(cloud_adjuster_node clouds utils ${PCL_LIBRARIES} ${ROS_LI
 
 add_executable(robot_preprocessor_node robot_preprocessor_node.cpp)
 target_link_libraries(robot_preprocessor_node clouds utils robots ${PCL_LIBRARIES} ${ROS_LIBRARIES} tf)
+
+add_executable(robot_self_filter robot_self_filter.cpp)
+target_link_libraries(robot_self_filter clouds utils robots ${PCL_LIBRARIES} ${ROS_LIBRARIES} tf)

@@ -65,3 +65,6 @@ target_link_libraries(test_surface_sampling simulation utils clouds tracking)
 
 add_executable(get_cloud_robot_frame get_cloud_robot_frame.cpp)
 target_link_libraries(get_cloud_robot_frame utils ${ROS_LIBRARIES} clouds tf robots)
+
+add_executable(test_recording test_recording.cpp)
+target_link_libraries(test_recording simulation)
