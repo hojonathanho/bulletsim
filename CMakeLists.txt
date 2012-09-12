@@ -3,15 +3,9 @@ project(bulletsim)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/CMakeModules")
 set(BULLETSIM_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
-
-IF (NOT CMAKE_BUILD_TYPE)
- SET(CMAKE_BUILD_TYPE "RelWithDebInfo")
-ENDIF (NOT CMAKE_BUILD_TYPE)
-
-find_package(catkin REQUIRED)
-catkin_stack()
-catkin_project(bulletsim)
-
+if (NOT CMAKE_BUILD_TYPE)
+ set(CMAKE_BUILD_TYPE "RelWithDebInfo")
+endif (NOT CMAKE_BUILD_TYPE)
 
 # external libraries
 find_package(Boost COMPONENTS system filesystem program_options REQUIRED)
@@ -31,6 +25,10 @@ set(OSG_INCLUDE_DIRS ${OPENTHREADS_LIBRARY_INCLUDE_DIR} ${OSG_LIBRARY_INCLUDE_DI
 find_package(OpenCV REQUIRED)
 find_package(PCL REQUIRED)
 
+#find_package(catkin REQUIRED)
+#catkin_stack()
+#catkin_project(bulletsim)
+
 find_package(ROS REQUIRED COMPONENTS
  sensor_msgs geometry_msgs std_msgs
  roscpp rosconsole message_filters
@@ -38,15 +36,16 @@ find_package(ROS REQUIRED COMPONENTS
  roscpp_serialization
  bulletsim_msgs
 )
+set(ROS_ROOT_DIR /opt/ros/fuerte)
 
+find_package(OpenCV REQUIRED)
 
-set(BUILD_SHARED_LIBS 0)
 add_definitions(${PCL_DEFINITIONS})
 add_definitions("-DEIGEN_DEFAULT_TO_ROW_MAJOR")
 add_definitions("-DBT_NO_PROFILE")
 
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
-SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fopenmp")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fopenmp")
 
 # directories for libraries packaged in this tree
 set(BULLET_DIR ${BULLETSIM_SOURCE_DIR}/lib/bullet-2.79)
@@ -68,6 +67,12 @@ set(WM_LIBRARY_DIR "${WM_ROOT}/SDK/Library/Debug")
 set(WM_LIBRARIES Wm5Core Wm5Imagics Wm5Mathematics Wm5Physics)
 set(GUROBI_INCLUDE_DIR "$ENV{GUROBI_HOME}/include")
 set(GUROBI_LIBRARY_DIR "$ENV{GUROBI_HOME}/lib")
+
+# build options
+option(BUILD_TESTS "Build test/demo programs" off)
+option(BUILD_TRACKING "Build tracking code" on)
+
+set(BUILD_SHARED_LIBS off)
 
 add_subdirectory(lib)
 add_subdirectory(src)

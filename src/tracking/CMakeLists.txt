@@ -1,15 +1,20 @@
 include_directories(
-    ${PCL_INCLUDE_DIRS}
-    ${BULLETSIM_SOURCE_DIR}/src
+  ${PCL_INCLUDE_DIRS}
+  ${BULLETSIM_SOURCE_DIR}/src
 )
 
+include_directories(
+  ${ROS_ROOT_DIR}/include
+  ${ROS_ROOT_DIR}/stacks/vision_opencv/cv_bridge/include
+  ${ROS_ROOT_DIR}/stacks/geometry/tf/include
+  ${ROS_ROOT_DIR}/stacks/geometry/tf/msg_gen/cpp/include
+  ${ROS_ROOT_DIR}/stacks/geometry/tf/srv_gen/cpp/include
+)
 
-include_directories("/opt/ros/fuerte/stacks/vision_opencv/cv_bridge/include") # XXX bad
-include_directories("/opt/ros/fuerte/stacks/geometry/tf/include"
-					"/opt/ros/fuerte/stacks/geometry/tf/msg_gen/cpp/include"
-					"/opt/ros/fuerte/stacks/geometry/tf/srv_gen/cpp/include") # fuck this shit
-link_directories("/opt/ros/fuerte/stacks/geometry/tf/lib"
-	"/opt/ros/fuerte/stacks/vision_opencv/cv_bridge/lib")
+link_directories(
+  ${ROS_ROOT_DIR}/stacks/geometry/tf/lib
+	${ROS_ROOT_DIR}/stacks/vision_opencv/cv_bridge/lib
+)
 
 add_library(tracking 
 	algorithm_common.cpp 
@@ -30,7 +35,7 @@ add_library(tracking
 	feature_extractor.cpp
 	tracked_compound.cpp
 )
-	
+
 target_link_libraries(tracking
 	simulation clouds robots)
 	

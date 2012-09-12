@@ -2,24 +2,25 @@
 #include_directories("/opt/ros/fuerte/stacks/perception_pcl/pcl_ros/include")
 #link_directories("/opt/ros/fuerte/stacks/perception_pcl/pcl_ros/lib")
 
-include_directories("/opt/ros/fuerte/stacks/vision_opencv/cv_bridge/include")
-include_directories("/opt/ros/fuerte/stacks/geometry/tf/include"
-					"/opt/ros/fuerte/stacks/geometry/tf/msg_gen/cpp/include"
-					"/opt/ros/fuerte/stacks/geometry/tf/srv_gen/cpp/include") # fuck this shit
-
-link_directories("/opt/ros/fuerte/stacks/geometry/tf/lib"
-				"/opt/ros/fuerte/stacks/vision_opencv/cv_bridge/lib")
-
 include_directories(
-    ${PCL_INCLUDE_DIRS}
-    ${BULLET_INCLUDE_DIR}
-    ${JSON_INCLUDE_DIR}
-    ${EIGEN3_INCLUDE_DIR}
-    ${BULLETSIM_SOURCE_DIR}/src
-    ${BULLET_DIR}/src
+  ${PCL_INCLUDE_DIRS}
+  ${BULLET_INCLUDE_DIR}
+  ${JSON_INCLUDE_DIR}
+  ${EIGEN3_INCLUDE_DIR}
+  ${BULLETSIM_SOURCE_DIR}/src
+  ${BULLET_DIR}/src
+
+  ${ROS_ROOT_DIR}/stacks/vision_opencv/cv_bridge/include
+  ${ROS_ROOT_DIR}/stacks/geometry/tf/include
+  ${ROS_ROOT_DIR}/stacks/geometry/tf/msg_gen/cpp/include
+  ${ROS_ROOT_DIR}/stacks/geometry/tf/srv_gen/cpp/include
 )
+
 link_directories(
   ${PCL_LIBRARY_DIRS}   
+
+  ${ROS_ROOT_DIR}/stacks/geometry/tf/lib
+  ${ROS_ROOT_DIR}/stacks/vision_opencv/cv_bridge/lib
 )
 
 add_definitions("-DEIGEN_DEFAULT_TO_ROW_MAJOR")
