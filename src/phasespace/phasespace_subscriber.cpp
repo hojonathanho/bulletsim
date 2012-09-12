@@ -28,8 +28,6 @@ void callback(bulletsim_msgs::OWLPhasespace phasespace_msg) {
 int main(int argc, char *argv[]) {
 	Parser parser;
 	parser.addGroup(LocalConfig());
-	parser.addGroup(GeneralConfig());
-	parser.addGroup(SceneConfig());
 	parser.addGroup(PhasespaceConfig());
 	parser.read(argc, argv);
 
@@ -42,11 +40,12 @@ int main(int argc, char *argv[]) {
 	vector<ledid_t> led_ids;
 	for (ledid_t led_id=0; led_id<48; led_id++) led_ids.push_back(led_id);
 	MarkerPointCollection::Ptr marker_points(new MarkerPointCollection(led_ids, scene.env));
-	MarkerRigid::Ptr marker_rigid = createMarkerRigid(PhasespaceConfig::kinectInfo_filenames[0], scene.env);
 
 	marker_system.reset(new MarkerSystemPhasespaceMsg());
 	marker_system->add(marker_points);
-	marker_system->add(marker_rigid);
+	for (int i=0; i<PhasespaceConfig::kinectInfo_filenames.size(); i++)
+		marker_system->add(createMarkerRigid(string(getenv("BULLETSIM_SOURCE_DIR")) + "/data/phasespace_rigid_info/" + PhasespaceConfig::kinectInfo_filenames[i], scene.env));
+
 	ros::Subscriber subscriber = nh.subscribe(PhasespaceConfig::phasespaceTopic, 5, &callback);
 
 	if (LocalConfig::visualize) scene.startViewer();

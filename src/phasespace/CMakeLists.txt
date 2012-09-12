@@ -26,6 +26,9 @@ target_link_libraries(phasespace
 add_executable(phasespace_publisher phasespace_publisher.cpp)
 target_link_libraries(phasespace_publisher phasespace)
 
+add_executable(phasespace_simple_publisher phasespace_simple_publisher.cpp)
+target_link_libraries(phasespace_simple_publisher phasespace)
+
 add_executable(phasespace_subscriber phasespace_subscriber.cpp)
 target_link_libraries(phasespace_subscriber phasespace)
 

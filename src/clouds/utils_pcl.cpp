@@ -180,7 +180,45 @@ ColorCloudPtr addColor(CloudPtr in, uint8_t r, uint8_t g, uint8_t b) {
 }
 
 
+geometry_msgs::Point32 toROSPoint32(const ColorPoint& pt) {
+	geometry_msgs::Point32 g_pt;
+	g_pt.x = pt.x;
+	g_pt.y = pt.y;
+	g_pt.z = pt.z;
+	return g_pt;
+}
 
+ColorPoint toColorPoint(const geometry_msgs::Point32& g_pt) {
+	ColorPoint pt;
+	pt.x = g_pt.x;
+	pt.y = g_pt.y;
+	pt.z = g_pt.z;
+	return pt;
+}
+
+ColorPoint toColorPoint(const Eigen::Vector3f& vec) {
+	ColorPoint pt;
+	pt.x = vec(0);
+	pt.y = vec(1);
+	pt.z = vec(2);
+	return pt;
+}
+
+ColorPoint toColorPoint(const btVector3& vec) {
+	ColorPoint pt;
+	pt.x = vec.x();
+	pt.y = vec.y();
+	pt.z = vec.z();
+	return pt;
+}
+
+Point toPoint(const Eigen::Vector3f& vec) {
+	Point pt;
+	pt.x = vec(0);
+	pt.y = vec(1);
+	pt.z = vec(2);
+	return pt;
+}
 
 ColorCloudPtr fromROSMsg1(const sensor_msgs::PointCloud2& msg) {
   bool colorFound = false;

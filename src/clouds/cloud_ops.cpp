@@ -122,14 +122,8 @@ ColorCloudPtr smoothSurface(const ColorCloudPtr in) {
   return out;
 }
 
-ColorCloudPtr projectOntoPlane(const ColorCloudPtr in, Eigen::Vector4f& coeffs) {
+ColorCloudPtr projectOntoPlane(const ColorCloudPtr in, pcl::ModelCoefficients::Ptr coefficients) {
   ColorCloudPtr cloud_projected (new ColorCloud());
-
-  pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients ());
-  coefficients->values.resize (4);
-  coefficients->values[0] = coefficients->values[1] = 0;
-  coefficients->values[2] = 1.0;
-  coefficients->values[3] = 0;
 
   // Create the filtering object
   pcl::ProjectInliers<ColorPoint> proj;
@@ -153,19 +147,35 @@ ColorCloudPtr findConvexHull(ColorCloudPtr in, std::vector<pcl::Vertices>& polyg
   ColorCloudPtr out(new ColorCloud());
   pcl::ConvexHull<PointT> chull;
   chull.setInputCloud (in);
-  //  chull.setDimension(2);
+  chull.setDimension(2);
   chull.reconstruct (*out, polygons);
   return out;
 }
 
-ColorCloudPtr cropToHull(const ColorCloudPtr in, ColorCloudPtr hull_cloud, std::vector<pcl::Vertices>& polygons) {
+ColorCloudPtr cropToHull(const ColorCloudPtr in, ColorCloudPtr hull_cloud, std::vector<pcl::Vertices>& polygons, bool organized) {
   ColorCloudPtr out(new ColorCloud());
   pcl::CropHull<PointT> crop_filter;
   crop_filter.setInputCloud (in);
   crop_filter.setHullCloud (hull_cloud);
   crop_filter.setHullIndices (polygons);
   crop_filter.setDim (2);
-  crop_filter.filter (*out);
+  if (!organized) {
+  	crop_filter.filter (*out);
+  } else {
+  	crop_filter.setCropOutside(false);
+  	vector<int> indices;
+  	crop_filter.filter(indices);
+  	*out = *in;
+
+  	for (int i=0; i<indices.size(); i++) {
+  		out->at(indices[i]).x = numeric_limits<float>::quiet_NaN();
+  		out->at(indices[i]).y = numeric_limits<float>::quiet_NaN();
+  		out->at(indices[i]).z = numeric_limits<float>::quiet_NaN();
+  		out->at(indices[i]).r = 255;
+  		out->at(indices[i]).g = 255;
+  		out->at(indices[i]).b = 255;
+  	}
+  }
   return out;
 }
 
@@ -200,32 +210,31 @@ ColorCloudPtr filterZ(ColorCloudPtr in, float low, float high) {
   return out;
 }
 
-ColorCloudPtr filterPlane(ColorCloudPtr in, float dist_thresh) {
-  pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
-  pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
-  // Create the segmentation object
-  pcl::SACSegmentation<ColorPoint> seg;
-  seg.setOptimizeCoefficients (true);
-  seg.setModelType (pcl::SACMODEL_PLANE);
-  seg.setMethodType (pcl::SAC_RANSAC);
-  seg.setDistanceThreshold (dist_thresh);
+ColorCloudPtr filterPlane(ColorCloudPtr in, float dist_thresh, pcl::ModelCoefficients::Ptr coefficients) {
+	pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
+	// Create the segmentation object
+	pcl::SACSegmentation<ColorPoint> seg;
+	seg.setOptimizeCoefficients (true);
+	seg.setModelType (pcl::SACMODEL_PLANE);
+	seg.setMethodType (pcl::SAC_RANSAC);
+	seg.setDistanceThreshold (dist_thresh);
 
-  seg.setInputCloud (in->makeShared ());
-  seg.segment (*inliers, *coefficients);
+	seg.setInputCloud (in->makeShared ());
+	seg.segment (*inliers, *coefficients);
 
-  pcl::ExtractIndices<ColorPoint> extract;
-  extract.setInputCloud (in);
-  extract.setIndices (inliers);
+	pcl::ExtractIndices<ColorPoint> extract;
+	extract.setInputCloud (in);
+	extract.setIndices (inliers);
 
-  //	extract.setNegative (true);
-  //	ColorCloudPtr outliers_cloud(new ColorCloud());
-  //	extract.filter (*outliers_cloud);
-  //	return outliers_cloud;
+//	extract.setNegative (true);
+//	ColorCloudPtr outliers_cloud(new ColorCloud());
+//	extract.filter (*outliers_cloud);
+//	return outliers_cloud;
 
-  extract.setNegative (false);
-  ColorCloudPtr inliers_cloud(new ColorCloud());
-  extract.filter (*inliers_cloud);
-  return inliers_cloud;
+	extract.setNegative (false);
+	ColorCloudPtr inliers_cloud(new ColorCloud());
+	extract.filter (*inliers_cloud);
+	return inliers_cloud;
 }
 
 VectorXf getCircle(ColorCloudPtr cloud) {

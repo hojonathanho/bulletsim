@@ -19,8 +19,9 @@ include_directories(
 )
 link_directories(${BULLETSIM_BINARY_DIR}/src)
 option(TESTS OFF)
-option(JOHNS_ADVENTURES ON)
+option(JOHNS_ADVENTURES OFF)
 option(JONATHANS_ADVENTURES OFF)
+option(ALEXS_ADVENTURES ON)
 
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 
@@ -29,17 +30,26 @@ add_subdirectory(robots)
 add_subdirectory(utils)
 add_subdirectory(comm)
 add_subdirectory(clouds)
-add_subdirectory(phasespace)
 
 if (TESTS)
 	add_subdirectory(tests)
 endif(TESTS)
+
 if (JOHNS_ADVENTURES)
    add_subdirectory(john_sandbox)
    add_subdirectory(sqp)
    #add_subdirectory(knots)
-   add_subdirectory(tracking)
 endif(JOHNS_ADVENTURES)
+
+if (ALEXS_ADVENTURES OR JOHNS_ADVENTURES)
+	add_subdirectory(tracking)
+endif (ALEXS_ADVENTURES OR JOHNS_ADVENTURES)
+
+if (ALEXS_ADVENTURES)
+	add_subdirectory(phasespace)
+	add_subdirectory(experiments)
+endif (ALEXS_ADVENTURES)
+
 if (JONATHANS_ADVENTURES)
    add_subdirectory(flattening)
 endif(JONATHANS_ADVENTURES)

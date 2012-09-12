@@ -13,7 +13,6 @@
 #include "clouds/get_table2.h"
 #include "phasespace/phasespace.h"
 #include "phasespace/config_phasespace.h"
-#include "tracking/config_tracking.h"
 
 using namespace std;
 using namespace Eigen;
@@ -26,7 +25,6 @@ void callback(bulletsim_msgs::OWLPhasespace phasespace_msg) {
 
 int main(int argc, char* argv[]) {
 	Parser parser;
-	parser.addGroup(TrackingConfig());
 	parser.addGroup(PhasespaceConfig());
 	parser.read(argc, argv);
 
@@ -34,8 +32,8 @@ int main(int argc, char* argv[]) {
 	ros::NodeHandle nh;
 
 	vector<MarkerRigid::Ptr> marker_rigids;
- 	for (int i=0; i<TrackingConfig::cameraTopics.size() && i<PhasespaceConfig::kinectInfo_filenames.size(); i++)
- 		marker_rigids.push_back(createMarkerRigid(PhasespaceConfig::kinectInfo_filenames[i]));
+ 	for (int i=0; i<PhasespaceConfig::cameraTopics.size() && i<PhasespaceConfig::kinectInfo_filenames.size(); i++)
+ 		marker_rigids.push_back(createMarkerRigid(string(getenv("BULLETSIM_SOURCE_DIR")) + "/data/phasespace_rigid_info/" + PhasespaceConfig::kinectInfo_filenames[i]));
 
 	marker_system.reset(new MarkerSystemPhasespaceMsg());
 	marker_system->add(marker_rigids);
@@ -49,7 +47,7 @@ int main(int argc, char* argv[]) {
 		for (int i=0; i<marker_rigids.size(); i++) {
 			try {
 				if (marker_rigids[i]->isValid()) {
-					broadcastKinectTransform(toBulletTransform(marker_rigids[i]->getTransform()), TrackingConfig::cameraTopics[i]+"_rgb_optical_frame", "/ground", broadcaster, listener);
+					broadcastKinectTransform(toBulletTransform(marker_rigids[i]->getTransform()), PhasespaceConfig::cameraTopics[i]+"_rgb_optical_frame", "/ground", broadcaster, listener);
 				}
 			} catch (...) {
 				ROS_WARN("Caught an exception from broadcastKinectTransform. Skipping...");

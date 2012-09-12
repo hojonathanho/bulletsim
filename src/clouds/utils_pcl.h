@@ -8,6 +8,7 @@
 #include "pcl_typedefs.h"
 #include <LinearMath/btTransform.h>
 #include <sensor_msgs/PointCloud2.h>
+#include <geometry_msgs/Point32.h>
 
 static const float cx = 320-.5;
 static const float cy = 240-.5;
@@ -49,30 +50,18 @@ bool saveTransform(const std::string& filename, const Eigen::Matrix4f& t);
 bool loadTransform(const std::string& filename, Eigen::Matrix4f& t);
 bool saveTransform(const std::string& filename, const Eigen::Affine3f& t);
 bool loadTransform(const std::string& filename, Eigen::Affine3f& t);
-inline ColorPoint toColorPoint(const Eigen::Vector3f& vec) {
-    ColorPoint pt;
-    pt.x = vec(0);
-    pt.y = vec(1);
-    pt.z = vec(2);
-    return pt;
-}
 
-inline ColorPoint toColorPoint(const btVector3& vec) {
-    ColorPoint pt;
-    pt.x = vec.x();
-    pt.y = vec.y();
-    pt.z = vec.z();
-    return pt;
-}
 
-inline Point toPoint(const Eigen::Vector3f& vec) {
-    Point pt;
-    pt.x = vec(0);
-    pt.y = vec(1);
-    pt.z = vec(2);
-    return pt;
-}
+///////////////////////////////////////
+// CONVERSIONS STUFF
+///////////////////////////////////////
 
+inline btVector3 toBulletVector(const ColorPoint& pt) { return btVector3(pt.x, pt.y, pt.z); }
 inline Eigen::Vector3f toEigenVector(const ColorPoint& pt) {return Eigen::Vector3f(pt.x,pt.y,pt.z);}
+geometry_msgs::Point32 toROSPoint32(const ColorPoint& pt);
+ColorPoint toColorPoint(const geometry_msgs::Point32& g_pt);
+ColorPoint toColorPoint(const Eigen::Vector3f& vec);
+ColorPoint toColorPoint(const btVector3& vec);
+Point toPoint(const Eigen::Vector3f& vec);
 
 ColorCloudPtr fromROSMsg1(const sensor_msgs::PointCloud2& msg);

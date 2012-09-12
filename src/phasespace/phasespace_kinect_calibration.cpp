@@ -18,25 +18,15 @@ using namespace std;
 using namespace Eigen;
 
 struct LocalConfig : Config {
-  static string cloudTopic;
-  static string phasespaceTopic;
-  static string filename;
   static vector<ledid_t> commonLedIds;
   static vector<ledid_t> kinectLedIds;
 
   LocalConfig() : Config() {
-    params.push_back(new Parameter<string>("cloudTopic", &cloudTopic, "Topic of cloud coming from the camera to be calibrated."));
-    params.push_back(new Parameter<string>("phasespaceTopic", &phasespaceTopic, "Topic of the OWLPhasespaceMsg's."));
-    params.push_back(new Parameter<string>("filename", &filename, "The computed rigid body info is saved at this file."));
     params.push_back(new Parameter<vector<ledid_t> >("commonLedIds", &commonLedIds, "ID of the LEDs that are seen by both cameras. The order matters."));
     params.push_back(new Parameter<vector<ledid_t> >("kinectLedIds", &kinectLedIds, "ID of the LEDs that are on the kinect's frame."));
   }
 };
 
-string LocalConfig::cloudTopic = "/kinect1/depth_registered/points";
-string LocalConfig::phasespaceTopic = "/phasespace_markers";
-//string LocalConfig::filename = "/home/alex/rll/bulletsim/data/phasespace_rigid_info/pr2head";
-string LocalConfig::filename = "/home/alex/rll/bulletsim/data/phasespace_rigid_info/tripod";
 static const ledid_t commonLedIds_a[] = { 24,8,9,10,11,12,13,14,15 };
 vector<ledid_t> LocalConfig::commonLedIds = std::vector<ledid_t>(commonLedIds_a, commonLedIds_a+sizeof(commonLedIds_a)/sizeof(ledid_t));
 //static const ledid_t kinectLedIds_a[] = { 0,1,2,3,4,5,6 };
@@ -89,7 +79,6 @@ int main(int argc, char* argv[]) {
 
   Parser parser;
 	parser.addGroup(GeneralConfig());
-	parser.addGroup(SceneConfig());
   parser.addGroup(LocalConfig());
 	parser.addGroup(PhasespaceConfig());
   parser.read(argc, argv);
@@ -97,7 +86,7 @@ int main(int argc, char* argv[]) {
   ros::init(argc, argv,"phasespace_kinect_calibration");
   ros::NodeHandle nh;
 
-  ros::Subscriber cloudSub = nh.subscribe(LocalConfig::cloudTopic, 1, &cloudCallback);
+  ros::Subscriber cloudSub = nh.subscribe(PhasespaceConfig::cameraTopics[0] + "/depth_registered/points", 1, &cloudCallback);
 
   cout << "Click at the LEDs in the image in the order of LEDs IDs: " << LocalConfig::commonLedIds << endl;
 
@@ -126,7 +115,7 @@ int main(int argc, char* argv[]) {
 	marker_system.reset(new MarkerSystemPhasespaceMsg());
 	marker_system->add(marker_common_points);
 	marker_system->add(marker_kinect_points);
-	ros::Subscriber phasespaceSub = nh.subscribe(LocalConfig::phasespaceTopic, 1, &phasespaceCallback);
+	ros::Subscriber phasespaceSub = nh.subscribe(PhasespaceConfig::phasespaceTopic, 1, &phasespaceCallback);
 	while (ros::ok) {
 		if (marker_system->isAllValid()) break;
   	ros::spinOnce();
@@ -178,7 +167,7 @@ int main(int argc, char* argv[]) {
 		kinect_led_positions[ind] /= METERS;
 		cout << "Led ID " << LocalConfig::kinectLedIds[ind] << "\t" << kinect_led_positions[ind].transpose() << endl;
 	}
-	savePhasespaceRigid(LocalConfig::filename, LocalConfig::kinectLedIds, kinect_led_positions);
+	savePhasespaceRigid(string(getenv("BULLETSIM_SOURCE_DIR")) + "/data/phasespace_rigid_info/" + PhasespaceConfig::kinectInfo_filenames[0], LocalConfig::kinectLedIds, kinect_led_positions);
 
 	return 0;
 }

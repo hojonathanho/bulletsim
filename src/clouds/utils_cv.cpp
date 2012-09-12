@@ -89,29 +89,11 @@ cv::Mat toBinaryMask(cv::Mat image) {
 	return mask;
 }
 
-cv::Mat maskImage(cv::Mat image, cv::Mat mask) {
-	mask = mask > 0; //make sure mask is a binary. convert it to binary if not.
-	cv::Mat dst;
-	if (image.elemSize() == mask.elemSize()) {
-		cv::multiply(image, mask, dst, 1/255.0);
-	} else if ((image.elemSize() == 3) && (mask.elemSize() == 1)) {
-		cv::merge(vector<cv::Mat>(3, mask), mask);
-		cv::multiply(image, mask, dst, 1/255.0);
-	} else if ((image.elemSize() == 1) && (mask.elemSize() == 3)) {
-		vector<cv::Mat> mask_channels;
-		cv::split(mask, mask_channels);
-		mask = mask_channels[0] & mask_channels[1] & mask_channels[2];
-		cv::multiply(image, mask, dst, 1/255.0);
-	} else {
-		runtime_error("This case of maskImage hasn't been implemented.");
-	}
-	return dst;
-}
-
 cv::Mat colorSpaceMask(cv::Mat cvmat, uint8_t minx, uint8_t maxx, uint8_t miny, uint8_t maxy, uint8_t minz, uint8_t maxz, int code) {
-	cv::cvtColor(cvmat, cvmat, code);
+	cv::Mat cvmat_transformed;
+	cv::cvtColor(cvmat, cvmat_transformed, code);
   vector<cv::Mat> channels;
-  cv::split(cvmat, channels);
+  cv::split(cvmat_transformed, channels);
 
   cv::Mat& x = channels[0];
   cv::Mat& y = channels[1];
