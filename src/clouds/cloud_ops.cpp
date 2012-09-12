@@ -129,14 +129,8 @@ ColorCloudPtr smoothSurface(const ColorCloudPtr in) {
 	return out;
 }
 
-ColorCloudPtr projectOntoPlane(const ColorCloudPtr in, Eigen::Vector4f& coeffs) {
+ColorCloudPtr projectOntoPlane(const ColorCloudPtr in, pcl::ModelCoefficients::Ptr coefficients) {
   ColorCloudPtr cloud_projected (new ColorCloud());
-
-  pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients ());
-  coefficients->values.resize (4);
-  coefficients->values[0] = coefficients->values[1] = 0;
-  coefficients->values[2] = 1.0;
-  coefficients->values[3] = 0;
 
   // Create the filtering object
   pcl::ProjectInliers<ColorPoint> proj;
@@ -223,8 +217,7 @@ ColorCloudPtr filterZ(ColorCloudPtr in, float low, float high) {
   return out;
 }
 
-ColorCloudPtr filterPlane(ColorCloudPtr in, float dist_thresh) {
-	pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
+ColorCloudPtr filterPlane(ColorCloudPtr in, float dist_thresh, pcl::ModelCoefficients::Ptr coefficients) {
 	pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
 	// Create the segmentation object
 	pcl::SACSegmentation<ColorPoint> seg;

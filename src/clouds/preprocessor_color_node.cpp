@@ -21,6 +21,7 @@
 #include "utils/config.h"
 #include "utils/conversions.h"
 #include "utils_ros.h"
+#include "utils/file.h"
 
 #include <pcl/filters/passthrough.h>
 #include <pcl/ModelCoefficients.h>
@@ -40,6 +41,8 @@ using namespace Eigen;
 static std::string nodeNS = "/preprocessor";
 static std::string nodeName = "/preprocessor_node";
 
+enum boundary_t { NONE, LOAD_FILE, RED_MARKERS, TABLE };
+
 struct LocalConfig : Config {
   static std::string nodeNS;
   static std::string inputTopic;
@@ -54,6 +57,8 @@ struct LocalConfig : Config {
   static float outlierRadius;
   static int outlierMinK;
   static float offset;
+  static string boundaryFile;
+  static int boundaryType;
   static bool debugMask;
   static bool debugGreenFilter;
   static int i0;
@@ -73,6 +78,8 @@ struct LocalConfig : Config {
     params.push_back(new Parameter<float>("outlierRadius", &outlierRadius, "radius search RadiusOutlierRemoval filter"));
     params.push_back(new Parameter<int>("outlierMinK", &outlierMinK, "minimum neighbors in radius search for RadiusOutlierRemoval filter"));
     params.push_back(new Parameter<float>("offset", &offset, "offset for the box filter (shrinks the box by offset at each side of the x and y axes)"));
+    params.push_back(new Parameter<string>("boundaryFile", &boundaryFile, "file from which the boundary gets loaded/saved"));
+    params.push_back(new Parameter<int>("boundaryType", &boundaryType, "the vertices defining the prism convex hull filter could be: NONE=0, LOAD_FILE, RED_MARKERS, TABLE"));
     params.push_back(new Parameter<bool>("debugMask", &debugMask, "set to true if you want to debug the intermediate mask filters"));
     params.push_back(new Parameter<bool>("debugGreenFilter", &debugGreenFilter, "set to true if you want to debug the lab threshold parameters. if true, the green and negative green cloud are published, and you can interactively modify the thresholds."));
     params.push_back(new Parameter<int>("i0", &i0, "miscellaneous variable 0"));
@@ -93,6 +100,8 @@ float LocalConfig::clusterMinSize = 0;
 float LocalConfig::outlierRadius = 0.02;
 int LocalConfig::outlierMinK = 0;
 float LocalConfig::offset = 0.02;
+string LocalConfig::boundaryFile = "polygon";
+int LocalConfig::boundaryType = LOAD_FILE;
 bool LocalConfig::debugMask = false;
 bool LocalConfig::debugGreenFilter = false;
 int LocalConfig::i0 = 0;
@@ -124,7 +133,7 @@ public:
 
   //DEBUG
   ColorCloudPtr cloud_hull;
-  std::vector<pcl::Vertices> polygons;
+  std::vector<pcl::Vertices> hull_vertices;
 
   void callback(const sensor_msgs::PointCloud2& msg_in) {
   	// Needs this to update the opencv windows
@@ -134,18 +143,14 @@ public:
     pcl::fromROSMsg(msg_in, *cloud_in);
 
     if (!m_inited) {
-			ColorCloudPtr cloud_green = colorSpaceFilter(cloud_in, MIN_L, MAX_L, MIN_A, MAX_A, MIN_B, MAX_B, CV_BGR2Lab, true, true);
-			if (cloud_green->size() < 50) {
-				ROS_WARN("The green table cannot be seen. The table couldn't be initialized.");
-			} else {
-				initTable(cloud_green);
-			}
-
-			setupPolygon(cloud_in);
+			if (LocalConfig::boundaryType != NONE) initPrismBoundaries(cloud_in, msg_in);
+			m_inited = true;
 		}
 
     // prism filter
-    ColorCloudPtr cloud_out = cropToHull(cloud_in, cloud_hull, polygons, true);
+    ColorCloudPtr cloud_out (new ColorCloud);
+    if (!cloud_hull->empty()) cloud_out = cropToHull(cloud_in, cloud_hull, hull_vertices, true);
+    else *cloud_out = *cloud_in;
 
     // image-based filters: color, morphological and connected components
 		cv::Mat image = toCVMatImage(cloud_in);
@@ -216,8 +221,6 @@ public:
 			m_cloudNotGreenPub.publish(msg_not_green);
 		}
 
-		////////////////////////////////////////////////
-
 		//Publish image version of cloud
     cv_bridge::CvImage image_msg;
     image_msg.header   = msg_in.header;
@@ -229,50 +232,43 @@ public:
 
     geometry_msgs::PolygonStamped polyStamped;
     polyStamped.polygon = m_poly;
-    polyStamped.header.frame_id = msg_in.header.frame_id;
+    polyStamped.header.frame_id = "/ground";
     polyStamped.header.stamp = ros::Time::now();
     m_polyPub.publish(polyStamped);
   }
 
-  void setupPolygon(ColorCloudPtr cloud) {
-  	ColorCloudPtr cloud_filtered (new ColorCloud(*cloud));
-  	ColorCloudPtr cloud_projected (new ColorCloud);
+  void initPrismBoundaries(ColorCloudPtr cloud, const sensor_msgs::PointCloud2& msg_in) {
+  	if (LocalConfig::boundaryType == LOAD_FILE) {
+    	loadPoints(string(getenv("BULLETSIM_SOURCE_DIR")) + "/data/boundary/" + LocalConfig::boundaryFile, m_poly.points);
+    	// transform the poly points from ground to camera frame
+    	btTransform transform = waitForAndGetTransform(m_listener, "/ground", msg_in.header.frame_id).inverse();
+    	cloud_hull->resize(m_poly.points.size());
+    	for (int i=0; i<m_poly.points.size(); i++)
+    		cloud_hull->at(i) = toColorPoint( transform * toBulletVector(m_poly.points[i]) );
+    	hull_vertices.resize(1);
+    	for (int i=0; i<cloud_hull->size(); i++)
+    		hull_vertices[0].vertices.push_back(i);
+    	hull_vertices[0].vertices.push_back(0);
 
-  	pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
-  	pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
-  	// Create the segmentation object
-  	pcl::SACSegmentation<pcl::PointXYZRGB> seg;
-  	seg.setModelType (pcl::SACMODEL_PLANE);
-  	seg.setMethodType (pcl::SAC_RANSAC);
-  	seg.setDistanceThreshold (0.01);
+  	} else {
 
-  	seg.setInputCloud (cloud_filtered);
-  	seg.segment (*inliers, *coefficients);
+  		pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
+			ColorCloudPtr cloud_filtered = filterPlane(cloud, 0.01, coefficients);
+			ColorCloudPtr cloud_projected = projectOntoPlane(cloud_filtered, coefficients); // full table cloud
 
-  	// Project the model inliers
-  	pcl::ProjectInliers<pcl::PointXYZRGB> proj;
-  	proj.setModelType (pcl::SACMODEL_PLANE);
-  	proj.setInputCloud (cloud_filtered);
-  	proj.setModelCoefficients (coefficients);
-  	proj.filter (*cloud_projected);
+			if (LocalConfig::boundaryType == RED_MARKERS)
+				cloud_projected = colorSpaceFilter(cloud_projected, 0,255,0,166,0,255, CV_BGR2Lab, false, true); // red table cloud
 
-  	cloud_projected = colorSpaceFilter(cloud_projected, 0,255,0,166,0,255, CV_BGR2Lab, true, true);
+			cloud_hull = findConvexHull(cloud_projected, hull_vertices);
 
-		pcl::PassThrough<ColorPoint> ptfilter; // Initializing with true will allow us to extract the removed indices
-		ptfilter.setInputCloud (cloud_projected);
-		ptfilter.filter (*cloud_projected);
+			// transform the poly points from camera to ground frame
+			btTransform transform = waitForAndGetTransform(m_listener, "/ground", msg_in.header.frame_id);
+			m_poly.points.resize(cloud_hull->size());
+			for (int i=0; i<cloud_hull->size(); i++)
+				m_poly.points[i] = toROSPoint32( transform * toBulletVector(cloud_hull->at(i)) );
 
-  	cloud_hull.reset(new ColorCloud(*findConvexHull(cloud_projected, polygons)));
-
-  	m_poly.points.clear();
-  	for (int i=0; i<cloud_hull->size(); i++) {
-			ColorPoint pt = cloud_hull->at(i);
-			geometry_msgs::Point32 g_pt;
-			g_pt.x = pt.x;
-			g_pt.y = pt.y;
-			g_pt.z = pt.z;
-			m_poly.points.push_back(g_pt);
-		}
+	  	savePoints(string(getenv("BULLETSIM_SOURCE_DIR")) + "/data/boundary/" + LocalConfig::boundaryFile, m_poly.points);
+  	}
   }
 
   void initTable(ColorCloudPtr cloud) {
@@ -321,7 +317,8 @@ public:
     m_sub(nh.subscribe(LocalConfig::inputTopic, 1, &PreprocessorNode::callback, this)),
 		m_mins(-10,-10,-10),
 		m_maxes(10,10,10),
-		m_transform(toBulletTransform(Affine3f::Identity()))
+		m_transform(toBulletTransform(Affine3f::Identity())),
+		cloud_hull(new ColorCloud)
     {
 			if (LocalConfig::debugGreenFilter) {
 				m_cloudGreenPub = nh.advertise<sensor_msgs::PointCloud2>(nodeNS+"/green/points",5);

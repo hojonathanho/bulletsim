@@ -3,6 +3,7 @@
 #include <pcl/point_cloud.h>
 #include "utils_pcl.h"
 #include <pcl/Vertices.h>
+#include <pcl/ModelCoefficients.h>
 #include <opencv2/core/core.hpp>
 #include <cv.h>
 
@@ -15,10 +16,11 @@ ColorCloudPtr smoothSurface(const ColorCloudPtr in);
 ColorCloudPtr findConcaveHull(ColorCloudPtr in, std::vector<pcl::Vertices>& polygons);
 ColorCloudPtr findConvexHull(ColorCloudPtr in, std::vector<pcl::Vertices>& polygons);
 ColorCloudPtr cropToHull(const ColorCloudPtr in, ColorCloudPtr hull, std::vector<pcl::Vertices>& polygons, bool organized=false);
-ColorCloudPtr projectOntoPlane(const ColorCloudPtr in, Eigen::Vector4f& coeffs);
+ColorCloudPtr projectOntoPlane(const ColorCloudPtr in, pcl::ModelCoefficients::Ptr coefficients);
 ColorCloudPtr filterZ(ColorCloudPtr in, float low, float high);
 ColorCloudPtr filterY(ColorCloudPtr in, float low, float high);
 ColorCloudPtr filterX(ColorCloudPtr in, float low, float high);
+ColorCloudPtr filterPlane(ColorCloudPtr in, float dist_thresh, pcl::ModelCoefficients::Ptr coefficients);
 Eigen::VectorXf getCircle(ColorCloudPtr cloud);
 Eigen::VectorXf getEnclosingCircle(ColorCloudPtr cloud);
 ColorCloudPtr getBiggestCluster(ColorCloudPtr in, float tol);
