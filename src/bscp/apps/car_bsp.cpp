@@ -34,7 +34,7 @@ static VectorXd _goal_offset;
 
 VectorXd GoalFn(Robot &r, const VectorXd& x) {
 	VectorXd ret(x.rows()-2);
-	ret.segment(0,2) = x.segment(0,2) - _goal_offset.segment(0,2);
+	ret.segment(0,2) = 10*(x.segment(0,2) - _goal_offset.segment(0,2));
 	ret.segment(2,ret.rows()-2) = x.segment(4,x.rows()-4);
 	return  ret;
 }
@@ -66,14 +66,14 @@ int main()
   int NX = 4;
   int NU = 2;
   int NB = NX*(NX+3)/2;
-  int NS = 10;
+  int NS = 20;
   int NUM_TEST = 10;
   double rho_x = 0.1; 
   double rho_u = 0.1;
   int N_iter = 50;
 
   // hack for now
-  MatrixXd W_cov = MatrixXd::Zero(NB,NB);
+  MatrixXd W_cov = MatrixXd::Identity(NB,NB);
   EigenMultivariateNormal<double> sampler(VectorXd::Zero(NB), W_cov);
   
   VectorXd x0(NX);
@@ -109,19 +109,21 @@ int main()
   LLT<MatrixXd> lltSigma_0(Sigma_0);
   MatrixXd rt_Sigma_0 = lltSigma_0.matrixL();
 
-  MatrixXd Q_t = 0.00001*MatrixXd::Identity(NX,NX);
+  MatrixXd Q_t = 0.000001*MatrixXd::Identity(NX,NX);
   Q_t(2,2) = 0.0000001;
   Q_t(3,3) = 0.0000000001;
   LLT<MatrixXd> lltQ_t(Q_t);
   MatrixXd M_t = lltQ_t.matrixL(); 
 
-  MatrixXd R_t = 0.01*MatrixXd::Identity(NZ,NZ);
+  MatrixXd R_t = 0.05*MatrixXd::Identity(NZ,NZ);
   LLT<MatrixXd> lltR_t(R_t);
   MatrixXd N_t = lltR_t.matrixL();
+  s1.setN(N_t(0,0));
+  s2.setN(N_t(1,1));
+  s3.setN(N_t(2,2));
 
   //Set car noise models
   c.set_M(M_t);
-  c.set_N(N_t); 
 
   VectorXd b_0;
   build_belief_state(x0, rt_Sigma_0, b_0);
@@ -137,18 +139,18 @@ int main()
     MatrixXd rt_W_t;
     c.belief_dynamics(B_bar[t], U_bar[t], B_bar[t+1]);
     c.belief_noise(B_bar[t], U_bar[t], rt_W_t);
-    sampler.setCovar(rt_W_t * rt_W_t.transpose());
+    //sampler.setCovar(rt_W_t * rt_W_t.transpose()); THIS MUST BE NORMAL SAMPLES NOW
     sampler.generateSamples(W_bar[t], NS);
     //cout << W_bar[t] << endl;
   }
 
   vector<vector<VectorXd> > W_s_t;
   index_by_sample(W_bar, W_s_t);
-  vector<VectorXd> test;
-  for (int s = 0; s < NS; s++) {
-	  c.forward_integrate(b_0, U_bar, W_s_t[s], test);
-	  render = c.draw_belief_trajectory(test, red, transparent, traj_group, 1e-4);
-  }
+//  vector<VectorXd> test;
+//  for (int s = 0; s < NS; s++) { THIS BE BROKEN
+//	  c.forward_integrate(b_0, U_bar, W_s_t[s], test);
+//	  render = c.draw_belief_trajectory(test, red, transparent, traj_group, 1e-4);
+//  }
 
 
   render = c.draw_belief_trajectory(B_bar, red, yellow, traj_group, 1e-4);
@@ -166,22 +168,29 @@ int main()
   scp_solver(c, B_bar, U_bar, W_bar, rho_x, rho_u, &GoalFn, NULL, N_iter,
       opt_B, opt_U, Q, r);
 
+  cout << Q << endl;
+
   TrajectoryInfo opt_traj(b_0, &GoalFn, NULL);
     for (int t = 0; t < T; t++) {
-  	  //opt_traj.add_and_integrate(opt_U[t], VectorXd::Zero(NX), c);
+  	  //opt_traj.add_and_integrate(opt_U[t], VectorXd::Zero(NB), c);
   	  VectorXd feedback = opt_traj.Q_feedback(c);
   	  VectorXd u_policy = Q.block(t*NU, t*NB, NU, NB) * feedback + r.segment(t*NU, NU);
   	  opt_traj.add_and_integrate(u_policy, VectorXd::Zero(NB), c);
     }
     c.draw_belief_trajectory(opt_traj._X, blue, orange, traj_group, z_offset/2+1e-4);
+    for (int i = 0; i < T; i++)
+    	cout << opt_traj._X[i].transpose() << endl;
 
     for (int s = 0; s < NUM_TEST; s++) {
   	  TrajectoryInfo test_traj(b_0, &GoalFn, NULL);
   	  for (int t = 0; t < T; t++) {
   		  VectorXd feedback = test_traj.Q_feedback(c);
   	  	  VectorXd u_policy = Q.block(t*NU, t*NB, NU, NB) * feedback + r.segment(t*NU, NU);
-  		  test_traj.add_and_integrate(u_policy, W_bar[t].col(s), c);
-  		  //test_traj.add_and_integrate(u_policy, sampler.nextSample(), c);
+		  MatrixXd rt_W_t;
+		  c.belief_noise(opt_traj._X[t], opt_traj._U[t], rt_W_t);
+		  sampler.setCovar(rt_W_t * rt_W_t.transpose());
+  		  //test_traj.add_and_integrate(u_policy, W_bar[t].col(s), c);
+  		  test_traj.add_and_integrate(u_policy, sampler.nextSample(), c);
   	  }
   	  c.draw_belief_trajectory(test_traj._X, blue, transparent, traj_group, z_offset/2+1e-4);
     }

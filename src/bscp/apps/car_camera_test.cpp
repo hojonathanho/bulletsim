@@ -62,21 +62,54 @@ Matrix4d ComputeExtrinsics(Matrix4d& cam_world_transform) {
 	ret.block(0,3,3,1) = - ret.block(0,0,3,3) * cam_world_transform.block(0,3,3,1);
 	return ret;
 }
+
+// wrap [rad] angle to [0..2*pi)
+inline double WrapTwoPI(double fAng)
+{
+	double ret = fAng;
+    while(ret >= 2*M_PI) ret -= 2*M_PI;
+    while(ret < 0) ret += 2*M_PI;
+    return ret;
+}
+
+//wrap [rad] angle to [-pi to pi]
+inline double WrapPI(double fAng)
+{
+	double ret = fAng;
+    while(ret >= M_PI) ret -= 2*M_PI;
+    while(ret < -M_PI) ret += 2*M_PI;
+    return ret;
+}
+
 //typedef VectorXd (*SensorFunc2)(const VectorXd&);
 
 static VectorXd _goal_offset;
+//VectorXd GoalFn(Robot &r, const VectorXd& x) {
+//	return 100*(x - _goal_offset);
+//}
+//VectorXd GoalFn(Robot &r, const VectorXd& x) {
+//	VectorXd ret(x.rows()-5);
+//	ret.segment(0,2) = (x.segment(0,2) - _goal_offset.segment(0,2));
+//	ret.segment(2,ret.rows()-2) = x.segment(7,x.rows()-7);
+//	return  100*ret;
+//}
+
 VectorXd GoalFn(Robot &r, const VectorXd& x) {
-	return x - _goal_offset;
+	VectorXd ret(x.rows()-4);
+	ret.segment(0,3) = (x.segment(0,3) - _goal_offset.segment(0,3));
+	ret(2) = WrapPI(ret(2));
+	ret.segment(3,ret.rows()-3) = x.segment(7,x.rows()-7);
+	return  100*ret;
 }
 
-VectorXd TouchingGoalFn(Robot &r, const VectorXd& x) {
-	VectorXd mu_x; MatrixXd rt_Sigma_x;
-	parse_belief_state(x, mu_x, rt_Sigma_x);
-	VectorXd ret(2 + x.rows()-mu_x.rows());
-	ret.segment(0,2) = mu_x.segment(0,2) - mu_x.segment(4,2);
-	ret.segment(2,x.rows()-mu_x.rows()) = x.segment(mu_x.rows(), x.rows()- mu_x.rows());
-	return ret;
-}
+//VectorXd TouchingGoalFn(Robot &r, const VectorXd& x) {
+//	VectorXd mu_x; MatrixXd rt_Sigma_x;
+//	parse_belief_state(x, mu_x, rt_Sigma_x);
+//	VectorXd ret(2 + x.rows()-mu_x.rows());
+//	ret.segment(0,2) = mu_x.segment(0,2) - mu_x.segment(4,2);
+//	ret.segment(2,x.rows()-mu_x.rows()) = x.segment(mu_x.rows(), x.rows()- mu_x.rows());
+//	return ret;
+//}
 
 
 int main()
@@ -111,41 +144,44 @@ int main()
   int NUM_TEST = 0;
   double rho_x = 0.1;
   double rho_u = 0.1;
-  int N_iter = 50;
+  int N_iter = 100;
 
   // hack for now
   MatrixXd W_cov = MatrixXd::Zero(NB,NB);
   EigenMultivariateNormal<double> sampler(VectorXd::Zero(NB), W_cov);
   
   VectorXd x0(4);
-  x0 << -0.4, 0.3, 0.0, 0.3;
-  Vector3d pos_test = Vector3d(-0.2,0.1,0.0);
+  x0 << -0.1, 0.0, 0.0, 0.1;
+  Vector3d pos_test = Vector3d(-0.2,-0.0,0.0);
   Car car(x0);
+  car.setUConstraints(Vector2d(0.2,0.2), Vector2d(-0.2,-0.2));
+
+
   VectorXd l_x0 = VectorXd::Zero(NX);
   l_x0.segment(0,4) = x0;
   l_x0.segment(4,3) = pos_test;
   Localizer c(&car, 1);
 
   //initialize the sensors
-  int NZ = 5;
-  Vector2d beacon_1_pos(-0.2,0.4);
-  BeaconSensor s1(beacon_1_pos,50);
-  s1.draw(beacon_1_pos, brown, traj_group);
-  Robot::SensorFunc s1_f = &CarBeaconFunc;
-  c.attach_sensor(&s1, s1_f);
-
-  Vector2d beacon_2_pos(0.2,0.1); 
-  BeaconSensor s2(beacon_2_pos,50);
-  s2.draw(beacon_2_pos, brown, traj_group);
-  Robot::SensorFunc s2_f = &CarBeaconFunc;
-  c.attach_sensor(&s2, s2_f);
-
-  Vector2d beacon_3_pos(0.0,0.2);
-  BeaconSensor s3(beacon_3_pos,50);
-  s3.draw(beacon_3_pos, brown, traj_group);
-  Robot::SensorFunc s3_f = &CarBeaconFunc;
-  c.attach_sensor(&s3, s3_f);
-  
+  int NZ = 2;
+//  Vector2d beacon_1_pos(-0.2,0.4);
+//  BeaconSensor s1(beacon_1_pos,50);
+//  s1.draw(beacon_1_pos, brown, traj_group);
+//  Robot::SensorFunc s1_f = &CarBeaconFunc;
+//  c.attach_sensor(&s1, s1_f);
+//
+//  Vector2d beacon_2_pos(0.2,0.1);
+//  BeaconSensor s2(beacon_2_pos,50);
+//  s2.draw(beacon_2_pos, brown, traj_group);
+//  Robot::SensorFunc s2_f = &CarBeaconFunc;
+//  c.attach_sensor(&s2, s2_f);
+//
+//  Vector2d beacon_3_pos(0.0,0.2);
+//  BeaconSensor s3(beacon_3_pos,50);
+//  s3.draw(beacon_3_pos, brown, traj_group);
+//  Robot::SensorFunc s3_f = &CarBeaconFunc;
+//  c.attach_sensor(&s3, s3_f);
+//
   Matrix4d camera_transform = Matrix4d::Identity();
   camera_transform.block(0, 0, 3, 3) = AngleAxisd(0.2, Vector3d(0.0,0.0,1.0)).toRotationMatrix();
 
@@ -160,7 +196,7 @@ int main()
   camera_fixed_offset.block(0,0,3,3) =
 		  AngleAxisd(-M_PI / 2, Vector3d(0.0, 1.0, 0.0)).toRotationMatrix()
 					* AngleAxisd(-M_PI / 2, Vector3d(0.0, 0.0, 1.0)).toRotationMatrix();
-  CameraSensor s4 = CameraSensor(1, KK, 640, 480, camera_fixed_offset, 0.005, M_PI/2);
+  CameraSensor s4 = CameraSensor(1, KK, 640, 480, camera_fixed_offset, 0.005, M_PI/3);
   Robot::SensorFunc s4_f = &LocalizerCarCameraFunc;
   c.attach_sensor(&s4, s4_f);
   VectorXd camera_transform_vec;
@@ -174,6 +210,8 @@ int main()
 
   //initilaize the initial distributions and noise models
   MatrixXd Sigma_0 = 0.001*MatrixXd::Identity(NX,NX);
+  Sigma_0(0,0) = 0.00001;
+  Sigma_0(1,1) = 0.00001;
   Sigma_0(2,2) = 0.00001;
   Sigma_0(3,3) = 0.00001;
   Sigma_0(6,6) = 0;
@@ -181,10 +219,14 @@ int main()
   MatrixXd rt_Sigma_0 = lltSigma_0.matrixL();
 
   MatrixXd Q_t = MatrixXd::Zero(NX,NX);
-  Q_t(0,0) = 0.00001;
-  Q_t(1,1) = 0.00001;
-  Q_t(2,2) = 0.00000001;
-  Q_t(3,3) = 0.000000001;
+//  Q_t(0,0) = 0.000001;
+//  Q_t(1,1) = 0.000001;
+//  Q_t(2,2) = 0.000000001;
+//  Q_t(3,3) = 0.0000000001;
+  Q_t(0,0) = 1e-10;
+  Q_t(1,1) = 1e-10;
+  Q_t(2,2) = 1e-10;
+  Q_t(3,3) = 1e-10;
   Q_t(4,4) = 1e-10;
   Q_t(5,5) = 1e-10;
   Q_t(6,6) = 1e-10;
@@ -193,17 +235,17 @@ int main()
   LLT<MatrixXd> lltQ_t(Q_t);
   MatrixXd M_t = lltQ_t.matrixL();
 
-  MatrixXd R_t = 0.01*MatrixXd::Identity(NZ,NZ);
-
-  R_t(3,3) = 0.00001;
-  R_t(4,4) = 0.00001;
-
-  LLT<MatrixXd> lltR_t(R_t);
-  MatrixXd N_t = lltR_t.matrixL();
-  s1.setN(N_t(0,0));
-  s2.setN(N_t(1,1));
-  s3.setN(N_t(2,2));
-  s4.setN(N_t.block(3,3,2,2));
+//  MatrixXd R_t = 0.01*MatrixXd::Identity(NZ,NZ);
+//
+//  R_t(3,3) = 0.00001;
+//  R_t(4,4) = 0.00001;
+//
+//  LLT<MatrixXd> lltR_t(R_t);
+//  MatrixXd N_t = lltR_t.matrixL();
+//  s1.setN(N_t(0,0));
+//  s2.setN(N_t(1,1));
+//  s3.setN(N_t(2,2));
+//  s4.setN(N_t.block(3,3,2,2));
 
 
   //Set car noise models
@@ -218,8 +260,8 @@ int main()
   B_bar[0] = b_0;
 
   for (int t = 0; t < T; t++) {
-    VectorXd u = VectorXd::Random(2) / 3;
-    if (t > T/2) u = - 2 * u;
+    VectorXd u = VectorXd::Zero(2);
+    //if (t > T/2) u = - 2 * u;
     U_bar[t] = u;
     MatrixXd rt_W_t;
     MatrixXd H_t, rt_Sigma_t;
@@ -248,8 +290,8 @@ int main()
   }
 
   render = c.draw_belief_trajectory(B_bar, red, yellow, traj_group, 1e-4);
-  c.draw_object_uncertainty(B_bar[0], yellow, traj_group, 1e-4);
-  c.draw_object_uncertainty(B_bar[T], orange, traj_group, 1e-4);
+  //c.draw_object_uncertainty(B_bar[0], yellow, traj_group, 1e-4);
+  c.draw_object_uncertainty(B_bar[T], red, traj_group, 1e-4);
   VectorXd test_x; MatrixXd test_rt_Sigma;
   parse_belief_state(B_bar[T], test_x, test_rt_Sigma);
   cout << test_rt_Sigma * test_rt_Sigma.transpose();
@@ -267,7 +309,7 @@ int main()
   MatrixXd Q; VectorXd r;  // control policy
 
   cout << "calling scp" << endl;
-  scp_solver(c, B_bar, U_bar, W_bar, rho_x, rho_u, &TouchingGoalFn, NULL, N_iter,
+  scp_solver(c, B_bar, U_bar, W_bar, rho_x, rho_u, &GoalFn, NULL, N_iter,
       opt_B, opt_U, Q, r);
 
   TrajectoryInfo opt_traj(b_0, &GoalFn, NULL);
@@ -278,7 +320,7 @@ int main()
   	  opt_traj.add_and_integrate(u_policy, VectorXd::Zero(NB), c);
     }
     c.draw_belief_trajectory(opt_traj._X, blue, orange, traj_group, z_offset/2+1e-4);
-    c.draw_object_uncertainty(opt_traj._X[T], red, traj_group, z_offset/2 + 1e-4);
+    c.draw_object_uncertainty(opt_traj._X[T], orange, traj_group, z_offset/2 + 1e-4);
     c.draw_sensor_belief_trajectory(opt_traj._X, brown, traj_group, z_offset/2);
 
     for (int s = 0; s < NUM_TEST; s++) {

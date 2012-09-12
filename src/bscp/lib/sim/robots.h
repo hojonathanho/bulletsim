@@ -62,7 +62,6 @@ class Robot {
    virtual double u_upper_limit(const int index) = 0;
    virtual double u_lower_limit(const int index) = 0;
    virtual void M(const VectorXd& x, MatrixXd& M) = 0; // sqrt(Q) = M 
-   virtual void N(const VectorXd& x, MatrixXd& N) = 0; // sqrt(R) = N
    virtual osg::Node* draw(VectorXd x, Vector4d color, osg::Group* parent) =0;
    virtual osg::Node* draw_belief(VectorXd b, Vector4d mean_color, Vector4d ellipsoid_color, osg::Group* parent, double z_offset=0) =0; 
    virtual Vector3d xyz (const VectorXd &x) = 0;
@@ -70,7 +69,8 @@ class Robot {
    
 
    // Wrappers for sensors 
-   void observe(const VectorXd& x, VectorXd& z);  // g(x)
+   virtual void observe(const VectorXd& x, VectorXd& z);  // g(x)
+   virtual void N(const VectorXd& x, const MatrixXd& Gamma, MatrixXd& N); // sqrt(R) = N
    void attach_sensor(Sensor* sensor, SensorFunc g_i, SensorFuncJacobian dg_i = NULL);
    void draw_sensors(const VectorXd& x, const Vector4d& color, osg::Group *parent, double z_offset=0);
    void draw_sensor_trajectory(const vector<VectorXd>& X_bar, const Vector4d& color, osg::Group* parent, double z_offset=0);

@@ -155,9 +155,8 @@ int main(int argc, char* argv[]) {
   osg::Group* root = new osg::Group();
   osg::Group* camera_root = new osg::Group();
   osg::Group* camera_group = new osg::Group();
-  scene.osg->root->addChild(traj_group);
-  //root->addChild(scene.osg->root);
-  //root->addChild(traj_group);
+  root->addChild(scene.osg->root);
+  root->addChild(traj_group);
   camera_root->addChild(scene.osg->root);
   camera_root->addChild(camera_group);
   init_transparency_group(traj_group);
@@ -203,13 +202,14 @@ int main(int argc, char* argv[]) {
   Vector3d object_pos(0.65,0.1-0.025,table_height+0.15);
 
   // initialize robot
-  int T = 5;
+  int T = 30;
   int NL = 1;
   int NX = 7 + NL*3;
   int NU = 7;
   int NB = NX*(NX+3)/2;
   int NS = 0;
-  int N_iter = 1;
+  int NUM_TEST = NS;
+  int N_iter = 30;
   double rho_x = 0.1;
   double rho_u = 0.1;
 
@@ -234,7 +234,8 @@ int main(int argc, char* argv[]) {
   Localizer pr2_scp(&pr2_scp_l, NL);
 
 
-  VectorXd startJoints = Map<const VectorXd>(postures[3], 7);
+  //VectorXd startJoints = Map<const VectorXd>(postures[1], 7);
+  VectorXd startJoints = Map<const VectorXd>(postures[3], 7); //works!
   VectorXd endJoints = Map<const VectorXd>(postures[4], 7);
   vector<VectorXd> X_bar = makeTraj(startJoints, endJoints, T+1);
   vector<VectorXd> U_bar(T);
@@ -305,7 +306,7 @@ int main(int argc, char* argv[]) {
   MatrixXd rt_Sigma_0 = lltSigma_0.matrixL();
 
   MatrixXd Q_t = MatrixXd::Zero(NX,NX);
-  Q_t.block(0,0,7,7) = 0.00001*MatrixXd::Identity(7,7);
+  Q_t.block(0,0,7,7) = 0.000001*MatrixXd::Identity(7,7);
   LLT<MatrixXd> lltQ_t(Q_t);
   MatrixXd M_t = lltQ_t.matrixL();
 
@@ -335,10 +336,6 @@ int main(int argc, char* argv[]) {
     VectorXd z_t, x_t;
     parse_belief_state(B_bar[t],x_t,rt_Sigma_t);
     pr2_scp.observe(x_t, z_t);
-    cout << z_t << endl;
-    pr2_scp.dgdx(x_t, H_t);
-    cout << H_t << endl << endl;
-
 
     MatrixXd rt_W_t;
     pr2_scp.belief_noise(B_bar[t], U_bar[t], rt_W_t);
@@ -350,71 +347,109 @@ int main(int argc, char* argv[]) {
 	  pr2_scp.parse_localizer_belief_state(B_bar[t], B_bar_r[t]);
   }
   PR2_SCP_Plotter plotter(&pr2_scp_l, &scene, T+1);
-  plotter.draw_belief_trajectory(B_bar_r, c_red, c_red, traj_group);
-  pr2_scp.draw_sensor_belief_trajectory(B_bar, c_blue, traj_group);
+  //plotter.draw_belief_trajectory(B_bar_r, c_red, c_red, traj_group);
+  //pr2_scp.draw_sensor_belief_trajectory(B_bar, c_blue, traj_group);
   //pr2_scp.draw_object_uncertainty(B_bar[0], c_red, traj_group);
   //pr2_scp.draw_object_uncertainty(B_bar[T], c_blue, traj_group);
 
+//    vector<vector<VectorXd> > W_s_t;
+//    index_by_sample(W_bar, W_s_t);
+//    vector<VectorXd> test;
+//    vector<PR2_SCP_Plotter*> plotters(NS);
+//    for (int s = 0; s < NS; s++) {
+//  	  pr2_scp.forward_integrate(B_bar[0], U_bar, W_s_t[s], test);
+//  	  plotters[s] = new PR2_SCP_Plotter(&pr2_scp_l, &scene, T+1);
+//  	  vector<VectorXd> test_r(T+1);
+//  	  for (int t = 0; t < T+1; t++) {
+//  		  VectorXd tmp;
+//  		  pr2_scp.parse_localizer_belief_state(test[t], test_r[t]);
+//  	  }
+//  	  plotters[s]->draw_belief_trajectory(test_r, c_red, c_red, traj_group);
+//    }
 
 
-//  // setup for SCP
-//  // Define a goal state
-//  VectorXd b_goal = B_bar[T];
-//  b_goal.segment(NX, NB-NX) = VectorXd::Zero(NB-NX); // trace
-//  _goal_offset = b_goal;
+
+  // setup for SCP
+  // Define a goal state
+  VectorXd b_goal = B_bar[T];
+  b_goal.segment(NX, NB-NX) = VectorXd::Zero(NB-NX); // trace
+  _goal_offset = b_goal;
+
+  // Output variables
+  vector<VectorXd> opt_B, opt_U; // noiseless trajectory
+  MatrixXd Q; VectorXd r;  // control policy
 //
-//  // Output variables
-//  vector<VectorXd> opt_B, opt_U; // noiseless trajectory
-//  MatrixXd Q; VectorXd r;  // control policy
-////
-// // cout << "calling scp" << endl;
-//  scp_solver(pr2_scp, B_bar, U_bar, W_bar, rho_x, rho_u, &TouchingGoalFn, NULL, N_iter,
-//      opt_B, opt_U, Q, r);
-//
-//  TrajectoryInfo opt_traj(b_0, &GoalFn, NULL);
-//  for (int t = 0; t < T; t++) {
-//	  opt_traj.add_and_integrate(opt_U[t], VectorXd::Zero(NB), pr2_scp);
-//	  //VectorXd feedback = opt_traj.Q_feedback(pr2_scp);
-//	  //VectorXd u_policy = Q.block(t*NU, t*NB, NU, NB) * feedback + r.segment(t*NU, NU);
-//	  //opt_traj.add_and_integrate(u_policy, VectorXd::Zero(NB), pr2_scp);
+ // cout << "calling scp" << endl;
+  scp_solver(pr2_scp, B_bar, U_bar, W_bar, rho_x, rho_u, &TouchingGoalFn, NULL, N_iter,
+      opt_B, opt_U, Q, r);
+
+  TrajectoryInfo opt_traj(b_0, &GoalFn, NULL);
+  for (int t = 0; t < T; t++) {
+	  opt_traj.add_and_integrate(opt_U[t], VectorXd::Zero(NB), pr2_scp);
+	  //VectorXd feedback = opt_traj.Q_feedback(pr2_scp);
+	  //VectorXd u_policy = Q.block(t*NU, t*NB, NU, NB) * feedback + r.segment(t*NU, NU);
+	  //opt_traj.add_and_integrate(u_policy, VectorXd::Zero(NB), pr2_scp);
+  }
+  vector<VectorXd> opt_traj_r(T+1);
+  for (int t = 0; t < T+1; t++) {
+	  pr2_scp.parse_localizer_belief_state(opt_traj._X[t], opt_traj_r[t]);
+  }
+  PR2_SCP_Plotter plotter2(&pr2_scp_l, &scene, T + 1);
+  plotter2.draw_belief_trajectory(opt_traj_r, c_blue, c_orange, traj_group);
+  pr2_scp.draw_object_uncertainty(opt_traj._X[T], c_green, traj_group);
+  //pr2_scp.draw_sensor_belief_trajectory(opt_traj._X, c_blue, traj_group);
+  cout << opt_traj._X[T].transpose() << endl;
+
+//  vector<vector<VectorXd> > W_s_t;
+//  index_by_sample(W_bar, W_s_t);
+//  vector<VectorXd> test;
+//  vector<PR2_SCP_Plotter*> plotters(NUM_TEST);
+//  for (int s = 0; s < NUM_TEST; s++) {
+//	  //integrate trajectory
+//	  TrajectoryInfo test_traj(opt_traj._X[0], &GoalFn, NULL);
+//	  for (int t = 0; t < T; t++) {
+//		  VectorXd feedback = test_traj.Q_feedback(pr2_scp_l);
+//		  VectorXd u_policy = Q.block(t*NU, t*NB, NU, NB) * feedback + r.segment(t*NU, NU);
+//		  test_traj.add_and_integrate(u_policy, W_bar[t].col(s), pr2_scp_l);
+//		  //test_traj.add_and_integrate(u_policy, sampler.nextSample(), pr2_scp);
+//	  }
+//	  //get robot state out
+//	  vector<VectorXd> test_traj_r(T+1);
+//	  for (int t = 0; t < T+1; t++) {
+//		  pr2_scp.parse_localizer_belief_state(test_traj._X[t], test_traj_r[t]);
+//	  }
+//	  //draw
+//	  plotters[s] = new PR2_SCP_Plotter(&pr2_scp_l, &scene, T+1);
+//	  plotters[s]->draw_trajectory(test_traj._X, c_red);
 //  }
-//  vector<VectorXd> opt_traj_r(T+1);
-//  for (int t = 0; t < T+1; t++) {
-//	  pr2_scp.parse_localizer_belief_state(opt_traj._X[t], opt_traj_r[t]);
-//  }
-//  PR2_SCP_Plotter plotter2(&pr2_scp_l, &scene, T + 1);
-//  plotter2.draw_belief_trajectory(opt_traj_r, c_blue, c_orange, traj_group);
-//  pr2_scp.draw_object_uncertainty(opt_traj._X[T], c_green, traj_group);
-//  //pr2_scp.draw_sensor_belief_trajectory(opt_traj._X, c_blue, traj_group);
-//  cout << opt_traj._X[T].transpose() << endl;
 
-//  //use a composite viewer
-//  int width = 800;
-//  int height = 800;
-//  osg::ref_ptr<osgViewer::CompositeViewer> compositeViewer = new osgViewer::CompositeViewer;
-//  osgViewer::View* v0 = scene.startView(); //v0 is the master view containing the scene data
-//  v0->setSceneData(root);
-//
-//  osgViewer::View* v1 = s5.renderCameraView(fixed_camera_trans);
-//  v1->setSceneData(v0->getSceneData());
-//
-//  osgViewer::View* v2 = s5.renderCameraView(fixed_camera_trans);
-//  v2->setSceneData(camera_root);
-//
-//
-//  compositeViewer->addView(v0);
-//  compositeViewer->addView(v1);
-//  compositeViewer->addView(v2);
-//
-//  compositeViewer->realize();
-//
-//  while(!compositeViewer->done())
-//  {
-//	  compositeViewer->frame();
-//  }
+  //use a composite viewer
+  int width = 800;
+  int height = 800;
+  osg::ref_ptr<osgViewer::CompositeViewer> compositeViewer = new osgViewer::CompositeViewer;
+  osgViewer::View* v0 = scene.startView(); //v0 is the master view containing the scene data
+  v0->setSceneData(root);
 
-  scene.startViewer();
-  scene.startLoop();
-  scene.idle(true);
+  osgViewer::View* v1 = s5.renderCameraView(fixed_camera_trans);
+  v1->setSceneData(v0->getSceneData());
+
+  osgViewer::View* v2 = s5.renderCameraView(fixed_camera_trans);
+  v2->setSceneData(camera_root);
+
+
+  compositeViewer->addView(v0);
+  compositeViewer->addView(v1);
+  compositeViewer->addView(v2);
+
+  compositeViewer->realize();
+
+  while(!compositeViewer->done())
+  {
+	  compositeViewer->frame();
+  }
+
+//  scene.startViewer();
+//  scene.startLoop();
+//  scene.idle(true);
 
 }

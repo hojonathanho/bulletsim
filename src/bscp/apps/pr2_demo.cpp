@@ -10,6 +10,8 @@
 #include "osg_torus.h"
 #include <osg/Light>
 #include <osg/LightSource>
+#include "eigen_multivariate_normal.h"
+#include "trajectory_util.h"
 
 using namespace std;
 using namespace Eigen;
@@ -85,6 +87,7 @@ int main(int argc, char* argv[]) {
   int NX = 7;
   int NU = 7;
   int NS = 0;
+  int NUM_TEST = NS;
   int N_iter = 50;
   double rho_x = 0.1;
   double rho_u = 0.1;
@@ -143,8 +146,16 @@ int main(int argc, char* argv[]) {
 		}
   }
   
-
+  // build initial trajectories
   PR2_SCP pr2_scp(pr2, active_dof_indices, scene.env->bullet->dynamicsWorld, rarm);
+
+  MatrixXd W_cov = 0.0000000001*MatrixXd::Identity(NX,NX);
+  W_cov(0,0) = 0.00000000000001;
+  W_cov(1,1) = 0.0000000000001;
+  W_cov(2,2) = 0.00000000000001;
+
+  EigenMultivariateNormal<double> sampler(VectorXd::Zero(NX), W_cov);
+
 
   VectorXd startJoints = Map<const VectorXd>(postures[1], NX);
   VectorXd endJoints = Map<const VectorXd>(postures[0], NX);
@@ -153,26 +164,35 @@ int main(int argc, char* argv[]) {
   vector<MatrixXd> W_bar(T);
   for (int i = 0; i < T; i++) {
 	  cout << pr2_scp.xyz(X_bar[i]).transpose() << endl;
-	  //traj_group->addChild(drawEllipsoid(pr2_scp.xyz(X_bar[i]), 0.0001*Matrix3d::Identity(), Vector4d(1.0,0.0,0.0,1.0)));
-
 	  U_bar[i] = X_bar[i+1] - X_bar[i];
-	  W_bar[i] = MatrixXd(0,0);
+	  sampler.generateSamples(W_bar[i], NS);
   }
   
+
   pr2->setDOFValues(active_dof_indices, toVec(startJoints));
+
+//  vector<vector<VectorXd> > W_s_t;
+//  index_by_sample(W_bar, W_s_t);
+//  vector<VectorXd> test;
+//  vector<PR2_SCP_Plotter*> plotters(NS);
+//  for (int s = 0; s < NS; s++) {
+//	  pr2_scp.forward_integrate(X_bar[0], U_bar, W_s_t[s], test);
+//	  plotters[s] = new PR2_SCP_Plotter(&pr2_scp, &scene, T+1);
+//	  plotters[s]->draw_trajectory(test, c_red);
+//  }
 
 //  PR2_SCP_Plotter plotter(&pr2_scp, &scene, T+1);
 //  plotter.draw_trajectory(X_bar, c_red);
 
-  //VectorXd x_goal = Map<const VectorXd>(postures[2], NX);
+ //setup for SCP
   VectorXd x_goal;
   pr2_scp.transform(X_bar[T], x_goal);
   _goal_offset = x_goal;
   vector<VectorXd> opt_X(0), opt_U(0);
-  MatrixXd K; VectorXd u0;
+  MatrixXd Q; VectorXd r;
 
   scp_solver(pr2_scp, X_bar, U_bar, W_bar, rho_x, rho_u, &GoalFn, &GoalFnJac, N_iter,
-      opt_X, opt_U, K, u0);
+      opt_X, opt_U, Q, r);
 
   for( int i = 0; i < opt_X.size(); i++ ) {
 	  cout << opt_X[i].transpose() << endl;
@@ -189,8 +209,25 @@ int main(int argc, char* argv[]) {
 
   PR2_SCP_Plotter plotter2(&pr2_scp, &scene, T+1);
   plotter2.draw_trajectory(opt_X, c_green);
-  //cout << opt_X[T] << endl;
 
+  vector<vector<VectorXd> > W_s_t;
+  index_by_sample(W_bar, W_s_t);
+  vector<VectorXd> test;
+  vector<PR2_SCP_Plotter*> plotters(NUM_TEST);
+  for (int s = 0; s < NUM_TEST; s++) {
+	  plotters[s] = new PR2_SCP_Plotter(&pr2_scp, &scene, T+1);
+	  TrajectoryInfo test_traj(X_bar[0], &GoalFn, NULL);
+	  for (int t = 0; t < T; t++) {
+		  VectorXd feedback = test_traj.Q_feedback(pr2_scp);
+		  VectorXd u_policy = Q.block(t*NU, t*NX, NU, NX) * feedback + r.segment(t*NU, NU);
+		  //test_traj.add_and_integrate(u_policy, W_bar[t].col(s), pr2_scp);
+		  test_traj.add_and_integrate(u_policy, sampler.nextSample(), pr2_scp);
+	  }
+	  VectorXd sample_x_transform;
+	  pr2_scp.transform(test_traj._X[T], sample_x_transform);
+	  cout << "sample transform: " << sample_x_transform.transpose() << endl;
+	  plotters[s]->draw_trajectory(test_traj._X, c_red);
+  }
 
 
   scene.startViewer();

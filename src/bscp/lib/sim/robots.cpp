@@ -19,6 +19,13 @@ void Robot::forward_integrate(const VectorXd& x0, const vector<VectorXd>& u, con
 			dynamics(traj_x[t], u[t], traj_x[t+1]);
 		}
 		traj_x[t+1] += w[t];
+//		// respect bounds
+//		for (int i = 0; i < _NX; i++) {
+//			if (traj_x[t+1](i) > x_upper_limit(i))
+//				traj_x[t+1](i) = x_upper_limit(i);
+//			if (traj_x[t+1](i) < x_lower_limit(i))
+//				traj_x[t+1](i) = x_lower_limit(i);
+//		}
 	}
 }
 
@@ -32,6 +39,20 @@ void Robot::observe(const VectorXd& x, VectorXd& z) {
     z.segment(num_recv, z_i.rows()) = z_i;
     num_recv += z_i.rows();
   }
+}
+
+void Robot::N(const VectorXd& x, const MatrixXd& Gamma, MatrixXd& N) {
+	N = MatrixXd::Zero(_NZ,_NZ);
+	int num_recv = 0;
+	MatrixXd C;
+	dgdx(x, C);
+	for (int i = 0; i < sensors.size(); i++) {
+		MatrixXd N_i;
+		MatrixXd C_i = C.block(num_recv, 0, num_recv + sensors[i]->_NZ, x.rows());
+		sensors[i]->rt_noise(sensor_fns[i](*this, x), C_i, Gamma, N_i);
+		N.block(num_recv, num_recv, N_i.rows(), N_i.cols()) = N_i;
+		num_recv += N_i.rows();
+	}
 }
 
 void Robot::draw_sensors(const VectorXd& x, const Vector4d& color, osg::Group *parent, double z_offset) {
@@ -68,7 +89,11 @@ void Robot::belief_dynamics(const VectorXd& b, const VectorXd& u, VectorXd& bt1)
 
   MatrixXd M_t, N_t;
   M(x,M_t);
-  N(x,N_t); 
+  MatrixXd A_t;
+  dfdx(x,u,A_t);
+  MatrixXd ArtS = A_t*rt_Sigma;
+  MatrixXd Gamma = ArtS*ArtS.transpose() + M_t * M_t.transpose();
+  N(x,Gamma,N_t);
   
   VectorXd x_t1; MatrixXd rt_Sigma_t1; 
   ekf_update(*this,x,u,rt_Sigma,VectorXd::Zero(0),M_t,N_t,
@@ -84,7 +109,9 @@ void Robot::belief_dynamics_fixed_model(const VectorXd& b, const VectorXd& u, co
 
 	MatrixXd M_t, N_t;
 	M(x, M_t);
-	N(x, N_t);
+	MatrixXd ArtS = A * rt_Sigma;
+	MatrixXd Gamma = ArtS * ArtS.transpose() + M_t * M_t.transpose();
+	N(x, Gamma, N_t);
 
 	VectorXd x_t1;
 	MatrixXd rt_Sigma_t1;
@@ -102,7 +129,12 @@ void Robot::belief_noise(const VectorXd& b, const VectorXd& u, MatrixXd& rt_W) {
 
 	MatrixXd M_t, N_t;
 	M(x, M_t);
-	N(x, N_t);
+	MatrixXd A_t;
+	dfdx(x, u, A_t);
+	MatrixXd ArtS = A_t * rt_Sigma;
+	MatrixXd Gamma = ArtS * ArtS.transpose() + M_t * M_t.transpose();
+	N(x, Gamma, N_t);
+	//N(x, N_t);
 
 	MatrixXd rt_W_x;
 	ekf_mean_noise_model(*this, x, u, rt_Sigma, M_t, N_t, rt_W_x);

@@ -80,20 +80,20 @@ class Localizer : public Robot {
       M = _M;
     }
 
-    void N(const VectorXd& x, MatrixXd& N) {
-      assert(N_set == true);
-      N = _N;
-    }
+//    void N(const VectorXd& x, MatrixXd& N) {
+//      assert(N_set == true);
+//      N = _N;
+//    }
 
     void set_M(const MatrixXd& M) {
       _M = M;
       M_set = true;
     }
 
-    void set_N(const MatrixXd& N) {
-      _N = N;
-      N_set = true;
-    }
+//    void set_N(const MatrixXd& N) {
+//      _N = N;
+//      N_set = true;
+//    }
 
    osg::Node* draw(VectorXd x, Vector4d color, osg::Group* parent) {
 	   VectorXd X_r, X_o;

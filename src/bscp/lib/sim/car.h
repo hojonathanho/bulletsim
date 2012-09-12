@@ -23,14 +23,20 @@ class Car : public Robot
     VectorXd _x;
     MatrixXd _M; bool M_set;
     MatrixXd _N; bool N_set; 
+    Vector4d _X_upper_constraint, _X_lower_constraint;
+    Vector2d _U_upper_constraint, _U_lower_constraint;
 
-    Car(VectorXd &x) : Robot(4, 2, 1e-2, 0.1)
+    Car(VectorXd &x) : Robot(4, 2, 1e-3, 0.1)
     {
       cout << "Initializing car" << endl;
       _l = 0.01;
       _x = x;
       M_set = false;
       N_set = false; 
+      _X_upper_constraint = Vector4d(1e20,1e20,1e20,1e20);
+      _X_lower_constraint = Vector4d(-1e20,-1e20,-1e20,-1e20);
+      _U_upper_constraint = Vector2d(1e20,1e20);
+      _U_lower_constraint = Vector2d(-1e20,-1e20);
     }
 
     void dynamics(const VectorXd &x, const VectorXd &u, VectorXd &fxu) {
@@ -71,10 +77,45 @@ class Car : public Robot
       */
     }
 
-    double x_upper_limit(const int index){ return  1e20; } //if you set this, beaware of belief space
-    double x_lower_limit(const int index){ return -1e20; }
-    double u_upper_limit(const int index){ return  1e20; }
-    double u_lower_limit(const int index){ return -1e20; }
+    double x_upper_limit(const int index){
+    	if (index < _NX)
+    		return _X_upper_constraint(index);
+    	else
+    		return 1e20;
+    }
+    double x_lower_limit(const int index){
+    	if (index < _NX) {
+    		return _X_lower_constraint(index);
+    	}
+    	else {
+    		return -1e20;
+    	}
+    }
+    double u_upper_limit(const int index){
+    	if (index < _NU) {
+    		return _U_upper_constraint(index);
+    	} else {
+    		return  1e20;
+    	}
+    }
+    double u_lower_limit(const int index){
+    	if (index < _NU) {
+    		return _U_lower_constraint(index);
+    	}
+    	else {
+    		return -1e20;
+    	}
+    }
+
+    void setXConstraints(const Vector4d& X_upper, const Vector4d& X_lower) {
+    	_X_upper_constraint = X_upper;
+    	_X_lower_constraint = X_lower;
+    }
+
+    void setUConstraints(const Vector2d& U_upper, const Vector2d& U_lower) {
+    	_U_upper_constraint = U_upper;
+    	_U_lower_constraint = U_lower;
+    }
 
     void penetration(const VectorXd &x, VectorXd& p) {
     	p = VectorXd::Zero(0);
@@ -91,20 +132,20 @@ class Car : public Robot
      M = _M; 
     }
 
-    void N(const VectorXd& x, MatrixXd& N) {
-     assert(N_set == true);
-     N = _N; 
-    }
+//    void N(const VectorXd& x, MatrixXd& N) {
+//     assert(N_set == true);
+//     N = _N;
+//    }
 
     void set_M(const MatrixXd& M) {
      _M = M;
      M_set = true; 
     }
 
-    void set_N(const MatrixXd& N) {
-     _N = N;
-     N_set = true;
-    }
+//    void set_N(const MatrixXd& N) {
+//     _N = N;
+//     N_set = true;
+//    }
 
     Vector3d xyz(const VectorXd& x) {
     	Vector3d ret(x(0), x(1), 0);

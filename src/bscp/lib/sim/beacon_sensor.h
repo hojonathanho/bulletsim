@@ -16,9 +16,12 @@ class BeaconSensor : public Sensor
   public:
     VectorXd _pos;
     double _decay_coeff; 
+    MatrixXd _N;
+    bool N_set;
     BeaconSensor(const VectorXd& beacon_pos, const double decay_coeff=25) : Sensor(1) {
       _pos = beacon_pos;
       _decay_coeff = decay_coeff;
+      N_set = false;
     }
 
     void observe(const VectorXd& x, VectorXd &z) {
@@ -29,6 +32,16 @@ class BeaconSensor : public Sensor
       z(0) = 1.0 / (denom);
     }
 
+    void rt_noise(const VectorXd& x, MatrixXd& N) {
+    	assert(N_set == true);
+    	N = _N;
+    }
+
+    void setN(const double n) {
+    	_N = MatrixXd::Zero(1,1);
+    	_N(0) = n;
+    	N_set = true;
+    }
 
    osg::Node* draw(const MatrixXd& sensor_state, const Vector4d& color, osg::Group* parent, double z_offset=0) {
      //VectorXd sensor_pos = sensor_state.col(0);

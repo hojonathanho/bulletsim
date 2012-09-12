@@ -26,6 +26,8 @@ class Sensor {
    }
    // x = sensor_state(robot_state); , z = g(x)
    virtual void observe(const VectorXd &x, VectorXd &z) = 0;
+   // N = N(x)
+   virtual void rt_noise(const VectorXd&x, const MatrixXd& C, const MatrixXd& Gamma, MatrixXd& N) = 0;
    
    // x = sensor_state(robot_state); C = \partial g
    // this is for an use in a chain rule; implementing classes may (should) override with an analytical version

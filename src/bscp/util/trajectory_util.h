@@ -103,6 +103,15 @@ struct TrajectoryInfo {
 		return w_vec;
 	}
 
+	vector<MatrixXd> rt_belief_noise(Robot& r) const {
+		int T = _U.size();
+		vector<MatrixXd> rt_noise(T);
+		for (int t = 0; t < T; t++) {
+		    r.belief_noise(_X[t], _U[t], rt_noise[t]);
+		}
+		return rt_noise;
+	}
+
 	SparseMatrix<double> build_G() {
 	  int T = _U.size();
 	  int NX = _X[0].rows();
@@ -157,6 +166,12 @@ struct TrajectoryInfo {
 	void set(const vector<VectorXd>& X, const vector<VectorXd>& U) {
 		_X = X;
 		_U = U;
+	}
+
+	void set(const vector<VectorXd>& X, const vector<VectorXd>& U, const vector<VectorXd>& W) {
+		_X = X;
+		_U = U;
+		_W = W;
 	}
 
 	void integrate(Robot &r) {

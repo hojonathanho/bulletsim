@@ -44,8 +44,11 @@ class CameraSensor : public Sensor
 	osgViewer::View* _view;
 	osg::Matrixd _view_projection;
 	double _camera_draw_size;
+	double _fov_angle;
+	MatrixXd _N;
+	bool N_set;
 
-    CameraSensor(int num_obj, Matrix3d &KK, int image_width, int image_height, Matrix4d fixed_offset = Matrix4d::Identity(), double camera_draw_size=0.005) : Sensor(num_obj*2) {
+    CameraSensor(int num_obj, Matrix3d &KK, int image_width, int image_height, Matrix4d fixed_offset = Matrix4d::Identity(), double camera_draw_size=0.005, double fov_angle=M_PI) : Sensor(num_obj*2) {
     	_num_obj = num_obj;
     	_KK = KK;
     	_far = 10000;
@@ -53,7 +56,12 @@ class CameraSensor : public Sensor
     	_image_width = image_width;
     	_image_height = image_height;
     	_offset = fixed_offset;
+    	_fov_angle = fov_angle;
     	_camera_draw_size = camera_draw_size;
+    	N_set = false;
+
+    	cout << "fov angle: " << _fov_angle << endl;
+
     	_view = new osgViewer::View();
 
 
@@ -85,7 +93,7 @@ class CameraSensor : public Sensor
     	Vector3d cam_x = x.segment(0,3);
 
     	Quaterniond cam_q;
-    	cam_q.coeffs() = x.segment(3,4);//Quaterniond(x(3), x(4), x(5), x(6));
+    	cam_q.coeffs() = x.segment(3,4);
     	//construct transform
     	Matrix4d C_w = Matrix4d::Identity();
     	C_w.block(0,0,3,3) = cam_q.toRotationMatrix();
@@ -99,49 +107,104 @@ class CameraSensor : public Sensor
     	for (int i = 0; i < _num_obj; i++) {
     		Vector4d XXc = E * Vector4d(obj_pos(i*3), obj_pos(i*3+1), obj_pos(i*3+2), 1.0);
     		Vector3d pxy;
-    		if (XXc(2) < 0) {
+    		if (XXc(2) == 0) XXc(2) = -1e-10;
+
     		Vector3d Xn(XXc(0) / XXc(2), XXc(1) / XXc(2), 1.0);
-				pxy = _KK * Xn;
-				//cout << pxy.transpose( ) << endl;
 
-//				if (pxy(0) < 0)
-//					pxy(0) = 0;
-//				else if (pxy(0) > _image_width)
-//					pxy(0) = _image_width;
+    		pxy = _KK*Xn;
+    		pxy(0) -= _image_width/2;
+    		pxy(1) -= _image_height/2;
+
+//    		if (-XXc(2) / XXc.segment(0,3).norm() > cos(_fov_angle/2.0)) {
+//    		//if (XXc(2) < 0) {
+//    		Vector3d Xn(XXc(0) / XXc(2), XXc(1) / XXc(2), 1.0);
+//				pxy = _KK * Xn;
+//				//cout << pxy.transpose( ) << endl;
 //
-//				if (pxy(1) < 0)
-//					pxy(1) = 0;
-//				else if (pxy(1) > _image_height)
-//					pxy(1) = _image_height;
-
-				// i'm lazy. check in the old frame where 0 is the upper left corner
-				if (pxy(0) < 0 || pxy(0) > _image_width ||
-						pxy(1) < 0 || pxy(1) > _image_height) {
-					// out of the frame, so set to bad signal
-					pxy(0) = _image_width/2;
-					pxy(1) = _image_height/2;
-				} else {
-					// good signal, set 0 to the center
-					pxy(0) -= _image_width / 2;
-					pxy(1) -= _image_height / 2;
-				}
-
-
-    		} else {
-    			pxy(0) = _image_width/2;
-    			pxy(1) = _image_height/2;
-    		}
+//
+//				//check in the old frame where 0 is the upper left corner
+//				if (pxy(0) < 0 || pxy(0) > _image_width ||
+//						pxy(1) < 0 || pxy(1) > _image_height) {
+//					// out of the frame, so set to bad signal
+//					pxy(0) = _image_width/2;
+//					pxy(1) = _image_height/2;
+//				} else {
+//					// good signal, set 0 to the center
+//					pxy(0) -= _image_width / 2;
+//					pxy(1) -= _image_height / 2;
+//				}
+//
+//
+//    		} else {
+//    			pxy(0) = _image_width/2;
+//    			pxy(1) = _image_height/2;
+//    		}
 
 //    		double cx = _image_width/2;
 //    		double cy = _image_height/2;
     		double cx = 0;
     		double cy = 0;
-    		pxy(0) = exp(- abs(pxy(0) - cx)/ _image_width );
-    		pxy(1) = exp(- abs(pxy(1) - cy)/ _image_height );
+    		//cout << pxy.transpose() << endl;
+    		//pxy(0) = exp(- abs(pxy(0) - cx)/ _image_width );
+    		//pxy(1) = exp(- abs(pxy(1) - cy)/ _image_height );
     		//cout << pxy.transpose() << endl;
     		z.segment(i*2, 2) = pxy.segment(0,2);
     	}
     }
+
+    void rt_noise(const VectorXd& x, const MatrixXd& C, const MatrixXd& Gamma, MatrixXd& N) {
+     	//assert(N_set == true);
+     	//N = _N;
+		Vector3d cam_x = x.segment(0, 3);
+
+		Quaterniond cam_q;
+		cam_q.coeffs() = x.segment(3, 4);
+		//construct transform
+		Matrix4d C_w = Matrix4d::Identity();
+		C_w.block(0, 0, 3, 3) = cam_q.toRotationMatrix();
+		C_w.block(0, 3, 3, 1) = cam_x;
+		C_w = C_w * _offset;
+		Matrix4d E = ComputeExtrinsics(C_w);
+
+		//project point
+		VectorXd obj_pos = x.segment(7, _num_obj * 3);
+		N = MatrixXd::Zero(_NZ, _NZ);
+		for (int i = 0; i < _num_obj; i++) {
+			Vector4d XXc = E
+					* Vector4d(obj_pos(i * 3), obj_pos(i * 3 + 1),
+							obj_pos(i * 3 + 2), 1.0);
+			Vector3d pxy;
+			Vector3d Xn(XXc(0) / XXc(2), XXc(1) / XXc(2), 1.0);
+			double cos_ang = -XXc(2) / XXc.segment(0,3).norm();
+			if (cos_ang > cos(_fov_angle/2.0)) { //inside FOV
+				cout << "inside fov" << endl;
+				N.block(2*i, 2*i, 2, 2) = XXc.segment(0,3).norm()*(1.0001 - cos_ang) * Matrix2d::Identity();
+			}
+			else { //outside FOV
+
+				//double tr_s =  0.5*Gamma.trace()*(cos_ang + 1.001);
+			    double tr_s = Gamma.trace()*exp(-5*(1.0 - cos_ang));
+				double g_px = C.row(2*i) * C.row(2*i).transpose();
+				double tr_px = (Gamma*(g_px)*Gamma).trace();
+				double v_px = (C.row(2*i)) * Gamma * (C.row(2*i).transpose());
+				double g_py = C.row(2*i+1) * C.row(2*i+1).transpose();
+				double tr_py = (Gamma*g_py*Gamma).trace();
+				double v_py = (C.row(2*i+1)) * Gamma *( C.row(2*i+1).transpose());
+				N(2*i  , 2*i  ) = max(sqrt(max(tr_px / tr_s - v_px, 1e-8)), XXc.segment(0,3).norm()*(1.0001 - cos_ang));
+				N(2*i+1, 2*i+1) = max(sqrt(max(tr_py / tr_s - v_py, 1e-8)), XXc.segment(0,3).norm()*(1.0001 - cos_ang));
+//				N(2*i, 2*i) = sqrt( ((1-tr_s)*n_px) / tr_s );
+//				N(2*i+1, 2*i+1) = sqrt( ((1-tr_s)*n_px) / tr_s );
+			}
+		}
+		//cout << N << endl;
+
+     }
+
+    void setN(const MatrixXd& N) {
+    	_N = N;
+    	N_set = true;
+    }
+
     //sensor state is the serialized transform (i.e. a vector)
     osg::Node* draw(const MatrixXd& sensor_state_vec, const Vector4d& color, osg::Group* parent, double z_offset=0) {
     	return drawSize(sensor_state_vec, color, parent, z_offset, _camera_draw_size);

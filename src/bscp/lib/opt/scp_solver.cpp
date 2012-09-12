@@ -31,12 +31,29 @@ void scp_solver(Robot &r, const vector<VectorXd>& X_bar,
     U_scp[i] = U_bar[i]; 
 
 
-
   TrajectoryInfo nominal = TrajectoryInfo(X_scp, U_scp, g, dg, rho_x, rho_u);
-
-  vector<vector<VectorXd> > W_s_bar;
-  index_by_sample(W_bar, W_s_bar);
+  vector<vector<VectorXd> > N_s_bar;
+  index_by_sample(W_bar, N_s_bar);
   vector<TrajectoryInfo> samples;
+
+  vector<MatrixXd> rt_W_dist(T);
+  vector<vector<VectorXd> > W_s_bar(NS);
+
+  if (NX == r._NB) {
+	  rt_W_dist = nominal.rt_belief_noise(r);
+  } else {
+	  for (int t = 0; t < T; t++) {
+		  rt_W_dist[t] = MatrixXd::Identity(NX,NX);
+	  }
+  }
+
+  for(int s = 0; s < NS; s++) {
+	  W_s_bar[s] = vector<VectorXd>(T);
+	  for (int t = 0; t < T; t++) {
+		  W_s_bar[s][t] = rt_W_dist[t]*N_s_bar[s][t];
+	  }
+  }
+
   for (int i = 0; i < NS; i++) {
 	  samples.push_back(TrajectoryInfo(X_scp, U_scp, W_s_bar[i], g, dg, rho_x, rho_u));
 	  samples[i].integrate(r);
@@ -47,8 +64,25 @@ void scp_solver(Robot &r, const vector<VectorXd>& X_bar,
   for (int iter = 0; iter < N_iter; iter++) 
   {
 
+	 if (NX == r._NB) {
+		 rt_W_dist = nominal.rt_belief_noise(r);
+	 } else {
+		 for (int t = 0; t < T; t++) {
+			 rt_W_dist[t] = MatrixXd::Identity(NX,NX);
+		 }
+	 }
+
+	 for(int s = 0; s < NS; s++) {
+		 W_s_bar[s] = vector<VectorXd>(T);
+		 for (int t = 0; t < T; t++) {
+			 W_s_bar[s][t] = rt_W_dist[t]*N_s_bar[s][t];
+		 }
+	 }
+
+
 	nominal.update(r); // updates jacobians and bounds
 	for (int s = 0; s < NS; s++) {
+		samples[s].set(samples[s]._X, samples[s]._U, W_s_bar[s]);
 		samples[s].update(r);
 	}
 

@@ -96,10 +96,22 @@ class PR2_SCP : public Robot
     double u_upper_limit(const int i) { return   0.1; }
     double u_lower_limit(const int i) { return  -0.1; }
 
+    VectorXd clampState(const VectorXd& x) {
+    	VectorXd clamp_x = x;
+    	for (int i = 0; i < _NX; i++) {
+    		if (clamp_x(i) > x_upper_limit(i))
+    			clamp_x(i) = x_upper_limit(i);
+    		if (clamp_x(i) < x_lower_limit(i))
+    			clamp_x(i) = x_lower_limit(i);
+    	}
+    	return clamp_x;
+    }
+
     vector<btRigidBody*> get_bullet_links() { return _bt_arm_links; }
     vector<KinBody::LinkPtr> get_OpenRAVE_links() { return _arm_links; }
 
-    void penetration(const VectorXd& x_bar, VectorXd &p) {
+    void penetration(const VectorXd& x_in, VectorXd &p) {
+    	VectorXd x_bar = clampState(x_in);
     	//vector<double> currentDOF = _pr2->getDOFValues(_active_dof_indices);
     	_pr2->robot->SetDOFValues(toVec(x_bar), 1, _active_dof_indices); // does NOT update Bullet
     	_sync->updateBullet(); // explicitly update bullet
@@ -152,7 +164,8 @@ class PR2_SCP : public Robot
 		dp_analytical(x_bar, D, d_offset);
 	}
 
-    void dp_analytical(const VectorXd& x_bar, MatrixXd& D, VectorXd& d_bar) {
+    void dp_analytical(const VectorXd& x_in, MatrixXd& D, VectorXd& d_bar) {
+    	VectorXd x_bar = clampState(x_in);
     	//returns d(x) \approx Dx + d_bar; d_bar = d(x_bar) - Dx_bar;
     	//vector<double> currentDOF = _pr2->getDOFValues(_active_dof_indices);
        	_pr2->robot->SetDOFValues(toVec(x_bar), 1, _active_dof_indices); // does NOT update Bullet
@@ -312,20 +325,20 @@ class PR2_SCP : public Robot
      M = _M; 
    }
 
-   void N(const VectorXd& x, MatrixXd& N) {
-     assert(N_set == true);
-     N = _N; 
-   }
+//   void N(const VectorXd& x, MatrixXd& N) {
+//     assert(N_set == true);
+//     N = _N;
+//   }
 
    void set_M(const MatrixXd& M) {
      _M = M;
      M_set = true; 
    }
 
-   void set_N(const MatrixXd& N) {
-     _N = N;
-     N_set = true;
-   }
+//   void set_N(const MatrixXd& N) {
+//     _N = N;
+//     N_set = true;
+//   }
 
     osg::Node* draw(VectorXd x, Vector4d color, osg::Group* parent) {
       return NULL; 
@@ -335,7 +348,8 @@ class PR2_SCP : public Robot
       return NULL;
     }
 
-    Vector3d camera_xyz(const VectorXd& x) {
+    Vector3d camera_xyz(const VectorXd& x_in) {
+    	VectorXd x = clampState(x_in);
 		_pr2->robot->SetDOFValues(toVec(x), 1, _active_dof_indices);
 		btTransform link_transform = util::toBtTransform(
 				_pr2->robot->GetLink("r_forearm_cam_optical_frame")->GetTransform(), GeneralConfig::scale);
@@ -350,7 +364,8 @@ class PR2_SCP : public Robot
     	//return xyz(x);
     }
 
-    void dcamera_xyz(const VectorXd& x, MatrixXd& Jxyz) {
+    void dcamera_xyz(const VectorXd& x_in, MatrixXd& Jxyz) {
+    	VectorXd x = clampState(x_in);
        	//vector<double> currentDOF = _pr2->getDOFValues(_active_dof_indices);
         _pr2->robot->SetDOFValues(toVec(x), 1, _active_dof_indices);
     	vector<double> jac_v;
@@ -368,7 +383,8 @@ class PR2_SCP : public Robot
     	//dxyz(x, Jxyz);
     }
 
-    Vector4d camera_quat(const VectorXd &x) {
+    Vector4d camera_quat(const VectorXd &x_in) {
+    	VectorXd x = clampState(x_in);
 		_pr2->robot->SetDOFValues(toVec(x), 1, _active_dof_indices);
 		btTransform link_transform = util::toBtTransform(
 				_pr2->robot->GetLink("r_forearm_cam_optical_frame")->GetTransform(), GeneralConfig::scale);
@@ -384,11 +400,11 @@ class PR2_SCP : public Robot
     	//return quat(x);
     }
 
-    void dcamera_quat(const VectorXd& x, MatrixXd& Jquat) {
+    void dcamera_quat(const VectorXd& x_in, MatrixXd& Jquat) {
     	//http://openrave.org/docs/latest_stable/geometric_conventions/
     	// note openrave quaternions are w x y z
     	// while eigen/bullet quaternions are x y z w
-
+    	VectorXd x = clampState(x_in);
        	//vector<double> currentDOF = _pr2->getDOFValues(_active_dof_indices);
         _pr2->robot->SetDOFValues(toVec(x), 1, _active_dof_indices);
     	vector<double> jac_v;
@@ -410,7 +426,8 @@ class PR2_SCP : public Robot
     	//dquat(x,Jquat);
     }
 
-    VectorXd camera_transform(const VectorXd& x) {
+    VectorXd camera_transform(const VectorXd& x_in) {
+    	VectorXd x = clampState(x_in);
     	Vector3d cam_xyz = camera_xyz(x);
     	Vector4d cam_quat = camera_quat(x);
     	VectorXd ret(7);
@@ -444,7 +461,9 @@ class PR2_SCP : public Robot
     	Jtransform.block(3,0,4,_NX) = Jquat;
     }
 
-    Vector3d xyz(const VectorXd& x) {
+    Vector3d xyz(const VectorXd& x_in) {
+    	VectorXd x = clampState(x_in);
+
        	//vector<double> currentDOF = _pr2->getDOFValues(_active_dof_indices);
         _pr2->robot->SetDOFValues(toVec(x), 1, _active_dof_indices);
         btTransform manip_transform = _manip->getTransform();
@@ -455,7 +474,8 @@ class PR2_SCP : public Robot
         return ret;
     }
 
-    Vector4d quat(const VectorXd& x) {
+    Vector4d quat(const VectorXd& x_in) {
+    	VectorXd x = clampState(x_in);
 
        	//vector<double> currentDOF = _pr2->getDOFValues(_active_dof_indices);
         _pr2->robot->SetDOFValues(toVec(x), 1, _active_dof_indices);
@@ -468,8 +488,8 @@ class PR2_SCP : public Robot
         return ret;
     }
 
-    void dxyz(const VectorXd& x, MatrixXd& Jxyz) {
-
+    void dxyz(const VectorXd& x_in, MatrixXd& Jxyz) {
+    	VectorXd x = clampState(x_in);
        	//vector<double> currentDOF = _pr2->getDOFValues(_active_dof_indices);
         _pr2->robot->SetDOFValues(toVec(x), 1, _active_dof_indices);
     	vector<double> jac_v;
@@ -489,11 +509,11 @@ class PR2_SCP : public Robot
     }
 
 
-    void dquat(const VectorXd& x, MatrixXd& Jquat) {
+    void dquat(const VectorXd& x_in, MatrixXd& Jquat) {
     	//http://openrave.org/docs/latest_stable/geometric_conventions/
     	// note openrave quaternions are w x y z
     	// while eigen/bullet quaternions are x y z w
-
+    	VectorXd x = clampState(x_in);
        	//vector<double> currentDOF = _pr2->getDOFValues(_active_dof_indices);
         _pr2->robot->SetDOFValues(toVec(x), 1, _active_dof_indices);
     	vector<double> jac_v;
