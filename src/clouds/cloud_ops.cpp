@@ -171,9 +171,9 @@ ColorCloudPtr cropToHull(const ColorCloudPtr in, ColorCloudPtr hull_cloud, std::
   		out->at(indices[i]).x = numeric_limits<float>::quiet_NaN();
   		out->at(indices[i]).y = numeric_limits<float>::quiet_NaN();
   		out->at(indices[i]).z = numeric_limits<float>::quiet_NaN();
-  		out->at(indices[i]).r = 0;
-  		out->at(indices[i]).g = 0;
-  		out->at(indices[i]).b = 0;
+  		out->at(indices[i]).r = 255;
+  		out->at(indices[i]).g = 255;
+  		out->at(indices[i]).b = 255;
   	}
   }
   return out;

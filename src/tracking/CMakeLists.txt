@@ -45,9 +45,6 @@ target_link_libraries(tracker_node tracking simulation clouds tf cv_bridge ${Ope
 add_executable(robot_tracker_node robot_tracker_node.cpp)
 target_link_libraries(robot_tracker_node tracking simulation clouds tf cv_bridge ${ROS_LIBRARIES} boost_signals)
 
-#add_executable(tracker_phasespace_node tracker_phasespace_node.cpp)
-#target_link_libraries(tracker_phasespace_node tracking simulation clouds phasespace tf cv_bridge ${OpenCV_LIBS} ${ROS_LIBRARIES} boost_signals)
-
 #add_executable(threaded_tracker_node threaded_tracker_node.cpp)
 #target_link_libraries(threaded_tracker_node tracking simulation clouds tf cv_bridge ${OpenCV_LIBS} ${ROS_LIBRARIES} boost_signals)
 

@@ -77,7 +77,7 @@ struct LocalConfig : Config {
   }
 };
 
-string LocalConfig::inputTopic = "/drop/points";
+string LocalConfig::inputTopic = "/kinect1/depth_registered/points";
 float LocalConfig::zClipLow = -0.02;
 float LocalConfig::zClipHigh = 0.5;
 bool LocalConfig::updateParams = true;
@@ -125,7 +125,11 @@ public:
 
   void callback(const sensor_msgs::PointCloud2& msg_in) {
   	// Needs this to update the opencv windows
-    if (LocalConfig::debugMask || LocalConfig::debugGreenFilter) cv::waitKey(20);
+    if (LocalConfig::debugMask || LocalConfig::debugGreenFilter) {
+    	char key = cv::waitKey(20);
+    	if (key == 'q')
+    		exit(0);
+    }
 
   	ColorCloudPtr cloud_in(new ColorCloud());
     pcl::fromROSMsg(msg_in, *cloud_in);
@@ -142,15 +146,18 @@ public:
 
     // image-based filters: color, morphological and connected components
 		cv::Mat image = toCVMatImage(cloud_in);
+		if (LocalConfig::debugMask) cv::imshow("cloud image", image);
 		cv::Mat neg_green = colorSpaceMask(image, MIN_L, MAX_L, MIN_A, MAX_A, MIN_B, MAX_B, CV_BGR2Lab); // remove green
-		cv::Mat yellow = colorSpaceMask(image, 0, 255, 0, 255, 0, 123, CV_BGR2Lab); // add yellow
+		//cv::Mat yellow = colorSpaceMask(image, 0, 255, 0, 255, 0, 123, CV_BGR2Lab); // add yellow
+		cv::Mat yellow = colorSpaceMask(image, MIN_L, MAX_L, MIN_A, MAX_A, MIN_B, MAX_B, CV_BGR2Lab); // add yellow
 		if (LocalConfig::debugMask) cv::imshow("mask negative green", neg_green);
 		if (LocalConfig::debugMask) cv::imshow("mask yellow", yellow);
 
 		cv::Mat cropped_image = toCVMatImage(cloud_out);
-		if (LocalConfig::debugMask) cv::imshow("cropped image", yellow);
+		if (LocalConfig::debugMask) cv::imshow("cropped image", cropped_image);
 
 		cv::Mat mask = (neg_green | yellow) & toBinaryMask(cropped_image);
+		if (LocalConfig::debugMask) cv::imshow("cropped image binary", cropped_image);
 
 		if (LocalConfig::debugMask) cv::imshow("mask original", mask);
 		mask = sparseSmallFilter(mask, 1, 2, 100, 2);

@@ -58,7 +58,6 @@ bool loadTransform(const std::string& filename, Eigen::Affine3f& t);
 
 inline btVector3 toBulletVector(const ColorPoint& pt) { return btVector3(pt.x, pt.y, pt.z); }
 inline Eigen::Vector3f toEigenVector(const ColorPoint& pt) {return Eigen::Vector3f(pt.x,pt.y,pt.z);}
-geometry_msgs::Point32 toROSPoint32(const btVector3& vec);
 geometry_msgs::Point32 toROSPoint32(const ColorPoint& pt);
 ColorPoint toColorPoint(const geometry_msgs::Point32& g_pt);
 ColorPoint toColorPoint(const Eigen::Vector3f& vec);

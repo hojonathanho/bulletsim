@@ -90,9 +90,10 @@ cv::Mat toBinaryMask(cv::Mat image) {
 }
 
 cv::Mat colorSpaceMask(cv::Mat cvmat, uint8_t minx, uint8_t maxx, uint8_t miny, uint8_t maxy, uint8_t minz, uint8_t maxz, int code) {
-	cv::cvtColor(cvmat, cvmat, code);
+	cv::Mat cvmat_transformed;
+	cv::cvtColor(cvmat, cvmat_transformed, code);
   vector<cv::Mat> channels;
-  cv::split(cvmat, channels);
+  cv::split(cvmat_transformed, channels);
 
   cv::Mat& x = channels[0];
   cv::Mat& y = channels[1];

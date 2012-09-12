@@ -180,14 +180,6 @@ ColorCloudPtr addColor(CloudPtr in, uint8_t r, uint8_t g, uint8_t b) {
 }
 
 
-geometry_msgs::Point32 toROSPoint32(const btVector3& vec) {
-	geometry_msgs::Point32 g_pt;
-	g_pt.x = vec.x();
-	g_pt.y = vec.y();
-	g_pt.z = vec.z();
-	return g_pt;
-}
-
 geometry_msgs::Point32 toROSPoint32(const ColorPoint& pt) {
 	geometry_msgs::Point32 g_pt;
 	g_pt.x = pt.x;

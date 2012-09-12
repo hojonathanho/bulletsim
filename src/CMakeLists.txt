@@ -43,8 +43,12 @@ endif(JOHNS_ADVENTURES)
 
 if (ALEXS_ADVENTURES OR JOHNS_ADVENTURES)
 	add_subdirectory(tracking)
-	add_subdirectory(phasespace)
 endif (ALEXS_ADVENTURES OR JOHNS_ADVENTURES)
+
+if (ALEXS_ADVENTURES)
+	add_subdirectory(phasespace)
+	add_subdirectory(experiments)
+endif (ALEXS_ADVENTURES)
 
 if (JONATHANS_ADVENTURES)
    add_subdirectory(flattening)
