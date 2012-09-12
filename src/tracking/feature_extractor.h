@@ -91,5 +91,6 @@ public:
 
   TrackedObjectFeatureExtractor(TrackedObject::Ptr obj);
   void updateFeatures();
+  void setObj(TrackedObject::Ptr obj);
   Eigen::MatrixXf computeFeature(FeatureType fType);
 };

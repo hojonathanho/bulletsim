@@ -1,4 +1,5 @@
 #include "utils_ros.h"
+#include "utils/logging.h"
 
 using namespace std;
 using sensor_msgs::Image;
@@ -32,12 +33,21 @@ btTransform waitForAndGetTransform(const tf::TransformListener& listener, std::s
 		break;
 	}
 	return st.asBt();
-
-//	listener.waitForTransform(target_frame, source_frame, ros::Time(0),ros::Duration(.1));
-//	tf::StampedTransform st;
-//	listener.lookupTransform(target_frame, source_frame, ros::Time(0), st);
-//	return st.asBt();
 }
+
+bool lookupLatestTransform(btTransform& out, const std::string& toFrame, const std::string& fromFrame, tf::TransformListener& listener) {
+  tf::StampedTransform st;
+  try {
+      listener.lookupTransform(toFrame, fromFrame, ros::Time(0), st);
+  }
+  catch (tf::TransformException e) {
+      LOG_WARN_FMT("tf error: %s\n", e.what());
+      return false;
+  }
+  out = st.asBt();
+  return true;
+}
+
 
 void vectorizeArgumentsAndInvoke(const PointCloud2ConstPtr& cloud_msgs, const ImageConstPtr& image_msgs0, const ImageConstPtr& image_msgs1, void (*callback)(const PointCloud2ConstPtr&, const vector<ImageConstPtr>&)) {
 	vector<ImageConstPtr> image_msgs;

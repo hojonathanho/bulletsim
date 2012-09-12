@@ -10,12 +10,21 @@ void setupDefaultROSRave() {
   ros2rave.assign(ros2rave_array, ros2rave_array + sizeof(ros2rave_array)/sizeof(int));
 }
 
-void setupROSRave(const OpenRAVE::RobotBasePtr& robot, const sensor_msgs::JointState& msg) {
+void ROSRaveReset(const OpenRAVE::RobotBasePtr& robot, const sensor_msgs::JointState& msg) {
   // ros2rave = [pr2.GetJointIndex(name) for name in rosnames]
   BOOST_FOREACH(const string& name, msg.name) {
     ros2rave.push_back(robot->GetJointIndex(name));
   }
 }
+
+static bool setupDone = false;
+void setupROSRave(const OpenRAVE::RobotBasePtr& robot, const sensor_msgs::JointState& msg) {
+  if (!setupDone) {
+    ROSRaveReset(robot, msg);
+    setupDone = true;
+  }
+}
+
 
 ValuesInds getValuesInds(const vector<double>& rosjoints) {
   ValuesInds out;

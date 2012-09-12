@@ -154,14 +154,17 @@ Eigen::MatrixXf CloudFeatureExtractor::computeFeature(FeatureType fType) {
 }
 
 TrackedObjectFeatureExtractor::TrackedObjectFeatureExtractor(TrackedObject::Ptr obj) :
-	FeatureExtractor(),
-	m_obj(obj)
-{
-	m_features.resize(m_obj->m_nNodes, m_dim);
+	FeatureExtractor() {
+  setObj(obj);
 	//initialize ALL the features
 	BOOST_FOREACH(FeatureType& fType, m_types) {
-		getFeatures(fType) = computeFeature(fType);
+	  getFeatures(fType) = computeFeature(fType);
 	}
+}
+
+void TrackedObjectFeatureExtractor::setObj(TrackedObject::Ptr obj) {
+  m_obj = obj;
+  m_features.resize(m_obj->m_nNodes, m_dim);
 }
 
 void TrackedObjectFeatureExtractor::updateFeatures() {
