@@ -1,16 +1,9 @@
 <package>
-  <description brief="cloud_msg">
+  <description brief="bulletsim_python">
 
-     cloud_msgs
+     python modules for bulletsim
 
   </description>
-  <author>John Schulman</author>
-  <license>undecided</license>
-  <review status="unreviewed" notes=""/>
-  <url>http://ros.org/wiki/hydra_msgs</url>
-
-  <depend package="geometry_msgs"/>
-  <depend package="std_msgs"/>
 
 </package>
 
