@@ -239,6 +239,10 @@ void PlotAxes::setup(osg::Vec3f origin, osg::Vec3f x, osg::Vec3f y, osg::Vec3f z
   m_ends->plot(endpts, cols, radii);
 }
 
+void PlotAxes::clear() {
+	PlotLines::clear();
+	m_ends->clear();
+}
 
 PlotCurve::PlotCurve(float width) : osg::Geode(), m_defaultColor(1,0,0,1) {
 

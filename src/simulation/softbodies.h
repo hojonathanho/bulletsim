@@ -5,6 +5,11 @@
 #include "basicobjects.h"
 
 class BulletSoftObject : public EnvironmentObject {
+private:
+	void computeNodeFaceMapping();
+	vector<vector<int> > node2faces;
+	vector<vector<int> > face2nodes;
+
 protected:
     osg::ref_ptr<osg::Geode> geode;
     osg::ref_ptr<osg::MatrixTransform> transform;
@@ -18,13 +23,14 @@ protected:
 public:
     osg::ref_ptr<osg::Vec2Array> tritexcoords;
 
+public:
     typedef boost::shared_ptr<BulletSoftObject> Ptr;
 
     boost::shared_ptr<btSoftBody> softBody;
 
     // constructors/destructors
-    BulletSoftObject(boost::shared_ptr<btSoftBody> softBody_) : softBody(softBody_), nextAnchorHandle(0) { }
-    BulletSoftObject(btSoftBody *softBody_) : softBody(softBody_), nextAnchorHandle(0) { }
+    BulletSoftObject(boost::shared_ptr<btSoftBody> softBody_) : softBody(softBody_), nextAnchorHandle(0) { computeNodeFaceMapping(); }
+    BulletSoftObject(btSoftBody *softBody_) : softBody(softBody_), nextAnchorHandle(0) { computeNodeFaceMapping(); }
     virtual ~BulletSoftObject() { }
 
     // serialization (TODO: serialize anchors also?)
@@ -37,11 +43,21 @@ public:
     virtual void saveToFile(ostream &s) const;
 
     void setColor(float,float,float,float);
-    void setTexture(const cv::Mat& image);
-		void adjustTransparency(float increment);
 
-		bool checkIntersection(const btVector3& start, const btVector3& end);
-		vector<btVector3> getIntersectionPoints(const btVector3& start, const btVector3& end);
+    // just sets the image, not the texture coordinates
+    void setTexture(cv::Mat image);
+    // sets the image and the texture coordinates
+    void setTexture(cv::Mat image, const btTransform& camFromWorld);
+    cv::Point2f getTexCoord(int nodeIdx);
+  void adjustTransparency(float increment);
+
+		// for softbody transforms. look at EnvironmentObject for precise definition.
+  int getIndex(const btTransform& transform);
+  int getIndexSize();
+  btTransform getIndexTransform(int index);
+
+  bool checkIntersection(const btVector3& start, const btVector3& end);
+  vector<btVector3> getIntersectionPoints(const btVector3& start, const btVector3& end);
 
     // custom anchor management
     typedef int AnchorHandle;

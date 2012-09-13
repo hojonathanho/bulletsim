@@ -12,6 +12,7 @@ include_directories(
     ${JSON_INCLUDE_DIR}
     ${LOG4CPLUS_INCLUDE_DIRS}
     ${ROS_ROOT_DIR}/include
+    ${PHASESPACE_INCLUDE_DIR}
 )
 link_directories(${BULLETSIM_BINARY_DIR}/src)
 
@@ -29,4 +30,5 @@ endif (BUILD_TESTS)
 
 if (BUILD_TRACKING)
   add_subdirectory(tracking)
+	add_subdirectory(phasespace)
 endif (BUILD_TRACKING)

@@ -10,8 +10,21 @@ std::string typeAsString(int type);
 // input and output images are binaries (i.e 0's and 255's). src gets modified.
 cv::Mat connectedComponentsFilter(cv::Mat src, int min_pix, int dist_pix);
 
+// input and output images are BGR images.
+cv::Mat connectedComponentsFilterColor(cv::Mat src, int min_pix, int dist_pix);
+
 //src and dst are binary images. removes sparse pixels and small connected components.
 cv::Mat sparseSmallFilter(cv::Mat src, int erode, int dilate, int min_connected_components, int tol_connected_components);
+
+// input and output are BGR images.
+cv::Mat sparseSmallFilterColor(cv::Mat src, int erode, int dilate, int min_connected_components, int tol_connected_components);
+
+// converts the image to a mask (binary, single-channel image)
+cv::Mat toBinaryMask(cv::Mat image);
+// masks the image. The mask can be a normal image (it doesn't have to be a binary, single-channel image)
+cv::Mat maskImage(cv::Mat image, cv::Mat mask);
+
+cv::Mat colorSpaceMask(cv::Mat cvmat, uint8_t minx, uint8_t maxx, uint8_t miny, uint8_t maxy, uint8_t minz, uint8_t maxz, int code);
 
 namespace cv {
 	void thresholdMulti(const Mat& src, Mat& dst, Scalar thresh, double maxVal, int thresholdType);

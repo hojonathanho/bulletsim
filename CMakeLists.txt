@@ -59,6 +59,9 @@ set(TETGEN_DIR ${BULLETSIM_SOURCE_DIR}/lib/tetgen-1.4.3)
 set(LOG4CPLUS_DIR ${BULLETSIM_SOURCE_DIR}/lib/log4cplus-1.1.0-rc3)
 set(LOG4CPLUS_INCLUDE_DIRS ${LOG4CPLUS_DIR}/include ${CMAKE_BINARY_DIR}/include)
 set(LOG4CPLUS_LIBRARY "log4cplus")
+set(PHASESPACE_DIR ${BULLETSIM_SOURCE_DIR}/lib/phasespace)
+set(PHASESPACE_INCLUDE_DIR ${PHASESPACE_DIR}/include)
+set(PHASESPACE_LIBS ${PHASESPACE_DIR}/libowlsock.so)
 
 # other external libraries, hardcoded
 set(WM_ROOT "~/Src/GeometricTools/WildMagic5")

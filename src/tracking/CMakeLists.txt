@@ -1,9 +1,8 @@
 include_directories(
-  ${PCL_INCLUDE_DIRS}
   ${BULLETSIM_SOURCE_DIR}/src
-)
+  ${PCL_INCLUDE_DIRS}
+  ${TETGEN_DIR}
 
-include_directories(
   ${ROS_ROOT_DIR}/include
   ${ROS_ROOT_DIR}/stacks/vision_opencv/cv_bridge/include
   ${ROS_ROOT_DIR}/stacks/geometry/tf/include
@@ -12,6 +11,7 @@ include_directories(
 )
 
 link_directories(
+  ${TETGEN_DIR}
   ${ROS_ROOT_DIR}/stacks/geometry/tf/lib
 	${ROS_ROOT_DIR}/stacks/vision_opencv/cv_bridge/lib
 )
@@ -28,6 +28,7 @@ add_library(tracking
 	sparse_utils.cpp
 	tracked_object.cpp 
 	tracked_rope.cpp
+	tracked_cloth.cpp
 	tracked_towel.cpp
 	tracked_box.cpp
 	utils_tracking.cpp
