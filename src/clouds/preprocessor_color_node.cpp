@@ -26,15 +26,12 @@
 using namespace std;
 using namespace Eigen;
 
-static std::string nodeNS = "/preprocessor";
-static std::string nodeName = "/preprocessor_node";
-
 enum boundary_t { NONE, LOAD_FILE, RED_MARKERS, TABLE };
 
 struct LocalConfig : Config {
   static std::string nodeNS;
   static std::string inputTopic;
-  static std::string nodeName;
+  static std::string cameraName;
   static float zClipLow;
   static float zClipHigh;
   static bool updateParams;
@@ -55,7 +52,9 @@ struct LocalConfig : Config {
   static int i3;
 
   LocalConfig() : Config() {
+    params.push_back(new Parameter<string>("nodeNS", &nodeNS, "node namespace. output topics start with /nodeNS/."));
     params.push_back(new Parameter<string>("inputTopic", &inputTopic, "input topic"));
+    params.push_back(new Parameter<string>("cameraName", &cameraName, "camera name. output topic start with /nodeNS/cameraName/"));
     params.push_back(new Parameter<float>("zClipLow", &zClipLow, "clip points that are less than this much above table"));
     params.push_back(new Parameter<float>("zClipHigh", &zClipHigh, "clip points that are more than this much above table"));
     params.push_back(new Parameter<bool>("updateParams", &updateParams, "start a thread to periodically update the parameters thru the parameter server"));
@@ -77,7 +76,9 @@ struct LocalConfig : Config {
   }
 };
 
+string LocalConfig::nodeNS = "/preprocessor";
 string LocalConfig::inputTopic = "/kinect1/depth_registered/points";
+string LocalConfig::cameraName = "/kinect1";
 float LocalConfig::zClipLow = -0.02;
 float LocalConfig::zClipHigh = 0.5;
 bool LocalConfig::updateParams = true;
@@ -102,9 +103,8 @@ static int MIN_L=0, MAX_L=255, MIN_A=115, MAX_A=255, MIN_B=0, MAX_B=255;
 class PreprocessorNode {
 public:
   ros::NodeHandle& m_nh;
-  ros::Publisher m_cloudPub, m_imagePub;
+  ros::Publisher m_cloudPub, m_imagePub, m_depthPub, m_maskPub;
   ros::Publisher m_cloudGreenPub, m_cloudNotGreenPub;
-  ros::Publisher m_cloudHullPub;
   ros::Publisher m_polyPub;
   tf::TransformBroadcaster m_broadcaster;
   tf::TransformListener m_listener;
@@ -148,17 +148,13 @@ public:
 		cv::Mat image = toCVMatImage(cloud_in);
 		if (LocalConfig::debugMask) cv::imshow("cloud image", image);
 		cv::Mat neg_green = colorSpaceMask(image, MIN_L, MAX_L, MIN_A, MAX_A, MIN_B, MAX_B, CV_BGR2Lab); // remove green
-		//cv::Mat yellow = colorSpaceMask(image, 0, 255, 0, 255, 0, 123, CV_BGR2Lab); // add yellow
-		cv::Mat yellow = colorSpaceMask(image, MIN_L, MAX_L, MIN_A, MAX_A, MIN_B, MAX_B, CV_BGR2Lab); // add yellow
 		if (LocalConfig::debugMask) cv::imshow("mask negative green", neg_green);
-		if (LocalConfig::debugMask) cv::imshow("mask yellow", yellow);
 
 		cv::Mat cropped_image = toCVMatImage(cloud_out);
 		if (LocalConfig::debugMask) cv::imshow("cropped image", cropped_image);
 
-		cv::Mat mask = (neg_green | yellow) & toBinaryMask(cropped_image);
-		if (LocalConfig::debugMask) cv::imshow("cropped image binary", cropped_image);
-
+		cv::Mat mask = neg_green & toBinaryMask(cropped_image);
+		if (LocalConfig::debugMask) cv::imshow("cropped image binary", toBinaryMask(cropped_image));
 		if (LocalConfig::debugMask) cv::imshow("mask original", mask);
 		mask = sparseSmallFilter(mask, 1, 2, 100, 2);
 		if (LocalConfig::debugMask) cv::imshow("mask", mask);
@@ -178,8 +174,13 @@ public:
 
 		cloud_out = maskCloud(cloud_in, mask);
 
-		cv::merge(vector<cv::Mat>(3, mask), mask);
-		image &= mask;
+		// this image contains the normal rgb image and the mask in the 'a' field
+		cv::Mat image_and_mask;
+		cv::cvtColor(image, image_and_mask, CV_BGR2BGRA);
+		vector<cv::Mat> channels;
+		cv::split(image_and_mask, channels);
+		channels[3] = mask;
+		cv::merge(channels, image_and_mask);
 
 		if (LocalConfig::removeOutliers) cloud_out = removeOutliers(cloud_out, 1, 10);
 		if (LocalConfig::downsample > 0) cloud_out = downsampleCloud(cloud_out, LocalConfig::downsample);
@@ -216,12 +217,26 @@ public:
 			m_cloudNotGreenPub.publish(msg_not_green);
 		}
 
-		//Publish image version of cloud
+		//Publish image with the mask in the alpha field
     cv_bridge::CvImage image_msg;
     image_msg.header   = msg_in.header;
-    image_msg.encoding = sensor_msgs::image_encodings::TYPE_8UC3;
-    image_msg.image    = image;
+    image_msg.encoding = sensor_msgs::image_encodings::TYPE_8UC4;
+    image_msg.image    = image_and_mask;
     m_imagePub.publish(image_msg.toImageMsg());
+
+    //Publish the mask only, for debuggin purposes
+    cv_bridge::CvImage mask_msg;
+    mask_msg.header   = msg_in.header;
+    mask_msg.encoding = sensor_msgs::image_encodings::TYPE_8UC1;
+    mask_msg.image    = mask;
+    m_maskPub.publish(mask_msg.toImageMsg());
+
+    //Republish depth image
+    cv_bridge::CvImage depth_msg;
+    depth_msg.header   = msg_in.header;
+    depth_msg.encoding = sensor_msgs::image_encodings::TYPE_32FC1;
+    depth_msg.image    = toCVMatDepthImage(cloud_in);
+		m_depthPub.publish(depth_msg.toImageMsg());
 
 		//broadcastKinectTransform(m_transform.inverse(), msg_in.header.frame_id, "ground", m_broadcaster, m_listener);
 
@@ -306,9 +321,11 @@ public:
   PreprocessorNode(ros::NodeHandle& nh) :
     m_inited(false),
     m_nh(nh),
-    m_cloudPub(nh.advertise<sensor_msgs::PointCloud2>(nodeNS+"/points",5)),
-    m_imagePub(nh.advertise<sensor_msgs::Image>(nodeNS+"/image",5)),
-    m_polyPub(nh.advertise<geometry_msgs::PolygonStamped>(nodeNS+"/polygon",5)),
+    m_cloudPub(nh.advertise<sensor_msgs::PointCloud2>(LocalConfig::nodeNS+LocalConfig::cameraName+"/points",5)),
+    m_imagePub(nh.advertise<sensor_msgs::Image>(LocalConfig::nodeNS+LocalConfig::cameraName+"/image",5)),
+    m_depthPub(nh.advertise<sensor_msgs::Image>(LocalConfig::nodeNS+LocalConfig::cameraName+"/depth",5)),
+    m_maskPub(nh.advertise<sensor_msgs::Image>(LocalConfig::nodeNS+LocalConfig::cameraName+"/debug/mask",5)),
+    m_polyPub(nh.advertise<geometry_msgs::PolygonStamped>(LocalConfig::nodeNS+"/debug/polygon",5)),
     m_sub(nh.subscribe(LocalConfig::inputTopic, 1, &PreprocessorNode::callback, this)),
 		m_mins(-10,-10,-10),
 		m_maxes(10,10,10),
@@ -316,20 +333,25 @@ public:
 		cloud_hull(new ColorCloud)
     {
 			if (LocalConfig::debugGreenFilter) {
-				m_cloudGreenPub = nh.advertise<sensor_msgs::PointCloud2>(nodeNS+"/green/points",5);
-				m_cloudNotGreenPub = nh.advertise<sensor_msgs::PointCloud2>(nodeNS+"/not_green/points",5);
+				m_cloudGreenPub = nh.advertise<sensor_msgs::PointCloud2>(LocalConfig::nodeNS+LocalConfig::cameraName+"/green/points",5);
+				m_cloudNotGreenPub = nh.advertise<sensor_msgs::PointCloud2>(LocalConfig::nodeNS+LocalConfig::cameraName+"/not_green/points",5);
 			}
-			m_cloudHullPub = nh.advertise<sensor_msgs::PointCloud2>(nodeNS+"/hull/points",5);
     }
 };
+
+string removePreSlash(string str) {
+	if (str[0] == '/')
+		str.erase(str.begin(), str.begin()+1);
+	return str;
+}
 
 int main(int argc, char* argv[]) {
   Parser parser;
   parser.addGroup(LocalConfig());
   parser.read(argc, argv);
 
-  ros::init(argc, argv,"preprocessor");
-  ros::NodeHandle nh(nodeNS);
+  ros::init(argc, argv, removePreSlash(LocalConfig::nodeNS) + "_" + removePreSlash(LocalConfig::cameraName));
+  ros::NodeHandle nh(LocalConfig::nodeNS + LocalConfig::cameraName);
 
   PreprocessorNode tp(nh);
   ros::spin();

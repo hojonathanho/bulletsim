@@ -40,7 +40,7 @@ public:
   btVector3 getPoint();
 };
 
-TrackedCloth::TrackedCloth(BulletSoftObject::Ptr sim, cv::Mat image,  int nCols, int nRows, float sx, float sy) : TrackedObject(sim, "towel"), m_sx(sx), m_sy(sy) {
+TrackedCloth::TrackedCloth(BulletSoftObject::Ptr sim, int nCols, int nRows, float sx, float sy) : TrackedObject(sim, "towel"), m_sx(sx), m_sy(sy) {
 	for (int i=0; i<getSim()->softBody->m_nodes.size(); i++) {
 		m_node2vert.push_back(i);
 		m_vert2nodes.push_back(vector<int>(1,i));
@@ -179,13 +179,8 @@ BulletSoftObject::Ptr makeCloth(const vector<btVector3>& corners, int resolution
 	return bso;
 }
 
-vector<btVector3> polyCorners(ColorCloudPtr cloud, cv::Mat image, CoordinateTransformer* transformer) {
-	cv::Mat mask;
-	cv::cvtColor(image, mask, CV_BGR2GRAY);
-	vector<cv::Point2f> pixels = polyCorners(mask);
-
-	polylines(image, vector<vector<cv::Point2f> >(1, pixels), true, cv::Scalar(255,255,255));
-	cv::imwrite("/home/alex/Desktop/tshirt__poly.jpg", image);
+vector<btVector3> polyCorners(ColorCloudPtr cloud, cv::Mat mask, CoordinateTransformer* transformer) {
+	vector<cv::Point2f> pixels = polyCorners(mask.clone());
 
 	//unproject the pixel into a ray
 	vector<Vector3f> rays(pixels.size());

@@ -152,8 +152,9 @@ ColorCloudPtr findConvexHull(ColorCloudPtr in, std::vector<pcl::Vertices>& polyg
   return out;
 }
 
+//caution: this will also filter out the nan pixels
 ColorCloudPtr cropToHull(const ColorCloudPtr in, ColorCloudPtr hull_cloud, std::vector<pcl::Vertices>& polygons, bool organized) {
-  ColorCloudPtr out(new ColorCloud());
+	ColorCloudPtr out(new ColorCloud());
   pcl::CropHull<PointT> crop_filter;
   crop_filter.setInputCloud (in);
   crop_filter.setHullCloud (hull_cloud);
@@ -171,9 +172,9 @@ ColorCloudPtr cropToHull(const ColorCloudPtr in, ColorCloudPtr hull_cloud, std::
   		out->at(indices[i]).x = numeric_limits<float>::quiet_NaN();
   		out->at(indices[i]).y = numeric_limits<float>::quiet_NaN();
   		out->at(indices[i]).z = numeric_limits<float>::quiet_NaN();
-  		out->at(indices[i]).r = 255;
-  		out->at(indices[i]).g = 255;
-  		out->at(indices[i]).b = 255;
+  		out->at(indices[i]).r = 0;
+  		out->at(indices[i]).g = 0;
+  		out->at(indices[i]).b = 0;
   	}
   }
   return out;
