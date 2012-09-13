@@ -15,6 +15,15 @@ def interpnd(newx, oldx, oldy):
     newy2d = interp2d(newx, oldx, oldy2d)
     return newy2d.reshape((len(newx),) + oldy[0].shape)
     
+def norms(x,ax):
+    return np.sqrt((x**2).sum(axis=ax))    
+    
+
+def apply_trans(hmat, vec):
+    return hmat[:3, :3].dot(vec) + hmat[:3,3]
+def apply_inv_trans(hmat, vec):
+    return np.linalg.solve(hmat[:3,:3], vec - hmat[:3,3])
+
 
 def get_tri_transform(pt0, pt1, pt2):
     """
@@ -40,7 +49,7 @@ def get_tri_transform(pt0, pt1, pt2):
 
 def calculate_cloth_tracking_score(tracker_xyz_sn3, tracker_stamp_s, tracker_triangles_m3, 
                                    phasespace_led_tk3, phasespace_stamp_t,
-                                   ind_pairs):
+                                   ind_pairs, demean_at_beginning=True):
     S,N,_ = tracker_xyz_sn3.shape
     T,K,_ = phasespace_led_tk3.shape
     M = len(tracker_triangles_m3)
@@ -73,32 +82,53 @@ def calculate_cloth_tracking_score(tracker_xyz_sn3, tracker_stamp_s, tracker_tri
                     sum_of_dists = norm(pt0 - led) + norm(pt1 - led) + norm(pt2 - led)
                     dist_to_triangles[m] = sum_of_dists
                 led2tri[led2led[k]] = led2tri[k] = dist_to_triangles.argmin(axis=0)
+                print "match leds to triangle: %i,%i->%i"%(k,led2led[k], led2tri[k])
             
         
         
     led_in_tri_frame_qk3 = np.empty((Q,K,3))
-    led_in_tri_frame_qk3.fill(np.nan)
+    led_in_tri_frame_qk3.fill(np.nan)    
     
     good_qk = ~np.isnan(ps_qk3).any(axis=2)
+    
+    
+    tri_transform_qk44 = np.empty((Q,K,4,4))
+    
     
     for q in xrange(Q):
         for k in xrange(K):
             if good_qk[q,k]:
                 i0, i1, i2 = tracker_triangles_m3[led2tri[k]]
                 pt0, pt1, pt2 = tr_qn3[q,i0], tr_qn3[q,i1], tr_qn3[q,i2]
-                tri_transform = get_tri_transform(pt0, pt1, pt2)
-                assert np.linalg.det(tri_transform) == 1
-                led_in_tri_frame_qk3[q,k] = np.linalg.solve(tri_transform, np.r_[ps_qk3[q,k],1])[:3]
+                tri_transform_qk44[q,k] = get_tri_transform(pt0, pt1, pt2)
+                led_in_tri_frame_qk3[q,k] = np.linalg.solve(tri_transform_qk44[q,k], np.r_[ps_qk3[q,k],1])[:3]
             
+    led_tri_frame_k3 = np.empty((K,3))
+    litf_demeaned_qk3 = np.empty((Q,K,3))
+    
+    
+    marker2info = [{} for _ in xrange(K)]
+    
+    for k in xrange(K):        
+        good_times = np.flatnonzero(good_qk[:,k])
+        if demean_at_beginning:
+            led_tri_frame_k3[k] = led_in_tri_frame_qk3[good_times[:10],k,:].mean(axis=0)
+            litf_demeaned_qk3[:,k,:] = led_in_tri_frame_qk3[:,k,:] - led_tri_frame_k3[k][None,:]
+        else:
+            led_tri_frame_k3[k] = led_in_tri_frame_qk3[good_times,k,:].mean(axis=0)
+            litf_demeaned_qk3[:,k,:] = led_in_tri_frame_qk3[:,k,:] - led_tri_frame_k3[k][None,:]
+        
+           
+        marker2info[k]["times"] = new_times[good_times]
+        marker2info[k]["position_demeaned"] = litf_demeaned_qk3[good_times,k,:]
+        marker2info[k]["position_prediction"] = np.array([apply_trans(tri_transform_qk44[q,k],led_tri_frame_k3[k]) for q in good_times])
+        marker2info[k]["position_actual"] = ps_qk3[good_times, k]
 
-    rms_error_k3 = np.empty((K,3))
-    for k in xrange(K):
-        assert (good_qk.sum(axis=0) > 20).all()
-        for d in xrange(3):
-            rms_error_k3[k,d] = np.std(led_in_tri_frame_qk3[np.flatnonzero(good_qk[:,k]),k,d])
-
-    return rms_error_k3.mean()
-            
+    return marker2info
+    #litf_inpainted_qk3 = interpnd(np.arange(q), good_times, litf_demeaned_qk3[good_times])
+    #error_qk = norms(litf_inpainted_qk3,2)
+    
+    #return error_qk, new_times
             
 def test_calculate_cloth_tracking_score():
     # fake data for cloth that has 2 triangles and 4 leds
@@ -133,13 +163,13 @@ def test_calculate_cloth_tracking_score():
 
     phasespace_led_tk3 += np.random.randn(*phasespace_led_tk3.shape)*noise_size
     #phasespace_led_tk3 += np.ones(phasespace_led_tk3.shape)*.1
-    rms_error =  calculate_cloth_tracking_score(tracker_xyz_sn3,
-                                                tracker_stamp_s,
-                                                tracker_triangles_m3,
-                                                phasespace_led_tk3,
-                                               phasespace_stamp_t, ((0,2), (1,3)))
+    errs_times =  calculate_cloth_tracking_score(tracker_xyz_sn3,
+        tracker_stamp_s,
+        tracker_triangles_m3,
+        phasespace_led_tk3,
+        phasespace_stamp_t, ((0,2), (1,3)))
     print "should be almost equal:"
-    print "evaluated rms error:",rms_error
+    print "evaluated rms error:",[np.sqrt((err**2).mean()) for (err,_) in errs_times]
     print "true rms error:", noise_size
 if __name__ == "__main__":
     test_calculate_cloth_tracking_score()
