@@ -107,7 +107,7 @@ bulletsim_msgs::TrackedObject toTrackedObjectMessage(TrackedObject::Ptr obj) {
   bulletsim_msgs::TrackedObject msg;
   if (obj->m_type == "rope") {
     msg.type = obj->m_type;
-    msg.rope.nodes = toROSPoints(obj->getPoints());
+    msg.rope.nodes = toROSPoints(scaleVecs(obj->getPoints(), 1/METERS));
   }
   else {
 	  //TODO

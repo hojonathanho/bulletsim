@@ -39,18 +39,6 @@ RaveRobotObject::Ptr pr2;
 sensor_msgs::JointState lastJointMsg;
 
 
-bool lookupTransform(btTransform& out, const std::string& toFrame, const std::string& fromFrame, tf::TransformListener& listener) {
-  tf::StampedTransform st;
-  try {
-      listener.lookupTransform(toFrame, fromFrame, ros::Time(0), st);
-  }
-  catch (tf::TransformException e) {
-      LOG_WARN_FMT("tf error: %s\n", e.what());
-      return false;
-  }
-  out = st.asBt();
-  return true;
-}
 
 void cloudCallback(const sensor_msgs::PointCloud2& msg_in) {
 
@@ -60,12 +48,12 @@ void cloudCallback(const sensor_msgs::PointCloud2& msg_in) {
 
   if (msg_in.header.frame_id != "base_footprint") {
     btTransform baseFromCloud;
-    if (!lookupTransform(baseFromCloud, "base_footprint", msg_in.header.frame_id, *listener))  return;
+    if (!lookupLatestTransform(baseFromCloud, "base_footprint", msg_in.header.frame_id, *listener))  return;
     cloud_in = transformPointCloud1(cloud_in, toEigenTransform(baseFromCloud));
   }
 
   btTransform baseFromCam;
-  if (!lookupTransform(baseFromCam, "base_footprint", "camera_rgb_optical_frame", *listener)) return;
+  if (!lookupLatestTransform(baseFromCam, "base_footprint", "camera_rgb_optical_frame", *listener)) return;
   btVector3 cameraPos = baseFromCam.getOrigin()*METERS;
 
   ValuesInds vi = getValuesInds(lastJointMsg.position);
