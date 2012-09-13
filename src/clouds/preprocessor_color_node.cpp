@@ -103,7 +103,7 @@ static int MIN_L=0, MAX_L=255, MIN_A=115, MAX_A=255, MIN_B=0, MAX_B=255;
 class PreprocessorNode {
 public:
   ros::NodeHandle& m_nh;
-  ros::Publisher m_cloudPub, m_imagePub, m_depthPub;
+  ros::Publisher m_cloudPub, m_imagePub, m_depthPub, m_maskPub;
   ros::Publisher m_cloudGreenPub, m_cloudNotGreenPub;
   ros::Publisher m_polyPub;
   tf::TransformBroadcaster m_broadcaster;
@@ -154,8 +154,7 @@ public:
 		if (LocalConfig::debugMask) cv::imshow("cropped image", cropped_image);
 
 		cv::Mat mask = neg_green & toBinaryMask(cropped_image);
-		if (LocalConfig::debugMask) cv::imshow("cropped image binary", cropped_image);
-
+		if (LocalConfig::debugMask) cv::imshow("cropped image binary", toBinaryMask(cropped_image));
 		if (LocalConfig::debugMask) cv::imshow("mask original", mask);
 		mask = sparseSmallFilter(mask, 1, 2, 100, 2);
 		if (LocalConfig::debugMask) cv::imshow("mask", mask);
@@ -224,6 +223,13 @@ public:
     image_msg.encoding = sensor_msgs::image_encodings::TYPE_8UC4;
     image_msg.image    = image_and_mask;
     m_imagePub.publish(image_msg.toImageMsg());
+
+    //Publish the mask only, for debuggin purposes
+    cv_bridge::CvImage mask_msg;
+    mask_msg.header   = msg_in.header;
+    mask_msg.encoding = sensor_msgs::image_encodings::TYPE_8UC1;
+    mask_msg.image    = mask;
+    m_maskPub.publish(mask_msg.toImageMsg());
 
     //Republish depth image
     cv_bridge::CvImage depth_msg;
@@ -318,7 +324,8 @@ public:
     m_cloudPub(nh.advertise<sensor_msgs::PointCloud2>(LocalConfig::nodeNS+LocalConfig::cameraName+"/points",5)),
     m_imagePub(nh.advertise<sensor_msgs::Image>(LocalConfig::nodeNS+LocalConfig::cameraName+"/image",5)),
     m_depthPub(nh.advertise<sensor_msgs::Image>(LocalConfig::nodeNS+LocalConfig::cameraName+"/depth",5)),
-    m_polyPub(nh.advertise<geometry_msgs::PolygonStamped>(LocalConfig::nodeNS+"/polygon",5)),
+    m_maskPub(nh.advertise<sensor_msgs::Image>(LocalConfig::nodeNS+LocalConfig::cameraName+"/debug/mask",5)),
+    m_polyPub(nh.advertise<geometry_msgs::PolygonStamped>(LocalConfig::nodeNS+"/debug/polygon",5)),
     m_sub(nh.subscribe(LocalConfig::inputTopic, 1, &PreprocessorNode::callback, this)),
 		m_mins(-10,-10,-10),
 		m_maxes(10,10,10),

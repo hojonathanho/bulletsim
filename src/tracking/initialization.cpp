@@ -48,7 +48,7 @@ TrackedObject::Ptr toTrackedObject(const bulletsim_msgs::ObjectInit& initMsg, Co
 //	  BulletSoftObject::Ptr sim = makeSponge(poly_corners, 0.05*METERS, 4.0*METERS*METERS*METERS/1000000.0, 300);
 //	  sim->softBody->translate(btVector3(0,0,0.1*METERS));
 //
-//	  TrackedCloth::Ptr tracked_towel(new TrackedCloth(sim, cv::Mat(), 10, 10, 10, 10));
+//	  TrackedCloth::Ptr tracked_towel(new TrackedCloth(sim, 10, 10, 10, 10));
 //	  return tracked_towel;
 //  }
   else if (initMsg.type == "towel_corners") {
@@ -108,6 +108,41 @@ bulletsim_msgs::TrackedObject toTrackedObjectMessage(TrackedObject::Ptr obj) {
   if (obj->m_type == "rope") {
     msg.type = obj->m_type;
     msg.rope.nodes = toROSPoints(scaleVecs(obj->getPoints(), 1/METERS));
+  }
+  else if (obj->m_type == "towel"){
+  	msg.type = obj->m_type;
+
+  	BulletSoftObject::Ptr sim = boost::dynamic_pointer_cast<BulletSoftObject>(obj->m_sim);
+  	const btSoftBody::tNodeArray& nodes = sim->softBody->m_nodes;
+  	const btSoftBody::tFaceArray& faces = sim->softBody->m_faces;
+
+  	for (int i=0; i<nodes.size(); i++) {
+  		msg.mesh.vertices.push_back(toROSPoint(nodes[i].m_x));
+  		msg.mesh.normals.push_back(toROSPoint(nodes[i].m_n));
+  	}
+
+  	// compute face to nodes indices
+  	vector<vector<int> > face2nodes(faces.size(), vector<int>(3,-1));
+  	for (int i=0; i<nodes.size(); i++) {
+  		int j,c;
+  		for(j=0; j<faces.size(); j++) {
+  			for(c=0; c<3; c++) {
+  				if (&nodes[i] == faces[j].m_n[c]) {
+  					face2nodes[j][c] = i;
+  				}
+  			}
+  		}
+  	}
+
+  	for (int j=0; j<faces.size(); j++) {
+  		bulletsim_msgs::Face face;
+  		for (int c=0; c<3; c++) {
+  			face.vertex_inds.push_back(face2nodes[j][c]);
+  			face.normal_inds.push_back(face2nodes[j][c]);
+  		}
+  		msg.mesh.faces.push_back(face);
+  	}
+
   }
   else {
 	  //TODO

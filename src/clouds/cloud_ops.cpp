@@ -152,19 +152,8 @@ ColorCloudPtr findConvexHull(ColorCloudPtr in, std::vector<pcl::Vertices>& polyg
   return out;
 }
 
-//TODO right now, cropToHull filters out nan values; it should only filter out points outside the hull
+//caution: this will also filter out the nan pixels
 ColorCloudPtr cropToHull(const ColorCloudPtr in, ColorCloudPtr hull_cloud, std::vector<pcl::Vertices>& polygons, bool organized) {
-//  pcl::PassThrough<ColorPoint> pass(true);
-//  pass.setInputCloud (in);
-//  ColorCloudPtr in_cpy(new ColorCloud(*in));
-//  pass.filter(*in_cpy);
-//  pcl::IndicesConstPtr nan_indices = pass.getRemovedIndices();
-//  for (int i=0; i<nan_indices->size(); i++) {
-//  	in->at((*nan_indices)[i]).x = 0;
-//  	in->at((*nan_indices)[i]).y = 0;
-//  	in->at((*nan_indices)[i]).z = 0;
-//  }
-
 	ColorCloudPtr out(new ColorCloud());
   pcl::CropHull<PointT> crop_filter;
   crop_filter.setInputCloud (in);
@@ -180,13 +169,6 @@ ColorCloudPtr cropToHull(const ColorCloudPtr in, ColorCloudPtr hull_cloud, std::
   	*out = *in;
 
   	for (int i=0; i<indices.size(); i++) {
-//  		if (find(nan_indices->begin(), nan_indices->end(), indices[i]) != nan_indices->end()) {
-//  			out->at(indices[i]).x = numeric_limits<float>::quiet_NaN();
-//				out->at(indices[i]).y = numeric_limits<float>::quiet_NaN();
-//				out->at(indices[i]).z = numeric_limits<float>::quiet_NaN();
-//				continue;
-//  		}
-
   		out->at(indices[i]).x = numeric_limits<float>::quiet_NaN();
   		out->at(indices[i]).y = numeric_limits<float>::quiet_NaN();
   		out->at(indices[i]).z = numeric_limits<float>::quiet_NaN();

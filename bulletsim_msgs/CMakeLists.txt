@@ -38,7 +38,7 @@ add_service_files(
 )
 add_message_files(
   DIRECTORY msg
-  FILES ObjectInit.msg Rope.msg TowelCorners.msg Box.msg TrackedObject.msg OWLMarker.msg OWLPhasespace.msg Face.msg BulletSoftObject.msg
+  FILES ObjectInit.msg Rope.msg TowelCorners.msg Box.msg TrackedObject.msg OWLMarker.msg OWLPhasespace.msg Face.msg Mesh.msg
 )
 
 generate_messages(DEPENDENCIES std_msgs geometry_msgs sensor_msgs)

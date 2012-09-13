@@ -106,6 +106,8 @@ int main(int argc, char* argv[]) {
   }
 	synchronizeAndRegisterCallback(cloud_topics, image_topics, nh, callback);
 
+  ros::Publisher objPub = nh.advertise<bulletsim_msgs::TrackedObject>(trackedObjectTopic,10);
+
   // wait for first message, then initialize
   while (!pending) {
     ros::spinOnce();
@@ -119,11 +121,13 @@ int main(int argc, char* argv[]) {
 
   setGlobalEnvironment(scene.env);
 
+  //FIXME it should be full cloud for proper sponge initialization
   // Get the filtered cloud that is not downsample: get the full cloud and then mask it with the image.
-  sensor_msgs::PointCloud2ConstPtr cloud_msg = ros::topic::waitForMessage<sensor_msgs::PointCloud2>(TrackingConfig::fullCloudTopic, nh);
-	ColorCloudPtr first_organized_filtered_cloud(new ColorCloud());
-	pcl::fromROSMsg(*cloud_msg, *first_organized_filtered_cloud);
-	first_organized_filtered_cloud = maskCloud(first_organized_filtered_cloud, mask_images[0]);
+//  sensor_msgs::PointCloud2ConstPtr cloud_msg = ros::topic::waitForMessage<sensor_msgs::PointCloud2>(TrackingConfig::fullCloudTopic, nh);
+//	ColorCloudPtr first_organized_filtered_cloud(new ColorCloud());
+//	pcl::fromROSMsg(*cloud_msg, *first_organized_filtered_cloud);
+//	first_organized_filtered_cloud = maskCloud(first_organized_filtered_cloud, mask_images[0]);
+	ColorCloudPtr first_organized_filtered_cloud(new ColorCloud(*filteredCloud));
 	pcl::transformPointCloud(*first_organized_filtered_cloud, *first_organized_filtered_cloud, transformers[0]->worldFromCamEigen);
 
 	TrackedObject::Ptr trackedObj = callInitServiceAndCreateObject(filteredCloud, first_organized_filtered_cloud, rgb_images[0], mask_images[0], transformers[0]);
@@ -171,5 +175,6 @@ int main(int argc, char* argv[]) {
       scene.draw();
       ros::spinOnce();
     }
+    objPub.publish(toTrackedObjectMessage(trackedObj));
  	}
 }

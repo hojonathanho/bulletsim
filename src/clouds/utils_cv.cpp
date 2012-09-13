@@ -85,7 +85,7 @@ cv::Mat toBinaryMask(cv::Mat image) {
 	cv::Mat mask = image > 0;
 	vector<cv::Mat> mask_channels;
 	cv::split(mask, mask_channels);
-	mask = mask_channels[0] & mask_channels[1] & mask_channels[2];
+	mask = mask_channels[0] | mask_channels[1] | mask_channels[2];
 	return mask;
 }
 
