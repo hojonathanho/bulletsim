@@ -50,7 +50,7 @@ bulletsim_msgs::BulletSoftObject toBulletSoftObjectMsg(BulletSoftObject::Ptr sim
 	}
 }
 
-visualization_msgs::Marker toMarker(bulletsim_msgs::BulletSoftObject soft_body_msg) {
+visualization_msgs::Marker toMarker(bulletsim_msgs::Mesh soft_body_msg) {
 	visualization_msgs::Marker marker;
 	marker.header.frame_id = "base_link";
 	marker.header.stamp = ros::Time();

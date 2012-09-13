@@ -1,0 +1,17 @@
+<package>
+  <description brief="cloud_msg">
+
+     cloud_msgs
+
+  </description>
+  <author>John Schulman</author>
+  <license>undecided</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/hydra_msgs</url>
+
+  <depend package="geometry_msgs"/>
+  <depend package="std_msgs"/>
+
+</package>
+
+
