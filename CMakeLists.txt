@@ -25,10 +25,6 @@ set(OSG_INCLUDE_DIRS ${OPENTHREADS_LIBRARY_INCLUDE_DIR} ${OSG_LIBRARY_INCLUDE_DI
 find_package(OpenCV REQUIRED)
 find_package(PCL REQUIRED)
 
-#find_package(catkin REQUIRED)
-#catkin_stack()
-#catkin_project(bulletsim)
-
 find_package(ROS REQUIRED COMPONENTS
  sensor_msgs geometry_msgs std_msgs
  roscpp rosconsole message_filters
