@@ -27,7 +27,7 @@ using namespace Eigen;
 
 using namespace std;
 
-TrackedObject::Ptr toTrackedObject(const bulletsim_msgs::ObjectInit& initMsg, ColorCloudPtr cloud, ColorCloudPtr organized_cloud, cv::Mat image, CoordinateTransformer* transformer) {
+TrackedObject::Ptr toTrackedObject(const bulletsim_msgs::ObjectInit& initMsg, ColorCloudPtr cloud, ColorCloudPtr organized_cloud, cv::Mat image, cv::Mat mask, CoordinateTransformer* transformer) {
   if (initMsg.type == "rope") {
 	  vector<btVector3> nodes = toBulletVectors(initMsg.rope.nodes);
 //		//downsample nodes
@@ -68,7 +68,7 @@ TrackedObject::Ptr toTrackedObject(const bulletsim_msgs::ObjectInit& initMsg, Co
 	  printf("Node distance (distance between nodes): %f\n", TrackingConfig::node_distance);
 	  printf("Resolution: %d %d\n", resolution_x, resolution_y);
 
-	  vector<btVector3> poly_corners = polyCorners(cloud, image, transformer);
+	  vector<btVector3> poly_corners = polyCorners(cloud, mask, transformer);
 	  //BOOST_FOREACH(btVector3& poly_corner, poly_corners) util::drawSpheres(poly_corner, Vector3f(1,0,0), 0.5, 2, env);
   	BulletSoftObject::Ptr sim = makeCloth(poly_corners, resolution_x, resolution_y, mass);
 	  sim->setTexture(image, toBulletTransform(transformer->camFromWorldEigen));
@@ -84,7 +84,7 @@ TrackedObject::Ptr toTrackedObject(const bulletsim_msgs::ObjectInit& initMsg, Co
 //	  }
 //	  cv::imwrite("/home/alex/Desktop/tshirt_tex2.jpg", image);
 
-	  TrackedCloth::Ptr tracked_towel(new TrackedCloth(sim, image, resolution_x, resolution_y, sx, sy));
+	  TrackedCloth::Ptr tracked_towel(new TrackedCloth(sim, resolution_x, resolution_y, sx, sy));
 
 	  return tracked_towel;
   }
@@ -116,14 +116,14 @@ bulletsim_msgs::TrackedObject toTrackedObjectMessage(TrackedObject::Ptr obj) {
   return msg;
 }
 
-TrackedObject::Ptr callInitServiceAndCreateObject(ColorCloudPtr cloud, ColorCloudPtr organized_cloud, cv::Mat image, CoordinateTransformer* transformer) {
+TrackedObject::Ptr callInitServiceAndCreateObject(ColorCloudPtr cloud, ColorCloudPtr organized_cloud, cv::Mat image, cv::Mat mask, CoordinateTransformer* transformer) {
   bulletsim_msgs::Initialization init;
   pcl::toROSMsg(*scaleCloud(cloud, 1/METERS), init.request.cloud);
   init.request.cloud.header.frame_id = "/ground";
 	
   bool success = ros::service::call(initializationService, init);
   if (success)
-  	return toTrackedObject(init.response.objectInit, cloud, organized_cloud, image, transformer);
+  	return toTrackedObject(init.response.objectInit, cloud, organized_cloud, image, mask, transformer);
   else {
 		ROS_ERROR("initialization failed");
 		return TrackedObject::Ptr();
@@ -131,5 +131,6 @@ TrackedObject::Ptr callInitServiceAndCreateObject(ColorCloudPtr cloud, ColorClou
 }
 
 TrackedObject::Ptr callInitServiceAndCreateObject(ColorCloudPtr cloud, cv::Mat image, CoordinateTransformer* transformer) {
-	return callInitServiceAndCreateObject(scaleCloud(cloud, METERS), ColorCloudPtr(new ColorCloud()), image, transformer);
+	ROS_WARN("DEPRECATED!! USE THE OTHER FUNCTION");
+	return callInitServiceAndCreateObject(scaleCloud(cloud, METERS), ColorCloudPtr(new ColorCloud()), image, image, transformer);
 }

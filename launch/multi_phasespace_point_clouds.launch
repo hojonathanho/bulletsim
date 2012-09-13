@@ -22,8 +22,7 @@
 
   <node name="phasespace_transforms_node" pkg="binary_symlinks" type="phasespace_transforms_node" output="screen" args=""/>
   
-  <!-- TODO they should output to different topics -->
-  <node name="preprocessor_color_node1" pkg="binary_symlinks" type="preprocessor_color_node_i" output="screen"  args="--inputTopic=/drop/$(arg camera)1/points"/> 
-  <node name="preprocessor_color_node2" pkg="binary_symlinks" type="preprocessor_color_node_i" output="screen"  args="--inputTopic=/drop/$(arg camera)2/points"/> 
+  <node name="preprocessor_color_node1" pkg="binary_symlinks" type="preprocessor_color_node" output="screen"  args="--inputTopic=/drop/$(arg camera)1/points --cameraName=/kinect1"/> 
+  <node name="preprocessor_color_node2" pkg="binary_symlinks" type="preprocessor_color_node" output="screen"  args="--inputTopic=/drop/$(arg camera)2/points --cameraName=/kinect2"/> 
 
 </launch>

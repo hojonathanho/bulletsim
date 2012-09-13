@@ -59,7 +59,7 @@ class TrackedCloth : public TrackedObject {
 public:
   typedef boost::shared_ptr<TrackedCloth> Ptr;
 
-  TrackedCloth(BulletSoftObject::Ptr, cv::Mat image, int xres, int yres, float sx, float sy);
+  TrackedCloth(BulletSoftObject::Ptr, int xres, int yres, float sx, float sy);
 
   cv::Point2f getTexCoord(const int& nodeIdx);
 
