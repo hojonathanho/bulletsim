@@ -1,13 +1,14 @@
 #!/usr/bin/env python
-
+import roslib
+roslib.load_manifest("bulletsim_python")
 from brett2.ros_utils import pc2xyzrgb
 import bulletsim_msgs.srv as bs
 import bulletsim_msgs.msg as bm
 import geometry_msgs.msg as gm
 import rospy
 from brett2.ros_utils import RvizWrapper
-from rope_initialization import find_path_through_point_cloud
-from object_recognition_lol import determine_object_type
+from tracking_initialization.rope_initialization import find_path_through_point_cloud
+from tracking_initialization.object_recognition_lol import determine_object_type
 import numpy as np
 import cv2
 
