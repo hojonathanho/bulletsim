@@ -1,7 +1,6 @@
 Simulation environment with Bullet physics
 
-
-** Linux Compilation for Alex's branch **
+** Linux Compilation **
 
 Install the required dependencies using apt-get (this is incomplete):
   sudo apt-get install ros-fuerte-desktop-full libopenscenegraph-dev cmake-curses-gui python-networkx
@@ -40,7 +39,7 @@ sudo make install
 
 # Generate makefile and compile bulletsim
 cd $BULLETSIM_BUILD_DIR/bulletsim
-cmake $BULLETSIM_SOURCE_DIR -DJOHNS_ADVENTURES=ON
+cmake $BULLETSIM_SOURCE_DIR
 make -j
 
 # Make a link between every binary in the build directory and a new package in ros named binary_symlinks
@@ -50,8 +49,6 @@ cd binary_symlinks
 mkdir bin
 cd bin
 for node in $BULLETSIM_BUILD_DIR/bulletsim/bin/* ; do ln -s $node ; done
-
-
 
 ** Test tracking **
 $BULLETSIM_BUILD_DIR/bulletsim/bin/tracker_node --cameraTopics=kinect1
@@ -65,7 +62,6 @@ roslaunch multi_point_clouds.launch online:=false filename:=knot_tie
 
 $BULLETSIM_BUILD_DIR/bulletsim/bin/tracker_node --cameraTopics=kinect1 --cameraTopics=kinect2
 roslaunch multi_point_clouds.launch online:=false filename:=double_fold
-
 
 
 ** Add a new ros node **
