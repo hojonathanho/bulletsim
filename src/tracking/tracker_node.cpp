@@ -118,22 +118,25 @@ int main(int argc, char* argv[]) {
   // set up scene
   Scene scene;
   scene.startViewer();
+  scene.toggleDebugDraw();
 
   setGlobalEnvironment(scene.env);
 
-  //FIXME it should be full cloud for proper sponge initialization
-  // Get the filtered cloud that is not downsample: get the full cloud and then mask it with the image.
-//  sensor_msgs::PointCloud2ConstPtr cloud_msg = ros::topic::waitForMessage<sensor_msgs::PointCloud2>(TrackingConfig::fullCloudTopic, nh);
-//	ColorCloudPtr first_organized_filtered_cloud(new ColorCloud());
-//	pcl::fromROSMsg(*cloud_msg, *first_organized_filtered_cloud);
-//	first_organized_filtered_cloud = maskCloud(first_organized_filtered_cloud, mask_images[0]);
-	ColorCloudPtr first_organized_filtered_cloud(new ColorCloud(*filteredCloud));
-	pcl::transformPointCloud(*first_organized_filtered_cloud, *first_organized_filtered_cloud, transformers[0]->worldFromCamEigen);
-
-	TrackedObject::Ptr trackedObj = callInitServiceAndCreateObject(filteredCloud, first_organized_filtered_cloud, rgb_images[0], mask_images[0], transformers[0]);
+	TrackedObject::Ptr trackedObj = callInitServiceAndCreateObject(filteredCloud, rgb_images[0], mask_images[0], transformers[0]);
   if (!trackedObj) throw runtime_error("initialization of object failed.");
+//DEBUG
   trackedObj->init();
   scene.env->add(trackedObj->m_sim);
+
+  //DEBUG
+//  bool exit_loop = false;
+//	scene.addVoidKeyCallback('q',boost::bind(toggle, &exit_loop), "exit");
+//	 while (!exit_loop && ros::ok()) {
+//     scene.env->step(.03,2,.015);
+//     scene.draw();
+//     ros::spinOnce();
+//	 }
+//	 return 0;
 
  	// actual tracking algorithm
 	MultiVisibility::Ptr visInterface(new MultiVisibility());

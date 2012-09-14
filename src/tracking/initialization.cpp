@@ -27,7 +27,7 @@ using namespace Eigen;
 
 using namespace std;
 
-TrackedObject::Ptr toTrackedObject(const bulletsim_msgs::ObjectInit& initMsg, ColorCloudPtr cloud, ColorCloudPtr organized_cloud, cv::Mat image, cv::Mat mask, CoordinateTransformer* transformer) {
+TrackedObject::Ptr toTrackedObject(const bulletsim_msgs::ObjectInit& initMsg, ColorCloudPtr cloud, cv::Mat image, cv::Mat mask, CoordinateTransformer* transformer) {
   if (initMsg.type == "rope") {
 	  vector<btVector3> nodes = toBulletVectors(initMsg.rope.nodes);
 //		//downsample nodes
@@ -44,9 +44,14 @@ TrackedObject::Ptr toTrackedObject(const bulletsim_msgs::ObjectInit& initMsg, Co
 	  return tracked_rope;
   }
 //  else if (initMsg.type == "towel_corners") {
-//	  vector<btVector3> poly_corners = polyCorners(organized_cloud);
-//	  BulletSoftObject::Ptr sim = makeSponge(poly_corners, 0.05*METERS, 4.0*METERS*METERS*METERS/1000000.0, 300);
-//	  sim->softBody->translate(btVector3(0,0,0.1*METERS));
+//  	ColorCloudPtr cloud_shifted(new ColorCloud(*cloud));
+//  	for (int i=0; i<cloud_shifted->size(); i++)
+//  		cloud_shifted->at(i).z = 0.1*METERS;
+//
+//  	vector<btVector3> top_corners = polyCorners(cloud_shifted);
+//  	float thickness = top_corners[0].z();
+//	  BulletSoftObject::Ptr sim = makeSponge(top_corners, thickness, 4.0*METERS*METERS*METERS/1000000.0, 300);
+//	  sim->softBody->translate(btVector3(0,0,0.01*METERS));
 //
 //	  TrackedCloth::Ptr tracked_towel(new TrackedCloth(sim, 10, 10, 10, 10));
 //	  return tracked_towel;
@@ -151,14 +156,14 @@ bulletsim_msgs::TrackedObject toTrackedObjectMessage(TrackedObject::Ptr obj) {
   return msg;
 }
 
-TrackedObject::Ptr callInitServiceAndCreateObject(ColorCloudPtr cloud, ColorCloudPtr organized_cloud, cv::Mat image, cv::Mat mask, CoordinateTransformer* transformer) {
+TrackedObject::Ptr callInitServiceAndCreateObject(ColorCloudPtr cloud, cv::Mat image, cv::Mat mask, CoordinateTransformer* transformer) {
   bulletsim_msgs::Initialization init;
   pcl::toROSMsg(*scaleCloud(cloud, 1/METERS), init.request.cloud);
   init.request.cloud.header.frame_id = "/ground";
 	
   bool success = ros::service::call(initializationService, init);
   if (success)
-  	return toTrackedObject(init.response.objectInit, cloud, organized_cloud, image, mask, transformer);
+  	return toTrackedObject(init.response.objectInit, cloud, image, mask, transformer);
   else {
 		ROS_ERROR("initialization failed");
 		return TrackedObject::Ptr();
@@ -167,5 +172,5 @@ TrackedObject::Ptr callInitServiceAndCreateObject(ColorCloudPtr cloud, ColorClou
 
 TrackedObject::Ptr callInitServiceAndCreateObject(ColorCloudPtr cloud, cv::Mat image, CoordinateTransformer* transformer) {
 	ROS_WARN("DEPRECATED!! USE THE OTHER FUNCTION");
-	return callInitServiceAndCreateObject(scaleCloud(cloud, METERS), ColorCloudPtr(new ColorCloud()), image, image, transformer);
+	return callInitServiceAndCreateObject(scaleCloud(cloud, METERS), image, image, transformer);
 }
