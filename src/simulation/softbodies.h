@@ -7,8 +7,17 @@
 class BulletSoftObject : public EnvironmentObject {
 private:
 	void computeNodeFaceMapping();
+	void computeNodeFaceTetraMapping();
+	void computeBoundaries();
+
 	vector<vector<int> > node2faces;
 	vector<vector<int> > face2nodes;
+
+	vector<vector<int> > face2tetras;
+	vector<vector<int> > tetra2faces;
+public:
+	vector<bool> node_boundaries;
+	vector<bool> face_boundaries;
 
 protected:
     osg::ref_ptr<osg::Geode> geode;
@@ -29,8 +38,16 @@ public:
     boost::shared_ptr<btSoftBody> softBody;
 
     // constructors/destructors
-    BulletSoftObject(boost::shared_ptr<btSoftBody> softBody_) : softBody(softBody_), nextAnchorHandle(0) { computeNodeFaceMapping(); }
-    BulletSoftObject(btSoftBody *softBody_) : softBody(softBody_), nextAnchorHandle(0) { computeNodeFaceMapping(); }
+    BulletSoftObject(boost::shared_ptr<btSoftBody> softBody_) : softBody(softBody_), nextAnchorHandle(0)
+    {
+    	if (softBody->m_tetras.size() == 0)	computeNodeFaceMapping();
+    	else { computeNodeFaceTetraMapping(); computeBoundaries(); }
+    }
+    BulletSoftObject(btSoftBody *softBody_) : softBody(softBody_), nextAnchorHandle(0)
+    {
+			if (softBody->m_tetras.size() == 0)	computeNodeFaceMapping();
+			else { computeNodeFaceTetraMapping(); computeBoundaries(); }
+		}
     virtual ~BulletSoftObject() { }
 
     // serialization (TODO: serialize anchors also?)

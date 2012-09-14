@@ -43,19 +43,28 @@ TrackedObject::Ptr toTrackedObject(const bulletsim_msgs::ObjectInit& initMsg, Co
 
 	  return tracked_rope;
   }
-//  else if (initMsg.type == "towel_corners") {
-//  	ColorCloudPtr cloud_shifted(new ColorCloud(*cloud));
-//  	for (int i=0; i<cloud_shifted->size(); i++)
-//  		cloud_shifted->at(i).z = 0.1*METERS;
-//
-//  	vector<btVector3> top_corners = polyCorners(cloud_shifted);
-//  	float thickness = top_corners[0].z();
-//	  BulletSoftObject::Ptr sim = makeSponge(top_corners, thickness, 4.0*METERS*METERS*METERS/1000000.0, 300);
-//	  sim->softBody->translate(btVector3(0,0,0.01*METERS));
-//
-//	  TrackedCloth::Ptr tracked_towel(new TrackedCloth(sim, 10, 10, 10, 10));
-//	  return tracked_towel;
-//  }
+  else if (initMsg.type == "towel_corners") {
+  	ColorCloudPtr cloud_shifted(new ColorCloud(*cloud));
+  	for (int i=0; i<cloud_shifted->size(); i++)
+  		cloud_shifted->at(i).z = 0.1*METERS;
+
+  	vector<btVector3> top_corners = polyCorners(cloud_shifted);
+  	float thickness = top_corners[0].z();
+	  BulletSoftObject::Ptr sim = makeSponge(top_corners, thickness, 4.0*METERS*METERS*METERS/1000000.0, 300);
+	  sim->softBody->translate(btVector3(0,0,0.01*METERS));
+
+		const btSoftBody::tNodeArray& nodes = sim->softBody->m_nodes;
+	  cout << "nodes size " << nodes.size() << endl;
+		for (int i=0; i<nodes.size(); i++) {
+	  	if (sim->node_boundaries[i]) {
+	  		cout << "boundary " << i << endl;
+	  		util::drawSpheres(nodes[i].m_x, Vector3f(1,1,1), 1, 0.005*METERS, getGlobalEnv());
+	  	}
+	  }
+
+	  TrackedCloth::Ptr tracked_towel(new TrackedCloth(sim, 10, 10, 10, 10));
+	  return tracked_towel;
+  }
   else if (initMsg.type == "towel_corners") {
 	  const vector<geometry_msgs::Point32>& points = initMsg.towel_corners.polygon.points;
 	  vector<btVector3> corners = scaleVecs(toBulletVectors(points),METERS);
