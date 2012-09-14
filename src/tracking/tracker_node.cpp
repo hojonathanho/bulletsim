@@ -125,18 +125,18 @@ int main(int argc, char* argv[]) {
 	TrackedObject::Ptr trackedObj = callInitServiceAndCreateObject(filteredCloud, rgb_images[0], mask_images[0], transformers[0]);
   if (!trackedObj) throw runtime_error("initialization of object failed.");
 //DEBUG
-  //  trackedObj->init();
+    trackedObj->init();
   scene.env->add(trackedObj->m_sim);
 
   //DEBUG
-  bool exit_loop = false;
-	scene.addVoidKeyCallback('q',boost::bind(toggle, &exit_loop), "exit");
-	 while (!exit_loop && ros::ok()) {
-     scene.env->step(.03,2,.015);
-     scene.draw();
-     ros::spinOnce();
-	 }
-	 return 0;
+//  bool exit_loop = false;
+//	scene.addVoidKeyCallback('q',boost::bind(toggle, &exit_loop), "exit");
+//	 while (!exit_loop && ros::ok()) {
+//     scene.env->step(.03,2,.015);
+//     scene.draw();
+//     ros::spinOnce();
+//	 }
+//	 return 0;
 
  	// actual tracking algorithm
 	MultiVisibility::Ptr visInterface(new MultiVisibility());
@@ -156,8 +156,8 @@ int main(int argc, char* argv[]) {
   scene.addVoidKeyCallback('a',boost::bind(toggle, &applyEvidence), "apply evidence");
   scene.addVoidKeyCallback('=',boost::bind(&EnvironmentObject::adjustTransparency, trackedObj->getSim(), 0.1f), "increase opacity");
   scene.addVoidKeyCallback('-',boost::bind(&EnvironmentObject::adjustTransparency, trackedObj->getSim(), -0.1f), "decrease opacity");
-//  bool exit_loop = false;
-//  scene.addVoidKeyCallback('q',boost::bind(toggle, &exit_loop), "exit");
+  bool exit_loop = false;
+  scene.addVoidKeyCallback('q',boost::bind(toggle, &exit_loop), "exit");
 
   while (!exit_loop && ros::ok()) {
   	//Update the inputs of the featureExtractors and visibilities (if they have any inputs)
