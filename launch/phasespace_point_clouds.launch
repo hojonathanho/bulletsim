@@ -2,6 +2,7 @@
 
   <arg name="camera" default="kinect1"/>
   <arg name="bus" default="1"/>
+  <arg name="kinectInfo" default="pr2head"/>
   
   <include file="$(find openni_launch)/launch/openni.launch">
     <arg name="camera" value="$(arg camera)" />
@@ -13,8 +14,8 @@
 
   <node name="phasespace_simple_publisher" pkg="binary_symlinks" type="phasespace_simple_publisher" output="screen" args="--frequency=30"/>
 
-  <node name="phasespace_transforms_node" pkg="binary_symlinks" type="phasespace_transforms_node" output="screen" args="--cameraTopics=/$(arg camera) --kinectInfo_filenames=tripod"/>
+  <node name="phasespace_transforms_node" pkg="binary_symlinks" type="phasespace_transforms_node" output="screen" args="--cameraTopics=/$(arg camera) --kinectInfo_filenames=$(arg kinectInfo)"/>
   
-  <node name="preprocessor_color_node" pkg="binary_symlinks" type="preprocessor_color_node" output="screen"  args="--inputTopic=/drop/points --cameraName=/$(arg camera)"/> 
+  <node name="preprocessor_color_node" pkg="binary_symlinks" type="preprocessor_color_node" output="screen"  args="--inputTopic=/drop/points --nodeNS=/preprocessor/$(arg camera)"/> 
 
 </launch>
