@@ -88,18 +88,35 @@ MonitorForGrabbing::MonitorForGrabbing(RaveRobotObject::Manipulator::Ptr manip, 
 {
 }
 
-void MonitorForGrabbing::setBodies(vector<BulletObject::Ptr>& bodies) {m_bodies = bodies;}
+void MonitorForGrabbing::setBodies(vector<BulletObject::Ptr>& bodies) {}
+
+btRigidBody* getNearestDynamicBody(btDynamicsWorld* world, btVector3& pt) {
+  btCollisionObjectArray objs = world->getCollisionObjectArray();
+  float bestDist = SIMD_INFINITY;
+  float bestInd = -1;
+  for (int i = 0; i < objs.size(); ++i) {
+    btRigidBody* maybeRB = btRigidBody::upcast(objs[i]);
+    if (maybeRB && maybeRB->getInvMass() != 0) {
+      float dist = maybeRB->getCenterOfMassPosition().distance(pt);
+      if (dist < bestDist) {
+        bestDist = dist;
+        bestInd = i;
+      }
+    }
+  }
+  assert (bestInd != -1);
+  return btRigidBody::upcast(objs[bestInd]);
+}
 
 void MonitorForGrabbing::grab() {
   // grabs nearest object
   cout << "grabbing nearest object" << endl;
   btTransform curPose = m_manip->getTransform();
-  int i;
-  BulletObject::Ptr nearestObj = getNearestBody(m_bodies, curPose.getOrigin(), i);
-  if (nearestObj->rigidBody->getCenterOfMassPosition().distance(curPose.getOrigin()) < .05*METERS) {
+  btRigidBody* nearestBody = getNearestDynamicBody(m_world, curPose.getOrigin());
+  if (nearestBody->getCenterOfMassPosition().distance(curPose.getOrigin()) < .05*METERS) {
     LOG_INFO("object is close enough: grabbing");
-    m_grab = new Grab(nearestObj->rigidBody.get(), curPose.getOrigin(), m_world);
-    nearestObj->setColor(0,0,1,1);
+    m_grab = new Grab(nearestBody, curPose.getOrigin(), m_world);
+//    nearestObj->setColor(0,0,1,1);
   }
   else {
     LOG_INFO("object is too far away");

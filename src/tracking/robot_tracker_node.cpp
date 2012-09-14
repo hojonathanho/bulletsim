@@ -87,7 +87,7 @@ int main(int argc, char* argv[]) {
   if (RecordingConfig::record) {
     demoRecord.reset(new DemoRecorder(nh, "/camera/rgb/image_rect_color", scene.viewer));
   }
-  boost::thread recordThread(boost::bind(&DemoRecorder::frameLoop, demoRecord.get(), 20));
+//  boost::thread recordThread(boost::bind(&DemoRecorder::frameLoop, demoRecord.get(), 20));
 
 
   CoordinateTransformer cam_transformer;
@@ -97,7 +97,11 @@ int main(int argc, char* argv[]) {
       cam_transformer.reset(baseFromCam);
       break;
     }
-    else LOG_INFO("waiting for tf to work");
+    else {
+      LOG_INFO("waiting for tf to work");
+      sleep(.04);
+    }
+
   }
 
 
@@ -106,14 +110,10 @@ int main(int argc, char* argv[]) {
   table->setColor(0,.8,0,.5);
   pr2m.pr2->setColor(1,1,1,.5);
 //
-//  MonitorForGrabbing lMonitor(pr2m.pr2Left, scene.env->bullet->dynamicsWorld);
-//  MonitorForGrabbing rMonitor(pr2m.pr2Right, scene.env->bullet->dynamicsWorld);
-//  GrabDetector* leftGrabDetector = new GrabDetector(GrabDetector::LEFT,
-//          boost::bind(&MonitorForGrabbing::grab, &lMonitor),
-//          boost::bind(&MonitorForGrabbing::release, &lMonitor));
-//  GrabDetector* rightGrabDetector = new GrabDetector(GrabDetector::RIGHT,
-//          boost::bind(&MonitorForGrabbing::grab, &rMonitor),
-//          boost::bind(&MonitorForGrabbing::release, &rMonitor));
+
+  GrabManager lgm(scene.env, pr2m.pr2Left, GrabDetector::LEFT, sync);
+  GrabManager rgm(scene.env, pr2m.pr2Right, GrabDetector::RIGHT, sync);
+
 
   scene.startViewer();
 
@@ -147,6 +147,7 @@ int main(int argc, char* argv[]) {
   scene.addVoidKeyCallback('-',boost::bind(&EnvironmentObject::adjustTransparency, trackedObj->getSim(), -0.1f), "decrease opaqueness");
   scene.addVoidKeyCallback('q',boost::bind(exit, 0), "exit");
 
+
   while (ros::ok()) {
     //Update the inputs of the featureExtractors and visibilities (if they have any inputs)
     cloudFeatures->updateInputs(filteredCloud);
@@ -154,11 +155,9 @@ int main(int argc, char* argv[]) {
     pending = false;
     while (ros::ok() && !pending) {
       sync.updateRobot();
-//      leftGrabDetector->update(sync.m_lastMsg);
-//      rightGrabDetector->update(sync.m_lastMsg);
-//      lMonitor.updateGrabPose();
-//      rMonitor.updateGrabPose();
-        //Do iteration
+      lgm.update();
+      rgm.update();
+
       alg->updateFeatures();
       alg->expectationStep();
       alg->maximizationStep(applyEvidence);
@@ -169,7 +168,6 @@ int main(int argc, char* argv[]) {
       ros::spinOnce();
     }
     objPub.publish(toTrackedObjectMessage(trackedObj));
-    if (RecordingConfig::record) demoRecord->frame();
   }
 
 }

@@ -1,3 +1,4 @@
+#pragma once
 #include "simulation/openravesupport.h"
 #include <sensor_msgs/JointState.h>
 #include <ros/ros.h>
