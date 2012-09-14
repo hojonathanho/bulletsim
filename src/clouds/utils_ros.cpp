@@ -41,7 +41,7 @@ bool lookupLatestTransform(btTransform& out, const std::string& toFrame, const s
       listener.lookupTransform(toFrame, fromFrame, ros::Time(0), st);
   }
   catch (tf::TransformException e) {
-      LOG_WARN_FMT("tf error: %s\n", e.what());
+      LOG_DEBUG_FMT("tf error: %s\n", e.what());
       return false;
   }
   out = st.asBt();
