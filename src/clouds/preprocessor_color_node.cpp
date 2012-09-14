@@ -372,11 +372,5 @@ int main(int argc, char* argv[]) {
 
   //  assert(!LocalConfig::multithread || (!LocalConfig::debugMask )
 
-  if (LocalConfig::multithread) {
-    ros::AsyncSpinner spinner(4); // Use 4 threads
-    spinner.start();
-    ros::waitForShutdown();
-  } else {
-    ros::spin();
-  }
+  ros::spin();
 }

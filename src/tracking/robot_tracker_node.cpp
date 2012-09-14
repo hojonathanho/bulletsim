@@ -111,8 +111,8 @@ int main(int argc, char* argv[]) {
   pr2m.pr2->setColor(1,1,1,.5);
 //
 
-  setupGrabbing(scene.env, pr2m.pr2Left, pr2m.pr2Right);
-
+  GrabManager lgm(scene.env, pr2m.pr2Left, GrabDetector::LEFT, sync);
+  GrabManager rgm(scene.env, pr2m.pr2Right, GrabDetector::RIGHT, sync);
 
 
   scene.startViewer();
@@ -141,9 +141,6 @@ int main(int argc, char* argv[]) {
   PhysicsTracker::Ptr alg(new PhysicsTracker(objectFeatures, cloudFeatures, visInterface));
   PhysicsTrackerVisualizer::Ptr trackingVisualizer(new PhysicsTrackerVisualizer(&scene, alg));
 
-  GrabManager lGrabManager(scene.env, pr2m.pr2Left, sync);
-  GrabManager rGrabManager(scene.env, pr2m.pr2Right, sync);
-
   bool applyEvidence = true;
   scene.addVoidKeyCallback('a',boost::bind(toggle, &applyEvidence), "toggle apply evidence");
   scene.addVoidKeyCallback('=',boost::bind(&EnvironmentObject::adjustTransparency, trackedObj->getSim(), 0.1f), "increase opaqueness");
@@ -158,8 +155,8 @@ int main(int argc, char* argv[]) {
     pending = false;
     while (ros::ok() && !pending) {
       sync.updateRobot();
-      lGrabManager.update();
-      rGrabManager.update();
+      lgm.update();
+      rgm.update();
 
       alg->updateFeatures();
       alg->expectationStep();
