@@ -55,3 +55,15 @@ bool GrabDetector::isGrabbing(float position, float velocity, float effort) {
 	bool out = position < .04;
 	return out;
 }
+
+GrabManager::GrabManager(Environment::Ptr env, RaveRobotObject::Manipulator::Ptr manip, GrabDetector::Side side, RobotSync& robotSync) :
+    m_env(env),
+    m_monitor(manip, env->bullet->dynamicsWorld),
+    m_detector(side, boost::bind(&MonitorForGrabbing::grab, &m_monitor), boost::bind(&MonitorForGrabbing::release, &m_monitor)),
+    m_sync(robotSync)
+{}
+
+void GrabManager::update() {
+  m_detector.update(m_sync.m_lastMsg);
+  m_monitor.updateGrabPose();
+}

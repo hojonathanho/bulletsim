@@ -1,5 +1,8 @@
+#pragma once
 #include <sensor_msgs/JointState.h>
 #include <boost/function.hpp>
+#include "clouds/ros_robot.h"
+#include "robots/grabbing.h"
 
 typedef boost::function<void(void)> VoidCallback;
 
@@ -25,3 +28,14 @@ public:
 	bool isGrabbing(float position, float velocity, float effort);
 
 };
+
+class GrabManager {
+public:
+  Environment::Ptr m_env;
+  MonitorForGrabbing m_monitor;
+  GrabDetector m_detector;
+  RobotSync& m_sync;
+  GrabManager(Environment::Ptr env, RaveRobotObject::Manipulator::Ptr arm, GrabDetector::Side, RobotSync& robotSync);
+  void update();
+};
+
