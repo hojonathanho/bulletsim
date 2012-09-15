@@ -50,6 +50,7 @@ struct LocalConfig: Config {
   static int boundaryType;
   static bool debugMask;
   static bool multithread;
+  static string groundFrame;
   static int i0;
   static int i1;
   static int i2;
@@ -73,6 +74,7 @@ struct LocalConfig: Config {
     params.push_back(new Parameter<int> ("boundaryType", &boundaryType, "the vertices defining the prism convex hull filter could be: NONE=0, LOAD_FILE, RED_MARKERS, TABLE"));
     params.push_back(new Parameter<bool> ("debugMask", &debugMask, "set to true if you want to debug the intermediate mask filters"));
     params.push_back(new Parameter<bool> ("multithread", &multithread, "multithreaded"));
+    params.push_back(new Parameter<string> ("groundFrame", &groundFrame, "ground frame"));
     params.push_back(new Parameter<int> ("i0", &i0, "miscellaneous variable 0"));
     params.push_back(new Parameter<int> ("i1", &i1, "miscellaneous variable 1"));
     params.push_back(new Parameter<int> ("i2", &i2, "miscellaneous variable 2"));
@@ -96,6 +98,7 @@ string LocalConfig::boundaryFile = "polygon";
 int LocalConfig::boundaryType = LOAD_FILE;
 bool LocalConfig::debugMask = false;
 bool LocalConfig::multithread = true;
+string LocalConfig::groundFrame = "/ground";
 int LocalConfig::i0 = 1;
 int LocalConfig::i1 = 0;
 int LocalConfig::i2 = 0;
@@ -263,7 +266,7 @@ public:
 
     geometry_msgs::PolygonStamped polyStamped;
     polyStamped.polygon = m_poly;
-    polyStamped.header.frame_id = "/ground";
+    polyStamped.header.frame_id = LocalConfig::groundFrame;
     polyStamped.header.stamp = ros::Time::now();
 
     m_mutex.lock();
@@ -282,7 +285,7 @@ public:
     if (LocalConfig::boundaryType == LOAD_FILE) {
       loadPoints(string(getenv("BULLETSIM_SOURCE_DIR")) + "/data/boundary/" + LocalConfig::boundaryFile, m_poly.points);
       // transform the poly points from ground to camera frame
-      btTransform transform = waitForAndGetTransform(m_listener, "/ground", msg_in.header.frame_id).inverse();
+      btTransform transform = waitForAndGetTransform(m_listener, LocalConfig::groundFrame, msg_in.header.frame_id).inverse();
       cloud_hull->resize(m_poly.points.size());
       for (int i = 0; i < m_poly.points.size(); i++)
         cloud_hull->at(i) = toColorPoint(transform * toBulletVector(m_poly.points[i]));
@@ -293,16 +296,18 @@ public:
 
     } else {
 
+      ColorCloudPtr cloud_filtered = downsampleCloud(cloud, .005);
       pcl::ModelCoefficients::Ptr coefficients(new pcl::ModelCoefficients);
-      ColorCloudPtr cloud_filtered = filterPlane(cloud, 0.01, coefficients);
+      cloud_filtered = filterPlane(cloud_filtered, 0.03, coefficients);
+      cloud_filtered = getBiggestCluster(cloud_filtered, .02);
       ColorCloudPtr cloud_projected = projectOntoPlane(cloud_filtered, coefficients); // full table cloud
 
       if (LocalConfig::boundaryType == RED_MARKERS) cloud_projected = colorSpaceFilter(cloud_projected, 0, 255, 0, 166, 0, 255, CV_BGR2Lab, false, true); // red table cloud
-
+//      if (LocalConfig::boundaryType == RED_MARKERS) cloud_projected = hueFilter(cloud_projected, 160, 10, 150, 255, 100, 255);
       cloud_hull = findConvexHull(cloud_projected, hull_vertices);
 
       // transform the poly points from camera to ground frame
-      btTransform transform = waitForAndGetTransform(m_listener, "/ground", msg_in.header.frame_id);
+      btTransform transform = waitForAndGetTransform(m_listener, LocalConfig::groundFrame, msg_in.header.frame_id);
       m_poly.points.resize(cloud_hull->size());
       for (int i = 0; i < cloud_hull->size(); i++)
         m_poly.points[i] = toROSPoint32(transform * toBulletVector(cloud_hull->at(i)));
