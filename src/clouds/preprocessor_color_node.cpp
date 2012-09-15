@@ -209,9 +209,6 @@ public:
 
     cv::erode(mask, mask, cv::Mat(), cv::Point(-1, -1), LocalConfig::i0);
     ColorCloudPtr cloud_out = maskCloud(cloud_in, mask,true);
-    TIC();
-    cloud_out = cropToHull(cloud_out, cloud_hull, hull_vertices, true);
-    LOG_INFO_FMT("crop time: %2f", TOC());
 
     mask = toBinaryMask(toCVMatImage(cloud_out));
 
@@ -227,6 +224,11 @@ public:
     if (LocalConfig::downsample > 0) cloud_out = downsampleCloud(cloud_out, LocalConfig::downsample);
     if (LocalConfig::outlierMinK > 0) cloud_out = removeRadiusOutliers(cloud_out, LocalConfig::outlierRadius, LocalConfig::outlierMinK);
     if (LocalConfig::clusterMinSize > 0) cloud_out = clusterFilter(cloud_out, LocalConfig::clusterTolerance, LocalConfig::clusterMinSize);
+
+    //TIC();
+    cloud_out = cropToHull(cloud_out, cloud_hull, hull_vertices, false);
+    //LOG_INFO_FMT("crop time: %2f", TOC());
+
 
     //Publish cloud
     sensor_msgs::PointCloud2 msg_out;
