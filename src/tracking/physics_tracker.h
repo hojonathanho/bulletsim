@@ -8,9 +8,6 @@
 #include "feature_extractor.h"
 #include <cv.h>
 
-void setGlobalEnvironment(Environment::Ptr env);
-Environment::Ptr getGlobalEnvironment();
-
 class PhysicsTracker {
 public:
 	typedef boost::shared_ptr<PhysicsTracker> Ptr;

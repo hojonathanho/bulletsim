@@ -29,6 +29,7 @@ add_library(tracking
 	tracked_rope.cpp
 	tracked_cloth.cpp
 	tracked_towel.cpp
+	tracked_sponge.cpp
 	tracked_box.cpp
 	utils_tracking.cpp
 	visibility.cpp

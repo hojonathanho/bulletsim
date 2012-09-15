@@ -13,7 +13,7 @@ ColorCloudPtr downsampleCloud(const ColorCloudPtr in, float sz);
 ColorCloudPtr removeOutliers(const ColorCloudPtr in, float thresh=1, int k=15);
 ColorCloudPtr removeRadiusOutliers(const ColorCloudPtr in, float radius, int minK);
 ColorCloudPtr smoothSurface(const ColorCloudPtr in);
-ColorCloudPtr findConcaveHull(ColorCloudPtr in, std::vector<pcl::Vertices>& polygons);
+ColorCloudPtr findConcaveHull(ColorCloudPtr in, float alpha, std::vector<pcl::Vertices>& polygons);
 ColorCloudPtr findConvexHull(ColorCloudPtr in, std::vector<pcl::Vertices>& polygons);
 ColorCloudPtr cropToHull(const ColorCloudPtr in, ColorCloudPtr hull, std::vector<pcl::Vertices>& polygons, bool organized=false);
 ColorCloudPtr projectOntoPlane(const ColorCloudPtr in, pcl::ModelCoefficients::Ptr coefficients);

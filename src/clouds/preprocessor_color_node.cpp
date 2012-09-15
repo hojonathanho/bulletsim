@@ -49,7 +49,6 @@ struct LocalConfig: Config {
   static string boundaryFile;
   static int boundaryType;
   static bool debugMask;
-  static bool debugGreenFilter;
   static bool multithread;
   static int i0;
   static int i1;
@@ -73,8 +72,7 @@ struct LocalConfig: Config {
     params.push_back(new Parameter<string> ("boundaryFile", &boundaryFile, "file from which the boundary gets loaded/saved"));
     params.push_back(new Parameter<int> ("boundaryType", &boundaryType, "the vertices defining the prism convex hull filter could be: NONE=0, LOAD_FILE, RED_MARKERS, TABLE"));
     params.push_back(new Parameter<bool> ("debugMask", &debugMask, "set to true if you want to debug the intermediate mask filters"));
-    params.push_back(new Parameter<bool> ("debugGreenFilter", &debugGreenFilter, "set to true if you want to debug the lab threshold parameters. if true, the green and negative green cloud are published, and you can interactively modify the thresholds."));
-    params.push_back(new Parameter<bool> ("multithread", &multithread, "multithreaded spinning"));
+    params.push_back(new Parameter<bool> ("multithread", &multithread, "multithreaded"));
     params.push_back(new Parameter<int> ("i0", &i0, "miscellaneous variable 0"));
     params.push_back(new Parameter<int> ("i1", &i1, "miscellaneous variable 1"));
     params.push_back(new Parameter<int> ("i2", &i2, "miscellaneous variable 2"));
@@ -97,9 +95,8 @@ float LocalConfig::offset = 0.02;
 string LocalConfig::boundaryFile = "polygon";
 int LocalConfig::boundaryType = LOAD_FILE;
 bool LocalConfig::debugMask = false;
-bool LocalConfig::debugGreenFilter = false;
-bool LocalConfig::multithread = false;
-int LocalConfig::i0 = 0;
+bool LocalConfig::multithread = true;
+int LocalConfig::i0 = 1;
 int LocalConfig::i1 = 0;
 int LocalConfig::i2 = 0;
 int LocalConfig::i3 = 0;
@@ -116,6 +113,7 @@ class PreprocessorNode {
 public:
   ros::NodeHandle& m_nh;
   ros::Publisher m_cloudPub, m_imagePub, m_depthPub;
+  ros::Publisher m_maskPub; // for debugging
 
   ros::Publisher m_polyPub;
   tf::TransformBroadcaster m_broadcaster;
@@ -139,14 +137,14 @@ public:
   boost::mutex m_mutex;
 
   void callback0(const sensor_msgs::PointCloud2& msg_in) {
-    if (m_inited) boost::thread cbthread(&PreprocessorNode::callback, this, msg_in);
+    if (m_inited && LocalConfig::multithread) boost::thread cbthread(&PreprocessorNode::callback, this, msg_in);
     else callback(msg_in);
   }
 
   void callback(const sensor_msgs::PointCloud2& msg_in) {
     double tStartCB = GetClock();
     // Needs this to update the opencv windows
-    if (LocalConfig::debugMask || LocalConfig::debugGreenFilter) {
+    if (LocalConfig::debugMask) {
       char key = cv::waitKey(20);
       if (key == 'q') exit(0);
     }
@@ -191,7 +189,9 @@ public:
     } else {
       cv::Mat image_small;
       cv::resize(image, image_small, cv::Size(320, 240), cv::INTER_LINEAR);
+      TIC();
       cv::Mat mask_small = gmmGraphCut(image_small, m_bgdModel, m_fgdModel);
+      LOG_INFO_FMT("grabcut time: %2f", TOC());
       cv::resize(mask_small, mask, cv::Size(640, 480), CV_INTER_NN);
     }
 
@@ -209,7 +209,6 @@ public:
 
     cv::erode(mask, mask, cv::Mat(), cv::Point(-1, -1), LocalConfig::i0);
     ColorCloudPtr cloud_out = maskCloud(cloud_in, mask,true);
-    cloud_out = cropToHull(cloud_out, cloud_hull, hull_vertices, true);
 
     mask = toBinaryMask(toCVMatImage(cloud_out));
 
@@ -226,12 +225,17 @@ public:
     if (LocalConfig::outlierMinK > 0) cloud_out = removeRadiusOutliers(cloud_out, LocalConfig::outlierRadius, LocalConfig::outlierMinK);
     if (LocalConfig::clusterMinSize > 0) cloud_out = clusterFilter(cloud_out, LocalConfig::clusterTolerance, LocalConfig::clusterMinSize);
 
+    //TIC();
+    cloud_out = cropToHull(cloud_out, cloud_hull, hull_vertices, false);
+    //LOG_INFO_FMT("crop time: %2f", TOC());
+
+
     //Publish cloud
     sensor_msgs::PointCloud2 msg_out;
     pcl::toROSMsg(*cloud_out, msg_out);
     msg_out.header = msg_in.header;
 
-    if (LocalConfig::debugGreenFilter) {
+    if (LocalConfig::debugMask) {
       cv::namedWindow("lab params");
       cv::createTrackbar("min l (lightness)     ", "lab params", &MIN_L, 255);
       cv::createTrackbar("max l (lightness)     ", "lab params", &MAX_L, 255);
@@ -239,31 +243,23 @@ public:
       cv::createTrackbar("max a (green -> red)  ", "lab params", &MAX_A, 255);
       cv::createTrackbar("min b (blue -> yellow)", "lab params", &MIN_B, 255);
       cv::createTrackbar("max b (blue -> yellow)", "lab params", &MAX_B, 255);
-
-//      //Publish green cloud
-//      ColorCloudPtr cloud_green = colorSpaceFilter(cloud_in, MIN_L, MAX_L, MIN_A, MAX_A, MIN_B, MAX_B, CV_BGR2Lab, true, true);
-//      sensor_msgs::PointCloud2 msg_green;
-//      pcl::toROSMsg(*cloud_green, msg_green);
-//      msg_green.header = msg_in.header;
-//
-//      //Publish green cloud
-//      ColorCloudPtr cloud_not_green = colorSpaceFilter(cloud_in, MIN_L, MAX_L, MIN_A, MAX_A, MIN_B, MAX_B, CV_BGR2Lab, true, false);
-//      sensor_msgs::PointCloud2 msg_not_green;
-//      pcl::toROSMsg(*cloud_not_green, msg_not_green);
-//      msg_not_green.header = msg_in.header;
     }
 
     //Publish image version of cloud
     cv_bridge::CvImage image_msg;
     image_msg.header = msg_in.header;
-    image_msg.encoding = sensor_msgs::image_encodings::TYPE_8UC3;
-    image_msg.image = image;
+    image_msg.encoding = sensor_msgs::image_encodings::TYPE_8UC4;
+    image_msg.image = image_and_mask;
 
     cv_bridge::CvImage depth_msg;
     depth_msg.header   = msg_in.header;
     depth_msg.encoding = sensor_msgs::image_encodings::TYPE_32FC1;
     depth_msg.image    = toCVMatDepthImage(cloud_in);
 
+    cv_bridge::CvImage mask_msg;
+    mask_msg.header   = msg_in.header;
+    mask_msg.encoding = sensor_msgs::image_encodings::TYPE_8UC1;
+    mask_msg.image    = mask;
 
     geometry_msgs::PolygonStamped polyStamped;
     polyStamped.polygon = m_poly;
@@ -274,6 +270,7 @@ public:
     m_cloudPub.publish(msg_out);
     m_imagePub.publish(image_msg.toImageMsg());
     m_depthPub.publish(depth_msg.toImageMsg());
+    m_maskPub.publish(mask_msg.toImageMsg());
     m_polyPub.publish(polyStamped);
     m_mutex.unlock();
 
@@ -354,8 +351,10 @@ public:
   PreprocessorNode(ros::NodeHandle& nh) :
     m_inited(false), m_nh(nh), m_cloudPub(nh.advertise<sensor_msgs::PointCloud2> (LocalConfig::nodeNS + "/points", 5)),
     m_imagePub(nh.advertise<sensor_msgs::Image> (LocalConfig::nodeNS + "/image", 5)),
+    m_depthPub(nh.advertise<sensor_msgs::Image> (LocalConfig::nodeNS + "/depth", 5)),
+    m_maskPub(nh.advertise<sensor_msgs::Image> (LocalConfig::nodeNS + "/debug_mask", 5)),
     m_polyPub(nh.advertise<geometry_msgs::PolygonStamped> (LocalConfig::nodeNS + "/polygon", 5)),
-    m_sub(nh.subscribe(LocalConfig::inputTopic, 5, &PreprocessorNode::callback0, this)),
+    m_sub(nh.subscribe(LocalConfig::inputTopic, 3, &PreprocessorNode::callback0, this)),
     m_mins(-10, -10, -10), m_maxes(10, 10, 10),
     m_transform(toBulletTransform(Affine3f::Identity())),
     cloud_hull(new ColorCloud) {}

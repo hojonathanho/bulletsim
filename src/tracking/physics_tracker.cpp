@@ -13,11 +13,6 @@
 using namespace Eigen;
 using namespace std;
 
-static Environment::Ptr gEnv;
-
-void setGlobalEnvironment(Environment::Ptr env) { gEnv = env; };
-Environment::Ptr getGlobalEnvironment() { return gEnv; }
-
 //#define CHECK_CORRECTNESS
 
 PhysicsTracker::PhysicsTracker(TrackedObjectFeatureExtractor::Ptr object_features, FeatureExtractor::Ptr observation_features, VisibilityInterface::Ptr visibility_interface) :

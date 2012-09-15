@@ -3,8 +3,12 @@
 #include <Eigen/Dense>
 #include "utils/config.h"
 #include "clouds/pcl_typedefs.h"
+#include "simulation/environment.h"
 
 typedef Eigen::Matrix<uint8_t,Eigen::Dynamic,Eigen::Dynamic> MatrixXu;
+
+void setGlobalEnv(Environment::Ptr env);
+Environment::Ptr getGlobalEnv();
 
 void toggle(bool* b);
 void add(int* n, int increment);

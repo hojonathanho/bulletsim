@@ -118,6 +118,112 @@ void BulletSoftObject::computeNodeFaceMapping() {
 	}
 }
 
+bool areFacesEqual(btSoftBody::Face face0, btSoftBody::Face face1) {
+	// assert n0, n1, n2 are all different
+	for (int c=0; c<3; c++)
+		for (int d=c+1; d<3; d++) {
+			assert(face0.m_n[c] != face0.m_n[d]);
+			assert(face1.m_n[c] != face1.m_n[d]);
+		}
+
+	for (int c; c<3; c++) {
+		int d;
+		for (d=0; d<3; d++)
+			if (face0.m_n[c] == face1.m_n[d]) break;
+		if (d==3) return false;
+	}
+	return true;
+}
+
+int isFaceInFaces(btSoftBody::Face face, btSoftBody::tFaceArray faces) {
+	for (int j=0; j<faces.size(); j++) {
+		if (areFacesEqual(face, faces[j])) return j;
+	}
+	return -1;
+}
+
+struct Tetra {
+  btSoftBody::Node* m_n[4];
+  btSoftBody::Face* m_f[4];
+};
+typedef vector<Tetra> tTetraArray;
+
+void BulletSoftObject::computeNodeFaceTetraMapping() {
+	const btSoftBody::tNodeArray& nodes = softBody->m_nodes;
+	btSoftBody::tFaceArray faces;
+	tTetraArray tetras(softBody->m_tetras.size());
+
+	for (int t=0; t<softBody->m_tetras.size(); t++) {
+		for (int d=0; d<4; d++)
+			tetras[t].m_n[d] = softBody->m_tetras[t].m_n[d];
+
+		for (int c=0; c<4; c++) {
+			for (int d=c+1; d<4; d++) {
+				for (int e=d+1; e<4; e++) {
+					btSoftBody::Face face;
+					face.m_n[0] = tetras[t].m_n[c];
+					face.m_n[1] = tetras[t].m_n[d];
+					face.m_n[2] = tetras[t].m_n[e];
+					int j;
+					for (j=0; j<faces.size(); j++)
+						if (areFacesEqual(face, faces[j])) break;
+					if (j==faces.size()) faces.push_back(face);
+					tetras[t].m_f[j] = &faces[j];
+				}
+			}
+		}
+	}
+
+	cout << "faces.size() " << faces.size() << endl;
+	// compute faces to nodes indices and vice versa
+	node2faces = vector<vector<int> >(nodes.size());
+	face2nodes = vector<vector<int> >(faces.size(), vector<int>(3,-1));
+	for (int i=0; i<nodes.size(); i++) {
+		int j,c;
+		for(j=0; j<faces.size(); j++) {
+			for(c=0; c<3; c++) {
+				if (&nodes[i] == faces[j].m_n[c]) {
+					node2faces[i].push_back(j);
+					face2nodes[j][c] = i;
+				}
+			}
+		}
+	}
+
+	// compute tetras to faces indices and vice versa
+	face2tetras = vector<vector<int> >(faces.size());
+	tetra2faces = vector<vector<int> >(tetras.size(), vector<int>(4,-1));
+	for (int j=0; j<faces.size(); j++) {
+		int t,c;
+		for(t=0; t<tetras.size(); t++) {
+			for(c=0; c<4; c++) {
+				if (&faces[j] == tetras[t].m_f[c]) {
+					face2tetras[j].push_back(t);
+					tetra2faces[t][c] = j;
+				}
+			}
+		}
+	}
+}
+
+void BulletSoftObject::computeBoundaries() {
+	assert(tetra2faces.size() != 0); //make sure the soft object is a tetramesh
+
+	face_boundaries.resize(face2tetras.size());
+	for (int j=0; j<face_boundaries.size(); j++)
+		face_boundaries[j] = (face2tetras[j].size() == 1);
+
+	node_boundaries.resize(node2faces.size());
+	for (int i=0; i<node_boundaries.size(); i++) {
+		int c;
+		for (c=0; c<node2faces[i].size(); c++) {
+			if (face_boundaries[node2faces[i][c]]) break;
+		}
+		if (c == node2faces[i].size()) node_boundaries[i] = false;
+		else node_boundaries[i] = true;
+	}
+}
+
 void BulletSoftObject::setColor(float r, float g, float b, float a) {
 		m_color = osg::Vec4f(r,g,b,a);
 		if (geode) setColorAfterInit();

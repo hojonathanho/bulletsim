@@ -12,6 +12,7 @@
 #include "utils/conversions.h"
 #include "robots/ros2rave.h"
 #include "utils/clock.h"
+#include "utils_ros.h"
 static std::string nodeName = "robot_self_filter";
 
 struct LocalConfig : Config {

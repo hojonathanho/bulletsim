@@ -22,7 +22,7 @@
 
   <node name="phasespace_transforms_node" pkg="binary_symlinks" type="phasespace_transforms_node" output="screen" args=""/>
   
-  <node name="preprocessor_color_node1" pkg="binary_symlinks" type="preprocessor_color_node" output="screen"  args="--inputTopic=/drop/$(arg camera)1/points --cameraName=/kinect1"/> 
-  <node name="preprocessor_color_node2" pkg="binary_symlinks" type="preprocessor_color_node" output="screen"  args="--inputTopic=/drop/$(arg camera)2/points --cameraName=/kinect2"/> 
+  <node name="preprocessor_color_node1" pkg="binary_symlinks" type="preprocessor_color_node" output="screen"  args="--inputTopic=/drop/$(arg camera)1/points --nodeNS=/preprocessor/$(arg camera)1"/> 
+  <node name="preprocessor_color_node2" pkg="binary_symlinks" type="preprocessor_color_node" output="screen"  args="--inputTopic=/drop/$(arg camera)2/points --nodeNS=/preprocessor/$(arg camera)2"/> 
 
 </launch>

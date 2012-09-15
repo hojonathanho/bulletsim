@@ -134,11 +134,11 @@ ColorCloudPtr projectOntoPlane(const ColorCloudPtr in, pcl::ModelCoefficients::P
   return cloud_projected;
 }
 
-ColorCloudPtr findConcaveHull(ColorCloudPtr in, std::vector<pcl::Vertices>& polygons) {
+ColorCloudPtr findConcaveHull(ColorCloudPtr in, float alpha, std::vector<pcl::Vertices>& polygons) {
   ColorCloudPtr out(new ColorCloud());
   pcl::ConcaveHull<PointT> chull;
   chull.setInputCloud (in);
-  chull.setAlpha (0.1);
+  chull.setAlpha (alpha);
   chull.reconstruct (*out, polygons);
   return out;
 }

@@ -22,7 +22,7 @@ void broadcastKinectTransform(const btTransform& transform, const std::string& k
 
 btTransform waitForAndGetTransform(const tf::TransformListener& listener, std::string target_frame, std::string source_frame) {
 	tf::StampedTransform st;
-	while(1) {
+	while(ros::ok()) {
 		try {
 			listener.waitForTransform(target_frame, source_frame, ros::Time(0),ros::Duration(.1));
 			listener.lookupTransform(target_frame, source_frame, ros::Time(0), st);
