@@ -22,8 +22,8 @@ struct LocalConfig : Config {
   static vector<ledid_t> kinectLedIds;
 
   LocalConfig() : Config() {
-    params.push_back(new Parameter<vector<ledid_t> >("commonLedIds", &commonLedIds, "ID of the LEDs that are seen by both cameras. The order matters."));
-    params.push_back(new Parameter<vector<ledid_t> >("kinectLedIds", &kinectLedIds, "ID of the LEDs that are on the kinect's frame."));
+    params.push_back(new ParameterVec<ledid_t>("commonLedIds", &commonLedIds, "ID of the LEDs that are seen by both cameras. The order matters."));
+    params.push_back(new ParameterVec<ledid_t>("kinectLedIds", &kinectLedIds, "ID of the LEDs that are on the kinect's frame."));
   }
 };
 
