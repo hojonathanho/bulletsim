@@ -90,6 +90,10 @@ void drawAxes(btTransform transform, float size, Environment::Ptr env) {
 	plot_axes->setup(transform, size);
 }
 
+static Environment::Ptr gEnv;
+void setGlobalEnv(Environment::Ptr env) { gEnv = env; }
+Environment::Ptr getGlobalEnv() { return gEnv; }
+
 static const btMatrix3x3 HAPTIC_ROTATION(btQuaternion(-M_PI/2., 0., 0.));
 static inline btMatrix3x3 toHapticBtMatrix(const Matrix3d &m) {
     // note: the rows are permuted

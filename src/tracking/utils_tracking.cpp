@@ -6,9 +6,6 @@
 using namespace std;
 using namespace Eigen;
 
-static Environment::Ptr gEnv;
-void setGlobalEnv(Environment::Ptr env) { gEnv = env; }
-Environment::Ptr getGlobalEnv() { return gEnv; }
 
 void toggle(bool* b){
 	*b = !(*b);
