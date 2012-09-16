@@ -142,14 +142,35 @@ BulletSoftObject::Ptr makeSponge(const vector<btVector3>& top_corners, float thi
 }
 
 
+ColorCloudPtr projectPointsOntoPlane(ColorCloudPtr in, vector<float> abcd) {
+  float a = abcd[0];
+  float b = abcd[1];
+  float c = abcd[2];
+  float d = abcd[3];
+
+  float abc2 = a * a + b * b + c * c;
+
+  ColorCloudPtr out(new ColorCloud());
+  BOOST_FOREACH(ColorPoint& pt, in->points) {
+    float t = -(a*pt.x + b*pt.y + c*pt.z + d)/abc2;
+    ColorPoint newpt = pt;
+    newpt.x = pt.x + a*t;
+    newpt.y = pt.y + b*t;
+    newpt.z = pt.z + c*t;
+    out->push_back(newpt);
+  }
+  return out;
+}
+
 // Returns the approximate polygon of the concave hull of the cloud
 // The points are being projected to the xy plane
 vector<btVector3> polyCorners(ColorCloudPtr cloud) {
-	pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
-	filterPlane(cloud, 0.01*METERS, coefficients);
-	ColorCloudPtr cloud_projected = projectOntoPlane(cloud, coefficients);
-	vector<pcl::Vertices> polygons;
-	ColorCloudPtr cloud_hull = findConcaveHull(cloud_projected, 0.03*METERS, polygons);
+
+  vector<float> coeffs = getPlaneCoeffsRansac(cloud);
+  ColorCloudPtr cloud_projected = projectPointsOntoPlane(cloud, coeffs);
+
+  std::vector<pcl::Vertices> polygons;
+  ColorCloudPtr cloud_hull = findConcaveHull(cloud_projected, .05*METERS, polygons);
 
 	vector<btVector3> pts = toBulletVectors(cloud_hull);
 

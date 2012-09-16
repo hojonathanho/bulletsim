@@ -110,7 +110,10 @@ private:
     AnchorHandle nextAnchorHandle;
     map<AnchorHandle, int> anchormap;
 public:
-		cv::Mat& getTexture() { return *m_cvimage; }
+		cv::Mat getTexture() {
+		  if(m_cvimage) return *m_cvimage;
+		  else return cv::Mat();
+		}
 		osg::Vec4f getColor() {return m_color;}
 };
 
