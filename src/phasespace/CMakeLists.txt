@@ -43,3 +43,6 @@ target_link_libraries(phasespace_kinect_calibration phasespace ${PCL_LIBRARIES} 
 
 add_executable(phasespace_transforms_node phasespace_transforms_node.cpp)
 target_link_libraries(phasespace_transforms_node phasespace clouds ${PCL_LIBRARIES} boost_signals tf)
+
+add_executable(tf_phasespace_robot tf_phasespace_robot.cpp)
+target_link_libraries(tf_phasespace_robot phasespace tf clouds)
