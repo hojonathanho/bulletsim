@@ -57,3 +57,5 @@ target_link_libraries(test_hand simulation)
 #add_executable(test_raven test_raven.cpp)
 #target_link_libraries(test_raven robots simulation)
 
+add_executable(test_softbody_mappings test_softbody_mappings.cpp)
+target_link_libraries(test_softbody_mappings simulation)

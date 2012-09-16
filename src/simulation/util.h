@@ -19,6 +19,12 @@ using namespace std;
 #define STRINGIFY(x) #x
 #define EXPAND(x) STRINGIFY(x)
 
+void setGlobalEnv(Environment::Ptr env);
+Environment::Ptr getGlobalEnv();
+
+void toggle(bool* b);
+void add(int* n, int increment);
+
 namespace util {
 
   // reads input from haptic devices (using getDeviceState),

@@ -80,19 +80,6 @@ vector<btVector3> TrackedCloth::getNormals() {
 	return out;
 }
 
-const Eigen::VectorXf TrackedCloth::getPriorDist() {
-	Eigen::MatrixXf prior_dist(1,FeatureExtractor::m_allDim);
-	prior_dist << TrackingConfig::pointPriorDist*METERS, TrackingConfig::pointPriorDist*METERS, TrackingConfig::pointPriorDist*METERS,  //FT_XYZ
-			0.2, 0.2, 0.2, 	//FT_BGR
-			TrackingConfig::colorLPriorDist, TrackingConfig::colorABPriorDist, TrackingConfig::colorABPriorDist,	//FT_LAB
-			1.0, 1.0, 1.0,  //FT_NORMAL
-			1.0,  //FT_LABEL
-			MatrixXf::Ones(1, FE::FT_SIZES[FE::FT_SURF])*0.4,  //FT_SURF
-			MatrixXf::Ones(1, FE::FT_SIZES[FE::FT_PCASURF])*0.4,  //FT_PCASURF
-			0.5;  //FT_GRADNORMAL
-	return FeatureExtractor::all2ActiveFeatures(prior_dist).transpose();
-}
-
 void TrackedCloth::initColors() {
 	m_colors.resize(m_nNodes, 3);
 	cv::Mat tex_image = getSim()->getTexture();
@@ -119,47 +106,6 @@ void TrackedCloth::initColors() {
 	}
 }
 
-BulletSoftObject::Ptr makeCloth(const vector<btVector3>& corners, int resolution_x, int resolution_y, float mass) {
-  btSoftBodyWorldInfo unusedWorldInfo;
-  btSoftBody* psb = CreatePolygonPatch(unusedWorldInfo, corners, resolution_x, resolution_y, true);
-
-  btSoftBody::Material* pm=psb->appendMaterial();
-  pm->m_kLST = 0.01;
-  //pm->m_kAST = 0.5;
-  //pm->m_kAST = 0.0;
-
-  psb->generateBendingConstraints(2,pm);
-
-  psb->setTotalMass(mass);
-
-  psb->generateClusters(512);
-	psb->getCollisionShape()->setMargin(0.002*METERS);
-
-  psb->m_cfg.collisions	=	0;
-  psb->m_cfg.collisions += btSoftBody::fCollision::SDF_RS; ///SDF based rigid vs soft
-  //psb->m_cfg.collisions += btSoftBody::fCollision::CL_RS; ///Cluster vs convex rigid vs soft
-  //psb->m_cfg.collisions += btSoftBody::fCollision::VF_SS;	///Vertex vs face soft vs soft handling
-  psb->m_cfg.collisions += btSoftBody::fCollision::CL_SS; ///Cluster vs cluster soft vs soft handling
-  psb->m_cfg.collisions	+= btSoftBody::fCollision::CL_SELF; ///Cluster soft body self collision
-
-  psb->m_cfg.kDF = 1.0; //0.9; // Dynamic friction coefficient
-//  psb->m_cfg.kAHR = 1; // anchor hardness
-//  psb->m_cfg.kSSHR_CL = 1.0; // so the cloth doesn't penetrate itself
-//  psb->m_cfg.kSRHR_CL = 0.7;
-//  psb->m_cfg.kSKHR_CL = 0.7;
-//  psb->m_cfg.kDP = 0.1; //1.0; // Damping coefficient [0,1]
-
-  psb->m_cfg.piterations = 50; //8;
-  psb->m_cfg.citerations = 50;
-  psb->m_cfg.diterations = 50;
-  //	psb->m_cfg.viterations = 10;
-
-  psb->randomizeConstraints();
-
-  BulletSoftObject::Ptr bso = BulletSoftObject::Ptr(new BulletSoftObject(psb));
-
-	return bso;
-}
 
 vector<btVector3> polyCorners(ColorCloudPtr cloud, cv::Mat mask, CoordinateTransformer* transformer) {
 	vector<cv::Point2f> pixels = polyCorners(mask.clone());

@@ -68,3 +68,6 @@ target_link_libraries(get_cloud_robot_frame utils ${ROS_LIBRARIES} clouds tf rob
 
 add_executable(test_recording test_recording.cpp)
 target_link_libraries(test_recording simulation)
+
+add_executable(try_config_vectors try_config_vectors.cpp)
+target_link_libraries(try_config_vectors simulation)
