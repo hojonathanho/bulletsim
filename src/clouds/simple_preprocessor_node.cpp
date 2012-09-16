@@ -2,6 +2,9 @@
 #include <ros/ros.h>
 #include <pcl/point_types.h>
 #include <sensor_msgs/PointCloud2.h>
+#include <sensor_msgs/Image.h>
+#include <sensor_msgs/image_encodings.h>
+#include <cv_bridge/cv_bridge.h>
 #include <pcl/ros/conversions.h>
 #include "clouds/utils_pcl.h"
 #include "clouds/cloud_ops.h"
@@ -16,14 +19,9 @@
 using namespace std;
 using namespace Eigen;
 
-
-static std::string nodeNS = "/preprocessor";
-static std::string nodeName = "/preprocessor_node";
-
 struct LocalConfig : Config {
-  static std::string nodeNS;
   static std::string inputTopic;
-  static std::string nodeName;
+  static std::string nodeNS;
   static float zClipLow;
   static float zClipHigh;
   static bool updateParams;
@@ -35,6 +33,7 @@ struct LocalConfig : Config {
 
   LocalConfig() : Config() {
     params.push_back(new Parameter<string>("inputTopic", &inputTopic, "input topic"));
+    params.push_back(new Parameter<string> ("nodeNS", &nodeNS, "node namespace"));
     params.push_back(new Parameter<float>("zClipLow", &zClipLow, "clip points that are less than this much above table"));
     params.push_back(new Parameter<float>("zClipHigh", &zClipHigh, "clip points that are more than this much above table"));
     params.push_back(new Parameter<bool>("updateParams", &updateParams, "start a thread to periodically update the parameters thru the parameter server"));
@@ -47,6 +46,7 @@ struct LocalConfig : Config {
 };
 
 string LocalConfig::inputTopic = "/camera/rgb/points";
+string LocalConfig::nodeNS = "/preprocessor/kinect1";
 float LocalConfig::zClipLow = .0025;
 float LocalConfig::zClipHigh = 1000;
 bool LocalConfig::updateParams = true;
@@ -85,7 +85,7 @@ void setParamLoop(ros::NodeHandle& nh) {
 class PreprocessorNode {
 public:
   ros::NodeHandle& m_nh;
-  ros::Publisher m_pub;
+  ros::Publisher m_cloudPub, m_imagePub, m_depthPub;
   ros::Publisher m_polyPub;
   tf::TransformBroadcaster br;
   ros::Subscriber m_sub;
@@ -117,7 +117,21 @@ public:
     sensor_msgs::PointCloud2 msg_out;
     pcl::toROSMsg(*cloud_out, msg_out);
     msg_out.header = msg_in.header;
-    m_pub.publish(msg_out);
+    m_cloudPub.publish(msg_out);
+
+    cv_bridge::CvImage image_msg;
+    image_msg.header = msg_in.header;
+    image_msg.encoding = sensor_msgs::image_encodings::TYPE_8UC4;
+    cv::Mat image = toCVMatImage(cloud_in);
+    cv::cvtColor(image, image, CV_BGR2BGRA);
+    image_msg.image = image;
+    m_imagePub.publish(image_msg.toImageMsg());
+
+    cv_bridge::CvImage depth_msg;
+    depth_msg.header   = msg_in.header;
+    depth_msg.encoding = sensor_msgs::image_encodings::TYPE_32FC1;
+    depth_msg.image    = toCVMatDepthImage(cloud_in);
+    m_depthPub.publish(depth_msg.toImageMsg());
 
     br.sendTransform(tf::StampedTransform(m_transform, ros::Time::now(), msg_in.header.frame_id, "/ground"));
 
@@ -173,7 +187,9 @@ public:
   PreprocessorNode(ros::NodeHandle& nh) :
     m_inited(false),
     m_nh(nh),
-    m_pub(nh.advertise<sensor_msgs::PointCloud2>("points",5)),
+    m_cloudPub(nh.advertise<sensor_msgs::PointCloud2> (LocalConfig::nodeNS + "/points", 5)),
+    m_imagePub(nh.advertise<sensor_msgs::Image> (LocalConfig::nodeNS + "/image", 5)),
+    m_depthPub(nh.advertise<sensor_msgs::Image> (LocalConfig::nodeNS + "/depth", 5)),
     m_polyPub(nh.advertise<geometry_msgs::PolygonStamped>("polygon",5)),
     m_sub(nh.subscribe(LocalConfig::inputTopic, 1, &PreprocessorNode::callback, this))
     {
@@ -189,7 +205,7 @@ int main(int argc, char* argv[]) {
 
 
   ros::init(argc, argv,"preprocessor");
-  ros::NodeHandle nh(nodeNS);
+  ros::NodeHandle nh(LocalConfig::nodeNS);
 
   setParams(nh);
   if (LocalConfig::updateParams) boost::thread setParamThread(setParamLoop, nh);

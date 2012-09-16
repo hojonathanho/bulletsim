@@ -2,6 +2,22 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <map>
+
+template <typename T, typename S>
+std::ostream& operator<<(std::ostream& os, const std::map<T,S>& m)
+{
+	os << "( ";
+	typename std::map<T,S>::const_iterator it;
+	for ( it=m.begin() ; it != m.end(); ) {
+		os << (	*it).first << ": " << (*it).second;
+		it++;
+		if (it == m.end()) break;
+		os << ", ";
+	}
+	os << " )";
+	os.flush();
+}
 
 template <typename T>
 std::ostream& operator<<(std::ostream& os, const std::vector<T>& v)

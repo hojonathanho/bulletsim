@@ -2,6 +2,7 @@
 #include "utils/conversions.h"
 #include "config_tracking.h"
 #include "utils/utils_vector.h"
+#include "feature_extractor.h"
 
 using namespace std;
 
@@ -13,6 +14,19 @@ void TrackedObject::init() {
 
 Eigen::MatrixXf& TrackedObject::getColors() {
 	return m_colors;
+}
+
+const Eigen::VectorXf TrackedObject::getPriorDist() {
+	Eigen::MatrixXf prior_dist(1,FeatureExtractor::m_allDim);
+	prior_dist << TrackingConfig::pointPriorDist*METERS, TrackingConfig::pointPriorDist*METERS, TrackingConfig::pointPriorDist*METERS,  //FT_XYZ
+			0.2, 0.2, 0.2, 	//FT_BGR
+			TrackingConfig::colorLPriorDist, TrackingConfig::colorABPriorDist, TrackingConfig::colorABPriorDist,	//FT_LAB
+			1.0, 1.0, 1.0,  //FT_NORMAL
+			1.0,  //FT_LABEL
+			Eigen::MatrixXf::Ones(1, FE::FT_SIZES[FE::FT_SURF])*0.4,  //FT_SURF
+			Eigen::MatrixXf::Ones(1, FE::FT_SIZES[FE::FT_PCASURF])*0.4,  //FT_PCASURF
+			0.5;  //FT_GRADNORMAL
+	return FeatureExtractor::all2ActiveFeatures(prior_dist).transpose();
 }
 
 std::vector<btVector3> calcImpulsesDamped(const std::vector<btVector3>& estPos, const std::vector<btVector3>& estVel,

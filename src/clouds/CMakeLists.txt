@@ -29,16 +29,16 @@ grabcut.cpp)
 target_link_libraries(clouds utils ${PCL_LIBRARIES} ${OpenCV_LIBS} ${BULLET_LIBS})
 
 add_executable(preprocessor_node preprocessor_node.cpp)
-target_link_libraries(preprocessor_node clouds comm utils ${PCL_LIBRARIES} ${OpenCV_LIBS} ${ROS_LIBRARIES} boost_signals tf cv_bridge)
+target_link_libraries(preprocessor_node clouds utils ${PCL_LIBRARIES} ${OpenCV_LIBS} ${ROS_LIBRARIES} boost_signals tf cv_bridge)
 
 add_executable(simple_preprocessor_node simple_preprocessor_node.cpp)
-target_link_libraries(simple_preprocessor_node clouds comm utils ${PCL_LIBRARIES} ${OpenCV_LIBS} ${ROS_LIBRARIES} boost_signals tf cv_bridge)
+target_link_libraries(simple_preprocessor_node clouds utils ${PCL_LIBRARIES} ${OpenCV_LIBS} ${ROS_LIBRARIES} boost_signals tf cv_bridge)
 
 add_executable(preprocessor_color_node preprocessor_color_node.cpp)
 target_link_libraries(preprocessor_color_node clouds utils ${PCL_LIBRARIES} ${OpenCV_LIBS} ${ROS_LIBRARIES} boost_signals tf cv_bridge)
 
 add_executable(cloud_merger_node cloud_merger_node.cpp)
-target_link_libraries(cloud_merger_node clouds comm utils ${PCL_LIBRARIES} ${OpenCV_LIBS} ${ROS_LIBRARIES} boost_signals tf cv_bridge)
+target_link_libraries(cloud_merger_node clouds utils ${PCL_LIBRARIES} ${OpenCV_LIBS} ${ROS_LIBRARIES} boost_signals tf cv_bridge)
 
 add_executable(save_cloud_node save_cloud_node.cpp)
 target_link_libraries(save_cloud_node utils ${PCL_LIBRARIES} ${ROS_LIBRARIES} tf)
@@ -56,4 +56,4 @@ add_executable(robot_preprocessor_node robot_preprocessor_node.cpp)
 target_link_libraries(robot_preprocessor_node clouds utils robots ${PCL_LIBRARIES} ${ROS_LIBRARIES} tf)
 
 add_executable(robot_self_filter robot_self_filter.cpp)
-target_link_libraries(robot_self_filter clouds utils robots ${PCL_LIBRARIES} ${ROS_LIBRARIES} tf)
+target_link_libraries(robot_self_filter clouds utils robots ${PCL_LIBRARIES} ${ROS_LIBRARIES} boost_signals tf)

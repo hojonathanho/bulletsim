@@ -5,6 +5,18 @@
 
 using namespace Eigen;
 
+static Environment::Ptr gEnv;
+void setGlobalEnv(Environment::Ptr env) { gEnv = env; }
+Environment::Ptr getGlobalEnv() { return gEnv; }
+
+void toggle(bool* b){
+	*b = !(*b);
+}
+
+void add(int* n, int increment) {
+	*n += increment;
+}
+
 namespace util {
 
 osg::ref_ptr<osg::Vec3Array> toVec3Array(const std::vector<btVector3>& in) {

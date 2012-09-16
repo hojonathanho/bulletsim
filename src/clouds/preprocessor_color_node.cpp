@@ -347,7 +347,8 @@ public:
   }
 
   PreprocessorNode(ros::NodeHandle& nh) :
-    m_inited(false), m_nh(nh), m_cloudPub(nh.advertise<sensor_msgs::PointCloud2> (LocalConfig::nodeNS + "/points", 5)),
+    m_inited(false), m_nh(nh),
+    m_cloudPub(nh.advertise<sensor_msgs::PointCloud2> (LocalConfig::nodeNS + "/points", 5)),
     m_imagePub(nh.advertise<sensor_msgs::Image> (LocalConfig::nodeNS + "/image", 5)),
     m_depthPub(nh.advertise<sensor_msgs::Image> (LocalConfig::nodeNS + "/depth", 5)),
     m_maskPub(nh.advertise<sensor_msgs::Image> (LocalConfig::nodeNS + "/debug_mask", 5)),

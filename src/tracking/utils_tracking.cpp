@@ -6,18 +6,6 @@
 using namespace std;
 using namespace Eigen;
 
-static Environment::Ptr gEnv;
-void setGlobalEnv(Environment::Ptr env) { gEnv = env; }
-Environment::Ptr getGlobalEnv() { return gEnv; }
-
-void toggle(bool* b){
-	*b = !(*b);
-}
-
-void add(int* n, int increment) {
-	*n += increment;
-}
-
 Affine3f Scaling3f(float s) {
   Affine3f T;
   T = s*Matrix3f::Identity();

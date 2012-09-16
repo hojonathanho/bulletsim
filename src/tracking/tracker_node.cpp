@@ -118,25 +118,13 @@ int main(int argc, char* argv[]) {
   // set up scene
   Scene scene;
   scene.startViewer();
-  scene.toggleDebugDraw();
 
   setGlobalEnv(scene.env);
 
 	TrackedObject::Ptr trackedObj = callInitServiceAndCreateObject(filteredCloud, rgb_images[0], mask_images[0], transformers[0]);
   if (!trackedObj) throw runtime_error("initialization of object failed.");
-//DEBUG
-    trackedObj->init();
+  trackedObj->init();
   scene.env->add(trackedObj->m_sim);
-
-  //DEBUG
-//  bool exit_loop = false;
-//	scene.addVoidKeyCallback('q',boost::bind(toggle, &exit_loop), "exit");
-//	 while (!exit_loop && ros::ok()) {
-//     scene.env->step(.03,2,.015);
-//     scene.draw();
-//     ros::spinOnce();
-//	 }
-//	 return 0;
 
  	// actual tracking algorithm
 	MultiVisibility::Ptr visInterface(new MultiVisibility());

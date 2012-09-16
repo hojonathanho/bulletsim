@@ -12,10 +12,10 @@
 
   <node name="drop" pkg="topic_tools" type="drop" args="/$(arg camera)/depth_registered/points 2 3 /drop/points"/>
 
-  <node name="phasespace_simple_publisher" pkg="binary_symlinks" type="phasespace_simple_publisher" output="screen" args="--frequency=30"/>
+  <node name="phasespace_simple_publisher" pkg="bulletsim_binaries" type="phasespace_simple_publisher" output="screen" args="--frequency=30"/>
 
-  <node name="phasespace_transforms_node" pkg="binary_symlinks" type="phasespace_transforms_node" output="screen" args="--cameraTopics=/$(arg camera) --kinectInfo_filenames=$(arg kinectInfo)"/>
+  <node name="phasespace_transforms_node" pkg="bulletsim_binaries" type="phasespace_transforms_node" output="screen" args="--cameraTopics=/$(arg camera) --kinectInfo_filenames=$(arg kinectInfo)"/>
   
-  <node name="preprocessor_color_node" pkg="binary_symlinks" type="preprocessor_color_node" output="screen"  args="--inputTopic=/drop/points --nodeNS=/preprocessor/$(arg camera)"/> 
+  <node name="preprocessor_color_node" pkg="bulletsim_binaries" type="preprocessor_color_node" output="screen"  args="--inputTopic=/drop/points --nodeNS=/preprocessor/$(arg camera)"/> 
 
 </launch>

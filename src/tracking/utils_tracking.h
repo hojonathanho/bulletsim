@@ -7,12 +7,6 @@
 
 typedef Eigen::Matrix<uint8_t,Eigen::Dynamic,Eigen::Dynamic> MatrixXu;
 
-void setGlobalEnv(Environment::Ptr env);
-Environment::Ptr getGlobalEnv();
-
-void toggle(bool* b);
-void add(int* n, int increment);
-
 class CoordinateTransformer {
 public:
   CoordinateTransformer();

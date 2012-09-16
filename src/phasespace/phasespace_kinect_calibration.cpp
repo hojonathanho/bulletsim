@@ -29,8 +29,8 @@ struct LocalConfig : Config {
 
 static const ledid_t commonLedIds_a[] = { 24,8,9,10,11,12,13,14,15 };
 vector<ledid_t> LocalConfig::commonLedIds = std::vector<ledid_t>(commonLedIds_a, commonLedIds_a+sizeof(commonLedIds_a)/sizeof(ledid_t));
-static const ledid_t kinectLedIds_a[] = { 0,1,2,3,4,5,6 };
-//static const ledid_t kinectLedIds_a[] = { 42,43,44,45,46 };
+//static const ledid_t kinectLedIds_a[] = { 0,1,2,3,4,5,6 };
+static const ledid_t kinectLedIds_a[] = { 42,43,44,45,46 };
 vector<ledid_t> LocalConfig::kinectLedIds = std::vector<ledid_t>(kinectLedIds_a, kinectLedIds_a+sizeof(kinectLedIds_a)/sizeof(ledid_t));
 
 ColorCloudPtr cloud(new ColorCloud());

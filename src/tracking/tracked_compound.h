@@ -14,7 +14,6 @@ public:
   TrackedCompound(GenericCompoundObject::Ptr sim, btDynamicsWorld* world);
 
   std::vector<btVector3> getPoints();
-  const Eigen::VectorXf getPriorDist();
   void applyEvidence(const Eigen::MatrixXf& corr, const Eigen::MatrixXf& obsPts);
   GenericCompoundObject* getSim() {return dynamic_cast<GenericCompoundObject*>(m_sim.get());}
   cv::Mat makeTexture(ColorCloudPtr cloud);
