@@ -19,6 +19,7 @@
 #include "clouds/ros_robot.h"
 #include <std_srvs/Empty.h>
 #include "demo_recorder.h"
+#include "simulation/softbodies.h"
 
 boost::shared_ptr<CoordinateTransformer> transformer;
 boost::shared_ptr<tf::TransformListener> listener;
@@ -39,7 +40,10 @@ void cloudCallback (const sensor_msgs::PointCloud2ConstPtr& cloudMsg) {
 }
 
 void initializeTrackedObject() {
-  trackedObj = callInitServiceAndCreateObject(scaleCloud(filteredCloud,1/METERS), cv::Mat(), 0);
+//  ros::NodeHandle nh;
+//  sensor_msgs::ImageConstPtr msg = ros::topic::waitForMessage<sensor_msgs::Image>(TrackingConfig::cameraTopics[0], nh, ros::Duration(1));
+//  cv::Mat image_and_mask = cv_bridge::toCvCopy(image_msgs[2*i])->image;
+  trackedObj = callInitServiceAndCreateObject(filteredCloud, cv::Mat(), transformer.get());
   if (!trackedObj) throw runtime_error("initialization of object failed.");
   LOG_INFO("created an object of type " << trackedObj->m_type);
   trackedObj->init();
@@ -79,6 +83,7 @@ int main(int argc, char* argv[]) {
 
   Scene scene;
   env = scene.env;
+  util::setGlobalEnv(scene.env);
   PR2Manager pr2m(scene);
   RobotSync sync(nh, pr2m.pr2);
 
@@ -111,8 +116,6 @@ int main(int argc, char* argv[]) {
   pr2m.pr2->setColor(1,1,1,.5);
 //
 
-  GrabManager lgm(scene.env, pr2m.pr2Left, GrabDetector::LEFT, sync);
-  GrabManager rgm(scene.env, pr2m.pr2Right, GrabDetector::RIGHT, sync);
 
 
   scene.startViewer();
@@ -126,6 +129,17 @@ int main(int argc, char* argv[]) {
 
 
   initializeTrackedObject();
+  GrabManager lgm, rgm;
+  BulletSoftObject::Ptr maybeBSO = boost::dynamic_pointer_cast<BulletSoftObject>(trackedObj->m_sim);
+  if (maybeBSO){
+    lgm = GrabManager(scene.env, pr2m.pr2, pr2m.pr2Left, GrabDetector::LEFT, &sync, maybeBSO);
+    rgm = GrabManager(scene.env, pr2m.pr2, pr2m.pr2Right, GrabDetector::RIGHT, &sync, maybeBSO);
+  }
+  else {
+    lgm = GrabManager(scene.env, pr2m.pr2Left, GrabDetector::LEFT, &sync);
+    rgm = GrabManager(scene.env, pr2m.pr2Right, GrabDetector::RIGHT, &sync);
+  }
+
 
 //  CapsuleRope* maybeRope = dynamic_cast<CapsuleRope*>(trackedObj->m_sim.get());
 //  if (maybeRope) {

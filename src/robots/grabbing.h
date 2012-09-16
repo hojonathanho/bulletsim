@@ -33,6 +33,7 @@ protected:
     float closedThreshold;
 
 public:
+    typedef boost::shared_ptr<Monitor> Ptr;
     Monitor(); // must call setManip if using this constructor
   Monitor(RaveRobotObject::Manipulator::Ptr);
 
@@ -48,6 +49,8 @@ public:
 
 class MonitorForGrabbing : public Monitor {
 public:
+  typedef boost::shared_ptr<MonitorForGrabbing> Ptr;
+
   std::vector<BulletObject::Ptr> m_bodies;
   btDynamicsWorld* m_world;
   Grab* m_grab;
@@ -55,14 +58,15 @@ public:
 
   MonitorForGrabbing(RaveRobotObject::Manipulator::Ptr, btDynamicsWorld*);
   void setBodies(std::vector<BulletObject::Ptr>& bodies);
-  virtual void grab();
-  virtual void release();
-  virtual void updateGrabPose();
+  void grab();
+  void release();
+  void updateGrabPose();
 };
 
 // softbody grabbing monitor
 class SoftMonitorForGrabbing : public Monitor {
 public:
+  typedef boost::shared_ptr<SoftMonitorForGrabbing> Ptr;
     PR2SoftBodyGripper::Ptr gripper;
 
     SoftMonitorForGrabbing(RaveRobotObject::Ptr robot, RaveRobotObject::Manipulator::Ptr manip, bool leftGripper) :
