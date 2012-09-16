@@ -1,5 +1,6 @@
 #include <cmath>
 #include <boost/thread.hpp>
+#include <boost/asio.hpp>
 #include <ros/ros.h>
 #include <tf/transform_broadcaster.h>
 #include <tf/transform_listener.h>
@@ -49,7 +50,8 @@ struct LocalConfig: Config {
   static string boundaryFile;
   static int boundaryType;
   static bool debugMask;
-  static bool multithread;
+  static int threads;
+  static string groundFrame;
   static int i0;
   static int i1;
   static int i2;
@@ -72,7 +74,8 @@ struct LocalConfig: Config {
     params.push_back(new Parameter<string> ("boundaryFile", &boundaryFile, "file from which the boundary gets loaded/saved"));
     params.push_back(new Parameter<int> ("boundaryType", &boundaryType, "the vertices defining the prism convex hull filter could be: NONE=0, LOAD_FILE, RED_MARKERS, TABLE"));
     params.push_back(new Parameter<bool> ("debugMask", &debugMask, "set to true if you want to debug the intermediate mask filters"));
-    params.push_back(new Parameter<bool> ("multithread", &multithread, "multithreaded"));
+    params.push_back(new Parameter<int> ("threads", &threads, "number of threads"));
+    params.push_back(new Parameter<string> ("groundFrame", &groundFrame, "ground frame"));
     params.push_back(new Parameter<int> ("i0", &i0, "miscellaneous variable 0"));
     params.push_back(new Parameter<int> ("i1", &i1, "miscellaneous variable 1"));
     params.push_back(new Parameter<int> ("i2", &i2, "miscellaneous variable 2"));
@@ -95,7 +98,8 @@ float LocalConfig::offset = 0.02;
 string LocalConfig::boundaryFile = "polygon";
 int LocalConfig::boundaryType = LOAD_FILE;
 bool LocalConfig::debugMask = false;
-bool LocalConfig::multithread = true;
+int LocalConfig::threads = 4;
+string LocalConfig::groundFrame = "/ground";
 int LocalConfig::i0 = 1;
 int LocalConfig::i1 = 0;
 int LocalConfig::i2 = 0;
@@ -108,6 +112,31 @@ void gcPlotMask(cv::Mat_<uint8_t> mask, cv::Mat plotImg, uint8_t r, uint8_t g, u
   cv::findContours(mask, contours, cv::RETR_LIST, cv::CHAIN_APPROX_NONE);
   cv::drawContours(plotImg, contours, -1, cv::Scalar(r, g, b), 2);
 }
+
+class ThreadPool {
+public:
+  ThreadPool(int n_threads) : io_service(n_threads), work(io_service) {
+    LOG_DEBUG("Spawning " << n_threads << " threads");
+    for (int i = 0; i < n_threads; ++i) {
+      threads.create_thread(boost::bind(&boost::asio::io_service::run, &io_service));
+    }
+  }
+
+  ~ThreadPool() {
+    io_service.stop();
+    threads.join_all();
+  }
+
+  template<typename T>
+  void post(T task) {
+    io_service.post(task);
+  }
+
+private:
+  boost::asio::io_service io_service;
+  boost::asio::io_service::work work;
+  boost::thread_group threads;
+};
 
 class PreprocessorNode {
 public:
@@ -136,9 +165,15 @@ public:
 
   boost::mutex m_mutex;
 
+  ThreadPool threadpool;
+
   void callback0(const sensor_msgs::PointCloud2& msg_in) {
-    if (m_inited && LocalConfig::multithread) boost::thread cbthread(&PreprocessorNode::callback, this, msg_in);
-    else callback(msg_in);
+    if (m_inited && LocalConfig::threads > 1) {
+      threadpool.post(boost::bind(&PreprocessorNode::callback, this, msg_in));
+      //boost::thread cbthread(&PreprocessorNode::callback, this, msg_in);
+    } else {
+      callback(msg_in);
+    }
   }
 
   void callback(const sensor_msgs::PointCloud2& msg_in) {
@@ -223,10 +258,10 @@ public:
     if (LocalConfig::removeOutliers) cloud_out = removeOutliers(cloud_out, 1, 15);
     if (LocalConfig::downsample > 0) cloud_out = downsampleCloud(cloud_out, LocalConfig::downsample);
     if (LocalConfig::outlierMinK > 0) cloud_out = removeRadiusOutliers(cloud_out, LocalConfig::outlierRadius, LocalConfig::outlierMinK);
+    cloud_out = cropToHull(cloud_out, cloud_hull, hull_vertices, false);
     if (LocalConfig::clusterMinSize > 0) cloud_out = clusterFilter(cloud_out, LocalConfig::clusterTolerance, LocalConfig::clusterMinSize);
 
     //TIC();
-    cloud_out = cropToHull(cloud_out, cloud_hull, hull_vertices, false);
     //LOG_INFO_FMT("crop time: %2f", TOC());
 
 
@@ -263,7 +298,7 @@ public:
 
     geometry_msgs::PolygonStamped polyStamped;
     polyStamped.polygon = m_poly;
-    polyStamped.header.frame_id = "/ground";
+    polyStamped.header.frame_id = LocalConfig::groundFrame;
     polyStamped.header.stamp = ros::Time::now();
 
     m_mutex.lock();
@@ -282,7 +317,7 @@ public:
     if (LocalConfig::boundaryType == LOAD_FILE) {
       loadPoints(string(getenv("BULLETSIM_SOURCE_DIR")) + "/data/boundary/" + LocalConfig::boundaryFile, m_poly.points);
       // transform the poly points from ground to camera frame
-      btTransform transform = waitForAndGetTransform(m_listener, "/ground", msg_in.header.frame_id).inverse();
+      btTransform transform = waitForAndGetTransform(m_listener, LocalConfig::groundFrame, msg_in.header.frame_id).inverse();
       cloud_hull->resize(m_poly.points.size());
       for (int i = 0; i < m_poly.points.size(); i++)
         cloud_hull->at(i) = toColorPoint(transform * toBulletVector(m_poly.points[i]));
@@ -293,16 +328,18 @@ public:
 
     } else {
 
+      ColorCloudPtr cloud_filtered = downsampleCloud(cloud, .005);
       pcl::ModelCoefficients::Ptr coefficients(new pcl::ModelCoefficients);
-      ColorCloudPtr cloud_filtered = filterPlane(cloud, 0.01, coefficients);
+      cloud_filtered = filterPlane(cloud_filtered, 0.03, coefficients);
+      cloud_filtered = getBiggestCluster(cloud_filtered, .02);
       ColorCloudPtr cloud_projected = projectOntoPlane(cloud_filtered, coefficients); // full table cloud
 
-      if (LocalConfig::boundaryType == RED_MARKERS) cloud_projected = colorSpaceFilter(cloud_projected, 0, 255, 0, 166, 0, 255, CV_BGR2Lab, false, true); // red table cloud
-
+//      if (LocalConfig::boundaryType == RED_MARKERS) cloud_projected = colorSpaceFilter(cloud_projected, 0, 255, 0, 166, 0, 255, CV_BGR2Lab, false, true); // red table cloud
+      if (LocalConfig::boundaryType == RED_MARKERS) cloud_projected = hueFilter(cloud_projected, 160, 10, 150, 255, 100, 255);
       cloud_hull = findConvexHull(cloud_projected, hull_vertices);
 
       // transform the poly points from camera to ground frame
-      btTransform transform = waitForAndGetTransform(m_listener, "/ground", msg_in.header.frame_id);
+      btTransform transform = waitForAndGetTransform(m_listener, LocalConfig::groundFrame, msg_in.header.frame_id);
       m_poly.points.resize(cloud_hull->size());
       for (int i = 0; i < cloud_hull->size(); i++)
         m_poly.points[i] = toROSPoint32(transform * toBulletVector(cloud_hull->at(i)));
@@ -355,10 +392,11 @@ public:
     m_depthPub(nh.advertise<sensor_msgs::Image> (LocalConfig::nodeNS + "/depth", 5)),
     m_maskPub(nh.advertise<sensor_msgs::Image> (LocalConfig::nodeNS + "/debug_mask", 5)),
     m_polyPub(nh.advertise<geometry_msgs::PolygonStamped> (LocalConfig::nodeNS + "/polygon", 5)),
-    m_sub(nh.subscribe(LocalConfig::inputTopic, 3, &PreprocessorNode::callback0, this)),
+    m_sub(nh.subscribe(LocalConfig::inputTopic, 30, &PreprocessorNode::callback0, this)),
     m_mins(-10, -10, -10), m_maxes(10, 10, 10),
     m_transform(toBulletTransform(Affine3f::Identity())),
-    cloud_hull(new ColorCloud) {}
+    cloud_hull(new ColorCloud),
+    threadpool(LocalConfig::threads) {}
 };
 
 
