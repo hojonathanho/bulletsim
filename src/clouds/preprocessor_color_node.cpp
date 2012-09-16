@@ -1,5 +1,6 @@
 #include <cmath>
 #include <boost/thread.hpp>
+#include <boost/asio.hpp>
 #include <ros/ros.h>
 #include <tf/transform_broadcaster.h>
 #include <tf/transform_listener.h>
@@ -49,7 +50,7 @@ struct LocalConfig: Config {
   static string boundaryFile;
   static int boundaryType;
   static bool debugMask;
-  static bool multithread;
+  static int threads;
   static string groundFrame;
   static int i0;
   static int i1;
@@ -73,7 +74,7 @@ struct LocalConfig: Config {
     params.push_back(new Parameter<string> ("boundaryFile", &boundaryFile, "file from which the boundary gets loaded/saved"));
     params.push_back(new Parameter<int> ("boundaryType", &boundaryType, "the vertices defining the prism convex hull filter could be: NONE=0, LOAD_FILE, RED_MARKERS, TABLE"));
     params.push_back(new Parameter<bool> ("debugMask", &debugMask, "set to true if you want to debug the intermediate mask filters"));
-    params.push_back(new Parameter<bool> ("multithread", &multithread, "multithreaded"));
+    params.push_back(new Parameter<int> ("threads", &threads, "number of threads"));
     params.push_back(new Parameter<string> ("groundFrame", &groundFrame, "ground frame"));
     params.push_back(new Parameter<int> ("i0", &i0, "miscellaneous variable 0"));
     params.push_back(new Parameter<int> ("i1", &i1, "miscellaneous variable 1"));
@@ -97,7 +98,7 @@ float LocalConfig::offset = 0.02;
 string LocalConfig::boundaryFile = "polygon";
 int LocalConfig::boundaryType = LOAD_FILE;
 bool LocalConfig::debugMask = false;
-bool LocalConfig::multithread = true;
+int LocalConfig::threads = 4;
 string LocalConfig::groundFrame = "/ground";
 int LocalConfig::i0 = 1;
 int LocalConfig::i1 = 0;
@@ -111,6 +112,31 @@ void gcPlotMask(cv::Mat_<uint8_t> mask, cv::Mat plotImg, uint8_t r, uint8_t g, u
   cv::findContours(mask, contours, cv::RETR_LIST, cv::CHAIN_APPROX_NONE);
   cv::drawContours(plotImg, contours, -1, cv::Scalar(r, g, b), 2);
 }
+
+class ThreadPool {
+public:
+  ThreadPool(int n_threads) : io_service(n_threads), work(io_service) {
+    LOG_DEBUG("Spawning " << n_threads << " threads");
+    for (int i = 0; i < n_threads; ++i) {
+      threads.create_thread(boost::bind(&boost::asio::io_service::run, &io_service));
+    }
+  }
+
+  ~ThreadPool() {
+    io_service.stop();
+    threads.join_all();
+  }
+
+  template<typename T>
+  void post(T task) {
+    io_service.post(task);
+  }
+
+private:
+  boost::asio::io_service io_service;
+  boost::asio::io_service::work work;
+  boost::thread_group threads;
+};
 
 class PreprocessorNode {
 public:
@@ -139,9 +165,15 @@ public:
 
   boost::mutex m_mutex;
 
+  ThreadPool threadpool;
+
   void callback0(const sensor_msgs::PointCloud2& msg_in) {
-    if (m_inited && LocalConfig::multithread) boost::thread cbthread(&PreprocessorNode::callback, this, msg_in);
-    else callback(msg_in);
+    if (m_inited && LocalConfig::threads > 1) {
+      threadpool.post(boost::bind(&PreprocessorNode::callback, this, msg_in));
+      //boost::thread cbthread(&PreprocessorNode::callback, this, msg_in);
+    } else {
+      callback(msg_in);
+    }
   }
 
   void callback(const sensor_msgs::PointCloud2& msg_in) {
@@ -226,10 +258,10 @@ public:
     if (LocalConfig::removeOutliers) cloud_out = removeOutliers(cloud_out, 1, 15);
     if (LocalConfig::downsample > 0) cloud_out = downsampleCloud(cloud_out, LocalConfig::downsample);
     if (LocalConfig::outlierMinK > 0) cloud_out = removeRadiusOutliers(cloud_out, LocalConfig::outlierRadius, LocalConfig::outlierMinK);
+    cloud_out = cropToHull(cloud_out, cloud_hull, hull_vertices, false);
     if (LocalConfig::clusterMinSize > 0) cloud_out = clusterFilter(cloud_out, LocalConfig::clusterTolerance, LocalConfig::clusterMinSize);
 
     //TIC();
-    cloud_out = cropToHull(cloud_out, cloud_hull, hull_vertices, false);
     //LOG_INFO_FMT("crop time: %2f", TOC());
 
 
@@ -302,8 +334,8 @@ public:
       cloud_filtered = getBiggestCluster(cloud_filtered, .02);
       ColorCloudPtr cloud_projected = projectOntoPlane(cloud_filtered, coefficients); // full table cloud
 
-      if (LocalConfig::boundaryType == RED_MARKERS) cloud_projected = colorSpaceFilter(cloud_projected, 0, 255, 0, 166, 0, 255, CV_BGR2Lab, false, true); // red table cloud
-//      if (LocalConfig::boundaryType == RED_MARKERS) cloud_projected = hueFilter(cloud_projected, 160, 10, 150, 255, 100, 255);
+//      if (LocalConfig::boundaryType == RED_MARKERS) cloud_projected = colorSpaceFilter(cloud_projected, 0, 255, 0, 166, 0, 255, CV_BGR2Lab, false, true); // red table cloud
+      if (LocalConfig::boundaryType == RED_MARKERS) cloud_projected = hueFilter(cloud_projected, 160, 10, 150, 255, 100, 255);
       cloud_hull = findConvexHull(cloud_projected, hull_vertices);
 
       // transform the poly points from camera to ground frame
@@ -359,10 +391,11 @@ public:
     m_depthPub(nh.advertise<sensor_msgs::Image> (LocalConfig::nodeNS + "/depth", 5)),
     m_maskPub(nh.advertise<sensor_msgs::Image> (LocalConfig::nodeNS + "/debug_mask", 5)),
     m_polyPub(nh.advertise<geometry_msgs::PolygonStamped> (LocalConfig::nodeNS + "/polygon", 5)),
-    m_sub(nh.subscribe(LocalConfig::inputTopic, 3, &PreprocessorNode::callback0, this)),
+    m_sub(nh.subscribe(LocalConfig::inputTopic, 30, &PreprocessorNode::callback0, this)),
     m_mins(-10, -10, -10), m_maxes(10, 10, 10),
     m_transform(toBulletTransform(Affine3f::Identity())),
-    cloud_hull(new ColorCloud) {}
+    cloud_hull(new ColorCloud),
+    threadpool(LocalConfig::threads) {}
 };
 
 

@@ -44,9 +44,9 @@ vector<vector<int> > findClusters(ColorCloudPtr cloud, float tol, int minSize) {
   int cloud_size = cloud->size();
   //HACK: a bug in pcl::EuclideanClusterExtraction causes a segfault when no clusters are returned.
   //Hence add a cluster to the point cloud and then remove these indices from the result.
-  ColorPoint pt(255, 255, 255);
-  for (int i = 0; i < minSize; i++)
-    cloud->push_back(pt);
+//  ColorPoint pt(255, 255, 255);
+//  for (int i = 0; i < minSize; i++)
+//    cloud->push_back(pt);
 
   std::vector<pcl::PointIndices> cluster_indices;
   pcl::EuclideanClusterExtraction<ColorPoint> ec;
