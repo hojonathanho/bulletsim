@@ -8,9 +8,12 @@ IF (NOT CMAKE_BUILD_TYPE)
  SET(CMAKE_BUILD_TYPE "RelWithDebInfo")
 ENDIF (NOT CMAKE_BUILD_TYPE)
 
-find_package(catkin REQUIRED)
-catkin_stack()
-catkin_project(bulletsim)
+message("if cmake can't find anything, you need to put /opt/ros/fuerte/share:/opt/ros/fuerte/stacks on your ROS_PACKAGE_PATH")
+
+
+#find_package(catkin REQUIRED)
+#catkin_stack()
+#catkin_project(bulletsim)
 
 
 # external libraries
