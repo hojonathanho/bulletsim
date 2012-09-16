@@ -57,3 +57,6 @@ target_link_libraries(robot_preprocessor_node clouds utils robots ${PCL_LIBRARIE
 
 add_executable(robot_self_filter robot_self_filter.cpp)
 target_link_libraries(robot_self_filter clouds utils robots ${PCL_LIBRARIES} ${ROS_LIBRARIES} boost_signals tf)
+
+add_executable(define_boundary define_boundary.cpp)
+target_link_libraries(define_boundary clouds utils ${PCL_LIBRARIES} ${OpenCV_LIBS} ${ROS_LIBRARIES} tf cv_bridge)

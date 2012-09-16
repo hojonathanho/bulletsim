@@ -1,6 +1,7 @@
 #include <ros/ros.h>
 #include <tf/transform_broadcaster.h>
 #include <tf/transform_listener.h>
+#include <boost/assign/list_of.hpp>
 #include "utils/config.h"
 #include "clouds/utils_ros.h"
 #include "utils/logging.h"
@@ -17,8 +18,7 @@ struct LocalConfig: Config {
   }
 };
 
-static const string kinectFrames_a[] = { "/kinect1_link", "/kinect2_link" };
-vector<string> LocalConfig::kinectFrames = std::vector<string>(kinectFrames_a, kinectFrames_a+sizeof(kinectFrames_a)/sizeof(string));
+vector<string> LocalConfig::kinectFrames = boost::assign::list_of("/kinect1_link")("/kinect2_link");
 string LocalConfig::robotFrame = "/odom_combined";
 
 int main(int argc, char* argv[]) {
