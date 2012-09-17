@@ -95,6 +95,9 @@ TrackedObject::Ptr toTrackedObject(const bulletsim_msgs::ObjectInit& initMsg, Co
 
 bulletsim_msgs::TrackedObject toTrackedObjectMessage(TrackedObject::Ptr obj) {
   bulletsim_msgs::TrackedObject msg;
+  msg.header.frame_id = "/ground";
+  msg.header.stamp = ros::Time::now();
+
   if (obj->m_type == "rope") {
     msg.type = obj->m_type;
     msg.rope.nodes = toROSPoints(scaleVecs(obj->getPoints(), 1/METERS));
@@ -107,8 +110,8 @@ bulletsim_msgs::TrackedObject toTrackedObjectMessage(TrackedObject::Ptr obj) {
   	const btSoftBody::tFaceArray& faces = sim->softBody->m_faces;
 
   	for (int i=0; i<nodes.size(); i++) {
-  		msg.mesh.vertices.push_back(toROSPoint(nodes[i].m_x));
-  		msg.mesh.normals.push_back(toROSPoint(nodes[i].m_n));
+  		msg.mesh.vertices.push_back(toROSPoint(nodes[i].m_x/METERS));
+  		msg.mesh.normals.push_back(toROSPoint(nodes[i].m_n/METERS));
   	}
 
   	// compute face to nodes indices
