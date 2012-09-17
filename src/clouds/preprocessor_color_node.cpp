@@ -270,7 +270,7 @@ public:
     pcl::toROSMsg(*cloud_out, msg_out);
     msg_out.header = msg_in.header;
 
-    if (LocalConfig::debugMask) {
+    if (0) {
       cv::namedWindow("lab params");
       cv::createTrackbar("min l (lightness)     ", "lab params", &MIN_L, 255);
       cv::createTrackbar("max l (lightness)     ", "lab params", &MAX_L, 255);
@@ -315,7 +315,7 @@ public:
 
   void initPrismBoundaries(ColorCloudPtr cloud, const sensor_msgs::PointCloud2& msg_in) {
     if (LocalConfig::boundaryType == LOAD_FILE) {
-      loadPoints(string(getenv("BULLETSIM_SOURCE_DIR")) + "/data/boundary/" + LocalConfig::boundaryFile, m_poly.points);
+      loadPoints(LocalConfig::boundaryFile, m_poly.points);
       // transform the poly points from ground to camera frame
       btTransform transform = waitForAndGetTransform(m_listener, LocalConfig::groundFrame, msg_in.header.frame_id).inverse();
       cloud_hull->resize(m_poly.points.size());
@@ -392,7 +392,7 @@ public:
     m_depthPub(nh.advertise<sensor_msgs::Image> (LocalConfig::nodeNS + "/depth", 5)),
     m_maskPub(nh.advertise<sensor_msgs::Image> (LocalConfig::nodeNS + "/debug_mask", 5)),
     m_polyPub(nh.advertise<geometry_msgs::PolygonStamped> (LocalConfig::nodeNS + "/polygon", 5)),
-    m_sub(nh.subscribe(LocalConfig::inputTopic, 30, &PreprocessorNode::callback0, this)),
+    m_sub(nh.subscribe(LocalConfig::inputTopic, 3, &PreprocessorNode::callback0, this)),
     m_mins(-10, -10, -10), m_maxes(10, 10, 10),
     m_transform(toBulletTransform(Affine3f::Identity())),
     cloud_hull(new ColorCloud),
