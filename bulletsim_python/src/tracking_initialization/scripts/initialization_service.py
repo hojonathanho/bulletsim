@@ -1,4 +1,11 @@
 #!/usr/bin/env python
+
+import argparse
+parser = argparse.ArgumentParser()
+parser.add_argument("--plotting", action="store_true")
+args = parser.parse_args()
+
+
 import roslib
 roslib.load_manifest("bulletsim_python")
 from brett2.ros_utils import pc2xyzrgb
@@ -19,7 +26,7 @@ def handle_initialization_request(req):
     
     xyz, _ = pc2xyzrgb(req.cloud)
     xyz = np.squeeze(xyz)
-    obj_type = determine_object_type(xyz, plotting=False)
+    obj_type = determine_object_type(xyz, plotting=args.plotting)
     print "object type:", obj_type
     
     
@@ -42,7 +49,7 @@ def handle_initialization_request(req):
         poly_pub.publish(resp.objectInit.towel_corners)
     
     if obj_type == "rope":
-        total_path_3d = find_path_through_point_cloud(xyz, plotting=False)            
+        total_path_3d = find_path_through_point_cloud(xyz, plotting=args.plotting)            
         resp = bs.InitializationResponse()
         resp.objectInit.type = "rope"
         rope = resp.objectInit.rope = bm.Rope()
@@ -50,7 +57,9 @@ def handle_initialization_request(req):
         rope.header = req.cloud.header
         rope.nodes = [gm.Point(x,y,z) for (x,y,z) in total_path_3d]    
         rope.radius = .006
-        rospy.logwarn("TODO: actually figure out rope radius from data. setting to .4cm")
+        print "lengths:", [np.linalg.norm(total_path_3d[i+1] - total_path_3d[i]) for i in xrange(len(total_path_3d)-1)]        
+        rospy.loginfo("created a rope with %i nodes, each has length %.2f, radius %.2f", len(rope.nodes), 
+                      np.linalg.norm(total_path_3d[i+1] - total_path_3d[i]), rope.radius)
         
         pose_array = gm.PoseArray()
         pose_array.header = req.cloud.header

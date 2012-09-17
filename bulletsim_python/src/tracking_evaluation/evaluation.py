@@ -1,6 +1,7 @@
 from __future__ import division
 import numpy as np
 norm = np.linalg.norm
+import scipy.spatial.distance as ssd
 
 def normalize(x):
     return x / np.sqrt((x**2).sum())
@@ -82,7 +83,7 @@ def calculate_cloth_tracking_score(tracker_xyz_sn3, tracker_stamp_s, tracker_tri
                     sum_of_dists = norm(pt0 - led) + norm(pt1 - led) + norm(pt2 - led)
                     dist_to_triangles[m] = sum_of_dists
                 led2tri[led2led[k]] = led2tri[k] = dist_to_triangles.argmin(axis=0)
-                print "match leds to triangle: %i,%i->%i"%(k,led2led[k], led2tri[k])
+                print "match leds to triangle at time %.2f: %i,%i->%i"%(new_times[q],k,led2led[k], led2tri[k])
             
         
         
@@ -123,12 +124,53 @@ def calculate_cloth_tracking_score(tracker_xyz_sn3, tracker_stamp_s, tracker_tri
         marker2info[k]["position_demeaned"] = litf_demeaned_qk3[good_times,k,:]
         marker2info[k]["position_prediction"] = np.array([apply_trans(tri_transform_qk44[q,k],led_tri_frame_k3[k]) for q in good_times])
         marker2info[k]["position_actual"] = ps_qk3[good_times, k]
+    print "offsets of pairs:"
+    for (i0, i1) in ind_pairs:
+        print i0,led_tri_frame_k3[i0], i1, led_tri_frame_k3[i1]
 
     return marker2info
     #litf_inpainted_qk3 = interpnd(np.arange(q), good_times, litf_demeaned_qk3[good_times])
     #error_qk = norms(litf_inpainted_qk3,2)
     
     #return error_qk, new_times
+
+def calculate_rope_tracking_score(tracker_xyz_sn3, tracker_stamp_s,
+                                   phasespace_led_tk3, phasespace_stamp_t,
+                                   inds, demean_at_beginning=True):
+    S,N,_ = tracker_xyz_sn3.shape
+    T,K,_ = phasespace_led_tk3.shape
+    
+    led2node = {}
+
+    marker2info = [{} for _ in xrange(K)]
+    
+    for k in xrange(K):
+        valid_inds = np.flatnonzero(np.isfinite(phasespace_led_tk3[:,k,0]))
+        valid_times = phasespace_stamp_t[valid_inds]
+        if len(valid_times) > 0:
+        
+            phasespace_led_v3 = phasespace_led_tk3[valid_inds,k]
+            tracker_xyz_vn3 = interpnd(valid_times, tracker_stamp_s, tracker_xyz_sn3)
+            led2node[k] = ssd.cdist(phasespace_led_v3[0:1], tracker_xyz_vn3[0]).argmin()
+            marker2info[k]["times"] = valid_times
+            marker2info[k]["position_demeaned"] = phasespace_led_v3 - tracker_xyz_vn3[:,led2node[k]]
+            marker2info[k]["position_prediction"] = tracker_xyz_vn3[:,led2node[k]]
+            marker2info[k]["position_actual"] = phasespace_led_v3
+
+        else:
+            marker2info[k]["times"] = np.array([])
+            marker2info[k]["position_demeaned"] = np.zeros((0,3))
+            marker2info[k]["position_prediction"] = np.zeros((0,3))
+            marker2info[k]["position_actual"] = np.zeros((0,3))
+    
+    print "led2node", led2node
+
+    return marker2info
+    #litf_inpainted_qk3 = interpnd(np.arange(q), good_times, litf_demeaned_qk3[good_times])
+    #error_qk = norms(litf_inpainted_qk3,2)
+    
+    #return error_qk, new_times
+            
             
 def test_calculate_cloth_tracking_score():
     # fake data for cloth that has 2 triangles and 4 leds

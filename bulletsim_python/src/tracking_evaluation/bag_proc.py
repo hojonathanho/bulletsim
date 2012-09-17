@@ -1,8 +1,17 @@
 import evaluation, rosbag
 import numpy as np
+from brett2.mytf import TransformListener
 
-def extract_bag_data(fname, max_led_ind, owl_topic, tracker_topic):
+def ensure_slash(s):
+    return s if s.startswith("/") else "/" + s
+
+def extract_bag_data(fname, max_led_ind, owl_topic, tracker_topic, robot = False):
     bag = rosbag.Bag(fname)
+    
+    owl_topic = ensure_slash(owl_topic)
+    tracker_topic = ensure_slash(tracker_topic)
+    
+    if robot: listener = TransformListener()
     
     K = max_led_ind
     
@@ -15,20 +24,33 @@ def extract_bag_data(fname, max_led_ind, owl_topic, tracker_topic):
     faces = None
     got_tracker_msg = False
     
-    for (i,(topic, msg, t)) in enumerate(bag.read_messages()):
+    for (i,(topic, msg, tbag)) in enumerate(bag.read_messages()):
+        if topic == "/tf":
+            t = tbag
+        else:
+            t = msg.header.stamp
+        
+        
         if i==0:
             t0 = t.to_sec()
         if i%1000 == 0:
             print "processed %i messages"%i
         #if i>9000: break
-        #if topic=="/tf":
-            #listener.callback(msg)
+        if robot and topic=="/tf":
+            listener.callback(msg)
         if topic == owl_topic:
             owl = np.empty((K,3))
             owl.fill(np.nan)
+            if robot:
+                try:
+                    hmat = listener.transformer.lookup_transform_mat("/base_footprint", "/ground")
+                except Exception:
+                    continue
+            else:
+                hmat = np.eye(4)
             for marker in msg.markers:
-                if marker.point.x != 0:
-                    owl[marker.id] = np.array([marker.point.x, marker.point.y, marker.point.z])
+                if marker.cond > 0:
+                    owl[marker.id] = hmat.dot(.001*np.array([marker.point.x, marker.point.y, marker.point.z,1000]))[:3]
             owl_arr.append(owl)
             owl_times.append(t.to_sec()-t0)
         elif topic == tracker_topic:
@@ -52,4 +74,5 @@ def extract_bag_data(fname, max_led_ind, owl_topic, tracker_topic):
             tracker_arr.append(tracker_pts)
             tracker_times.append(t.to_sec()-t0)
     assert got_tracker_msg
+    print hmat
     return np.array(tracker_arr), np.array(tracker_times), faces, np.array(owl_arr), np.array(owl_times)
