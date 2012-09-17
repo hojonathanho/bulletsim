@@ -7,19 +7,18 @@
 using namespace std;
 
 struct LocalConfig: Config {
-  static vector<string> kinectFrames;
+  static string kinectFrame;
   static string robotFrame;
 
   LocalConfig() :
     Config() {
-    params.push_back(new ParameterVec<string> ("kinectFrames", &kinectFrames, "kinect frames"));
+    params.push_back(new Parameter<string> ("kinectFrame", &kinectFrame, "kinect frame"));
     params.push_back(new Parameter<string> ("robotFrame", &robotFrame, "robot frame"));
   }
 };
 
-static const string kinectFrames_a[] = { "/kinect1_link", "/kinect2_link" };
-vector<string> LocalConfig::kinectFrames = std::vector<string>(kinectFrames_a, kinectFrames_a+sizeof(kinectFrames_a)/sizeof(string));
-string LocalConfig::robotFrame = "/odom_combined";
+string LocalConfig::kinectFrame = "/kinect2_link";
+string LocalConfig::robotFrame = "/base_footprint";
 
 int main(int argc, char* argv[]) {
   Parser parser;
@@ -30,18 +29,20 @@ int main(int argc, char* argv[]) {
   tf::TransformListener listener;
   tf::TransformBroadcaster broadcaster;
 
-  btTransform groundFromKinect, baseFromCamera;
+  btTransform groundFromKinect, cameraFromBase;
+  ros::Rate r(10);
   while (ros::ok()) {
-    for (int i = 0; i < LocalConfig::kinectFrames.size(); ++i) {
-      if (lookupLatestTransform(groundFromKinect, "/ground", LocalConfig::kinectFrames[i], listener) &&
-          lookupLatestTransform(baseFromCamera, LocalConfig::robotFrame, "/camera_link", listener)) {
-        broadcaster.sendTransform(tf::StampedTransform(groundFromKinect*baseFromCamera.inverse(), ros::Time::now(), "/ground", LocalConfig::robotFrame));
+    for (int i = 0; i < LocalConfig::kinectFrame.size(); ++i) {
+      if (lookupLatestTransform(groundFromKinect, "/ground", LocalConfig::kinectFrame, listener) &&
+          lookupLatestTransform(cameraFromBase, "/camera_link", LocalConfig::robotFrame, listener)) {
+	btTransform groundFromBase = groundFromKinect*cameraFromBase;
+        broadcaster.sendTransform(tf::StampedTransform(groundFromBase, ros::Time::now(), "/ground", LocalConfig::robotFrame));
         LOG_DEBUG("successfully broadcasted transform");
       }
       else {
         LOG_DEBUG("transforms failed");
       }
     }
-    sleep(.1);
+    r.sleep();
   }
 }

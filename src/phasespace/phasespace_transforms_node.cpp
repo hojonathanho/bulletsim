@@ -49,6 +49,7 @@ int main(int argc, char* argv[]) {
 				if (marker_rigids[i]->isValid()) {
 					broadcastKinectTransform(toBulletTransform(marker_rigids[i]->getTransform()), PhasespaceConfig::cameraTopics[i]+"_rgb_optical_frame", "/ground", broadcaster, listener);
 				}
+				else ROS_WARN("rigid transform %s from camera %s is invalid", PhasespaceConfig::kinectInfo_filenames[i].c_str(), PhasespaceConfig::cameraTopics[i].c_str());
 			} catch (...) {
 				ROS_WARN("Caught an exception from broadcastKinectTransform. Skipping...");
 			}

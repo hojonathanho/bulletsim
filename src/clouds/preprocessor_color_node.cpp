@@ -391,7 +391,7 @@ public:
     m_depthPub(nh.advertise<sensor_msgs::Image> (LocalConfig::nodeNS + "/depth", 5)),
     m_maskPub(nh.advertise<sensor_msgs::Image> (LocalConfig::nodeNS + "/debug_mask", 5)),
     m_polyPub(nh.advertise<geometry_msgs::PolygonStamped> (LocalConfig::nodeNS + "/polygon", 5)),
-    m_sub(nh.subscribe(LocalConfig::inputTopic, 30, &PreprocessorNode::callback0, this)),
+    m_sub(nh.subscribe(LocalConfig::inputTopic, 2, &PreprocessorNode::callback0, this)),
     m_mins(-10, -10, -10), m_maxes(10, 10, 10),
     m_transform(toBulletTransform(Affine3f::Identity())),
     cloud_hull(new ColorCloud),
