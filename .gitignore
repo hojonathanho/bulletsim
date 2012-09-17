@@ -19,3 +19,4 @@ data/boundary/
 lib/phasespace/src/examples/example1
 lib/phasespace/src/examples/example2
 bulletsim_binaries/
+*.pyc
