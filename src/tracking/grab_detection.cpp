@@ -56,14 +56,33 @@ bool GrabDetector::isGrabbing(float position, float velocity, float effort) {
 	return out;
 }
 
-GrabManager::GrabManager(Environment::Ptr env, RaveRobotObject::Manipulator::Ptr manip, GrabDetector::Side side, RobotSync& robotSync) :
+GrabManager::GrabManager() {}
+
+GrabManager::GrabManager(Environment::Ptr env, RaveRobotObject::Manipulator::Ptr manip, GrabDetector::Side side, RobotSync* robotSync) :
     m_env(env),
-    m_monitor(manip, env->bullet->dynamicsWorld),
-    m_detector(side, boost::bind(&MonitorForGrabbing::grab, &m_monitor), boost::bind(&MonitorForGrabbing::release, &m_monitor)),
     m_sync(robotSync)
-{}
+{
+  MonitorForGrabbing::Ptr mfg(new MonitorForGrabbing(manip, env->bullet->dynamicsWorld));
+  m_monitor = mfg;
+  m_detector.reset(new GrabDetector(side,
+      boost::bind(&MonitorForGrabbing::grab, mfg),
+      boost::bind(&MonitorForGrabbing::release, mfg)));
+}
+
+GrabManager::GrabManager(Environment::Ptr env, RaveRobotObject::Ptr robot, RaveRobotObject::Manipulator::Ptr manip, GrabDetector::Side side, RobotSync* robotSync, BulletSoftObject::Ptr target) :
+    m_env(env),
+    m_sync(robotSync)
+{
+  bool leftGripper = side==GrabDetector::LEFT;
+  SoftMonitorForGrabbing::Ptr smfg(new SoftMonitorForGrabbing(robot, manip, leftGripper));
+  m_monitor = smfg;
+  smfg->setTarget(target);
+  m_detector.reset(new GrabDetector(side,
+      boost::bind(&SoftMonitorForGrabbing::grab, smfg.get()),
+      boost::bind(&SoftMonitorForGrabbing::release, smfg.get())));
+}
 
 void GrabManager::update() {
-  m_detector.update(m_sync.m_lastMsg);
-  m_monitor.updateGrabPose();
+  m_detector->update(m_sync->m_lastMsg);
+  m_monitor->updateGrabPose();
 }

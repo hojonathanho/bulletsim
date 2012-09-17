@@ -12,6 +12,7 @@
 #include "utils/conversions.h"
 #include "utils/cvmat.h"
 #include "utils/config.h"
+#include "simulation/bullet_io.h"
 
 using namespace std;
 
@@ -229,6 +230,24 @@ struct	ImplicitPolygon : btSoftBody::ImplicitFn
 	}
 };
 
+
+btMatrix3x3 calcAlignRot(btVector3 v0, btVector3 v1) {
+  // find rotation R so that R*v0 || v1
+  v0.normalize();
+  v1.normalize();
+  if  ( (v0-v1).length2() < 1e-9 ) return btMatrix3x3::getIdentity();
+  else if ((v0+v1).length2() < 1e-9) {
+    btVector3 randvec(0.0567162 , -0.28040618,  0.95820439);
+    btVector3 ax = randvec.cross(v0);
+    return btMatrix3x3(btQuaternion(ax,SIMD_PI));
+  }
+  else {
+    btScalar angle = v0.angle(v1);
+    btVector3 axis = v0.cross(v1);
+    return btMatrix3x3(btQuaternion(axis, angle));
+  }
+}
+
 //assumes all the corners are in a plane
 //the corners are specified in a clockwise order
 btSoftBody* CreatePolygonPatch(btSoftBodyWorldInfo& worldInfo, std::vector<btVector3> corners, int resx, int resy, bool gendiags) {
@@ -241,15 +260,10 @@ btSoftBody* CreatePolygonPatch(btSoftBodyWorldInfo& worldInfo, std::vector<btVec
 
 	// compute the transformation for the corners to lie in the xy plane
 	btVector3 normal = (corners[1] - corners[0]).cross(corners[2] - corners[0]).normalized();
-	btVector3 align(0,0,1);
-	btScalar angle = align.angle(normal);
-	btVector3 axis = normal.cross(align);
-	btMatrix3x3 align_rot(btQuaternion(axis, angle));
 
+	btMatrix3x3 align_rot = calcAlignRot(normal, btVector3(0,0,1));
 	btTransform align_transform(align_rot, btVector3(0,0,-(align_rot*corners[0]).z()));
 	//if align_rot is nan, there is probably no alignment needed (degenerate case)
-	if (!util::isfinite(align_rot))
-		align_transform = btTransform::getIdentity();
 
 	// transform corners so that their z axis are zero
 	vector<btVector3> xy_corners(corners.size());
@@ -285,9 +299,15 @@ btSoftBody* CreatePolygonPatch(btSoftBodyWorldInfo& worldInfo, std::vector<btVec
 	// Create a new btSoftBody containing only the nodes, faces and links inside the polygon contour
 	psb = CreateFromSoftBodyExcludeFaces(psb, exclude_faces_idx);
 
+//	for (int i=0; i < psb->m_nodes.size(); ++i) {
+//	    util::drawSpheres(psb->m_nodes[i].m_x, Eigen::Vector3f(0,0,1), 1, .01*METERS, util::getGlobalEnv());
+//	}
 	// rotate the nodes back to their unaligned positions
 	psb->transform(align_transform.inverse());
-
+//	cout << align_transform << endl;
+//    for (int i=0; i < psb->m_nodes.size(); ++i) {
+//        util::drawSpheres(psb->m_nodes[i].m_x, Eigen::Vector3f(0,1,0), 1, .011*METERS, util::getGlobalEnv());
+//    }
 	return psb;
 }
 

@@ -1,6 +1,7 @@
 #include <ros/ros.h>
 #include <tf/transform_broadcaster.h>
 #include <tf/transform_listener.h>
+#include <boost/assign/list_of.hpp>
 #include "utils/config.h"
 #include "clouds/utils_ros.h"
 #include "utils/logging.h"

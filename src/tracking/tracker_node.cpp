@@ -25,6 +25,9 @@
 #include "config_tracking.h"
 #include "utils/conversions.h"
 #include "clouds/cloud_ops.h"
+#include "clouds/cloud_ops.h"
+#include "simulation/util.h"
+#include "clouds/utils_cv.h"
 
 using sensor_msgs::PointCloud2;
 using sensor_msgs::Image;
@@ -62,12 +65,7 @@ void callback(const vector<sensor_msgs::PointCloud2ConstPtr>& cloud_msg, const v
 		if (i==0) *filteredCloud = *cloud;
   	else *filteredCloud = *filteredCloud + *cloud;
 
-  	cv::Mat image_and_mask = cv_bridge::toCvCopy(image_msgs[2*i])->image;
-  	vector<cv::Mat> channels;
-  	cv::split(image_and_mask, channels);
-  	mask_images[i] = channels[3];
-  	channels.pop_back();
-  	cv::merge(channels, rgb_images[i]);
+	extractImageAndMask(cv_bridge::toCvCopy(image_msgs[2*i])->image, rgb_images[i], mask_images[i]);
   	depth_images[i] = cv_bridge::toCvCopy(image_msgs[2*i+1])->image;
   }
 
@@ -118,25 +116,13 @@ int main(int argc, char* argv[]) {
   // set up scene
   Scene scene;
   scene.startViewer();
-  scene.toggleDebugDraw();
 
-  setGlobalEnv(scene.env);
+  util::setGlobalEnv(scene.env);
 
-	TrackedObject::Ptr trackedObj = callInitServiceAndCreateObject(filteredCloud, rgb_images[0], mask_images[0], transformers[0]);
+	TrackedObject::Ptr trackedObj = callInitServiceAndCreateObject(filteredCloud, rgb_images[0], transformers[0]);
   if (!trackedObj) throw runtime_error("initialization of object failed.");
-//DEBUG
-    trackedObj->init();
+  trackedObj->init();
   scene.env->add(trackedObj->m_sim);
-
-  //DEBUG
-//  bool exit_loop = false;
-//	scene.addVoidKeyCallback('q',boost::bind(toggle, &exit_loop), "exit");
-//	 while (!exit_loop && ros::ok()) {
-//     scene.env->step(.03,2,.015);
-//     scene.draw();
-//     ros::spinOnce();
-//	 }
-//	 return 0;
 
  	// actual tracking algorithm
 	MultiVisibility::Ptr visInterface(new MultiVisibility());

@@ -48,3 +48,5 @@ cv::Mat backgroundSubtractorColorMask(cv::Mat color, std::vector<cv::Mat> color_
 
 // input is an bgr image and output is a binary mask (i.e. 0's are likely to not be skin and 255's are likely to be skin). src doesn't get modified.
 cv::Mat skinMask(cv::Mat src);
+
+void extractImageAndMask(cv::Mat image_and_mask, cv::Mat& image, cv::Mat& mask);

@@ -787,3 +787,23 @@ ColorCloudPtr extractBorder(ColorCloudPtr cloud_in, ColorCloudPtr cloud_veil, Co
 
   return cloud_border;
 }
+
+ColorCloudPtr projectPointsOntoPlane(ColorCloudPtr in, vector<float> abcd) {
+  float a = abcd[0];
+  float b = abcd[1];
+  float c = abcd[2];
+  float d = abcd[3];
+
+  float abc2 = a * a + b * b + c * c;
+
+  ColorCloudPtr out(new ColorCloud());
+  BOOST_FOREACH(ColorPoint& pt, in->points) {
+    float t = -(a*pt.x + b*pt.y + c*pt.z + d)/abc2;
+    ColorPoint newpt = pt;
+    newpt.x = pt.x + a*t;
+    newpt.y = pt.y + b*t;
+    newpt.z = pt.z + c*t;
+    out->push_back(newpt);
+  }
+  return out;
+}

@@ -91,11 +91,16 @@ MonitorForGrabbing::MonitorForGrabbing(RaveRobotObject::Manipulator::Ptr manip, 
 void MonitorForGrabbing::setBodies(vector<BulletObject::Ptr>& bodies) {}
 
 btRigidBody* getNearestDynamicBody(btDynamicsWorld* world, btVector3& pt) {
-  btCollisionObjectArray objs = world->getCollisionObjectArray();
+  btCollisionObjectArray& rigidobjs = world->getCollisionObjectArray();
+
+
+
   float bestDist = SIMD_INFINITY;
   float bestInd = -1;
-  for (int i = 0; i < objs.size(); ++i) {
-    btRigidBody* maybeRB = btRigidBody::upcast(objs[i]);
+  bool bestIsRigid = true;
+
+  for (int i = 0; i < rigidobjs.size(); ++i) {
+    btRigidBody* maybeRB = btRigidBody::upcast(rigidobjs[i]);
     if (maybeRB && maybeRB->getInvMass() != 0) {
       float dist = maybeRB->getCenterOfMassPosition().distance(pt);
       if (dist < bestDist) {
@@ -104,8 +109,9 @@ btRigidBody* getNearestDynamicBody(btDynamicsWorld* world, btVector3& pt) {
       }
     }
   }
+
   assert (bestInd != -1);
-  return btRigidBody::upcast(objs[bestInd]);
+  return btRigidBody::upcast(rigidobjs[bestInd]);
 }
 
 void MonitorForGrabbing::grab() {

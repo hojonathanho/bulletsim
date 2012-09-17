@@ -25,19 +25,6 @@ std::vector<btVector3> TrackedRope::getPoints() {
 	return out;
 }
 
-const Eigen::VectorXf TrackedRope::getPriorDist() {
-	Eigen::MatrixXf prior_dist(1,FeatureExtractor::m_allDim);
-	prior_dist << TrackingConfig::pointPriorDist*METERS, TrackingConfig::pointPriorDist*METERS, TrackingConfig::pointPriorDist*METERS,  //FT_XYZ
-			0.2, 0.2, 0.2, 	//FT_BGR
-			TrackingConfig::colorLPriorDist, TrackingConfig::colorABPriorDist, TrackingConfig::colorABPriorDist,	//FT_LAB
-			1.0, 1.0, 1.0,  //FT_NORMAL
-			1.0,  //FT_LABEL
-			MatrixXf::Ones(1, FE::FT_SIZES[FE::FT_SURF])*0.4,  //FT_SURF
-			MatrixXf::Ones(1, FE::FT_SIZES[FE::FT_PCASURF])*0.4,  //FT_PCASURF
-			0.5;  //FT_GRADNORMAL
-	return FeatureExtractor::all2ActiveFeatures(prior_dist).transpose();
-}
-
 void TrackedRope::applyEvidence(const Eigen::MatrixXf& corr, const MatrixXf& obsPts) {
   vector<btVector3> estPos(m_nNodes), estVel(m_nNodes);
   for (int i=0; i < m_nNodes; ++i)  {

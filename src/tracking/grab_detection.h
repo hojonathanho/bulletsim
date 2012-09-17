@@ -8,6 +8,7 @@ typedef boost::function<void(void)> VoidCallback;
 
 class GrabDetector {
 public:
+  typedef boost::shared_ptr<GrabDetector> Ptr;
 	enum Side {LEFT, RIGHT};
 
 	// detects grasping by looking for a point when gripper isn't closing
@@ -32,10 +33,11 @@ public:
 class GrabManager {
 public:
   Environment::Ptr m_env;
-  MonitorForGrabbing m_monitor;
-  GrabDetector m_detector;
-  RobotSync& m_sync;
-  GrabManager(Environment::Ptr env, RaveRobotObject::Manipulator::Ptr arm, GrabDetector::Side, RobotSync& robotSync);
+  Monitor::Ptr m_monitor;
+  GrabDetector::Ptr m_detector;
+  RobotSync* m_sync;
+  GrabManager();
+  GrabManager(Environment::Ptr env, RaveRobotObject::Manipulator::Ptr arm, GrabDetector::Side, RobotSync* robotSync);
+  GrabManager(Environment::Ptr env, RaveRobotObject::Ptr robot, RaveRobotObject::Manipulator::Ptr arm, GrabDetector::Side, RobotSync* robotSync, BulletSoftObject::Ptr target);
   void update();
 };
-

@@ -1,17 +1,14 @@
 #include "config_tracking.h"
 #include "feature_extractor.h"
+#include <boost/assign.hpp>
 
 std::string TrackingConfig::filteredCloudTopic = "/preprocessor/points";
 std::string TrackingConfig::depthTopic  = "/kinect1/depth_registered/image_rect";
 std::string TrackingConfig::rgbTopic = "/kinect1/rgb/image_rect_color";
 std::string TrackingConfig::fullCloudTopic = "/kinect1/depth_registered/points";
 
-static const std::string cameraTopics_a[] = { "/kinect1" };
-std::vector<std::string> TrackingConfig::cameraTopics = std::vector<std::string>(cameraTopics_a, cameraTopics_a+sizeof(cameraTopics_a)/sizeof(std::string));
-
-static const int featureTypes_a[] = {FeatureExtractor::FT_XYZ, FeatureExtractor::FT_LAB};
-std::vector<int> TrackingConfig::featureTypes = std::vector<int>(featureTypes_a, featureTypes_a+sizeof(featureTypes_a)/sizeof(int));
-
+std::vector<std::string> TrackingConfig::cameraTopics = boost::assign::list_of("/kinect1");
+std::vector<int> TrackingConfig::featureTypes = boost::assign::list_of(FeatureExtractor::FT_XYZ)(FeatureExtractor::FT_LAB);
 
 float TrackingConfig::pointOutlierDist = 0.02;
 float TrackingConfig::pointPriorCount = 10;

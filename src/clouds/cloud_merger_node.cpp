@@ -1,5 +1,6 @@
 #include <cmath>
 #include <boost/thread.hpp>
+#include <boost/assign/list_of.hpp>
 #include <ros/ros.h>
 #include <tf/transform_broadcaster.h>
 #include <tf/transform_listener.h>
@@ -48,8 +49,7 @@ struct LocalConfig : Config {
   }
 };
 
-std::string cameraTopics_a[] = { "/kinect1/depth_registered/points", "/kinect2/depth_registered/points" };
-std::vector<std::string> LocalConfig::cameraTopics = std::vector<std::string>(cameraTopics_a, cameraTopics_a+sizeof(cameraTopics_a)/sizeof(std::string));
+std::vector<std::string> LocalConfig::cameraTopics = boost::assign::list_of("/kinect1/depth_registered/points")("/kinect2/depth_registered/points");
 string LocalConfig::outputTopic = "/kinect_merged/points";
 int LocalConfig::calibrationType = 0;
 bool LocalConfig::calibrateOnce = true;
