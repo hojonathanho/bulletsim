@@ -21,8 +21,21 @@
 #include "demo_recorder.h"
 #include "simulation/softbodies.h"
 
+struct LocalConfig: Config {
+  static std::string cameraFrame;
+
+  LocalConfig() :
+    Config() {
+    params.push_back(new Parameter<string> ("cameraFrame", &cameraFrame, "camera frame"));
+  }
+};
+
+string LocalConfig::cameraFrame = "/camera_rgb_optical_frame";
+
+
 boost::shared_ptr<CoordinateTransformer> transformer;
 boost::shared_ptr<tf::TransformListener> listener;
+boost::shared_ptr<RobotSync> robotSync;
 
 TrackedObject::Ptr trackedObj;
 TrackedObjectFeatureExtractor::Ptr objectFeatures;
@@ -30,19 +43,25 @@ Environment::Ptr env;
 
 bool pending = false;
 ColorCloudPtr filteredCloud;
-void cloudCallback (const sensor_msgs::PointCloud2ConstPtr& cloudMsg) {
+void callback (const sensor_msgs::PointCloud2ConstPtr& cloudMsg, const sensor_msgs::JointStateConstPtr& jointMsg) {
   btTransform wfc;
   if (!lookupLatestTransform(wfc, "base_footprint", cloudMsg->header.frame_id, *listener)) return;
   transformer->reset(wfc);
-  filteredCloud = fromROSMsg1(*cloudMsg);
+//  filteredCloud = fromROSMsg1(*cloudMsg);
+  filteredCloud.reset(new ColorCloud());
+  pcl::fromROSMsg(*cloudMsg, *filteredCloud);
   pcl::transformPointCloud(*filteredCloud, *filteredCloud, transformer->worldFromCamEigen);
+  robotSync->jointCB(*jointMsg);
+  robotSync->updateRobot();
   pending = true;
 }
 
 void initializeTrackedObject() {
-//  ros::NodeHandle nh;
-//  sensor_msgs::ImageConstPtr msg = ros::topic::waitForMessage<sensor_msgs::Image>(TrackingConfig::cameraTopics[0], nh, ros::Duration(1));
-//  cv::Mat image_and_mask = cv_bridge::toCvCopy(image_msgs[2*i])->image;
+////  ros::NodeHandle nh;
+////  sensor_msgs::ImageConstPtr msg = ros::topic::waitForMessage<sensor_msgs::Image>(TrackingConfig::cameraTopics[0], nh, ros::Duration(1));
+////  cv::Mat image_and_mask = cv_bridge::toCvCopy(msg)->image;
+////  cv::Mat image, mask;
+//  extractImageAndMask(image_and_mask, image, mask);
   trackedObj = callInitServiceAndCreateObject(filteredCloud, cv::Mat(), transformer.get());
   if (!trackedObj) throw runtime_error("initialization of object failed.");
   LOG_INFO("created an object of type " << trackedObj->m_type);
@@ -68,6 +87,7 @@ int main(int argc, char* argv[]) {
   parser.addGroup(GeneralConfig());
   parser.addGroup(BulletConfig());
   parser.addGroup(RecordingConfig());
+  parser.addGroup(LocalConfig());
   GeneralConfig::scale = 10;
   parser.read(argc, argv);
 
@@ -77,15 +97,23 @@ int main(int argc, char* argv[]) {
   transformer.reset(new CoordinateTransformer());
   listener.reset(new tf::TransformListener());
 
-  ros::Subscriber cloudSub = nh.subscribe(TrackingConfig::filteredCloudTopic, 1, &cloudCallback);
-  ros::Publisher objPub = nh.advertise<bulletsim_msgs::TrackedObject>(trackedObjectTopic,10);
-  ros::ServiceServer resetSrv = nh.advertiseService("/tracker/reinitialize",   reinitialize);
-
   Scene scene;
   env = scene.env;
   util::setGlobalEnv(scene.env);
   PR2Manager pr2m(scene);
-  RobotSync sync(nh, pr2m.pr2);
+  Load(scene.env, scene.rave, EXPAND(BULLETSIM_DATA_DIR)"/xml/table.xml");
+  RaveObject::Ptr table = getObjectByName(scene.env, scene.rave, "table");
+  table->setColor(0,.8,0,.5);
+  pr2m.pr2->setColor(1,1,1,.5);
+  scene.startViewer();
+
+  robotSync.reset(new RobotSync(nh, pr2m.pr2, false));
+
+  syncAndRegCloudJoint(TrackingConfig::filteredCloudTopic, nh, &callback);
+
+  ros::Publisher objPub = nh.advertise<bulletsim_msgs::TrackedObject>(trackedObjectTopic,10);
+  ros::ServiceServer resetSrv = nh.advertiseService("/tracker/reinitialize",   reinitialize);
+
 
 
   DemoRecorder::Ptr demoRecord;
@@ -97,32 +125,19 @@ int main(int argc, char* argv[]) {
 
   CoordinateTransformer cam_transformer;
   btTransform baseFromCam;
-  while (true) {
-    if (lookupLatestTransform(baseFromCam, "base_footprint", "camera_rgb_optical_frame", *listener)) {
+  while (ros::ok()) {
+    if (lookupLatestTransform(baseFromCam, "base_footprint", LocalConfig::cameraFrame, *listener)) {
       cam_transformer.reset(baseFromCam);
       break;
     }
     else {
-      LOG_INFO("waiting for tf to work");
+      LOG_DEBUG("waiting for tf to work");
       sleep(.04);
     }
-
   }
-
-
-  Load(scene.env, scene.rave, EXPAND(BULLETSIM_DATA_DIR)"/xml/table.xml");
-  RaveObject::Ptr table = getObjectByName(scene.env, scene.rave, "table");
-  table->setColor(0,.8,0,.5);
-  pr2m.pr2->setColor(1,1,1,.5);
-//
-
-
-
-  scene.startViewer();
-
   while (ros::ok()) {
     ros::spinOnce();
-    if (filteredCloud && sync.m_lastMsg.position.size()>0) break;
+    if (filteredCloud && robotSync->m_lastMsg.position.size()>0) break;
     sleep(.001);
   }
   if (!ros::ok()) throw runtime_error("caught signal while waiting for first message");
@@ -132,12 +147,12 @@ int main(int argc, char* argv[]) {
   GrabManager lgm, rgm;
   BulletSoftObject::Ptr maybeBSO = boost::dynamic_pointer_cast<BulletSoftObject>(trackedObj->m_sim);
   if (maybeBSO){
-    lgm = GrabManager(scene.env, pr2m.pr2, pr2m.pr2Left, GrabDetector::LEFT, &sync, maybeBSO);
-    rgm = GrabManager(scene.env, pr2m.pr2, pr2m.pr2Right, GrabDetector::RIGHT, &sync, maybeBSO);
+    lgm = GrabManager(scene.env, pr2m.pr2, pr2m.pr2Left, GrabDetector::LEFT, robotSync.get(), maybeBSO);
+    rgm = GrabManager(scene.env, pr2m.pr2, pr2m.pr2Right, GrabDetector::RIGHT, robotSync.get(), maybeBSO);
   }
   else {
-    lgm = GrabManager(scene.env, pr2m.pr2Left, GrabDetector::LEFT, &sync);
-    rgm = GrabManager(scene.env, pr2m.pr2Right, GrabDetector::RIGHT, &sync);
+    lgm = GrabManager(scene.env, pr2m.pr2Left, GrabDetector::LEFT, robotSync.get());
+    rgm = GrabManager(scene.env, pr2m.pr2Right, GrabDetector::RIGHT, robotSync.get());
   }
 
 
@@ -168,7 +183,6 @@ int main(int argc, char* argv[]) {
     //TODO update arbitrary number of depth images)
     pending = false;
     while (ros::ok() && !pending) {
-      sync.updateRobot();
       lgm.update();
       rgm.update();
 
