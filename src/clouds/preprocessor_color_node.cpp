@@ -198,13 +198,13 @@ public:
     cv::Mat image = toCVMatImage(cloud_in);
 
     cv::Mat mask;
+    cv::Mat neg_green = colorSpaceMask(image, MIN_L, MAX_L, MIN_A, MAX_A, MIN_B, MAX_B, CV_BGR2Lab); // remove green
 
     if (!m_inited) {
-      cv::Mat neg_green = colorSpaceMask(image, MIN_L, MAX_L, MIN_A, MAX_A, MIN_B, MAX_B, CV_BGR2Lab); // remove green
-      if (LocalConfig::debugMask) cv::imshow("mask negative green", neg_green);
+//      if (LocalConfig::debugMask) cv::imshow("mask negative green", neg_green);
 
       mask = neg_green;
-      if (LocalConfig::debugMask) cv::imshow("mask original", mask);
+//      if (LocalConfig::debugMask) cv::imshow("mask original", mask);
 
       m_bgdModel = cv::Mat(1, 65, CV_64FC1, (double) 0);
       m_fgdModel = cv::Mat(1, 65, CV_64FC1, (double) 0);
@@ -219,27 +219,27 @@ public:
       cv::resize(mask, mask, cv::Size(640, 480), CV_INTER_NN);
       mask -= 2;
       mask *= 255;
-      cv::imshow("initmask", mask);
+//      cv::imshow("initmask", mask);
 
     } else {
       cv::Mat image_small;
       cv::resize(image, image_small, cv::Size(320, 240), cv::INTER_LINEAR);
       TIC();
-      cv::Mat mask_small = gmmGraphCut(image_small, m_bgdModel, m_fgdModel);
+      cv::Mat mask_small = gmmGraphCut(image_small, m_bgdModel, m_fgdModel, 1);
       LOG_INFO_FMT("grabcut time: %2f", TOC());
       cv::resize(mask_small, mask, cv::Size(640, 480), CV_INTER_NN);
     }
 
     m_inited = true;
 
+    mask &= neg_green;
     //    cropThread.join();
 
 
     if (LocalConfig::debugMask) {
-      gcPlotMask(mask, image, 0, 255, 0);
-      cv::imshow("cloud image", image);
-      //      gcPlotMask(crop_mask, image,0,0,255);
-      cv::imshow("cloud image", image);
+      cv::Mat plotImg = image.clone();
+      gcPlotMask(mask, plotImg, 0, 255, 0);
+//      cv::imshow("cloud image", plotImg);
     }
 
     cv::erode(mask, mask, cv::Mat(), cv::Point(-1, -1), LocalConfig::i0);

@@ -413,7 +413,7 @@ void learnGMMs( const Mat& img, const Mat& mask, const Mat& compIdxs, GMM& bgdGM
 */
 void constructGCGraph( const Mat& img, const Mat& mask, const GMM& bgdGMM, const GMM& fgdGMM, double lambda,
                        const Mat& leftW, const Mat& upleftW, const Mat& upW, const Mat& uprightW,
-                       GCGraph<double>& graph )
+                       GCGraph<double>& graph, double bgdFactor)
 {
     int vtxCount = img.cols*img.rows,
         edgeCount = 2*(4*img.cols*img.rows - 3*(img.cols + img.rows) + 2);
@@ -431,7 +431,7 @@ void constructGCGraph( const Mat& img, const Mat& mask, const GMM& bgdGMM, const
             double fromSource, toSink;
             if( mask.at<uchar>(p) == GC_PR_BGD || mask.at<uchar>(p) == GC_PR_FGD )
             {
-                fromSource = -log( bgdGMM(color) );
+                fromSource = -log( bgdGMM(color) * bgdFactor );
                 toSink = -log( fgdGMM(color) );
             }
             else if( mask.at<uchar>(p) == GC_BGD )
@@ -537,14 +537,14 @@ void cv::grabCut( InputArray _img, InputOutputArray _mask, Rect rect,
         GCGraph<double> graph;
         assignGMMsComponents( img, mask, bgdGMM, fgdGMM, compIdxs );
         learnGMMs( img, mask, compIdxs, bgdGMM, fgdGMM );
-        constructGCGraph(img, mask, bgdGMM, fgdGMM, lambda, leftW, upleftW, upW, uprightW, graph );
+        constructGCGraph(img, mask, bgdGMM, fgdGMM, lambda, leftW, upleftW, upW, uprightW, graph, 1 );
         estimateSegmentation( graph, mask );
     }
 }
 
 // MODIFIED
 
-cv::Mat gmmGraphCut(const cv::Mat& img, cv::Mat bgdModel, cv::Mat fgdModel) {
+cv::Mat gmmGraphCut(const cv::Mat& img, cv::Mat bgdModel, cv::Mat fgdModel, double bgdFactor) {
   cv::Mat_<uint8_t> mask(img.rows, img.cols, (uint8_t)GC_PR_BGD);
 
   const double gamma = 50;
@@ -555,7 +555,7 @@ cv::Mat gmmGraphCut(const cv::Mat& img, cv::Mat bgdModel, cv::Mat fgdModel) {
   // note: constructGCGraph doesn't care if a pixel is GC_PR_FGD or GC_PR_BGD
   GCGraph<double> graph;
   GMM bgdGMM( bgdModel ), fgdGMM( fgdModel );
-  constructGCGraph(img, mask, bgdGMM, fgdGMM, lambda, leftW, upleftW, upW, uprightW, graph);
+  constructGCGraph(img, mask, bgdGMM, fgdGMM, lambda, leftW, upleftW, upW, uprightW, graph, bgdFactor);
   estimateSegmentation( graph, mask );
   mask -= 2;
   return mask;

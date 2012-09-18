@@ -6,6 +6,8 @@ using sensor_msgs::Image;
 using sensor_msgs::ImageConstPtr;
 using sensor_msgs::PointCloud2;
 using sensor_msgs::PointCloud2ConstPtr;
+using sensor_msgs::JointState;
+using boost::shared_ptr;
 
 //Broadcasts the transform from the kinect_rgb_optical frame to the ground frame
 //If kinect_rgb_optical has a grandparent (i.e. kinect_link), then a transform from the kinect_link frame to the ground frame is broadcasted such that the given transform is still as specified above
@@ -69,15 +71,43 @@ void vectorizeArgumentsAndInvoke(const PointCloud2ConstPtr& cloud_msgs0, const P
 	(*callback)(cloud_msgs, image_msgs);
 }
 
+
+
+
+void syncAndRegCloudJoint(std::string cloud_topic, ros::NodeHandle nh, CloudAndJointCB callback) {
+
+  static vector<CloudSubPtr> cloudSubs;
+  static vector<JointSubPtr> jointSubs;
+
+
+  typedef message_filters::sync_policies::ApproximateTime<PointCloud2, JointState> MySyncPolicy;
+
+
+  CloudSubPtr cloudSub(new CloudSub(nh, cloud_topic, 5));
+  JointSubPtr jointSub(new JointSub(nh, "/joint_states", 100));
+  cloudSubs.push_back(cloudSub);
+  jointSubs.push_back(jointSub);
+
+  typedef message_filters::Synchronizer<MySyncPolicy> Dogshit;
+  shared_ptr<Dogshit> sync(new Dogshit(MySyncPolicy(100), *cloudSub, *jointSub));
+  sync->registerCallback(boost::bind(callback, _1, _2));
+  static vector< shared_ptr<Dogshit> > syncs;
+  syncs.push_back(sync);
+
+
+
+
+}
+
 void synchronizeAndRegisterCallback(std::vector<std::string> cloud_topics, std::vector<std::string> image_topics, ros::NodeHandle nh, void (*callback)(const std::vector<PointCloud2ConstPtr>&, const std::vector<ImageConstPtr>&))
 {
 	vector<message_filters::Subscriber<PointCloud2>*> cloud_subs(cloud_topics.size(), NULL);
 	for (int i=0; i<cloud_topics.size(); i++)
-		cloud_subs[i] = new message_filters::Subscriber<PointCloud2>(nh, cloud_topics[i], 1);
+		cloud_subs[i] = new message_filters::Subscriber<PointCloud2>(nh, cloud_topics[i], 5);
 
 	vector<message_filters::Subscriber<Image>*> image_subs(image_topics.size(), NULL);
 	for (int i=0; i<image_topics.size(); i++)
-		image_subs[i] = new message_filters::Subscriber<Image>(nh, image_topics[i], 1);
+		image_subs[i] = new message_filters::Subscriber<Image>(nh, image_topics[i], 5);
 
   if (cloud_topics.size()==1 && image_topics.size()==2) {
   	typedef message_filters::sync_policies::ApproximateTime<PointCloud2, Image, Image> ApproxSyncPolicy;
