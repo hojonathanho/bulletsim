@@ -25,7 +25,6 @@
 #include "config_tracking.h"
 #include "utils/conversions.h"
 #include "clouds/cloud_ops.h"
-#include "clouds/cloud_ops.h"
 #include "simulation/util.h"
 #include "clouds/utils_cv.h"
 
@@ -68,6 +67,7 @@ void callback(const vector<sensor_msgs::PointCloud2ConstPtr>& cloud_msg, const v
 	extractImageAndMask(cv_bridge::toCvCopy(image_msgs[2*i])->image, rgb_images[i], mask_images[i]);
   	depth_images[i] = cv_bridge::toCvCopy(image_msgs[2*i+1])->image;
   }
+  filteredCloud = downsampleCloud(filteredCloud, TrackingConfig::downsample*METERS);
 
   pending = true;
 }

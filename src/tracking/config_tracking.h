@@ -14,6 +14,8 @@ struct TrackingConfig : Config {
   static std::vector<std::string> cameraTopics;
   static std::vector<int> featureTypes;
 
+  static float downsample;
+
   static float pointOutlierDist;
   static float pointPriorCount;
   static float pointPriorDist;
@@ -40,6 +42,7 @@ struct TrackingConfig : Config {
         params.push_back(new Parameter<std::string>("fullCloudTopic", &fullCloudTopic, "original point cloud topic topic"));
 
         params.push_back(new ParameterVec<std::string>("cameraTopics", &cameraTopics, "camera base topics"));
+        params.push_back(new Parameter<float>("downsample", &downsample, "downsample after merging clouds"));
         params.push_back(new Parameter<float>("pointPriorDist", &pointPriorDist, "Prior distribution for xyz. This is also the initial values for sigmas xyz. For cloth pick 0.08; for rope pick 0.02."));
         params.push_back(new Parameter<float>("pointPriorCount", &pointPriorCount, "Number of pseudo observations"));
         params.push_back(new ParameterVec<int>("featureTypes", &featureTypes, "feature types. see feature_extractor.h"));

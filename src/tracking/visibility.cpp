@@ -30,7 +30,7 @@ VectorXf DepthImageVisibility::checkNodeVisibility(TrackedObject::Ptr obj) {
     int u = uvs(iPt,0);
     int v = uvs(iPt,1);
     if (u<m_depth.rows && v<m_depth.cols && u>0 && v>0) {
-      vis[iPt] = isfinite(m_depth.at<float>(u,v)) && (m_depth.at<float>(u,v) + occ_dist > ptDists[iPt]);
+      vis[iPt] = !isfinite(m_depth.at<float>(u,v)) || (m_depth.at<float>(u,v) + occ_dist > ptDists[iPt]);
     // see it if there's no non-rope pixel in front of it
     }
   }

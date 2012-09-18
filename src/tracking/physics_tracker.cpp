@@ -33,8 +33,8 @@ void PhysicsTracker::updateFeatures() {
 	//shift the point cloud in the z coordinate
 	//m_obsFeatures->getFeatures(FE::FT_XYZ).col(2) += VectorXf::Ones(m_obsFeatures->getFeatures(FE::FT_XYZ).rows()) * 0.01*METERS;
 	for (int i=0; i<m_obsFeatures->getFeatures(FE::FT_XYZ).rows(); i++)
-		if (m_obsFeatures->getFeatures(FE::FT_XYZ)(i,2) < 0.005)
-			m_obsFeatures->getFeatures(FE::FT_XYZ)(i,2) = 0.005;
+		if (m_obsFeatures->getFeatures(FE::FT_XYZ)(i,2) < 0.005*METERS)
+			m_obsFeatures->getFeatures(FE::FT_XYZ)(i,2) = 0.005*METERS;
 
 	m_estPts = m_objFeatures->getFeatures();
 	m_obsPts = m_obsFeatures->getFeatures();

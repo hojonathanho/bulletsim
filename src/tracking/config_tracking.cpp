@@ -10,6 +10,8 @@ std::string TrackingConfig::fullCloudTopic = "/kinect1/depth_registered/points";
 std::vector<std::string> TrackingConfig::cameraTopics = boost::assign::list_of("/kinect1");
 std::vector<int> TrackingConfig::featureTypes = boost::assign::list_of(FeatureExtractor::FT_XYZ)(FeatureExtractor::FT_LAB);
 
+float TrackingConfig::downsample = 0.02;
+
 float TrackingConfig::pointOutlierDist = 0.02;
 float TrackingConfig::pointPriorCount = 10;
 float TrackingConfig::pointPriorDist = 0.02;
