@@ -8,6 +8,7 @@
 #include "file.h"
 #include <iostream>
 #include <fstream>
+#include "my_exceptions.h"
 
 using namespace std;
 
@@ -34,10 +35,7 @@ bool savePoints(const std::string& filename, const std::vector<geometry_msgs::Po
 bool loadPoints(const std::string& filename, std::vector<geometry_msgs::Point32>& points) {
   ifstream file;
   file.open(filename.c_str());
-  if (file.fail()) {
-		cout << "geometry_msgs::Point32 points couldn't be loaded from " << filename << endl;
-  	return false;
-  }
+  if (file.fail()) throw FileOpenError(filename);
 
   int points_size;
   file >> points_size;

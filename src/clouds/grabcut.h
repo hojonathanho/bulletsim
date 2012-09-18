@@ -118,7 +118,7 @@ void learnGMMs( const cv::Mat& img, const cv::Mat& mask, const cv::Mat& compIdxs
 */
 void constructGCGraph( const cv::Mat& img, const cv::Mat& mask, const GMM& bgdGMM, const GMM& fgdGMM, double lambda,
                        const cv::Mat& leftW, const cv::Mat& upleftW, const cv::Mat& upW, const cv::Mat& uprightW,
-                       GCGraph<double>& graph );
+                       GCGraph<double>& graph, double bgdFactor );
 
 /*
   Estimate segmentation using MaxFlow algorithm
@@ -131,4 +131,4 @@ void cv::grabCut( InputArray _img, InputOutputArray _mask, cv::Rect rect,
 
 // MODIFIED
 
-cv::Mat gmmGraphCut(const cv::Mat& img,  cv::Mat bgdModel,cv::Mat fgdModel);
+cv::Mat gmmGraphCut(const cv::Mat& img,  cv::Mat bgdModel,cv::Mat fgdModel, double bgdFactor);

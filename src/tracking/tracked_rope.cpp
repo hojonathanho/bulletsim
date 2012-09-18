@@ -59,7 +59,7 @@ cv::Mat TrackedRope::makeTexture(ColorCloudPtr cloud) {
 		searchPoint.y = nodes[j].y();
 		searchPoint.z = nodes[j].z();
 		// Neighbors within radius search
-		float radius = 0.03*METERS;
+		float radius = 0.04*METERS;
 		std::vector<int> pointIdxRadiusSearch;
 		std::vector<float> pointRadiusSquaredDistance;
 		Eigen::Matrix3f node_rot = toEigenMatrix(rotations[j]);

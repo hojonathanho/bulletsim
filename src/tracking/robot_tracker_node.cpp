@@ -20,6 +20,7 @@
 #include <std_srvs/Empty.h>
 #include "demo_recorder.h"
 #include "simulation/softbodies.h"
+#include "clouds/utils_cv.h"
 
 struct LocalConfig: Config {
   static std::string cameraFrame;
@@ -43,7 +44,9 @@ Environment::Ptr env;
 
 bool pending = false;
 ColorCloudPtr filteredCloud;
+ros::Time lastTime;
 void callback (const sensor_msgs::PointCloud2ConstPtr& cloudMsg, const sensor_msgs::JointStateConstPtr& jointMsg) {
+  lastTime = cloudMsg->header.stamp;
   btTransform wfc;
   if (!lookupLatestTransform(wfc, "base_footprint", cloudMsg->header.frame_id, *listener)) return;
   transformer->reset(wfc);
@@ -57,12 +60,12 @@ void callback (const sensor_msgs::PointCloud2ConstPtr& cloudMsg, const sensor_ms
 }
 
 void initializeTrackedObject() {
-////  ros::NodeHandle nh;
-////  sensor_msgs::ImageConstPtr msg = ros::topic::waitForMessage<sensor_msgs::Image>(TrackingConfig::cameraTopics[0], nh, ros::Duration(1));
-////  cv::Mat image_and_mask = cv_bridge::toCvCopy(msg)->image;
-////  cv::Mat image, mask;
-//  extractImageAndMask(image_and_mask, image, mask);
-  trackedObj = callInitServiceAndCreateObject(filteredCloud, cv::Mat(), transformer.get());
+  ros::NodeHandle nh;
+  sensor_msgs::ImageConstPtr msg = ros::topic::waitForMessage<sensor_msgs::Image>(TrackingConfig::cameraTopics[0], nh, ros::Duration(1));
+  cv::Mat image_and_mask = cv_bridge::toCvCopy(msg)->image;
+  cv::Mat image, mask;
+  extractImageAndMask(image_and_mask, image, mask);
+  trackedObj = callInitServiceAndCreateObject(filteredCloud, image, transformer.get());
   if (!trackedObj) throw runtime_error("initialization of object failed.");
   LOG_INFO("created an object of type " << trackedObj->m_type);
   trackedObj->init();
@@ -195,7 +198,9 @@ int main(int argc, char* argv[]) {
       scene.draw();
       ros::spinOnce();
     }
-    objPub.publish(toTrackedObjectMessage(trackedObj));
+    bulletsim_msgs::TrackedObject objOut = toTrackedObjectMessage(trackedObj);
+    objOut.header.stamp = lastTime;
+    objPub.publish(objOut);
   }
 
 }

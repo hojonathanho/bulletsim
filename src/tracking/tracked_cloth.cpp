@@ -91,6 +91,7 @@ void TrackedCloth::initColors() {
 			int j_pixel = pixel.x;
 			int range = 20;
 			//TODO weighted average window
+			printf("tex image: %i %i %i %i\n", tex_image.rows, tex_image.cols, i_pixel, j_pixel);
 			cv::Mat window_pixels = windowRange(tex_image, i_pixel, j_pixel, range, range);
 
 			Vector3f bgr = toEigenMatrixImage(window_pixels).colwise().mean();

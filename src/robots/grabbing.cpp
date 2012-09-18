@@ -9,7 +9,7 @@ using namespace Eigen;
 
 Grab::Grab(btRigidBody* rb, const btVector3& pos, btDynamicsWorld* world_) {
   world = world_;
-  cnt = new btGeneric6DofConstraint(*rb,btTransform(btQuaternion(0,0,0,1),btVector3(0,0,0)),true); // second parameter?
+  cnt = new btGeneric6DofConstraint(*rb,btTransform::getIdentity(),true); // second parameter?
   cnt->setLinearLowerLimit(btVector3(0,0,0));
   cnt->setLinearUpperLimit(btVector3(0,0,0));
   cnt->setAngularLowerLimit(btVector3(0,0,0));
@@ -20,7 +20,7 @@ Grab::Grab(btRigidBody* rb, const btVector3& pos, btDynamicsWorld* world_) {
 
 Grab::Grab(btRigidBody* rb, const btTransform& pose, btDynamicsWorld* world_) {
   world = world_;
-  cnt = new btGeneric6DofConstraint(*rb,btTransform(btQuaternion(0,0,0,1),btVector3(0,0,0)),true); // second parameter?
+  cnt = new btGeneric6DofConstraint(*rb,rb->getCenterOfMassTransform().inverseTimes(pose),true); // second parameter?
   cnt->setLinearLowerLimit(btVector3(0,0,0));
   cnt->setLinearUpperLimit(btVector3(0,0,0));
   cnt->setAngularLowerLimit(btVector3(0,0,0));
@@ -119,9 +119,9 @@ void MonitorForGrabbing::grab() {
   cout << "grabbing nearest object" << endl;
   btTransform curPose = m_manip->getTransform();
   btRigidBody* nearestBody = getNearestDynamicBody(m_world, curPose.getOrigin());
-  if (nearestBody->getCenterOfMassPosition().distance(curPose.getOrigin()) < .05*METERS) {
+  if (nearestBody->getCenterOfMassPosition().distance(curPose.getOrigin()) < .1*METERS) {
     LOG_INFO("object is close enough: grabbing");
-    m_grab = new Grab(nearestBody, curPose.getOrigin(), m_world);
+    m_grab = new Grab(nearestBody, curPose, m_world);
 //    nearestObj->setColor(0,0,1,1);
   }
   else {
