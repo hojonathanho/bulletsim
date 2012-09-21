@@ -1381,7 +1381,7 @@ BulletSoftObject::Ptr makeSponge(const vector<btVector3>& top_corners, float thi
   btSoftBody::Material* pm=psb->appendMaterial();
   pm->m_kLST = 0.4;
 
-  //psb->generateBendingConstraints(2,pm);
+  psb->generateBendingConstraints(2,pm);
 
 	psb->setVolumeMass(mass);
 

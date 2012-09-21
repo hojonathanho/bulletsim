@@ -97,7 +97,7 @@ int main(int argc, char* argv[]) {
   	ros::spinOnce();
   }
   cv::destroyWindow("Polygon Definition");
-  if (key == 'q') {
+  if (!ros::ok() || key == 'q') {
   	cout << "The boundary was not saved" << endl;
   	return 0;
   }
