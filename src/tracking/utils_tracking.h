@@ -4,6 +4,10 @@
 #include "utils/config.h"
 #include "clouds/pcl_typedefs.h"
 #include "simulation/environment.h"
+#include <opencv2/highgui/highgui.hpp>
+#include <ros/ros.h>
+#include <sensor_msgs/Image.h>
+#include <boost/thread.hpp>
 
 typedef Eigen::Matrix<uint8_t,Eigen::Dynamic,Eigen::Dynamic> MatrixXu;
 
@@ -21,6 +25,20 @@ public:
   std::vector<btVector3> toCamFromWorldN(const std::vector<btVector3>& worldVecs);
   Eigen::MatrixXf toCamFromWorldMatrixXf(const Eigen::MatrixXf&);
   void reset(const btTransform &wfc);
+};
+
+class ImageTopicRecorder {
+	cv::VideoWriter m_video_writer;
+	ros::Subscriber m_subscriber;
+	cv::Mat m_last_image;
+	boost::posix_time::time_duration m_cycle_time;
+	boost::posix_time::ptime m_last_time;
+	std::string m_full_filename;
+	void callback(sensor_msgs::ImageConstPtr image_msg);
+
+public:
+	ImageTopicRecorder(ros::NodeHandle& nh, std::string image_topic);
+	ImageTopicRecorder(ros::NodeHandle& nh, std::string image_topic, std::string full_filename);
 };
 
 std::vector<btVector3> scaleVecs(const std::vector<btVector3>&, float);

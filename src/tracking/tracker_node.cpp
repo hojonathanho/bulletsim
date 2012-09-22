@@ -27,6 +27,9 @@
 #include "clouds/cloud_ops.h"
 #include "simulation/util.h"
 #include "clouds/utils_cv.h"
+#include "simulation/recording.h"
+
+#include "simulation/config_viewer.h"
 
 using sensor_msgs::PointCloud2;
 using sensor_msgs::Image;
@@ -64,7 +67,7 @@ void callback(const vector<sensor_msgs::PointCloud2ConstPtr>& cloud_msg, const v
 		if (i==0) *filteredCloud = *cloud;
   	else *filteredCloud = *filteredCloud + *cloud;
 
-	extractImageAndMask(cv_bridge::toCvCopy(image_msgs[2*i])->image, rgb_images[i], mask_images[i]);
+		extractImageAndMask(cv_bridge::toCvCopy(image_msgs[2*i])->image, rgb_images[i], mask_images[i]);
   	depth_images[i] = cv_bridge::toCvCopy(image_msgs[2*i+1])->image;
   }
   filteredCloud = downsampleCloud(filteredCloud, TrackingConfig::downsample*METERS);
@@ -83,6 +86,8 @@ int main(int argc, char* argv[]) {
   parser.addGroup(TrackingConfig());
   parser.addGroup(GeneralConfig());
   parser.addGroup(BulletConfig());
+  parser.addGroup(ViewerConfig());
+  parser.addGroup(RecordingConfig());
   parser.read(argc, argv);
 
   nCameras = TrackingConfig::cameraTopics.size();
@@ -115,9 +120,12 @@ int main(int argc, char* argv[]) {
 
   // set up scene
   Scene scene;
-  scene.startViewer();
-
   util::setGlobalEnv(scene.env);
+
+  ViewerConfig::cameraHomePosition = transformers[0]->worldFromCamUnscaled.getOrigin();
+  ViewerConfig::cameraHomeCenter = ViewerConfig::cameraHomePosition + transformers[0]->worldFromCamUnscaled.getBasis().getColumn(2);
+  ViewerConfig::cameraHomeUp = -transformers[0]->worldFromCamUnscaled.getBasis().getColumn(1);
+  scene.startViewer();
 
 	TrackedObject::Ptr trackedObj = callInitServiceAndCreateObject(filteredCloud, rgb_images[0], transformers[0]);
   if (!trackedObj) throw runtime_error("initialization of object failed.");
@@ -144,6 +152,15 @@ int main(int argc, char* argv[]) {
   scene.addVoidKeyCallback('-',boost::bind(&EnvironmentObject::adjustTransparency, trackedObj->getSim(), -0.1f), "decrease opacity");
   bool exit_loop = false;
   scene.addVoidKeyCallback('q',boost::bind(toggle, &exit_loop), "exit");
+
+  boost::shared_ptr<ScreenThreadRecorder> screen_recorder;
+  boost::shared_ptr<ImageTopicRecorder> image_topic_recorder;
+  if (RecordingConfig::record == RECORD_RENDER_ONLY) {
+    screen_recorder.reset(new ScreenThreadRecorder(scene.viewer));
+  } else if (RecordingConfig::record == RECORD_RENDER_AND_TOPIC) {
+		screen_recorder.reset(new ScreenThreadRecorder(scene.viewer));
+		image_topic_recorder.reset(new ImageTopicRecorder(nh, image_topics[0], RecordingConfig::dir + "/topic_" +  RecordingConfig::video_file));
+  }
 
   while (!exit_loop && ros::ok()) {
   	//Update the inputs of the featureExtractors and visibilities (if they have any inputs)

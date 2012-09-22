@@ -50,3 +50,5 @@ cv::Mat backgroundSubtractorColorMask(cv::Mat color, std::vector<cv::Mat> color_
 cv::Mat skinMask(cv::Mat src);
 
 void extractImageAndMask(cv::Mat image_and_mask, cv::Mat& image, cv::Mat& mask);
+
+void extractImage(cv::Mat image_and_mask, cv::Mat& image);
