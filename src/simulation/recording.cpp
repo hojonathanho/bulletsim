@@ -4,7 +4,7 @@
 #include "utils/my_exceptions.h"
 #include "utils/my_assert.h"
 #include <opencv2/highgui/highgui.hpp>
-#include "utils/logging.cpp"
+#include "utils/logging.h"
 #include <osgDB/WriteFile>
 namespace fs = boost::filesystem;
 using namespace std;

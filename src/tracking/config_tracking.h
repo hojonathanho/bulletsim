@@ -35,6 +35,9 @@ struct TrackingConfig : Config {
   static float surface_density;
   static int node_pixel;
 
+  static std::string record_camera_pos_file;
+  static std::string playback_camera_pos_file;
+
     TrackingConfig() : Config() {
         params.push_back(new Parameter<std::string>("filteredCloudTopic", &filteredCloudTopic, "filtered cloud topic"));
         params.push_back(new Parameter<std::string>("depthTopic", &depthTopic, "depth image topic"));
@@ -63,5 +66,8 @@ struct TrackingConfig : Config {
         params.push_back(new Parameter<float>("node_distance", &node_distance, "distance between nodes. (length)/(# nodes - 1) = (side_length)/(resolution-1)"));
         params.push_back(new Parameter<float>("surface_density", &surface_density, "surface density for towel. (total mass)/(total area)"));
         params.push_back(new Parameter<int>("node_pixel", &node_pixel, "pixels between nodes. nodes are the original nodes, not the decimated ones."));
+
+        params.push_back(new Parameter<std::string>("record_camera_pos_file", &record_camera_pos_file, "file to save the camera positions to"));
+        params.push_back(new Parameter<std::string>("playback_camera_pos_file", &playback_camera_pos_file, "file to read and playback camera positions from"));
     }
 };

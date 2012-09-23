@@ -35,6 +35,7 @@ add_library(tracking
 	visibility.cpp
 	feature_extractor.cpp
 	tracked_compound.cpp
+  cam_sync.cpp
 )
 	
 target_link_libraries(tracking

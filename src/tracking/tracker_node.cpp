@@ -28,6 +28,7 @@
 #include "simulation/util.h"
 #include "clouds/utils_cv.h"
 #include "simulation/recording.h"
+#include "cam_sync.h"
 
 #include "simulation/config_viewer.h"
 
@@ -122,6 +123,17 @@ int main(int argc, char* argv[]) {
   Scene scene;
   util::setGlobalEnv(scene.env);
 
+  if (TrackingConfig::record_camera_pos_file != "" &&
+      TrackingConfig::playback_camera_pos_file != "") {
+    throw runtime_error("can't both record and play back camera positions");
+  }
+  CamSync camsync(scene);
+  if (TrackingConfig::record_camera_pos_file != "") {
+    camsync.enable(CamSync::RECORD, TrackingConfig::record_camera_pos_file);
+  } else if (TrackingConfig::playback_camera_pos_file != "") {
+    camsync.enable(CamSync::PLAYBACK, TrackingConfig::playback_camera_pos_file);
+  }
+
   ViewerConfig::cameraHomePosition = transformers[0]->worldFromCamUnscaled.getOrigin();
   ViewerConfig::cameraHomeCenter = ViewerConfig::cameraHomePosition + transformers[0]->worldFromCamUnscaled.getBasis().getColumn(2);
   ViewerConfig::cameraHomeUp = -transformers[0]->worldFromCamUnscaled.getBasis().getColumn(1);
@@ -162,6 +174,8 @@ int main(int argc, char* argv[]) {
 		image_topic_recorder.reset(new ImageTopicRecorder(nh, image_topics[0], RecordingConfig::dir + "/" +  RecordingConfig::video_file + "_topic.avi"));
   }
 
+  scene.setSyncTime(false);
+  scene.setDrawing(true);
   while (!exit_loop && ros::ok()) {
   	//Update the inputs of the featureExtractors and visibilities (if they have any inputs)
   	cloudFeatures->updateInputs(filteredCloud, rgb_images[0], transformers[0]);
@@ -174,11 +188,9 @@ int main(int argc, char* argv[]) {
       alg->expectationStep();
       alg->maximizationStep(applyEvidence);
 
-      scene.env->step(.03,2,.015);
-
       trackingVisualizer->update();
 
-      scene.draw();
+      scene.step(.03,2,.015);
       ros::spinOnce();
     }
     objPub.publish(toTrackedObjectMessage(trackedObj));
