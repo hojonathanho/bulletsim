@@ -168,7 +168,7 @@ int main(int argc, char* argv[]) {
   boost::shared_ptr<ScreenThreadRecorder> screen_recorder;
   boost::shared_ptr<ImageTopicRecorder> image_topic_recorder;
   if (RecordingConfig::record == RECORD_RENDER_ONLY) {
-    screen_recorder.reset(new ScreenThreadRecorder(scene.viewer));
+		screen_recorder.reset(new ScreenThreadRecorder(scene.viewer, RecordingConfig::dir + "/" +  RecordingConfig::video_file + "_tracked.avi"));
   } else if (RecordingConfig::record == RECORD_RENDER_AND_TOPIC) {
 		screen_recorder.reset(new ScreenThreadRecorder(scene.viewer, RecordingConfig::dir + "/" +  RecordingConfig::video_file + "_tracked.avi"));
 		image_topic_recorder.reset(new ImageTopicRecorder(nh, image_topics[0], RecordingConfig::dir + "/" +  RecordingConfig::video_file + "_topic.avi"));

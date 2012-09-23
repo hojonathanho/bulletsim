@@ -2,7 +2,7 @@
 #include "simulation/simplescene.h"
 #include "utils/logging.h"
 
-CamSync::CamSync(Scene &s) : scene(s) {
+CamSync::CamSync(Scene &s) : scene(s), mode(DISABLED) {
   scene.addPreDrawCallback(boost::bind(&CamSync::cb, this));
 }
 
