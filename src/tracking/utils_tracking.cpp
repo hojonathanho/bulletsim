@@ -48,7 +48,7 @@ Eigen::MatrixXf CoordinateTransformer::toCamFromWorldMatrixXf(const MatrixXf& in
 ImageTopicRecorder::ImageTopicRecorder(ros::NodeHandle& nh, std::string image_topic) :
 		m_subscriber(nh.subscribe(image_topic, 3, &ImageTopicRecorder::callback, this)),
 		m_cycle_time(boost::posix_time::microseconds(1000000.0 * RecordingConfig::speed_up/RecordingConfig::frame_rate)),
-		m_full_filename(RecordingConfig::dir + "/" +  RecordingConfig::video_file)
+		m_full_filename(RecordingConfig::dir + "/" +  RecordingConfig::video_file + ".avi")
 {}
 
 ImageTopicRecorder::ImageTopicRecorder(ros::NodeHandle& nh, std::string image_topic, std::string full_filename) :

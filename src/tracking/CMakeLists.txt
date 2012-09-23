@@ -38,7 +38,7 @@ add_library(tracking
 )
 	
 target_link_libraries(tracking
-	simulation clouds robots)
+	simulation clouds robots cv_bridge)
 	
 add_executable(tracker_node tracker_node.cpp)
 target_link_libraries(tracker_node tracking simulation clouds tf cv_bridge ${OpenCV_LIBS} ${ROS_LIBRARIES} boost_signals)

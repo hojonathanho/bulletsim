@@ -24,7 +24,7 @@ struct RecordingConfig : Config {
   RecordingConfig() : Config() {
     params.push_back(new Parameter<int>("record", &record, "0: no recording. 1: record every iterations. 2: final iteration"));
     params.push_back(new Parameter<std::string>("dir", &dir, "directory to save files in"));
-    params.push_back(new Parameter<std::string>("video_file", &video_file, "file name of the video file saved (this doesn't include the path, i.e. dir)"));
+    params.push_back(new Parameter<std::string>("video_file", &video_file, "file name of the video file saved (this doesn't include the path nor the extension)"));
     params.push_back(new Parameter<float>("frame_rate", &frame_rate, "frame rate of the output video"));
     params.push_back(new Parameter<float>("speed_up", &speed_up, "the video is speed up by this factor"));
   }
@@ -70,6 +70,7 @@ class ScreenThreadRecorder {
 
 public:
 	ScreenThreadRecorder(osgViewer::Viewer& viewer);
+	ScreenThreadRecorder(osgViewer::Viewer& viewer, std::string full_filename);
 	~ScreenThreadRecorder();
 };
 

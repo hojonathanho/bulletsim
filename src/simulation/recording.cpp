@@ -11,7 +11,7 @@ using namespace std;
 
 int RecordingConfig::record = 0;
 string RecordingConfig::dir = "/tmp/snapshots";
-string RecordingConfig::video_file = "video.avi";
+string RecordingConfig::video_file = "video";
 float RecordingConfig::frame_rate = 30;
 float RecordingConfig::speed_up = 1;
 
@@ -83,7 +83,20 @@ ScreenThreadRecorder::ScreenThreadRecorder(osgViewer::Viewer& viewer) :
 		m_capture(ScreenCapture(viewer)),
 		m_exit_loop(false)
 {
-	string full_filename = RecordingConfig::dir + "/" +  RecordingConfig::video_file;
+	string full_filename = RecordingConfig::dir + "/" +  RecordingConfig::video_file + ".avi";
+	m_video_writer.open(full_filename,  CV_FOURCC('P','I','M','1'), RecordingConfig::frame_rate, cv::Size(ViewerConfig::windowWidth, ViewerConfig::windowHeight));
+
+	if (!m_video_writer.isOpened()) {
+		runtime_error("Video destination file " + full_filename + " doesn't exits.");
+	}
+
+	m_thread = boost::thread(boost::bind(&ScreenThreadRecorder::recordLoop, this));
+}
+
+ScreenThreadRecorder::ScreenThreadRecorder(osgViewer::Viewer& viewer, std::string full_filename) :
+		m_capture(ScreenCapture(viewer)),
+		m_exit_loop(false)
+{
 	m_video_writer.open(full_filename,  CV_FOURCC('P','I','M','1'), RecordingConfig::frame_rate, cv::Size(ViewerConfig::windowWidth, ViewerConfig::windowHeight));
 
 	if (!m_video_writer.isOpened()) {
