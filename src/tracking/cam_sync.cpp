@@ -4,7 +4,7 @@
 
 static const double PLAYBACK_MAX_OFFSET = 0.1;
 
-CamSync::CamSync(Scene &s) : scene(s) {
+CamSync::CamSync(Scene &s) : scene(s), mode(DISABLED) {
   scene.addPreDrawCallback(boost::bind(&CamSync::cb, this));
   first_cb = true;
   last_playback_pos = 0;
@@ -27,7 +27,6 @@ void CamSync::enable(Mode mode_, const string &path) {
         }
       }
       playback_matrices.push_back(std::make_pair(t, m));
-      LOG_WARN("read t " << t << ' ' << m(0, 0));
     }
     file.close();
 
