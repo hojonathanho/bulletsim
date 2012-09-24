@@ -3,8 +3,12 @@
 
 class Scene;
 
+#include <osg/Matrixd>
+#include <boost/timer.hpp>
+#include <vector>
 #include <fstream>
 #include <string>
+using std::vector;
 using std::fstream;
 using std::string;
 
@@ -28,6 +32,10 @@ private:
   Scene &scene;
   fstream file;
   Mode mode;
+  bool first_cb;
+  boost::timer timer;
+  vector<std::pair<double, osg::Matrixd> > playback_matrices;
+  int last_playback_pos;
   void cb();
 };
 
