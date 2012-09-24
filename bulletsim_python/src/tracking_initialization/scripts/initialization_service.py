@@ -3,6 +3,8 @@
 import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("--plotting", action="store_true")
+parser.add_argument("--save_requests", action="store_true")
+parser.add_argument("--load_request", type=str)
 args = parser.parse_args()
 
 
@@ -18,11 +20,17 @@ from tracking_initialization.rope_initialization import find_path_through_point_
 from tracking_initialization.object_recognition_lol import determine_object_type
 import numpy as np
 import cv2
-
+import cPickle, time
 marker_handles = {}
 
 def handle_initialization_request(req):
     "rope initialization service"
+    
+    if args.save_requests:
+        fname = "/tmp/init_req_%i.pkl"%time.time()
+        with open(fname,"w") as fh:
+            cPickle.dump(req, fh)
+            print "saved", fname
     
     xyz, _ = pc2xyzrgb(req.cloud)
     xyz = np.squeeze(xyz)
@@ -64,18 +72,25 @@ def handle_initialization_request(req):
         pose_array = gm.PoseArray()
         pose_array.header = req.cloud.header
         pose_array.poses = [gm.Pose(position=point, orientation=gm.Quaternion(0,0,0,1)) for point in rope.nodes]
-        marker_handles[0] = rviz.draw_curve(pose_array,0)
+#        marker_handles[0] = rviz.draw_curve(pose_array,0)
 
         
     
     return resp
     
 
-
+import time
 if __name__ == "__main__":
-    rospy.init_node('rope_initialization_node')
-    s = rospy.Service('/initialization', bs.Initialization, handle_initialization_request)
-    print "Ready to initialize ropes."
-    poly_pub = rospy.Publisher("/initialization/towel_corners_for_viz", gm.PolygonStamped)
-    rviz = RvizWrapper()
-    rospy.spin()    
+    if args.load_request:
+        import matplotlib
+        matplotlib.use("wx")
+        with open(args.load_request, "r") as fh:
+            req = cPickle.load(fh)
+        handle_initialization_request(req)
+    else:
+        rospy.init_node('rope_initialization_node',disable_signals=True)
+        s = rospy.Service('/initialization', bs.Initialization, handle_initialization_request)
+        print "Ready to initialize ropes."
+        poly_pub = rospy.Publisher("/initialization/towel_corners_for_viz", gm.PolygonStamped)
+        #rospy.spin()    
+        time.sleep(999999)

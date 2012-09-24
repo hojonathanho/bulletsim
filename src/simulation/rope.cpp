@@ -2,6 +2,10 @@
 #include "basicobjects.h"
 #include <iostream>
 #include "bullet_io.h"
+#include <boost/foreach.hpp>
+#include "clouds/utils_pcl.h"
+#include "utils/conversions.h"
+#include "utils/utils_vector.h"
 using namespace std;
 
 boost::shared_ptr<btRigidBody> createRigidBody(const boost::shared_ptr<btCollisionShape> shapePtr, const btTransform& trans, btScalar mass) {
@@ -166,4 +170,71 @@ vector<float> CapsuleRope::getHalfHeights() {
 		out.push_back(capsule->getHalfHeight());
 	}
 	return out;
+}
+
+// For every capsule, split it into x_res bins along its axis. Each of these bins has one color.
+// For every bin in a capsule, look at the color of the bin center and the rings around the bin center. The mean of all these determines the one color of the bin.
+void CapsuleRope::setTexture(cv::Mat image, cv::Mat mask, const btTransform& camFromWorld) {
+	vector<btVector3> nodes = getNodes();
+	int x_res = 4;
+	int ang_res = 10;
+	cv::Mat tex_image(1, nodes.size()*x_res, CV_8UC3);
+	vector<btMatrix3x3> rotations = getRotations();
+	vector<float> half_heights = getHalfHeights();
+
+	for (int j=0; j<nodes.size(); j++) {
+		btVector3 node = nodes[j];
+//		Matrix3f node_rot = toEigenMatrix(rotations[j]);
+		btMatrix3x3 node_rot = rotations[j];
+		float node_half_height = half_heights[j];
+
+		vector<vector<float> > B_bins(x_res), G_bins(x_res), R_bins(x_res);
+		for (int xId=0; xId<x_res; xId++) {
+//			btVector3 sub_node = node + toBulletVector(node_rot.col(0)*(-node_half_height + node_half_height*(1+2*xId)/((float)x_res)));
+			btVector3 sub_node = node + node_rot.getColumn(0)*(-node_half_height + node_half_height*(1+2*xId)/((float)x_res));
+
+			vector<cv::Vec3b> bin_colors;
+			float radius_frac = 0.0;
+			while (bin_colors.size() < 10 || radius_frac <= 2.0) {
+
+				if (radius_frac == 0.0) {
+					cv::Point2f uv = xyz2uv(camFromWorld * sub_node);
+					cv::Vec3b color = image.at<cv::Vec3b>(uv.y, uv.x);
+					if (mask.at<bool>(uv.y, uv.x)) {
+						bin_colors.push_back(color);
+						//util::drawSpheres(sub_node, Vector3f(((float)color[2])/255.0, ((float)color[1])/255.0, ((float)color[0])/255.0), 1, 0.001*METERS, util::getGlobalEnv());
+					}
+				} else {
+					for (int angId=0; angId<ang_res; angId++) {
+						float angle = 2.0*M_PI*((float)angId)/((float)(ang_res));
+//						btVector3 surf_pt = sub_node + radius_frac*radius*toBulletVector(AngleAxisf(angle, node_rot.col(0)) * node_rot.col(1));
+						btVector3 surf_pt = sub_node + radius_frac*radius* (btMatrix3x3(btQuaternion(node_rot.getColumn(0), angle)) * node_rot.getColumn(1));
+						cv::Point2f uv = xyz2uv(camFromWorld * surf_pt);
+						cv::Vec3b color = image.at<cv::Vec3b>(uv.y, uv.x);
+						if (mask.at<bool>(uv.y, uv.x)) {
+							bin_colors.push_back(color);
+							//util::drawSpheres(surf_pt, Vector3f(((float)color[2])/255.0, ((float)color[1])/255.0, ((float)color[0])/255.0), 1, 0.001*METERS, util::getGlobalEnv());
+						}
+					}
+				}
+
+				radius_frac += 0.5;
+			}
+
+			BOOST_FOREACH(const cv::Vec3b& color, bin_colors) {
+				B_bins[xId].push_back(color[0]);
+				G_bins[xId].push_back(color[1]);
+				R_bins[xId].push_back(color[2]);
+			}
+		}
+
+		for (int xId=0; xId<x_res; xId++) {
+			tex_image.at<cv::Vec3b>(0,j*x_res+xId)[0] = mean(B_bins[xId]);
+			tex_image.at<cv::Vec3b>(0,j*x_res+xId)[1] = mean(G_bins[xId]);
+			tex_image.at<cv::Vec3b>(0,j*x_res+xId)[2] = mean(R_bins[xId]);
+		}
+
+	}
+
+	CompoundObject::setTexture(tex_image);
 }

@@ -72,6 +72,7 @@ void callback(const vector<sensor_msgs::PointCloud2ConstPtr>& cloud_msg, const v
   	depth_images[i] = cv_bridge::toCvCopy(image_msgs[2*i+1])->image;
   }
   filteredCloud = downsampleCloud(filteredCloud, TrackingConfig::downsample*METERS);
+  //filteredCloud = filterZ(filteredCloud, -0.1*METERS, 0.20*METERS);
 
   pending = true;
 }
@@ -139,7 +140,7 @@ int main(int argc, char* argv[]) {
   ViewerConfig::cameraHomeUp = -transformers[0]->worldFromCamUnscaled.getBasis().getColumn(1);
   scene.startViewer();
 
-	TrackedObject::Ptr trackedObj = callInitServiceAndCreateObject(filteredCloud, rgb_images[0], transformers[0]);
+	TrackedObject::Ptr trackedObj = callInitServiceAndCreateObject(filteredCloud, rgb_images[0], mask_images[0], transformers[0]);
   if (!trackedObj) throw runtime_error("initialization of object failed.");
   trackedObj->init();
   scene.env->add(trackedObj->m_sim);

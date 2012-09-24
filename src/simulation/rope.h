@@ -24,4 +24,5 @@ public:
   std::vector<btVector3> getControlPoints();
   vector<btMatrix3x3> getRotations();
   vector<float> getHalfHeights();
+	void setTexture(cv::Mat image, cv::Mat mask, const btTransform& camFromWorld);
 };

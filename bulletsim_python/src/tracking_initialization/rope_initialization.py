@@ -43,7 +43,9 @@ def find_path_through_point_cloud(xyzs, plotting = False):
         else: total_path.extend(segs[node//2][::-1])
 
     total_path_3d = remove_duplicate_rows(np.array([S.node[i]["xyz"] for i in total_path]))
-    total_path_3d = unif_resample(total_path_3d, seg_len=.02, tol=.01) # tolerance of 1mm
+    total_path_3d = unif_resample(total_path_3d, seg_len=.02, tol=.003) # tolerance of 1mm
+    total_path_3d = unif_resample(total_path_3d, seg_len=.02, tol=.003) # tolerance of 1mm
+#    total_path_3d = unif_resample(total_path_3d, seg_len=.02, tol=.003) # tolerance of 1mm
 
 
     if plotting:
@@ -92,22 +94,22 @@ def plot_paths_2d(paths3d):
         ax.annotate(str(2*i+1), xy=(x,y), xytext=(x+dx, y+dy))
     plt.draw()
     
-def unif_resample(x,n=None,tol=0,deg=None, seg_len = .02):    
+def unif_resample(x,n=None,tol=0,deg=None, seg_len = .02):
+ 
     if deg is None: deg = min(3, len(x) - 1)
 
     x = np.atleast_2d(x)
     x = remove_duplicate_rows(x)
     
-    (tck,_) = si.splprep(x.T,k=deg,s = tol**2*len(x),u=np.arange(len(x)))
-    xup = np.array(si.splev(np.arange(0,len(x),.1),tck)).T
+    (tck,_) = si.splprep(x.T,k=deg,s = tol**2*len(x),u=np.linspace(0,1,len(x)))
+    xup = np.array(si.splev(np.linspace(0,1, 10*len(x),.1),tck)).T
     dl = norms(xup[1:] - xup[:-1],1)
     l = np.cumsum(np.r_[0,dl])
     (tck,_) = si.splprep(xup.T,k=deg,s = tol**2*len(xup),u=l)
 
 
-
     if n is not None: newu = np.linspace(0,l[-1],n)
-    else: newu = np.arange(0, l[-1], seg_len)
+    else: newu = np.linspace(0, l[-1], l[-1]//seg_len)
     return np.array(si.splev(newu,tck)).T    
 
 ############## SKELETONIZATION ##############

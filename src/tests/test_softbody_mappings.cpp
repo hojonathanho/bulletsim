@@ -80,7 +80,7 @@ int main(int argc, char *argv[]) {
 	parser.read(argc, argv);
 
 	Scene scene;
-	setGlobalEnv(scene.env);
+	util::setGlobalEnv(scene.env);
 
 	float s = 0.20 * METERS;
 	float h = 0.10 * METERS;

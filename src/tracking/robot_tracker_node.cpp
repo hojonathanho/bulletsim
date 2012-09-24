@@ -65,7 +65,7 @@ void initializeTrackedObject() {
   cv::Mat image_and_mask = cv_bridge::toCvCopy(msg)->image;
   cv::Mat image, mask;
   extractImageAndMask(image_and_mask, image, mask);
-  trackedObj = callInitServiceAndCreateObject(filteredCloud, image, transformer.get());
+  trackedObj = callInitServiceAndCreateObject(filteredCloud, image, mask, transformer.get());
   if (!trackedObj) throw runtime_error("initialization of object failed.");
   LOG_INFO("created an object of type " << trackedObj->m_type);
   trackedObj->init();

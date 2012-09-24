@@ -27,15 +27,16 @@ using namespace Eigen;
 
 using namespace std;
 
-TrackedObject::Ptr toTrackedObject(const bulletsim_msgs::ObjectInit& initMsg, ColorCloudPtr cloud, cv::Mat image, CoordinateTransformer* transformer) {
+TrackedObject::Ptr toTrackedObject(const bulletsim_msgs::ObjectInit& initMsg, ColorCloudPtr cloud, cv::Mat image, cv::Mat mask, CoordinateTransformer* transformer) {
   if (initMsg.type == "rope") {
 	  vector<btVector3> nodes = toBulletVectors(initMsg.rope.nodes);
 	  BOOST_FOREACH(btVector3& node, nodes) node += btVector3(0,0,.01);
 
 	  CapsuleRope::Ptr sim(new CapsuleRope(scaleVecs(nodes,METERS), initMsg.rope.radius*METERS));
 	  TrackedRope::Ptr tracked_rope(new TrackedRope(sim));
-		cv::Mat tex_image = tracked_rope->makeTexture(cloud);
-		sim->setTexture(tex_image);
+
+  	if (!image.empty())
+  	  sim->setTexture(image, mask, toBulletTransform(transformer->camFromWorldEigen));
 
 	  return tracked_rope;
   }
@@ -144,14 +145,14 @@ bulletsim_msgs::TrackedObject toTrackedObjectMessage(TrackedObject::Ptr obj) {
   return msg;
 }
 
-TrackedObject::Ptr callInitServiceAndCreateObject(ColorCloudPtr cloud, cv::Mat image, CoordinateTransformer* transformer) {
+TrackedObject::Ptr callInitServiceAndCreateObject(ColorCloudPtr cloud, cv::Mat image, cv::Mat mask, CoordinateTransformer* transformer) {
   bulletsim_msgs::Initialization init;
   pcl::toROSMsg(*scaleCloud(cloud, 1/METERS), init.request.cloud);
   init.request.cloud.header.frame_id = "/ground";
 	
   bool success = ros::service::call(initializationService, init);
   if (success)
-  	return toTrackedObject(init.response.objectInit, cloud, image, transformer);
+  	return toTrackedObject(init.response.objectInit, cloud, image, mask, transformer);
   else {
 		ROS_ERROR("initialization failed");
 		return TrackedObject::Ptr();
