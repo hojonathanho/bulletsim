@@ -10,6 +10,8 @@ std::string TrackingConfig::fullCloudTopic = "/kinect1/depth_registered/points";
 std::vector<std::string> TrackingConfig::cameraTopics = boost::assign::list_of("/kinect1");
 std::vector<int> TrackingConfig::featureTypes = boost::assign::list_of(FeatureExtractor::FT_XYZ)(FeatureExtractor::FT_LAB);
 
+float TrackingConfig::downsample = 0.02;
+
 float TrackingConfig::pointOutlierDist = 0.02;
 float TrackingConfig::pointPriorCount = 10;
 float TrackingConfig::pointPriorDist = 0.02;
@@ -28,3 +30,6 @@ float TrackingConfig::tracked_node_distance = 0.05;
 float TrackingConfig::node_distance = 0.01; // 1 cm between nodes
 float TrackingConfig::surface_density = 0.01/(0.1*0.1); // 10 grams per 100 cm2
 int TrackingConfig::node_pixel = 10;
+
+std::string TrackingConfig::record_camera_pos_file = "";
+std::string TrackingConfig::playback_camera_pos_file = "";

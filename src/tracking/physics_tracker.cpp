@@ -33,8 +33,8 @@ void PhysicsTracker::updateFeatures() {
 	//shift the point cloud in the z coordinate
 	//m_obsFeatures->getFeatures(FE::FT_XYZ).col(2) += VectorXf::Ones(m_obsFeatures->getFeatures(FE::FT_XYZ).rows()) * 0.01*METERS;
 	for (int i=0; i<m_obsFeatures->getFeatures(FE::FT_XYZ).rows(); i++)
-		if (m_obsFeatures->getFeatures(FE::FT_XYZ)(i,2) < 0.005)
-			m_obsFeatures->getFeatures(FE::FT_XYZ)(i,2) = 0.005;
+		if (m_obsFeatures->getFeatures(FE::FT_XYZ)(i,2) < 0.005*METERS)
+			m_obsFeatures->getFeatures(FE::FT_XYZ)(i,2) = 0.005*METERS;
 
 	m_estPts = m_objFeatures->getFeatures();
 	m_obsPts = m_obsFeatures->getFeatures();
@@ -46,7 +46,7 @@ void PhysicsTracker::expectationStep() {
 
   boost::posix_time::ptime e_time = boost::posix_time::microsec_clock::local_time();
   m_pZgivenC = calculateResponsibilities(m_estPts, m_obsPts, m_stdev, m_vis, m_objFeatures->m_obj->getOutlierDist(), m_objFeatures->m_obj->getOutlierStdev());
-  LOG_DEBUG("E time " << (boost::posix_time::microsec_clock::local_time() - e_time).total_milliseconds());
+  LOG_TRACE("E time " << (boost::posix_time::microsec_clock::local_time() - e_time).total_milliseconds());
 
 #if 0
 	if (isFinite(m_estPts) && isFinite(m_obsPts) && isFinite(m_vis) && isFinite(m_stdev)) {

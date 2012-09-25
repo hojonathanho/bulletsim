@@ -18,6 +18,7 @@
 #include "simulation/bullet_io.h"
 #include "simulation/softbodies.h"
 #include "utils/logging.h"
+#include "clouds/geom.h"
 
 //DEBUG
 #include "physics_tracker.h"
@@ -27,15 +28,16 @@ using namespace Eigen;
 
 using namespace std;
 
-TrackedObject::Ptr toTrackedObject(const bulletsim_msgs::ObjectInit& initMsg, ColorCloudPtr cloud, cv::Mat image, CoordinateTransformer* transformer) {
+TrackedObject::Ptr toTrackedObject(const bulletsim_msgs::ObjectInit& initMsg, ColorCloudPtr cloud, cv::Mat image, cv::Mat mask, CoordinateTransformer* transformer) {
   if (initMsg.type == "rope") {
 	  vector<btVector3> nodes = toBulletVectors(initMsg.rope.nodes);
 	  BOOST_FOREACH(btVector3& node, nodes) node += btVector3(0,0,.01);
 
 	  CapsuleRope::Ptr sim(new CapsuleRope(scaleVecs(nodes,METERS), initMsg.rope.radius*METERS));
 	  TrackedRope::Ptr tracked_rope(new TrackedRope(sim));
-		cv::Mat tex_image = tracked_rope->makeTexture(cloud);
-		sim->setTexture(tex_image);
+
+  	if (!image.empty())
+  	  sim->setTexture(image, mask, toBulletTransform(transformer->camFromWorldEigen));
 
 	  return tracked_rope;
   }
@@ -57,7 +59,7 @@ TrackedObject::Ptr toTrackedObject(const bulletsim_msgs::ObjectInit& initMsg, Co
 	  printf("Resolution: %d %d\n", resolution_x, resolution_y);
 
 	  vector<btVector3> poly_corners = polyCorners(cloud);
-	  //BOOST_FOREACH(btVector3& poly_corner, poly_corners) util::drawSpheres(poly_corner, Vector3f(1,0,0), 0.5, 2, env);
+//	  BOOST_FOREACH(btVector3& poly_corner, poly_corners) util::drawSpheres(poly_corner, Vector3f(1,0,0), 0.5, 2, util::getGlobalEnv());
   	BulletSoftObject::Ptr sim = makeCloth(poly_corners, resolution_x, resolution_y, mass);
   	if (!image.empty())
   	  sim->setTexture(image, toBulletTransform(transformer->camFromWorldEigen));
@@ -78,13 +80,14 @@ TrackedObject::Ptr toTrackedObject(const bulletsim_msgs::ObjectInit& initMsg, Co
 	  return tracked_towel;
   }
   else if (initMsg.type == "box") {
-		vector<btVector3> top_corners = polyCorners(cloud);
-		float thickness = top_corners[0].z();
-		BulletSoftObject::Ptr sim = makeSponge(top_corners, thickness, 3);
+		vector<btVector3> top_corners = getUprightRectCorners(toBulletVectors(cloud));
+		util::drawPoly(top_corners, Vector3f(1,0,0), 1, util::getGlobalEnv());
+		float thickness = top_corners[0].z()-.01*METERS;
+		BulletSoftObject::Ptr sim = makeSponge(top_corners, thickness, .01*.01*.01);
 		sim->setColor(1,1,1,1);
 
 	  //Shift the whole sponge upwards in case some of it starts below the table surface
-	  sim->softBody->translate(btVector3(0,0,0.01*METERS));
+	  sim->softBody->translate(btVector3(0,0,.01*METERS));
 
 		TrackedSponge::Ptr tracked_sponge(new TrackedSponge(sim));
 		return tracked_sponge;
@@ -144,14 +147,14 @@ bulletsim_msgs::TrackedObject toTrackedObjectMessage(TrackedObject::Ptr obj) {
   return msg;
 }
 
-TrackedObject::Ptr callInitServiceAndCreateObject(ColorCloudPtr cloud, cv::Mat image, CoordinateTransformer* transformer) {
+TrackedObject::Ptr callInitServiceAndCreateObject(ColorCloudPtr cloud, cv::Mat image, cv::Mat mask, CoordinateTransformer* transformer) {
   bulletsim_msgs::Initialization init;
   pcl::toROSMsg(*scaleCloud(cloud, 1/METERS), init.request.cloud);
   init.request.cloud.header.frame_id = "/ground";
 	
   bool success = ros::service::call(initializationService, init);
   if (success)
-  	return toTrackedObject(init.response.objectInit, cloud, image, transformer);
+  	return toTrackedObject(init.response.objectInit, cloud, image, mask, transformer);
   else {
 		ROS_ERROR("initialization failed");
 		return TrackedObject::Ptr();

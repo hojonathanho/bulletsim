@@ -231,6 +231,8 @@ public:
         internalCopy(o, f);
         return o;
     }
+
+    inline btVector3 getHalfExtents() { return halfExtents; }
 };
 
 // A wrapper for btCapsuleShapeX

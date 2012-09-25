@@ -211,3 +211,9 @@ void extractImageAndMask(cv::Mat image_and_mask, cv::Mat& image, cv::Mat& mask) 
   cv::merge(channels, image);
 }
 
+void extractImage(cv::Mat image_and_mask, cv::Mat& image) {
+  vector<cv::Mat> channels;
+  cv::split(image_and_mask, channels);
+  while (channels.size() > 3) channels.pop_back();
+  cv::merge(channels, image);
+}

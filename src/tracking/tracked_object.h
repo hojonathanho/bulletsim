@@ -48,7 +48,6 @@ public:
   std::vector<btVector3> getPoints();
   void applyEvidence(const Eigen::MatrixXf& corr, const Eigen::MatrixXf& obsPts);
   CapsuleRope* getSim() {return dynamic_cast<CapsuleRope*>(m_sim.get());}
-  cv::Mat makeTexture(ColorCloudPtr cloud);
   void initColors();
 
 protected:
