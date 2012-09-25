@@ -10,12 +10,42 @@
 
 namespace po = boost::program_options;
 
+template <typename TYPE>
+std::string toString(const TYPE& v) {
+  std::stringstream ss(std::stringstream::out);
+  ss << v;
+  return ss.str();
+}
+
+template <typename TYPE>
+TYPE fromString(const std::string s) {
+  std::stringstream ss(std::stringstream::in);
+  ss.str(s);
+  TYPE x;
+  ss >> x;
+  return x;
+}
 
 struct ParameterBase {
   std::string m_name;
   std::string m_desc;
   virtual void addToBoost(po::options_description&) = 0;
 };
+
+template <typename T>
+struct ParameterVec : ParameterBase {
+  std::vector<T>* m_value;
+  ParameterVec(std::string name, std::vector<T>* value, std::string desc) {
+    m_name = name;
+    m_value = value;
+    m_desc = desc;
+  }
+  void addToBoost(po::options_description& od) {
+    od.add_options()(m_name.c_str(), po::value(m_value)->default_value(*m_value, toString(*m_value))->multitoken(), m_desc.c_str());
+  }
+
+};
+
 
 template <typename T>
 struct Parameter : ParameterBase {
@@ -25,18 +55,12 @@ struct Parameter : ParameterBase {
     m_value = value;
     m_desc = desc;
   }
-
-  template <typename TYPE>
-  std::string textualRepresentation(const TYPE& v) {
-  	std::stringstream ss;
-  	ss << v;
-  	return ss.str();
-  }
-
   void addToBoost(po::options_description& od) {
-    od.add_options()(m_name.c_str(), po::value(m_value)->default_value(*m_value, textualRepresentation(*m_value)), m_desc.c_str());
+    od.add_options()(m_name.c_str(), po::value(m_value)->default_value(*m_value, toString(*m_value)), m_desc.c_str());
   }
+
 };
+
 
 struct Config {
   std::vector<ParameterBase*> params;

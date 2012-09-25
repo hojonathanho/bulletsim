@@ -1,0 +1,10 @@
+<package>
+  <description brief="bulletsim_python">
+
+     python modules for bulletsim
+
+  </description>
+  <depend package="bulletsim_python"/>
+</package>
+
+

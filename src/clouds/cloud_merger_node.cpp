@@ -1,5 +1,6 @@
 #include <cmath>
 #include <boost/thread.hpp>
+#include <boost/assign/list_of.hpp>
 #include <ros/ros.h>
 #include <tf/transform_broadcaster.h>
 #include <tf/transform_listener.h>
@@ -32,6 +33,8 @@ struct LocalConfig : Config {
   static float squareSize;
   static int chessBoardWidth;
   static int chessBoardHeight;
+  static int tfParent;
+  static bool saveTransform;
 
   LocalConfig() : Config() {
     params.push_back(new Parameter<std::vector<std::string> >("cameraTopics", &cameraTopics, "camera base topics. there should be at least two."));
@@ -41,17 +44,20 @@ struct LocalConfig : Config {
     params.push_back(new Parameter<float>("squareSize", &squareSize, "the length (in meters) of the sides of the squares (if calibrationType != 0)"));
     params.push_back(new Parameter<int>("chessBoardWidth", &chessBoardWidth, "number of inner corners along the width of the chess board (if calibrationType != 0)"));
     params.push_back(new Parameter<int>("chessBoardHeight", &chessBoardHeight, "number of inner corners along the height of the chess board (if calibrationType != 0)"));
+    params.push_back(new Parameter<int>("tfParent", &tfParent, "which camera should be the parent for the chessboard frame. defaults to -1, meaning that the chessboard is the parent of everything"));
+    params.push_back(new Parameter<bool>("saveTransform", &saveTransform, "save chessboard <-> camera transforms to file"));
   }
 };
 
-std::string cameraTopics_a[] = { "/kinect1/depth_registered/points", "/kinect2/depth_registered/points" };
-std::vector<std::string> LocalConfig::cameraTopics = std::vector<std::string>(cameraTopics_a, cameraTopics_a+sizeof(cameraTopics_a)/sizeof(std::string));
+std::vector<std::string> LocalConfig::cameraTopics = boost::assign::list_of("/kinect1/depth_registered/points")("/kinect2/depth_registered/points");
 string LocalConfig::outputTopic = "/kinect_merged/points";
 int LocalConfig::calibrationType = 0;
 bool LocalConfig::calibrateOnce = true;
 float LocalConfig::squareSize = 0.0272;
 int LocalConfig::chessBoardWidth = 6;
 int LocalConfig::chessBoardHeight = 7;
+int LocalConfig::tfParent = -1;
+bool LocalConfig::saveTransform = true;
 
 double CX = 320-.5;
 double CY = 240-.5;
@@ -134,13 +140,23 @@ void updateTransformCallback(const sensor_msgs::PointCloud2ConstPtr& msg_in, int
 		ROS_WARN("Calibration type %d is invalid.", LocalConfig::calibrationType);
 	}
 
-	if (calib_inits[i] && (LocalConfig::calibrationType!=0))
+	if (calib_inits[i] && (LocalConfig::calibrationType!=0) && (LocalConfig::saveTransform))
 		saveTransform(string(getenv("BULLETSIM_SOURCE_DIR")) + "/data/transforms" + string(msg_in->header.frame_id), transforms[i]);
 }
 
 void broadcastTransformCallback(const sensor_msgs::PointCloud2ConstPtr& msg_in, int i) {
 	try {
-		broadcastKinectTransform(toBulletTransform((Affine3f) transforms[i]), msg_in->header.frame_id, "chess_board", *broadcaster, *listener);
+	  if (i == LocalConfig::tfParent) {
+	    string link;
+	    listener->getParent(msg_in->header.frame_id, ros::Time(0), link);
+        listener->getParent(link, ros::Time(0), link);
+        tf::StampedTransform tfTransform;
+        listener->lookupTransform (link, msg_in->header.frame_id, ros::Time(0), tfTransform);
+	    broadcaster->sendTransform(tf::StampedTransform(tfTransform.asBt() * toBulletTransform((Affine3f)transforms[i]).inverse(), ros::Time::now(), link,  "chess_board"));
+	  }
+	  else {
+        broadcastKinectTransform(toBulletTransform((Affine3f) transforms[i]), msg_in->header.frame_id, "chess_board", *broadcaster, *listener);
+	  }
 	} catch (...) {
 		ROS_WARN("Caught an exception from broadcastKinectTransform. Skipping...");
 	}

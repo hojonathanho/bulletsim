@@ -30,6 +30,11 @@ PhysicsTracker::PhysicsTracker(TrackedObjectFeatureExtractor::Ptr object_feature
 void PhysicsTracker::updateFeatures() {
 	m_objFeatures->updateFeatures();
 	m_obsFeatures->updateFeatures();
+	//shift the point cloud in the z coordinate
+	//m_obsFeatures->getFeatures(FE::FT_XYZ).col(2) += VectorXf::Ones(m_obsFeatures->getFeatures(FE::FT_XYZ).rows()) * 0.01*METERS;
+	for (int i=0; i<m_obsFeatures->getFeatures(FE::FT_XYZ).rows(); i++)
+		if (m_obsFeatures->getFeatures(FE::FT_XYZ)(i,2) < 0.005*METERS)
+			m_obsFeatures->getFeatures(FE::FT_XYZ)(i,2) = 0.005*METERS;
 
 	m_estPts = m_objFeatures->getFeatures();
 	m_obsPts = m_obsFeatures->getFeatures();
@@ -38,9 +43,26 @@ void PhysicsTracker::updateFeatures() {
 }
 
 void PhysicsTracker::expectationStep() {
+
   boost::posix_time::ptime e_time = boost::posix_time::microsec_clock::local_time();
   m_pZgivenC = calculateResponsibilities(m_estPts, m_obsPts, m_stdev, m_vis, m_objFeatures->m_obj->getOutlierDist(), m_objFeatures->m_obj->getOutlierStdev());
-  LOG_DEBUG("E time " << (boost::posix_time::microsec_clock::local_time() - e_time).total_milliseconds());
+  LOG_TRACE("E time " << (boost::posix_time::microsec_clock::local_time() - e_time).total_milliseconds());
+
+#if 0
+	if (isFinite(m_estPts) && isFinite(m_obsPts) && isFinite(m_vis) && isFinite(m_stdev)) {
+////		float a = 0.1;
+////		float b = 0.9;
+////		VectorXf alpha = a + m_vis.array() * (b-a);
+//		VectorXf alpha = m_vis;
+//		if (m_pZgivenC.rows()!=0) alpha += m_pZgivenC.rowwise().sum();
+//		VectorXf expectedPi = alpha/alpha.sum();
+//		m_pZgivenC = calculateResponsibilitiesNaive(m_estPts, m_obsPts, m_stdev, expectedPi, m_objFeatures->m_obj->getOutlierDist(), m_objFeatures->m_obj->getOutlierStdev());
+
+		m_pZgivenC = calculateResponsibilitiesNaive(m_estPts, m_obsPts, m_stdev, m_vis, m_objFeatures->m_obj->getOutlierDist(), m_objFeatures->m_obj->getOutlierStdev());
+	} else
+		cout << "WARNING: PhysicsTracker: the input is not finite" << endl;
+#endif
+
 
 #ifdef CHECK_CORRECTNESS
   boost::posix_time::ptime en_time = boost::posix_time::microsec_clock::local_time();
@@ -51,6 +73,7 @@ void PhysicsTracker::expectationStep() {
 }
 
 void PhysicsTracker::maximizationStep(bool apply_evidence) {
+
   boost::posix_time::ptime evidence_time = boost::posix_time::microsec_clock::local_time();
   if (apply_evidence) m_objFeatures->m_obj->applyEvidence(m_pZgivenC, m_obsPts);
   LOG_DEBUG("Evidence time " << (boost::posix_time::microsec_clock::local_time() - evidence_time).total_milliseconds());
@@ -59,9 +82,22 @@ void PhysicsTracker::maximizationStep(bool apply_evidence) {
   m_stdev = calculateStdev(m_estPts, m_obsPts, m_pZgivenC, m_priorDist, TrackingConfig::pointPriorCount);
   LOG_DEBUG("M time " << (boost::posix_time::microsec_clock::local_time() - m_time).total_milliseconds());
 
+
+#if 0
+  //boost::posix_time::ptime evidence_time = boost::posix_time::microsec_clock::local_time();
+
+	if (apply_evidence && isFinite(m_pZgivenC) && isFinite(m_estPts) && isFinite(m_obsPts))
+		m_objFeatures->m_obj->applyEvidence(m_pZgivenC, m_obsFeatures->getFeatures(FE::FT_XYZ));
+  //cout << "Evidence time " << (boost::posix_time::microsec_clock::local_time() - evidence_time).total_milliseconds() << endl;
+
+  //boost::posix_time::ptime m_time = boost::posix_time::microsec_clock::local_time();
+  if (isFinite(m_pZgivenC)) m_stdev = calculateStdev(m_estPts, m_obsPts, m_pZgivenC, m_priorDist, 1);
+  //cout << "M time " << (boost::posix_time::microsec_clock::local_time() - m_time).total_milliseconds() << endl;
+#endif
+
 #ifdef CHECK_CORRECTNESS
   boost::posix_time::ptime mn_time = boost::posix_time::microsec_clock::local_time();
-  MatrixXf stdev_naive = calculateStdevNaive(m_estPts, m_obsPts, m_pZgivenC, m_priorDist, 10);
+  MatrixXf stdev_naive = calculateStdevNaive(m_estPts, m_obsPts, m_pZgivenC, m_priorDist, 2);
   cout << "M naive time " << (boost::posix_time::microsec_clock::local_time() - mn_time).total_milliseconds() << endl;
   assert(isApproxEq(stdev_naive, m_stdev));
 #endif
@@ -121,7 +157,7 @@ void PhysicsTrackerVisualizer::update() {
   TrackedObjectFeatureExtractor::Ptr objFeatures = m_tracker->m_objFeatures;
   TrackedObject::Ptr obj = objFeatures->m_obj;
 
-	if (m_enableObsInlierPlot) plotObs(toBulletVectors(FE::activeFeatures2Feature(obsPts, FE::FT_XYZ)), pZgivenC.colwise().sum(), m_obsInlierPlot);
+	if (m_enableObsInlierPlot) plotObs(toBulletVectors(obsFeatures->getFeatures(FE::FT_XYZ)), pZgivenC.colwise().sum(), m_obsInlierPlot);
 	else m_obsInlierPlot->clear();
 
 	if (m_enableObsPlot) plotObs(obsFeatures->getFeatures(FE::FT_XYZ), obsFeatures->getFeatures(FE::FT_BGR), m_obsPlot);

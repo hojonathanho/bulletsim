@@ -2,6 +2,22 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <map>
+
+template <typename T, typename S>
+std::ostream& operator<<(std::ostream& os, const std::map<T,S>& m)
+{
+	os << "( ";
+	typename std::map<T,S>::const_iterator it;
+	for ( it=m.begin() ; it != m.end(); ) {
+		os << (	*it).first << ": " << (*it).second;
+		it++;
+		if (it == m.end()) break;
+		os << ", ";
+	}
+	os << " )";
+	os.flush();
+}
 
 template <typename T>
 std::ostream& operator<<(std::ostream& os, const std::vector<T>& v)
@@ -67,6 +83,14 @@ std::vector<T> append(const std::vector<std::vector<T> >& v, int start, int end)
 		for (int j=0; j<v[i].size(); j++)
 			res.push_back(v[i][j]);
 	return res;
+}
+
+template <typename T>
+void remove(std::vector<T>& v, const T& e) {
+	typename std::vector<T>::iterator it;
+	while ((it = find(v.begin(), v.end(), e)) != v.end()) {
+		v.erase(it);
+	}
 }
 
 bool cwiseOr(const std::vector<bool>& v);

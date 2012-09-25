@@ -2,6 +2,7 @@
 #include <vector>
 #include <iostream>
 #include "utils/utils_vector.h"
+#include <stdexcept>
 using namespace std;
 
 cv::Mat toSingleChannel(const cv::Mat& in) {
@@ -45,6 +46,17 @@ cv::Mat connectedComponentsFilter(cv::Mat src, int min_pix, int dist_pix) {
 	return dst;
 }
 
+// input and output images are BGR images.
+cv::Mat connectedComponentsFilterColor(cv::Mat src, int min_pix, int dist_pix) {
+	cv::Mat src_gray;
+	cv::cvtColor(src, src_gray, CV_BGR2GRAY);
+	src_gray = src_gray > 0;
+	src_gray = connectedComponentsFilter(src_gray, min_pix, dist_pix);
+	cv::merge(vector<cv::Mat>(3, src_gray), src_gray);
+	cv::multiply(src_gray, src, src, 1/255.0);
+	return src;
+}
+
 //src and dst are binary images. removes sparse pixels and small connected components.
 cv::Mat sparseSmallFilter(cv::Mat src, int erode, int dilate, int min_connected_components, int tol_connected_components) {
 	cv::Mat dst = src.clone();
@@ -53,6 +65,47 @@ cv::Mat sparseSmallFilter(cv::Mat src, int erode, int dilate, int min_connected_
 	dst = connectedComponentsFilter(dst, min_connected_components, tol_connected_components);
 	cv::multiply(src, dst, dst, 1/255.0);
 	return dst;
+}
+
+// input and output are BGR images.
+cv::Mat sparseSmallFilterColor(cv::Mat src, int erode, int dilate, int min_connected_components, int tol_connected_components) {
+	cv::Mat src_gray;
+	cv::cvtColor(src, src_gray, CV_BGR2GRAY);
+	src_gray = src_gray > 0;
+	cv::erode(src_gray, src_gray, cv::Mat(), cv::Point(-1, -1), erode);
+	cv::dilate(src_gray, src_gray, cv::Mat(), cv::Point(-1, -1), dilate);
+	src_gray = connectedComponentsFilter(src_gray, min_connected_components, tol_connected_components);
+	cv::merge(vector<cv::Mat>(3, src_gray), src_gray);
+	cv::Mat dst;
+	cv::multiply(src, src_gray, dst, 1/255.0);
+	return dst;
+}
+
+cv::Mat toBinaryMask(cv::Mat image) {
+	cv::Mat mask = image > 0;
+	vector<cv::Mat> mask_channels;
+	cv::split(mask, mask_channels);
+	mask = mask_channels[0] | mask_channels[1] | mask_channels[2];
+	return mask;
+}
+
+cv::Mat colorSpaceMask(cv::Mat cvmat, uint8_t minx, uint8_t maxx, uint8_t miny, uint8_t maxy, uint8_t minz, uint8_t maxz, int code) {
+	cv::Mat cvmat_transformed;
+	cv::cvtColor(cvmat, cvmat_transformed, code);
+  vector<cv::Mat> channels;
+  cv::split(cvmat_transformed, channels);
+
+  cv::Mat& x = channels[0];
+  cv::Mat& y = channels[1];
+  cv::Mat& z = channels[2];
+
+  cv::Mat mask = (x > minx) & (x < maxx);
+	if (miny > 0) mask &= (y >= miny);
+	if (maxy < 255) mask &= (y <= maxy);
+	if (minz > 0) mask &= (z >= minz);
+	if (maxz < 255) mask &= (z <= maxz);
+
+	return mask;
 }
 
 namespace cv {
@@ -145,4 +198,22 @@ cv::Mat skinMask(cv::Mat src) {
 	//cv::imshow("skin_mask_dilate", skin_mask);
 
 	return skin_mask;
+}
+
+
+
+
+void extractImageAndMask(cv::Mat image_and_mask, cv::Mat& image, cv::Mat& mask) {
+  vector<cv::Mat> channels;
+  cv::split(image_and_mask, channels);
+  mask = channels[3];
+  channels.pop_back();
+  cv::merge(channels, image);
+}
+
+void extractImage(cv::Mat image_and_mask, cv::Mat& image) {
+  vector<cv::Mat> channels;
+  cv::split(image_and_mask, channels);
+  while (channels.size() > 3) channels.pop_back();
+  cv::merge(channels, image);
 }

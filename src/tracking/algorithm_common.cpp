@@ -144,7 +144,7 @@ Eigen::MatrixXf calculateResponsibilitiesNaive(const Eigen::MatrixXf& estPts, co
 		//normalize rows
 		//FIXME does the k+1 row need to be normalized?
 		for (int k=0; k<K; k++) {
-			if (pVis(k) == 0) {
+			if (pVis(k) < TrackingConfig::epsilon) {
 				pZgivenC.row(k) = VectorXf::Zero(N);
 			} else {
 				pZgivenC.row(k) /= pZgivenC.row(k).sum();
@@ -163,6 +163,72 @@ Eigen::MatrixXf calculateResponsibilitiesNaive(const Eigen::MatrixXf& estPts, co
 	assert(pZgivenC.cols() == N);
 	return pZgivenC.topRows(K);
 }
+
+//// with outlier column
+//// gamma(z_nk) = p(z_k = 1 | c_n)
+//Eigen::MatrixXf calculateResponsibilitiesNaive(const Eigen::MatrixXf& estPts, const Eigen::MatrixXf& obsPts, const Eigen::MatrixXf& stdev, const Eigen::VectorXf& pVis, const Eigen::VectorXf& outlierDist, const Eigen::VectorXf& outlierStdev) {
+//	int K = estPts.rows(); //nodes
+//	int N = obsPts.rows(); //observations
+//	int F = estPts.cols(); //features
+//
+//	assert(obsPts.cols() == F);
+//	assert(stdev.rows() == K);
+//	assert(stdev.cols() == F);
+//	assert(pVis.size() == K);
+//	assert(outlierDist.size() <= F);
+//
+//	MatrixXf invStdev = stdev.array().inverse();
+//	MatrixXf invVariances = invStdev.array().square();
+//
+//	MatrixXf squaredDistsInvVariance(K+1,N);
+//	for (int k=0; k<K; k++) {
+//		for (int n=0; n<N; n++) {
+//			VectorXf diff = (obsPts.row(n) - estPts.row(k)).transpose();
+//			squaredDistsInvVariance(k,n) = diff.transpose() * invVariances.row(k).asDiagonal() * diff;
+//		}
+//	}
+//	VectorXf outlierInvStdev = outlierStdev.array().inverse();
+//	VectorXf outlierInvVariances = outlierInvStdev.array().square();
+//	for (int n=0; n<N; n++)
+//		squaredDistsInvVariance(K,n) = outlierDist.transpose() * outlierInvVariances.asDiagonal() * outlierDist;
+//
+//	MatrixXf pZgivenC_exp_part = (-0.5*squaredDistsInvVariance).array().exp();
+//	VectorXf sqrtDetInvVariances = invStdev.rowwise().prod();
+//	MatrixXf pZgivenC(K+1,N+1);
+//	for (int k=0; k<K; k++)
+//		pZgivenC.row(k).leftCols(N) = sqrtDetInvVariances(k) * pZgivenC_exp_part.row(k) * pVis(k);
+//	pZgivenC.row(K).leftCols(N) = outlierInvStdev.prod() * pZgivenC_exp_part.row(K);
+//
+//	//normalize cols
+//	for (int n=0; n<N; n++)
+//		pZgivenC.col(n) /= pZgivenC.col(n).sum();
+//	pZgivenC.col(N) = VectorXf::Constant(K+1, pZgivenC.row(K).leftCols(N).mean());
+//
+//	//iteratively normalize rows and columns. columns are normalized to one and rows are normalized to the visibility term.
+//	for (int i=0; i<TrackingConfig::normalizeIter; i++) {
+//		//normalize rows
+//		//FIXME does the k+1 row need to be normalized?
+//		for (int k=0; k<K; k++) {
+//			if (pVis(k) == 0) {
+//				pZgivenC.row(k) = VectorXf::Zero(N+1);
+//			} else {
+//				pZgivenC.row(k) /= pZgivenC.row(k).sum();
+//			}
+//		}
+//		//pZgivenC.row(K) /= pZgivenC.row(K).sum();
+//
+//		//normalize cols
+//		for (int n=0; n<N; n++)
+//			pZgivenC.col(n) /= pZgivenC.col(n).sum();
+//		pZgivenC.col(N) /= pZgivenC.col(N).sum();
+//	}
+//
+//	infinityDebug(pZgivenC, "pZgivenC");
+//	//assert(isFinite(pZgivenC));
+//	assert(pZgivenC.rows() == K+1);
+//	assert(pZgivenC.cols() == N+1);
+//	return pZgivenC.topLeftCorner(K,N);
+//}
 
 // gamma(z_nk) = p(z_k = 1 | c_n)
 Eigen::MatrixXf calculateResponsibilities(const Eigen::MatrixXf& estPts, const Eigen::MatrixXf& obsPts, const Eigen::MatrixXf& stdev, const Eigen::VectorXf& pVis, const Eigen::VectorXf& outlierDist, const Eigen::VectorXf& outlierStdev) {
@@ -189,6 +255,7 @@ Eigen::MatrixXf calculateResponsibilities(const Eigen::MatrixXf& estPts, const E
 
 	MatrixXf pZgivenC_exp_part = (-0.5*squaredDistsInvVariance).array().exp();
 	VectorXf sqrtDetInvVariances = invStdev.rowwise().prod();
+
 	MatrixXf pZgivenC(K+1,N);
 	for (int k=0; k<K; k++)
 		pZgivenC.row(k) = sqrtDetInvVariances(k) * pZgivenC_exp_part.row(k) * pVis(k);
@@ -202,7 +269,7 @@ Eigen::MatrixXf calculateResponsibilities(const Eigen::MatrixXf& estPts, const E
 		//normalize rows
 		//FIXME does the k+1 row need to be normalized?
 		for (int k=0; k<K; k++) {
-			if (pVis(k) == 0) {
+			if (pVis(k) < TrackingConfig::epsilon) {
 				pZgivenC.row(k) = VectorXf::Zero(N);
 			} else {
 				pZgivenC.row(k) /= pZgivenC.row(k).sum();
@@ -214,7 +281,7 @@ Eigen::MatrixXf calculateResponsibilities(const Eigen::MatrixXf& estPts, const E
 		pZgivenC = pZgivenC * ((VectorXf) pZgivenC.colwise().sum().array().inverse()).asDiagonal();
 	}
 
-	assert(isFinite(pZgivenC));
+	//assert(isFinite(pZgivenC));
 	assert(pZgivenC.rows() == K+1);
 	assert(pZgivenC.cols() == N);
 	return pZgivenC.topRows(K);

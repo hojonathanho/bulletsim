@@ -15,6 +15,7 @@ inline btVector3 toBulletVector(const geometry_msgs::Point32& pt) { return btVec
 inline Eigen::Vector3f toEigenVector(const std::vector<float>& vec) {return Eigen::Vector3f(vec[0],vec[1],vec[2]);}
 inline Eigen::Vector3f toEigenVector(const btVector3& vec) {return Eigen::Vector3f(vec.x(),vec.y(),vec.z());}
 inline osg::Vec3f toOSGVector(const btVector3 &v) { return osg::Vec3f(v.x(), v.y(), v.z()); }
+inline osg::Vec3f toOSGVector(const Eigen::Vector3f &v) { return osg::Vec3f(v(0), v(1), v(2)); }
 Eigen::Matrix3f toEigenMatrix(const btMatrix3x3& basis);
 btMatrix3x3 toBulletMatrix(const Eigen::Matrix3f& rotation);
 osg::Matrix toOsgMatrix( const btTransform& t );
@@ -40,4 +41,6 @@ std::vector<btVector3> toBulletVectors(const std::vector<geometry_msgs::Point>&)
 std::vector<btVector3> toBulletVectors(const std::vector<geometry_msgs::Point32>&);
 std::vector<geometry_msgs::Point> toROSPoints(const std::vector<btVector3>&);
 std::vector<geometry_msgs::Point32> toROSPoints32(const std::vector<btVector3>&);
-
+geometry_msgs::Point32 toROSPoint32(const btVector3& vec);
+geometry_msgs::Point32 toROSPoint32(const btVector3& vec);
+geometry_msgs::Point toROSPoint(const btVector3& vec);

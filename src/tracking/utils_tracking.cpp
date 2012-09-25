@@ -2,17 +2,12 @@
 #include "simulation/config_bullet.h"
 #include "utils/conversions.h"
 #include <boost/foreach.hpp>
+#include "simulation/recording.h"
+#include <cv_bridge/cv_bridge.h>
+#include "clouds/utils_cv.h"
 
 using namespace std;
 using namespace Eigen;
-
-void toggle(bool* b){
-	*b = !(*b);
-}
-
-void add(int* n, int increment) {
-	*n += increment;
-}
 
 Affine3f Scaling3f(float s) {
   Affine3f T;
@@ -47,6 +42,45 @@ Eigen::MatrixXf CoordinateTransformer::toCamFromWorldMatrixXf(const MatrixXf& in
 	for (int row=0; row<in.rows(); ++row)
 		out.row(row) = camFromWorldEigen * Map<const Vector3f>(in.row(row).data(), 3, 1);
 	return out;
+}
+
+
+ImageTopicRecorder::ImageTopicRecorder(ros::NodeHandle& nh, std::string image_topic) :
+		m_subscriber(nh.subscribe(image_topic, 3, &ImageTopicRecorder::callback, this)),
+		m_cycle_time(boost::posix_time::microseconds(1000000.0 * RecordingConfig::speed_up/RecordingConfig::frame_rate)),
+		m_full_filename(RecordingConfig::dir + "/" +  RecordingConfig::video_file + ".avi")
+{}
+
+ImageTopicRecorder::ImageTopicRecorder(ros::NodeHandle& nh, std::string image_topic, std::string full_filename) :
+		m_subscriber(nh.subscribe(image_topic, 3, &ImageTopicRecorder::callback, this)),
+		m_cycle_time(boost::posix_time::microseconds(1000000.0 * RecordingConfig::speed_up/RecordingConfig::frame_rate)),
+		m_full_filename(full_filename)
+{}
+
+void ImageTopicRecorder::callback(sensor_msgs::ImageConstPtr image_msg) {
+  cv::Mat image;
+  extractImage(cv_bridge::toCvCopy(image_msg)->image, image);
+
+  boost::posix_time::ptime current_time = boost::posix_time::microsec_clock::local_time();
+
+	if (!m_video_writer.isOpened()) {
+		m_video_writer.open(m_full_filename,  CV_FOURCC('P','I','M','1'), RecordingConfig::frame_rate, cv::Size(image.cols, image.rows));
+		if (!m_video_writer.isOpened()) {
+			runtime_error("Video destination file " + m_full_filename + " doesn't exits.");
+		}
+
+		m_video_writer << image;
+		m_last_time = current_time + m_cycle_time;
+
+	} else {
+		while (m_last_time <= current_time) {
+			assert(!m_last_image.empty());
+			m_video_writer << m_last_image;
+			m_last_time += m_cycle_time;
+		}
+	}
+
+	m_last_image = image;
 }
 
 
@@ -88,33 +122,8 @@ vector<int> argminAlongRows(const MatrixXf& d_mn) {
   return out;
 }
 
-bool isFinite(const Eigen::MatrixXf& x) {
-  for (int row=0; row < x.rows(); row++) for (int col=0; col<x.cols(); col++) if (!isfinite(x(row,col))) return false;
-  return true;
-}
-
 std::vector<btVector3> toBulletVectors(ColorCloudPtr in) {
   std::vector<btVector3> out(in->size());
   for (int i=0; i < in->size(); ++i) out[i] = btVector3(in->points[i].x,in->points[i].y,in->points[i].z);
   return out;
-}
-
-btTransform waitForAndGetTransform(const tf::TransformListener& listener, std::string target_frame, std::string source_frame) {
-	tf::StampedTransform st;
-	while(1) {
-		try {
-			listener.waitForTransform(target_frame, source_frame, ros::Time(0),ros::Duration(.1));
-			listener.lookupTransform(target_frame, source_frame, ros::Time(0), st);
-		} catch (...) {
-			ROS_WARN("An exception was catched from waitForAndGetTransform. Retrying...");
-			continue;
-		}
-		break;
-	}
-	return st.asBt();
-
-//	listener.waitForTransform(target_frame, source_frame, ros::Time(0),ros::Duration(.1));
-//	tf::StampedTransform st;
-//	listener.lookupTransform(target_frame, source_frame, ros::Time(0), st);
-//	return st.asBt();
 }

@@ -3,6 +3,10 @@ include_directories(
     ${BULLETSIM_SOURCE_DIR}/src
 )
 
+include_directories( ${TETGEN_DIR}
+    ${PCL_INCLUDE_DIRS} )
+
+link_directories( ${TETGEN_DIR} )
 
 include_directories("/opt/ros/fuerte/stacks/vision_opencv/cv_bridge/include") # XXX bad
 include_directories("/opt/ros/fuerte/stacks/geometry/tf/include"
@@ -23,16 +27,19 @@ add_library(tracking
 	sparse_utils.cpp
 	tracked_object.cpp 
 	tracked_rope.cpp
+	tracked_cloth.cpp
 	tracked_towel.cpp
+	tracked_sponge.cpp
 	tracked_box.cpp
 	utils_tracking.cpp
 	visibility.cpp
 	feature_extractor.cpp
 	tracked_compound.cpp
+  cam_sync.cpp
 )
 	
 target_link_libraries(tracking
-	simulation clouds robots)
+	simulation clouds robots cv_bridge)
 	
 add_executable(tracker_node tracker_node.cpp)
 target_link_libraries(tracker_node tracking simulation clouds tf cv_bridge ${OpenCV_LIBS} ${ROS_LIBRARIES} boost_signals)

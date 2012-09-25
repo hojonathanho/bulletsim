@@ -11,5 +11,6 @@ ValuesInds getValuesInds(const vector<double>& joints);
 // gives the joint values and joint indices in the format that
 // openrave requires
 
-void setupDefaultROSRave();
 void setupROSRave(const OpenRAVE::RobotBasePtr& robot, const sensor_msgs::JointState& msg);
+void setupDefaultROSRave();
+void ROSRaveReset(const OpenRAVE::RobotBasePtr& robot, const sensor_msgs::JointState& msg);
