@@ -1,5 +1,5 @@
 import networkx as nx, numpy as np, scipy.spatial.distance as ssd, scipy.interpolate as si
-from collections import deque
+from collections import deque, defaultdict
 import itertools
 from numpy.random import rand
 
@@ -8,6 +8,32 @@ from numpy.random import rand
 ########### TOP LEVEL FUNCTION ###############
 
 MIN_SEG_LEN = 3
+
+def find_path_through_point_cloud_simple(xyzs, plotting=False):
+    xyzs = np.asarray(xyzs).reshape(-1,3)
+    xyzs = voxel_downsample(xyzs, .01)
+    G = points_to_graph(xyzs, .025)
+    path = longest_shortest_path(G)
+    
+
+    total_path_3d = np.array([G.node[i]["xyz"] for i in path])
+    total_path_3d = unif_resample(total_path_3d, seg_len=.02, tol=.003) # tolerance of 1mm
+    total_path_3d = unif_resample(total_path_3d, seg_len=.02, tol=.003) # tolerance of 1mm
+
+
+    if plotting:
+        from mayavi import mlab
+        mlab.figure(2); mlab.clf()
+        x,y,z = np.array(total_path_3d).T
+        mlab.plot3d(x,y,z,color=(1,0,0),tube_radius=.01,opacity=.2)      
+        
+        x,y,z = np.array(xyzs).reshape(-1,3).T
+        mlab.points3d(x,y,z,scale_factor=.01,opacity=.1,color=(0,0,1))
+
+
+    return total_path_3d    
+    
+
 
 def find_path_through_point_cloud(xyzs, plotting = False):
     xyzs = np.asarray(xyzs).reshape(-1,3)
@@ -43,7 +69,9 @@ def find_path_through_point_cloud(xyzs, plotting = False):
         else: total_path.extend(segs[node//2][::-1])
 
     total_path_3d = remove_duplicate_rows(np.array([S.node[i]["xyz"] for i in total_path]))
-    total_path_3d = unif_resample(total_path_3d, seg_len=.02, tol=.01) # tolerance of 1mm
+    total_path_3d = unif_resample(total_path_3d, seg_len=.02, tol=.003) # tolerance of 1mm
+    total_path_3d = unif_resample(total_path_3d, seg_len=.02, tol=.003) # tolerance of 1mm
+#    total_path_3d = unif_resample(total_path_3d, seg_len=.02, tol=.003) # tolerance of 1mm
 
 
     if plotting:
@@ -92,26 +120,41 @@ def plot_paths_2d(paths3d):
         ax.annotate(str(2*i+1), xy=(x,y), xytext=(x+dx, y+dy))
     plt.draw()
     
-def unif_resample(x,n=None,tol=0,deg=None, seg_len = .02):    
+def unif_resample(x,n=None,tol=0,deg=None, seg_len = .02):
+ 
     if deg is None: deg = min(3, len(x) - 1)
 
     x = np.atleast_2d(x)
     x = remove_duplicate_rows(x)
     
-    (tck,_) = si.splprep(x.T,k=deg,s = tol**2*len(x),u=np.arange(len(x)))
-    xup = np.array(si.splev(np.arange(0,len(x),.1),tck)).T
+    (tck,_) = si.splprep(x.T,k=deg,s = tol**2*len(x),u=np.linspace(0,1,len(x)))
+    xup = np.array(si.splev(np.linspace(0,1, 10*len(x),.1),tck)).T
     dl = norms(xup[1:] - xup[:-1],1)
     l = np.cumsum(np.r_[0,dl])
     (tck,_) = si.splprep(xup.T,k=deg,s = tol**2*len(xup),u=l)
 
 
-
     if n is not None: newu = np.linspace(0,l[-1],n)
-    else: newu = np.arange(0, l[-1], seg_len)
+    else: newu = np.linspace(0, l[-1], l[-1]//seg_len)
     return np.array(si.splev(newu,tck)).T    
 
 ############## SKELETONIZATION ##############
 
+
+def voxel_downsample(xyz,s, return_inds = False):
+    xyz = xyz.reshape(-1,3)
+    xyz = xyz[np.isfinite(xyz[:,0])]
+    d = defaultdict(list)
+    for (i,pt) in enumerate(xyz):
+        x,y,z = pt
+        d[(int(x//s),int(y//s),int(z//s))].append(i)
+        
+    new2old = d.values()
+    new_xyz = np.array([xyz[inds].mean(axis=0) for inds in new2old])
+    if return_inds:
+        return new_xyz, new2old
+    else:
+        return new_xyz
 
 def points_to_graph(xyzs, max_dist):
     pdists = ssd.squareform(ssd.pdist(xyzs))
@@ -377,3 +420,9 @@ def remove_duplicate_rows(mat):
     return mat[np.r_[True,(abs(diffs) >= 1e-5).any(axis=1)]]
 def norms(x,ax):
     return np.sqrt((x**2).sum(axis=ax))
+def longest_shortest_path(G):
+    A = nx.floyd_warshall_numpy(G)
+    A[np.isinf(A)] = 0
+    (i_from_long, i_to_long) = np.unravel_index(A.argmax(), A.shape)
+    path = nx.shortest_path(G, source=i_from_long, target=i_to_long)
+    return path

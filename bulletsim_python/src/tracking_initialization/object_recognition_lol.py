@@ -8,8 +8,10 @@ def determine_object_type(xyz,plotting=False):
     if interior_frac(xyz,plotting=plotting) < .25:
         return "rope"
     else:
-        return "towel"
-        
+        if np.median(xyz[:,2]) < 0.05:
+            return "towel"
+        else:
+            return "box"        
     
 def get_biggest_cc(mask):
     labels, max_label = ndi.label(mask)
