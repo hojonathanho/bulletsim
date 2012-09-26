@@ -2,7 +2,7 @@
 
 namespace lfd {
 
-ExecutionModule::ExecutionModule() : PyModule("/home/jonathan/python/lfd/execution.py") {
+ExecutionModule::ExecutionModule() : PyModule("/home/joschu/python/lfd/execution.py") {
 }
 
 py::object ExecutionModule::init(const string &task, py::object tableBounds) {
@@ -14,7 +14,7 @@ py::object ExecutionModule::selectTrajectory(py::object points, py::object currR
 }
 
 
-CurvePerturbation::CurvePerturbation() : PyModule("/home/jonathan/python/lfd/curve_perturbation.py") {
+CurvePerturbation::CurvePerturbation() : PyModule("/home/joschu/python/lfd/curve_perturbation.py") {
 }
 
 py::object CurvePerturbation::perturbCurve(py::object curve, double s) {
