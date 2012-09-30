@@ -4,126 +4,259 @@
 #include "utils/clock.h"
 #include "simulation/simplescene.h"
 #include "utils/conversions.h"
+#include <typeinfo>
 using namespace Eigen;
 using namespace std;
 
 static const float PATH_LENGTH_RATIO = 3;
 static const float MAX_DIST_OVER_TIMESTEP_DIST = 5;
 
+template <class T>
+string getClassName(T& x) {
+  string struct_classname = typeid(x).name();
+  return std::string(&struct_classname[7]);
+}
+
+// http://www.gurobi.com/documentation/5.0/reference-manual/node740
+static const char* grb_statuses[] = {
+    "XXX", //0
+     "LOADED",//1
+     "OPTIMAL",//2
+     "INFEASIBLE",//3
+     "INF_OR_UNBD",//4
+     "UNBOUDNED",//5
+     "CUTOFF",//6
+     "ITERATION LIMIT",//7
+     "NODE_LIMIT",//8
+     "TIME_LIMIT",//9
+     "SOLUTION_LIMIT",//10
+     "INTERRUPTED",//11
+     "NUMERIC",//12
+     "SUBOPTIMAL"//13
+};
+
 static GRBEnv* grbEnv = new GRBEnv();
 GRBEnv* getGRBEnv() {
   return grbEnv;
 }
+static const GRBVar nullvar;
+bool isValidVar(GRBVar& var) {return !var.sameAs(nullvar);}
 
-void ProblemComponent::init(const Eigen::MatrixXd& traj, const VarArray& trajVars, GRBModel* model) {
-  assert(trajVars.rows() == traj.rows());
-  assert(trajVars.cols() == traj.cols());
-  m_trajVars = trajVars;
-  m_model = model;
-  m_nSteps = traj.rows();
-  m_nJoints = traj.cols();
+Eigen::VectorXd defaultMaxStepMvmt(const Eigen::MatrixXd& traj) {
+  VectorXd maxStepMvmt = PATH_LENGTH_RATIO * (traj.row(traj.rows()-1) - traj.row(0)).array().abs() / traj.rows();
+  maxStepMvmt = maxStepMvmt.cwiseMax(VectorXd::Constant(traj.cols(), 2 * SIMD_PI / traj.rows()));
+  return maxStepMvmt;
 }
 
-void CollisionCost::update(const Eigen::MatrixXd& traj, GRBQuadExpr& objective) {
+Eigen::MatrixXd makeTraj(const Eigen::VectorXd& startJoints, const Eigen::VectorXd& endJoints, int nSteps) {
+  assert(startJoints.size() == endJoints.size());
+  Eigen::MatrixXd startEndJoints(2, startJoints.size());
+  startEndJoints.row(0) = startJoints;
+  startEndJoints.row(1) = endJoints;
+  return interp2d(VectorXd::LinSpaced(nSteps, 0, 1), VectorXd::LinSpaced(2, 0, 1), startEndJoints);
+
+}
+
+void updateTraj(const VarArray& trajVars, const VectorXb& optmask, Eigen::MatrixXd& traj) {
+  for (int i=0; i < traj.rows(); ++i)
+    if (optmask(i))
+      for (int j=0; j < traj.cols(); ++j)
+        traj(i,j) = trajVars.at(i, j).get(GRB_DoubleAttr_X);
+}
+
+void setVarsToTraj(const Eigen::MatrixXd traj, const VectorXb& optmask, VarArray& trajVars) {
+  for (int i = 0; i < traj.rows(); ++i)
+    if (optmask(i))
+      for (int j = 0; j < traj.cols(); ++j)
+        trajVars.at(i, j).set(GRB_DoubleAttr_X, traj(i, j));
+}
+
+ArmCCEPtr makeArmCCE(RaveRobotObject::Manipulator::Ptr rrom, RaveRobotObject::Ptr rro, btDynamicsWorld* world) {
+  vector<KinBody::JointPtr> armJoints;
+  vector<KinBody::LinkPtr> armLinks;
+  vector<int> chainDepthOfBodies;
+  getArmKinInfo(rro->robot, rrom->manip, armLinks, armJoints, chainDepthOfBodies);
+  vector<btRigidBody*> armBodies;
+  BOOST_FOREACH(KinBody::LinkPtr& link, armLinks){
+    armBodies.push_back(rro->associatedObj(link)->rigidBody.get());
+  }
+  return ArmCCEPtr(new ArmCCE(rro->robot, world, armLinks, armBodies, armJoints, chainDepthOfBodies));
+}
+
+PlanningProblem::PlanningProblem() :
+    m_model(new GRBModel(*grbEnv)) {}
+
+void PlanningProblem::addComponent(ProblemComponent::Ptr comp) {
+  assert (m_initialized);
+  m_comps.push_back(comp);
+  comp->m_problem = this;
+  comp->onAdd();
+}
+
+void PlanningProblem::removeComponent(ProblemComponent::Ptr comp) {
+  typedef vector<ProblemComponent::Ptr> ComponentList;
+   ComponentList::iterator it = std::find(m_comps.begin(), m_comps.end(), comp);
+   assert(it != m_comps.end());
+   m_comps.erase(it);
+   (*it)->onRemove();
+ }
+
+
+void CollisionCost::updateModel(const Eigen::MatrixXd& traj, GRBQuadExpr& objective) {
 
   // Remove added constraints
   for (int iCnt = 0; iCnt < m_cnts.size(); ++iCnt)
-    m_model->remove(m_cnts[iCnt]);
+    m_problem->m_model->remove(m_cnts[iCnt]);
   for (int iVar = 0; iVar < m_vars.size(); ++iVar)
-    m_model->remove(m_vars[iVar]);
+    m_problem->m_model->remove(m_vars[iVar]);
   m_vars.clear();
   m_cnts.clear();
 
   // Actually run through trajectory and find collisions
   TrajCollisionInfo trajCollInfo = m_cce->collectCollisionInfo(traj);
 
-  int startStep = (m_startFixed ? 1 : 0);
-  int endStep = (m_endFixed ? m_nSteps - 1 : m_nSteps);
-
-  // Make a bunch of variables for hinge costs
-  int nNear(0), nUnsafe(0), nColl(0);
-  for (int iStep = startStep; iStep < m_nSteps; ++iStep) {
-    vector<double>& dists = trajCollInfo[iStep].second;
-    for (int iColl=0; iColl < trajCollInfo[iStep].first.size(); ++iColl) {
-      if (dists[iColl] < -BulletConfig::linkPadding) ++nColl;
-      else if (dists[iColl] < m_safeDistMinusPadding) ++nUnsafe;
-      else if (dists[iColl] < 0) ++nNear;
-    }
-  }
+  int nNear, nUnsafe, nColl;
+  countCollisions(trajCollInfo, m_safeDistMinusPadding, nNear, nUnsafe, nColl);
   int nTotalProximity = nNear + nUnsafe + nColl;
   LOG_INFO_FMT("near: %i, unsafe: %i, collision: %i, total: %i", nNear, nUnsafe, nColl, nTotalProximity);
 
-  for (int iStep = startStep; iStep < endStep; ++iStep) for (int iColl = 0; iColl < trajCollInfo[iStep].first.size(); ++iColl) {
-    m_vars.push_back(m_model->addVar(0, GRB_INFINITY, 0, GRB_CONTINUOUS,"hinge"));
+
+  for (int iStep = 0; iStep < traj.rows(); ++iStep)
+    if (m_problem->m_optMask(iStep))
+      for (int iColl = 0; iColl < trajCollInfo[iStep].first.size(); ++iColl) {
+        m_vars.push_back(m_problem->m_model->addVar(0, GRB_INFINITY, 0, GRB_CONTINUOUS,"hinge"));
   }
-  m_model->update();
+  m_problem->m_model->update();
 
   int varCount = 0;
-  // Create variables that will form the cost
-  for (int iStep = startStep; iStep < endStep; ++iStep) {
-    std::vector<Eigen::VectorXd>& jacs = trajCollInfo[iStep].first;
-    std::vector<double>& dists = trajCollInfo[iStep].second;
-    VarVector jointVars = m_trajVars.row(iStep);
-    for (int iColl = 0; iColl < trajCollInfo[iStep].first.size(); ++iColl) {
-      GRBVar& hinge = m_vars[varCount];
-      ++varCount;
-      GRBLinExpr jacDotTheta;
-      jacDotTheta.addTerms(jacs[iColl].data(), jointVars.data(), m_nJoints);
-      GRBConstr hingeCnt = m_model->addConstr(hinge >= -dists[iColl] + jacDotTheta + m_safeDistMinusPadding - jacs[iColl].dot(traj.row(iStep)));
-      m_cnts.push_back(hingeCnt);
+  for (int iStep = 0; iStep < traj.rows(); ++iStep) {
+    if (m_problem->m_optMask(iStep)) {
+      std::vector<Eigen::VectorXd>& jacs = trajCollInfo[iStep].first;
+      std::vector<double>& dists = trajCollInfo[iStep].second;
+      VarVector jointVars = m_problem->m_trajVars.row(iStep);
+      for (int iColl = 0; iColl < trajCollInfo[iStep].first.size(); ++iColl) {
+        GRBVar& hinge = m_vars[varCount];
+        ++varCount;
+        GRBLinExpr jacDotTheta;
+        jacDotTheta.addTerms(jacs[iColl].data(), jointVars.data(), traj.cols());
+        GRBConstr hingeCnt = m_problem->m_model->addConstr(hinge >= -dists[iColl] + jacDotTheta + m_safeDistMinusPadding - jacs[iColl].dot(traj.row(iStep)));
+        m_cnts.push_back(hingeCnt);
+      }
     }
   }
+  assert(varCount == m_vars.size());
 
   // Create this part of the cost
   m_obj = GRBLinExpr(0);
-  VectorXd coeffs = m_coeff * VectorXd::Ones(m_vars.size());
+  VectorXd coeffs = VectorXd::Constant(m_vars.size(), m_coeff);
   m_obj.addTerms(coeffs.data(), m_vars.data(), m_vars.size());
 
   objective += m_obj;
 }
 
-void LengthConstraintAndCost::init(const Eigen::MatrixXd& traj, const VarArray& trajVars, GRBModel* model) {
-  ProblemComponent::init(traj, trajVars, model);
+void CollisionCost::onRemove() {
+  BOOST_FOREACH(GRBConstr& constr, m_cnts) m_problem->m_model->remove(constr);
+  BOOST_FOREACH(GRBVar var, m_vars) m_problem->m_model->remove(var);
+}
 
-  VectorXb varMask = VectorXb::Ones(m_nSteps);
-  if (m_startFixed) varMask(0) = false;
-  if (m_endFixed) varMask(varMask.size()-1) = false;
+void CollisionConstraint::updateModel(const Eigen::MatrixXd& traj, GRBQuadExpr& objective) {
 
-  for (int iStep = 1; iStep < m_nSteps; ++iStep) {
-    for (int iJoint = 0; iJoint < m_nJoints; ++iJoint) {
+  // Remove added constraints
+  for (int iCnt = 0; iCnt < m_cnts.size(); ++iCnt)
+    m_problem->m_model->remove(m_cnts[iCnt]);
+  m_cnts.clear();
+
+  // Actually run through trajectory and find collisions
+  TrajCollisionInfo trajCollInfo = m_cce->collectCollisionInfo(traj);
+
+  // Make a bunch of variables for hinge costs
+  int nNear, nUnsafe, nColl;
+  countCollisions(trajCollInfo, m_safeDistMinusPadding,nNear, nUnsafe, nColl);
+  int nTotalProximity = nNear + nUnsafe + nColl;
+  LOG_INFO_FMT("near: %i, unsafe: %i, collision: %i, total: %i", nNear, nUnsafe, nColl, nTotalProximity);
+
+  // Create variables that will form the cost
+  for (int iStep = 0; iStep < traj.rows(); ++iStep) {
+    std::vector<Eigen::VectorXd>& jacs = trajCollInfo[iStep].first;
+    std::vector<double>& dists = trajCollInfo[iStep].second;
+    VarVector jointVars = m_problem->m_trajVars.row(iStep);
+    for (int iColl = 0; iColl < trajCollInfo[iStep].first.size(); ++iColl) {
+      GRBLinExpr jacDotTheta;
+      jacDotTheta.addTerms(jacs[iColl].data(), jointVars.data(), traj.rows());
+      GRBConstr cnt = m_problem->m_model->addConstr(0 >= -dists[iColl] + jacDotTheta + m_safeDistMinusPadding - jacs[iColl].dot(traj.row(iStep)));
+      m_cnts.push_back(cnt);
+    }
+  }
+
+//  assert (m_cnts.size() == nTotalProximity);
+}
+
+void CollisionConstraint::onRemove() {
+  BOOST_FOREACH(GRBConstr& cnt, m_cnts) m_problem->m_model->remove(cnt);
+}
+
+void CollisionConstraint::relax() {
+//  double feasRelax(int relaxobjtype, bool minrelax, int vlen,
+//                 const GRBVar* vars, const double* lbpen,
+//                 const double* ubpen, int clen, const GRBConstr* constrs,
+//                 const double* rhspen);
+
+  VectorXd cntPen = VectorXd::Ones(m_cnts.size());
+  m_problem->m_model->feasRelax(0, // sum of violations
+  true, // minimize original objective among ones minimizing violation
+  0, // vlen
+  NULL, //vars
+  NULL, //lbpen
+  NULL, //ubpen
+  m_cnts.size(), //clen
+  m_cnts.data(), // constr
+  cntPen.data());
+}
+
+void LengthConstraintAndCost::onAdd() {
+  MatrixXd& traj = m_problem->m_currentTraj;
+  for (int iStep = 1; iStep < traj.rows(); ++iStep)
+    for (int iJoint = 0; iJoint < traj.cols(); ++iJoint) {
       GRBLinExpr diff;
-      if (varMask(iStep)) diff += trajVars.at(iStep, iJoint);
-      else diff += traj(iStep, iJoint);
-      if (varMask(iStep - 1)) diff -= trajVars.at(iStep - 1, iJoint);
-      else diff -= traj(iStep, iJoint);
-      m_model->addConstr(diff <= m_maxStepMvmt(iJoint));
-      m_model->addConstr(diff >= -m_maxStepMvmt(iJoint));
-      m_obj += (m_coeff * m_nSteps) * (diff * diff);
-
+      if (m_problem->m_optMask(iStep)) {
+        diff += m_problem->m_trajVars.at(iStep, iJoint);
+        assert(isValidVar(m_problem->m_trajVars.at(iStep,iJoint)));
+      } else diff += traj(iStep, iJoint);
+      if (m_problem->m_optMask(iStep - 1)) {
+        diff -= m_problem->m_trajVars.at(iStep - 1, iJoint);
+        assert(isValidVar(m_problem->m_trajVars.at(iStep-1,iJoint)));
+      } else diff -= traj(iStep-1, iJoint);
+      m_cnts.push_back(m_problem->m_model->addConstr(diff <= m_maxStepMvmt(iJoint)));
+      m_cnts.push_back(m_problem->m_model->addConstr(diff >= -m_maxStepMvmt(iJoint)));
+      m_obj += traj.rows() * (diff * diff);
     }
+}
+
+void LengthConstraintAndCost::onRemove() {
+  BOOST_FOREACH(GRBConstr& cnt, m_cnts) m_problem->m_model->remove(cnt);
+}
+
+void JointBounds::onAdd() {
+  MatrixXd& traj = m_problem->m_currentTraj;
+  VectorXd maxStepMvmt = PATH_LENGTH_RATIO * (traj.row(traj.rows()-1) - traj.row(0)).array().abs() / traj.rows();
+  maxStepMvmt = maxStepMvmt.cwiseMax(VectorXd::Constant(traj.cols(), 2 * SIMD_PI / traj.rows()));
+
+}
+
+void JointBounds::updateModel(const Eigen::MatrixXd& traj, GRBQuadExpr& objective) {
+
+  for (int iStep = 0; iStep < traj.rows(); ++iStep) {
+    if (m_problem->m_optMask(iStep))
+      for (int iJoint = 0; iJoint < traj.cols(); ++iJoint) {
+        m_problem->m_trajVars.at(iStep, iJoint).set(GRB_DoubleAttr_LB, fmax(traj(iStep, iJoint) - m_maxDiffPerIter(iJoint), m_jointLowerLimit(iJoint)));
+        m_problem->m_trajVars.at(iStep, iJoint).set(GRB_DoubleAttr_UB, fmin(traj(iStep, iJoint) + m_maxDiffPerIter(iJoint), m_jointUpperLimit(iJoint)));
+      }
   }
-}
-
-void JointBounds::init(const Eigen::MatrixXd& traj, const VarArray& trajVars, GRBModel* model) {
-  ProblemComponent::init(traj, trajVars, model);
-  VectorXd maxStepMvmt = PATH_LENGTH_RATIO * (traj.row(traj.rows()-1) - traj.row(0)).array().abs() / m_nSteps;
-  maxStepMvmt = maxStepMvmt.cwiseMax(VectorXd::Constant(m_nJoints, 2 * SIMD_PI / m_nSteps));
 
 }
 
-void JointBounds::update(const Eigen::MatrixXd& traj, GRBQuadExpr& objective) {
-
-  for (int iStep = (m_startFixed ? 1 : 0); iStep < (m_endFixed ? m_nSteps-1 : m_nSteps); ++iStep) {
-    for (int iJoint = 0; iJoint < m_nJoints; ++iJoint) {
-      m_trajVars.at(iStep, iJoint).set(GRB_DoubleAttr_LB, fmax(traj(iStep, iJoint) - m_maxDiffPerIter(iJoint), m_jointLowerLimit(iJoint)));
-      m_trajVars.at(iStep, iJoint).set(GRB_DoubleAttr_UB, fmin(traj(iStep, iJoint) + m_maxDiffPerIter(iJoint), m_jointUpperLimit(iJoint)));
-    }
-  }
-
-}
-
-
-void CartesianPoseCost::update(const Eigen::MatrixXd& traj, GRBQuadExpr& objective) {
+#if 0
+void CartesianPoseCost::updateModel(const Eigen::MatrixXd& traj, GRBQuadExpr& objective) {
   m_robot->SetActiveDOFs(m_manip->GetArmIndices());
   vector<double> prevVals;
   m_robot->GetActiveDOFValues(prevVals);
@@ -165,11 +298,11 @@ void CartesianPoseCost::update(const Eigen::MatrixXd& traj, GRBQuadExpr& objecti
 }
 
 
+#endif
 
-ArmPlanningProblem::ArmPlanningProblem() :
-  m_model(new GRBModel(*grbEnv)) {
-}
 
+
+#if 0
 void ArmPlanningProblem::setup(RaveRobotObject::Manipulator::Ptr rrom, RaveRobotObject::Ptr rro, btCollisionWorld* world) {
   vector<KinBody::JointPtr> armJoints;
   vector<KinBody::LinkPtr> armLinks;
@@ -182,130 +315,58 @@ void ArmPlanningProblem::setup(RaveRobotObject::Manipulator::Ptr rrom, RaveRobot
   m_cce.reset(new CollisionCostEvaluator(rro->robot, world, armLinks, armBodies, armJoints, chainDepthOfBodies));
   m_nJoints = armJoints.size();
 }
+#endif
 
-void ArmPlanningProblem::optimize(int maxIter) {
-  if (m_atp) m_atp->plotTraj(m_currentTraj);
+
+
+
+void PlanningProblem::doIteration() {
+  GRBQuadExpr objective(0);
+  TIC();
+  for (int i=0; i < m_comps.size(); ++i) m_comps[i]->updateModel(m_currentTraj, objective);
+  m_model->setObjective(objective);
+  LOG_INFO_FMT("total problem construction time: %.2f", TOC());
+
+  TIC1();
+  m_model->optimize();
+  LOG_INFO_FMT("optimization time: %.2f", TOC());
+
+  int status = m_model->get(GRB_IntAttr_Status);
+  if (status != GRB_OPTIMAL) {
+    LOG_ERROR("bad grb status: " << grb_statuses[status]);
+  }
+  else {
+    updateTraj(m_trajVars, m_optMask, m_currentTraj);
+  }
+}
+
+void PlanningProblem::optimize(int maxIter) {
+  BOOST_FOREACH(TrajPlotterPtr plotter, m_plotters) plotter->plotTraj(m_currentTraj);
   for (int iter = 0; iter < maxIter; ++iter) {
     doIteration();
-    if (m_atp) m_atp->plotTraj(m_currentTraj);
+    BOOST_FOREACH(TrajPlotterPtr plotter, m_plotters) plotter->plotTraj(m_currentTraj);
     LOG_INFO_FMT("iteration: %i, objective: %.3f",iter,m_model->get(GRB_DoubleAttr_ObjVal));
   }
 }
 
-Eigen::VectorXd defaultMaxStepMvmt(const Eigen::MatrixXd& traj) {
-  VectorXd maxStepMvmt = PATH_LENGTH_RATIO * (traj.row(traj.rows()-1) - traj.row(0)).array().abs() / traj.rows();
-  maxStepMvmt = maxStepMvmt.cwiseMax(VectorXd::Constant(traj.cols(), 2 * SIMD_PI / traj.rows()));
-  return maxStepMvmt;
-}
-
-Eigen::MatrixXd makeTraj(const Eigen::VectorXd& startJoints, const Eigen::VectorXd& endJoints, int nSteps) {
-  assert(startJoints.size() == endJoints.size());
-  Eigen::MatrixXd startEndJoints(2, startJoints.size());
-  startEndJoints.row(0) = startJoints;
-  startEndJoints.row(1) = endJoints;
-  return interp2d(VectorXd::LinSpaced(nSteps, 0, 1), VectorXd::LinSpaced(2, 0, 1), startEndJoints);
-
-}
-
-
-void updateTraj(const VarArray& trajVars, Eigen::MatrixXd& traj) {
-  for (int i=1; i < traj.rows()-1; ++i)
-    for (int j=0; j < traj.cols(); ++j)
-      traj(i,j) = trajVars.at(i, j).get(GRB_DoubleAttr_X);
-}
-
-void setVarsToTraj(const Eigen::MatrixXd traj, VarArray& trajVars) {
-  for (int i=1; i < traj.rows()-1; ++i)
-    for (int j=0; j < traj.cols(); ++j)
-      trajVars.at(i, j).set(GRB_DoubleAttr_X, traj(i,j));
-}
-
-
-
-void GetArmToJointGoal::setProblem(const VectorXd& startJoints, const VectorXd& endJoints, int nSteps) {
-  assert(startJoints.size() == m_nJoints);
-  assert(endJoints.size() == m_nJoints);
-  Eigen::MatrixXd startEndJoints(2, m_nJoints);
-  startEndJoints.row(0) = startJoints;
-  startEndJoints.row(1) = endJoints;
-  m_currentTraj = interp2d(VectorXd::LinSpaced(nSteps, 0, 1), VectorXd::LinSpaced(2, 0, 1), startEndJoints);
-  m_maxStepMvmt = PATH_LENGTH_RATIO * (endJoints - startJoints).array().abs() / nSteps;
-  m_maxStepMvmt = m_maxStepMvmt.cwiseMax(VectorXd::Constant(m_nJoints, 2 * SIMD_PI / nSteps));
-  m_maxDiffPerIter = m_maxStepMvmt / MAX_DIST_OVER_TIMESTEP_DIST;
-  m_model->reset();
-  m_trajVars = VarArray(nSteps, m_nJoints);
-
-  for (int iRow = 1; iRow < m_currentTraj.rows() - 1; ++iRow) {
-    for (int iCol = 0; iCol < m_currentTraj.cols(); ++iCol) {
-      m_trajVars.at(iRow, iCol) = m_model->addVar(0, 0, 0, GRB_CONTINUOUS);
+void PlanningProblem::initialize(const Eigen::MatrixXd& initTraj, bool endFixed) {
+  m_currentTraj = initTraj;
+  m_trajVars = VarArray(initTraj.rows(), initTraj.cols());
+  m_optMask = VectorXb::Ones(initTraj.rows());
+  m_optMask(0) = false;
+  if (endFixed) m_optMask(initTraj.rows()-1) = false;
+  for (int iRow = 0; iRow < m_currentTraj.rows(); ++iRow) {
+    if (m_optMask(iRow)) {
+      for (int iCol = 0; iCol < m_currentTraj.cols(); ++iCol) {
+        char namebuf[10];
+        sprintf(namebuf, "j_%i_%i",iRow,iCol);
+        m_trajVars.at(iRow, iCol) = m_model->addVar(0, 0, 0, GRB_CONTINUOUS,namebuf);
+      }
     }
   }
   m_model->update();
-
-  for (int iStep = 1; iStep < nSteps; ++iStep) {
-    for (int iJoint = 0; iJoint < m_nJoints; ++iJoint) {
-      GRBLinExpr diff;
-      if (iStep == 1) diff = m_trajVars.at(iStep, iJoint) - m_currentTraj(iStep - 1, iJoint);
-      else if (iStep < nSteps - 1) diff = m_trajVars.at(iStep, iJoint) - m_trajVars.at(iStep - 1, iJoint);
-      else if (iStep == nSteps - 1) diff = m_currentTraj(iStep, iJoint) - m_trajVars.at(iStep - 1, iJoint);
-      else assert(0);
-      m_model->addConstr(diff <= m_maxStepMvmt(iJoint));
-      m_model->addConstr(diff >= -m_maxStepMvmt(iJoint));
-      m_pathLengthCost += .5 * nSteps * diff * diff;
-    }
-  }
-
+  m_initialized=true;
 }
-
-void GetArmToJointGoal::doIteration() {
-
-  MatrixXd collGrad;
-  double collCost;
-
-  if (m_cce == NULL) throw std::runtime_error("you forgot to call setProblem");
-  TIC();
-  m_cce->calcCostAndGrad(m_currentTraj, collCost, collGrad);
-  LOG_INFO("gradient time: " << TOC());
-
-  int nSteps = m_currentTraj.rows();
-
-  try {
-
-    TIC1();
-    MatrixXd trajCostCoefs = collGrad.cast<double> ();
-    GRBLinExpr linearizedCollisionCost;
-    linearizedCollisionCost.addTerms(trajCostCoefs.block(1, 0, nSteps - 2, m_nJoints).data(), m_trajVars.m_data.data() + m_nJoints, (nSteps - 2) * m_nJoints);
-
-    for (int iStep = 1; iStep < nSteps; ++iStep) {
-      for (int iJoint = 0; iJoint < m_nJoints; ++iJoint) {
-        if (iStep < nSteps - 1) {
-          vector<double> ll, ul;
-          m_cce->m_joints[iJoint]->GetLimits(ll, ul);
-          m_trajVars.at(iStep, iJoint).set(GRB_DoubleAttr_LB, fmax(m_currentTraj(iStep, iJoint) - m_maxDiffPerIter(iJoint), ll[0]));
-          m_trajVars.at(iStep, iJoint).set(GRB_DoubleAttr_UB, fmin(m_currentTraj(iStep, iJoint) + m_maxDiffPerIter(iJoint), ul[0]));
-        }
-      }
-    }
-    m_model->setObjective(linearizedCollisionCost + m_pathLengthCost);
-    LOG_INFO("optimization setup time: " << TOC());
-
-    TIC1();
-    m_model->optimize();
-    LOG_INFO("optimization time: " << TOC());
-
-    for (int iStep = 1; iStep < nSteps - 1; ++iStep) {
-      for (int iJoint = 0; iJoint < 7; ++iJoint) {
-        m_currentTraj(iStep, iJoint) = m_trajVars.at(iStep, iJoint).get(GRB_DoubleAttr_X);
-      }
-    }
-  } catch (GRBException e) {
-    cout << "GRB error: " << e.getMessage() << endl;
-    throw;
-  }
-}
-
-
-
 
 
 GripperPlotter::GripperPlotter(RaveRobotObject::Manipulator::Ptr rrom, Scene* scene, int decimation) :
@@ -357,11 +418,10 @@ GripperPlotter::~GripperPlotter() {
   m_osgRoot->removeChild(m_curve);
 }
 
-ArmPlotter::ArmPlotter(RaveRobotObject::Manipulator::Ptr rrom, Scene* scene, CollisionCostEvaluator& cce, int decimation) {
+ArmPlotter::ArmPlotter(RaveRobotObject::Manipulator::Ptr rrom, Scene* scene, vector<KinBody::LinkPtr>& links, BulletRaveSyncher& syncher, int decimation) {
   vector<BulletObject::Ptr> armObjs;
-  BOOST_FOREACH(KinBody::LinkPtr link, cce.m_links)
-armObjs  .push_back(rrom->robot->associatedObj(link));
-  init(rrom, armObjs, scene, &cce.m_syncher, decimation);
+  BOOST_FOREACH(KinBody::LinkPtr link, links) armObjs.push_back(rrom->robot->associatedObj(link));
+  init(rrom, armObjs, scene, &syncher, decimation);
 }
 ArmPlotter::ArmPlotter(RaveRobotObject::Manipulator::Ptr rrom, const std::vector<BulletObject::Ptr>& origs, Scene* scene, BulletRaveSyncher*syncher, int decimation) {
   init(rrom, origs, scene, syncher, decimation);
@@ -374,6 +434,17 @@ void ArmPlotter::init(RaveRobotObject::Manipulator::Ptr rrom, const std::vector<
   m_origs = origs;
   m_syncher = syncher;
   m_decimation = decimation;
+  m_curve = new PlotCurve(3);
+  m_curve->m_defaultColor=osg::Vec4f(0,1,0,1);
+  m_axes.reset(new PlotAxes());
+  m_curve->m_defaultColor=osg::Vec4f(0,1,0,1);
+  m_scene->env->add(m_axes);
+  m_osgRoot->addChild(m_curve.get());
+}
+
+ArmPlotter::~ArmPlotter() {
+  m_osgRoot->removeChild(m_curve);
+  m_scene->env->remove(m_axes);
 }
 
 void ArmPlotter::setLength(int nPlots) {
@@ -390,6 +461,15 @@ void ArmPlotter::setLength(int nPlots) {
   }
 }
 
+vector<btVector3> getGripperPositions(const MatrixXd& traj, RaveRobotObject::Manipulator::Ptr rrom) {
+  vector<btVector3> out;
+  for (int i=0; i < traj.rows(); ++i) {
+    rrom->setDOFValues(toDoubleVec(traj.row(i)));
+    out.push_back(rrom->getTransform().getOrigin());
+  }
+  return out;
+}
+
 void ArmPlotter::plotTraj(const MatrixXd& traj) {
   setLength(traj.rows() / m_decimation);
 
@@ -401,8 +481,17 @@ void ArmPlotter::plotTraj(const MatrixXd& traj) {
       m_fakes.at(iPlot, iObj)->setTransform(m_origs[iObj]->rigidBody->getCenterOfMassTransform());
     }
   }
+
+  m_rrom->setDOFValues(toDoubleVec(traj.row(traj.rows()-1)));
+  m_axes->setup(m_rrom->getTransform(), .1*METERS);
+
+  vector<btVector3> gripperPositions = getGripperPositions(traj, m_rrom);
+  m_curve->setPoints(gripperPositions);
+
+
   m_rrom->setDOFValues(curDOFVals);
   m_syncher->updateBullet();
+
 
   TIC();
   m_scene->step(0);
@@ -423,37 +512,5 @@ void interactiveTrajPlot(const MatrixXd& traj, RaveRobotObject::Manipulator::Ptr
   syncher->updateBullet();
 }
 
-
-void ComponentizedArmPlanningProblem::doIteration() {
-  GRBQuadExpr objective(0);
-  TIC();
-  for (int i=0; i < m_comps.size(); ++i) m_comps[i]->update(m_currentTraj, objective);
-  m_model->setObjective(objective);
-  LOG_INFO_FMT("total problem construction time: %.2f", TOC());
-
-  TIC1();
-  m_model->optimize();
-  LOG_INFO_FMT("optimization time: %.2f", TOC());
-
-  if (m_atp) m_atp->plotTraj(m_currentTraj);
-
-  updateTraj(m_trajVars, m_currentTraj);
-}
-
-void ComponentizedArmPlanningProblem::initialize(Eigen::MatrixXd& initTraj) {
-  m_currentTraj = initTraj;
-  m_trajVars = VarArray(initTraj.rows(), m_nJoints);
-  for (int iRow = 1; iRow < m_currentTraj.rows() - 1; ++iRow) {
-    for (int iCol = 0; iCol < m_currentTraj.cols(); ++iCol) {
-      char namebuf[10];
-      sprintf(namebuf, "j_%i_%i",iRow,iCol);
-      m_trajVars.at(iRow, iCol) = m_model->addVar(0, 0, 0, GRB_CONTINUOUS,namebuf);
-    }
-  }
-  m_model->update();
-
-  for (int i=0; i < m_comps.size(); ++i) m_comps[i]->init(m_currentTraj, m_trajVars, m_model.get());
-
-}
 
 

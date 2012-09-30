@@ -7,10 +7,10 @@
 #include "utils/logging.h"
 #include "utils/clock.h"
 #include "sqp_algorithm.h"
+#include "config_sqp.h"
 using namespace std;
 using namespace Eigen;
 using namespace util;
-using boost::shared_ptr;
 
 
 struct LocalConfig : Config {
@@ -52,6 +52,13 @@ const static double postures[][7] = {
 
 
 
+void removeBodiesFromBullet(vector<BulletObject::Ptr> objs, btDynamicsWorld* world) {
+  BOOST_FOREACH(BulletObject::Ptr obj, objs) {
+    if (obj && obj->rigidBody)
+      world->removeRigidBody(obj->rigidBody.get());
+  }
+}
+
 int main(int argc, char *argv[]) {
 	GeneralConfig::scale = 1.;
 	BulletConfig::friction = 2; // for if you're shooting blocks
@@ -60,6 +67,7 @@ int main(int argc, char *argv[]) {
 	parser.addGroup(GeneralConfig());
 	parser.addGroup(BulletConfig());
 	parser.addGroup(LocalConfig());
+	parser.addGroup(SQPConfig());
 	parser.read(argc, argv);
 
 	const float table_height = .65;
@@ -75,51 +83,43 @@ int main(int argc, char *argv[]) {
 	PR2Manager pr2m(scene);
 	RaveRobotObject::Ptr pr2 = pr2m.pr2;
 	RaveRobotObject::Manipulator::Ptr rarm = pr2m.pr2Right;
-	BOOST_FOREACH(BulletObject::Ptr child, pr2->children) {
-		if	(child) {
-			btRigidBody* rb = child->rigidBody.get();
-			scene.env->bullet->dynamicsWorld->removeRigidBody(rb);
-		}
-	}
+
+	removeBodiesFromBullet(pr2->children, scene.env->bullet->dynamicsWorld);
 
 	int nJoints = 7;
     VectorXd startJoints = Map<const VectorXd>(postures[LocalConfig::startPosture], nJoints);
     VectorXd endJoints = Map<const VectorXd>(postures[LocalConfig::endPosture], nJoints);
 
     TIC();
-	ComponentizedArmPlanningProblem planner;
-	planner.setup(rarm, pr2, scene.env->bullet->dynamicsWorld);
+	PlanningProblem prob;
+    ArmCCEPtr cce = makeArmCCE(rarm, pr2, scene.env->bullet->dynamicsWorld);
 	MatrixXd initTraj = makeTraj(startJoints, endJoints, LocalConfig::nSteps);
-	shared_ptr<LengthConstraintAndCost> lcc(new LengthConstraintAndCost(true, true, defaultMaxStepMvmt(initTraj),.5));
-	shared_ptr<CollisionCost> cc(new CollisionCost(true, true, planner.m_cce.get(), -BulletConfig::linkPadding/2, 5));
-	shared_ptr<JointBounds> jb(new JointBounds(true, true, defaultMaxStepMvmt(initTraj)/5, rarm->manip));
-	planner.addComponent(lcc);
-	planner.addComponent(cc);
-	planner.addComponent(jb);
-	planner.initialize(initTraj);
+	LengthConstraintAndCostPtr lcc(new LengthConstraintAndCost(true, true, defaultMaxStepMvmt(initTraj),SQPConfig::lengthCoef));
+	CollisionCostPtr cc(new CollisionCost(cce, -BulletConfig::linkPadding/2, SQPConfig::collCoef));
+	JointBoundsPtr jb(new JointBounds(true, true, defaultMaxStepMvmt(initTraj)/5, rarm->manip));
+	prob.initialize(initTraj, true);
+    prob.addComponent(lcc);
+    prob.addComponent(cc);
+    prob.addComponent(jb);
 	LOG_INFO_FMT("setup time: %.2f", TOC());
-#if 0
-  GetArmToJointGoal planner;
-  planner.setup(rarm, pr2, scene.env->bullet->dynamicsWorld);
-  planner.setProblem(startJoints, endJoints, LocalConfig::nSteps);
-#endif
 
 
-  TrajPlotter::Ptr plotter;
+  TrajPlotterPtr plotter;
   if (LocalConfig::plotType == 0) {
 	  plotter.reset(new GripperPlotter(rarm, &scene, 1));
-	  planner.setPlotter(plotter);
   }
   else if (LocalConfig::plotType == 1) {
-	  plotter.reset(new ArmPlotter(rarm, &scene, *planner.m_cce, LocalConfig::plotDecimation));
+	  plotter.reset(new ArmPlotter(rarm, &scene, cce->m_links, cce->m_syncher, LocalConfig::plotDecimation));
   }
   else throw std::runtime_error("invalid plot type");
 
-  planner.setPlotter(plotter);
+  prob.addPlotter(plotter);
 
   scene.startViewer();
 
-  planner.optimize(LocalConfig::nIter);
+
+  prob.optimize(LocalConfig::nIter);
+  prob.removeComponent(cc);
   scene.idle(true);
 
 }
