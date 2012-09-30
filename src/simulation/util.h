@@ -48,7 +48,8 @@ namespace util {
   }
 
   inline OpenRAVE::Vector toRaveQuaternion(const btQuaternion &q) {
-    return OpenRAVE::Vector(q.w(), q.x(), q.y(), q.z());
+    btQuaternion q1 = q.normalized();
+    return OpenRAVE::Vector(q1.w(), q1.x(), q1.y(), q1.z());
   }
   inline OpenRAVE::Vector toRaveVector(const btVector3 &v) {
     return OpenRAVE::Vector(v.x(), v.y(), v.z());
@@ -85,11 +86,11 @@ namespace util {
   void setGlobalEnv(Environment::Ptr env);
   Environment::Ptr getGlobalEnv();
 
-  void drawSpheres(vector<btVector3> points, Eigen::Vector3f color, float alpha, float radius, Environment::Ptr env);
-  void drawSpheres(btVector3 point, Eigen::Vector3f color, float alpha, float radius, Environment::Ptr env);
-  void drawLines(vector<btVector3> points0, vector<btVector3> points1, Eigen::Vector3f color, float alpha, Environment::Ptr env);
-  void drawPoly(vector<btVector3> points, Eigen::Vector3f color, float alpha, Environment::Ptr env);
-  void drawAxes(btTransform transform, float size, Environment::Ptr env);
+  PlotSpheres::Ptr drawSpheres(vector<btVector3> points, Eigen::Vector3f color, float alpha, float radius, Environment::Ptr env);
+  PlotSpheres::Ptr drawSpheres(btVector3 point, Eigen::Vector3f color, float alpha, float radius, Environment::Ptr env);
+  PlotLines::Ptr drawLines(vector<btVector3> points0, vector<btVector3> points1, Eigen::Vector3f color, float alpha, Environment::Ptr env);
+  PlotLines::Ptr drawPoly(vector<btVector3> points, Eigen::Vector3f color, float alpha, Environment::Ptr env);
+  PlotAxes::Ptr drawAxes(btTransform transform, float size, Environment::Ptr env);
 
   ///////////////// FILE IO ////////////////////////////
   template <class T>
