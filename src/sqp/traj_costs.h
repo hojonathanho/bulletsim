@@ -50,7 +50,14 @@ typedef std::vector< TimestepCollisionInfo > TrajCollisionInfo;
 
 class CollisionCostEvaluator {
 public:
-  typedef boost::shared_ptr<CollisionCostEvaluator> Ptr;
+  virtual float calcCost(const Eigen::MatrixXd& x)=0;
+  virtual void calcCostAndGrad(const Eigen::MatrixXd& traj, double& val, Eigen::MatrixXd& deriv)=0;
+  virtual TrajCollisionInfo collectCollisionInfo(const Eigen::MatrixXd& traj)=0;
+};
+
+class ArmCCE : public CollisionCostEvaluator {
+public:
+  typedef boost::shared_ptr<ArmCCE> Ptr;
   OpenRAVE::RobotBasePtr m_robot;
   btCollisionWorld* m_world;
 
@@ -61,7 +68,7 @@ public:
   std::vector<int> m_chainDepthOfBodies; // where does each link lie along the kinematic chain
   BulletRaveSyncher m_syncher;
 
-  CollisionCostEvaluator(OpenRAVE::RobotBasePtr robot, btCollisionWorld* world, const std::vector<OpenRAVE::KinBody::LinkPtr>& links,
+  ArmCCE(OpenRAVE::RobotBasePtr robot, btCollisionWorld* world, const std::vector<OpenRAVE::KinBody::LinkPtr>& links,
 		  const std::vector<btRigidBody*>& bodies, const std::vector<OpenRAVE::KinBody::JointPtr>& joints,
 		  const std::vector<int>& depthOfBodies) :
 	  m_robot(robot),
@@ -79,5 +86,7 @@ public:
   TrajCollisionInfo collectCollisionInfo(const Eigen::MatrixXd& traj);
   
 };
+
+void countCollisions(const TrajCollisionInfo& trajCollInfo, double safeDistMinusPadding, int& nNear, int& nUnsafe, int& nColl);
 
 

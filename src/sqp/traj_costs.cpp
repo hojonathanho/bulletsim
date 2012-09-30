@@ -5,6 +5,7 @@
 #include "utils/config.h"
 #include "utils/logging.h"
 #include "utils/clock.h"
+#include "simulation/config_bullet.h"
 using namespace std;
 using namespace OpenRAVE;
 using namespace util;
@@ -107,7 +108,7 @@ void calcMultiBodyJointSpaceCollisionInfo(const std::vector<btRigidBody*>& bodie
   }
 }
 
-float CollisionCostEvaluator::calcCost(const Eigen::MatrixXd& traj) {
+float ArmCCE::calcCost(const Eigen::MatrixXd& traj) {
   float val = 0;
   int nSteps = traj.rows();
 
@@ -130,7 +131,7 @@ float CollisionCostEvaluator::calcCost(const Eigen::MatrixXd& traj) {
   return val;
 }
 
-void CollisionCostEvaluator::calcCostAndGrad(const Eigen::MatrixXd& traj, double& val, Eigen::MatrixXd& grad) {
+void ArmCCE::calcCostAndGrad(const Eigen::MatrixXd& traj, double& val, Eigen::MatrixXd& grad) {
   int nSteps = traj.rows();
 
   vector<int> armInds;
@@ -164,7 +165,7 @@ armInds  .push_back(joint->GetDOFIndex());
 typedef std::pair<std::vector<Eigen::VectorXd>, std::vector<double> > TimestepCollisionInfo;
 typedef std::vector<TimestepCollisionInfo> TrajCollisionInfo;
 
-TrajCollisionInfo CollisionCostEvaluator::collectCollisionInfo(const Eigen::MatrixXd& traj) {
+TrajCollisionInfo ArmCCE::collectCollisionInfo(const Eigen::MatrixXd& traj) {
   int nSteps = traj.rows();
 
   vector<int> armInds;
@@ -192,3 +193,17 @@ void BulletRaveSyncher::updateBullet() {
   }
 }
 
+
+void countCollisions(const TrajCollisionInfo& trajCollInfo, double safeDistMinusPadding, int& nNear, int& nUnsafe, int& nColl) {
+  nNear=0;
+  nUnsafe=0;
+  nColl=0;
+  for (int iStep = 0; iStep < trajCollInfo.size(); ++iStep) {
+    const vector<double>& dists = trajCollInfo[iStep].second;
+    for (int iColl=0; iColl < trajCollInfo[iStep].first.size(); ++iColl) {
+      if (dists[iColl] < -BulletConfig::linkPadding) ++nColl;
+      else if (dists[iColl] < safeDistMinusPadding) ++nUnsafe;
+      else if (dists[iColl] < 0) ++nNear;
+    }
+  }
+}
