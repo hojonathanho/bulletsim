@@ -3,6 +3,7 @@
 
 #include "simulation/bullet_io.h"
 #include "utils_python.h"
+#include "simulation/util.h"
 
 namespace lfd {
 
@@ -173,7 +174,8 @@ TaskExecuter::Transition TaskExecuter::action_execTraj() {
 
     // yes
     scene.step(DT);
-    scene.step(DT);
+//    scene.step(DT);
+//    sleep(.01);
   }
   scene.m_lMonitor->release();
   scene.m_lMonitor->release();

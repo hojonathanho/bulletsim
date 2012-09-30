@@ -88,7 +88,7 @@ MonitorForGrabbing::MonitorForGrabbing(RaveRobotObject::Manipulator::Ptr manip, 
 {
 }
 
-void MonitorForGrabbing::setBodies(vector<BulletObject::Ptr>& bodies) {}
+void MonitorForGrabbing::setBodies(vector<BulletObject::Ptr>& bodies) {m_bodies = bodies;}
 
 btRigidBody* getNearestDynamicBody(btDynamicsWorld* world, btVector3& pt) {
   btCollisionObjectArray& rigidobjs = world->getCollisionObjectArray();
