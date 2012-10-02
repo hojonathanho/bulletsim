@@ -8,6 +8,7 @@
 #include "utils/clock.h"
 #include "sqp_algorithm.h"
 #include "config_sqp.h"
+#include <osg/Depth>
 using namespace std;
 using namespace Eigen;
 using namespace util;
@@ -17,6 +18,12 @@ using namespace util;
 #include <execinfo.h>
 #include <signal.h>
 #include <stdlib.h>
+
+void makeFullyTransparent(BulletObject::Ptr obj) {
+  osg::Depth* depth = new osg::Depth;
+  depth->setWriteMask( false );
+  obj->node->getOrCreateStateSet()->setAttributeAndModes( depth, osg::StateAttribute::ON );
+}
 
 
 void handler(int sig) {
@@ -37,7 +44,6 @@ struct LocalConfig : Config {
   static int nIter;
   static int startPosture;
   static int endPosture;
-  static int plotDecimation;
   static int plotType;
 
   LocalConfig() : Config() {
@@ -45,7 +51,6 @@ struct LocalConfig : Config {
     params.push_back(new Parameter<int>("nIter", &nIter, "num iterations"));
     params.push_back(new Parameter<int>("startPosture", &startPosture, "start posture"));
     params.push_back(new Parameter<int>("endPosture", &endPosture, "end posture"));
-    params.push_back(new Parameter<int>("plotDecimation", &plotDecimation, "plot every k grippers"));
     params.push_back(new Parameter<int>("plotType", &plotType, "0: grippers, 1: arms"));
   }
 };
@@ -53,14 +58,7 @@ int LocalConfig::nSteps = 100;
 int LocalConfig::nIter = 100;
 int LocalConfig::startPosture=3;
 int LocalConfig::endPosture=1;
-int LocalConfig::plotDecimation=5;
 int LocalConfig::plotType = 1;
-
-Scene* scenePtr;
-void togglePlaytime() {
-	scenePtr->loopState.looping = !scenePtr->loopState.looping;
-	if (scenePtr->loopState.looping) scenePtr->startLoop();
-}
 
 const static double postures[][7] = {
 		{-0.4,  1.0,   0.0,  -2.05,  0.0,  -0.1,  0.0}, // 0=untucked
@@ -98,14 +96,17 @@ int main(int argc, char *argv[]) {
 	if (GeneralConfig::verbose > 0) getGRBEnv()->set(GRB_IntParam_OutputFlag, 0);
 
 	Scene scene;
-	scenePtr = &scene;
+	util::setGlobalEnv(scene.env);
 	BoxObject::Ptr table(new BoxObject(0, GeneralConfig::scale * btVector3(.85, .85, table_thickness / 2), btTransform(btQuaternion(0, 0, 0, 1), GeneralConfig::scale * btVector3(1.1, 0, table_height - table_thickness / 2))));
-	table->setColor(0, 0, 1, 1);
 	scene.env->add(table);
 	PR2Manager pr2m(scene);
 	RaveRobotObject::Ptr pr2 = pr2m.pr2;
+	pr2->setColor(1,1,1,.4);
+	table->setColor(0,0,0,.3);
 	RaveRobotObject::Manipulator::Ptr rarm = pr2m.pr2Right;
 	removeBodiesFromBullet(pr2->children, scene.env->bullet->dynamicsWorld);
+	BOOST_FOREACH(BulletObjectPtr obj, pr2->children) if(obj) makeFullyTransparent(obj);
+	makeFullyTransparent(table);
 
 	BulletRaveSyncher brs = syncherFromArm(rarm);
 
@@ -132,7 +133,7 @@ int main(int argc, char *argv[]) {
 	  plotter.reset(new GripperPlotter(rarm, &scene, 1));
   }
   else if (LocalConfig::plotType == 1) {
-	  plotter.reset(new ArmPlotter(rarm, &scene, brs, LocalConfig::plotDecimation));
+	  plotter.reset(new ArmPlotter(rarm, &scene, brs, SQPConfig::plotDecimation));
   }
   else throw std::runtime_error("invalid plot type");
 

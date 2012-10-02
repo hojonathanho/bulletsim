@@ -366,12 +366,13 @@ void countCollisions(const TrajJointCollInfo& trajCollInfo, double safeDistMinus
   nNear=0;
   nUnsafe=0;
   nColl=0;
+  double eps = 1e-6;
   for (int iStep = 0; iStep < trajCollInfo.size(); ++iStep) {
     const vector<double>& dists = trajCollInfo[iStep].dists;
     for (int iColl=0; iColl < trajCollInfo[iStep].jacs.size(); ++iColl) {
       if (dists[iColl] < -BulletConfig::linkPadding) ++nColl;
-      else if (dists[iColl] < safeDistMinusPadding) ++nUnsafe;
-      else if (dists[iColl] < 0) ++nNear;
+      else if (dists[iColl] < safeDistMinusPadding-eps) ++nUnsafe;
+      else if (dists[iColl] < -eps) ++nNear;
     }
   }
 }

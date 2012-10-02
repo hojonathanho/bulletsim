@@ -5,6 +5,7 @@
 #include "simulation/simplescene.h"
 #include "utils/conversions.h"
 #include <typeinfo>
+#include "config_sqp.h"
 using namespace Eigen;
 using namespace std;
 
@@ -129,6 +130,41 @@ void printCollisionReport(const TrajJointCollInfo& trajCollInfo, double safeDist
   LOG_INFO_FMT("near: %i, unsafe: %i, collision: %i, total: %i", nNear, nUnsafe, nColl, nTotalProximity);
 }
 
+
+void plotCollisions(const TrajCartCollInfo& trajCartInfo, double safeDistMinusPadding) {
+  static PlotPoints::Ptr collisions(new PlotPoints(10));
+  static PlotLines::Ptr escapes(new PlotLines(5));
+  bool setupDone(false);
+  if (!setupDone) {
+    setupDone=true;
+    util::getGlobalEnv()->add(collisions);
+    util::getGlobalEnv()->add(escapes);
+  }
+
+  const osg::Vec4 GREEN(0,1,0,1), YELLOW(1,1,0,1), RED(1,0,0,1);
+  osg::ref_ptr<osg::Vec4Array> colors = new osg::Vec4Array;
+  osg::ref_ptr<osg::Vec3Array> escPts = new osg::Vec3Array;
+  osg::ref_ptr<osg::Vec3Array> collPts = new osg::Vec3Array;
+  double eps = 1e-6;
+  for (int iStep = 0; iStep < trajCartInfo.size(); ++iStep) {
+    if (iStep % SQPConfig::plotDecimation != 0) continue;
+    for (int iColl=0; iColl < trajCartInfo[iStep].size(); ++iColl) {
+      const LinkCollision& lc = trajCartInfo[iStep][iColl];
+      if (lc.dist >= 0) cout << "dist: " << lc.dist << endl;
+      collPts->push_back(toOSGVector(lc.point));
+      escPts->push_back(toOSGVector(lc.point));
+      escPts->push_back(toOSGVector(lc.point + lc.normal*lc.dist));
+      if (lc.dist < -eps) colors->push_back(RED);
+      else if (lc.dist < safeDistMinusPadding-eps) colors->push_back(YELLOW);
+      else colors->push_back(GREEN);
+    }
+  }
+  assert(collPts->size() == colors->size());
+  assert(escPts->size() == 2*colors->size());
+  collisions->setPoints(collPts, colors);
+  escapes->setPoints(escPts, colors);
+}
+
 void CollisionCost::updateModel(const Eigen::MatrixXd& traj, GRBQuadExpr& objective) {
 
   removeVariablesAndConstraints();
@@ -164,7 +200,9 @@ void CollisionCost::updateModel(const Eigen::MatrixXd& traj, GRBQuadExpr& object
   }
 #endif
 
+  plotCollisions(trajCartInfo, m_safeDistMinusPadding);
   printCollisionReport(trajJointInfo, m_safeDistMinusPadding);
+
 
   for (int iStep = 0; iStep < traj.rows(); ++iStep)
     if (m_problem->m_optMask(iStep))
