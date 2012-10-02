@@ -136,7 +136,7 @@ bool areFacesEqual(btSoftBody::Face face0, btSoftBody::Face face1) {
 			assert(face1.m_n[c] != face1.m_n[d]);
 		}
 
-	for (int c; c<3; c++)
+	for (int c=0; c<3; c++)
 		if (findNode(face0.m_n[c], face1.m_n, 3) == 3) return false;
 	return true;
 }

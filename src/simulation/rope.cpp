@@ -86,7 +86,7 @@ CapsuleRope::CapsuleRope(const vector<btVector3>& ctrlPoints, btScalar radius_, 
     btTransform trans = transforms[i];
     btScalar len = lengths[i];
     float mass = 1;
-    CapsuleObject::Ptr child(new CapsuleObject(1,radius,len,trans));
+    CapsuleObject::Ptr child(new CapsuleObject(mass,radius,len,trans));
     child->rigidBody->setDamping(linDamping,angDamping);
     child->rigidBody->setFriction(1);
 
@@ -156,7 +156,7 @@ vector<btMatrix3x3> CapsuleRope::getRotations() {
 	vector<btMatrix3x3> out;
 	for (int i=0; i < children.size(); i++) {
 		btRigidBody* body = children[i]->rigidBody.get();
-		btCapsuleShape* capsule = dynamic_cast<btCapsuleShapeX*>(body->getCollisionShape());
+//		btCapsuleShape* capsule = dynamic_cast<btCapsuleShapeX*>(body->getCollisionShape());
 		btTransform tf = body->getCenterOfMassTransform();
 		out.push_back(tf.getBasis());
 	}

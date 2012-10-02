@@ -197,7 +197,7 @@ static BulletObject::Ptr createFromLink(KinBody::LinkPtr link,
 	btCompoundShape *compound = new btCompoundShape();
 	compound->setMargin(0); //margin: compound. seems to have no effect when positive but has an effect when negative
 
-	float volumeAccumulator(0);
+//	float volumeAccumulator(0);
 	btVector3 firstMomentAccumulator(0,0,0);
 
 
