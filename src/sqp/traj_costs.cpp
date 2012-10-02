@@ -148,7 +148,6 @@ JointCollInfo cartToJointCollInfo(const CartCollInfo& in, const Eigen::VectorXd&
     std::vector<double> jacvec(3*nJoints);
     robot->CalculateActiveJacobian(lc.linkInd, toRaveVector(lc.point), jacvec);
     out.jacs[iColl] = - toVector3d(lc.normal).transpose() * Eigen::Map<MatrixXd>(jacvec.data(), 3, nJoints);
-
 //    cout << grad.transpose() << endl;
 //    cout << out.jacs[iColl].transpose() << endl;
 //    cout << (grad - out.jacs[iColl]).norm() << endl;
@@ -366,13 +365,12 @@ void countCollisions(const TrajJointCollInfo& trajCollInfo, double safeDistMinus
   nNear=0;
   nUnsafe=0;
   nColl=0;
-  double eps = 1e-6;
   for (int iStep = 0; iStep < trajCollInfo.size(); ++iStep) {
     const vector<double>& dists = trajCollInfo[iStep].dists;
     for (int iColl=0; iColl < trajCollInfo[iStep].jacs.size(); ++iColl) {
       if (dists[iColl] < -BulletConfig::linkPadding) ++nColl;
-      else if (dists[iColl] < safeDistMinusPadding-eps) ++nUnsafe;
-      else if (dists[iColl] < -eps) ++nNear;
+      else if (dists[iColl] < safeDistMinusPadding-1e-6) ++nUnsafe;
+      else ++nNear;
     }
   }
 }

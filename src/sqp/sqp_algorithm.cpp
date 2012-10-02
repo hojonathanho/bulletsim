@@ -145,17 +145,15 @@ void plotCollisions(const TrajCartCollInfo& trajCartInfo, double safeDistMinusPa
   osg::ref_ptr<osg::Vec4Array> colors = new osg::Vec4Array;
   osg::ref_ptr<osg::Vec3Array> escPts = new osg::Vec3Array;
   osg::ref_ptr<osg::Vec3Array> collPts = new osg::Vec3Array;
-  double eps = 1e-6;
   for (int iStep = 0; iStep < trajCartInfo.size(); ++iStep) {
     if (iStep % SQPConfig::plotDecimation != 0) continue;
     for (int iColl=0; iColl < trajCartInfo[iStep].size(); ++iColl) {
       const LinkCollision& lc = trajCartInfo[iStep][iColl];
-      if (lc.dist >= 0) cout << "dist: " << lc.dist << endl;
       collPts->push_back(toOSGVector(lc.point));
       escPts->push_back(toOSGVector(lc.point));
-      escPts->push_back(toOSGVector(lc.point + lc.normal*lc.dist));
-      if (lc.dist < -eps) colors->push_back(RED);
-      else if (lc.dist < safeDistMinusPadding-eps) colors->push_back(YELLOW);
+      escPts->push_back(toOSGVector(lc.point - lc.normal*lc.dist));
+      if (lc.dist < -BulletConfig::linkPadding-1e-6) colors->push_back(RED);
+      else if (lc.dist < safeDistMinusPadding) colors->push_back(YELLOW);
       else colors->push_back(GREEN);
     }
   }

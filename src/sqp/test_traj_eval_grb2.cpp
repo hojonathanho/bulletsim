@@ -91,13 +91,13 @@ int main(int argc, char *argv[]) {
 	parser.read(argc, argv);
 
 	const float table_height = .65;
-	const float table_thickness = .1;
+	const float table_thickness = .06;
 
 	if (GeneralConfig::verbose > 0) getGRBEnv()->set(GRB_IntParam_OutputFlag, 0);
 
 	Scene scene;
 	util::setGlobalEnv(scene.env);
-	BoxObject::Ptr table(new BoxObject(0, GeneralConfig::scale * btVector3(.85, .85, table_thickness / 2), btTransform(btQuaternion(0, 0, 0, 1), GeneralConfig::scale * btVector3(1.1, 0, table_height - table_thickness / 2))));
+	BoxObject::Ptr table(new BoxObject(0, GeneralConfig::scale * btVector3(.85, .65, table_thickness / 2), btTransform(btQuaternion(0, 0, 0, 1), GeneralConfig::scale * btVector3(1.1, 0, table_height - table_thickness / 2))));
 	scene.env->add(table);
 	PR2Manager pr2m(scene);
 	RaveRobotObject::Ptr pr2 = pr2m.pr2;
