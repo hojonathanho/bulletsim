@@ -1,12 +1,12 @@
 #pragma once
 #include "utils_sqp.h"
 #include "traj_costs.h"
-#include "kinematics_utils.h"
 #include "simulation/openravesupport.h"
 #include "simulation/fake_gripper.h"
 #include "simulation/plotting.h"
 #include "gurobi_c++.h"
 #include "sqp_fwd.h"
+
 
 
 GRBEnv* getGRBEnv();
@@ -18,6 +18,8 @@ typedef std::vector<GRBVar> VarVector;
 typedef Eigen::Matrix<bool,Eigen::Dynamic,1> VectorXb;
 
 ArmCCEPtr makeArmCCE(RaveRobotObject::Manipulator::Ptr arm, RaveRobotObject::Ptr robot, btDynamicsWorld*);
+BulletRaveSyncher syncherFromArm(RaveRobotObject::Manipulator::Ptr rrom);
+
 
 class PlanningProblem { // fixed size optimization problem
 public:
@@ -28,6 +30,7 @@ public:
   std::vector<TrajPlotterPtr> m_plotters;
   std::vector<ProblemComponentPtr> m_comps;
   bool m_initialized;
+  std::vector<double> m_trueObjBeforeOpt, m_approxObjAfterOpt;
   PlanningProblem();
   void addComponent(ProblemComponentPtr comp);
   void removeComponent(ProblemComponentPtr comp);
@@ -36,7 +39,9 @@ public:
   void doIteration();
   void optimize(int maxIter);
   void addPlotter(TrajPlotterPtr plotter) {m_plotters.push_back(plotter);}
-
+  double calcApproxObjective();
+  void clearCostHistory();
+  void updateModel();
 };
 
 class ProblemComponent {
@@ -56,9 +61,9 @@ public:
   }
   virtual void onAdd() {}
   virtual void updateModel(const Eigen::MatrixXd& traj, GRBQuadExpr& objective) = 0;
-  virtual double getValue() {return 0;}
+  virtual double calcApproxObjective() {return 0;}
   virtual void relax() {}
-  virtual void onRemove() = 0;
+  virtual void onRemove() {};
 };
 
 class CollisionCost: public ProblemComponent {
@@ -66,19 +71,37 @@ protected:
   std::vector<GRBVar> m_vars;
   std::vector<GRBConstr> m_cnts;
   GRBLinExpr m_obj;
-  CollisionCostEvaluatorPtr m_cce;
+
+  OpenRAVE::RobotBasePtr m_robot;
+  btDynamicsWorld* m_world;
+  BulletRaveSyncher& m_brs;
+  vector<int> m_dofInds;
+
   double m_safeDistMinusPadding;
   double m_coeff;
   bool m_startFixed, m_endFixed;
+  void removeVariablesAndConstraints();
 public:
-  CollisionCost(CollisionCostEvaluatorPtr cce, double safeDistMinusPadding, double coeff) :
-    m_cce(cce), m_safeDistMinusPadding(safeDistMinusPadding), m_coeff(coeff) {}
-  void updateModel(const Eigen::MatrixXd& traj, GRBQuadExpr& objective);
-  double getValue() {return m_obj.getValue();}
+  CollisionCost(OpenRAVE::RobotBasePtr robot, btDynamicsWorld* world, BulletRaveSyncher& brs, const vector<int>& dofInds, double safeDistMinusPadding, double coeff) :
+    m_robot(robot), m_world(world), m_brs(brs), m_dofInds(dofInds), m_safeDistMinusPadding(safeDistMinusPadding), m_coeff(coeff) {
+      m_attrs |= HAS_COST + HAS_CONSTRAINT;
+    }
+  virtual void updateModel(const Eigen::MatrixXd& traj, GRBQuadExpr& objective);
+  double calcApproxObjective() {return m_obj.getValue();}
   void onRemove();
   void setCoeff(double coeff) {m_coeff = coeff;}
 };
 
+
+
+#if 0
+class VelScaledCollisionCost : public CollisionCost {
+public:
+  void updateModel(const Eigen::MatrixXd& traj, GRBQuadExpr& objective);
+};
+#endif
+
+#if 0
 class CollisionConstraint: public ProblemComponent {
 protected:
   std::vector<GRBConstr> m_cnts;
@@ -89,13 +112,14 @@ protected:
 public:
   CollisionConstraint(bool startFixed, bool endFixed, CollisionCostEvaluatorPtr cce, double safeDistMinusPadding) :
     m_startFixed(startFixed), m_endFixed(endFixed), m_cce(cce), m_safeDistMinusPadding(safeDistMinusPadding) {
-    m_attrs |= RELAXABLE;
+    m_attrs |= RELAXABLE + HAS_CONSTRAINT;
   }
   void onAdd();
   void updateModel(const Eigen::MatrixXd& traj, GRBQuadExpr& objective);
   void onRemove();
   void relax();
 };
+#endif
 
 class LengthConstraintAndCost : public ProblemComponent {
   // todo: set this
@@ -106,19 +130,15 @@ class LengthConstraintAndCost : public ProblemComponent {
   double m_coeff;
 public:
   LengthConstraintAndCost(bool startFixed, bool endFixed, const Eigen::VectorXd& maxStepMvmt, double coeff) :
-    m_startFixed(startFixed), m_endFixed(endFixed), m_maxStepMvmt(maxStepMvmt), m_coeff(coeff) {}
+    m_startFixed(startFixed), m_endFixed(endFixed), m_maxStepMvmt(maxStepMvmt), m_coeff(coeff) {
+      m_attrs |= HAS_CONSTRAINT + HAS_COST;
+    }
 
   void onAdd();
-  // init is called by planning problem
-  void updateModel(const Eigen::MatrixXd& traj, GRBQuadExpr& objective) {
-    objective += m_coeff*m_obj;
-  }
-  double getValue() {
-    return m_obj.getValue();
-  }
+  void updateModel(const Eigen::MatrixXd& traj, GRBQuadExpr& objective) { objective += m_coeff*m_obj;}
+  double calcApproxObjective() { return m_obj.getValue(); }
   void onRemove();
   void setCoeff(double coeff) {m_coeff = coeff;}
-  // destroy is called by planning problem
 };
 
 class JointBounds: public ProblemComponent {
@@ -130,6 +150,7 @@ class JointBounds: public ProblemComponent {
 public:
   JointBounds(bool startFixed, bool endFixed, const Eigen::VectorXd& maxDiffPerIter, OpenRAVE::RobotBase::ManipulatorPtr manip) :
     m_startFixed(startFixed), m_endFixed(endFixed), m_maxDiffPerIter(maxDiffPerIter) {
+      m_attrs |= HAS_CONSTRAINT;
     vector<int> armInds = manip->GetArmIndices();
     m_jointLowerLimit.resize(armInds.size());
     m_jointUpperLimit.resize(armInds.size());
@@ -147,35 +168,31 @@ public:
   void updateModel(const Eigen::MatrixXd& traj, GRBQuadExpr& objective);
 };
 
-#if 0
+
 class CartesianPoseCost: public ProblemComponent {
   GRBQuadExpr m_obj;
-  OpenRAVE::RobotBasePtr m_robot;
-  OpenRAVE::RobotBase::ManipulatorPtr m_manip;
+  RaveRobotObject::Manipulator::Ptr m_manip;
   Eigen::Vector3d m_posTarg;
   Eigen::Vector4d m_rotTarg;
-  VarVector m_timestepVars;
   double m_posCoeff, m_rotCoeff;
   int m_timestep;
 public:
-  CartesianPoseCost(OpenRAVE::RobotBasePtr robot, OpenRAVE::RobotBase::ManipulatorPtr manip,
+  CartesianPoseCost(RaveRobotObject::Manipulator::Ptr manip,
       const btTransform& target, int timestep, double posCoeff, double rotCoeff) :
-        m_robot(robot),
         m_manip(manip),
         m_posTarg(toVector3d(target.getOrigin())),
         m_rotTarg(toVector4d(target.getRotation())),
         m_posCoeff(posCoeff),
         m_rotCoeff(rotCoeff),
-        m_timestep(timestep) {}
-
-  void onAdd();
-  void updateModel(const Eigen::MatrixXd& traj, GRBQuadExpr& objective);
-  double getValue() {
-    return m_obj.getValue();
+        m_timestep(timestep) {
+    m_attrs |= HAS_COST;
   }
 
+  void updateModel(const Eigen::MatrixXd& traj, GRBQuadExpr& objective);
+  double calcApproxObjective() {return m_obj.getValue();}
+
 };
-#endif
+
 
 Eigen::VectorXd defaultMaxStepMvmt(const Eigen::MatrixXd& traj);
 Eigen::MatrixXd makeTraj(const Eigen::VectorXd& startJoints, const Eigen::VectorXd& endJoints, int nSteps);
@@ -219,7 +236,7 @@ public:
   int m_decimation;
   BulletRaveSyncher* m_syncher;
   void plotTraj(const Eigen::MatrixXd& traj);
-  ArmPlotter(RaveRobotObject::Manipulator::Ptr rrom, Scene* scene, std::vector<KinBody::LinkPtr>& links, BulletRaveSyncher& syncher, int decimation=1);
+  ArmPlotter(RaveRobotObject::Manipulator::Ptr rrom, Scene* scene, BulletRaveSyncher& syncher, int decimation=1);
   ArmPlotter(RaveRobotObject::Manipulator::Ptr rrom, const std::vector<BulletObject::Ptr>& origs, Scene* scene, BulletRaveSyncher*syncher, int decimation);
   void init(RaveRobotObject::Manipulator::Ptr, const std::vector<BulletObject::Ptr>&, Scene*, BulletRaveSyncher*, int decimation);
   void setLength(int n);

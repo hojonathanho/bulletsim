@@ -2,8 +2,29 @@
 #include <btBulletDynamicsCommon.h>
 #include "functions.h"
 #include <openrave/openrave.h>
+#include "simulation/simulation_fwd.h"
+#include "sqp/sqp_fwd.h"
+
+
+#if 0
+struct KinematicsInfo {
+  OpenRAVE::RobotBasePtr robot;
+  std::vector<OpenRAVE::KinBody::LinkPtr> links;
+  std::vector<btRigidBody*> bodies;
+  std::vector<OpenRAVE::KinBody::JointPtr> joints;
+  std::vector<int> dofInds;
+  std::vector<int> link2dofs;
+};
+KinematicsInfo getSingleArmKinematics(const OpenRAVE::RobotBase::ManipulatorPtr manip);
+#endif
+
+
 
 void getArmKinInfo(const OpenRAVE::RobotBasePtr& robot, const OpenRAVE::RobotBase::ManipulatorPtr manip, std::vector<OpenRAVE::KinBody::LinkPtr>& armLinks, std::vector<OpenRAVE::KinBody::JointPtr>& armJoints, std::vector<int>& chainDepthOfBodies);
+
+std::vector<OpenRAVE::KinBody::JointPtr> getArmJoints(OpenRAVE::RobotBase::ManipulatorPtr manip);
+std::vector<OpenRAVE::KinBody::LinkPtr> getArmLinks(OpenRAVE::RobotBase::ManipulatorPtr manip);
+
 
 struct Collision {
 	const btCollisionObject* m_obj0;
@@ -45,27 +66,52 @@ public:
 	void updateBullet();
 };
 
-typedef std::pair< std::vector<Eigen::VectorXd>, std::vector<double> > TimestepCollisionInfo;
-typedef std::vector< TimestepCollisionInfo > TrajCollisionInfo;
+struct LinkCollision {
+  double dist;
+  int linkInd;
+  btVector3 point; // world position
+  btVector3 normal; // world normal
+  LinkCollision(double dist_, int linkInd_, const btVector3& point_, const btVector3& normal_):
+    dist(dist_), linkInd(linkInd_), point(point_), normal(normal_) {}
+};
+
+typedef std::vector<LinkCollision> CartCollInfo;
+typedef std::vector<CartCollInfo> TrajCartCollInfo;
+struct JointCollInfo {
+  std::vector<Eigen::VectorXd> jacs;
+  std::vector<double> dists;
+};
+typedef std::vector< JointCollInfo > TrajJointCollInfo;
+
+TrajCartCollInfo collectTrajCollisions(const Eigen::MatrixXd& traj, OpenRAVE::RobotBasePtr robot, BulletRaveSyncher& brs, btCollisionWorld* world, const std::vector<int>& dofInds);
+TrajJointCollInfo trajCartToJointCollInfo(const TrajCartCollInfo& in, const Eigen::MatrixXd& traj, OpenRAVE::RobotBasePtr robot,
+    const std::vector<int>& dofInds);
+
 
 class CollisionCostEvaluator {
 public:
-  virtual float calcCost(const Eigen::MatrixXd& x)=0;
-  virtual void calcCostAndGrad(const Eigen::MatrixXd& traj, double& val, Eigen::MatrixXd& deriv)=0;
-  virtual TrajCollisionInfo collectCollisionInfo(const Eigen::MatrixXd& traj)=0;
+  virtual TrajJointCollInfo collectCollisionInfo(const Eigen::MatrixXd& traj)=0;
 };
+
+#if 0
+class GenericCCE : public CollisionCostEvaluator {
+public:
+  RaveRobotObject::Ptr m_robot;
+  GenericCCE(RaveRobotObject::Ptr robot) : m_robot(robot) {}
+  TrajJointCollInfo collectCollisionInfo(const Eigen::MatrixXd& traj);
+};
+#endif
 
 class ArmCCE : public CollisionCostEvaluator {
 public:
   typedef boost::shared_ptr<ArmCCE> Ptr;
   OpenRAVE::RobotBasePtr m_robot;
   btCollisionWorld* m_world;
-
   std::vector<OpenRAVE::KinBody::LinkPtr> m_links; // what links are part of the object we're planning with
   std::vector<btRigidBody*> m_bodies; // what rigid bodies are part of the object we're planning with
   std::vector<OpenRAVE::KinBody::JointPtr> m_joints; // active degrees of freedom in planning problem (currently assume all hinge joints)
-  int m_nJoints; // number of joints
   std::vector<int> m_chainDepthOfBodies; // where does each link lie along the kinematic chain
+  int m_nJoints; // number of joints
   BulletRaveSyncher m_syncher;
 
   ArmCCE(OpenRAVE::RobotBasePtr robot, btCollisionWorld* world, const std::vector<OpenRAVE::KinBody::LinkPtr>& links,
@@ -83,10 +129,10 @@ public:
 
   float calcCost(const Eigen::MatrixXd& x);
   void calcCostAndGrad(const Eigen::MatrixXd& traj, double& val, Eigen::MatrixXd& deriv);
-  TrajCollisionInfo collectCollisionInfo(const Eigen::MatrixXd& traj);
+  TrajJointCollInfo collectCollisionInfo(const Eigen::MatrixXd& traj);
   
 };
 
-void countCollisions(const TrajCollisionInfo& trajCollInfo, double safeDistMinusPadding, int& nNear, int& nUnsafe, int& nColl);
+void countCollisions(const TrajJointCollInfo& trajCollInfo, double safeDistMinusPadding, int& nNear, int& nUnsafe, int& nColl);
 
 

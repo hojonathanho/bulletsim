@@ -13,6 +13,25 @@ using namespace Eigen;
 using namespace util;
 
 
+#include <stdio.h>
+#include <execinfo.h>
+#include <signal.h>
+#include <stdlib.h>
+
+
+void handler(int sig) {
+  void *array[10];
+  size_t size;
+
+  // get void*'s for all entries on the stack
+  size = backtrace(array, 10);
+
+  // print out all the frames to stderr
+  fprintf(stderr, "Error: signal %d:\n", sig);
+  backtrace_symbols_fd(array, size, 2);
+  exit(1);
+}
+
 struct LocalConfig : Config {
   static int nSteps;
   static int nIter;
@@ -60,6 +79,9 @@ void removeBodiesFromBullet(vector<BulletObject::Ptr> objs, btDynamicsWorld* wor
 }
 
 int main(int argc, char *argv[]) {
+
+  signal(SIGABRT, handler);   // install our handler
+
 	GeneralConfig::scale = 1.;
 	BulletConfig::friction = 2; // for if you're shooting blocks
 	BulletConfig::margin = .01;
@@ -83,8 +105,9 @@ int main(int argc, char *argv[]) {
 	PR2Manager pr2m(scene);
 	RaveRobotObject::Ptr pr2 = pr2m.pr2;
 	RaveRobotObject::Manipulator::Ptr rarm = pr2m.pr2Right;
-
 	removeBodiesFromBullet(pr2->children, scene.env->bullet->dynamicsWorld);
+
+	BulletRaveSyncher brs = syncherFromArm(rarm);
 
 	int nJoints = 7;
     VectorXd startJoints = Map<const VectorXd>(postures[LocalConfig::startPosture], nJoints);
@@ -92,10 +115,10 @@ int main(int argc, char *argv[]) {
 
     TIC();
 	PlanningProblem prob;
-    ArmCCEPtr cce = makeArmCCE(rarm, pr2, scene.env->bullet->dynamicsWorld);
+//    ArmCCEPtr cce = makeArmCCE(rarm, pr2, scene.env->bullet->dynamicsWorld);
 	MatrixXd initTraj = makeTraj(startJoints, endJoints, LocalConfig::nSteps);
 	LengthConstraintAndCostPtr lcc(new LengthConstraintAndCost(true, true, defaultMaxStepMvmt(initTraj),SQPConfig::lengthCoef));
-	CollisionCostPtr cc(new CollisionCost(cce, -BulletConfig::linkPadding/2, SQPConfig::collCoef));
+	CollisionCostPtr cc(new CollisionCost(pr2->robot, scene.env->bullet->dynamicsWorld, brs, rarm->manip->GetArmIndices(), -BulletConfig::linkPadding/2, SQPConfig::collCoef));
 	JointBoundsPtr jb(new JointBounds(true, true, defaultMaxStepMvmt(initTraj)/5, rarm->manip));
 	prob.initialize(initTraj, true);
     prob.addComponent(lcc);
@@ -109,7 +132,7 @@ int main(int argc, char *argv[]) {
 	  plotter.reset(new GripperPlotter(rarm, &scene, 1));
   }
   else if (LocalConfig::plotType == 1) {
-	  plotter.reset(new ArmPlotter(rarm, &scene, cce->m_links, cce->m_syncher, LocalConfig::plotDecimation));
+	  plotter.reset(new ArmPlotter(rarm, &scene, brs, LocalConfig::plotDecimation));
   }
   else throw std::runtime_error("invalid plot type");
 
@@ -117,9 +140,14 @@ int main(int argc, char *argv[]) {
 
   scene.startViewer();
 
-
+try {
   prob.optimize(LocalConfig::nIter);
-  prob.removeComponent(cc);
+}
+catch (GRBException e) {
+  cout << e.getMessage() << endl;
+  handler(0);
+  throw;
+}
   scene.idle(true);
 
 }
