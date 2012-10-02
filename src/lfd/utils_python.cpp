@@ -43,8 +43,21 @@ py::object Python_importFile(const fs::path &path) {
   }
 }
 
+// Tries to import a python module from the given file (using Python_importFile).
+// If the file isn't found, then this will search for the file in the parent directory.
+// If it isn't there, then this keeps going up.
 PyModule::PyModule(const fs::path &path) {
-  module = Python_importFile(path);
+  fs::path p = fs::path(".") / path;
+  const int MAX_DEPTH = 10;
+  for (int i = 0; i < MAX_DEPTH; ++i) {
+    LOG_DEBUG("searching for " << p);
+    if (fs::exists(p)) {
+      module = Python_importFile(p);
+      return;
+    }
+    p = fs::path("..") / p;
+  }
+  throw runtime_error("could not load python module");
 }
 
 py::object pointVecToNP(const vector<btVector3> &v) {

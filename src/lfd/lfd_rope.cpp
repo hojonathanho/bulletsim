@@ -25,15 +25,18 @@ struct LocalConfig : public Config {
   static string task;
   static string rope;
   static float pert;
+  static double trajSlow;
   LocalConfig() : Config() { 
     params.push_back(new Parameter<string>("task", &task, "task name"));
     params.push_back(new Parameter<string>("rope", &rope, "rope control points file"));
     params.push_back(new Parameter<float>("pert", &pert, "rope perturbation variance"));
+    params.push_back(new Parameter<double>("trajSlow", &trajSlow, "slowdown factor for trajectory execution"));
   }
 };
 string LocalConfig::task;
 string LocalConfig::rope;
 float LocalConfig::pert = 1.;
+double LocalConfig::trajSlow = 1.;
 
 int main(int argc, char *argv[]) {
   GeneralConfig::scale = 10.;
@@ -79,6 +82,7 @@ int main(int argc, char *argv[]) {
   scene.setDrawing(true);
 
   lfd::TaskExecuter ex(scene);
+  ex.setTrajExecSlowdown(LocalConfig::trajSlow);
   try {
     ex.run(LocalConfig::task);
   } catch (const py::error_already_set &e) {

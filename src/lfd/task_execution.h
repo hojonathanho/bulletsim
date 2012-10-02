@@ -5,8 +5,9 @@
 #include <map>
 using namespace std;
 
-#include "rope_scenes.h"
 #include "lfd_python_wrapper.h"
+
+class TableRopeScene;
 
 namespace lfd {
 
@@ -26,7 +27,8 @@ public:
     TR_NOT_DONE
   };
 
-  TaskExecuter(TableRopeScene &scene_) : scene(scene_) { }
+  TaskExecuter(TableRopeScene &scene_);
+  void setTrajExecSlowdown(double s);
   State run(const string &taskName, State start=ST_LOOK_AT_OBJ);
 
 private:
@@ -35,6 +37,7 @@ private:
   TableRopeScene &scene;
   ExecutionModule pymod; // some actions are implemented in python
   int currStep;
+  double trajExecSlowdown;
 
   State nextState(State s, Transition t) const;
   Transition execState(State s);

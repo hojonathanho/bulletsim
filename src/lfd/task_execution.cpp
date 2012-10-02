@@ -4,8 +4,16 @@
 #include "simulation/bullet_io.h"
 #include "utils_python.h"
 #include "simulation/util.h"
+#include "rope_scenes.h"
 
 namespace lfd {
+
+TaskExecuter::TaskExecuter(TableRopeScene &scene_) : scene(scene_), trajExecSlowdown(1.0) {
+}
+
+void TaskExecuter::setTrajExecSlowdown(double s) {
+  trajExecSlowdown = s;
+}
 
 bool TaskExecuter::isTerminalState(State s) const {
   return s == ST_SUCCESS || s == ST_FAILURE;
@@ -140,42 +148,47 @@ TaskExecuter::Transition TaskExecuter::action_execTraj() {
   py::object lGrabTraj = dictExtract(traj, "l_grab");
   py::object rGrabTraj = dictExtract(traj, "r_grab");
 
-  const int steps = py::extract<int>(traj["steps"]);
+  const int realSteps = py::extract<int>(traj["steps"]);
+  const int simSteps = (int) ceil(trajExecSlowdown * realSteps);
+  vector<int> sim2real(simSteps, -1);
+  for (int i = 0; i < realSteps; ++i) {
+    sim2real[(int)(trajExecSlowdown * i)] = i;
+  }
 
-  assert(lGripperTraj == py::object() || steps == py::len(lGripperTraj));
-  assert(rGripperTraj == py::object() || steps == py::len(rGripperTraj));
-  assert(lArmTraj == py::object() || steps == py::len(lArmTraj));
-  assert(rArmTraj == py::object() || steps == py::len(rArmTraj));
-  assert(lGrabTraj == py::object() || steps == py::len(lGrabTraj));
-  assert(rGrabTraj == py::object() || steps == py::len(rGrabTraj));
+  assert(lGripperTraj == py::object() || realSteps == py::len(lGripperTraj));
+  assert(rGripperTraj == py::object() || realSteps == py::len(rGripperTraj));
+  assert(lArmTraj == py::object() || realSteps == py::len(lArmTraj));
+  assert(rArmTraj == py::object() || realSteps == py::len(rArmTraj));
+  assert(lGrabTraj == py::object() || realSteps == py::len(lGrabTraj));
+  assert(rGrabTraj == py::object() || realSteps == py::len(rGrabTraj));
 
   RaveRobotObject::Ptr pr2 = scene.pr2m->pr2;
   scene.setGrabBodies(scene.getRope()->getChildren());
-  for (int i = 0; i < steps; ++i) {
-    if (lArmTraj != py::object()) scene.pr2m->pr2Left->setDOFValues(pyListToVec(lArmTraj[i]));
-    if (lGripperTraj != py::object()) scene.pr2m->pr2Left->setGripperAngle(clampGripperAngle(py::extract<double>(lGripperTraj[i])));
-    if (lGrabTraj != py::object()) {
-      if (py::extract<bool>(lGrabTraj[i]) && (i == 0 || !py::extract<bool>(lGrabTraj[i-1]))) {
-        scene.m_lMonitor->grab();
-      } else if (!py::extract<bool>(lGrabTraj[i]) && (i == 0 || py::extract<bool>(lGrabTraj[i-1]))) {
-        scene.m_lMonitor->release();
+  for (int k = 0; k < simSteps; ++k) {
+    int i = sim2real[k];
+    if (i != -1) {
+      if (lArmTraj != py::object()) scene.pr2m->pr2Left->setDOFValues(pyListToVec(lArmTraj[i]));
+      if (lGripperTraj != py::object()) scene.pr2m->pr2Left->setGripperAngle(clampGripperAngle(py::extract<double>(lGripperTraj[i])));
+      if (lGrabTraj != py::object()) {
+        if (py::extract<bool>(lGrabTraj[i]) && (i == 0 || !py::extract<bool>(lGrabTraj[i-1]))) {
+          scene.m_lMonitor->grab();
+        } else if (!py::extract<bool>(lGrabTraj[i]) && (i == 0 || py::extract<bool>(lGrabTraj[i-1]))) {
+          scene.m_lMonitor->release();
+        }
+      }
+
+      if (rArmTraj != py::object()) scene.pr2m->pr2Right->setDOFValues(pyListToVec(rArmTraj[i]));
+      if (rGripperTraj != py::object()) scene.pr2m->pr2Right->setGripperAngle(clampGripperAngle(py::extract<double>(rGripperTraj[i])));
+      if (rGrabTraj != py::object()) {
+        if (py::extract<bool>(rGrabTraj[i]) && (i == 0 || !py::extract<bool>(rGrabTraj[i-1]))) {
+          scene.m_rMonitor->grab();
+        } else if (!py::extract<bool>(rGrabTraj[i]) && (i == 0 || py::extract<bool>(rGrabTraj[i-1]))) {
+          scene.m_rMonitor->release();
+        }
       }
     }
 
-    if (rArmTraj != py::object()) scene.pr2m->pr2Right->setDOFValues(pyListToVec(rArmTraj[i]));
-    if (rGripperTraj != py::object()) scene.pr2m->pr2Right->setGripperAngle(clampGripperAngle(py::extract<double>(rGripperTraj[i])));
-    if (rGrabTraj != py::object()) {
-      if (py::extract<bool>(rGrabTraj[i]) && (i == 0 || !py::extract<bool>(rGrabTraj[i-1]))) {
-        scene.m_rMonitor->grab();
-      } else if (!py::extract<bool>(rGrabTraj[i]) && (i == 0 || py::extract<bool>(rGrabTraj[i-1]))) {
-        scene.m_rMonitor->release();
-      }
-    }
-
-    // yes
     scene.step(DT);
-//    scene.step(DT);
-//    sleep(.01);
   }
   scene.m_lMonitor->release();
   scene.m_lMonitor->release();
