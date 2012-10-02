@@ -18,12 +18,11 @@
   <node name="drop1" pkg="topic_tools" type="drop" args="/$(arg camera)1/depth_registered/points 2 3 /drop/$(arg camera)1/points"/>
   <node name="drop2" pkg="topic_tools" type="drop" args="/$(arg camera)2/depth_registered/points 2 3 /drop/$(arg camera)2/points"/>
   
-  <node name="phasespace_simple_publisher" pkg="binary_symlinks" type="phasespace_simple_publisher" output="screen" args="--frequency=30"/>
+  <node name="phasespace_simple_publisher" pkg="bulletsim_binaries" type="phasespace_simple_publisher" output="screen" args="--frequency=30"/>
 
-  <node name="phasespace_transforms_node" pkg="binary_symlinks" type="phasespace_transforms_node" output="screen" args=""/>
+  <node name="phasespace_transforms_node" pkg="bulletsim_binaries" type="phasespace_transforms_node" output="screen" args=""/>
   
-  <!-- TODO they should output to different topics -->
-  <node name="preprocessor_color_node1" pkg="binary_symlinks" type="preprocessor_color_node_i" output="screen"  args="--inputTopic=/drop/$(arg camera)1/points"/> 
-  <node name="preprocessor_color_node2" pkg="binary_symlinks" type="preprocessor_color_node_i" output="screen"  args="--inputTopic=/drop/$(arg camera)2/points"/> 
+  <node name="preprocessor_color_node1" pkg="bulletsim_binaries" type="preprocessor_color_node" output="screen"  args="--inputTopic=/drop/$(arg camera)1/points --nodeNS=/preprocessor/$(arg camera)1"/> 
+  <node name="preprocessor_color_node2" pkg="bulletsim_binaries" type="preprocessor_color_node" output="screen"  args="--inputTopic=/drop/$(arg camera)2/points --nodeNS=/preprocessor/$(arg camera)2"/> 
 
 </launch>

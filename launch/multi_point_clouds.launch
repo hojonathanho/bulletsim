@@ -30,8 +30,8 @@
   <node name="drop1" pkg="topic_tools" type="drop" args="/$(arg camera)1/depth_registered/points 2 3 /drop/$(arg camera)1/points"/>
   <node name="drop2" pkg="topic_tools" type="drop" args="/$(arg camera)2/depth_registered/points 2 3 /drop/$(arg camera)2/points"/>
   
-  <node name="merger" pkg="binary_symlinks" type="cloud_merger_node_i" output="screen" args="--cameraTopics=/drop/$(arg camera)1/points --cameraTopics=/drop/$(arg camera)2/points --outputTopic=/kinect_merged/points --calibrationType=0"/>
+  <node name="merger" pkg="binary_symlinks" type="qcloud_merger_node_i" output="screen" args="--cameraTopics=/drop/$(arg camera)1/points --cameraTopics=/drop/$(arg camera)2/points --outputTopic=/kinect_merged/points --calibrationType=0"/>
   
-  <node name="preprocessor" pkg="binary_symlinks" type="preprocessor_node_i" output="screen"  args="--inputTopic=/kinect_merged/points --downsample=0.008 --removeOutliers=true --outlierRadius=0.016 --outlierMinK=10 --zClipLow=-0.02"/> 
+  <node name="preprocessor" pkg="binary_symlinks" type="qpreprocessor_node_i" output="screen"  args="--inputTopic=/kinect_merged/points --downsample=0.008 --removeOutliers=true --outlierRadius=0.016 --outlierMinK=10 --zClipLow=-0.02"/> 
 
 </launch>

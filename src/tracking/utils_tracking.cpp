@@ -2,17 +2,12 @@
 #include "simulation/config_bullet.h"
 #include "utils/conversions.h"
 #include <boost/foreach.hpp>
+#include "simulation/recording.h"
+#include <cv_bridge/cv_bridge.h>
+#include "clouds/utils_cv.h"
 
 using namespace std;
 using namespace Eigen;
-
-void toggle(bool* b){
-	*b = !(*b);
-}
-
-void add(int* n, int increment) {
-	*n += increment;
-}
 
 Affine3f Scaling3f(float s) {
   Affine3f T;
@@ -47,6 +42,45 @@ Eigen::MatrixXf CoordinateTransformer::toCamFromWorldMatrixXf(const MatrixXf& in
 	for (int row=0; row<in.rows(); ++row)
 		out.row(row) = camFromWorldEigen * Map<const Vector3f>(in.row(row).data(), 3, 1);
 	return out;
+}
+
+
+ImageTopicRecorder::ImageTopicRecorder(ros::NodeHandle& nh, std::string image_topic) :
+		m_subscriber(nh.subscribe(image_topic, 3, &ImageTopicRecorder::callback, this)),
+		m_cycle_time(boost::posix_time::microseconds(1000000.0 * RecordingConfig::speed_up/RecordingConfig::frame_rate)),
+		m_full_filename(RecordingConfig::dir + "/" +  RecordingConfig::video_file + ".avi")
+{}
+
+ImageTopicRecorder::ImageTopicRecorder(ros::NodeHandle& nh, std::string image_topic, std::string full_filename) :
+		m_subscriber(nh.subscribe(image_topic, 3, &ImageTopicRecorder::callback, this)),
+		m_cycle_time(boost::posix_time::microseconds(1000000.0 * RecordingConfig::speed_up/RecordingConfig::frame_rate)),
+		m_full_filename(full_filename)
+{}
+
+void ImageTopicRecorder::callback(sensor_msgs::ImageConstPtr image_msg) {
+  cv::Mat image;
+  extractImage(cv_bridge::toCvCopy(image_msg)->image, image);
+
+  boost::posix_time::ptime current_time = boost::posix_time::microsec_clock::local_time();
+
+	if (!m_video_writer.isOpened()) {
+		m_video_writer.open(m_full_filename,  CV_FOURCC('P','I','M','1'), RecordingConfig::frame_rate, cv::Size(image.cols, image.rows));
+		if (!m_video_writer.isOpened()) {
+			runtime_error("Video destination file " + m_full_filename + " doesn't exits.");
+		}
+
+		m_video_writer << image;
+		m_last_time = current_time + m_cycle_time;
+
+	} else {
+		while (m_last_time <= current_time) {
+			assert(!m_last_image.empty());
+			m_video_writer << m_last_image;
+			m_last_time += m_cycle_time;
+		}
+	}
+
+	m_last_image = image;
 }
 
 

@@ -85,7 +85,7 @@ cv::Mat toBinaryMask(cv::Mat image) {
 	cv::Mat mask = image > 0;
 	vector<cv::Mat> mask_channels;
 	cv::split(mask, mask_channels);
-	mask = mask_channels[0] & mask_channels[1] & mask_channels[2];
+	mask = mask_channels[0] | mask_channels[1] | mask_channels[2];
 	return mask;
 }
 
@@ -198,4 +198,22 @@ cv::Mat skinMask(cv::Mat src) {
 	//cv::imshow("skin_mask_dilate", skin_mask);
 
 	return skin_mask;
+}
+
+
+
+
+void extractImageAndMask(cv::Mat image_and_mask, cv::Mat& image, cv::Mat& mask) {
+  vector<cv::Mat> channels;
+  cv::split(image_and_mask, channels);
+  mask = channels[3];
+  channels.pop_back();
+  cv::merge(channels, image);
+}
+
+void extractImage(cv::Mat image_and_mask, cv::Mat& image) {
+  vector<cv::Mat> channels;
+  cv::split(image_and_mask, channels);
+  while (channels.size() > 3) channels.pop_back();
+  cv::merge(channels, image);
 }

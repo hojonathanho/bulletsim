@@ -3,12 +3,30 @@
 
 #include "environment.h"
 #include "basicobjects.h"
+#include "utils/config.h"
 
 class BulletSoftObject : public EnvironmentObject {
 private:
+public:
+	struct Tetra {
+		btSoftBody::Node* m_n[4];
+		btSoftBody::Face* m_f[4];
+	};
+	vector<Tetra> tetras_internal;
+	btSoftBody::tFaceArray faces_internal;
+
 	void computeNodeFaceMapping();
+	void computeNodeFaceTetraMapping();
+	void computeBoundaries();
+
 	vector<vector<int> > node2faces;
 	vector<vector<int> > face2nodes;
+
+	vector<vector<int> > face2tetras;
+	vector<vector<int> > tetra2faces;
+public:
+	vector<bool> node_boundaries;
+	vector<bool> face_boundaries;
 
 protected:
     osg::ref_ptr<osg::Geode> geode;
@@ -29,8 +47,22 @@ public:
     boost::shared_ptr<btSoftBody> softBody;
 
     // constructors/destructors
-    BulletSoftObject(boost::shared_ptr<btSoftBody> softBody_) : softBody(softBody_), nextAnchorHandle(0) { computeNodeFaceMapping(); }
-    BulletSoftObject(btSoftBody *softBody_) : softBody(softBody_), nextAnchorHandle(0) { computeNodeFaceMapping(); }
+    BulletSoftObject(boost::shared_ptr<btSoftBody> softBody_) : softBody(softBody_), nextAnchorHandle(0)
+    {
+    	if (softBody->m_tetras.size() == 0)	computeNodeFaceMapping();
+    	else {
+    		computeNodeFaceTetraMapping();
+    		computeBoundaries();
+    	}
+    }
+    BulletSoftObject(btSoftBody *softBody_) : softBody(softBody_), nextAnchorHandle(0)
+    {
+			if (softBody->m_tetras.size() == 0)	computeNodeFaceMapping();
+			else {
+				computeNodeFaceTetraMapping();
+				computeBoundaries();
+   		}
+		}
     virtual ~BulletSoftObject() { }
 
     // serialization (TODO: serialize anchors also?)
@@ -93,8 +125,17 @@ private:
     AnchorHandle nextAnchorHandle;
     map<AnchorHandle, int> anchormap;
 public:
-		cv::Mat& getTexture() { return *m_cvimage; }
+		cv::Mat getTexture() {
+		  if(m_cvimage) return *m_cvimage;
+		  else return cv::Mat();
+		}
 		osg::Vec4f getColor() {return m_color;}
 };
+
+BulletSoftObject::Ptr makeCloth(const vector<btVector3>& corners, int resolution_x, int resolution_y, float mass);
+
+// Assumes top_corners are in a plane parallel to the xy-plane
+// The bottom corners are the top_corners shifted by thickness in the negative z direction
+BulletSoftObject::Ptr makeSponge(const vector<btVector3>& top_corners, float thickness, float mass, float max_tet_vol=4.0*METERS*METERS*METERS/1000000.0);
 
 #endif // _SOFTBODIES_H_

@@ -1,24 +1,40 @@
 #!/usr/bin/env python
 
+import argparse
+parser = argparse.ArgumentParser()
+parser.add_argument("--plotting", action="store_true")
+parser.add_argument("--save_requests", action="store_true")
+parser.add_argument("--load_request", type=str)
+args = parser.parse_args()
+
+
+import roslib
+roslib.load_manifest("bulletsim_python")
 from brett2.ros_utils import pc2xyzrgb
 import bulletsim_msgs.srv as bs
 import bulletsim_msgs.msg as bm
 import geometry_msgs.msg as gm
 import rospy
 from brett2.ros_utils import RvizWrapper
-from rope_initialization import find_path_through_point_cloud
-from object_recognition_lol import determine_object_type
+from tracking_initialization.rope_initialization import find_path_through_point_cloud
+from tracking_initialization.object_recognition_lol import determine_object_type
 import numpy as np
 import cv2
-
+import cPickle, time
 marker_handles = {}
 
 def handle_initialization_request(req):
     "rope initialization service"
     
+    if args.save_requests:
+        fname = "/tmp/init_req_%i.pkl"%time.time()
+        with open(fname,"w") as fh:
+            cPickle.dump(req, fh)
+            print "saved", fname
+    
     xyz, _ = pc2xyzrgb(req.cloud)
     xyz = np.squeeze(xyz)
-    obj_type = determine_object_type(xyz, plotting=False)
+    obj_type = determine_object_type(xyz, plotting=args.plotting)
     print "object type:", obj_type
     
     
@@ -41,7 +57,7 @@ def handle_initialization_request(req):
         poly_pub.publish(resp.objectInit.towel_corners)
     
     if obj_type == "rope":
-        total_path_3d = find_path_through_point_cloud(xyz, plotting=False)            
+        total_path_3d = find_path_through_point_cloud(xyz, plotting=args.plotting)            
         resp = bs.InitializationResponse()
         resp.objectInit.type = "rope"
         rope = resp.objectInit.rope = bm.Rope()
@@ -49,23 +65,32 @@ def handle_initialization_request(req):
         rope.header = req.cloud.header
         rope.nodes = [gm.Point(x,y,z) for (x,y,z) in total_path_3d]    
         rope.radius = .006
-        rospy.logwarn("TODO: actually figure out rope radius from data. setting to .4cm")
+        print "lengths:", [np.linalg.norm(total_path_3d[i+1] - total_path_3d[i]) for i in xrange(len(total_path_3d)-1)]        
+        rospy.loginfo("created a rope with %i nodes, each has length %.2f, radius %.2f", len(rope.nodes), 
+                      np.linalg.norm(total_path_3d[i+1] - total_path_3d[i]), rope.radius)
         
         pose_array = gm.PoseArray()
         pose_array.header = req.cloud.header
         pose_array.poses = [gm.Pose(position=point, orientation=gm.Quaternion(0,0,0,1)) for point in rope.nodes]
-        marker_handles[0] = rviz.draw_curve(pose_array,0)
+#        marker_handles[0] = rviz.draw_curve(pose_array,0)
 
         
     
     return resp
     
 
-
+import time
 if __name__ == "__main__":
-    rospy.init_node('rope_initialization_node')
-    s = rospy.Service('/initialization', bs.Initialization, handle_initialization_request)
-    print "Ready to initialize ropes."
-    poly_pub = rospy.Publisher("/initialization/towel_corners_for_viz", gm.PolygonStamped)
-    rviz = RvizWrapper()
-    rospy.spin()    
+    if args.load_request:
+        import matplotlib
+        matplotlib.use("wx")
+        with open(args.load_request, "r") as fh:
+            req = cPickle.load(fh)
+        handle_initialization_request(req)
+    else:
+        rospy.init_node('rope_initialization_node',disable_signals=True)
+        s = rospy.Service('/initialization', bs.Initialization, handle_initialization_request)
+        print "Ready to initialize ropes."
+        poly_pub = rospy.Publisher("/initialization/towel_corners_for_viz", gm.PolygonStamped)
+        #rospy.spin()    
+        time.sleep(999999)

@@ -9,6 +9,4 @@
 
 TrackedObject::Ptr toTrackedObject(const bulletsim_msgs::ObjectInit& obj);
 bulletsim_msgs::TrackedObject toTrackedObjectMessage(TrackedObject::Ptr obj);
-TrackedObject::Ptr callInitServiceAndCreateObject(ColorCloudPtr cloud, ColorCloudPtr organized_cloud, cv::Mat image, CoordinateTransformer* transformer);
-//deprecated
-TrackedObject::Ptr callInitServiceAndCreateObject(ColorCloudPtr cloud, cv::Mat image, CoordinateTransformer* transformer);
+TrackedObject::Ptr callInitServiceAndCreateObject(ColorCloudPtr cloud, cv::Mat image, cv::Mat mask, CoordinateTransformer* transformer);

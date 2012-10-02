@@ -17,6 +17,9 @@
 #include <osgUtil/LineSegmentIntersector>
 #include "clouds/utils_pcl.h"
 #include <opencv2/imgproc/imgproc.hpp>
+#include <boost/foreach.hpp>
+#include "softBodyHelpers.h"
+#include "tetgen_helpers.h"
 
 using std::isfinite;
 using util::isfinite;
@@ -115,6 +118,159 @@ void BulletSoftObject::computeNodeFaceMapping() {
 				}
 			}
 		}
+	}
+}
+
+int findNode(btSoftBody::Node* n, btSoftBody::Node* nodes[], int nodes_size) {
+	int i;
+	for (i=0; i<nodes_size; i++)
+		if (n == nodes[i]) break;
+	return i;
+}
+
+bool areFacesEqual(btSoftBody::Face face0, btSoftBody::Face face1) {
+	// assert n0, n1, n2 are all different
+	for (int c=0; c<3; c++)
+		for (int d=c+1; d<3; d++) {
+			assert(face0.m_n[c] != face0.m_n[d]);
+			assert(face1.m_n[c] != face1.m_n[d]);
+		}
+
+	for (int c; c<3; c++)
+		if (findNode(face0.m_n[c], face1.m_n, 3) == 3) return false;
+	return true;
+}
+
+void reverseNodesOrder(btSoftBody::Face& face) {
+	btSoftBody::Node* tmp = face.m_n[0];
+	face.m_n[0] = face.m_n[1];
+	face.m_n[1] = tmp;
+}
+
+void BulletSoftObject::computeNodeFaceTetraMapping() {
+	btSoftBody::tNodeArray& nodes = softBody->m_nodes;
+
+//	std::map<btSoftBody::Node*, int> node2ind;
+//	for (int i=0; i < nodes.size(); ++i) {
+//		node2ind[&nodes[i]]=i;
+//	}
+
+	// faces_internal initially empty
+	tetras_internal.resize(softBody->m_tetras.size());
+
+	for (int t=0; t<softBody->m_tetras.size(); t++) {
+		for (int d=0; d<4; d++)
+			assert(softBody->m_tetras[t].m_n[d]!=0);
+	}
+
+	// compute tetras to faces indices and vice versa
+	face2tetras = vector<vector <int> >(0);
+	tetra2faces = vector<vector<int> >(tetras_internal.size());
+	for (int t=0; t<softBody->m_tetras.size(); t++) {
+		for (int d=0; d<4; d++)
+			tetras_internal[t].m_n[d] = softBody->m_tetras[t].m_n[d];
+
+		for (int c=0; c<4; c++) {
+			for (int d=c+1; d<4; d++) {
+				for (int e=d+1; e<4; e++) {
+					btSoftBody::Face face;
+					face.m_n[0] = tetras_internal[t].m_n[c];
+					face.m_n[1] = tetras_internal[t].m_n[d];
+					face.m_n[2] = tetras_internal[t].m_n[e];
+					int j;
+					for (j=0; j<faces_internal.size(); j++) {
+						if (areFacesEqual(face, faces_internal[j])) break;
+					}
+					if (j==faces_internal.size()) {
+						faces_internal.push_back(face);
+						face2tetras.push_back(vector<int>(0));
+					}
+
+					face2tetras[j].push_back(t);
+//					if (face2tetras[j].size() > 2) {
+//						printf("bad face found (%i)\n", j);
+//						for (int k=0; k < face2tetras[j].size(); ++k) {
+//							int tt = face2tetras[j][k];
+//							int t0, t1, t2, t3, f0, f1, f2;
+//							t0 = node2ind[softBody->m_tetras[tt].m_n[0]];
+//							t1 = node2ind[softBody->m_tetras[tt].m_n[1]];
+//							t2 = node2ind[softBody->m_tetras[tt].m_n[2]];
+//							t3 = node2ind[softBody->m_tetras[tt].m_n[3]];
+//							f0 = node2ind[faces_internal[j].m_n[0]];
+//							f1 = node2ind[faces_internal[j].m_n[1]];
+//							f2 = node2ind[faces_internal[j].m_n[2]];
+//							printf("tetra %i: %i %i %i %i. face: %i %i %i\n", k, t0, t1, t2, t3, f0, f1, f2);
+//						}
+//					}
+					tetra2faces[t].push_back(j);
+				}
+			}
+		}
+	}
+
+	//order the nodes of the surface faces so that their nodes are in counterclockwise order when looked from outside
+	for (int j=0; j<faces_internal.size(); j++) {
+		if (face2tetras[j].size() == 1) {
+			btSoftBody::Node* other_node = NULL;
+			btSoftBody::Face& face = faces_internal[j];
+			btSoftBody::Tetra& tetra = softBody->m_tetras[face2tetras[j][0]];
+			for (int tj=0; tj<4; tj++) {
+				if (findNode(tetra.m_n[tj], face.m_n, 3) == 3) {
+					other_node = tetra.m_n[tj];
+					break;
+				}
+			}
+			assert(other_node != NULL);
+
+			// normal direction should be on the other side of the other node direction
+			btVector3 normal = (face.m_n[1]->m_x - face.m_n[0]->m_x).cross(face.m_n[2]->m_x - face.m_n[0]->m_x);
+			btVector3 center3 = (face.m_n[0]->m_x + face.m_n[1]->m_x + face.m_n[2]->m_x);
+			btVector3 other_node_dir = 3*other_node->m_x - center3;
+			if (normal.dot(other_node_dir) > 0)
+				reverseNodesOrder(face);
+		}
+	}
+
+	assert(face2tetras.size() == faces_internal.size());
+	assert(tetra2faces.size() == tetras_internal.size());
+	for (int t=0; t<tetra2faces.size(); t++) {
+		assert(tetra2faces[t].size() == 4);
+	}
+	for (int j=0; j<face2tetras.size(); j++) {
+		assert(face2tetras[j].size()==1 || face2tetras[j].size()==2);
+	}
+
+	// compute faces to nodes indices and vice versa
+	node2faces = vector<vector<int> >(nodes.size());
+	face2nodes = vector<vector<int> >(faces_internal.size(), vector<int>(3,-1));
+	for (int i=0; i<nodes.size(); i++) {
+		int j,c;
+		for(j=0; j<faces_internal.size(); j++) {
+			for(c=0; c<3; c++) {
+				if (&nodes[i] == faces_internal[j].m_n[c]) {
+					node2faces[i].push_back(j);
+					face2nodes[j][c] = i;
+				}
+			}
+		}
+	}
+}
+
+void BulletSoftObject::computeBoundaries() {
+	assert(tetra2faces.size() != 0); //make sure the soft object is a tetramesh
+
+	face_boundaries.resize(face2tetras.size());
+	for (int j=0; j<face_boundaries.size(); j++)
+		face_boundaries[j] = (face2tetras[j].size() == 1);
+
+	node_boundaries.resize(node2faces.size());
+	for (int i=0; i<node_boundaries.size(); i++) {
+		int c;
+		for (c=0; c<node2faces[i].size(); c++) {
+			if (face_boundaries[node2faces[i][c]]) break;
+		}
+		if (c == node2faces[i].size()) node_boundaries[i] = false;
+		else node_boundaries[i] = true;
 	}
 }
 
@@ -305,6 +461,7 @@ void BulletSoftObject::preDraw() {
 		trigeom->removePrimitiveSet(0); // there should only be one
 	trivertices->clear();
 	trinormals->clear();
+	// for 2D deformable objects
 	const btSoftBody::tFaceArray &faces = softBody->m_faces;
 	for (int i = 0; i < faces.size(); ++i) {
 		trivertices->push_back(util::toOSGVector(faces[i].m_n[0]->m_x));
@@ -315,11 +472,25 @@ void BulletSoftObject::preDraw() {
 		trinormals->push_back(util::toOSGVector(faces[i].m_n[1]->m_n));
 		trinormals->push_back(util::toOSGVector(faces[i].m_n[2]->m_n));
 	}
+	// for 3D deformable objects (don't use tetra to set quadgeom because rendering looks bad)
+	for (int j = 0; j < faces_internal.size(); ++j) {
+		if (face_boundaries[j]) {
+			trivertices->push_back(util::toOSGVector(faces_internal[j].m_n[0]->m_x));
+			trivertices->push_back(util::toOSGVector(faces_internal[j].m_n[1]->m_x));
+			trivertices->push_back(util::toOSGVector(faces_internal[j].m_n[2]->m_x));
+
+			btVector3 normal = (faces_internal[j].m_n[1]->m_x - faces_internal[j].m_n[0]->m_x).cross(faces_internal[j].m_n[2]->m_x - faces_internal[j].m_n[0]->m_x).normalized();
+			trinormals->push_back(util::toOSGVector(normal));
+			trinormals->push_back(util::toOSGVector(normal));
+			trinormals->push_back(util::toOSGVector(normal));
+		}
+	}
 	trivertices->dirty();
 	trinormals->dirty();
 	trigeom->dirtyBound();
 	trigeom->addPrimitiveSet(new osg::DrawArrays(GL_TRIANGLES, 0, trivertices->size()));
 
+/*
 	if (quadgeom->getNumPrimitiveSets() > 0)
 		quadgeom->removePrimitiveSet(0);
 	quadvertices->clear();
@@ -330,16 +501,17 @@ void BulletSoftObject::preDraw() {
 		quadvertices->push_back(util::toOSGVector(tetras[i].m_n[1]->m_x));
 		quadvertices->push_back(util::toOSGVector(tetras[i].m_n[2]->m_x));
 		quadvertices->push_back(util::toOSGVector(tetras[i].m_n[3]->m_x));
-/*
+
 		quadnormals->push_back(util::toOSGVector(tetras[i].m_n[0]->m_n));
 		quadnormals->push_back(util::toOSGVector(tetras[i].m_n[1]->m_n));
 		quadnormals->push_back(util::toOSGVector(tetras[i].m_n[2]->m_n));
-		quadnormals->push_back(util::toOSGVector(tetras[i].m_n[3]->m_n));*/
+		quadnormals->push_back(util::toOSGVector(tetras[i].m_n[3]->m_n));
 	}
 	quadvertices->dirty();
 	quadnormals->dirty();
 	quadgeom->dirtyBound();
 	quadgeom->addPrimitiveSet(new osg::DrawArrays(GL_QUADS, 0, quadvertices->size()));
+*/
 }
 
 void BulletSoftObject::destroy() {
@@ -1151,4 +1323,83 @@ bool BulletSoftObject::validCheck(bool nodesOnly) const {
 
 #undef CHECKARR
 #undef CHECK
+}
+
+BulletSoftObject::Ptr makeCloth(const vector<btVector3>& corners, int resolution_x, int resolution_y, float mass) {
+  btSoftBodyWorldInfo unusedWorldInfo;
+  btSoftBody* psb = CreatePolygonPatch(unusedWorldInfo, corners, resolution_x, resolution_y, true);
+
+  btSoftBody::Material* pm=psb->appendMaterial();
+  pm->m_kLST = 0.01;
+  //pm->m_kAST = 0.5;
+  //pm->m_kAST = 0.0;
+
+  psb->generateBendingConstraints(2,pm);
+
+  psb->setTotalMass(mass);
+
+  psb->generateClusters(512);
+	psb->getCollisionShape()->setMargin(0.002*METERS);
+
+  psb->m_cfg.collisions	=	0;
+  psb->m_cfg.collisions += btSoftBody::fCollision::SDF_RS; ///SDF based rigid vs soft
+  //psb->m_cfg.collisions += btSoftBody::fCollision::CL_RS; ///Cluster vs convex rigid vs soft
+  //psb->m_cfg.collisions += btSoftBody::fCollision::VF_SS;	///Vertex vs face soft vs soft handling
+  psb->m_cfg.collisions += btSoftBody::fCollision::CL_SS; ///Cluster vs cluster soft vs soft handling
+  psb->m_cfg.collisions	+= btSoftBody::fCollision::CL_SELF; ///Cluster soft body self collision
+
+  psb->m_cfg.kDF = 1.0; //0.9; // Dynamic friction coefficient
+//  psb->m_cfg.kAHR = 1; // anchor hardness
+//  psb->m_cfg.kSSHR_CL = 1.0; // so the cloth doesn't penetrate itself
+//  psb->m_cfg.kSRHR_CL = 0.7;
+//  psb->m_cfg.kSKHR_CL = 0.7;
+//  psb->m_cfg.kDP = 0.1; //1.0; // Damping coefficient [0,1]
+
+  psb->m_cfg.piterations = 50; //8;
+  psb->m_cfg.citerations = 50;
+  psb->m_cfg.diterations = 50;
+  //	psb->m_cfg.viterations = 10;
+
+  psb->randomizeConstraints();
+
+  BulletSoftObject::Ptr bso = BulletSoftObject::Ptr(new BulletSoftObject(psb));
+
+	return bso;
+}
+
+// Assumes top_corners are in a plane parallel to the xy-plane
+// The bottom corners are the top_corners shifted by thickness in the negative z direction
+// good max_tet_vol: 0.0008*METERS*METERS*METERS
+BulletSoftObject::Ptr makeSponge(const vector<btVector3>& top_corners, float thickness, float mass, float max_tet_vol) {
+	assert(thickness > 0);
+  btSoftBodyWorldInfo unusedWorldInfo;
+  btVector3 polygon_translation(0,0,thickness);
+  vector<btVector3> bottom_corners;
+  BOOST_FOREACH(const btVector3& top_corner, top_corners) bottom_corners.push_back(top_corner - polygon_translation);
+	btSoftBody* psb=CreatePrism(unusedWorldInfo, bottom_corners, polygon_translation, 1.414, max_tet_vol, false,true,true);
+
+  btSoftBody::Material* pm=psb->appendMaterial();
+  pm->m_kLST = 0.4;
+
+  psb->generateBendingConstraints(2,pm);
+
+	psb->setVolumeMass(mass);
+
+  psb->generateClusters(16);
+	psb->getCollisionShape()->setMargin(0.001*METERS);
+
+  psb->m_cfg.collisions	=	0;
+  //psb->m_cfg.collisions += btSoftBody::fCollision::SDF_RS; ///SDF based rigid vs soft
+  psb->m_cfg.collisions += btSoftBody::fCollision::CL_RS; ///Cluster vs convex rigid vs soft
+  //psb->m_cfg.collisions += btSoftBody::fCollision::VF_SS;	///Vertex vs face soft vs soft handling
+  psb->m_cfg.collisions += btSoftBody::fCollision::CL_SS; ///Cluster vs cluster soft vs soft handling
+  //psb->m_cfg.collisions	+= btSoftBody::fCollision::CL_SELF; ///Cluster soft body self collision
+
+  psb->m_cfg.kDF = 1.0; // Dynamic friction coefficient
+
+	psb->m_cfg.piterations=1;
+
+  BulletSoftObject::Ptr bso = BulletSoftObject::Ptr(new BulletSoftObject(psb));
+
+	return bso;
 }

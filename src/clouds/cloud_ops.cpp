@@ -44,9 +44,9 @@ vector<vector<int> > findClusters(ColorCloudPtr cloud, float tol, int minSize) {
   int cloud_size = cloud->size();
   //HACK: a bug in pcl::EuclideanClusterExtraction causes a segfault when no clusters are returned.
   //Hence add a cluster to the point cloud and then remove these indices from the result.
-  ColorPoint pt(255, 255, 255);
-  for (int i = 0; i < minSize; i++)
-    cloud->push_back(pt);
+//  ColorPoint pt(255, 255, 255);
+//  for (int i = 0; i < minSize; i++)
+//    cloud->push_back(pt);
 
   std::vector<pcl::PointIndices> cluster_indices;
   pcl::EuclideanClusterExtraction<ColorPoint> ec;
@@ -134,11 +134,11 @@ ColorCloudPtr projectOntoPlane(const ColorCloudPtr in, pcl::ModelCoefficients::P
   return cloud_projected;
 }
 
-ColorCloudPtr findConcaveHull(ColorCloudPtr in, std::vector<pcl::Vertices>& polygons) {
+ColorCloudPtr findConcaveHull(ColorCloudPtr in, float alpha, std::vector<pcl::Vertices>& polygons) {
   ColorCloudPtr out(new ColorCloud());
   pcl::ConcaveHull<PointT> chull;
   chull.setInputCloud (in);
-  chull.setAlpha (0.1);
+  chull.setAlpha (alpha);
   chull.reconstruct (*out, polygons);
   return out;
 }
@@ -152,8 +152,9 @@ ColorCloudPtr findConvexHull(ColorCloudPtr in, std::vector<pcl::Vertices>& polyg
   return out;
 }
 
+//caution: this will also filter out the nan pixels
 ColorCloudPtr cropToHull(const ColorCloudPtr in, ColorCloudPtr hull_cloud, std::vector<pcl::Vertices>& polygons, bool organized) {
-  ColorCloudPtr out(new ColorCloud());
+	ColorCloudPtr out(new ColorCloud());
   pcl::CropHull<PointT> crop_filter;
   crop_filter.setInputCloud (in);
   crop_filter.setHullCloud (hull_cloud);
@@ -171,9 +172,9 @@ ColorCloudPtr cropToHull(const ColorCloudPtr in, ColorCloudPtr hull_cloud, std::
   		out->at(indices[i]).x = numeric_limits<float>::quiet_NaN();
   		out->at(indices[i]).y = numeric_limits<float>::quiet_NaN();
   		out->at(indices[i]).z = numeric_limits<float>::quiet_NaN();
-  		out->at(indices[i]).r = 255;
-  		out->at(indices[i]).g = 255;
-  		out->at(indices[i]).b = 255;
+  		out->at(indices[i]).r = 0;
+  		out->at(indices[i]).g = 0;
+  		out->at(indices[i]).b = 0;
   	}
   }
   return out;
@@ -785,4 +786,24 @@ ColorCloudPtr extractBorder(ColorCloudPtr cloud_in, ColorCloudPtr cloud_veil, Co
   }
 
   return cloud_border;
+}
+
+ColorCloudPtr projectPointsOntoPlane(ColorCloudPtr in, vector<float> abcd) {
+  float a = abcd[0];
+  float b = abcd[1];
+  float c = abcd[2];
+  float d = abcd[3];
+
+  float abc2 = a * a + b * b + c * c;
+
+  ColorCloudPtr out(new ColorCloud());
+  BOOST_FOREACH(ColorPoint& pt, in->points) {
+    float t = -(a*pt.x + b*pt.y + c*pt.z + d)/abc2;
+    ColorPoint newpt = pt;
+    newpt.x = pt.x + a*t;
+    newpt.y = pt.y + b*t;
+    newpt.z = pt.z + c*t;
+    out->push_back(newpt);
+  }
+  return out;
 }

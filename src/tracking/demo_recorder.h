@@ -36,6 +36,7 @@ public:
     cv::Mat mat = cv_bridge::toCvCopy(m_lastImg)->image;
     m_cir.write(mat);
     m_sr.snapshot();
+    m_viewer.frame();
   }
 
 };

@@ -30,15 +30,17 @@ add_library(tracking
 	tracked_rope.cpp
 	tracked_cloth.cpp
 	tracked_towel.cpp
+	tracked_sponge.cpp
 	tracked_box.cpp
 	utils_tracking.cpp
 	visibility.cpp
 	feature_extractor.cpp
 	tracked_compound.cpp
+  cam_sync.cpp
 )
 
 target_link_libraries(tracking
-	simulation clouds robots)
+	simulation clouds robots cv_bridge)
 	
 add_executable(tracker_node tracker_node.cpp)
 target_link_libraries(tracker_node tracking simulation clouds tf cv_bridge ${OpenCV_LIBS} ${ROS_LIBRARIES} boost_signals)

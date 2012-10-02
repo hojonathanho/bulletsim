@@ -12,6 +12,7 @@
 #include "utils/conversions.h"
 #include "utils/utils_vector.h"
 #include "tracking/utils_tracking.h"
+#include <boost/assign/list_of.hpp>
 
 using sensor_msgs::PointCloud2;
 using namespace std;
@@ -22,16 +23,14 @@ struct LocalConfig : Config {
   static vector<ledid_t> kinectLedIds;
 
   LocalConfig() : Config() {
-    params.push_back(new Parameter<vector<ledid_t> >("commonLedIds", &commonLedIds, "ID of the LEDs that are seen by both cameras. The order matters."));
-    params.push_back(new Parameter<vector<ledid_t> >("kinectLedIds", &kinectLedIds, "ID of the LEDs that are on the kinect's frame."));
+    params.push_back(new ParameterVec<ledid_t>("commonLedIds", &commonLedIds, "ID of the LEDs that are seen by both cameras. The order matters."));
+    params.push_back(new ParameterVec<ledid_t>("kinectLedIds", &kinectLedIds, "ID of the LEDs that are on the kinect's frame."));
   }
 };
 
-static const ledid_t commonLedIds_a[] = { 24,8,9,10,11,12,13,14,15 };
-vector<ledid_t> LocalConfig::commonLedIds = std::vector<ledid_t>(commonLedIds_a, commonLedIds_a+sizeof(commonLedIds_a)/sizeof(ledid_t));
-//static const ledid_t kinectLedIds_a[] = { 0,1,2,3,4,5,6 };
-static const ledid_t kinectLedIds_a[] = { 42,43,44,45,46 };
-vector<ledid_t> LocalConfig::kinectLedIds = std::vector<ledid_t>(kinectLedIds_a, kinectLedIds_a+sizeof(kinectLedIds_a)/sizeof(ledid_t));
+vector<ledid_t> LocalConfig::commonLedIds = boost::assign::list_of(24)(8)(9)(10)(11)(12)(13)(14)(15);
+//vector<ledid_t> LocalConfig::kinectLedIds = boost::assign::list_of(0)(1)(2)(3)(4)(5)(6);
+vector<ledid_t> LocalConfig::kinectLedIds = boost::assign::list_of(42)(43)(44)(45)(46);
 
 ColorCloudPtr cloud(new ColorCloud());
 cv::Mat image;

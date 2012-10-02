@@ -27,30 +27,19 @@ using namespace Eigen;
 
 using namespace std;
 
-TrackedObject::Ptr toTrackedObject(const bulletsim_msgs::ObjectInit& initMsg, ColorCloudPtr cloud, ColorCloudPtr organized_cloud, cv::Mat image, CoordinateTransformer* transformer) {
+TrackedObject::Ptr toTrackedObject(const bulletsim_msgs::ObjectInit& initMsg, ColorCloudPtr cloud, cv::Mat image, cv::Mat mask, CoordinateTransformer* transformer) {
   if (initMsg.type == "rope") {
 	  vector<btVector3> nodes = toBulletVectors(initMsg.rope.nodes);
-//		//downsample nodes
-//		vector<btVector3> nodes;
-//		for (int i=0; i<nodes_o.size(); i+=3)
-//			nodes.push_back(nodes_o[i]);
 	  BOOST_FOREACH(btVector3& node, nodes) node += btVector3(0,0,.01);
 
 	  CapsuleRope::Ptr sim(new CapsuleRope(scaleVecs(nodes,METERS), initMsg.rope.radius*METERS));
 	  TrackedRope::Ptr tracked_rope(new TrackedRope(sim));
-		cv::Mat tex_image = tracked_rope->makeTexture(cloud);
-		sim->setTexture(tex_image);
+
+  	if (!image.empty())
+  	  sim->setTexture(image, mask, toBulletTransform(transformer->camFromWorldEigen));
 
 	  return tracked_rope;
   }
-//  else if (initMsg.type == "towel_corners") {
-//	  vector<btVector3> poly_corners = polyCorners(organized_cloud);
-//	  BulletSoftObject::Ptr sim = makeSponge(poly_corners, 0.05*METERS, 4.0*METERS*METERS*METERS/1000000.0, 300);
-//	  sim->softBody->translate(btVector3(0,0,0.1*METERS));
-//
-//	  TrackedCloth::Ptr tracked_towel(new TrackedCloth(sim, cv::Mat(), 10, 10, 10, 10));
-//	  return tracked_towel;
-//  }
   else if (initMsg.type == "towel_corners") {
 	  const vector<geometry_msgs::Point32>& points = initMsg.towel_corners.polygon.points;
 	  vector<btVector3> corners = scaleVecs(toBulletVectors(points),METERS);
@@ -68,10 +57,11 @@ TrackedObject::Ptr toTrackedObject(const bulletsim_msgs::ObjectInit& initMsg, Co
 	  printf("Node distance (distance between nodes): %f\n", TrackingConfig::node_distance);
 	  printf("Resolution: %d %d\n", resolution_x, resolution_y);
 
-	  vector<btVector3> poly_corners = polyCorners(cloud, image, transformer);
+	  vector<btVector3> poly_corners = polyCorners(cloud);
 	  //BOOST_FOREACH(btVector3& poly_corner, poly_corners) util::drawSpheres(poly_corner, Vector3f(1,0,0), 0.5, 2, env);
   	BulletSoftObject::Ptr sim = makeCloth(poly_corners, resolution_x, resolution_y, mass);
-	  sim->setTexture(image, toBulletTransform(transformer->camFromWorldEigen));
+  	if (!image.empty())
+  	  sim->setTexture(image, toBulletTransform(transformer->camFromWorldEigen));
 
 	  //Shift the whole cloth upwards in case some of it starts below the table surface
 	  sim->softBody->translate(btVector3(0,0,0.01*METERS));
@@ -84,20 +74,21 @@ TrackedObject::Ptr toTrackedObject(const bulletsim_msgs::ObjectInit& initMsg, Co
 //	  }
 //	  cv::imwrite("/home/alex/Desktop/tshirt_tex2.jpg", image);
 
-	  TrackedCloth::Ptr tracked_towel(new TrackedCloth(sim, image, resolution_x, resolution_y, sx, sy));
+	  TrackedCloth::Ptr tracked_towel(new TrackedCloth(sim, resolution_x, resolution_y, sx, sy));
 
 	  return tracked_towel;
   }
   else if (initMsg.type == "box") {
-	  btScalar mass = 1;
-	  btVector3 halfExtents = toBulletVector(initMsg.box.extents)*0.5*METERS;
-	  Eigen::Matrix3f rotation = (Eigen::Matrix3f) Eigen::AngleAxisf(initMsg.box.angle, Eigen::Vector3f::UnitZ());
-	  btTransform initTrans(toBulletMatrix(rotation), (toBulletVector(initMsg.box.center) + btVector3(0,0,.15))*METERS);
-	  BoxObject::Ptr sim(new BoxObject(mass, halfExtents, initTrans));
-	  TrackedBox::Ptr tracked_box(new TrackedBox(sim));
-		sim->setColor(1,0,0,1);
+		vector<btVector3> top_corners = polyCorners(cloud);
+		float thickness = top_corners[0].z();
+		BulletSoftObject::Ptr sim = makeSponge(top_corners, thickness, 3);
+		sim->setColor(1,1,1,1);
 
-	  return tracked_box;
+	  //Shift the whole sponge upwards in case some of it starts below the table surface
+	  sim->softBody->translate(btVector3(0,0,0.01*METERS));
+
+		TrackedSponge::Ptr tracked_sponge(new TrackedSponge(sim));
+		return tracked_sponge;
   }
   else
 	  throw runtime_error("unrecognized initialization type" + initMsg.type);
@@ -105,9 +96,47 @@ TrackedObject::Ptr toTrackedObject(const bulletsim_msgs::ObjectInit& initMsg, Co
 
 bulletsim_msgs::TrackedObject toTrackedObjectMessage(TrackedObject::Ptr obj) {
   bulletsim_msgs::TrackedObject msg;
+  msg.header.frame_id = "/ground";
+  msg.header.stamp = ros::Time::now();
+
   if (obj->m_type == "rope") {
     msg.type = obj->m_type;
     msg.rope.nodes = toROSPoints(scaleVecs(obj->getPoints(), 1/METERS));
+  }
+  else if (obj->m_type == "towel"){
+  	msg.type = obj->m_type;
+
+  	BulletSoftObject::Ptr sim = boost::dynamic_pointer_cast<BulletSoftObject>(obj->m_sim);
+  	const btSoftBody::tNodeArray& nodes = sim->softBody->m_nodes;
+  	const btSoftBody::tFaceArray& faces = sim->softBody->m_faces;
+
+  	for (int i=0; i<nodes.size(); i++) {
+  		msg.mesh.vertices.push_back(toROSPoint(nodes[i].m_x/METERS));
+  		msg.mesh.normals.push_back(toROSPoint(nodes[i].m_n/METERS));
+  	}
+
+  	// compute face to nodes indices
+  	vector<vector<int> > face2nodes(faces.size(), vector<int>(3,-1));
+  	for (int i=0; i<nodes.size(); i++) {
+  		int j,c;
+  		for(j=0; j<faces.size(); j++) {
+  			for(c=0; c<3; c++) {
+  				if (&nodes[i] == faces[j].m_n[c]) {
+  					face2nodes[j][c] = i;
+  				}
+  			}
+  		}
+  	}
+
+  	for (int j=0; j<faces.size(); j++) {
+  		bulletsim_msgs::Face face;
+  		for (int c=0; c<3; c++) {
+  			face.vertex_inds.push_back(face2nodes[j][c]);
+  			face.normal_inds.push_back(face2nodes[j][c]);
+  		}
+  		msg.mesh.faces.push_back(face);
+  	}
+
   }
   else {
 	  //TODO
@@ -116,20 +145,17 @@ bulletsim_msgs::TrackedObject toTrackedObjectMessage(TrackedObject::Ptr obj) {
   return msg;
 }
 
-TrackedObject::Ptr callInitServiceAndCreateObject(ColorCloudPtr cloud, ColorCloudPtr organized_cloud, cv::Mat image, CoordinateTransformer* transformer) {
+TrackedObject::Ptr callInitServiceAndCreateObject(ColorCloudPtr cloud, cv::Mat image, cv::Mat mask, CoordinateTransformer* transformer) {
   bulletsim_msgs::Initialization init;
   pcl::toROSMsg(*scaleCloud(cloud, 1/METERS), init.request.cloud);
   init.request.cloud.header.frame_id = "/ground";
 	
   bool success = ros::service::call(initializationService, init);
   if (success)
-  	return toTrackedObject(init.response.objectInit, cloud, organized_cloud, image, transformer);
+  	return toTrackedObject(init.response.objectInit, cloud, image, mask, transformer);
   else {
 		ROS_ERROR("initialization failed");
 		return TrackedObject::Ptr();
   }
 }
 
-TrackedObject::Ptr callInitServiceAndCreateObject(ColorCloudPtr cloud, cv::Mat image, CoordinateTransformer* transformer) {
-	return callInitServiceAndCreateObject(scaleCloud(cloud, METERS), ColorCloudPtr(new ColorCloud()), image, transformer);
-}

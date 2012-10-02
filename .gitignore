@@ -5,7 +5,6 @@ build/*
 *.wpu
 data/knots
 CMakeFiles
-Makefile
 *.cmake
 *.a
 bin/
@@ -19,3 +18,5 @@ data/phasespace_rigid_info/
 data/boundary/
 lib/phasespace/src/examples/example1
 lib/phasespace/src/examples/example2
+bulletsim_binaries/
+*.pyc

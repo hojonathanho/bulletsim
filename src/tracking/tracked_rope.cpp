@@ -25,19 +25,6 @@ std::vector<btVector3> TrackedRope::getPoints() {
 	return out;
 }
 
-const Eigen::VectorXf TrackedRope::getPriorDist() {
-	Eigen::MatrixXf prior_dist(1,FeatureExtractor::m_allDim);
-	prior_dist << TrackingConfig::pointPriorDist*METERS, TrackingConfig::pointPriorDist*METERS, TrackingConfig::pointPriorDist*METERS,  //FT_XYZ
-			0.2, 0.2, 0.2, 	//FT_BGR
-			TrackingConfig::colorLPriorDist, TrackingConfig::colorABPriorDist, TrackingConfig::colorABPriorDist,	//FT_LAB
-			1.0, 1.0, 1.0,  //FT_NORMAL
-			1.0,  //FT_LABEL
-			MatrixXf::Ones(1, FE::FT_SIZES[FE::FT_SURF])*0.4,  //FT_SURF
-			MatrixXf::Ones(1, FE::FT_SIZES[FE::FT_PCASURF])*0.4,  //FT_PCASURF
-			0.5;  //FT_GRADNORMAL
-	return FeatureExtractor::all2ActiveFeatures(prior_dist).transpose();
-}
-
 void TrackedRope::applyEvidence(const Eigen::MatrixXf& corr, const MatrixXf& obsPts) {
   vector<btVector3> estPos(m_nNodes), estVel(m_nNodes);
   for (int i=0; i < m_nNodes; ++i)  {
@@ -55,64 +42,4 @@ void TrackedRope::initColors() {
 		Vector3f bgr = toEigenMatrixImage(getSim()->children[i]->getTexture()).colwise().mean();
 		m_colors.row(i) = bgr.transpose();
 	}
-}
-
-cv::Mat TrackedRope::makeTexture(ColorCloudPtr cloud) {
-	vector<btVector3> nodes = getPoints();
-	int x_res = 3;
-	int ang_res = 1;
-	cv::Mat image(ang_res, nodes.size()*x_res, CV_8UC3);
-	vector<btMatrix3x3> rotations = getSim()->getRotations();
-	vector<float> half_heights = getSim()->getHalfHeights();
-	for (int j=0; j<nodes.size(); j++) {
-		pcl::KdTreeFLANN<ColorPoint> kdtree;
-		kdtree.setInputCloud(cloud);
-		ColorPoint searchPoint;
-		searchPoint.x = nodes[j].x();
-		searchPoint.y = nodes[j].y();
-		searchPoint.z = nodes[j].z();
-		// Neighbors within radius search
-		float radius = 0.03*METERS;
-		std::vector<int> pointIdxRadiusSearch;
-		std::vector<float> pointRadiusSquaredDistance;
-		Eigen::Matrix3f node_rot = toEigenMatrix(rotations[j]);
-		float node_half_height = half_heights[j];
-		vector<vector<float> > B_bins(ang_res*x_res), G_bins(ang_res*x_res), R_bins(ang_res*x_res);
-		if ( kdtree.radiusSearch (searchPoint, radius, pointIdxRadiusSearch, pointRadiusSquaredDistance) > 0 ) {
-			for (size_t i = 0; i < pointIdxRadiusSearch.size(); i++) {
-				Eigen::Vector3f alignedPoint = node_rot * (toEigenVector(cloud->points[pointIdxRadiusSearch[i]]) - toEigenVector(searchPoint));
-				int xId = (int) floor( ((float) x_res) * (1.0 + alignedPoint(0)/node_half_height) * 0.5 );
-				float angle = atan2(alignedPoint(2), alignedPoint(1))*180.0/M_PI;
-				if (angle >= 90) angle-=90;
-				else angle+=270;
-				angle = 360-angle;
-				//if (angle<0) angle+=360.0;
-				int angId = (int) floor( ((float) ang_res) * angle/360.0 );
-				assert(angId >= 0 && angId < ang_res);
-				if (xId >= 0 && xId < x_res) {
-					B_bins[xId*ang_res+angId].push_back(cloud->points[pointIdxRadiusSearch[i]].b);
-					G_bins[xId*ang_res+angId].push_back(cloud->points[pointIdxRadiusSearch[i]].g);
-					R_bins[xId*ang_res+angId].push_back(cloud->points[pointIdxRadiusSearch[i]].r);
-				}
-//					if (xId >= 0 && xId < x_res/2 && j%2==0) {
-//						debugCloud->push_back(cloud->points[pointIdxRadiusSearch[i]]);
-//					}
-			}
-		}
-//		for (int xId=0; xId<x_res; xId++) {
-//			for (int angId=0; angId<ang_res; angId++) {
-//				image.at<cv::Vec3b>(angId,j*x_res+xId)[0] = mean(append(B_bins, xId*ang_res, (xId+1)*ang_res));
-//				image.at<cv::Vec3b>(angId,j*x_res+xId)[1] = mean(append(G_bins, xId*ang_res, (xId+1)*ang_res));
-//				image.at<cv::Vec3b>(angId,j*x_res+xId)[2] = mean(append(R_bins, xId*ang_res, (xId+1)*ang_res));
-//			}
-//		}
-		for (int xId=0; xId<x_res; xId++) {
-			for (int angId=0; angId<ang_res; angId++) {
-				image.at<cv::Vec3b>(angId,j*x_res+xId)[0] = mean(B_bins[xId*ang_res+angId]);
-				image.at<cv::Vec3b>(angId,j*x_res+xId)[1] = mean(G_bins[xId*ang_res+angId]);
-				image.at<cv::Vec3b>(angId,j*x_res+xId)[2] = mean(R_bins[xId*ang_res+angId]);
-			}
-		}
-	}
-	return image;
 }

@@ -47,16 +47,6 @@ std::vector<btVector3> TrackedCompound::getPoints() {
 	return out;
 }
 
-const Eigen::VectorXf TrackedCompound::getPriorDist() {
-	Eigen::MatrixXf prior_dist(1,FeatureExtractor::m_allDim);
-	prior_dist << TrackingConfig::pointPriorDist*METERS, TrackingConfig::pointPriorDist*METERS, TrackingConfig::pointPriorDist*METERS,  //FT_XYZ
-			0.2, 0.2, 0.2, 	//FT_BGR
-			0.3, 0.15, 0.15,	//FT_LAB
-			1.0, 1.0, 1.0,
-			1.0;
-	return FeatureExtractor::all2ActiveFeatures(prior_dist).transpose();
-}
-
 void TrackedCompound::applyEvidence(const Eigen::MatrixXf& corr, const MatrixXf& obsPts) {
 	vector<btTransform> transforms;
 	transforms.reserve(m_nBodies);
