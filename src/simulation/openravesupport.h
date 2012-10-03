@@ -190,6 +190,18 @@ protected:
 RaveObject::Ptr getObjectByName(Environment::Ptr env, RaveInstance::Ptr rave, const string& name);
 RaveRobotObject::Ptr getRobotByName(Environment::Ptr env, RaveInstance::Ptr rave, const string& name);
 
+class ScopedRobotSave {
+  std::vector<double> m_dofvals;
+  OpenRAVE::RobotBasePtr m_robot;
+public:
+  ScopedRobotSave(OpenRAVE::RobotBasePtr robot) : m_robot(robot) {
+    robot->GetDOFValues(m_dofvals);
+  }
+  ~ScopedRobotSave() {m_robot->SetDOFValues(m_dofvals);}
+};
+
+
+
 
 
 
