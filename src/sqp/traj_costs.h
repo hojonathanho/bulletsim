@@ -71,6 +71,7 @@ struct LinkCollision {
   int linkInd;
   btVector3 point; // world position
   btVector3 normal; // world normal
+  float frac; // only used in continuous collision detection
   LinkCollision(double dist_, int linkInd_, const btVector3& point_, const btVector3& normal_):
     dist(dist_), linkInd(linkInd_), point(point_), normal(normal_) {}
 };
@@ -83,7 +84,9 @@ struct JointCollInfo {
 };
 typedef std::vector< JointCollInfo > TrajJointCollInfo;
 
+
 TrajCartCollInfo collectTrajCollisions(const Eigen::MatrixXd& traj, OpenRAVE::RobotBasePtr robot, BulletRaveSyncher& brs, btCollisionWorld* world, const std::vector<int>& dofInds);
+TrajCartCollInfo continuousTrajCollisions(const Eigen::MatrixXd& traj, OpenRAVE::RobotBasePtr robot, BulletRaveSyncher& brs, btCollisionWorld* world, const std::vector<int>& dofInds, float allowedPen);
 TrajJointCollInfo trajCartToJointCollInfo(const TrajCartCollInfo& in, const Eigen::MatrixXd& traj, OpenRAVE::RobotBasePtr robot,
     const std::vector<int>& dofInds);
 

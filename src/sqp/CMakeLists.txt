@@ -39,4 +39,4 @@ add_executable(test_ros_ser test_ros_ser.cpp)
 target_link_libraries(test_ros_ser ${ROS_LIBRARIES})
 
 add_executable(test_rave_env test_rave_env.cpp)
-target_link_libraries(test_rave_env simulation robots)
+target_link_libraries(test_rave_env simulation robots sqp json)

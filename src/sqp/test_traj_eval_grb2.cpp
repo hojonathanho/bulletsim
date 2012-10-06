@@ -76,13 +76,13 @@ void removeBodiesFromBullet(vector<BulletObject::Ptr> objs, btDynamicsWorld* wor
   }
 }
 
+
 int main(int argc, char *argv[]) {
 
   signal(SIGABRT, handler);   // install our handler
 
 	GeneralConfig::scale = 1.;
-	BulletConfig::friction = 2; // for if you're shooting blocks
-	BulletConfig::margin = .01;
+//	BulletConfig::margin = .01;
 	Parser parser;
 	parser.addGroup(GeneralConfig());
 	parser.addGroup(BulletConfig());
@@ -97,11 +97,11 @@ int main(int argc, char *argv[]) {
 
 	Scene scene;
 	util::setGlobalEnv(scene.env);
-	BoxObject::Ptr table(new BoxObject(0, GeneralConfig::scale * btVector3(.85, .65, table_thickness / 2), btTransform(btQuaternion(0, 0, 0, 1), GeneralConfig::scale * btVector3(1.1, 0, table_height - table_thickness / 2))));
+	BoxObject::Ptr table(new BoxObject(0, GeneralConfig::scale * btVector3(.85, .55, table_thickness / 2), btTransform(btQuaternion(0, 0, 0, 1), GeneralConfig::scale * btVector3(1.1, 0, table_height - table_thickness / 2))));
 	scene.env->add(table);
 	PR2Manager pr2m(scene);
 	RaveRobotObject::Ptr pr2 = pr2m.pr2;
-	pr2->setColor(1,1,1,.4);
+	pr2->setColor(0,1,1,.4);
 	table->setColor(0,0,0,.3);
 	RaveRobotObject::Manipulator::Ptr rarm = pr2m.pr2Right;
 	removeBodiesFromBullet(pr2->children, scene.env->bullet->dynamicsWorld);
@@ -116,16 +116,17 @@ int main(int argc, char *argv[]) {
 
     TIC();
 	PlanningProblem prob;
-//    ArmCCEPtr cce = makeArmCCE(rarm, pr2, scene.env->bullet->dynamicsWorld);
 	MatrixXd initTraj = makeTraj(startJoints, endJoints, LocalConfig::nSteps);
 	LengthConstraintAndCostPtr lcc(new LengthConstraintAndCost(true, true, defaultMaxStepMvmt(initTraj),SQPConfig::lengthCoef));
 	CollisionCostPtr cc(new CollisionCost(pr2->robot, scene.env->bullet->dynamicsWorld, brs, rarm->manip->GetArmIndices(), -BulletConfig::linkPadding/2, SQPConfig::collCoef));
 	JointBoundsPtr jb(new JointBounds(true, true, defaultMaxStepMvmt(initTraj)/5, rarm->manip));
 	prob.initialize(initTraj, true);
-    prob.addComponent(lcc);
-    prob.addComponent(cc);
-    prob.addComponent(jb);
+  prob.addComponent(lcc);
+  prob.addComponent(cc);
+  prob.addComponent(jb);
 	LOG_INFO_FMT("setup time: %.2f", TOC());
+
+
 
 
   TrajPlotterPtr plotter;
@@ -137,18 +138,48 @@ int main(int argc, char *argv[]) {
   }
   else throw std::runtime_error("invalid plot type");
 
-  prob.addPlotter(plotter);
 
+  prob.testObjectives();
+
+  prob.addPlotter(plotter);
   scene.startViewer();
 
-try {
-  prob.optimize(LocalConfig::nIter);
-}
-catch (GRBException e) {
-  cout << e.getMessage() << endl;
-  handler(0);
-  throw;
-}
-  scene.idle(true);
+  double tStartAll = GetClock();
+  for (int iSub=0; iSub<10; ++iSub) {
+
+    try {
+      prob.optimize(LocalConfig::nIter);
+    }
+    catch (GRBException e) {
+      cout << e.getMessage() << endl;
+      handler(0);
+      throw;
+    }
+
+    vector<double> insertTimes;
+
+    TIC1();
+    TrajCartCollInfo cci = continuousTrajCollisions(prob.m_currentTraj, pr2->robot, brs, scene.env->bullet->dynamicsWorld, rarm->manip->GetArmIndices(), BulletConfig::linkPadding*.75);
+    LOG_INFO_FMT("continuous collision check time: %.2f", TOC());
+    plotCollisions(cci, -BulletConfig::linkPadding/2);
+    int nContColl=0;
+    for (int i=0; i < cci.size(); ++i) {
+      nContColl += cci[i].size();
+      cout << cci[i].size() << " ";
+      if (cci[i].size() > 0) insertTimes.push_back((prob.m_times[i] + prob.m_times[i+1])/2);
+    }
+    cout << endl;
+    LOG_INFO_FMT("number of unsafe points: %.2i", nContColl);
+
+    if (insertTimes.size() > 0) {
+      LOG_INFO("subdividing at times" << insertTimes);
+      prob.subdivide(insertTimes);
+    }
+    else break;
+  }
+
+  cout << "total traj opt time: " << GetClock() - tStartAll;
+  prob.m_plotters[0]->clear();
+  interactiveTrajPlot(prob.m_currentTraj, rarm, &brs, &scene);
 
 }
