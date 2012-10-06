@@ -103,7 +103,7 @@ void RaveObject::init() {
 }
 
 void RaveObject::destroy() {
-	CompoundObject<BulletObject>::init();
+	CompoundObject<BulletObject>::destroy();
 
 	typedef std::map<KinBody::JointPtr, BulletConstraint::Ptr> map_t;
 	map_t mmap;
