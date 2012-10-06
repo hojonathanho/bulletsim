@@ -25,6 +25,17 @@ void makeFullyTransparent(BulletObject::Ptr obj) {
   obj->node->getOrCreateStateSet()->setAttributeAndModes( depth, osg::StateAttribute::ON );
 }
 
+RaveRobotObject::Ptr pr2;
+
+void adjustWorldTransparency(float inc) {
+  EnvironmentPtr env = util::getGlobalEnv();
+  BOOST_FOREACH(EnvironmentObjectPtr obj, env->objects) {
+    BulletObjectPtr bobj = boost::dynamic_pointer_cast<BulletObject>(obj);
+    if (bobj) bobj->adjustTransparency(inc);
+    pr2->adjustTransparency(inc);
+  }
+
+}
 
 void handler(int sig) {
   void *array[10];
@@ -81,14 +92,16 @@ int main(int argc, char *argv[]) {
 
   signal(SIGABRT, handler);   // install our handler
 
-	GeneralConfig::scale = 1.;
+	GeneralConfig::scale = 100.;
 //	BulletConfig::margin = .01;
 	Parser parser;
 	parser.addGroup(GeneralConfig());
-	parser.addGroup(BulletConfig());
+//	parser.addGroup(BulletConfig());
 	parser.addGroup(LocalConfig());
 	parser.addGroup(SQPConfig());
 	parser.read(argc, argv);
+	BulletConfig::linkPadding = SQPConfig::distPen*2;
+
 
 	const float table_height = .65;
 	const float table_thickness = .06;
@@ -100,13 +113,15 @@ int main(int argc, char *argv[]) {
 	BoxObject::Ptr table(new BoxObject(0, GeneralConfig::scale * btVector3(.85, .55, table_thickness / 2), btTransform(btQuaternion(0, 0, 0, 1), GeneralConfig::scale * btVector3(1.1, 0, table_height - table_thickness / 2))));
 	scene.env->add(table);
 	PR2Manager pr2m(scene);
-	RaveRobotObject::Ptr pr2 = pr2m.pr2;
-	pr2->setColor(0,1,1,.4);
-	table->setColor(0,0,0,.3);
+	pr2 = pr2m.pr2;
 	RaveRobotObject::Manipulator::Ptr rarm = pr2m.pr2Right;
 	removeBodiesFromBullet(pr2->children, scene.env->bullet->dynamicsWorld);
-	BOOST_FOREACH(BulletObjectPtr obj, pr2->children) if(obj) makeFullyTransparent(obj);
-	makeFullyTransparent(table);
+//	BOOST_FOREACH(BulletObjectPtr obj, pr2->children) if(obj) makeFullyTransparent(obj);
+//	makeFullyTransparent(table);
+
+
+	scene.addVoidKeyCallback('+',boost::bind(&adjustWorldTransparency, .05), "increase opacity");
+    scene.addVoidKeyCallback('-',boost::bind(&adjustWorldTransparency, -.05), "decrease opacity");
 
 	BulletRaveSyncher brs = syncherFromArm(rarm);
 
@@ -118,7 +133,7 @@ int main(int argc, char *argv[]) {
 	PlanningProblem prob;
 	MatrixXd initTraj = makeTraj(startJoints, endJoints, LocalConfig::nSteps);
 	LengthConstraintAndCostPtr lcc(new LengthConstraintAndCost(true, true, defaultMaxStepMvmt(initTraj),SQPConfig::lengthCoef));
-	CollisionCostPtr cc(new CollisionCost(pr2->robot, scene.env->bullet->dynamicsWorld, brs, rarm->manip->GetArmIndices(), -BulletConfig::linkPadding/2, SQPConfig::collCoef));
+	CollisionCostPtr cc(new CollisionCost(pr2->robot, scene.env->bullet->dynamicsWorld, brs, rarm->manip->GetArmIndices(), SQPConfig::distPen, SQPConfig::collCoef));
 	JointBoundsPtr jb(new JointBounds(true, true, defaultMaxStepMvmt(initTraj)/5, rarm->manip));
 	prob.initialize(initTraj, true);
   prob.addComponent(lcc);
@@ -137,6 +152,11 @@ int main(int argc, char *argv[]) {
 	  plotter.reset(new ArmPlotter(rarm, &scene, brs, SQPConfig::plotDecimation));
   }
   else throw std::runtime_error("invalid plot type");
+  if (SQPConfig::pauseEachIter) {
+    boost::function<void(PlanningProblem*)> func = boost::bind(&Scene::idle, &scene, true);
+    prob.m_callbacks.push_back(func);
+  }
+
 
 
   prob.testObjectives();
@@ -156,12 +176,12 @@ int main(int argc, char *argv[]) {
       throw;
     }
 
-    vector<double> insertTimes;
 
     TIC1();
-    TrajCartCollInfo cci = continuousTrajCollisions(prob.m_currentTraj, pr2->robot, brs, scene.env->bullet->dynamicsWorld, rarm->manip->GetArmIndices(), BulletConfig::linkPadding*.75);
+    vector<double> insertTimes;
+    TrajCartCollInfo cci = continuousTrajCollisions(prob.m_currentTraj, pr2->robot, brs, scene.env->bullet->dynamicsWorld, rarm->manip->GetArmIndices(), SQPConfig::distSafeCont);
     LOG_INFO_FMT("continuous collision check time: %.2f", TOC());
-    plotCollisions(cci, -BulletConfig::linkPadding/2);
+    plotCollisions(cci, SQPConfig::distSafeCont);
     int nContColl=0;
     for (int i=0; i < cci.size(); ++i) {
       nContColl += cci[i].size();
@@ -170,7 +190,6 @@ int main(int argc, char *argv[]) {
     }
     cout << endl;
     LOG_INFO_FMT("number of unsafe points: %.2i", nContColl);
-
     if (insertTimes.size() > 0) {
       LOG_INFO("subdividing at times" << insertTimes);
       prob.subdivide(insertTimes);

@@ -136,6 +136,6 @@ public:
   
 };
 
-void countCollisions(const TrajJointCollInfo& trajCollInfo, double safeDistMinusPadding, int& nNear, int& nUnsafe, int& nColl);
+void countCollisions(const TrajJointCollInfo& trajCollInfo, double safeDist, int& nNear, int& nUnsafe, int& nColl);
 
 

@@ -90,14 +90,14 @@ protected:
   vector<int> m_dofInds;
 
   int m_start, m_end;
-  double m_safeDistMinusPadding;
+  double m_distPen;
   double m_coeff;
   double m_exactObjective;
   Eigen::VectorXd m_coeffVec;
   void removeVariablesAndConstraints();
 public:
-  CollisionCost(OpenRAVE::RobotBasePtr robot, btDynamicsWorld* world, BulletRaveSyncher& brs, const vector<int>& dofInds, double safeDistMinusPadding, double coeff) :
-    m_robot(robot), m_world(world), m_brs(brs), m_dofInds(dofInds), m_safeDistMinusPadding(safeDistMinusPadding), m_coeff(coeff) {
+  CollisionCost(OpenRAVE::RobotBasePtr robot, btDynamicsWorld* world, BulletRaveSyncher& brs, const vector<int>& dofInds, double distPen, double coeff) :
+    m_robot(robot), m_world(world), m_brs(brs), m_dofInds(dofInds), m_distPen(distPen), m_coeff(coeff) {
       m_attrs = HAS_COST + HAS_CONSTRAINT;
     }
   virtual void updateModel(const Eigen::MatrixXd& traj, GRBQuadExpr& objective);
@@ -122,12 +122,12 @@ class CollisionConstraint: public ProblemComponent {
 protected:
   std::vector<GRBConstr> m_cnts;
   CollisionCostEvaluatorPtr m_cce;
-  double m_safeDistMinusPadding;
+  double m_distPen;
   double m_coeff;
   bool m_startFixed, m_endFixed;
 public:
-  CollisionConstraint(bool startFixed, bool endFixed, CollisionCostEvaluatorPtr cce, double safeDistMinusPadding) :
-    m_startFixed(startFixed), m_endFixed(endFixed), m_cce(cce), m_safeDistMinusPadding(safeDistMinusPadding) {
+  CollisionConstraint(bool startFixed, bool endFixed, CollisionCostEvaluatorPtr cce, double safeDist) :
+    m_startFixed(startFixed), m_endFixed(endFixed), m_cce(cce), m_distPen(safeDist) {
     m_attrs = RELAXABLE + HAS_CONSTRAINT;
   }
   void onAdd();
@@ -288,7 +288,7 @@ public:
 };
 
 void interactiveTrajPlot(const Eigen::MatrixXd& traj, RaveRobotObject::Manipulator::Ptr arm, BulletRaveSyncher* syncher, Scene* scene);
-void plotCollisions(const TrajCartCollInfo& trajCartInfo, double safeDistMinusPadding);
+void plotCollisions(const TrajCartCollInfo& trajCartInfo, double safeDist);
 
 
 

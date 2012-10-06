@@ -123,15 +123,15 @@ void CollisionCost::removeVariablesAndConstraints() {
   m_cnts.clear();
 }
 
-void printCollisionReport(const TrajJointCollInfo& trajCollInfo, double safeDistMinusPadding) {
+void printCollisionReport(const TrajJointCollInfo& trajCollInfo, double safeDist) {
   int nNear, nUnsafe, nColl;
-  countCollisions(trajCollInfo, safeDistMinusPadding, nNear, nUnsafe, nColl);
+  countCollisions(trajCollInfo, safeDist, nNear, nUnsafe, nColl);
   int nTotalProximity = nNear + nUnsafe + nColl;
   LOG_INFO_FMT("near: %i, unsafe: %i, collision: %i, total: %i", nNear, nUnsafe, nColl, nTotalProximity);
 }
 
 
-void plotCollisions(const TrajCartCollInfo& trajCartInfo, double safeDistMinusPadding) {
+void plotCollisions(const TrajCartCollInfo& trajCartInfo, double safeDist) {
   static PlotPoints::Ptr collisions(new PlotPoints(10));
   static PlotLines::Ptr escapes(new PlotLines(5));
   bool setupDone(false);
@@ -149,11 +149,11 @@ void plotCollisions(const TrajCartCollInfo& trajCartInfo, double safeDistMinusPa
     if (iStep % SQPConfig::plotDecimation != 0) continue;
     for (int iColl=0; iColl < trajCartInfo[iStep].size(); ++iColl) {
       const LinkCollision& lc = trajCartInfo[iStep][iColl];
-      collPts->push_back(toOSGVector(lc.point));
-      escPts->push_back(toOSGVector(lc.point));
-      escPts->push_back(toOSGVector(lc.point - lc.normal*lc.dist*METERS));
-      if (lc.dist < -BulletConfig::linkPadding-1e-6) colors->push_back(RED);
-      else if (lc.dist < safeDistMinusPadding-1e-6) colors->push_back(YELLOW);
+      collPts->push_back(toOSGVector(lc.point*METERS));
+      escPts->push_back(toOSGVector(lc.point*METERS));
+      escPts->push_back(toOSGVector(lc.point*METERS - lc.normal*(lc.dist-BulletConfig::linkPadding)*METERS));
+      if (lc.dist < 0) colors->push_back(RED);
+      else if (lc.dist < safeDist) colors->push_back(YELLOW);
       else colors->push_back(GREEN);
     }
   }
@@ -200,8 +200,8 @@ void CollisionCost::updateModel(const Eigen::MatrixXd& traj, GRBQuadExpr& object
   }
 #endif
 
-  plotCollisions(trajCartInfo, m_safeDistMinusPadding);
-  printCollisionReport(trajJointInfo, m_safeDistMinusPadding);
+  plotCollisions(trajCartInfo, SQPConfig::distSafeDisc);
+  printCollisionReport(trajJointInfo, SQPConfig::distSafeDisc);
 
 
   for (int iStep = 0; iStep < traj.rows(); ++iStep)
@@ -233,11 +233,11 @@ void CollisionCost::updateModel(const Eigen::MatrixXd& traj, GRBQuadExpr& object
         ++varCount;
         GRBLinExpr jacDotTheta;
         jacDotTheta.addTerms(jacs[iColl].data(), jointVars.data(), traj.cols());
-        GRBConstr hingeCnt = m_problem->m_model->addConstr(hinge >= -dists[iColl] + jacDotTheta + m_safeDistMinusPadding - jacs[iColl].dot(traj.row(iStep)));
+        GRBConstr hingeCnt = m_problem->m_model->addConstr(hinge >= -dists[iColl] + jacDotTheta + m_distPen - jacs[iColl].dot(traj.row(iStep)));
         m_cnts.push_back(hingeCnt);
         coeffs.push_back(coeffs_t[iStep]);
-        m_exactObjective += coeffs_t[iStep] * pospart(-dists[iColl]+m_safeDistMinusPadding);
-//        cout << "asdf: " << coeffs_t[iStep] * pospart(-dists[iColl]+m_safeDistMinusPadding);
+        m_exactObjective += coeffs_t[iStep] * pospart(-dists[iColl]+m_distPen);
+//        cout << "asdf: " << coeffs_t[iStep] * pospart(-dists[iColl]+m_safeDist);
       }
     }
   }
@@ -262,7 +262,7 @@ void VelScaledCollisionCost::updateModel(const Eigen::MatrixXd& traj, GRBQuadExp
   removeVariablesAndConstraints();
   // Actually run through trajectory and find collisions
   TrajJointCollInfo trajCollInfo = m_cce->collectCollisionInfo(traj);
-  printCollisionReport(trajCollInfo, m_safeDistMinusPadding);
+  printCollisionReport(trajCollInfo, m_distPen);
 
   for (int iStep = 0; iStep < traj.rows(); ++iStep)
     if (m_problem->m_optMask(iStep))
@@ -282,7 +282,7 @@ void VelScaledCollisionCost::updateModel(const Eigen::MatrixXd& traj, GRBQuadExp
         ++varCount;
         GRBLinExpr jacDotTheta;
         jacDotTheta.addTerms(jacs[iColl].data(), jointVars.data(), traj.cols());
-        GRBConstr hingeCnt = m_problem->m_model->addConstr(hinge >= -dists[iColl] + jacDotTheta + m_safeDistMinusPadding - jacs[iColl].dot(traj.row(iStep)));
+        GRBConstr hingeCnt = m_problem->m_model->addConstr(hinge >= -dists[iColl] + jacDotTheta + m_distPen - jacs[iColl].dot(traj.row(iStep)));
         m_cnts.push_back(hingeCnt);
       }
     }
@@ -311,7 +311,7 @@ void CollisionConstraint::updateModel(const Eigen::MatrixXd& traj, GRBQuadExpr& 
 
   // Make a bunch of variables for hinge costs
   int nNear, nUnsafe, nColl;
-  countCollisions(trajCollInfo, m_safeDistMinusPadding,nNear, nUnsafe, nColl);
+  countCollisions(trajCollInfo, m_distPen,nNear, nUnsafe, nColl);
   int nTotalProximity = nNear + nUnsafe + nColl;
   LOG_INFO_FMT("near: %i, unsafe: %i, collision: %i, total: %i", nNear, nUnsafe, nColl, nTotalProximity);
 
@@ -323,7 +323,7 @@ void CollisionConstraint::updateModel(const Eigen::MatrixXd& traj, GRBQuadExpr& 
     for (int iColl = 0; iColl < trajCollInfo[iStep].jacs.size(); ++iColl) {
       GRBLinExpr jacDotTheta;
       jacDotTheta.addTerms(jacs[iColl].data(), jointVars.data(), traj.rows());
-      GRBConstr cnt = m_problem->m_model->addConstr(0 >= -dists[iColl] + jacDotTheta + m_safeDistMinusPadding - jacs[iColl].dot(traj.row(iStep)));
+      GRBConstr cnt = m_problem->m_model->addConstr(0 >= -dists[iColl] + jacDotTheta + m_distPen - jacs[iColl].dot(traj.row(iStep)));
       m_cnts.push_back(cnt);
     }
   }
@@ -616,14 +616,14 @@ void assert_almost_equal(double v1, double v2, double tol) {
   if (fabs(v1-v2) > tol) {
     stringstream ss;
     ss << v1 << " != " << v2;    
-    throw std::runtime_error(ss.string().c_str());
+    throw std::runtime_error(ss.str().c_str());
   }
 }
 
 void PlanningProblem::testObjectives() {
 
   printf("testing objectives\n");
-  m_objective = GRBQuadExpr(0);
+  m_model->setObjective(GRBQuadExpr(0));
   updateModel();
 
   vector<GRBConstr> cnts;
@@ -645,7 +645,7 @@ void PlanningProblem::testObjectives() {
     if (comp->m_attrs & ProblemComponent::HAS_COST) {
       double approxObj = comp->calcApproxObjective();
       double exactObj = comp->calcExactObjective();
-      LOG_INFO_FMT("%s: exact: %.3f, approx: %.3f", getClassName(*comp), approxObj, exactObj);
+      LOG_INFO_FMT("%s: exact: %.3f, approx: %.3f", getClassName(*comp).c_str(), approxObj, exactObj);
       assert_almost_equal(approxObj, exactObj, 1e-5);
     }
   }
@@ -694,7 +694,12 @@ void PlanningProblem::optimize(int maxIter) {
     LOG_INFO_FMT("iteration: %i",iter);
     doIteration();
     BOOST_FOREACH(TrajPlotterPtr plotter, m_plotters) plotter->plotTraj(m_currentTraj);
-    if (iter >= 2 && m_trueObjBeforeOpt[iter-2] - m_trueObjBeforeOpt[iter-1] < .01) break;
+    if (iter >= 1 && m_trueObjBeforeOpt[iter-1] - m_trueObjBeforeOpt[iter] < .01) {
+      LOG_INFO("objective didn't improve: stopping iterations");
+      cout << iter << " " << m_trueObjBeforeOpt.size() << endl;
+      cout << m_trueObjBeforeOpt[iter-1] << "     " <<  m_trueObjBeforeOpt[iter] << endl;
+      break;
+    }
   }
 }
 

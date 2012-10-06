@@ -96,9 +96,10 @@ TrajCartCollInfo collectTrajCollisions(const Eigen::MatrixXd& traj, RobotBasePtr
       int nColl = collisionCollector.m_collisions.size();
       for (int iColl = 0; iColl < nColl; ++iColl) {
         Collision& collision = collisionCollector.m_collisions[iColl];
-        btVector3 point = (collision.m_obj0 == body) ? collision.m_world0 : collision.m_world1;
+        btVector3 point = ((collision.m_obj0 == body) ? collision.m_world0 : collision.m_world1)/METERS;
         btVector3 normal = (collision.m_obj0 == body) ? collision.m_normal : -collision.m_normal;
-        double dist = collision.m_distance;
+        double dist = collision.m_distance/METERS+BulletConfig::linkPadding;
+        cout << dist << " " << BulletConfig::linkPadding << endl;
         out[iStep].push_back(LinkCollision(dist, linkInds[iBody], point, normal));
       }
     }
@@ -107,7 +108,7 @@ TrajCartCollInfo collectTrajCollisions(const Eigen::MatrixXd& traj, RobotBasePtr
 }
 
 
-TrajCartCollInfo continuousTrajCollisions(const Eigen::MatrixXd& traj, OpenRAVE::RobotBasePtr robot, BulletRaveSyncher& brs, btCollisionWorld* world, const std::vector<int>& dofInds, float allowedPen) {
+TrajCartCollInfo continuousTrajCollisions(const Eigen::MatrixXd& traj, OpenRAVE::RobotBasePtr robot, BulletRaveSyncher& brs, btCollisionWorld* world, const std::vector<int>& dofInds, float dSafeCont) {
   ScopedRobotSave srs(robot);
   vector<int> linkInds;
   BOOST_FOREACH(KinBody::LinkPtr link, brs.m_links) linkInds.push_back(link->GetIndex());
@@ -132,7 +133,7 @@ TrajCartCollInfo continuousTrajCollisions(const Eigen::MatrixXd& traj, OpenRAVE:
       btCollisionWorld::ClosestConvexResultCallback ccc(btVector3(NAN, NAN, NAN), btVector3(NAN, NAN, NAN));
       // XXX in general there is some arbitrary child shape transform
       // but for our pr2 model loaded by openravesupport.cpp, there's only one child shape, and transform is the idenetiy
-      world->convexSweepTest(cShape, oldTransforms[iBody], newTransforms[iBody], ccc, allowedPen*METERS);
+      world->convexSweepTest(cShape, oldTransforms[iBody], newTransforms[iBody], ccc, (BulletConfig::linkPadding - dSafeCont)*METERS);
       if (ccc.hasHit()) {
         out[iStep-1].push_back(LinkCollision(.05, linkInds[iBody], ccc.m_hitPointWorld, ccc.m_hitNormalWorld));
         out[iStep-1][0].frac = ccc.m_closestHitFraction;
@@ -216,7 +217,7 @@ void calcCollisionInfo(btRigidBody* body, btCollisionWorld* world, std::vector<b
     Collision& collision = collisionCollector.m_collisions[iColl];
     points[iColl] = (collision.m_obj0 == body) ? collision.m_world0 : collision.m_world1;
     normals[iColl] = (collision.m_obj0 == body) ? collision.m_normal : -collision.m_normal;
-    dists[iColl] = collision.m_distance / METERS;
+    dists[iColl] = (collision.m_distance + BulletConfig::linkPadding) / METERS;
   }
 }
 
@@ -397,15 +398,15 @@ void BulletRaveSyncher::updateBullet() {
 }
 
 
-void countCollisions(const TrajJointCollInfo& trajCollInfo, double safeDistMinusPadding, int& nNear, int& nUnsafe, int& nColl) {
+void countCollisions(const TrajJointCollInfo& trajCollInfo, double safeDist, int& nNear, int& nUnsafe, int& nColl) {
   nNear=0;
   nUnsafe=0;
   nColl=0;
   for (int iStep = 0; iStep < trajCollInfo.size(); ++iStep) {
     const vector<double>& dists = trajCollInfo[iStep].dists;
     for (int iColl=0; iColl < trajCollInfo[iStep].jacs.size(); ++iColl) {
-      if (dists[iColl] < -BulletConfig::linkPadding-1e-6) ++nColl;
-      else if (dists[iColl] < safeDistMinusPadding-1e-6) ++nUnsafe;
+      if (dists[iColl] < 0) ++nColl;
+      else if (dists[iColl] < safeDist) ++nUnsafe;
       else ++nNear;
     }
   }
