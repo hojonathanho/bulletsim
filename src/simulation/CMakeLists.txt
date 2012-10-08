@@ -7,6 +7,9 @@ include_directories(
     ${TETGEN_DIR}
 )
 
+SET(CMAKE_CXX_FLAGS "-Wall -Wno-sign-compare -Wno-reorder")
+
+
 FIND_PACKAGE( OpenCV REQUIRED )
 
 add_library(simulation

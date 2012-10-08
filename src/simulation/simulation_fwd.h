@@ -17,6 +17,8 @@ class RaveInstance;
 typedef boost::shared_ptr<RaveInstance> RaveInstancePtr;
 class RaveRobotObject;
 typedef boost::shared_ptr<RaveRobotObject> RaveRobotObjectPtr;
+class ScopedRobotSave;
+typedef boost::shared_ptr<ScopedRobotSave> ScopedRobotSavePtr;
 class PlotObject;
 typedef boost::shared_ptr<PlotObject> PlotObjectPtr;
 class PlotPoints;

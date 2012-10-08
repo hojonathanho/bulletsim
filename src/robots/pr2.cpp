@@ -1,6 +1,7 @@
 #include "pr2.h"
 #include "simulation/environment.h"
 #include "thread_socket_interface.h"
+#include "utils/logging.h"
 
 static const char LEFT_GRIPPER_LEFT_FINGER_NAME[] = "l_gripper_l_finger_tip_link";
 static const char LEFT_GRIPPER_RIGHT_FINGER_NAME[] = "l_gripper_r_finger_tip_link";
@@ -251,19 +252,21 @@ void PR2Manager::loadRobot() {
   if (!SceneConfig::enableRobot) return;
 
   RaveRobotObject::Ptr maybeRobot = getRobotByName(scene.env, scene.rave, "pr2");
+  if (!maybeRobot) maybeRobot = getRobotByName(scene.env, scene.rave, "PR2");
 
   if (maybeRobot) { // if pr2 already loaded into scene, use it
     pr2 = maybeRobot;
-    if (std::count(scene.env->objects.begin(), scene.env->objects.end(), maybeRobot) == 0) {
-      scene.env->add(pr2);
-    }
-  } else {
+    LOG_INFO("pr2 already loaded into env");
+  }
+  else {
     RobotBasePtr maybeRaveRobot = scene.rave->env->GetRobot("pr2");
     if (maybeRaveRobot) { // pr2 loaded into rave but not scene
+      LOG_INFO("pr2 loaded into rave. adding to env");
       pr2.reset(new RaveRobotObject(scene.rave, maybeRaveRobot));
     }
     else { // pr2 not loaded into rave or scene
       static const char ROBOT_MODEL_FILE[] = "robots/pr2-beta-static.zae";
+      LOG_INFO("loading pr2 from file. adding to env");
       pr2.reset(new RaveRobotObject(scene.rave, ROBOT_MODEL_FILE));
     }
     scene.env->add(pr2);

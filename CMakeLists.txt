@@ -20,7 +20,7 @@ message("if cmake can't find anything, you need to put /opt/ros/fuerte/share:/op
 find_package(Boost COMPONENTS system filesystem program_options REQUIRED)
 
 find_package(Eigen3 REQUIRED)
-find_package(OpenRAVE REQUIRED)
+find_package(OpenRAVE 0.6 REQUIRED)
 find_package(OpenThreads REQUIRED)
 find_package(osg REQUIRED)
 find_package(osgDB REQUIRED)
