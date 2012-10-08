@@ -1,6 +1,9 @@
+#pragma once
 #include <boost/shared_ptr.hpp>
 class CollisionBoxes;
 typedef boost::shared_ptr<CollisionBoxes> CollisionBoxesPtr;
+class PushObject;
+typedef boost::shared_ptr<PushObject> PushObjectPtr;
 class PlanningProblem;
 typedef boost::shared_ptr<PlanningProblem> PlanningProblemPtr;
 class ProblemComponent;
@@ -11,12 +14,16 @@ class VelScaledCollisionCost;
 typedef boost::shared_ptr<VelScaledCollisionCost> VelScaledCollisionCostPtr;
 class CollisionConstraint;
 typedef boost::shared_ptr<CollisionConstraint> CollisionConstraintPtr;
+class TrustRegionAdjuster;
+typedef boost::shared_ptr<TrustRegionAdjuster> TrustRegionAdjusterPtr;
 class LengthConstraintAndCost;
 typedef boost::shared_ptr<LengthConstraintAndCost> LengthConstraintAndCostPtr;
 class JointBounds;
 typedef boost::shared_ptr<JointBounds> JointBoundsPtr;
 class CartesianPoseCost;
 typedef boost::shared_ptr<CartesianPoseCost> CartesianPoseCostPtr;
+class CartesianPoseConstraint;
+typedef boost::shared_ptr<CartesianPoseConstraint> CartesianPoseConstraintPtr;
 class CartesianVelConstraint;
 typedef boost::shared_ptr<CartesianVelConstraint> CartesianVelConstraintPtr;
 class TrajPlotter;
@@ -25,8 +32,8 @@ class GripperPlotter;
 typedef boost::shared_ptr<GripperPlotter> GripperPlotterPtr;
 class ArmPlotter;
 typedef boost::shared_ptr<ArmPlotter> ArmPlotterPtr;
-class ScalarValuedFunction;
-typedef boost::shared_ptr<ScalarValuedFunction> ScalarValuedFunctionPtr;
+class KinematicsInfo;
+typedef boost::shared_ptr<KinematicsInfo> KinematicsInfoPtr;
 class Collision;
 typedef boost::shared_ptr<Collision> CollisionPtr;
 class BulletRaveSyncher;

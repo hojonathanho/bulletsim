@@ -120,7 +120,7 @@ int main(int argc, char *argv[]) {
     VectorXd endJoints = toVectorXd(goal);
     MatrixXd initTraj = makeTraj(startJoints, endJoints, LocalConfig::nSteps);
     LengthConstraintAndCostPtr lcc(new LengthConstraintAndCost(true, true, defaultMaxStepMvmt(initTraj), SQPConfig::lengthCoef));
-    CollisionCostPtr cc(new CollisionCost(pr2->robot, scene.env->bullet->dynamicsWorld, brs, arm->manip->GetArmIndices(), SQPConfig::distPen, SQPConfig::collCoef));
+    CollisionCostPtr cc(new CollisionCost(pr2->robot, scene.env->bullet->dynamicsWorld, brs, arm->manip->GetArmIndices(), SQPConfig::distPen, SQPConfig::collCoefInit));
     JointBoundsPtr jb(new JointBounds(true, true, defaultMaxStepMvmt(initTraj) / 5, arm->manip));
     prob.initialize(initTraj, true);
     prob.addComponent(lcc);
@@ -143,7 +143,7 @@ int main(int argc, char *argv[]) {
     initTraj.conservativeResize(oldLen + nFinal, NoChange);
     for (int i=0; i < nFinal; ++i) initTraj.row(oldLen+i) = initTraj.row(oldLen-1);
     LengthConstraintAndCostPtr lcc(new LengthConstraintAndCost(true, false, defaultMaxStepMvmt(initTraj), SQPConfig::lengthCoef));
-    CollisionCostPtr cc(new CollisionCost(pr2->robot, scene.env->bullet->dynamicsWorld, brs, arm->manip->GetArmIndices(), SQPConfig::distPen, SQPConfig::collCoef));
+    CollisionCostPtr cc(new CollisionCost(pr2->robot, scene.env->bullet->dynamicsWorld, brs, arm->manip->GetArmIndices(), SQPConfig::distPen, SQPConfig::collCoefInit));
     JointBoundsPtr jb(new JointBounds(true, false, defaultMaxStepMvmt(initTraj) / 5, arm->manip));
     CartesianPoseCostPtr cp(new CartesianPoseCost(arm, goalTrans, initTraj.rows()-1, 100., 100));
     CartesianVelConstraintPtr cvc(new CartesianVelConstraint(arm, oldLen, oldLen+nFinal, .02*METERS));

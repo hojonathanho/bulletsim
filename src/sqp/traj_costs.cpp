@@ -99,7 +99,6 @@ TrajCartCollInfo collectTrajCollisions(const Eigen::MatrixXd& traj, RobotBasePtr
         btVector3 point = ((collision.m_obj0 == body) ? collision.m_world0 : collision.m_world1)/METERS;
         btVector3 normal = (collision.m_obj0 == body) ? collision.m_normal : -collision.m_normal;
         double dist = collision.m_distance/METERS+BulletConfig::linkPadding;
-        cout << dist << " " << BulletConfig::linkPadding << endl;
         out[iStep].push_back(LinkCollision(dist, linkInds[iBody], point, normal));
       }
     }
@@ -108,7 +107,9 @@ TrajCartCollInfo collectTrajCollisions(const Eigen::MatrixXd& traj, RobotBasePtr
 }
 
 
-TrajCartCollInfo continuousTrajCollisions(const Eigen::MatrixXd& traj, OpenRAVE::RobotBasePtr robot, BulletRaveSyncher& brs, btCollisionWorld* world, const std::vector<int>& dofInds, float dSafeCont) {
+TrajCartCollInfo continuousTrajCollisions(const Eigen::MatrixXd& traj,
+    OpenRAVE::RobotBasePtr robot, BulletRaveSyncher& brs, btCollisionWorld* world,
+    const std::vector<int>& dofInds, float dSafeCont) {
   ScopedRobotSave srs(robot);
   vector<int> linkInds;
   BOOST_FOREACH(KinBody::LinkPtr link, brs.m_links) linkInds.push_back(link->GetIndex());

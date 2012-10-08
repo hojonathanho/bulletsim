@@ -53,7 +53,7 @@ int main(int argc, char* argv[]) {
     parser.addGroup(GeneralConfig());
     parser.addGroup(LocalConfig());
     parser.read(argc, argv);
-    assert((LocalConfig::loadCloud=="") ^ (LocalConfig::loadEnv == ""));
+    assert((LocalConfig::loadCloud=="") || (LocalConfig::loadEnv == ""));
 
     Scene scene;
 
@@ -67,8 +67,10 @@ int main(int argc, char* argv[]) {
       cloud = downsampleCloud(cloud, .02);
       CollisionBoxes::Ptr collisionBoxes = collisionBoxesFromPointCloud(cloud, .02);
       scene.env->add(collisionBoxes);
-      Load(scene.env, scene.rave, "robots/pr2-beta-static/zae");
+      Load(scene.env, scene.rave, "robots/pr2-beta-static.zae");
     }
+    else
+      Load(scene.env, scene.rave, "robots/pr2-beta-static.zae");
 
 
     RaveRobotObjectPtr  pr2 = getRobotByName(scene.env, scene.rave, "pr2");

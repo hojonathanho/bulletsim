@@ -8,6 +8,18 @@
 #include "sqp_fwd.h"
 
 
+inline std::string base_filename(char* in) {
+  std::string s(in);
+  size_t ind = s.rfind('/');
+  if (ind == std::string::npos ) return s;
+  else return s.substr(ind+1, std::string::npos);
+}
+
+#define ASSERT_ALMOST_EQUAL(a,b,tol)\
+  if ( !( fabs(a-b) / fabs(a) < tol) )  {\
+    printf("%s != %s (%.4e != %.4e) in file %s at line %i\n", #a, #b, a, b, base_filename(__FILE__).c_str(), __LINE__ );\
+    exit(1);\
+  }
 
 GRBEnv* getGRBEnv();
 
@@ -30,10 +42,12 @@ public:
   boost::shared_ptr<GRBModel> m_model;
   std::vector<TrajPlotterPtr> m_plotters;
   std::vector<ProblemComponentPtr> m_comps;
+  std::map<std::string, ProblemComponentPtr> m_name2comp;
   bool m_initialized;
   std::vector<double> m_trueObjBeforeOpt, m_approxObjAfterOpt;
   std::vector<Callback> m_callbacks;
   Eigen::VectorXd m_times;
+  TrustRegionAdjusterPtr m_tra;
   PlanningProblem();
   void addComponent(ProblemComponentPtr comp);
   void removeComponent(ProblemComponentPtr comp);
@@ -48,6 +62,7 @@ public:
   void updateModel();
   void subdivide(const std::vector<double>& newTimes);
   void testObjectives();
+  void addTrustRegionAdjuster(TrustRegionAdjusterPtr tra);
 };
 
 class ProblemComponent {
@@ -65,6 +80,7 @@ public:
   ProblemComponent() {
     m_attrs = 0;
   }
+  virtual ~ProblemComponent() {}
   virtual void onAdd() {}
   virtual void updateModel(const Eigen::MatrixXd& traj, GRBQuadExpr& objective) = 0;
   virtual double calcApproxObjective() {return 0;}
@@ -79,7 +95,7 @@ public:
 };
 
 class CollisionCost: public ProblemComponent {
-protected:
+public:
   std::vector<GRBVar> m_vars;
   std::vector<GRBConstr> m_cnts;
   GRBLinExpr m_obj;
@@ -93,14 +109,14 @@ protected:
   double m_distPen;
   double m_coeff;
   double m_exactObjective;
+  TrajCartCollInfo m_cartCollInfo;
   Eigen::VectorXd m_coeffVec;
   void removeVariablesAndConstraints();
-public:
   CollisionCost(OpenRAVE::RobotBasePtr robot, btDynamicsWorld* world, BulletRaveSyncher& brs, const vector<int>& dofInds, double distPen, double coeff) :
     m_robot(robot), m_world(world), m_brs(brs), m_dofInds(dofInds), m_distPen(distPen), m_coeff(coeff) {
       m_attrs = HAS_COST + HAS_CONSTRAINT;
     }
-  virtual void updateModel(const Eigen::MatrixXd& traj, GRBQuadExpr& objective);
+  void updateModel(const Eigen::MatrixXd& traj, GRBQuadExpr& objective);
   double calcApproxObjective() {return m_obj.getValue();}
   double calcExactObjective() {return m_exactObjective;}
   void onRemove();
@@ -137,6 +153,11 @@ public:
 };
 #endif
 
+class TrustRegionAdjuster : public ProblemComponent {
+public:
+  virtual void adjustTrustRegion(double ratio)=0;
+};
+
 class LengthConstraintAndCost : public ProblemComponent {
   // todo: set this
   GRBQuadExpr m_obj;//UNSCALED OBJECTIVE
@@ -159,7 +180,7 @@ public:
   void subdivide(const std::vector<double>& insertTimes);
 };
 
-class JointBounds: public ProblemComponent {
+class JointBounds: public TrustRegionAdjuster {
   // todo: set these in constructor
   Eigen::VectorXd m_jointLowerLimit;
   Eigen::VectorXd m_jointUpperLimit;
@@ -183,6 +204,7 @@ public:
   void onAdd();
   void onRemove() {}
   void updateModel(const Eigen::MatrixXd& traj, GRBQuadExpr& objective);
+  void adjustTrustRegion(double ratio);
 };
 
 
@@ -210,6 +232,32 @@ public:
   double calcExactObjective();
   void subdivide(const std::vector<double>& insertTimes);
 };
+
+class CartesianPoseConstraint: public ProblemComponent {
+  std::vector<GRBConstr> m_cnts;
+  RaveRobotObject::Manipulator::Ptr m_manip;
+  Eigen::Vector3d m_posTarg;
+  Eigen::Vector4d m_rotTarg;
+  double m_posTol, m_rotTol;
+  int m_timestep;
+  void removeVariablesAndConstraints();
+public:
+  CartesianPoseConstraint(RaveRobotObject::Manipulator::Ptr manip,
+      const btTransform& target, int timestep, double posTol, double rotTol) :
+        m_manip(manip),
+        m_posTarg(toVector3d(target.getOrigin())),
+        m_rotTarg(toVector4d(target.getRotation())),
+        m_posTol(posTol),
+        m_rotTol(rotTol),
+        m_timestep(timestep) {
+    m_attrs = HAS_CONSTRAINT;
+  }
+
+  void updateModel(const Eigen::MatrixXd& traj, GRBQuadExpr& objective);
+  void onRemove();
+  void subdivide(const std::vector<double>& insertTimes);
+};
+
 
 class CartesianVelConstraint : public ProblemComponent {
   GRBQuadExpr m_obj;
@@ -249,6 +297,7 @@ public:
   typedef boost::shared_ptr<TrajPlotter> Ptr;
   virtual void plotTraj(const Eigen::MatrixXd& traj) = 0;
   virtual void clear() {}
+  virtual ~TrajPlotter() {}
 };
 
 class GripperPlotter : public TrajPlotter {
@@ -277,17 +326,16 @@ public:
   Scene* m_scene;
   osg::Group* m_osgRoot;
   int m_decimation;
-  BulletRaveSyncher* m_syncher;
+  BulletRaveSyncher m_syncher;
   void plotTraj(const Eigen::MatrixXd& traj);
-  ArmPlotter(RaveRobotObject::Manipulator::Ptr rrom, Scene* scene, BulletRaveSyncher& syncher, int decimation=1);
-  ArmPlotter(RaveRobotObject::Manipulator::Ptr rrom, const std::vector<BulletObject::Ptr>& origs, Scene* scene, BulletRaveSyncher*syncher, int decimation);
-  void init(RaveRobotObject::Manipulator::Ptr, const std::vector<BulletObject::Ptr>&, Scene*, BulletRaveSyncher*, int decimation);
+  ArmPlotter(RaveRobotObject::Manipulator::Ptr rrom, Scene* scene, int decimation=1);
+  void init(RaveRobotObject::Manipulator::Ptr, const std::vector<BulletObject::Ptr>&, Scene*, int decimation);
   void setLength(int n);
   void clear() {setLength(0);}
   ~ArmPlotter();
 };
 
-void interactiveTrajPlot(const Eigen::MatrixXd& traj, RaveRobotObject::Manipulator::Ptr arm, BulletRaveSyncher* syncher, Scene* scene);
+void interactiveTrajPlot(const Eigen::MatrixXd& traj, RaveRobotObject::Manipulator::Ptr arm, Scene* scene);
 void plotCollisions(const TrajCartCollInfo& trajCartInfo, double safeDist);
 
 

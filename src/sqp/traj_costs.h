@@ -1,10 +1,9 @@
 #pragma once
 #include <btBulletDynamicsCommon.h>
-#include "functions.h"
 #include <openrave/openrave.h>
 #include "simulation/simulation_fwd.h"
 #include "sqp/sqp_fwd.h"
-
+#include <Eigen/Dense>
 
 #if 0
 struct KinematicsInfo {
