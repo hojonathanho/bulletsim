@@ -1,3 +1,4 @@
+#pragma once
 #include <boost/shared_ptr.hpp>
 class TowelPreprocessor;
 typedef boost::shared_ptr<TowelPreprocessor> TowelPreprocessorPtr;

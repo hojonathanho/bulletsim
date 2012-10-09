@@ -12,14 +12,14 @@ namespace po = boost::program_options;
 
 template <typename TYPE>
 std::string toString(const TYPE& v) {
-  std::stringstream ss(std::stringstream::out);
+  std::ostringstream ss;
   ss << v;
   return ss.str();
 }
 
 template <typename TYPE>
-TYPE fromString(const std::string s) {
-  std::stringstream ss(std::stringstream::in);
+TYPE fromString(const std::string& s) {
+  std::istringstream ss;
   ss.str(s);
   TYPE x;
   ss >> x;

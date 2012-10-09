@@ -13,7 +13,7 @@ for header in args.headers:
     with open(header, "r") as fh:
         classes.extend(sa.find_classes(fh.read()))
 
-    
+print "#pragma once"    
 print "#include <boost/shared_ptr.hpp>"
 for name in classes:
     d = dict(name=name)

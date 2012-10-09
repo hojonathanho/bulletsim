@@ -1,3 +1,4 @@
+#pragma once
 #include <boost/shared_ptr.hpp>
 class HydraPR2Teleop;
 typedef boost::shared_ptr<HydraPR2Teleop> HydraPR2TeleopPtr;
