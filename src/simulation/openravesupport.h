@@ -51,6 +51,9 @@ protected:
   // maps a child to a position in the children array. used for copying
   std::map<BulletObject::Ptr, int> childPosMap;
 
+  // maps from child index to link index. only used in updateBullet
+  std::vector<int> linkIndsWithGeometry;
+
   // vector of objects to ignore collision with
   BulletInstance::CollisionObjectSet ignoreCollisionObjs;
 

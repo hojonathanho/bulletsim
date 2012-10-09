@@ -378,7 +378,7 @@ void RaveObject::initRaveObject(RaveInstance::Ptr rave_, KinBodyPtr body_,
 	// iterate through each link in the robot (to be stored in the children vector)
 	BOOST_FOREACH(KinBody::LinkPtr link, links) {
 		BulletObject::Ptr child = createFromLink(link, subshapes, meshes, trimeshMode, fmargin, isDynamic && !link->IsStatic());
-		getChildren().push_back(child);
+		if (child) getChildren().push_back(child);
 
 		linkMap[link] = child;
 		childPosMap[child] = getChildren().size() - 1;
@@ -428,10 +428,10 @@ void RaveRobotObject::setDOFValues(const vector<int> &indices, const vector<
 		dReal> &vals) {
 	// update openrave structure
 	{
-		EnvironmentMutex::scoped_lock lock(rave->env->GetMutex());
+     EnvironmentMutex::scoped_lock lock(rave->env->GetMutex());
 		robot->SetActiveDOFs(indices);
 		robot->SetActiveDOFValues(vals);
-		rave->env->UpdatePublishedBodies();
+     rave->env->UpdatePublishedBodies();
 	}
 	updateBullet();
 }
@@ -442,14 +442,14 @@ void RaveObject::updateBullet() {
 	// which are easy to feed into Bullet
 	vector<OpenRAVE::Transform> transforms;
 	body->GetLinkTransformations(transforms);
-	BOOST_ASSERT(transforms.size() == getChildren().size());
-	for (int i = 0; i < getChildren().size(); ++i) {
-		BulletObject::Ptr c = getChildren()[i];
-		if (!c)
-			continue;
-		c->motionState->setKinematicPos(util::toBtTransform(transforms[i],
-				GeneralConfig::scale));
+	vector<KinBody::LinkPtr> links = body->GetLinks();
+
+	if (linkIndsWithGeometry.size()==0) {
+	  for (int i=0; i < links.size(); ++i) if (associatedObj(links[i])) linkIndsWithGeometry.push_back(i);
 	}
+
+	for (int i=0; i < children.size(); ++i)
+	  children[i]->motionState->setKinematicPos(util::toBtTransform(transforms[linkIndsWithGeometry[i]],GeneralConfig::scale));
 
 }
 
@@ -471,7 +471,12 @@ EnvironmentObject::Ptr RaveObject::copy(Fork &f) const {
 
 	internalCopy(o, f); // copies all children
 
-	o->rave.reset(new RaveInstance(*rave, OpenRAVE::Clone_Bodies));
+	if (f.rave) {
+	  o->rave = f.rave;
+	}
+	else {
+	  o->rave.reset(new RaveInstance(*rave, OpenRAVE::Clone_Bodies));
+	}
 
 	// now we need to set up mappings in the copied robot
 	for (std::map<KinBody::LinkPtr, BulletObject::Ptr>::const_iterator i =
@@ -494,6 +499,7 @@ EnvironmentObject::Ptr RaveObject::copy(Fork &f) const {
 	}
 
 	o->body = o->rave->env->GetKinBody(body->GetName());
+	o->setColor(1,0,1,.4);
 
 	return o;
 }
@@ -505,7 +511,12 @@ EnvironmentObject::Ptr RaveRobotObject::copy(Fork &f) const {
 	/////////////////////// duplicated from RaveObject::copy //////////////////
 	internalCopy(o, f); // copies all children
 
-	o->rave.reset(new RaveInstance(*rave, OpenRAVE::Clone_Bodies));
+    if (f.rave) {
+      o->rave = f.rave;
+    }
+    else {
+      o->rave.reset(new RaveInstance(*rave, OpenRAVE::Clone_Bodies));
+    }
 
 	// now we need to set up mappings in the copied robot
 	for (std::map<KinBody::LinkPtr, BulletObject::Ptr>::const_iterator i =
@@ -528,9 +539,10 @@ EnvironmentObject::Ptr RaveRobotObject::copy(Fork &f) const {
 	}
 
 	o->body = o->rave->env->GetKinBody(body->GetName());
+    o->setColor(1,0,1,.4);
 	/////////////////// end duplicated portion //////////////////
 
-
+	o->robot = o->rave->env->GetRobot(robot->GetName());
 	o->createdManips.reserve(createdManips.size());
 	for (int i = 0; i < createdManips.size(); ++i) {
 		o->createdManips.push_back(createdManips[i]->copy(o, f));

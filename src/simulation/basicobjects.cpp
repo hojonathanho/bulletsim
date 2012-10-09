@@ -124,7 +124,7 @@ void BulletObject::destroy() {
     getEnvironment()->osg->root->removeChild(transform.get());
 }
 
-BulletObject::BulletObject(const BulletObject &o) : isKinematic(o.isKinematic) {
+BulletObject::BulletObject(const BulletObject &o) : isKinematic(o.isKinematic), enable_texture(o.enable_texture), m_color(o.m_color) {
     // we need to access lots of private members of btRigidBody and etc
     // the easiest way to do this is to use serialization
 
