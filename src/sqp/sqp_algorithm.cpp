@@ -64,8 +64,9 @@ Eigen::MatrixXd makeTraj(const Eigen::VectorXd& startJoints, const Eigen::Vector
 
 void updateTraj(const VarArray& trajVars, const VectorXb& optmask, Eigen::MatrixXd& traj) {
   for (int i = 0; i < traj.rows(); ++i)
-    if (optmask(i)) for (int j = 0; j < traj.cols(); ++j)
+    if (optmask(i)) for (int j = 0; j < traj.cols(); ++j) {
       traj(i, j) = trajVars.at(i, j).get(GRB_DoubleAttr_X);
+    }
 }
 
 void setVarsToTraj(const Eigen::MatrixXd traj, const VectorXb& optmask, VarArray& trajVars) {
@@ -121,11 +122,15 @@ void PlanningProblem::addTrustRegionAdjuster(TrustRegionAdjusterPtr tra) {
   addComponent(tra);
 }
 
+void CollisionCost::subdivide(const std::vector<double>& insertTimes, const VectorXd& oldTimes, const VectorXd& newTimes) {
+  if (m_coeffVec.size()>0) m_coeffVec = interp2d(newTimes, oldTimes, m_coeffVec);
+}
+
 void CollisionCost::removeVariablesAndConstraints() {
-  for (int iCnt = 0; iCnt < m_cnts.size(); ++iCnt)
-    m_problem->m_model->remove(m_cnts[iCnt]);
-  for (int iVar = 0; iVar < m_vars.size(); ++iVar)
-    m_problem->m_model->remove(m_vars[iVar]);
+  BOOST_FOREACH(GRBConstr& cnt, m_cnts)
+    m_problem->m_model->remove(cnt);
+  BOOST_FOREACH(GRBVar& var, m_vars)
+    m_problem->m_model->remove(var);
   m_vars.clear();
   m_cnts.clear();
 }
@@ -241,7 +246,7 @@ void CollisionCost::updateModel(const Eigen::MatrixXd& traj, GRBQuadExpr& object
         GRBLinExpr jacDotTheta;
         jacDotTheta.addTerms(jacs[iColl].data(), jointVars.data(), traj.cols());
         GRBConstr hingeCnt = m_problem->m_model->addConstr(hinge >= -dists[iColl] + jacDotTheta
-            + m_distPen - jacs[iColl].dot(traj.row(iStep)));
+            + m_distPen - jacs[iColl].dot(traj.row(iStep)),"hinge");
         m_cnts.push_back(hingeCnt);
         coeffs.push_back(coeffs_t[iStep]);
         m_exactObjective += coeffs_t[iStep] * pospart(-dists[iColl] + m_distPen);
@@ -376,8 +381,8 @@ void LengthConstraintAndCost::onAdd() {
       else vel -= traj(iStep - 1, iJoint);
       double dt = m_problem->m_times(iStep) - m_problem->m_times(iStep - 1);
       vel = vel / dt;
-      m_cnts.push_back(m_problem->m_model->addConstr(vel <= m_maxStepMvmt(iJoint)));
-      m_cnts.push_back(m_problem->m_model->addConstr(vel >= -m_maxStepMvmt(iJoint)));
+      m_cnts.push_back(m_problem->m_model->addConstr(vel <= m_maxStepMvmt(iJoint),"vel"));
+      m_cnts.push_back(m_problem->m_model->addConstr(vel >= -m_maxStepMvmt(iJoint),"vel"));
       m_obj += traj.rows() * dt * (vel * vel);
     }
 }
@@ -388,7 +393,7 @@ void LengthConstraintAndCost::onRemove() {
   m_cnts.clear();
 }
 
-void LengthConstraintAndCost::subdivide(const std::vector<double>& insertTimes) {
+void LengthConstraintAndCost::subdivide(const std::vector<double>& insertTimes,const VectorXd& oldTimes, const VectorXd& newTimes) {
   reset();
 }
 
@@ -430,16 +435,20 @@ void JointBounds::adjustTrustRegion(double ratio) {
 
 void getGripperTransAndJac(RaveRobotObject::Manipulator::Ptr manip, const VectorXd& dofVals,
     btTransform& tf, Eigen::MatrixXd& jac, Eigen::MatrixXd& rotJac) {
-
-  ScopedRobotSave srs(manip->robot->robot);
-  manip->setDOFValues(toDoubleVec(dofVals));
+  RobotBasePtr robot = manip->robot->robot;
+  ScopedRobotSave srs(robot);
+  robot->SetActiveDOFs(manip->manip->GetArmIndices());
+  robot->SetActiveDOFValues(toDoubleVec(dofVals));
 
   boost::multi_array<dReal, 2> jac0;
-  boost::multi_array<dReal, 2> rotjac0;
   manip->manip->CalculateJacobian(jac0);
-  manip->manip->CalculateRotationJacobian(rotjac0);
-
   jac = Eigen::Map<MatrixXd>(jac0.data(), 3, jac0.shape()[1]);
+
+
+
+#if 0  /// openrave rotation jacobian calculation is screwy, so i do it numerically
+  boost::multi_array<dReal, 2> rotjac0;
+  manip->manip->CalculateRotationJacobian(rotjac0);
   MatrixXd rotJacRave = Eigen::Map<MatrixXd>(rotjac0.data(), 4, jac0.shape()[1]);
   rotJac = MatrixXd(4, jac0.shape()[1]);
   rotJac.row(0) = rotJacRave.row(1);
@@ -448,19 +457,25 @@ void getGripperTransAndJac(RaveRobotObject::Manipulator::Ptr manip, const Vector
   rotJac.row(3) = rotJacRave.row(0);
 
   rotJac *= -1;
+#endif
   // the following code seems to reveal a sign error in openrave or our code's interface with it
-#if 0
+#if 1
+
+
+
   MatrixXd numericalJac(4,7);
   double eps = 1e-5;
   Vector4d curQuat = toVector4d(manip->getTransform().getRotation());
   for (int i=0; i < 7; ++i) {
     VectorXd dofValsNew = dofVals;
     dofValsNew[i] += eps;
-    manip->setDOFValues(toDoubleVec(dofValsNew));
+    robot->SetActiveDOFValues(toDoubleVec(dofValsNew));
     numericalJac.col(i) = (toVector4d(manip->getTransform().getRotation()) - curQuat)/eps;
   }
-  cout << "numerical jacobian: " << endl << numericalJac << endl;
-  cout << "analytic jacobian: " << endl << rotJac << endl;;
+
+  rotJac = numericalJac;
+//  cout << "numerical jacobian: " << endl << numericalJac << endl;
+//  cout << "analytic jacobian: " << endl << rotJac << endl;;
 #endif
 
 #if 0
@@ -523,7 +538,7 @@ void CartesianPoseCost::updateModel(const Eigen::MatrixXd& traj, GRBQuadExpr& ob
   objective += m_obj;
 }
 
-void CartesianPoseCost::subdivide(const std::vector<double>& insertTimes) {
+void CartesianPoseCost::subdivide(const std::vector<double>& insertTimes,const VectorXd& oldTimes, const VectorXd& newTimes) {
   BOOST_FOREACH(double t, insertTimes) {
     if (t < m_timestep) {
       ++m_timestep;
@@ -560,7 +575,7 @@ void CartesianPoseConstraint::updateModel(const Eigen::MatrixXd& traj, GRBQuadEx
       GRBLinExpr jacDotTheta;
       jacDotTheta.addTerms(jac.row(i).data(), timestepVars.data(), traj.cols());
       GRBLinExpr erri = posCur(i) + jacDotTheta - jac.row(i).dot(curVals) - m_posTarg(i);
-      m_cnts.push_back(m_problem->m_model->addConstr(erri <= m_posTol));
+      m_cnts.push_back(m_problem->m_model->addConstr(erri <= m_posTol,"pos"));
     }
   }
 
@@ -572,7 +587,7 @@ void CartesianPoseConstraint::updateModel(const Eigen::MatrixXd& traj, GRBQuadEx
       GRBLinExpr jacDotTheta;
       jacDotTheta.addTerms(rotjac.row(i).data(), timestepVars.data(), traj.cols());
       GRBLinExpr erri = rotCur(i) + jacDotTheta - rotjac.row(i).dot(curVals) - m_rotTarg(i);
-      m_cnts.push_back(m_problem->m_model->addConstr(erri <= m_rotTol));
+      m_cnts.push_back(m_problem->m_model->addConstr(erri <= m_rotTol,"rot"));
     }
   }
 
@@ -588,7 +603,7 @@ void CartesianPoseConstraint::onRemove() {
   removeVariablesAndConstraints();
 }
 
-void CartesianPoseConstraint::subdivide(const std::vector<double>& insertTimes) {
+void CartesianPoseConstraint::subdivide(const std::vector<double>& insertTimes,const VectorXd& oldTimes, const VectorXd& newTimes) {
   BOOST_FOREACH(double t, insertTimes) {
     if (t < m_timestep) {
       ++m_timestep;
@@ -598,7 +613,7 @@ void CartesianPoseConstraint::subdivide(const std::vector<double>& insertTimes) 
 }
 
 void CartesianVelConstraint::removeVariablesAndConstraints() {
-  BOOST_FOREACH(GRBQConstr& cnt, m_cnts)
+  BOOST_FOREACH(GRBConstr& cnt, m_cnts)
     m_problem->m_model->remove(cnt);
   m_cnts.clear();
 }
@@ -607,8 +622,25 @@ void CartesianVelConstraint::onRemove() {
   removeVariablesAndConstraints();
 }
 
+void updateConstraint(GRBModel* model, GRBConstr& cnt, GRBLinExpr& expr) {
+  vector<GRBVar> vars;
+  vector<GRBConstr> cnts;
+  vector<double> coeffs;
+  for (int i=0; i < expr.size(); ++i) {
+    vars.push_back(expr.getVar(i));
+    cnts.push_back(cnt);
+    coeffs.push_back(expr.getCoeff(i));
+  }
+  model->chgCoeffs(cnts.data(), vars.data(), coeffs.data(), vars.size());
+  cnt.set(GRB_DoubleAttr_RHS, -expr.getConstant());
+}
+
 void CartesianVelConstraint::updateModel(const Eigen::MatrixXd& traj, GRBQuadExpr& objective) {
+#define RESET_CONSTRAINTS // I thought it might speed things up to change the constraints in place
+  // but actually it doesn't make a difference
+#ifdef RESET_CONSTRAINTS
   removeVariablesAndConstraints();
+#endif
 
   vector<MatrixXd> jacs(m_stop - m_start), rotjacs(m_stop - m_start);
   vector<btTransform> tfs(m_stop - m_start);
@@ -617,6 +649,9 @@ void CartesianVelConstraint::updateModel(const Eigen::MatrixXd& traj, GRBQuadExp
     getGripperTransAndJac(m_manip, traj.row(i + m_start), tfs[i], jacs[i], rotjacs[i]);
   }
   // ---------
+#ifndef RESET_CONSTRAINTS
+  vector<GRBLinExpr> exprs;
+#endif
 
   for (int iStep = 0; iStep < m_stop - m_start - 1; ++iStep) {
     VarVector fromVars = m_problem->m_trajVars.row(iStep + m_start);
@@ -628,18 +663,39 @@ void CartesianVelConstraint::updateModel(const Eigen::MatrixXd& traj, GRBQuadExp
       GRBLinExpr jacDotThetaFrom, jacDotThetaTo;
       jacDotThetaFrom.addTerms(jacs[iStep].row(iDim).data(), fromVars.data(), traj.cols());
       jacDotThetaTo.addTerms(jacs[iStep + 1].row(iDim).data(), toVars.data(), traj.cols());
-      GRBLinExpr diffi = diff[iDim] + (jacDotThetaTo - jacs[iStep + 1].row(iDim).dot(traj.row(iStep
-          + 1 + m_start))) - (jacDotThetaFrom
-          - jacs[iStep].row(iDim).dot(traj.row(iStep + m_start)));
-      sqdist += diffi * diffi;
-    }
+      GRBLinExpr diffi = diff[iDim] +
+          (jacDotThetaTo - jacs[iStep + 1].row(iDim).dot(traj.row(iStep+ 1 + m_start)))
+          - (jacDotThetaFrom- jacs[iStep].row(iDim).dot(traj.row(iStep + m_start)));
+//      sqdist += diffi * diffi;
 
-    m_cnts.push_back(m_problem->m_model->addQConstr(sqdist <= m_maxDist * m_maxDist));
+#ifdef RESET_CONSTRAINTS
+      m_cnts.push_back(m_problem->m_model->addConstr(diffi <= m_maxDist,"eevel"));
+      m_cnts.push_back(m_problem->m_model->addConstr(diffi >= -m_maxDist,"eevel"));
+#else
+      exprs.push_back(diffi - m_maxDist);
+      exprs.push_back(-m_maxDist - diffi);
+#endif
+    }
+//    m_cnts.push_back(m_problem->m_model->addQConstr(sqdist <= m_maxDist * m_maxDist));
   }
+
+#ifndef RESET_CONSTRAINTS
+  if (m_cnts.size() == 0) {
+    BOOST_FOREACH(GRBLinExpr& expr, exprs) {
+      m_cnts.push_back(m_problem->m_model->addConstr(expr <= 0));
+    }
+  }
+  else {
+    assert (m_cnts.size() == exprs.size());
+    for (int i=0; i < m_cnts.size(); ++i) {
+      updateConstraint(m_problem->m_model.get(), m_cnts[i], exprs[i]);
+    }
+  }
+#endif
 
 }
 
-void CartesianVelConstraint::subdivide(const std::vector<double>& insertTimes) {
+void CartesianVelConstraint::subdivide(const std::vector<double>& insertTimes,const VectorXd& oldTimes, const VectorXd& newTimes) {
   BOOST_FOREACH(double t, insertTimes) {
     if (t < m_start) {
       ++m_start;
@@ -656,6 +712,7 @@ void PlanningProblem::updateModel() {
   GRBQuadExpr objective(0);
   for (int i = 0; i < m_comps.size(); ++i)
     m_comps[i]->updateModel(m_currentTraj, objective);
+  m_model->update();
   m_model->setObjective(objective);
 }
 
@@ -680,11 +737,6 @@ double PlanningProblem::calcExactObjective() {
     }
   }
   return out;
-}
-
-void PlanningProblem::clearCostHistory() {
-  m_trueObjBeforeOpt.clear();
-  m_approxObjAfterOpt.clear();
 }
 
 void PlanningProblem::testObjectives() {
@@ -724,63 +776,95 @@ void PlanningProblem::testObjectives() {
 }
 
 void PlanningProblem::doIteration() {
-  assert(m_trueObjBeforeOpt.size() == m_approxObjAfterOpt.size());
+}
+
+void PlanningProblem::optimize(int maxIter) {
+  assert(m_tra);
+  BOOST_FOREACH(TrajPlotterPtr plotter, m_plotters)
+    plotter->plotTraj(m_currentTraj);
+
+  MatrixXd prevTraj;
+  vector<double> trueObjBefore, approxObjAfter;
+  double trShrinkage=1;
 
   TIC();
   updateModel();
   LOG_INFO_FMT("total convexification time: %.2f", TOC());
+  double trueObj = calcExactObjective();
+  trueObjBefore.push_back(trueObj);
+  LOG_INFO_FMT("Total exact objective before: %.2f", trueObj);
 
-  m_trueObjBeforeOpt.push_back(calcExactObjective());
-  LOG_INFO_FMT("Total exact objective before: %.2f", m_trueObjBeforeOpt.back());
-  if (m_approxObjAfterOpt.size() > 0) {
-    int i = m_trueObjBeforeOpt.size() - 1;
-    double trueImprove = m_trueObjBeforeOpt[i - 1] - m_trueObjBeforeOpt[i];
-    double approxImprove = m_trueObjBeforeOpt[i - 1] - m_approxObjAfterOpt[i - 1];
-    LOG_INFO_FMT("exact objective improvement: %.2f. predicted improvement: %.2f. ratio: %.2f",
-        trueImprove, approxImprove, trueImprove/approxImprove);
-  }
-  TIC1();
-  m_model->optimize();
-  LOG_INFO_FMT("optimization time: %.2f", TOC());
 
-  int status = m_model->get(GRB_IntAttr_Status);
-  if (status != GRB_OPTIMAL) {
-    LOG_ERROR("bad grb status: " << grb_statuses[status]);
-    m_approxObjAfterOpt.push_back(m_trueObjBeforeOpt.back());
-  }
-  else {
-    updateTraj(m_trajVars, m_optMask, m_currentTraj);
-    m_approxObjAfterOpt.push_back(calcApproxObjective());
-  }
-  assert(status == GRB_OPTIMAL);
+  for (int iter = 0; iter < maxIter; ) {
 
-  BOOST_FOREACH(Callback& cb, m_callbacks)
-    cb(this);
-}
-
-void PlanningProblem::optimize(int maxIter) {
-  BOOST_FOREACH(TrajPlotterPtr plotter, m_plotters)
-    plotter->plotTraj(m_currentTraj);
-  for (int iter = 0; iter < maxIter; ++iter) {
+    assert(trueObjBefore.size() == iter+1);
+    assert(approxObjAfter.size() == iter);
 
     LOG_INFO_FMT("iteration: %i",iter);
 
+    TIC1();
+    m_model->optimize();
+    LOG_INFO_FMT("optimization time: %.2f", TOC());
+    double approxObj = calcApproxObjective();
+    prevTraj = m_currentTraj;
+    int status = m_model->get(GRB_IntAttr_Status);
+    assert(status == GRB_OPTIMAL);
+    updateTraj(m_trajVars, m_optMask, m_currentTraj);
 
-
-
-
-
-
-
-
+    BOOST_FOREACH(Callback& cb, m_callbacks)
+      cb(this);
     BOOST_FOREACH(TrajPlotterPtr plotter, m_plotters)
       plotter->plotTraj(m_currentTraj);
-    if (iter >= 1 && m_trueObjBeforeOpt[iter - 1] - m_trueObjBeforeOpt[iter] < .01) {
-      LOG_INFO_FMT("objective didn't improve (%.3f -> %.3f): stopping iterations",
-          m_trueObjBeforeOpt[iter-1], m_trueObjBeforeOpt[iter]);
-      //      break;
+
+
+    TIC();
+    updateModel();
+    m_model->update();
+    LOG_INFO_FMT("total convexification time: %.2f", TOC());
+    double trueObj = calcExactObjective();
+
+    if (trueObj > trueObjBefore.back()) {
+      LOG_INFO("objective got worse! rolling back and shrinking trust region");
+      m_currentTraj = prevTraj;
+      m_tra->adjustTrustRegion(SQPConfig::trShrink);
+      trShrinkage *= SQPConfig::trShrink;
+      continue;
     }
+
+    LOG_INFO_FMT("Total exact objective: %.2f", trueObj);
+    LOG_INFO("accepting traj modification");
+    trueObjBefore.push_back(trueObj);
+    approxObjAfter.push_back(approxObj);
+
+
+    double trueImprove = trueObjBefore[trueObjBefore.size()-2] - trueObjBefore.back();
+    double approxImprove = trueObjBefore[trueObjBefore.size()-2] - approxObj;
+    double improveRatio = trueImprove/approxImprove;
+    LOG_INFO_FMT("true improvement: %.2e.  approx improvement: %.2e.  ratio: %.2f", trueImprove, approxImprove, improveRatio);
+    if (improveRatio < SQPConfig::trThresh) {
+      LOG_INFO_FMT("shrinking trust region by %.2f", SQPConfig::trShrink);
+      m_tra->adjustTrustRegion(SQPConfig::trShrink);
+      trShrinkage *= SQPConfig::trShrink;
+    }
+    else {
+      LOG_INFO_FMT("expanding trust region by %.2f", SQPConfig::trExpand);
+      m_tra->adjustTrustRegion(SQPConfig::trExpand);
+      trShrinkage *= SQPConfig::trExpand;
+    }
+
+    if (trShrinkage < 1e-3) {
+      LOG_INFO("trust region got shrunk too much. stopping");
+      break;
+    }
+    if (trueImprove < SQPConfig::doneIterThresh) {
+      LOG_INFO("cost didn't improve much. stopping iteration");
+      break;
+    }
+
+    ++iter;
+
   }
+
 }
 
 void PlanningProblem::initialize(const Eigen::MatrixXd& initTraj, bool endFixed) {
@@ -815,7 +899,6 @@ void merged(const vector<double>& v0, const vector<double>& v1, vector<double>& 
 }
 
 void PlanningProblem::subdivide(const std::vector<double>& insertTimes) {
-  clearCostHistory();
   int nNew = insertTimes.size() + m_times.size();
   int nCol = m_currentTraj.cols();
   vector<int> oldInds, newInds;
@@ -826,10 +909,8 @@ void PlanningProblem::subdivide(const std::vector<double>& insertTimes) {
   VectorXd newTimes = toVectorXd(newTimesVec);
   MatrixXd newTraj = interp2d(newTimes, m_times, m_currentTraj);
   VarArray newTrajVars(nNew, nCol);
-  //  cout << "oldTimes " << m_times << endl;
-  //  cout << "newTimes " << newTimes << endl;
-  //  cout << "oldinds " << oldInds << endl;
-  //  cout << "newinds" << newInds << endl;
+  VectorXd oldTimes = m_times;
+
   for (int i = 0; i < oldInds.size(); ++i) {
     for (int j = 0; j < nCol; ++j) {
       newTrajVars.at(oldInds[i], j) = m_trajVars.at(i, j);
@@ -852,7 +933,7 @@ void PlanningProblem::subdivide(const std::vector<double>& insertTimes) {
   //  cout << m_optMask.transpose() << endl;
   m_model->update();
   BOOST_FOREACH(ProblemComponentPtr comp, m_comps) {
-    comp->subdivide(insertTimes);
+    comp->subdivide(insertTimes, oldTimes, newTimes);
   }
 }
 

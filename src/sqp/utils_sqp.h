@@ -2,6 +2,7 @@
 #include <vector>
 #include <Eigen/Dense>
 #include <LinearMath/btTransform.h>
+#include "gurobi_c++.h"
 template<class T>
 struct BasicArray {
 public:
@@ -65,3 +66,5 @@ inline Eigen::Vector4d toVector4d(const btQuadWord& in) {
 inline Eigen::VectorXd toVectorXd(const std::vector<double>& in) {
   return Eigen::Map<const Eigen::VectorXd>(in.data(), in.size(), 1);
 }
+
+void printAllConstraints(const GRBModel& model);

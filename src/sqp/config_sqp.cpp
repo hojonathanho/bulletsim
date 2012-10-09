@@ -12,3 +12,4 @@ int SQPConfig::maxIter=50;
 double SQPConfig::trShrink = .5;
 double SQPConfig::trExpand = 1.1;
 double SQPConfig::trThresh = .2;
+double SQPConfig::doneIterThresh = .01;

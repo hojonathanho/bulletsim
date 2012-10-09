@@ -37,14 +37,23 @@ vector<double> filterOutIntervals(const std::vector<double>& in, const std::vect
 bool isSafe(const TrajCartCollInfo& cci, double distSafe, const Eigen::VectorXd& times, const std::vector<paird>& allowedCollisionIntervals) {
 //  countCollisions(const TrajJointCollInfo& trajCollInfo, double safeDist, int& nNear, int& nUnsafe, int& nColl)
   assert(cci.size() == times.size());
+  vector<double> discreteUnsafeTimes;
   for (int i=0; i < cci.size(); ++i) {
     if (!inSomeInterval(times(i), allowedCollisionIntervals)) {
       BOOST_FOREACH(const LinkCollision& lc, cci[i]) {
-        if (lc.dist < distSafe) return false;
+        if (lc.dist < distSafe) {
+          discreteUnsafeTimes.push_back(times(i));
+        }
       }
     }
   }
-  return true;
+  if (discreteUnsafeTimes.size() >0) {
+    LOG_INFO("steps with a discrete collision: " << discreteUnsafeTimes);
+    stringstream ss;
+    BOOST_FOREACH(paird p, allowedCollisionIntervals) ss << "(" << p.first << "," << p.second << ") ";
+    LOG_INFO("allowed collision intervals:" << ss.str());
+  }
+  return discreteUnsafeTimes.size()==0;
 }
 
 
@@ -55,7 +64,6 @@ vector<double> getSubdivisionTimes(const TrajCartCollInfo& cci, const Eigen::Vec
     nContColl += cci[i].size();
     if (cci[i].size() > 0) insertTimes.push_back((times(i) + times(i+1)) / 2);
   }
-  LOG_INFO_FMT("number dangerous points in continuous trajectory: %i", nContColl);
   return insertTimes;
 }
 
@@ -64,16 +72,17 @@ bool outerOptimization(PlanningProblem& prob, CollisionCostPtr cc, const std::ve
   for (int outerOptIter = 0;; ++outerOptIter) {
     LOG_INFO_FMT("outer optimization iteration: %i", outerOptIter);
     prob.optimize(SQPConfig::maxIter);
+    printAllConstraints(*prob.m_model);
 
     // discrete is safe, else double coll coeff (but if it's at the upper limit, quit)
     // continuous is safe, else resample (but if you're at the max number of samples, quit)
 
     TrajCartCollInfo& discCollInfo = cc->m_cartCollInfo;
 
+
     if (!isSafe(discCollInfo, SQPConfig::distDiscSafe, prob.m_times,allowedCollisionIntervals)) { // not discrete safe
       if (cc->m_coeff < maxCollCoeff) {
         cc->m_coeff = fmin(cc->m_coeff * COLL_COST_MULT, maxCollCoeff);
-        prob.clearCostHistory();
         LOG_INFO_FMT("trajectory was not discrete-safe. collision coeff <- %.2f", cc->m_coeff);
         continue;
       }
@@ -131,7 +140,7 @@ bool planArmToCartTarget(PlanningProblem& prob, const Eigen::VectorXd& startJoin
   prob.initialize(initTraj, false);
   prob.addComponent(lcc);
   prob.addComponent(cc);
-  prob.addComponent(jb);
+  prob.addTrustRegionAdjuster(jb);
   prob.addComponent(cp);
   return outerOptimization(prob, cc, vector<paird>(), 200, 100);
 
@@ -147,8 +156,52 @@ bool planArmToJointTarget(PlanningProblem& prob, const Eigen::VectorXd& startJoi
   prob.initialize(initTraj, true);
   prob.addComponent(lcc);
   prob.addComponent(cc);
-  prob.addComponent(jb);
+  prob.addTrustRegionAdjuster(jb);
   return outerOptimization(prob, cc, vector<paird>(), 200, 100);
+}
+
+void addFixedEnd(MatrixXd& traj, int nEnd) {
+  int oldLen = traj.rows();
+  traj.conservativeResize(oldLen + nEnd, NoChange);
+  for (int i=0; i < nEnd; ++i) traj.row(oldLen+i) = traj.row(oldLen-1);
+}
+
+bool planArmToGrasp(PlanningProblem& prob, const Eigen::VectorXd& startJoints, const btTransform& goalTrans, RaveRobotObject::Manipulator::Ptr arm) {
+  BulletRaveSyncher brs = syncherFromArm(arm);
+  int nEnd = 6;
+  vector<double> ikSoln;
+  bool ikSuccess = arm->solveIKUnscaled(util::toRaveTransform(goalTrans), ikSoln);
+  if (!ikSuccess) {
+    LOG_ERROR("no ik solution for target!");
+    return false;
+  }
+  VectorXd endJoints = toVectorXd(ikSoln);
+
+  MatrixXd initTraj = makeTraj(startJoints, endJoints, SQPConfig::nStepsInit);
+  int oldLen = initTraj.rows();
+  cout << "old len " << oldLen << endl;
+  addFixedEnd(initTraj, nEnd);
+  cout << "new len " << initTraj.rows() << endl;
+  typedef pair<double, double> paird;
+  vector<paird> allowedCollisionIntervals;
+  allowedCollisionIntervals.push_back(paird(oldLen, oldLen+nEnd));
+
+
+  LengthConstraintAndCostPtr lcc(new LengthConstraintAndCost(true, false, defaultMaxStepMvmt(initTraj), SQPConfig::lengthCoef));
+  CollisionCostPtr cc(new CollisionCost(arm->robot->robot,   arm->robot->getEnvironment()->bullet->dynamicsWorld, brs,
+      arm->manip->GetArmIndices(), SQPConfig::distPen, SQPConfig::collCoefInit));
+  JointBoundsPtr jb(new JointBounds(true, false, defaultMaxStepMvmt(initTraj) / 5, arm->manip));
+  CartesianPoseCostPtr cp(new CartesianPoseCost(arm, goalTrans, initTraj.rows() - 1, 10000., 10000));
+  CartesianVelConstraintPtr cvc(new CartesianVelConstraint(arm, oldLen, oldLen + nEnd, .015));
+
+  prob.initialize(initTraj, false);
+  prob.addComponent(lcc);
+  prob.addComponent(cc);
+  prob.addTrustRegionAdjuster(jb);
+  prob.addComponent(cp);
+  prob.addComponent(cvc);
+  return outerOptimization(prob, cc, allowedCollisionIntervals, 200, 100);
+
 }
 
 #if 0

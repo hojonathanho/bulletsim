@@ -24,27 +24,25 @@ struct LocalConfig : Config {
 string LocalConfig::loadCloud="";
 string LocalConfig::loadEnv="";
 
-class JointPrinter {
+
+class ArmPrinter {
 public:
+  static string commaSep(std::vector<double> v) {
+    stringstream ss;
+    BOOST_FOREACH(double d, v) ss << d << ", ";
+    return ss.str();
+  }
+
   RaveRobotObject::Manipulator::Ptr m_left, m_right;
-  JointPrinter(RaveRobotObject::Manipulator::Ptr left, RaveRobotObject::Manipulator::Ptr right) :
+  ArmPrinter(RaveRobotObject::Manipulator::Ptr left, RaveRobotObject::Manipulator::Ptr right) :
     m_left(left), m_right(right) {}
-  void doit() {
-    cout << "left: " << m_left->getDOFValues() << " right: " << m_right->getDOFValues() << endl;
+  void printJoints() {
+    cout << "left joints: " << commaSep(m_left->getDOFValues()) << " right: " << commaSep(m_right->getDOFValues()) << endl;
+  }
+  void printCarts() {
+    cout << "right joints: " << m_left->getTransform() << "right: " << m_right->getTransform() << endl;
   }
 };
-
-class CartPrinter {
-public:
-  RaveRobotObject::Manipulator::Ptr m_left, m_right;
-  CartPrinter(RaveRobotObject::Manipulator::Ptr left, RaveRobotObject::Manipulator::Ptr right) :
-    m_left(left), m_right(right) {}
-  void doit() {
-    cout << "left: " << m_left->getTransform() << "right: " << m_right->getTransform() << endl;
-  }
-};
-
-
 
 int main(int argc, char* argv[]) {
     Parser parser;
@@ -80,10 +78,10 @@ int main(int argc, char* argv[]) {
     PR2Manager pr2m(scene);
     assert (pr2m.pr2Right);
 
-    JointPrinter jp(pr2m.pr2Left, pr2m.pr2Right);
-    CartPrinter cp(pr2m.pr2Left, pr2m.pr2Right);
-    scene.addVoidKeyCallback('j',boost::bind(&JointPrinter::doit, &jp), "print joints");
-    scene.addVoidKeyCallback('c',boost::bind(&CartPrinter::doit, &cp), "print cart");
+    ArmPrinter ap(pr2m.pr2Left, pr2m.pr2Right);
+    scene.addVoidKeyCallback('c',boost::bind(&ArmPrinter::printCarts, &ap), "print cart");
+    scene.addVoidKeyCallback('j',boost::bind(&ArmPrinter::printJoints, &ap), "print joints");
+
 
     scene.startViewer();
     while (true) {

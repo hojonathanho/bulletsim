@@ -5,10 +5,6 @@
 
 using namespace Eigen;
 
-static Environment::Ptr gEnv;
-void setGlobalEnv(Environment::Ptr env) { gEnv = env; }
-Environment::Ptr getGlobalEnv() { return gEnv; }
-
 void toggle(bool* b){
 	*b = !(*b);
 }
@@ -108,6 +104,10 @@ PlotAxes::Ptr drawAxes(btTransform transform, float size, Environment::Ptr env) 
 static Environment::Ptr gEnv;
 void setGlobalEnv(Environment::Ptr env) { gEnv = env; }
 Environment::Ptr getGlobalEnv() { return gEnv; }
+static Scene* gScene;
+void setGlobalScene(Scene* scene) {gScene=scene;}
+Scene* getGlobalScene() {return gScene;}
+
 
 static const btMatrix3x3 HAPTIC_ROTATION(btQuaternion(-M_PI/2., 0., 0.));
 static inline btMatrix3x3 toHapticBtMatrix(const Matrix3d &m) {

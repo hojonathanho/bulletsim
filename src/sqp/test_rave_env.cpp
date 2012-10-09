@@ -12,6 +12,7 @@
 #include <json/json.h>
 #include <boost/filesystem.hpp>
 #include "utils/my_exceptions.h"
+#include "planning_problems.h"
 using namespace std;
 using namespace Eigen;
 using namespace util;
@@ -76,8 +77,6 @@ int main(int argc, char *argv[]) {
 
   util::setGlobalEnv(scene.env);
 
-  RaveRobotObject::Manipulator::Ptr arm;
-
 
   Json::Value probInfo = readJson(LocalConfig::probSpec);
 
@@ -87,8 +86,12 @@ int main(int argc, char *argv[]) {
   vector<double> startJoints;
   for (int i=0; i < probInfo["start_joints"].size(); ++i) startJoints.push_back(probInfo["start_joints"][i].asDouble());
 
-  PR2Manager pr2m(scene);
-  RaveRobotObject::Ptr pr2 = pr2m.pr2;
+  RaveRobotObject::Ptr pr2 = getRobotByName(scene.env, scene.rave, probInfo["robot"].asString());
+  RaveRobotObject::Manipulator::Ptr arm = pr2->createManipulator(probInfo["manip"].asString(), false);
+
+  assert(pr2);
+  assert(arm);
+
   removeBodiesFromBullet(pr2->children, scene.env->bullet->dynamicsWorld);
   BOOST_FOREACH(EnvironmentObjectPtr obj, scene.env->objects) {
     BulletObjectPtr bobj = boost::dynamic_pointer_cast<BulletObject>(obj);
@@ -96,10 +99,6 @@ int main(int argc, char *argv[]) {
 //    if (bobj) makeFullyTransparent(bobj);
   }
   pr2->setColor(0,1,1, .4);
-
-  if (probInfo["dofs"].asString() == "leftarm") arm = pr2m.pr2Left;
-  else if (probInfo["dofs"].asString() == "rightarm") arm = pr2m.pr2Right;
-  else ASSERT_FAIL();
 
   vector<double> goal;
   for (int i=0; i < probInfo["goal"].size(); ++i) goal.push_back(probInfo["goal"][i].asDouble());
@@ -110,6 +109,10 @@ int main(int argc, char *argv[]) {
 
   TIC();
   PlanningProblem prob;
+  prob.addPlotter(ArmPlotterPtr(new ArmPlotter(arm, &scene,  SQPConfig::plotDecimation)));
+
+
+
   if (SQPConfig::pauseEachIter) {
     boost::function<void(PlanningProblem*)> func = boost::bind(&Scene::idle, &scene, true);
     prob.m_callbacks.push_back(func);
@@ -119,8 +122,10 @@ int main(int argc, char *argv[]) {
     VectorXd startJoints = toVectorXd(arm->getDOFValues());
     VectorXd endJoints = toVectorXd(goal);
     MatrixXd initTraj = makeTraj(startJoints, endJoints, LocalConfig::nSteps);
-    LengthConstraintAndCostPtr lcc(new LengthConstraintAndCost(true, true, defaultMaxStepMvmt(initTraj), SQPConfig::lengthCoef));
-    CollisionCostPtr cc(new CollisionCost(pr2->robot, scene.env->bullet->dynamicsWorld, brs, arm->manip->GetArmIndices(), SQPConfig::distPen, SQPConfig::collCoefInit));
+    LengthConstraintAndCostPtr lcc(new LengthConstraintAndCost(true, true, defaultMaxStepMvmt(
+        initTraj), SQPConfig::lengthCoef));
+    CollisionCostPtr cc(new CollisionCost(pr2->robot, scene.env->bullet->dynamicsWorld, brs,
+        arm->manip->GetArmIndices(), SQPConfig::distPen, SQPConfig::collCoefInit));
     JointBoundsPtr jb(new JointBounds(true, true, defaultMaxStepMvmt(initTraj) / 5, arm->manip));
     prob.initialize(initTraj, true);
     prob.addComponent(lcc);
@@ -128,47 +133,35 @@ int main(int argc, char *argv[]) {
     prob.addComponent(jb);
   }
   else if (probInfo["goal_type"] == "cart") {
+
     VectorXd startJoints = toVectorXd(arm->getDOFValues());
-    btTransform goalTrans = btTransform(btQuaternion(goal[0], goal[1], goal[2], goal[3]), btVector3(goal[4], goal[5], goal[6]));
-    util::drawAxes(goalTrans, .15*METERS, scene.env);
-    cout << "goalTrans: " << goalTrans << endl;
-    vector< vector<double> > ikSolns;
-    arm->solveAllIKUnscaled(toRaveTransform(goalTrans), ikSolns);
-    ENSURE(ikSolns.size() > 0);
-    VectorXd endJoints = toVectorXd(ikSolns[0]);
-    ENSURE(endJoints.size() > 0);
-    MatrixXd initTraj = makeTraj(startJoints, endJoints, LocalConfig::nSteps);
-    int oldLen = initTraj.rows();
-    int nFinal=2;
-    initTraj.conservativeResize(oldLen + nFinal, NoChange);
-    for (int i=0; i < nFinal; ++i) initTraj.row(oldLen+i) = initTraj.row(oldLen-1);
-    LengthConstraintAndCostPtr lcc(new LengthConstraintAndCost(true, false, defaultMaxStepMvmt(initTraj), SQPConfig::lengthCoef));
-    CollisionCostPtr cc(new CollisionCost(pr2->robot, scene.env->bullet->dynamicsWorld, brs, arm->manip->GetArmIndices(), SQPConfig::distPen, SQPConfig::collCoefInit));
-    JointBoundsPtr jb(new JointBounds(true, false, defaultMaxStepMvmt(initTraj) / 5, arm->manip));
-    CartesianPoseCostPtr cp(new CartesianPoseCost(arm, goalTrans, initTraj.rows()-1, 100., 100));
-    CartesianVelConstraintPtr cvc(new CartesianVelConstraint(arm, oldLen, oldLen+nFinal, .02*METERS));
+    btTransform goalTrans = btTransform(btQuaternion(goal[0], goal[1], goal[2], goal[3]),
+        btVector3(goal[4], goal[5], goal[6]));
+    util::drawAxes(goalTrans, .15 * METERS, scene.env);
+    TIC1();
+    planArmToCartTarget(prob, startJoints, goalTrans, arm);
+    cout << "total time: " << TOC();
 
-    prob.initialize(initTraj, false);
-    prob.addComponent(lcc);
-    prob.addComponent(cc);
-    prob.addComponent(jb);
-    prob.addComponent(cp);
-    prob.addComponent(cvc);
+  }
+  else if (probInfo["goal_type"] == "grasp") {
+
+    VectorXd startJoints = toVectorXd(arm->getDOFValues());
+    btTransform goalTrans = btTransform(btQuaternion(goal[0], goal[1], goal[2], goal[3]),
+        btVector3(goal[4], goal[5], goal[6]));
+    util::drawAxes(goalTrans, .15 * METERS, scene.env);
+    TIC1();
+    planArmToGrasp(prob, startJoints, goalTrans, arm);
+    cout << "total time: " << TOC();
+
   }
 
-  LOG_INFO_FMT("setup time: %.2f", TOC());
-  prob.addPlotter(ArmPlotterPtr(new ArmPlotter(arm, &scene, brs, SQPConfig::plotDecimation)));
-
-  try {
-    prob.optimize(LocalConfig::nIter);
-  }
-  catch (GRBException e) {
-    cout << e.getMessage() << endl;
-    throw;
-  }
 
   prob.m_plotters[0].reset();
-  interactiveTrajPlot(prob.m_currentTraj, arm, &brs, &scene);
+
+  BulletConfig::linkPadding = 0;
+  scene.env->remove(pr2);
+  PR2Manager pr2m1(scene);
+  interactiveTrajPlot(prob.m_currentTraj, pr2m1.pr2->getManipByIndex(arm->index),  &scene);
   scene.idle(true);
 
 }

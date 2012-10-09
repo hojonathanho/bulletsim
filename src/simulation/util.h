@@ -19,11 +19,10 @@ using namespace std;
 #define STRINGIFY(x) #x
 #define EXPAND(x) STRINGIFY(x)
 
-void setGlobalEnv(Environment::Ptr env);
-Environment::Ptr getGlobalEnv();
-
 void toggle(bool* b);
 void add(int* n, int increment);
+
+struct Scene;
 
 namespace util {
 
@@ -85,6 +84,9 @@ namespace util {
 
   void setGlobalEnv(Environment::Ptr env);
   Environment::Ptr getGlobalEnv();
+  void setGlobalScene(Scene* scene);
+  Scene* getGlobalScene();
+  
 
   PlotSpheres::Ptr drawSpheres(vector<btVector3> points, Eigen::Vector3f color, float alpha, float radius, Environment::Ptr env);
   PlotSpheres::Ptr drawSpheres(btVector3 point, Eigen::Vector3f color, float alpha, float radius, Environment::Ptr env);

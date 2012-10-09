@@ -14,6 +14,7 @@ struct SQPConfig : Config {
   static double distContSafe;
   static int maxIter;
   static double trExpand, trShrink, trThresh;
+  static double doneIterThresh;
 
   SQPConfig() : Config() {
     params.push_back(new Parameter<double>("collCoefInit", &collCoefInit, "coeff for collision cost"));
@@ -28,7 +29,8 @@ struct SQPConfig : Config {
     params.push_back(new Parameter<int>("maxIter", &maxIter, "max iterations for sqp procedure"));
     params.push_back(new Parameter<double>("trShrink", &trShrink, "shrink factor"));
     params.push_back(new Parameter<double>("trExpand", &trExpand, "expand factor"));
-    params.push_back(new Parameter<double>("trThresh", &trThresh, "threshold"));
+    params.push_back(new Parameter<double>("trThresh", &trThresh, "threshold to expand/shrink trust region"));
+    params.push_back(new Parameter<double>("doneIterThresh", &doneIterThresh, "done iterating threshold"));
   }
 };
 

@@ -141,7 +141,8 @@ int main(int argc, char *argv[]) {
   prob.addPlotter(ArmPlotterPtr(new ArmPlotter(rarm, &scene, SQPConfig::plotDecimation)));
 
 
-//  bool success = planArmToJointTarget(prob, startJoints, endJoints, rarm);
+  bool success = planArmToJointTarget(prob, startJoints, endJoints, rarm);
+#if 0
   btTransform tf(btQuaternion(-0.119206, 0.979559, 0.159614, 0.0278758),
       btVector3(0.457689, -0.304135, 0.710815));
   util::drawAxes(tf, .15*METERS, scene.env);
@@ -151,9 +152,8 @@ int main(int argc, char *argv[]) {
   cout << "result: " << success << endl;
   cout << "total time: " << GetClock() - tStart << endl;
 
-  BulletRaveSyncher brs = syncherFromArm(rarm);
   prob.m_plotters[0].reset();
-
+#endif
 
 #if 0
   TIC();

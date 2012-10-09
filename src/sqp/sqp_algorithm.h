@@ -44,7 +44,6 @@ public:
   std::vector<ProblemComponentPtr> m_comps;
   std::map<std::string, ProblemComponentPtr> m_name2comp;
   bool m_initialized;
-  std::vector<double> m_trueObjBeforeOpt, m_approxObjAfterOpt;
   std::vector<Callback> m_callbacks;
   Eigen::VectorXd m_times;
   TrustRegionAdjusterPtr m_tra;
@@ -58,9 +57,8 @@ public:
   void addPlotter(TrajPlotterPtr plotter) {m_plotters.push_back(plotter);}
   double calcApproxObjective();
   double calcExactObjective();
-  void clearCostHistory();
   void updateModel();
-  void subdivide(const std::vector<double>& newTimes);
+  void subdivide(const std::vector<double>& insertTimefs);
   void testObjectives();
   void addTrustRegionAdjuster(TrustRegionAdjusterPtr tra);
 };
@@ -91,7 +89,7 @@ public:
     onRemove();
     onAdd();
   }
-  virtual void subdivide(const std::vector<double>& insertTimes) {}
+  virtual void subdivide(const std::vector<double>& insertTimes, const Eigen::VectorXd& oldTimes, const Eigen::VectorXd& newTimes) {}
 };
 
 class CollisionCost: public ProblemComponent {
@@ -122,6 +120,7 @@ public:
   void onRemove();
   void setCoeff(double coeff) {m_coeff = coeff;}
   void setCoeffVec(const Eigen::VectorXd& coeffVec) {m_coeffVec = coeffVec;}
+  void subdivide(const std::vector<double>& insertTimes, const Eigen::VectorXd& oldTimes, const Eigen::VectorXd& newTimes);
 };
 
 
@@ -177,7 +176,7 @@ public:
   double calcExactObjective();
   void onRemove();
   void setCoeff(double coeff) {m_coeff = coeff;}
-  void subdivide(const std::vector<double>& insertTimes);
+  void subdivide(const std::vector<double>& insertTimes, const Eigen::VectorXd& oldTimes, const Eigen::VectorXd& newTimes);
 };
 
 class JointBounds: public TrustRegionAdjuster {
@@ -230,7 +229,7 @@ public:
   void updateModel(const Eigen::MatrixXd& traj, GRBQuadExpr& objective);
   double calcApproxObjective() {return m_obj.getValue();}
   double calcExactObjective();
-  void subdivide(const std::vector<double>& insertTimes);
+  void subdivide(const std::vector<double>& insertTimes, const Eigen::VectorXd& oldTimes, const Eigen::VectorXd& newTimes);
 };
 
 class CartesianPoseConstraint: public ProblemComponent {
@@ -255,13 +254,13 @@ public:
 
   void updateModel(const Eigen::MatrixXd& traj, GRBQuadExpr& objective);
   void onRemove();
-  void subdivide(const std::vector<double>& insertTimes);
+  void subdivide(const std::vector<double>& insertTimes, const Eigen::VectorXd& oldTimes, const Eigen::VectorXd& newTimes);
 };
 
 
 class CartesianVelConstraint : public ProblemComponent {
   GRBQuadExpr m_obj;
-  std::vector<GRBQConstr> m_cnts;
+  std::vector<GRBConstr> m_cnts;
   RaveRobotObject::Manipulator::Ptr m_manip;
   Eigen::Vector3d m_posTarg;
   Eigen::Vector4d m_rotTarg;
@@ -280,7 +279,7 @@ public:
   void updateModel(const Eigen::MatrixXd& traj, GRBQuadExpr& objective);
   double calcApproxObjective() {return m_obj.getValue();}
   void onRemove();
-  void subdivide(const std::vector<double>& insertTimes);
+  void subdivide(const std::vector<double>& insertTimes, const Eigen::VectorXd& oldTimes, const Eigen::VectorXd& newTimes);
 };
 
 
