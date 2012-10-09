@@ -1,9 +1,12 @@
 #include "simplescene.h"
+#include "environment.h"
+#include "basicobjects.h"
+#include "openravesupport.h"
+#include "plotting.h"
 #include "mouse_picking.h"
 #include "config_bullet.h"
 #include "config_viewer.h"
 #include "util.h"
-
 #include <iostream>
 using namespace std;
 
@@ -82,10 +85,10 @@ void Scene::help() {
 }
 
 void Scene::step(float dt, int maxsteps, float internaldt) {
-    static float startTime=viewer.getFrameStamp()->getSimulationTime(), endTime;
-
-    if (syncTime && drawingOn)
-        endTime = viewer.getFrameStamp()->getSimulationTime();
+//    static float startTime=viewer.getFrameStamp()->getSimulationTime(), endTime;
+//
+//    if (syncTime && drawingOn)
+//        endTime = viewer.getFrameStamp()->getSimulationTime();
 
     // run pre-step callbacks
     for (int i = 0; i < prestepCallbacks.size(); ++i)
@@ -101,11 +104,11 @@ void Scene::step(float dt, int maxsteps, float internaldt) {
 
     draw();
 
-    if (syncTime && drawingOn) {
-        float timeLeft = dt - (endTime - startTime);
-        idleFor(timeLeft);
-        startTime = endTime + timeLeft;
-    }
+//    if (syncTime && drawingOn) {
+//        float timeLeft = dt - (endTime - startTime);
+//        idleFor(timeLeft);
+//        startTime = endTime + timeLeft;
+//    }
 }
 
 void Scene::step(float dt) {
