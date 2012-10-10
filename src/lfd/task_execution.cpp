@@ -8,11 +8,150 @@
 
 namespace lfd {
 
+// Trajectory conversion utility functions
+static inline py::object dictExtract(py::dict d, const string &k) {
+  return d.has_key(k) ? d[k] : py::object();
+}
+
+static inline vector<double> pyListToVec(py::object l) {
+  int len = py::len(l);
+  vector<double> v(len);
+  for (int i = 0; i < len; ++i) {
+    v[i] = py::extract<double>(l[i]);
+  }
+  return v;
+}
+
+static Trajectory::GripperTraj toGripperTraj(int steps, py::object o) {
+  Trajectory::GripperTraj t;
+  if (o == py::object()) return t;
+  t.resize(steps);
+  assert(py::len(o) == steps);
+  for (int i = 0; i < steps; ++i) {
+    t[i] = py::extract<double>(o[i]);
+  }
+  return t;
+}
+
+static Trajectory::ArmTraj toArmTraj(int steps, py::object o) {
+  Trajectory::ArmTraj t;
+  if (o == py::object()) return t;
+  assert(py::len(o) == steps);
+  for (int i = 0; i < steps; ++i) {
+    t.push_back(pyListToVec(o[i]));
+  }
+  return t;
+}
+
+static Trajectory::GrabTraj toGrabTraj(int steps, py::object o) {
+  Trajectory::GrabTraj t;
+  if (o == py::object()) return t;
+  t.resize(steps);
+  assert(py::len(o) == steps);
+  for (int i = 0; i < steps; ++i) {
+    t[i] = py::extract<bool>(o[i]);
+  }
+  return t;
+}
+
+static RopeState toRopeState(py::object o) {
+  int len = py::len(o);
+  assert(len % 3 == 0);
+  RopeState rs;
+  for (int i = 0; i < len/3; ++i) {
+    btScalar x, y, z;
+    x = py::extract<btScalar>(o[3*i]);
+    y = py::extract<btScalar>(o[3*i+1]);
+    z = py::extract<btScalar>(o[3*i+2]);
+    assert(std::isfinite(x) && std::isfinite(y) && std::isfinite(z));
+    rs.push_back(btVector3(x, y, z));
+  }
+  return rs;
+}
+
+// TODO: this is rope-specific
+static Trajectory::TrackedStates toTrackedStates(int steps, py::object o, RaveRobotObject::Ptr pr2) {
+  Trajectory::TrackedStates t;
+  if (o == py::object()) return t;
+  t.resize(steps);
+  assert(py::len(o) == steps);
+  for (int i = 0; i < steps; ++i) {
+    assert(i == 0 || py::len(o[i]) == py::len(o[i-1]));
+    t[i] = ropeState_real2sim(toRopeState(o[i]), pr2);
+  }
+  return t;
+}
+
+static PlotLines::Ptr drawRopeState(const RopeState &rs, const Eigen::Vector3f &color, float alpha, Environment::Ptr env) {
+  vector<btVector3> points0, points1;
+  for (int z = 0; z < rs.size() - 1; ++z) {
+    points0.push_back(rs[z]);
+    points1.push_back(rs[z+1]);
+  }
+  return util::drawLines(points0, points1, color, alpha, env);
+}
+
+static vector<btVector3> cloudToPoints(py::object cloud, RaveRobotObject::Ptr pr2) {
+  btTransform base_footprint_trans = pr2->getLinkTransform(
+    pr2->robot->GetLink("base_footprint")
+  );
+  vector<btVector3> pts;
+  int len = py::len(cloud);
+  for (int i = 0; i < len; ++i) {
+    btScalar x = py::extract<btScalar>(cloud[i][0]);
+    btScalar y = py::extract<btScalar>(cloud[i][1]);
+    btScalar z = py::extract<btScalar>(cloud[i][2]);
+    pts.push_back(base_footprint_trans * btVector3(x, y, z) * METERS);
+  }
+  return pts;
+}
+
+// Read data from the python trajectory representation
+Trajectory::Trajectory(py::object pytraj, RaveRobotObject::Ptr pr2) {
+  py::dict traj = py::extract<py::dict>(pytraj);
+
+  steps = py::extract<int>(traj["steps"]);
+
+  // array of numbers (gripper dofs)
+  lGripperTraj = toGripperTraj(steps, dictExtract(traj, "l_gripper"));
+  rGripperTraj = toGripperTraj(steps, dictExtract(traj, "r_gripper"));
+
+  // array of arrays of numbers (dofs of the whole arm)
+  lArmTraj = toArmTraj(steps, dictExtract(traj, "l_arm"));
+  rArmTraj = toArmTraj(steps, dictExtract(traj, "r_arm"));
+
+  // array of booleans
+  lGrabTraj = toGrabTraj(steps, dictExtract(traj, "l_grab"));
+  rGrabTraj = toGrabTraj(steps, dictExtract(traj, "r_grab"));
+
+  // array of array of vectors (warped tracked states)
+  trackedStates = toTrackedStates(steps, dictExtract(traj, "tracked_states"), pr2);
+  origTrackedStates = toTrackedStates(steps, dictExtract(traj, "orig_tracked_states"), pr2);
+
+  assert(checkIntegrity());
+}
+
+bool Trajectory::checkIntegrity() {
+  if (lGripperTraj.size() != 0 && lGripperTraj.size() != steps) return false;
+  if (rGripperTraj.size() != 0 && rGripperTraj.size() != steps) return false;
+  if (lArmTraj.size() != 0 && lArmTraj.size() != steps) return false;
+  if (rArmTraj.size() != 0 && rArmTraj.size() != steps) return false;
+  if (rGrabTraj.size() != 0 && rGrabTraj.size() != steps) return false;
+  if (trackedStates.size() != 0 && trackedStates.size() != steps) return false;
+  if (origTrackedStates.size() != 0 && origTrackedStates.size() != steps) return false;
+  return true;
+}
+
+
 TaskExecuter::TaskExecuter(TableRopeScene &scene_) : scene(scene_), trajExecSlowdown(1.0) {
 }
 
 void TaskExecuter::setTrajExecSlowdown(double s) {
   trajExecSlowdown = s;
+}
+
+void TaskExecuter::setTrajStepCallback(TrajStepCallback f) {
+  stepCallback = f;
 }
 
 bool TaskExecuter::isTerminalState(State s) const {
@@ -88,17 +227,15 @@ TaskExecuter::Transition TaskExecuter::action_lookAtObject() {
   // look at the rope
   // return a numpy n-by-3 numpy array representing the point cloud
   // in the base_footprint frame
-  RaveRobotObject::Ptr pr2 = scene.pr2m->pr2;
-  btTransform base_footprint_trans = pr2->getLinkTransform(
-    pr2->robot->GetLink("base_footprint")
+  vector<btVector3> ropePts = ropeState_sim2real(
+    scene.getRope()->getControlPoints(),
+    scene.pr2m->pr2
   );
-  vector<btVector3> ropePts = scene.getRope()->getControlPoints();
   py::object nparr = NP.attr("empty")(py::make_tuple(ropePts.size(), 3));
   for (int i = 0; i < ropePts.size(); ++i) {
-    btVector3 transformed_pt = base_footprint_trans * ropePts[i] / GeneralConfig::scale;
-    nparr[i][0] = transformed_pt.x();
-    nparr[i][1] = transformed_pt.y();
-    nparr[i][2] = transformed_pt.z();
+    nparr[i][0] = ropePts[i].x();
+    nparr[i][1] = ropePts[i].y();
+    nparr[i][2] = ropePts[i].z();
   }
   saveData("points", nparr);
   return TR_SUCCESS;
@@ -118,18 +255,6 @@ TaskExecuter::Transition TaskExecuter::action_selectTraj() {
   return transitionFromString(status);
 }
 
-static inline vector<double> pyListToVec(py::object l) {
-  vector<double> v;
-  for (int i = 0; i < py::len(l); ++i) {
-    v.push_back(py::extract<double>(l[i]));
-  }
-  return v;
-}
-
-static inline py::object dictExtract(py::dict d, const string &k) {
-  return d.has_key(k) ? d[k] : py::object();
-}
-
 static inline double clampGripperAngle(double a) {
   const float MIN_ANGLE = 0.08;
   const float scale = 20./3.;
@@ -137,61 +262,87 @@ static inline double clampGripperAngle(double a) {
 }
 
 TaskExecuter::Transition TaskExecuter::action_execTraj() {
-  py::dict traj = py::extract<py::dict>(readData("trajectory"));
-  // array of numbers (gripper dofs)
-  py::object lGripperTraj = dictExtract(traj, "l_gripper");
-  py::object rGripperTraj = dictExtract(traj, "r_gripper");
-  // array of arrays of numbers (dofs of the whole arm)
-  py::object lArmTraj = dictExtract(traj, "l_arm");
-  py::object rArmTraj = dictExtract(traj, "r_arm");
-  // array of booleans
-  py::object lGrabTraj = dictExtract(traj, "l_grab");
-  py::object rGrabTraj = dictExtract(traj, "r_grab");
+  RaveRobotObject::Ptr pr2 = scene.pr2m->pr2;
+  Trajectory t(readData("trajectory"), pr2);
 
-  const int realSteps = py::extract<int>(traj["steps"]);
-  const int simSteps = (int) ceil(trajExecSlowdown * realSteps);
+  // calculate slowdown
+  const int simSteps = (int) ceil(trajExecSlowdown * t.steps);
   vector<int> sim2real(simSteps, -1);
-  for (int i = 0; i < realSteps; ++i) {
+  for (int i = 0; i < t.steps; ++i) {
     sim2real[(int)(trajExecSlowdown * i)] = i;
   }
 
-  assert(lGripperTraj == py::object() || realSteps == py::len(lGripperTraj));
-  assert(rGripperTraj == py::object() || realSteps == py::len(rGripperTraj));
-  assert(lArmTraj == py::object() || realSteps == py::len(lArmTraj));
-  assert(rArmTraj == py::object() || realSteps == py::len(rArmTraj));
-  assert(lGrabTraj == py::object() || realSteps == py::len(lGrabTraj));
-  assert(rGrabTraj == py::object() || realSteps == py::len(rGrabTraj));
+  RopeStatePlot::Ptr warped_tracked_plot(new RopeStatePlot());
+  RopeStatePlot::Ptr orig_tracked_plot(new RopeStatePlot());
+  PlotPoints::Ptr demo_cloud_plot(new PlotPoints());
+  util::getGlobalEnv()->add(warped_tracked_plot);
+  util::getGlobalEnv()->add(orig_tracked_plot);
+  util::getGlobalEnv()->add(demo_cloud_plot);
 
-  RaveRobotObject::Ptr pr2 = scene.pr2m->pr2;
   scene.setGrabBodies(scene.getRope()->getChildren());
   for (int k = 0; k < simSteps; ++k) {
     int i = sim2real[k];
     if (i != -1) {
-      if (lArmTraj != py::object()) scene.pr2m->pr2Left->setDOFValues(pyListToVec(lArmTraj[i]));
-      if (lGripperTraj != py::object()) scene.pr2m->pr2Left->setGripperAngle(clampGripperAngle(py::extract<double>(lGripperTraj[i])));
-      if (lGrabTraj != py::object()) {
-        if (py::extract<bool>(lGrabTraj[i]) && (i == 0 || !py::extract<bool>(lGrabTraj[i-1]))) {
+
+      // rope state plotting
+      demo_cloud_plot->setPoints(cloudToPoints(readData("trajectory")["demo"]["cloud_xyz_ds"], pr2));
+      if (!t.trackedStates.empty()) {
+        warped_tracked_plot->setRope(t.trackedStates[i], Eigen::Vector3f(1, 0, 0), 0.5);
+      }
+      if (!t.origTrackedStates.empty()) {
+        orig_tracked_plot->setRope(t.origTrackedStates[i], Eigen::Vector3f(0, 0, 1), 0.4);
+      }
+
+      // left
+      if (!t.lArmTraj.empty()) {
+        scene.pr2m->pr2Left->setDOFValues(t.lArmTraj[i]);
+      }
+      if (!t.lGripperTraj.empty()) {
+        scene.pr2m->pr2Left->setGripperAngle(clampGripperAngle(t.lGripperTraj[i]));
+      }
+      if (!t.lGrabTraj.empty()) {
+        if (t.lGrabTraj[i] && (i == 0 || !t.lGrabTraj[i-1])) {
           scene.m_lMonitor->grab();
-        } else if (!py::extract<bool>(lGrabTraj[i]) && (i == 0 || py::extract<bool>(lGrabTraj[i-1]))) {
+        } else if (!t.lGrabTraj[i] && (i == 0 || t.lGrabTraj[i-1])) {
           scene.m_lMonitor->release();
         }
       }
 
-      if (rArmTraj != py::object()) scene.pr2m->pr2Right->setDOFValues(pyListToVec(rArmTraj[i]));
-      if (rGripperTraj != py::object()) scene.pr2m->pr2Right->setGripperAngle(clampGripperAngle(py::extract<double>(rGripperTraj[i])));
-      if (rGrabTraj != py::object()) {
-        if (py::extract<bool>(rGrabTraj[i]) && (i == 0 || !py::extract<bool>(rGrabTraj[i-1]))) {
+      // right
+      if (!t.rArmTraj.empty()) {
+        scene.pr2m->pr2Right->setDOFValues(t.rArmTraj[i]);
+      }
+      if (!t.rGripperTraj.empty()) {
+        scene.pr2m->pr2Right->setGripperAngle(clampGripperAngle(t.rGripperTraj[i]));
+      }
+      if (!t.rGrabTraj.empty()) {
+        if (t.rGrabTraj[i] && (i == 0 || !t.rGrabTraj[i-1])) {
           scene.m_rMonitor->grab();
-        } else if (!py::extract<bool>(rGrabTraj[i]) && (i == 0 || py::extract<bool>(rGrabTraj[i-1]))) {
+        } else if (!t.rGrabTraj[i] && (i == 0 || t.rGrabTraj[i-1])) {
           scene.m_rMonitor->release();
         }
+      }
+
+      if (stepCallback) {
+        // TODO: make stepCallback take the Trajectory, not the py::dict
+        stepCallback(py::extract<py::dict>(readData("trajectory")), i);
       }
     }
 
     scene.step(DT);
   }
+
   scene.m_lMonitor->release();
-  scene.m_lMonitor->release();
+  scene.m_rMonitor->release();
+
+  warped_tracked_plot->clear();
+  orig_tracked_plot->clear();
+  demo_cloud_plot->clear();
+  util::getGlobalEnv()->remove(warped_tracked_plot);
+  util::getGlobalEnv()->remove(orig_tracked_plot);
+  util::getGlobalEnv()->remove(demo_cloud_plot);
+
+  return TR_SUCCESS;
 }
 
 } // namespace lfd

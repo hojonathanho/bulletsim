@@ -43,6 +43,28 @@ py::object Python_importFile(const fs::path &path) {
   }
 }
 
+void Python_printError() {
+  using namespace boost::python;
+  using namespace boost;
+  // thank you http://stackoverflow.com/questions/1418015/how-to-get-python-exception-text
+  PyObject *exc,*val,*tb;
+  object formatted_list, formatted;
+  PyErr_Fetch(&exc,&val,&tb);
+  handle<> hexc(exc),hval(allow_null(val)),htb(allow_null(tb));
+  object traceback(import("traceback"));
+  if (!tb) {
+    object format_exception_only(traceback.attr("format_exception_only"));
+    formatted_list = format_exception_only(hexc,hval);
+  } else {
+    object format_exception(traceback.attr("format_exception"));
+    formatted_list = format_exception(hexc,hval,htb);
+  }
+  formatted = str("\n").join(formatted_list);
+  string errormsg = extract<string>(formatted);
+
+  LOG_ERROR("Python error" << (!tb ? " (no traceback available)" : "") << ": " << errormsg);
+}
+
 // Tries to import a python module from the given file (using Python_importFile).
 // If the file isn't found, then this will search for the file in the parent directory.
 // If it isn't there, then this keeps going up.

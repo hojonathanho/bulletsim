@@ -6,10 +6,32 @@
 using namespace std;
 
 #include "lfd_python_wrapper.h"
+#include "lfd_rope_common.h"
 
 class TableRopeScene;
 
 namespace lfd {
+
+struct Trajectory {
+  int steps;
+
+  typedef vector<double> GripperTraj;
+  GripperTraj lGripperTraj, rGripperTraj;
+
+  typedef vector<vector<double> > ArmTraj;
+  ArmTraj lArmTraj, rArmTraj;
+
+  typedef vector<bool> GrabTraj;
+  GrabTraj lGrabTraj, rGrabTraj;
+
+  typedef vector<RopeState> TrackedStates;
+  TrackedStates trackedStates, origTrackedStates;
+
+  Trajectory() { }
+  Trajectory(py::object pytraj, RaveRobotObject::Ptr pr2);
+
+  bool checkIntegrity();
+};
 
 // (hard-wired) task execution state machine
 class TaskExecuter {
@@ -28,7 +50,12 @@ public:
   };
 
   TaskExecuter(TableRopeScene &scene_);
+
   void setTrajExecSlowdown(double s);
+
+  typedef boost::function<void(py::dict, int)> TrajStepCallback;
+  void setTrajStepCallback(TrajStepCallback f);
+
   State run(const string &taskName, State start=ST_LOOK_AT_OBJ);
 
 private:
@@ -38,15 +65,18 @@ private:
   ExecutionModule pymod; // some actions are implemented in python
   int currStep;
   double trajExecSlowdown;
+  TrajStepCallback stepCallback;
 
   State nextState(State s, Transition t) const;
   Transition execState(State s);
   bool isTerminalState(State s) const;
 
+  // For the states in the state machine to communicate
   map<string, py::object> storage;
   void saveData(const string &key, py::object data) { storage[key] = data; }
   py::object readData(const string &key) { return storage[key]; }
 
+  // Actions for the states
   Transition action_lookAtObject();
   Transition action_selectTraj();
   Transition action_execTraj();

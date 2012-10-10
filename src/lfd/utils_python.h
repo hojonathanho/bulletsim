@@ -27,6 +27,7 @@ vector<btVector3> NPnx3ToPointVec(py::object n);
 #define NP PyGlobals::numpy_module
 
 void Python_setup();
+void Python_printError();
 py::object Python_importFile(const fs::path &path);
 
 class PyModule {

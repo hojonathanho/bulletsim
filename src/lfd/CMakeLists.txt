@@ -1,4 +1,6 @@
 find_package(PythonLibs REQUIRED)
+find_package(HDF5 REQUIRED)
+
 include_directories(
   ${BULLET_DIR}/src
   ${OpenRAVE_INCLUDE_DIRS}
@@ -7,6 +9,7 @@ include_directories(
   #${WM_INCLUDE_DIR}
   ${PCL_INCLUDE_DIRS}
   ${PYTHON_INCLUDE_DIRS}
+  ${HDF5_INCLUDE_DIR}
 )
 link_directories(
   ${BULLETSIM_BINARY_DIR}/src
@@ -20,6 +23,7 @@ add_library(lfd
   utils_python.cpp
   lfd_python_wrapper.cpp
   rope_scenes.cpp
+  lfd_rope_common.cpp
 )
 target_link_libraries(lfd
   simulation
@@ -30,3 +34,6 @@ target_link_libraries(lfd
 
 add_executable(lfd_rope lfd_rope.cpp)
 target_link_libraries(lfd_rope lfd)
+
+add_executable(record_sim_tracking record_sim_tracking.cpp)
+target_link_libraries(record_sim_tracking lfd hdf5_cpp hdf5)
