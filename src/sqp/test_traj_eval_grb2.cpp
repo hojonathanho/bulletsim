@@ -93,7 +93,10 @@ int main(int argc, char *argv[]) {
 
   signal(SIGABRT, handler); // install our handler
 
-  GeneralConfig::scale = 100.;
+  BulletConfig::linkPadding = .02;
+  GeneralConfig::verbose=20000;
+  GeneralConfig::scale = 10.;
+
   //	BulletConfig::margin = .01;
   Parser parser;
   parser.addGroup(GeneralConfig());
@@ -101,7 +104,7 @@ int main(int argc, char *argv[]) {
   parser.addGroup(LocalConfig());
   parser.addGroup(SQPConfig());
   parser.read(argc, argv);
-  BulletConfig::linkPadding = SQPConfig::distPen * 2;
+
 
   const float table_height = .65;
   const float table_thickness = .06;
@@ -140,8 +143,10 @@ int main(int argc, char *argv[]) {
   }
   prob.addPlotter(ArmPlotterPtr(new ArmPlotter(rarm, &scene, SQPConfig::plotDecimation)));
 
-
+  TIC();
   bool success = planArmToJointTarget(prob, startJoints, endJoints, rarm);
+  LOG_INFO("total time: " << TOC());
+  prob.m_plotters[0].reset();
 #if 0
   btTransform tf(btQuaternion(-0.119206, 0.979559, 0.159614, 0.0278758),
       btVector3(0.457689, -0.304135, 0.710815));

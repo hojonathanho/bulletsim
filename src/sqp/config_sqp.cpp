@@ -1,6 +1,6 @@
 #include "config_sqp.h"
-double SQPConfig::collCoefInit = 10;
-int SQPConfig::nStepsInit = 10;
+double SQPConfig::collCoefInit = 20;
+int SQPConfig::nStepsInit = 15;
 double SQPConfig::lengthCoef = .5;
 bool SQPConfig::topCollOnly = false;
 int SQPConfig::plotDecimation = 10;

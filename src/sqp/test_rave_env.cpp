@@ -62,7 +62,10 @@ void removeBodiesFromBullet(vector<BulletObject::Ptr> objs, btDynamicsWorld* wor
 
 int main(int argc, char *argv[]) {
 
-  GeneralConfig::scale = 1.;
+  BulletConfig::linkPadding = .02;
+  GeneralConfig::verbose=20000;
+  GeneralConfig::scale = 10.;
+
   Parser parser;
   parser.addGroup(GeneralConfig());
   parser.addGroup(BulletConfig());
