@@ -147,6 +147,7 @@ int main(int argc, char *argv[]) {
   bool success = planArmToJointTarget(prob, startJoints, endJoints, rarm);
   LOG_INFO("total time: " << TOC());
   prob.m_plotters[0].reset();
+//  prob.testObjectives();
 #if 0
   btTransform tf(btQuaternion(-0.119206, 0.979559, 0.159614, 0.0278758),
       btVector3(0.457689, -0.304135, 0.710815));

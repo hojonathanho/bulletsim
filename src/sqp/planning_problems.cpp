@@ -92,7 +92,7 @@ bool outerOptimization(PlanningProblem& prob, CollisionCostPtr cc, const std::ve
       }
     }
     else { // not continuous safe
-      TrajCartCollInfo contCollInfo = continuousTrajCollisions(prob.m_currentTraj, cc->m_robot, cc->m_brs,
+      TrajCartCollInfo contCollInfo = continuousTrajCollisions(prob.m_currentTraj, cc->m_robot, *cc->m_brs,
           cc->m_world, cc->m_dofInds, SQPConfig::distContSafe);
       vector<double> insertTimes = getSubdivisionTimes(contCollInfo, prob.m_times);
       insertTimes = filterOutIntervals(insertTimes, allowedCollisionIntervals);
@@ -121,7 +121,7 @@ bool outerOptimization(PlanningProblem& prob, CollisionCostPtr cc, const std::ve
 
 
 bool planArmToCartTarget(PlanningProblem& prob, const Eigen::VectorXd& startJoints, const btTransform& goalTrans, RaveRobotObject::Manipulator::Ptr arm) {
-  BulletRaveSyncher brs = syncherFromArm(arm);
+  BulletRaveSyncherPtr brs = syncherFromArm(arm);
   vector<double> ikSoln;
   bool ikSuccess = arm->solveIKUnscaled(util::toRaveTransform(goalTrans), ikSoln);
   if (!ikSuccess) {
@@ -147,7 +147,7 @@ bool planArmToCartTarget(PlanningProblem& prob, const Eigen::VectorXd& startJoin
 }
 
 bool planArmToJointTarget(PlanningProblem& prob, const Eigen::VectorXd& startJoints, const Eigen::VectorXd& endJoints, RaveRobotObject::Manipulator::Ptr arm) {
-  BulletRaveSyncher brs = syncherFromArm(arm);
+  BulletRaveSyncherPtr brs = syncherFromArm(arm);
   MatrixXd initTraj = makeTraj(startJoints, endJoints, SQPConfig::nStepsInit); // xxx nsteps
   LengthConstraintAndCostPtr lcc(new LengthConstraintAndCost(true, true, defaultMaxStepMvmt(initTraj), SQPConfig::lengthCoef));
   CollisionCostPtr cc(new CollisionCost(arm->robot->robot,   arm->robot->getEnvironment()->bullet->dynamicsWorld, brs,
@@ -167,7 +167,7 @@ void addFixedEnd(MatrixXd& traj, int nEnd) {
 }
 
 bool planArmToGrasp(PlanningProblem& prob, const Eigen::VectorXd& startJoints, const btTransform& goalTrans, RaveRobotObject::Manipulator::Ptr arm) {
-  BulletRaveSyncher brs = syncherFromArm(arm);
+  BulletRaveSyncherPtr brs = syncherFromArm(arm);
   int nEnd = 6;
   vector<double> ikSoln;
   bool ikSuccess = arm->solveIKUnscaled(util::toRaveTransform(goalTrans), ikSoln);

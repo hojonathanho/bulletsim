@@ -16,10 +16,22 @@ inline std::string base_filename(char* in) {
 }
 
 #define ASSERT_ALMOST_EQUAL(a,b,tol)\
-  if ( !( fabs(a-b) / fabs(a) < tol) )  {\
+{\
+  if ( !( 2 * fabs(a-b) / (fabs(a)+fabs(b)) < tol) )  {\
     printf("%s != %s (%.4e != %.4e) in file %s at line %i\n", #a, #b, a, b, base_filename(__FILE__).c_str(), __LINE__ );\
     exit(1);\
-  }
+  }\
+}
+
+#define ASSERT_ALMOST_EQUAL2(a,b,reltol, abstol)\
+	{\
+	  if ( !( 2 * fabs(a-b) / (fabs(a)+fabs(b)) < reltol || fabs(a-b) < abstol) )  {\
+	    printf("%s != %s (%.4e != %.4e) in file %s at line %i\n", #a, #b, a, b, base_filename(__FILE__).c_str(), __LINE__ );\
+	    exit(1);\
+				}\
+	}
+
+
 
 GRBEnv* getGRBEnv();
 
@@ -30,37 +42,41 @@ typedef std::vector<GRBVar> VarVector;
 typedef Eigen::Matrix<bool,Eigen::Dynamic,1> VectorXb;
 
 ArmCCEPtr makeArmCCE(RaveRobotObject::Manipulator::Ptr arm, RaveRobotObject::Ptr robot, btDynamicsWorld*);
-BulletRaveSyncher syncherFromArm(RaveRobotObject::Manipulator::Ptr rrom);
+BulletRaveSyncherPtr syncherFromArm(RaveRobotObject::Manipulator::Ptr rrom);
 
 
 class PlanningProblem { // fixed size optimization problem
 public:
   typedef boost::function<void(PlanningProblem*)> Callback;
-  VarArray m_trajVars;
+  VarArray m_trajVars; // trajectory variables in optimization. sometimes the endpoints are not actually added to Gurobi model
   Eigen::MatrixXd m_currentTraj;
-  VectorXb m_optMask;
+  VectorXb m_optMask; // mask that indicates which timesteps are in the optimization
   boost::shared_ptr<GRBModel> m_model;
   std::vector<TrajPlotterPtr> m_plotters;
   std::vector<ProblemComponentPtr> m_comps;
-  std::map<std::string, ProblemComponentPtr> m_name2comp;
-  bool m_initialized;
+  bool m_initialized; 
   std::vector<Callback> m_callbacks;
-  Eigen::VectorXd m_times;
-  TrustRegionAdjusterPtr m_tra;
+  Eigen::VectorXd m_times; // note that these aren't times in meaningful. they're just the integer indices
+  TrustRegionAdjusterPtr m_tra; // this is the problem component that determines how much you're allowed to chnage at each iteration
+	bool m_exactObjectiveReady, m_approxObjectiveReady;
+
   PlanningProblem();
   void addComponent(ProblemComponentPtr comp);
   void removeComponent(ProblemComponentPtr comp);
+  std::vector<ProblemComponentPtr> getCostComponents();
+  std::vector<ProblemComponentPtr> getConstraintComponents();
   void initialize(const Eigen::MatrixXd& initTraj, bool endFixed);
-  void initialize(const Eigen::MatrixXd& initTraj, bool endFixed, const Eigen::VectorXd& times);
-  void doIteration();
+  void initialize(const Eigen::MatrixXd& initTraj, bool endFixed, const Eigen::VectorXd& times); 
   void optimize(int maxIter);
   void addPlotter(TrajPlotterPtr plotter) {m_plotters.push_back(plotter);}
-  double calcApproxObjective();
+  double calcApproxObjective(); 
   double calcExactObjective();
   void updateModel();
-  void subdivide(const std::vector<double>& insertTimefs);
-  void testObjectives();
-  void addTrustRegionAdjuster(TrustRegionAdjusterPtr tra);
+  void optimizeModel();
+  void forceOptimizeHere();
+  void subdivide(const std::vector<double>& insertTimes); // resample in time (resamples all subproblems)
+  void testObjectives(); // checks that the linearizations computed by all of the objectives is correct by comparing calcApproxObjective and calcExactObjective
+  void addTrustRegionAdjuster(TrustRegionAdjusterPtr tra); // actually there's only one right now so "add" is wrong
 };
 
 class ProblemComponent {
@@ -100,7 +116,7 @@ public:
 
   OpenRAVE::RobotBasePtr m_robot;
   btDynamicsWorld* m_world;
-  BulletRaveSyncher& m_brs;
+  BulletRaveSyncherPtr m_brs;
   vector<int> m_dofInds;
 
   int m_start, m_end;
@@ -110,7 +126,7 @@ public:
   TrajCartCollInfo m_cartCollInfo;
   Eigen::VectorXd m_coeffVec;
   void removeVariablesAndConstraints();
-  CollisionCost(OpenRAVE::RobotBasePtr robot, btDynamicsWorld* world, BulletRaveSyncher& brs, const vector<int>& dofInds, double distPen, double coeff) :
+  CollisionCost(OpenRAVE::RobotBasePtr robot, btDynamicsWorld* world, BulletRaveSyncherPtr brs, const vector<int>& dofInds, double distPen, double coeff) :
     m_robot(robot), m_world(world), m_brs(brs), m_dofInds(dofInds), m_distPen(distPen), m_coeff(coeff) {
       m_attrs = HAS_COST + HAS_CONSTRAINT;
     }
@@ -325,7 +341,7 @@ public:
   Scene* m_scene;
   osg::Group* m_osgRoot;
   int m_decimation;
-  BulletRaveSyncher m_syncher;
+  BulletRaveSyncherPtr m_syncher;
   void plotTraj(const Eigen::MatrixXd& traj);
   ArmPlotter(RaveRobotObject::Manipulator::Ptr rrom, Scene* scene, int decimation=1);
   void init(RaveRobotObject::Manipulator::Ptr, const std::vector<BulletObject::Ptr>&, Scene*, int decimation);
