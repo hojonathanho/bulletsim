@@ -5,9 +5,9 @@
 
 namespace lfd {
 
-const float table_dist_from_robot = 0.2;
-const float table_width = 1, table_length = 1;
-const float table_height = 0.7;
+static const float table_dist_from_robot = 0.2;
+static const float table_width = 1, table_length = 1;
+static const float table_height = 0.76;
 static vector<btVector3> initTableCornersWorld() {
   vector<btVector3> v;
   v.push_back(METERS * btVector3(table_dist_from_robot, -table_width/2, table_height));

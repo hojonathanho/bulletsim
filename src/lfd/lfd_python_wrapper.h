@@ -20,6 +20,12 @@ public:
   vector<btVector3> perturbCurve(const vector<btVector3> &pts, double s=0.01);
 };
 
+class DemoLoadingModule : public PyModule {
+public:
+  DemoLoadingModule();
+  py::object loadDemos(const string &task, const string &demo_list_file="knot_demos.yaml");
+};
+
 } // namespace lfd
 
 #endif // _LFD_PYTHON_WRAPPER_H_

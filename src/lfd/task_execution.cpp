@@ -154,6 +154,10 @@ void TaskExecuter::setTrajStepCallback(TrajStepCallback f) {
   stepCallback = f;
 }
 
+void TaskExecuter::setSegCallback(SegCallback f) {
+  segCallback = f;
+}
+
 bool TaskExecuter::isTerminalState(State s) const {
   return s == ST_SUCCESS || s == ST_FAILURE;
 }
@@ -247,8 +251,25 @@ TaskExecuter::Transition TaskExecuter::action_selectTraj() {
     py::list(scene.pr2m->pr2->getDOFValues()),
     py::object(currStep)
   );
+
   string status = py::extract<string>(res["status"]);
   if (status == "not_done") {
+
+    if (segCallback) {
+      string seg_name = py::extract<string>(res["trajectory"]["seg_name"]);
+      if (segCallback(seg_name)) {
+        // refit if the rope was changed
+        action_lookAtObject(); // sets 'points' data
+        py::object res = pymod.selectTrajectory(
+          readData("points"),
+          py::list(scene.pr2m->pr2->getDOFValues()),
+          py::object(currStep)
+        );
+      }
+      string new_seg_name = py::extract<string>(res["trajectory"]["seg_name"]);
+      assert(new_seg_name == seg_name);
+    }
+
     saveData("trajectory", res["trajectory"]);
   }
   ++currStep;

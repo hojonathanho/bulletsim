@@ -126,9 +126,9 @@ void CapsuleRope::init() {
 }
 
 void CapsuleRope::destroy() {
-  /*  for (int i = 0; i < joints.size(); i++) {
-      getEnvironment()->bullet->dynamicsWorld->removeConstraint(joints[i].get());
-      }*/
+  for (int i = 0; i < joints.size(); i++) {
+    getEnvironment()->removeConstraint(joints[i]);
+  }
   CompoundObject<BulletObject>::destroy();
 }
 

@@ -13,26 +13,76 @@ struct LocalConfig : public Config {
   static string task;
   static string h5file;
   static double trajSlow;
-  static string rope;
+  static string reinit_segs;
+  static bool drawing;
 
   LocalConfig() : Config() {
     params.push_back(new Parameter<string>("task", &task, "task name"));
     params.push_back(new Parameter<string>("h5file", &h5file, "task library to simulate and annotate with state info. should be a copy of the task library for the specified task."));
     params.push_back(new Parameter<double>("trajSlow", &trajSlow, "slowdown factor for trajectory execution"));
-    params.push_back(new Parameter<string>("rope", &rope, "initial rope control points"));
+    params.push_back(new Parameter<string>("reinit_segs", &reinit_segs, "reinitialize rope at demo segments (separated by commas, e.g. 00.00,00.01)"));
+    params.push_back(new Parameter<bool>("drawing", &drawing, "draw scene"));
   }
 };
 string LocalConfig::task;
 string LocalConfig::h5file;
 double LocalConfig::trajSlow = 2.;
-string LocalConfig::rope;
+string LocalConfig::reinit_segs = "";
+bool LocalConfig::drawing = false;
+
+struct RopeInitModule : public PyModule {
+  RopeInitModule() : PyModule("bulletsim/bulletsim_python/src/tracking_initialization/rope_initialization.py") { }
+
+  py::object find_path_through_point_cloud(py::object xyzs) {
+    return getModule().attr("find_path_through_point_cloud")(xyzs);
+  }
+};
 
 static void stepCallback(LFDRopeScene *s, SegRopeStates *recorded_states, py::dict traj, int step) {
+  // Called on each step of playback. Record the state of the rope.
   string seg_name = py::extract<string>(traj["seg_name"]);
   if (recorded_states->find(seg_name) == recorded_states->end()) {
     recorded_states->insert(make_pair(seg_name, vector<RopeState>()));
   }
   (*recorded_states)[seg_name].push_back(s->scene->m_rope->getControlPoints());
+}
+
+static vector<btVector3> initRope(const string &demo_seg) {
+  // load rope from h5 file
+  DemoLoadingModule demoLoader;
+  py::object demos = demoLoader.loadDemos(LocalConfig::task);
+  RopeInitModule ropeInitializer;
+  py::object pyrope = ropeInitializer.find_path_through_point_cloud(demos[demo_seg]["cloud_xyz"]);
+  vector<btVector3> ropeCtlPts;
+  for (int i = 0; i < py::len(pyrope); ++i) {
+    btScalar x = py::extract<btScalar>(pyrope[i][0]);
+    btScalar y = py::extract<btScalar>(pyrope[i][1]);
+    btScalar z = py::extract<btScalar>(pyrope[i][2]);
+    ropeCtlPts.push_back(btVector3(x, y, z) * METERS);
+  }
+  return ropeCtlPts;
+}
+
+static bool segCallback(LFDRopeScene *s, const string &segname) {
+  // Called when a new segment is being selected, so we can reinitialize the rope
+  if (LocalConfig::reinit_segs.find(segname) == string::npos) {
+    return false;
+  }
+
+  vector<btVector3> rope = initRope(segname);
+  bool ok = true;
+  for (int i = 0; i < rope.size(); ++i) {
+    if (!std::isfinite(rope[i].x()) || !std::isfinite(rope[i].y()) || !std::isfinite(rope[i].z())) {
+      ok = false;
+      break;
+    }
+  }
+  if (ok) {
+    s->scene->resetRope(initRope(segname));
+    s->scene->stepFor(DT, 0.1);
+    return true;
+  }
+  return false;
 }
 
 /**
@@ -43,16 +93,21 @@ static void stepCallback(LFDRopeScene *s, SegRopeStates *recorded_states, py::di
 int main(int argc, char *argv[]) {
   LFDRopeScene s(argc, argv, LocalConfig());
 
-  // Load rope (should be close to 00.00/cloud_xyz)
-  vector<btVector3> ropeCtlPts = toBulletVectors(floatMatFromFile(LocalConfig::rope)) * METERS;
-  s.resetScene(ropeCtlPts);
+  // Load rope from 00.00/cloud_xyz (the first point cloud)
+  s.resetScene(initRope("00.00"));
   util::setGlobalEnv(s.scene->env);
+
+  if (LocalConfig::drawing) {
+    s.scene->startViewer();
+    s.scene->setDrawing(true);
+  }
 
   // Execute demonstration and track the simulated rope
   SegRopeStates recorded_states;
   TaskExecuter ex(*s.scene);
   ex.setTrajExecSlowdown(LocalConfig::trajSlow);
   ex.setTrajStepCallback(boost::bind(&stepCallback, &s, &recorded_states, _1, _2));
+  ex.setSegCallback(boost::bind(&segCallback, &s, _1));
   try {
     ex.run(LocalConfig::task);
   } catch (const py::error_already_set &e) {

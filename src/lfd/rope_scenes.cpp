@@ -162,8 +162,17 @@ TableRopeScene::TableRopeScene(const vector<btVector3> &tableCornersWorld_, cons
   m_table = makeTable(tableCornersWorld, .1*GeneralConfig::scale);
   float seglen = controlPointsWorld[0].distance(controlPointsWorld[1]);
 
+  resetRope(controlPointsWorld);
+  env->add(m_table);
+  setGrabBodies(m_rope->children);
+}
+
+void TableRopeScene::resetRope(const vector<btVector3> &ctrlPoints) {
+  if (m_rope) {
+    env->remove(m_rope);
+  }
   m_rope.reset(new CapsuleRope(
-    controlPointsWorld,
+    ctrlPoints,
     .005*METERS, // radius
     .5, // angStiffness
     1, // angDamping
@@ -172,8 +181,6 @@ TableRopeScene::TableRopeScene(const vector<btVector3> &tableCornersWorld_, cons
     .9 // linStopErp
   ));
   env->add(m_rope);
-  env->add(m_table);
-  setGrabBodies(m_rope->children);
 }
 
 vector<btVector3> operator*(const vector<btVector3>& in, float a) {

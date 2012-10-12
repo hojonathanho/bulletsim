@@ -55,6 +55,8 @@ public:
 
   typedef boost::function<void(py::dict, int)> TrajStepCallback;
   void setTrajStepCallback(TrajStepCallback f);
+  typedef boost::function<bool(const string&)> SegCallback;
+  void setSegCallback(SegCallback f);
 
   State run(const string &taskName, State start=ST_LOOK_AT_OBJ);
 
@@ -66,6 +68,7 @@ private:
   int currStep;
   double trajExecSlowdown;
   TrajStepCallback stepCallback;
+  SegCallback segCallback;
 
   State nextState(State s, Transition t) const;
   Transition execState(State s);

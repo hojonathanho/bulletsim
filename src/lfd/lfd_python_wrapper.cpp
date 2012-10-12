@@ -25,4 +25,11 @@ vector<btVector3> CurvePerturbation::perturbCurve(const vector<btVector3> &pts, 
   return NPnx3ToPointVec(perturbCurve(pointVecToNP(pts), s));
 }
 
+DemoLoadingModule::DemoLoadingModule() : PyModule("python/lfd/demo_loading.py") {
+}
+
+py::object DemoLoadingModule::loadDemos(const string &task, const string &demo_list_file) {
+  return getModule().attr("load_demos")(task, demo_list_file);
+}
+
 } // namespace lfd
