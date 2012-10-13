@@ -33,7 +33,8 @@ ArmCCEPtr makeArmCCE(RaveRobotObject::Manipulator::Ptr arm, RaveRobotObject::Ptr
 BulletRaveSyncher syncherFromArm(RaveRobotObject::Manipulator::Ptr rrom);
 
 
-class PlanningProblem { // fixed size optimization problem
+class PlanningProblem {
+  // fixed size optimization problem
 public:
   typedef boost::function<void(PlanningProblem*)> Callback;
   VarArray m_trajVars;
@@ -61,6 +62,7 @@ public:
   void subdivide(const std::vector<double>& insertTimefs);
   void testObjectives();
   void addTrustRegionAdjuster(TrustRegionAdjusterPtr tra);
+  void writeTrajToJSON(std::string filename);
 };
 
 class ProblemComponent {

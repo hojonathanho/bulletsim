@@ -6,6 +6,7 @@
 #include "utils/conversions.h"
 #include <typeinfo>
 #include "config_sqp.h"
+#include <json/json.h>
 using namespace Eigen;
 using namespace std;
 
@@ -120,6 +121,28 @@ void PlanningProblem::removeComponent(ProblemComponent::Ptr comp) {
 void PlanningProblem::addTrustRegionAdjuster(TrustRegionAdjusterPtr tra) {
   m_tra=tra;
   addComponent(tra);
+}
+
+void PlanningProblem::writeTrajToJSON(std::string filename){
+  Json::Value outputData(Json::objectValue);
+  outputData["trajectory"] = Json::Value(Json::objectValue);
+  int rowCount = m_currentTraj.rows();
+  outputData["trajectory"]["length"] = Json::Value(rowCount);
+  outputData["trajectory"]["indices"] = Json::Value(Json::arrayValue);
+  outputData["trajectory"]["values"] = Json::Value(Json::arrayValue);
+  //m_
+  for(int i = 0; i< m_currentTraj.rows(); i++){
+    Json::Value row = Json::Value(Json::arrayValue);
+    for(int j = 0; j < m_currentTraj.cols(); j++){
+      row.append(m_currentTraj(i,j));
+    }
+    outputData["trajectory"]["values"].append(row);
+  }
+  std::ofstream outputFile;
+  outputFile.open(filename.c_str());
+  Json::StyledWriter writer;
+  outputFile << writer.write(outputData);
+  outputFile.close();
 }
 
 void CollisionCost::subdivide(const std::vector<double>& insertTimes, const VectorXd& oldTimes, const VectorXd& newTimes) {
