@@ -983,7 +983,11 @@ void PlanningProblem::initialize(const Eigen::MatrixXd& initTraj, bool endFixed,
   // Add equality constraints for endpoints
   for(int j=0; j < m_currentTraj.cols(); j++){
     m_model->addConstr(m_trajVars.at(0, j), GRB_EQUAL, m_currentTraj(0, j));
-    m_model->addConstr(m_trajVars.at(timesteps-1, j) == m_currentTraj(timesteps-1, j));
+  }
+  if(endFixed){
+    for(int j=0; j < m_currentTraj.cols(); j++){
+      m_model->addConstr(m_trajVars.at(timesteps-1, j) == m_currentTraj(timesteps-1, j));
+    }
   }
 
   m_model->update();
