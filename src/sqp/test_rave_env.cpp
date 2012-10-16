@@ -41,17 +41,19 @@ struct LocalConfig: Config {
   static int nSteps;
   static int nIter;
   static string probSpec;
-
+  static string jsonOutputPath;
   LocalConfig() :
     Config() {
     params.push_back(new Parameter<int> ("nSteps", &nSteps, "n samples of trajectory"));
     params.push_back(new Parameter<int> ("nIter", &nIter, "num iterations"));
     params.push_back(new Parameter<string> ("probSpec", &probSpec, "problem specification"));
+    params.push_back(new Parameter<string> ("jsonOutputPath", &jsonOutputPath, "path to output final trajectory as JSON"));
   }
 };
 int LocalConfig::nSteps = 100;
 int LocalConfig::nIter = 100;
 string LocalConfig::probSpec = "";
+string LocalConfig::jsonOutputPath = "";
 
 void removeBodiesFromBullet(vector<BulletObject::Ptr> objs, btDynamicsWorld* world) {
   BOOST_FOREACH(BulletObject::Ptr obj, objs) {
@@ -158,6 +160,9 @@ int main(int argc, char *argv[]) {
 
   }
 
+  if(!LocalConfig::jsonOutputPath.empty()){
+    prob.writeTrajToJSON(LocalConfig::jsonOutputPath);
+  }
 
   prob.m_plotters[0].reset();
 
