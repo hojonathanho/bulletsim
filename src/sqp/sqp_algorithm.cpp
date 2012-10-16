@@ -967,9 +967,10 @@ void PlanningProblem::initialize(const Eigen::MatrixXd& initTraj, bool endFixed,
   m_currentTraj = initTraj;
   m_trajVars = VarArray(initTraj.rows(), initTraj.cols());
   m_optMask = VectorXb::Ones(initTraj.rows());
-  m_optMask(0) = false;
-  if (endFixed) m_optMask(initTraj.rows() - 1) = false;
-  for (int iRow = 0; iRow < m_currentTraj.rows(); ++iRow) {
+  int timesteps = m_currentTraj.rows();
+//  m_optMask(0) = false;
+//  if (endFixed) m_optMask(initTraj.rows() - 1) = false;
+  for (int iRow = 0; iRow < timesteps; ++iRow) {
     if (m_optMask(iRow)) {
       for (int iCol = 0; iCol < m_currentTraj.cols(); ++iCol) {
         char namebuf[10];
@@ -978,6 +979,13 @@ void PlanningProblem::initialize(const Eigen::MatrixXd& initTraj, bool endFixed,
       }
     }
   }
+  m_model->update();
+  // Add equality constraints for endpoints
+  for(int j=0; j < m_currentTraj.cols(); j++){
+    m_model->addConstr(m_trajVars.at(0, j), GRB_EQUAL, m_currentTraj(0, j));
+    m_model->addConstr(m_trajVars.at(timesteps-1, j) == m_currentTraj(timesteps-1, j));
+  }
+
   m_model->update();
   //  setVarsToTraj(m_currentTraj,m_optMask, m_trajVars);
   m_initialized = true;
