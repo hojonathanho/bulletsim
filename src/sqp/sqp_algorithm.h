@@ -39,7 +39,6 @@ public:
   typedef boost::function<void(PlanningProblem*)> Callback;
   VarArray m_trajVars;
   Eigen::MatrixXd m_currentTraj;
-  VectorXb m_optMask;
   boost::shared_ptr<GRBModel> m_model;
   std::vector<TrajPlotterPtr> m_plotters;
   std::vector<ProblemComponentPtr> m_comps;
@@ -290,7 +289,7 @@ Eigen::VectorXd defaultMaxStepMvmt(const Eigen::MatrixXd& traj);
 Eigen::MatrixXd makeTraj(const Eigen::VectorXd& startJoints, const Eigen::VectorXd& endJoints, int nSteps);
 Eigen::MatrixXd makeTraj(RaveRobotObject::Manipulator::Ptr manip, const Eigen::VectorXd& startJoints, const btTransform endTransform, int nSteps);
 Eigen::MatrixXd makeTraj(RaveRobotObject::Manipulator::Ptr manip, const std::vector<btTransform>& transforms);
-void updateTraj(const VarArray& trajVars, const VectorXb& optmask, Eigen::MatrixXd& traj);
+void updateTraj(const VarArray& trajVars, Eigen::MatrixXd& traj);
 
 
 class TrajPlotter {
