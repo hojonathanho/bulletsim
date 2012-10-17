@@ -6,6 +6,9 @@
 #include "utils/conversions.h"
 #include <typeinfo>
 #include "config_sqp.h"
+#include "plotters.h"
+#include "kinematics_utils.h"
+
 using namespace Eigen;
 using namespace std;
 
@@ -74,19 +77,6 @@ void setVarsToTraj(const Eigen::MatrixXd traj, const VectorXb& optmask, VarArray
       trajVars.at(i, j).set(GRB_DoubleAttr_X, traj(i, j));
 }
 
-ArmCCEPtr makeArmCCE(RaveRobotObject::Manipulator::Ptr rrom, RaveRobotObject::Ptr rro,
-    btDynamicsWorld* world) {
-  vector<KinBody::JointPtr> armJoints;
-  vector<KinBody::LinkPtr> armLinks;
-  vector<int> chainDepthOfBodies;
-  getArmKinInfo(rro->robot, rrom->manip, armLinks, armJoints, chainDepthOfBodies);
-  vector<btRigidBody*> armBodies;
-  BOOST_FOREACH(KinBody::LinkPtr& link, armLinks) {
-    armBodies.push_back(rro->associatedObj(link)->rigidBody.get());
-  }
-  return ArmCCEPtr(
-      new ArmCCE(rro->robot, world, armLinks, armBodies, armJoints, chainDepthOfBodies));
-}
 
 BulletRaveSyncherPtr syncherFromArm(RaveRobotObject::Manipulator::Ptr rrom) {
   vector<KinBody::LinkPtr> armLinks = getArmLinks(rrom->manip);
@@ -95,30 +85,6 @@ BulletRaveSyncherPtr syncherFromArm(RaveRobotObject::Manipulator::Ptr rrom) {
     armBodies.push_back(rrom->robot->associatedObj(link)->rigidBody.get());
   }
   return BulletRaveSyncherPtr(new BulletRaveSyncher(armLinks, armBodies));
-}
-
-PlanningProblem::PlanningProblem() :
-  m_model(new GRBModel(*grbEnv)), m_exactObjectiveReady(false), m_approxObjectiveReady(false) {
-}
-
-void PlanningProblem::addComponent(ProblemComponent::Ptr comp) {
-  assert (m_initialized);
-  m_comps.push_back(comp);
-  comp->m_problem = this;
-  comp->onAdd();
-}
-
-void PlanningProblem::removeComponent(ProblemComponent::Ptr comp) {
-  typedef vector<ProblemComponent::Ptr> ComponentList;
-  ComponentList::iterator it = std::find(m_comps.begin(), m_comps.end(), comp);
-  assert(it != m_comps.end());
-  m_comps.erase(it);
-  (*it)->onRemove();
-}
-
-void PlanningProblem::addTrustRegionAdjuster(TrustRegionAdjusterPtr tra) {
-  m_tra = tra;
-  addComponent(tra);
 }
 
 void CollisionCost::subdivide(const std::vector<double>& insertTimes, const VectorXd& oldTimes,
@@ -142,43 +108,6 @@ void printCollisionReport(const TrajJointCollInfo& trajCollInfo, double safeDist
   LOG_INFO_FMT("near: %i, unsafe: %i, collision: %i, total: %i", nNear, nUnsafe, nColl, nTotalProximity);
 }
 
-void plotCollisions(const TrajCartCollInfo& trajCartInfo, double safeDist) {
-  static PlotPoints::Ptr collisions(new PlotPoints(10));
-  static PlotLines::Ptr escapes(new PlotLines(5));
-  bool setupDone(false);
-  if (!setupDone) {
-    setupDone = true;
-    util::getGlobalEnv()->add(collisions);
-    util::getGlobalEnv()->add(escapes);
-  }
-
-  const osg::Vec4 GREEN(0, 1, 0, 1), YELLOW(1, 1, 0, 1), RED(1, 0, 0, 1);
-  osg::ref_ptr<osg::Vec4Array> colors = new osg::Vec4Array;
-  osg::ref_ptr<osg::Vec3Array> escPts = new osg::Vec3Array;
-  osg::ref_ptr<osg::Vec3Array> collPts = new osg::Vec3Array;
-  for (int iStep = 0; iStep < trajCartInfo.size(); ++iStep) {
-    if (iStep % SQPConfig::plotDecimation != 0) continue;
-    for (int iColl = 0; iColl < trajCartInfo[iStep].size(); ++iColl) {
-      const LinkCollision& lc = trajCartInfo[iStep][iColl];
-      collPts->push_back(toOSGVector(lc.point * METERS));
-      escPts->push_back(toOSGVector(lc.point * METERS));
-      escPts->push_back(toOSGVector(lc.point * METERS - lc.normal * (lc.dist
-          - BulletConfig::linkPadding) * METERS));
-      if (lc.dist < 0) colors->push_back(RED);
-      else if (lc.dist < safeDist) colors->push_back(YELLOW);
-      else colors->push_back(GREEN);
-    }
-  }
-  assert(collPts->size() == colors->size());
-  assert(escPts->size() == 2*colors->size());
-  collisions->setPoints(collPts, colors);
-  escapes->setPoints(escPts, colors);
-}
-
-inline double pospart(double x) {
-  return (x > 0) ? x : 0;
-}
-
 void CollisionCost::updateModel(const Eigen::MatrixXd& traj, GRBQuadExpr& objective) {
 
   removeVariablesAndConstraints();
@@ -190,7 +119,7 @@ void CollisionCost::updateModel(const Eigen::MatrixXd& traj, GRBQuadExpr& object
       m_dofInds);
 
 #if 0
-  TrajJointCollInfo trajJointInfo = m_cce->collectCollisionInfo(traj);
+  TrajJogetCostInfo trajJointInfo = m_cce->collectCollisionInfo(traj);
   {
     ArmCCE::Ptr cce = boost::dynamic_pointer_cast<ArmCCE>(m_cce);
     vector<int> dofInds;
@@ -214,7 +143,8 @@ void CollisionCost::updateModel(const Eigen::MatrixXd& traj, GRBQuadExpr& object
   }
 #endif
 
-  plotCollisions(m_cartCollInfo, SQPConfig::distDiscSafe);
+	// static so it won't get destroyed at the end of the function
+  static PlotHandles collisionHandles = plotCollisions(m_cartCollInfo, SQPConfig::distDiscSafe);
   printCollisionReport(trajJointInfo, SQPConfig::distDiscSafe);
 
   for (int iStep = 0; iStep < traj.rows(); ++iStep)
@@ -268,7 +198,7 @@ void CollisionCost::onRemove() {
 }
 
 #if 0
-void VelScaledCollisionCost::updateModel(const Eigen::MatrixXd& traj, GRBQuadExpr& objective) {
+void VelScalgetCostsionCost::updateModel(const Eigen::MatrixXd& traj, GRBQuadExpr& objective) {
 
   removeVariablesAndConstraints();
   // Actually run through trajectory and find collisions
@@ -398,7 +328,7 @@ void LengthConstraintAndCost::subdivide(const std::vector<double>& insertTimes,
   reset();
 }
 
-double LengthConstraintAndCost::calcExactObjective() {
+double LengthConstraintAndCost::getCost() {
   MatrixXd& traj = m_problem->m_currentTraj;
   VectorXd& times = m_problem->m_times;
   MatrixXd diffs = traj.middleRows(1, traj.rows() - 1) - traj.middleRows(0, traj.rows() - 1);
@@ -407,6 +337,36 @@ double LengthConstraintAndCost::calcExactObjective() {
   for (int i = 0; i < dts.size(); ++i)
     obj += traj.rows() * diffs.row(i).squaredNorm() / dts(i);
   return m_coeff * obj;
+}
+
+JointBounds::JointBounds(bool startFixed, bool endFixed, const Eigen::VectorXd& maxDiffPerIter,
+    OpenRAVE::RobotBase::ManipulatorPtr manip, int extraDofs) {
+  construct(startFixed, endFixed, maxDiffPerIter, manip, extraDofs);
+}
+JointBounds::JointBounds(bool startFixed, bool endFixed, const Eigen::VectorXd& maxDiffPerIter,
+    OpenRAVE::RobotBase::ManipulatorPtr manip) {
+  construct(startFixed, endFixed, maxDiffPerIter, manip, 0);
+}
+
+void JointBounds::construct(bool startFixed, bool endFixed, const Eigen::VectorXd& maxDiffPerIter,
+    OpenRAVE::RobotBase::ManipulatorPtr manip, int extraDofs) {
+  m_startFixed = startFixed;
+  m_endFixed = endFixed;
+  m_maxDiffPerIter = maxDiffPerIter;
+  vector<int> armInds = manip->GetArmIndices();
+
+  m_jointLowerLimit.resize(armInds.size() + extraDofs);
+  m_jointLowerLimit.setConstant(-GRB_INFINITY);
+  m_jointUpperLimit.resize(armInds.size() + extraDofs);
+  m_jointUpperLimit.setConstant(GRB_INFINITY);
+
+  vector<double> ul, ll;
+  for (int i = 0; i < armInds.size(); ++i) {
+    manip->GetRobot()->GetJointFromDOFIndex(armInds[i])->GetLimits(ll, ul);
+    m_jointLowerLimit(i) = ll[0];
+    m_jointUpperLimit(i) = ul[0];
+  }
+  m_useBall=false;
 }
 
 void JointBounds::onAdd() {
@@ -418,19 +378,32 @@ void JointBounds::onAdd() {
 }
 
 void JointBounds::updateModel(const Eigen::MatrixXd& traj, GRBQuadExpr& objective) {
+  if (m_useBall) {
+    m_problem->m_model->remove(m_cnt);
+    GRBQuadExpr chgnorm(0);
+    for (int i=0; i < traj.rows(); ++i)
+      for (int j=0; j < traj.cols(); ++j) {
+        GRBLinExpr diff = (traj(i, j) - m_problem->m_trajVars(i,j));
+        chgnorm += (diff*diff) / (m_maxDiffPerIter(j)*m_maxDiffPerIter(j));
 
-  for (int iStep = 0; iStep < traj.rows(); ++iStep) {
-    if (m_problem->m_optMask(iStep)) for (int iJoint = 0; iJoint < traj.cols(); ++iJoint) {
-      m_problem->m_trajVars.at(iStep, iJoint).set(GRB_DoubleAttr_LB, fmax(traj(iStep, iJoint)
+    }
+    m_cnt = m_problem->m_model->addQConstr(chgnorm <= traj.rows() * traj.cols());
+  }
+
+
+
+  for (int iStep = 0; iStep < traj.rows(); ++iStep) if (m_problem->m_optMask(iStep))
+    for (int iJoint = 0; iJoint < traj.cols(); ++iJoint) {
+  m_problem->m_trajVars.at(iStep, iJoint).set(GRB_DoubleAttr_LB, fmax(traj(iStep, iJoint)
           - m_maxDiffPerIter(iJoint), m_jointLowerLimit(iJoint)));
-      m_problem->m_trajVars.at(iStep, iJoint).set(GRB_DoubleAttr_UB, fmin(traj(iStep, iJoint)
+  m_problem->m_trajVars.at(iStep, iJoint).set(GRB_DoubleAttr_UB, fmin(traj(iStep, iJoint)
           + m_maxDiffPerIter(iJoint), m_jointUpperLimit(iJoint)));
     }
-  }
 
 }
 
 void JointBounds::adjustTrustRegion(double ratio) {
+	LOG_INFO("new trust region: " << m_maxDiffPerIter.transpose());
   m_maxDiffPerIter *= ratio;
 }
 
@@ -515,7 +488,7 @@ void CartesianPoseCost::updateModel(const Eigen::MatrixXd& traj, GRBQuadExpr& ob
     for (int i = 0; i < 3; ++i) {
       GRBLinExpr jacDotTheta;
       jacDotTheta.addTerms(jac.row(i).data(), timestepVars.data(), traj.cols());
-      GRBLinExpr erri = posCur(i) + jacDotTheta - jac.row(i).dot(curVals) - m_posTarg(i);
+      GRBLinExpr erri = posCur(i) - m_posTarg(i) + jacDotTheta - jac.row(i).dot(curVals);
       m_obj += m_posCoeff * (erri * erri);
     }
   }
@@ -527,7 +500,7 @@ void CartesianPoseCost::updateModel(const Eigen::MatrixXd& traj, GRBQuadExpr& ob
     for (int i = 0; i < 4; ++i) {
       GRBLinExpr jacDotTheta;
       jacDotTheta.addTerms(rotjac.row(i).data(), timestepVars.data(), traj.cols());
-      GRBLinExpr erri = rotCur(i) + jacDotTheta - rotjac.row(i).dot(curVals) - m_rotTarg(i);
+      GRBLinExpr erri = rotCur(i) - m_rotTarg(i) + jacDotTheta - rotjac.row(i).dot(curVals);
       m_obj += m_rotCoeff * (erri * erri);
     }
   }
@@ -545,7 +518,7 @@ void CartesianPoseCost::subdivide(const std::vector<double>& insertTimes, const 
   LOG_INFO_FMT("CartPoseCost subdiv: new traj len: %i. cnt timestep: %i", m_problem->m_times.size(), m_timestep);
 }
 
-double CartesianPoseCost::calcExactObjective() {
+double CartesianPoseCost::getCachedCost() {
   ScopedRobotSave srs(m_manip->robot->robot);
   m_manip->setDOFValues(toDoubleVec(m_problem->m_currentTraj.row(m_timestep)));
   btTransform tf = util::toBtTransform(m_manip->manip->GetTransform());
@@ -553,6 +526,7 @@ double CartesianPoseCost::calcExactObjective() {
       * (toVector4d(tf.getRotation()) - m_rotTarg).squaredNorm();
 }
 
+#if 0
 void CartesianPoseConstraint::updateModel(const Eigen::MatrixXd& traj, GRBQuadExpr& objective) {
 
   removeVariablesAndConstraints();
@@ -610,6 +584,8 @@ void CartesianPoseConstraint::subdivide(const std::vector<double>& insertTimes,
   }
   LOG_INFO_FMT("CartPoseConstraint subdiv: new traj len: %i. cnt timestep: %i", m_problem->m_times.size(), m_timestep);
 }
+#endif
+
 
 void CartesianVelConstraint::removeVariablesAndConstraints() {
   BOOST_FOREACH(GRBConstr& cnt, m_cnts)
@@ -707,6 +683,30 @@ void CartesianVelConstraint::subdivide(const std::vector<double>& insertTimes,
   }
 }
 
+PlanningProblem::PlanningProblem() :
+  m_model(new GRBModel(*grbEnv)), m_exactObjectiveReady(false), m_approxObjectiveReady(false) {
+}
+
+void PlanningProblem::addComponent(ProblemComponentPtr comp) {
+  assert (m_initialized);
+  m_comps.push_back(comp);
+  comp->m_problem = this;
+  comp->onAdd();
+}
+
+void PlanningProblem::removeComponent(ProblemComponentPtr comp) {
+  typedef vector<ProblemComponentPtr> ComponentList;
+  ComponentList::iterator it = std::find(m_comps.begin(), m_comps.end(), comp);
+  assert(it != m_comps.end());
+  m_comps.erase(it);
+  (*it)->onRemove();
+}
+
+void PlanningProblem::addTrustRegionAdjuster(TrustRegionAdjusterPtr tra) {
+  m_tra = tra;
+  addComponent(tra);
+}
+
 void PlanningProblem::updateModel() {
   // todo: they should directly modify the objective, since they directly modify the model thru constraints
   GRBQuadExpr objective(0);
@@ -717,27 +717,26 @@ void PlanningProblem::updateModel() {
   m_exactObjectiveReady = true;
 }
 
-double PlanningProblem::calcApproxObjective() {
+double PlanningProblem::getApproxCost() {
+	#if 0
   ENSURE(m_approxObjectiveReady);
   double out = 0;
-  BOOST_FOREACH(ProblemComponent::Ptr comp, m_comps) {
-    if (comp->m_attrs & ProblemComponent::HAS_COST) {
-      out += comp->calcApproxObjective();
-      LOG_INFO(getClassName(*comp) << " approx after: " << comp->calcApproxObjective());
-    }
+  BOOST_FOREACH(CostFuncPtr comp, getCostComponents()) {
+      out += comp->getApproxCost();
+      LOG_INFO(getClassName(*comp) << " approx after: " << comp->getApproxCost());
   }
-  //  ASSERT_ALMOST_EQUAL(out,m_model->get(GRB_DoubleAttr_ObjVal), 1e-5);
-  return out;
+    ASSERT_ALMOST_EQUAL2(out,m_model->get(GRB_DoubleAttr_ObjVal), 1e-5, 1e-8);
+	#endif
+  return m_model->get(GRB_DoubleAttr_ObjVal);
 }
 
-double PlanningProblem::calcExactObjective() {
+double PlanningProblem::getCachedCost() {
   ENSURE(m_exactObjectiveReady);
   double out = 0;
-  BOOST_FOREACH(ProblemComponent::Ptr comp, m_comps) {
-    if (comp->m_attrs & ProblemComponent::HAS_COST) {
-      out += comp->calcExactObjective();
-      LOG_INFO(getClassName(*comp) << " exact before: " << comp->calcExactObjective());
-    }
+  BOOST_FOREACH(CostFuncPtr comp, getCostComponents()) {
+      out += comp->getCachedCost();
+//      ASSERT_ALMOST_EQUAL2(comp->getCost(),comp->getCachedCost(), 1e-5, 1e-7);
+      LOG_INFO(getClassName(*comp) << " exact before: " << comp->getCachedCost());
   }
   return out;
 }
@@ -746,26 +745,28 @@ void PlanningProblem::forceOptimizeHere() {
   vector<GRBConstr> cnts;
   for (int i = 0; i < m_currentTraj.rows(); ++i) {
     for (int j = 0; j < m_currentTraj.cols(); ++j) {
-      if (m_optMask(i)) cnts.push_back(m_model->addConstr(m_trajVars.at(i, j) == m_currentTraj(i, j)));
+      if (m_optMask(i)) cnts.push_back(m_model->addConstr(m_trajVars.at(i, j)
+          == m_currentTraj(i, j)));
     }
   }
   optimizeModel();
-  LOG_ERROR("approx objective" << m_model->getObjective().getValue());
   BOOST_FOREACH(GRBConstr& cnt, cnts)
     m_model->remove(cnt);
 }
 
-
-std::vector<ProblemComponentPtr> PlanningProblem::getCostComponents() {
-  vector<ProblemComponentPtr> out;
-  BOOST_FOREACH(ProblemComponentPtr comp, m_comps)
-      if (comp->m_attrs & ProblemComponent::HAS_COST) out.push_back(comp);
+std::vector<CostFuncPtr> PlanningProblem::getCostComponents() {
+  vector<CostFuncPtr> out;
+  BOOST_FOREACH(ProblemComponentPtr comp, m_comps) {
+    CostFuncPtr costComp = boost::dynamic_pointer_cast<CostFunc>(comp);
+    if (costComp) out.push_back(costComp);
+  }
   return out;
 }
+
 std::vector<ProblemComponentPtr> PlanningProblem::getConstraintComponents() {
   vector<ProblemComponentPtr> out;
   BOOST_FOREACH(ProblemComponentPtr comp, m_comps)
-      if (comp->m_attrs & ProblemComponent::HAS_CONSTRAINT) out.push_back(comp);
+    if (comp->getAttrs() & ProblemComponent::HAS_CONSTRAINT) out.push_back(comp);
   return out;
 }
 
@@ -777,86 +778,67 @@ void PlanningProblem::testObjectives() {
   updateModel();
   forceOptimizeHere();
 
-  BOOST_FOREACH(ProblemComponentPtr comp, getCostComponents()) {
-    if (comp->m_attrs & ProblemComponent::HAS_COST) {
-      double approxObj = comp->calcApproxObjective();
-      double exactObj = comp->calcExactObjective();
+  BOOST_FOREACH(CostFuncPtr comp, getCostComponents()) {
+      double approxObj = comp->getApproxCost();
+      double exactObj = comp->getCachedCost();
       comp2approx[comp] = approxObj;
       comp2exact[comp] = exactObj;
       LOG_INFO_FMT("%s: exact: %.3f, approx: %.3f", getClassName(*comp).c_str(), exactObj, approxObj);
-      ASSERT_ALMOST_EQUAL(approxObj, exactObj, 1e-5);
-    }
+      ASSERT_ALMOST_EQUAL2(approxObj, exactObj, 1e-5,1e-7);
   }
 
-  LOG_INFO("Orig objective: " << calcApproxObjective());
+  LOG_INFO("Orig objective: " << getApproxCost());
 
-  // note: some things, like the collision cost, are fundamentally hard to linearize. so don't be surprised
-  // if these tests fail for the collision cost. But it should succeed to high
-  // numerical precision for anything that's a well-behaved continuous function
-  //  double PlanningProblem::forceCalcApproxObjective() {
-  //    m_model->setObjective(GRBQuadExpr(0));
-  //    updateModel();
-  //    vector<GRBConstr> cnts;
-  //    for (int i = 0; i < m_currentTraj.rows(); ++i) {
-  //      for (int j = 0; j < m_currentTraj.cols(); ++j) {
-  //        if (m_optMask(i)) cnts.push_back(m_model->addConstr(m_trajVars.at(i, j)
-  //            == m_currentTraj(i, j)));
-  //      }
-  //    }
-  //    optimizeModel();
-  //    BOOST_FOREACH(GRBConstr& cnt, cnts)
-  //      m_model->remove(cnt);
-  //    return calcApproxObjective();
-  //  }
-  //
-  //  double PlanningProblem::forceCalcExactObjective() {
-  //    updateModel();
-  //    return calcExactObjective();
-  //  }
-  double epsilon = 1e-6;
+  double epsilon = 1e-5;
   MatrixXd savedTraj = m_currentTraj;
 
-  map <ProblemComponentPtr,MatrixXd> prob2linGrad, prob2numGrad;
+  map<ProblemComponentPtr, MatrixXd> prob2linGrad, prob2numGrad;
   // gradient of linearization, numerical gradient
   BOOST_FOREACH(ProblemComponentPtr prob, getCostComponents()) {
-    prob2linGrad[prob] = MatrixXd::Ones(savedTraj.rows(), savedTraj.cols());
-    prob2numGrad[prob] = MatrixXd::Ones(savedTraj.rows(), savedTraj.cols());
+    prob2linGrad[prob] = NAN * MatrixXd::Ones(savedTraj.rows(), savedTraj.cols());
+    prob2numGrad[prob] = NAN * MatrixXd::Ones(savedTraj.rows(), savedTraj.cols());
   }
 
-  for (int i = 0; i < m_currentTraj.rows(); ++i) {
-    for (int j = 0; j < m_currentTraj.cols(); ++j) {
-      m_currentTraj(i, j) = savedTraj(i, j) +  epsilon;
-      BOOST_FOREACH(ProblemComponentPtr comp, getCostComponents()) {
-        forceOptimizeHere();// XXX might be infeasible!!!
-        LOG_INFO_FMT("gradient test %s %i %i", getClassName(*comp).c_str(), i, j);
-        double pertApproxObj = comp->calcApproxObjective();
-        double approxGrad = (pertApproxObj - comp2approx[comp]) / (epsilon);
-        prob2linGrad[comp](i, j) = approxGrad;
+  for (int i = 0; i < m_currentTraj.rows(); ++i)
+    if (m_optMask(i)) {
+      for (int j = 0; j < m_currentTraj.cols(); ++j) {
+        m_currentTraj(i, j) = savedTraj(i, j) + epsilon;
+        BOOST_FOREACH(CostFuncPtr comp, getCostComponents()) {
+          forceOptimizeHere();// XXX might be infeasible!!!
+          int status = m_model->get(GRB_IntAttr_Status);
+          if (status == GRB_OPTIMAL) {
+//            LOG_INFO_FMT("gradient test %s %i %i", getClassName(*comp).c_str(), i, j);
+            double pertApproxObj = comp->getApproxCost();
+            double approxGrad = (pertApproxObj - comp2approx[comp]) / (epsilon);
+            prob2linGrad[comp](i, j) = approxGrad;
+          }
+        }
+        m_currentTraj(i, j) = savedTraj(i, j);
       }
-      m_currentTraj(i, j) = savedTraj(i, j);
     }
-  }
 
-
-  for (int i = 0; i < m_currentTraj.rows(); ++i) {
-    for (int j = 0; j < m_currentTraj.cols(); ++j) {
-      m_currentTraj(i, j) = savedTraj(i, j) +  epsilon;
-      updateModel();
-      BOOST_FOREACH(ProblemComponentPtr comp, getCostComponents()) {
-        LOG_INFO_FMT("gradient test %s %i %i", getClassName(*comp).c_str(), i, j);
-        double pertExactObj = comp->calcExactObjective();
-        double exactGrad = (pertExactObj - comp2approx[comp]) / (epsilon);
-        prob2numGrad[comp](i, j) = exactGrad;
+  for (int i = 0; i < m_currentTraj.rows(); ++i)
+    if (m_optMask(i)) {
+      for (int j = 0; j < m_currentTraj.cols(); ++j) {
+        m_currentTraj(i, j) = savedTraj(i, j) + epsilon;
+        updateModel();
+        BOOST_FOREACH(CostFuncPtr comp, getCostComponents()) {
+//          LOG_INFO_FMT("gradient test %s %i %i", getClassName(*comp).c_str(), i, j);
+          double pertExactObj = comp->getCachedCost();
+          double exactGrad = (pertExactObj - comp2approx[comp]) / (epsilon);
+          prob2numGrad[comp](i, j) = exactGrad;
+        }
+        m_currentTraj(i, j) = savedTraj(i, j);
       }
-      m_currentTraj(i, j) = savedTraj(i, j);
     }
-  }
 
   BOOST_FOREACH(ProblemComponentPtr comp, getCostComponents()) {
-    cout << getClassName(*comp) << " linearization:"<< endl;
-    cout << prob2linGrad[comp] << endl;
-    cout << getClassName(*comp) << " numerical:"<< endl;
-    cout << prob2numGrad[comp] << endl;
+    cout << "grad check: " << getClassName(*comp) << "-------------" << endl;
+    cout << "convexification / numerical" << endl;
+    for (int i = 0; i < m_currentTraj.rows(); ++i)
+      for (int j = 0; j < m_currentTraj.cols(); ++j) {
+        printf("%i %i %.3e %.3e\n",i,j,prob2linGrad[comp](i,j), prob2numGrad[comp](i,j) );
+      }
   }
 
   exit(0);
@@ -868,56 +850,100 @@ void PlanningProblem::optimizeModel() {
 }
 
 void PlanningProblem::optimize(int maxIter) {
+
   assert(m_tra);
   BOOST_FOREACH(TrajPlotterPtr plotter, m_plotters)
     plotter->plotTraj(m_currentTraj);
 
   MatrixXd prevTraj;
   vector<double> trueObjBefore, approxObjAfter;
-  double trShrinkage = 1;
 
   TIC();
   updateModel();
   LOG_INFO_FMT("total convexification time: %.2f", TOC());
-  double trueObj = calcExactObjective();
+  double trueObj = getCachedCost();
   trueObjBefore.push_back(trueObj);
   LOG_INFO_FMT("Total exact objective before: %.2f", trueObj);
 
   for (int iter = 0; iter < maxIter;) {
+
+    if (m_tra->m_shrinkage < 1e-2) {
+      LOG_INFO("trust region got shrunk too much. stopping");
+      break;
+    }
 
     assert(trueObjBefore.size() == iter+1);
     assert(approxObjAfter.size() == iter);
 
     LOG_INFO_FMT("iteration: %i",iter);
 
+// #define DEBUG_ALL_COSTS
+#ifdef DEBUG_ALL_COSTS
+    vector<double> costs_before, acosts_before;
+    BOOST_FOREACH(CostFuncPtr pc, getCostComponents()) {
+      CostFuncPtr pc = boost::dynamic_pointer_cast<CostFunc>(m_comps[0]);
+      costs_before.push_back(pc->getCost());
+      forceOptimizeHere();
+      acosts_before.push_back(pc->getApproxCost());
+    }
+#endif
+
     TIC1();
     optimizeModel();
-
     LOG_INFO_FMT("optimization time: %.2f", TOC());
-    double approxObj = calcApproxObjective();
-    prevTraj = m_currentTraj;
     int status = m_model->get(GRB_IntAttr_Status);
-    assert(status == GRB_OPTIMAL);
+    if (status != GRB_OPTIMAL) {
+      LOG_FATAL_FMT("Bad GRB status: %s", grb_statuses[status]);
+      throw;
+    }
+
+    double approxObj = getApproxCost();
+    prevTraj = m_currentTraj;
     updateTraj(m_trajVars, m_optMask, m_currentTraj);
+
+#ifdef DEBUG_ALL_COSTS
+    vector<double> costs_after, acosts_after;
+    int i=0;
+    BOOST_FOREACH(CostFuncPtr pc, getCostComponents()) {
+      costs_after.push_back(pc->getCost());
+      acosts_after.push_back(pc->getApproxCost());
+      LOG_ERROR_FMT("exact before/after/diff: %.3e %.3e %.3e", costs_before.back(), costs_after.back(), costs_before.back()-costs_after.back());
+      LOG_ERROR_FMT("approx before/after/diff: %.3e %.3e %.3e", acosts_before.back(), acosts_after.back(), acosts_before.back()-acosts_after.back());
+      ++i;
+    }
+#endif
+
+
+
     m_approxObjectiveReady = false;
     m_exactObjectiveReady = false;
 
-    BOOST_FOREACH(Callback& cb, m_callbacks)
-      cb(this);
     BOOST_FOREACH(TrajPlotterPtr plotter, m_plotters)
       plotter->plotTraj(m_currentTraj);
+		BOOST_FOREACH(TrajChangePlotterPtr plotter, m_changePlotters)
+			plotter->plotTrajs(m_currentTraj, prevTraj);
+    BOOST_FOREACH(Callback& cb, m_callbacks)
+      cb(this);
+		
+    if (SQPConfig::pauseEachIter) {
+      util::getGlobalScene()->step(0);
+      util::getGlobalScene()->idle(true);
+    }
 
     TIC();
     updateModel();
-
     LOG_INFO_FMT("total convexification time: %.2f", TOC());
-    double trueObj = calcExactObjective();
+
+    double trueObj = getCachedCost();
+
+    LOG_DEBUG("trajectory increment" << m_currentTraj - prevTraj);
 
     if (trueObj > trueObjBefore.back()) {
-      LOG_INFO("objective got worse! rolling back and shrinking trust region");
       m_currentTraj = prevTraj;
+      m_tra->m_shrinkage *= SQPConfig::trShrink;
+      LOG_INFO("objective got worse! rolling back and shrinking trust region.");
       m_tra->adjustTrustRegion(SQPConfig::trShrink);
-      trShrinkage *= SQPConfig::trShrink;
+//      updateModel();
       continue;
     }
 
@@ -925,26 +951,24 @@ void PlanningProblem::optimize(int maxIter) {
     LOG_INFO("accepting traj modification");
     trueObjBefore.push_back(trueObj);
     approxObjAfter.push_back(approxObj);
+    LOG_DEBUG("approx obj history:" << approxObjAfter);
+    LOG_DEBUG("exact obj history:" << trueObjBefore);
+
 
     double trueImprove = trueObjBefore[trueObjBefore.size() - 2] - trueObjBefore.back();
     double approxImprove = trueObjBefore[trueObjBefore.size() - 2] - approxObj;
+    assert(approxImprove >= 0);
     double improveRatio = trueImprove / approxImprove;
     LOG_INFO_FMT("true improvement: %.2e.  approx improvement: %.2e.  ratio: %.2f", trueImprove, approxImprove, improveRatio);
     if (improveRatio < SQPConfig::trThresh) {
       LOG_INFO_FMT("shrinking trust region by %.2f", SQPConfig::trShrink);
       m_tra->adjustTrustRegion(SQPConfig::trShrink);
-      trShrinkage *= SQPConfig::trShrink;
     }
     else {
       LOG_INFO_FMT("expanding trust region by %.2f", SQPConfig::trExpand);
       m_tra->adjustTrustRegion(SQPConfig::trExpand);
-      trShrinkage *= SQPConfig::trExpand;
     }
 
-    if (trShrinkage < 1e-3) {
-      LOG_INFO("trust region got shrunk too much. stopping");
-      break;
-    }
     if (trueImprove < SQPConfig::doneIterThresh) {
       LOG_INFO("cost didn't improve much. stopping iteration");
       break;
@@ -1033,10 +1057,10 @@ void PlanningProblem::initialize(const Eigen::MatrixXd& initTraj, bool endFixed,
   m_currentTraj = initTraj;
   m_trajVars = VarArray(initTraj.rows(), initTraj.cols());
   m_optMask = VectorXb::Ones(initTraj.rows());
-  m_optMask(0) = false;
+//  m_optMask(0) = false;
   if (endFixed) m_optMask(initTraj.rows() - 1) = false;
   for (int iRow = 0; iRow < m_currentTraj.rows(); ++iRow) {
-    if (m_optMask(iRow)) {
+    if (1 || m_optMask(iRow)) {
       for (int iCol = 0; iCol < m_currentTraj.cols(); ++iCol) {
         char namebuf[10];
         sprintf(namebuf, "j_%i_%i", iRow, iCol);
@@ -1045,161 +1069,14 @@ void PlanningProblem::initialize(const Eigen::MatrixXd& initTraj, bool endFixed,
     }
   }
   m_model->update();
+  int nRow = m_currentTraj.rows();
+  for (int i=0; i < initTraj.cols(); ++i) {
+    if (true) m_model->addConstr(m_trajVars(0,i) == m_currentTraj(0,i),"startfixed");
+    if (endFixed) m_model->addConstr(m_trajVars(nRow-1,i) == m_currentTraj(nRow- 1,i),"endfixed");
+  }
   //  setVarsToTraj(m_currentTraj,m_optMask, m_trajVars);
   m_initialized = true;
 }
 
-GripperPlotter::GripperPlotter(RaveRobotObject::Manipulator::Ptr rrom, Scene* scene, int decimation) :
-  m_scene(scene), m_osgRoot(scene->env->osg->root.get()), m_rrom(rrom), m_decimation(decimation),
-      m_curve(new PlotCurve(3)) {
-  m_osgRoot->addChild(m_curve.get());
-}
 
-void GripperPlotter::setNumGrippers(int n) {
-  if (n != m_grippers.size()) {
-    clear();
-    m_grippers.resize(n);
-    for (int i = 0; i < n; ++i) {
-      FakeGripper::Ptr fakeGripper(new FakeGripper(m_rrom));
-      m_grippers[i] = fakeGripper;
-      m_osgRoot->addChild(fakeGripper->m_node);
-    }
-  }
-}
-
-void GripperPlotter::clear() {
-
-  for (int i = 0; i < m_grippers.size(); ++i) {
-    m_osgRoot->removeChild(m_grippers[i]->m_node);
-  }
-  m_grippers.clear();
-}
-
-void GripperPlotter::plotTraj(const MatrixXd& traj) {
-  setNumGrippers(traj.rows() / m_decimation);
-  vector<btTransform> transforms(m_grippers.size());
-  vector<btVector3> origins(m_grippers.size());
-
-  vector<double> curDOFVals = m_rrom->getDOFValues();
-  for (int iPlot = 0; iPlot < m_grippers.size(); ++iPlot) {
-    m_rrom->setDOFValues(toDoubleVec(traj.row(iPlot * m_decimation)));
-    transforms[iPlot] = m_rrom->getTransform();
-    origins[iPlot] = transforms[iPlot].getOrigin();
-  }
-  m_rrom->setDOFValues(curDOFVals);
-
-  m_curve->setPoints(origins);
-  for (int iPlot = 0; iPlot < m_grippers.size(); ++iPlot)
-    m_grippers[iPlot]->setTransform(transforms[iPlot]);
-  m_scene->step(0);
-}
-
-GripperPlotter::~GripperPlotter() {
-  clear();
-  m_osgRoot->removeChild(m_curve);
-}
-
-ArmPlotter::ArmPlotter(RaveRobotObject::Manipulator::Ptr rrom, Scene* scene, int decimation) :
-  m_syncher(syncherFromArm(rrom)) {
-  vector<BulletObject::Ptr> armObjs;
-  BOOST_FOREACH(KinBody::LinkPtr link, m_syncher->m_links)
-    armObjs.push_back(rrom->robot->associatedObj(link));
-  init(rrom, armObjs, scene, decimation);
-}
-
-void ArmPlotter::init(RaveRobotObject::Manipulator::Ptr rrom,
-    const std::vector<BulletObject::Ptr>& origs, Scene* scene, int decimation) {
-  m_rrom = rrom;
-  m_scene = scene;
-  m_osgRoot = scene->env->osg->root.get();
-  m_origs = origs;
-  m_decimation = decimation;
-  m_curve = new PlotCurve(3);
-  m_curve->m_defaultColor = osg::Vec4f(0, 1, 0, 1);
-  m_axes.reset(new PlotAxes());
-  m_curve->m_defaultColor = osg::Vec4f(0, 1, 0, 1);
-  m_scene->env->add(m_axes);
-  m_osgRoot->addChild(m_curve.get());
-}
-
-ArmPlotter::~ArmPlotter() {
-  m_osgRoot->removeChild(m_curve);
-  m_scene->env->remove(m_axes);
-}
-
-void ArmPlotter::setLength(int nPlots) {
-  if (m_fakes.m_nRow == nPlots) return;
-  m_fakes.resize(nPlots, m_origs.size());
-  for (int iPlot = 0; iPlot < nPlots; ++iPlot) {
-    for (int iObj = 0; iObj < m_origs.size(); ++iObj) {
-      FakeObjectCopy::Ptr& fake = m_fakes.at(iPlot, iObj);
-      fake.reset(new FakeObjectCopy(m_origs[iObj]));
-      fake->makeChildOf(m_osgRoot);
-      float frac = (float) iPlot / nPlots;
-      fake->setColor(osg::Vec4f(frac, 0, 1 - frac, .35));
-    }
-  }
-}
-
-vector<btVector3> getGripperPositions(const MatrixXd& traj, RaveRobotObject::Manipulator::Ptr rrom) {
-  vector<double> dofOrig = rrom->getDOFValues();
-  vector<btVector3> out;
-  for (int i = 0; i < traj.rows(); ++i) {
-    rrom->setDOFValues(toDoubleVec(traj.row(i)));
-    out.push_back(rrom->getTransform().getOrigin());
-  }
-  rrom->setDOFValues(dofOrig);
-  return out;
-}
-
-vector<btTransform> getGripperPoses(const MatrixXd& traj, RaveRobotObject::Manipulator::Ptr rrom) {
-  vector<double> dofOrig = rrom->getDOFValues();
-  vector<btTransform> out;
-  for (int i = 0; i < traj.rows(); ++i) {
-    rrom->setDOFValues(toDoubleVec(traj.row(i)));
-    out.push_back(rrom->getTransform());
-  }
-  rrom->setDOFValues(dofOrig);
-  return out;
-}
-
-void ArmPlotter::plotTraj(const MatrixXd& traj) {
-  setLength(traj.rows() / m_decimation);
-
-  vector<double> curDOFVals = m_rrom->getDOFValues();
-  for (int iPlot = 0; iPlot < m_fakes.m_nRow; ++iPlot) {
-    m_rrom->setDOFValues(toDoubleVec(traj.row(iPlot * m_decimation)));
-    m_syncher->updateBullet();
-    for (int iObj = 0; iObj < m_origs.size(); ++iObj) {
-      m_fakes.at(iPlot, iObj)->setTransform(m_origs[iObj]->rigidBody->getCenterOfMassTransform());
-    }
-  }
-
-  m_rrom->setDOFValues(toDoubleVec(traj.row(traj.rows() - 1)));
-  m_axes->setup(m_rrom->getTransform(), .1 * METERS);
-
-  vector<btVector3> gripperPositions = getGripperPositions(traj, m_rrom);
-  m_curve->setPoints(gripperPositions);
-
-  m_rrom->setDOFValues(curDOFVals);
-  m_syncher->updateBullet();
-
-  TIC();
-  m_scene->step(0);
-  LOG_INFO_FMT("draw time: %.3f", TOC());
-}
-
-void interactiveTrajPlot(const MatrixXd& traj, RaveRobotObject::Manipulator::Ptr arm, Scene* scene) {
-  BulletRaveSyncherPtr syncher = syncherFromArm(arm);
-  vector<double> curDOFVals = arm->getDOFValues();
-  for (int iStep = 0; iStep < traj.rows(); ++iStep) {
-    arm->setDOFValues(toDoubleVec(traj.row(iStep)));
-    syncher->updateBullet();
-    printf("step %i. press p to continue\n", iStep);
-    scene->step(0);
-    scene->idle(true);
-  }
-  arm->setDOFValues(curDOFVals);
-  syncher->updateBullet();
-}
 

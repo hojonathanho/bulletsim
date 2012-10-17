@@ -25,25 +25,6 @@ string LocalConfig::loadCloud="";
 string LocalConfig::loadEnv="";
 
 
-class ArmPrinter {
-public:
-  static string commaSep(std::vector<double> v) {
-    stringstream ss;
-    BOOST_FOREACH(double d, v) ss << d << ", ";
-    return ss.str();
-  }
-
-  RaveRobotObject::Manipulator::Ptr m_left, m_right;
-  ArmPrinter(RaveRobotObject::Manipulator::Ptr left, RaveRobotObject::Manipulator::Ptr right) :
-    m_left(left), m_right(right) {}
-  void printJoints() {
-    cout << "left joints: " << commaSep(m_left->getDOFValues()) << " right: " << commaSep(m_right->getDOFValues()) << endl;
-  }
-  void printCarts() {
-    cout << "right joints: " << m_left->getTransform() << "right: " << m_right->getTransform() << endl;
-  }
-};
-
 int main(int argc, char* argv[]) {
     Parser parser;
     BulletConfig::internalTimeStep=0;
@@ -85,7 +66,7 @@ int main(int argc, char* argv[]) {
 
     scene.startViewer();
     while (true) {
-      scene.step(0);
+      scene.draw();
       sleep(.05);
     }
 }

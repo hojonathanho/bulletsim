@@ -9,7 +9,7 @@
 // (the OSG model will be created from the btRigidBody, and
 // will be added to the scene graph and the dynamics world, respectively)
 class BulletObject : public EnvironmentObject {
-protected:
+public:
     struct MotionState : public btDefaultMotionState {
         typedef boost::shared_ptr<MotionState> Ptr;
         BulletObject &obj;
@@ -36,7 +36,7 @@ protected:
         Ptr clone(BulletObject &newObj);
     };
 
-public:
+
     typedef boost::shared_ptr<BulletObject> Ptr;
 
     const bool isKinematic;

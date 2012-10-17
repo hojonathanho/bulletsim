@@ -105,7 +105,8 @@ void Environment::step(btScalar dt, int maxSubSteps, btScalar fixedTimeStep) {
     ObjectList::iterator i;
     for (i = objects.begin(); i != objects.end(); ++i)
         (*i)->prePhysics();
-    bullet->dynamicsWorld->stepSimulation(dt, maxSubSteps, fixedTimeStep);
+    if (dt > 0)
+      bullet->dynamicsWorld->stepSimulation(dt, maxSubSteps, fixedTimeStep);
     for (i = objects.begin(); i != objects.end(); ++i)
         (*i)->preDraw();
     bullet->softBodyWorldInfo->m_sparsesdf.GarbageCollect();

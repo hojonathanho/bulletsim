@@ -26,6 +26,7 @@ public:
   void destroy(){}
   void setDefaultColor(float r, float g, float b, float a);
   void forceTransparency(float a);
+  virtual ~PlotObject() {}
 };
 
 class PlotPoints : public PlotObject {
@@ -38,6 +39,7 @@ public:
   void setPoints(const std::vector<btVector3>& pts, const std::vector<btVector4>& cols);
   void setPoints(const std::vector<btVector3>& pts);
   void forceTransparency(float a);
+  virtual ~PlotPoints() {}
 };
 
 class PlotLines : public PlotObject {
@@ -105,9 +107,14 @@ public:
     getEnvironment()->osg->root->addChild(m_geode.get());
     getEnvironment()->osg->root->addChild(m_ends->m_geode.get());
   }
+  virtual void destroy(){
+    getEnvironment()->osg->root->removeChild(m_geode.get());
+    getEnvironment()->osg->root->removeChild(m_ends->m_geode.get());
+  }
 
   PlotAxes() {  m_ends.reset(new PlotSpheres());}
   PlotAxes(osg::Vec3f origin, osg::Vec3f x, osg::Vec3f y, osg::Vec3f z, float size);
+	PlotAxes(const btTransform& tf, float size);
   void setup(osg::Vec3f origin, osg::Vec3f x, osg::Vec3f y, osg::Vec3f z, float size);
   void setup(const btTransform &tf, float size);
   void clear();

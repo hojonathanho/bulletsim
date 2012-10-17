@@ -7,6 +7,7 @@
 #include "sqp_algorithm.h"
 #include "config_sqp.h"
 #include "sqp/config_sqp.h"
+#include "sqp/kinematics_utils.h"
 
 
 using namespace std;

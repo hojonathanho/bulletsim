@@ -35,6 +35,7 @@ RaveInstance::RaveInstance() {
 	env = RaveCreateEnvironment();
 	if (GeneralConfig::verbose  <= log4cplus::DEBUG_LOG_LEVEL)
 		RaveSetDebugLevel(Level_Debug);
+	env->StopSimulation();
 }
 
 RaveInstance::RaveInstance(const RaveInstance &o, int cloneOpts) {
@@ -424,16 +425,15 @@ bool RaveObject::detectCollisions() {
 	return false;
 }
 
-void RaveRobotObject::setDOFValues(const vector<int> &indices, const vector<
-		dReal> &vals) {
-	// update openrave structure
-	{
-     EnvironmentMutex::scoped_lock lock(rave->env->GetMutex());
-		robot->SetActiveDOFs(indices);
-		robot->SetActiveDOFValues(vals);
-     rave->env->UpdatePublishedBodies();
-	}
-	updateBullet();
+void RaveRobotObject::setDOFValues(const vector<int> &indices, const vector<dReal> &vals) {
+  // update openrave structure
+  {
+//    EnvironmentMutex::scoped_lock lock(rave->env->GetMutex());
+    robot->SetActiveDOFs(indices);
+    robot->SetActiveDOFValues(vals);
+//    rave->env->UpdatePublishedBodies();
+  }
+  updateBullet();
 }
 
 void RaveObject::updateBullet() {
@@ -442,7 +442,7 @@ void RaveObject::updateBullet() {
 	// which are easy to feed into Bullet
 	vector<OpenRAVE::Transform> transforms;
 	body->GetLinkTransformations(transforms);
-	vector<KinBody::LinkPtr> links = body->GetLinks();
+	const vector<KinBody::LinkPtr>& links = body->GetLinks();
 
 	if (linkIndsWithGeometry.size()==0) {
 	  for (int i=0; i < links.size(); ++i) if (associatedObj(links[i])) linkIndsWithGeometry.push_back(i);
@@ -450,7 +450,6 @@ void RaveObject::updateBullet() {
 
 	for (int i=0; i < children.size(); ++i)
 	  children[i]->motionState->setKinematicPos(util::toBtTransform(transforms[linkIndsWithGeometry[i]],GeneralConfig::scale));
-
 }
 
 vector<double> RaveRobotObject::getDOFValues(const vector<int>& indices) {

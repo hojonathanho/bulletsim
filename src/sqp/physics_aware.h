@@ -1,3 +1,4 @@
+#pragma once
 #include "sqp_algorithm.h"
 #include "simulation/environment.h"
 
@@ -20,7 +21,7 @@ public:
   double simulateTraj(const Eigen::MatrixXd& traj);
   double simulateTraj2(const Eigen::MatrixXd& traj, bool drawing);
 
-  PushObject(BulletObject::Ptr obj, btTransform(target), RaveRobotObject::Ptr robot, Environment::Ptr env, const vector<int>& dofInds, double posCoeff, double rotCoeff) :
+  PushObject(BulletObject::Ptr obj, btTransform target, RaveRobotObject::Ptr robot, Environment::Ptr env, const vector<int>& dofInds, double posCoeff, double rotCoeff) :
     m_object(obj), m_target(target), m_robot(robot), m_env(env), m_dofInds(dofInds), m_posCoeff(posCoeff), m_rotCoeff(rotCoeff) {
       m_attrs = HAS_COST;
 //      m_plotter.reset(new ArmPlotter(robot->getManipByIndex(1), util::getGlobalScene(), SQPConfig::plotDecimation));

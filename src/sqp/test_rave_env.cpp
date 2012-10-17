@@ -13,6 +13,8 @@
 #include <boost/filesystem.hpp>
 #include "utils/my_exceptions.h"
 #include "planning_problems.h"
+#include "kinematics_utils.h"
+#include "plotters.h"
 using namespace std;
 using namespace Eigen;
 using namespace util;
@@ -79,6 +81,7 @@ int main(int argc, char *argv[]) {
   scene.startViewer();
 
   util::setGlobalEnv(scene.env);
+  util::setGlobalScene(&scene);
 
 
   Json::Value probInfo = readJson(LocalConfig::probSpec);
@@ -108,11 +111,11 @@ int main(int argc, char *argv[]) {
 
   arm->setGripperAngle(.5);
 
-  BulletRaveSyncher brs = syncherFromArm(arm);
+  BulletRaveSyncherPtr brs = syncherFromArm(arm);
 
   TIC();
   PlanningProblem prob;
-  prob.addPlotter(ArmPlotterPtr(new ArmPlotter(arm, &scene,  SQPConfig::plotDecimation)));
+//  prob.addPlotter(ArmPlotterPtr(new ArmPlotter(arm, &scene,  SQPConfig::plotDecimation)));
 
 
 
@@ -159,7 +162,7 @@ int main(int argc, char *argv[]) {
   }
 
 
-  prob.m_plotters[0].reset();
+//  prob.m_plotters[0].reset();
 
   BulletConfig::linkPadding = 0;
   scene.env->remove(pr2);
