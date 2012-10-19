@@ -76,6 +76,7 @@ void Load(Environment::Ptr env, RaveInstance::Ptr rave, const string& filename,
 
 }
 
+
 RaveObject::Ptr getObjectByName(Environment::Ptr env, RaveInstance::Ptr rave, const string& name) {
   BOOST_FOREACH(EnvironmentObject::Ptr obj, env->objects) {
     RaveObject::Ptr maybeRO = boost::dynamic_pointer_cast<RaveObject>(obj);
@@ -84,6 +85,15 @@ RaveObject::Ptr getObjectByName(Environment::Ptr env, RaveInstance::Ptr rave, co
     }
   }
   return RaveObject::Ptr();
+}
+
+std::vector<RaveRobotObject::Ptr> getRobots(Environment::Ptr env, RaveInstance::Ptr rave) {
+  vector<RaveRobotObject::Ptr> out;
+  BOOST_FOREACH(EnvironmentObject::Ptr obj, env->objects) {
+    RaveRobotObject::Ptr maybeRO = boost::dynamic_pointer_cast<RaveRobotObject>(obj);
+    if (maybeRO) out.push_back(maybeRO);
+  }
+  return out;
 }
 
 RaveRobotObject::Ptr getRobotByName(Environment::Ptr env, RaveInstance::Ptr rave, const string& name) {
@@ -569,14 +579,25 @@ RaveRobotObject::RaveRobotObject(RaveInstance::Ptr rave_, const std::string &uri
 	rave->env->AddRobot(robot);
 }
 
+RaveRobotObject::Manipulator::Ptr RaveRobotObject::getManipByName(const std::string& name) {
+  BOOST_FOREACH(Manipulator::Ptr manip, createdManips) {
+    if (manip->manip->GetName() == name) return manip;
+  }
+  return Manipulator::Ptr();
+}
+
 RaveRobotObject::Manipulator::Ptr RaveRobotObject::createManipulator(
 		const std::string &manipName, bool useFakeGrabber) {
-	RaveRobotObject::Manipulator::Ptr m(new Manipulator(this));
+	if (getManipByName(manipName)) return getManipByName(manipName);
+  RaveRobotObject::Manipulator::Ptr m(new Manipulator(this));
 	// initialize the ik module
-	robot->SetActiveManipulator(manipName);
-	m->manip = m->origManip = robot->GetActiveManipulator();
+  robot->SetActiveManipulator(manipName);
+  m->manip = m->origManip = robot->GetActiveManipulator();
+#if 0
 	m->ikmodule = RaveCreateModule(rave->env, "ikfast");
 	rave->env->AddModule(m->ikmodule, "");
+#endif
+
 	// stringstream ssin, ssout;
 	// ssin << "LoadIKFastSolver " << robot->GetName() << " " << (int)IkParameterization::Type_Transform6D;
 	// if (!m->ikmodule->SendCommand(ssout, ssin)) {
@@ -662,16 +683,13 @@ bool RaveRobotObject::Manipulator::moveByIKUnscaled(
 
 float RaveRobotObject::Manipulator::getGripperAngle() {
 	vector<int> inds = manip->GetGripperIndices();
-	assert(inds.size() ==1 );
 	vector<double> vals = robot->getDOFValues(inds);
 	return vals[0];
 }
 
 void RaveRobotObject::Manipulator::setGripperAngle(float x) {
 	vector<int> inds = manip->GetGripperIndices();
-	assert(inds.size() ==1 );
-	vector<double> vals;
-	vals.push_back(x);
+	vector<double> vals(inds.size(),x);
 	robot->setDOFValues(inds, vals);
 }
 

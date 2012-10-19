@@ -5,9 +5,6 @@ int main(int argc, char *argv[]) {
     // first read the configuration from the user
 
     // and override config values to what we want
-    SceneConfig::enableIK = true;
-    SceneConfig::enableRobot = true;
-    SceneConfig::enableHaptics = true;
 
     Parser parser;
     parser.addGroup(GeneralConfig());

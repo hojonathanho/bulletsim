@@ -121,6 +121,17 @@ public:
   void setDOFValues(const vector<int> &indices, const vector<dReal> &vals);
   vector<double> getDOFValues(const vector<int> &indices);
   vector<double> getDOFValues();
+  void setTransform(const btTransform& trans) {
+    robot->SetTransform(util::toRaveTransform(util::scaleTransform(trans,1/METERS)));
+    updateBullet();
+  }
+  void setTransform(float x, float y, float a) {
+    setTransform(btTransform(btQuaternion(0,0,a), btVector3(x,y,0)));
+  }
+  btTransform getTransform() {
+    return util::toBtTransform(robot->GetTransform(), METERS);
+  }
+
 
   struct Manipulator {
     RaveRobotObject *robot;
@@ -138,7 +149,6 @@ public:
     btTransform getTransform() const {
       return robot->toWorldFrame(util::toBtTransform(manip->GetTransform()));
     }
-
     // Gets one IK solution closest to the current position in joint space
     bool solveIKUnscaled(const OpenRAVE::Transform &targetTrans,
 			 vector<dReal> &vsolution);
@@ -184,23 +194,30 @@ public:
   Manipulator::Ptr createManipulator(const std::string &manipName, bool useFakeGrabber         = false);
   void destroyManipulator(Manipulator::Ptr m); // not necessary to call this on destruction
   Manipulator::Ptr getManipByIndex(int i) const { return createdManips[i]; }
+  Manipulator::Ptr getManipByName(const std::string& name);
   int numCreatedManips() const { return createdManips.size(); }
 protected:
   std::vector<Manipulator::Ptr> createdManips;
   RaveRobotObject() {}
 };
 
+std::vector<RaveRobotObject::Ptr> getRobots(Environment::Ptr env, RaveInstance::Ptr rave);
 RaveObject::Ptr getObjectByName(Environment::Ptr env, RaveInstance::Ptr rave, const string& name);
 RaveRobotObject::Ptr getRobotByName(Environment::Ptr env, RaveInstance::Ptr rave, const string& name);
 
 class ScopedRobotSave {
   std::vector<double> m_dofvals;
+  OpenRAVE::Transform m_tf;
   OpenRAVE::RobotBasePtr m_robot;
 public:
   ScopedRobotSave(OpenRAVE::RobotBasePtr robot) : m_robot(robot) {
     robot->GetDOFValues(m_dofvals);
+    m_tf = robot->GetTransform();
   }
-  ~ScopedRobotSave() {m_robot->SetDOFValues(m_dofvals);}
+  ~ScopedRobotSave() {
+    m_robot->SetDOFValues(m_dofvals);
+    m_robot->SetTransform(m_tf);
+  }
 };
 
 
