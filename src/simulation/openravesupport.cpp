@@ -192,6 +192,8 @@ static BulletObject::Ptr createFromLink(KinBody::LinkPtr link,
          TrimeshMode trimeshMode,
         float fmargin, bool isDynamic) {
 
+  LOG_DEBUG("creating link from " << link->GetName());
+
 #if OPENRAVE_VERSION_MINOR>6
   const std::vector<boost::shared_ptr<OpenRAVE::KinBody::Link::GEOMPROPERTIES> > & geometries=link->GetGeometries();
 #else
@@ -204,12 +206,18 @@ static BulletObject::Ptr createFromLink(KinBody::LinkPtr link,
 		return BulletObject::Ptr();
 	}
 
-	// each link is a compound of several btCollisionShapes
-	btCompoundShape *compound = new btCompoundShape();
-	compound->setMargin(0); //margin: compound. seems to have no effect when positive but has an effect when negative
+	bool useCompound = geometries.size() > 1;
+  bool useGraphicsMesh = false;
+
+	btCompoundShape* compound;
+	if (useCompound) {
+    compound = new btCompoundShape();
+    compound->setMargin(0); //margin: compound. seems to have no effect when positive but has an effect when negative
+	}
 
 //	float volumeAccumulator(0);
 	btVector3 firstMomentAccumulator(0,0,0);
+
 
 
 #if OPENRAVE_VERSION_MINOR>6
@@ -253,9 +261,8 @@ static BulletObject::Ptr createFromLink(KinBody::LinkPtr link,
 					decomp.addTriangle(mesh.indices[i], mesh.indices[i + 1], mesh.indices[i + 2]);
 				subshape = decomp.run(subshapes); // use subshapes to just store smart pointer
 
-			} else {
-
-
+			}
+			else {
 				btTriangleMesh* ptrimesh = new btTriangleMesh();
 				// for some reason adding indices makes everything crash
 				/*
@@ -272,6 +279,7 @@ static BulletObject::Ptr createFromLink(KinBody::LinkPtr link,
 										  util::toBtVector(mesh.vertices[i+2])*METERS - offset);
 				// store the trimesh somewhere so it doesn't get deallocated by the smart pointer
 				meshes.push_back(boost::shared_ptr<btStridingMeshInterface>(ptrimesh));
+				if (BulletConfig::graphicsMesh) useGraphicsMesh = true;
 
 				if (trimeshMode == CONVEX_HULL) {
 					boost::shared_ptr<btConvexShape> pconvexbuilder(new btConvexTriangleMeshShape(ptrimesh));
@@ -287,7 +295,8 @@ static BulletObject::Ptr createFromLink(KinBody::LinkPtr link,
 
 					subshape.reset(convexShape);
 
-				} else { // RAW
+				}
+				else { // RAW
 					subshape.reset(new btBvhTriangleMeshShape(ptrimesh, true));
 				}
 			}
@@ -307,14 +316,20 @@ static BulletObject::Ptr createFromLink(KinBody::LinkPtr link,
 		subshape->setMargin(0); //margin: subshape. seems to result in padding convex shape AND increases collision dist on top of that
 		btTransform transform = util::toBtTransform(geom->GetTransform(),GeneralConfig::scale);
 		transform.setOrigin(transform.getOrigin() + offset);
-		compound->addChildShape(transform, subshape.get());
+		if (useCompound) compound->addChildShape(transform, subshape.get());
 	}
 
 	btTransform childTrans = util::toBtTransform(link->GetTransform(),GeneralConfig::scale);
 
 	float mass = isDynamic ? link->GetMass() : 0;
-	BulletObject::Ptr child(new BulletObject(mass, compound, childTrans,!isDynamic));
-//	child->drawingOn=false;
+	BulletObject::Ptr child;
+	if (useCompound)
+	  child.reset(new BulletObject(mass, compound, childTrans,!isDynamic));
+	else {
+    child.reset(new BulletObject(mass, subshapes.back(), childTrans, !isDynamic));
+    if (useGraphicsMesh) child->graphicsShape.reset(new btBvhTriangleMeshShape(meshes.back().get(), true));
+	}
+
 	return child;
 
 }

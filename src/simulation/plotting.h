@@ -23,7 +23,9 @@ public:
   }
   void prePhysics(){}// no physics
   void preDraw(){};
-  void destroy(){}
+  void destroy(){
+    getEnvironment()->osg->root->removeChild(m_geode.get());
+  }
   void setDefaultColor(float r, float g, float b, float a);
   void forceTransparency(float a);
   virtual ~PlotObject() {}

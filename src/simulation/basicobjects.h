@@ -49,6 +49,7 @@ public:
     // on destruction of the BulletObject
     MotionState::Ptr motionState;
     boost::shared_ptr<btCollisionShape> collisionShape;
+    boost::shared_ptr<btCollisionShape> graphicsShape;
 
     // OSG MEMBERS
     osg::ref_ptr<osg::Node> node;
@@ -64,6 +65,7 @@ public:
 
     // this constructor computes a ConstructionInfo for you
     BulletObject(btScalar mass, btCollisionShape *cs, const btTransform &initTrans, bool isKinematic_=false);
+    BulletObject(btScalar mass, boost::shared_ptr<btCollisionShape> cs, const btTransform &initTrans, bool isKinematic_=false);
 
     BulletObject(const BulletObject &o); // copy constructor
     virtual ~BulletObject() { }

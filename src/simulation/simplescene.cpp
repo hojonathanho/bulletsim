@@ -61,6 +61,28 @@ void Scene::startViewer() {
     bullet->dynamicsWorld->setDebugDrawer(dbgDraw.get());
     osg->root->addChild(dbgDraw->getSceneGraph());
 
+    {
+    osg::ref_ptr<osg::Light> light = new osg::Light;
+    light->setLightNum(0);
+    light->setPosition(osg::Vec4(-10*METERS,0,10*METERS,1));
+    osg::ref_ptr<osg::LightSource> lightSource = new osg::LightSource;
+    lightSource->setLight(light.get());
+    light->setDiffuse(osg::Vec4(1,.9,.9,1)*.5);
+    osg->root->addChild(lightSource.get());
+    osg->root->getOrCreateStateSet()->setMode(GL_LIGHT0, osg::StateAttribute::ON);
+    }
+
+    {
+    osg::ref_ptr<osg::Light> light = new osg::Light;
+    light->setLightNum(1);
+    light->setPosition(osg::Vec4(10*METERS,0,10*METERS,1));
+    osg::ref_ptr<osg::LightSource> lightSource = new osg::LightSource;
+    lightSource->setLight(light.get());
+    light->setDiffuse(osg::Vec4(.9,.9,1,1)*.5);
+    osg->root->addChild(lightSource.get());
+    osg->root->getOrCreateStateSet()->setMode(GL_LIGHT1, osg::StateAttribute::ON);
+    }
+
     viewer.setUpViewInWindow(0, 0, ViewerConfig::windowWidth, ViewerConfig::windowHeight);
     manip = new EventHandler(*this);
     manip->setHomePosition(util::toOSGVector(ViewerConfig::cameraHomePosition)*METERS, util::toOSGVector(ViewerConfig::cameraHomeCenter)*METERS, util::toOSGVector(ViewerConfig::cameraHomeUp)*METERS);
