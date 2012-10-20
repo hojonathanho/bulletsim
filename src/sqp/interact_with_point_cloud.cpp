@@ -1,9 +1,10 @@
 #include "simulation/simplescene.h"
 #include "collision_map_tools.h"
-#include "robots/pr2.h"
+#include "robots/robot_manager.h"
 #include "clouds/cloud_ops.h"
 #include "simulation/simulation_fwd.h"
 #include "simulation/bullet_io.h"
+#include "kinematics_utils.h"
 
 struct LocalConfig : Config {
 
@@ -54,19 +55,20 @@ int main(int argc, char* argv[]) {
 
     RaveRobotObjectPtr  pr2 = getRobotByName(scene.env, scene.rave, "pr2");
     if (!pr2) pr2 = getRobotByName(scene.env, scene.rave, "PR2");
+    if (!pr2) pr2 = getRobotByName(scene.env, scene.rave, "BarrettWAM");
     assert (pr2);
 
-    PR2Manager pr2m(scene);
-    assert (pr2m.pr2Right);
+    RobotManager pr2m(scene);
+    assert (pr2m.botRight);
 
-    ArmPrinter ap(pr2m.pr2Left, pr2m.pr2Right);
+    ArmPrinter ap(pr2m.botLeft, pr2m.botRight);
     scene.addVoidKeyCallback('c',boost::bind(&ArmPrinter::printCarts, &ap), "print cart");
     scene.addVoidKeyCallback('j',boost::bind(&ArmPrinter::printJoints, &ap), "print joints");
-
+    scene.addVoidKeyCallback('a', boost::bind(&ArmPrinter::printAll, &ap), "print all dofs");
 
     scene.startViewer();
     while (true) {
-      scene.draw();
+      scene.step(0);
       sleep(.05);
     }
 }

@@ -24,6 +24,10 @@ target_link_libraries(sqp utils simulation robots ${Boost_LIBRARIES} ${BULLET_LI
 add_executable(test_traj_eval_grb test_traj_eval_grb2.cpp)
 target_link_libraries(test_traj_eval_grb sqp)
 
+add_executable(test_cart_with_base test_cart_with_base.cpp)
+target_link_libraries(test_cart_with_base sqp)
+
+
 include_directories(${PCL_INCLUDE_DIRS})
 include_directories("/opt/ros/fuerte/stacks/geometry/tf/include"
 					"/opt/ros/fuerte/stacks/geometry/tf/msg_gen/cpp/include"

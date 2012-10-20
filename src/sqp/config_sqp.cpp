@@ -9,7 +9,9 @@ double SQPConfig::distPen = .02;
 double SQPConfig::distDiscSafe = .018;
 double SQPConfig::distContSafe = .01;
 int SQPConfig::maxIter=50;
-double SQPConfig::trShrink = .5;
-double SQPConfig::trExpand = 1.1;
+double SQPConfig::trShrink = .2;
+double SQPConfig::trExpand = 1.2;
 double SQPConfig::trThresh = .2;
 double SQPConfig::doneIterThresh = .01;
+bool SQPConfig::enablePlot=true;
+

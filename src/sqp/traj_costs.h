@@ -20,11 +20,6 @@ KinematicsInfo getSingleArmKinematics(const OpenRAVE::RobotBase::ManipulatorPtr 
 
 
 
-void getArmKinInfo(const OpenRAVE::RobotBasePtr& robot, const OpenRAVE::RobotBase::ManipulatorPtr manip, std::vector<OpenRAVE::KinBody::LinkPtr>& armLinks, std::vector<OpenRAVE::KinBody::JointPtr>& armJoints, std::vector<int>& chainDepthOfBodies);
-
-std::vector<OpenRAVE::KinBody::JointPtr> getArmJoints(OpenRAVE::RobotBase::ManipulatorPtr manip);
-std::vector<OpenRAVE::KinBody::LinkPtr> getArmLinks(OpenRAVE::RobotBase::ManipulatorPtr manip);
-std::vector<OpenRAVE::KinBody::LinkPtr> getAffectedLinks(OpenRAVE::RobotBasePtr robot, const std::vector<int>& dofInds);
 
 struct CollisionCollector: public btCollisionWorld::ContactResultCallback {
 	std::vector<Collision> m_collisions;
@@ -42,10 +37,10 @@ void calcCollisionCostAndJointGrad(const std::vector<btRigidBody*>& bodies, btCo
                                 double& cost, Eigen::VectorXd& grad, int& nColl);
 
 
-TrajCartCollInfo collectTrajCollisions(const Eigen::MatrixXd& traj, OpenRAVE::RobotBasePtr robot, BulletRaveSyncher& brs, btCollisionWorld* world, const std::vector<int>& dofInds);
+TrajCartCollInfo collectTrajCollisions(const Eigen::MatrixXd& traj, OpenRAVE::RobotBasePtr robot, BulletRaveSyncher& brs, btCollisionWorld* world, const std::vector<int>& dofInds, bool useAffine);
 TrajCartCollInfo continuousTrajCollisions(const Eigen::MatrixXd& traj, OpenRAVE::RobotBasePtr robot, BulletRaveSyncher& brs, btCollisionWorld* world, const std::vector<int>& dofInds, float allowedPen);
 TrajJointCollInfo trajCartToJointCollInfo(const TrajCartCollInfo& in, const Eigen::MatrixXd& traj, OpenRAVE::RobotBasePtr robot,
-    const std::vector<int>& dofInds);
+    const std::vector<int>& dofInds, bool useAffine);
 
 void countCollisions(const TrajJointCollInfo& trajCollInfo, double safeDist, int& nNear, int& nUnsafe, int& nColl);
 

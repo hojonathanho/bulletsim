@@ -13,14 +13,14 @@ using namespace Eigen;
 
 void StatePlotter::plotTraj(const Eigen::MatrixXd& traj) {
   ScopedStateSave sss(m_ss.get());
-  for (int i = 0; i < traj.rows(); ++i) {
+  for (int i = 0; i < traj.rows(); i+=SQPConfig::plotDecimation) {
     m_ss->setState(traj.row(i));
     BOOST_FOREACH(EnvironmentObjectPtr& obj, m_scene->env->objects) {
       obj->prePhysics();
       obj->preDraw();
     }
     m_scene->draw();
-    printf("press p to continue\n");
+    printf("step %i. press p to continue\n", i);
     m_scene->idle(true);
   }
 }
@@ -166,33 +166,57 @@ void ArmPlotter::plotTraj(const MatrixXd& traj) {
   LOG_INFO_FMT("draw time: %.3f", TOC());
 }
 
+void adjustWorldTransparency(float inc) {
+  EnvironmentPtr env = util::getGlobalEnv();
+  BOOST_FOREACH(EnvironmentObjectPtr obj, env->objects) {
+    obj->adjustTransparency(inc);
+  }
+
+}
+
 void interactiveTrajPlot(const MatrixXd& traj, RaveRobotObject::Manipulator::Ptr arm, Scene* scene) {
+  RobotBasePtr robot = arm->robot->robot;
+  ScopedRobotSave srs(robot);
   BulletRaveSyncherPtr syncher = syncherFromArm(arm);
-  vector<double> curDOFVals = arm->getDOFValues();
+
+  vector<int> armInds = arm->manip->GetArmIndices();
+  if (armInds.size() == traj.cols()) {
+    robot->SetActiveDOFs(arm->manip->GetArmIndices());
+  }
+  else {
+    robot->SetActiveDOFs(armInds, DOF_X | DOF_Y | DOF_RotationAxis, OpenRAVE::RaveVector<double>(0,0,1));
+  }
+
   for (int iStep = 0; iStep < traj.rows(); ++iStep) {
-    arm->setDOFValues(toDoubleVec(traj.row(iStep)));
-    syncher->updateBullet();
+    robot->SetActiveDOFValues(toDoubleVec(traj.row(iStep)));
+    arm->robot->updateBullet();
     printf("step %i. press p to continue\n", iStep);
     scene->step(0);
     scene->idle(true);
   }
-  arm->setDOFValues(curDOFVals);
-  syncher->updateBullet();
 }
 
-PlotHandles plotCollisions(const TrajCartCollInfo& trajCartInfo, double safeDist) {
-  PlotPointsPtr collisions(new PlotPoints(10));
-  PlotLinesPtr escapes(new PlotLines(5));
-  std::vector<EnvironmentObjectPtr> plots;
-  plots.push_back(collisions);
-  plots.push_back(escapes);
+PlotPointsPtr collisions;
+PlotLinesPtr escapes;
+
+void clearCollisionPlots() {
+  collisions->clear();
+  escapes->clear();
+}
+void plotCollisions(const TrajCartCollInfo& trajCartInfo, double safeDist) {
+  if (!collisions) {
+    collisions.reset(new PlotPoints(10));
+    escapes.reset(new PlotLines(5));
+    getGlobalEnv()->add(collisions);
+    getGlobalEnv()->add(escapes);
+  }
 
   const osg::Vec4 GREEN(0, 1, 0, 1), YELLOW(1, 1, 0, 1), RED(1, 0, 0, 1);
   osg::ref_ptr<osg::Vec4Array> colors = new osg::Vec4Array;
   osg::ref_ptr<osg::Vec3Array> escPts = new osg::Vec3Array;
   osg::ref_ptr<osg::Vec3Array> collPts = new osg::Vec3Array;
   for (int iStep = 0; iStep < trajCartInfo.size(); ++iStep) {
-    if (iStep % SQPConfig::plotDecimation != 0) continue;
+//    if (iStep % SQPConfig::plotDecimation != 0) continue;
     for (int iColl = 0; iColl < trajCartInfo[iStep].size(); ++iColl) {
       const LinkCollision& lc = trajCartInfo[iStep][iColl];
       collPts->push_back(toOSGVector(lc.point * METERS));
@@ -209,6 +233,12 @@ PlotHandles plotCollisions(const TrajCartCollInfo& trajCartInfo, double safeDist
   collisions->setPoints(collPts, colors);
   escapes->setPoints(escPts, colors);
 
-  return PlotHandles(plots, getGlobalEnv());
+}
+
+#include <osg/Depth>
+void makeFullyTransparent(EnvironmentObject::Ptr obj) {
+  osg::Depth* depth = new osg::Depth;
+  depth->setWriteMask(false);
+  obj->getOSGNode()->getOrCreateStateSet()->setAttributeAndModes(depth, osg::StateAttribute::ON);
 }
 

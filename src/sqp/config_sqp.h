@@ -15,6 +15,7 @@ struct SQPConfig : Config {
   static int maxIter;
   static double trExpand, trShrink, trThresh;
   static double doneIterThresh;
+  static bool enablePlot;
 
   SQPConfig() : Config() {
     params.push_back(new Parameter<double>("collCoefInit", &collCoefInit, "coeff for collision cost"));
@@ -31,6 +32,7 @@ struct SQPConfig : Config {
     params.push_back(new Parameter<double>("trExpand", &trExpand, "expand factor"));
     params.push_back(new Parameter<double>("trThresh", &trThresh, "threshold to expand/shrink trust region"));
     params.push_back(new Parameter<double>("doneIterThresh", &doneIterThresh, "done iterating threshold"));
+    params.push_back(new Parameter<bool>("enablePlot", &enablePlot, "enablePlot"));
   }
 };
 

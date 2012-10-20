@@ -33,16 +33,6 @@ float clipf(float x,float lo,float hi) {
   return fmin(fmax(x,lo),hi);
 }
 
-void adjustWorldTransparency(float inc) {
-  static float a=1;
-  a=clipf(a+inc,0,1);
-  EnvironmentPtr env = util::getGlobalEnv();
-  BOOST_FOREACH(EnvironmentObjectPtr obj, env->objects) {
-    if (obj) obj->setColor(1,1,1,a);
-  }
-
-}
-
 int main(int argc, char *argv[]) {
 
 

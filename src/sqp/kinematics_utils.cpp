@@ -4,6 +4,7 @@
 #include "simulation/openravesupport.h"
 #include <opencv2/calib3d/calib3d.hpp>
 #include "utils_sqp.h"
+#include "utils/logging.h"
 using namespace std;
 using namespace Eigen;
 
@@ -46,6 +47,33 @@ void setTransformFromXYZROD(btRigidBody* body, const VectorXd& xyzrod) {
   body->setCenterOfMassTransform(fromXYZROD(xyzrod));
 }
 
+
+std::vector<KinBody::JointPtr> getArmJoints(OpenRAVE::RobotBase::ManipulatorPtr manip) {
+  std::vector<KinBody::JointPtr> armJoints;
+  BOOST_FOREACH(int ind, manip->GetArmIndices()) armJoints.push_back(manip->GetRobot()->GetJointFromDOFIndex(ind));
+  return armJoints;
+}
+
+std::vector<KinBody::LinkPtr> getArmLinks(OpenRAVE::RobotBase::ManipulatorPtr manip) {
+  RobotBasePtr robot = manip->GetRobot();
+  int rootLinkInd = robot->GetLink("torso_lift_link")->GetIndex();
+  vector<KinBody::JointPtr> armJoints = getArmJoints(manip);
+  KinBody::JointPtr& firstJoint = armJoints[0];
+
+  vector<KinBody::LinkPtr> armLinks;
+  BOOST_FOREACH(KinBody::LinkPtr link, robot->GetLinks()) {
+    // check chain between link and torso_lift_link
+    // see if it contains firstJoint
+    vector<KinBody::JointPtr> jointChain;
+    robot->GetChain(rootLinkInd, link->GetIndex(), jointChain);
+    if (link->GetGeometries().size() && count(jointChain.begin(), jointChain.end(), firstJoint)) armLinks.push_back(link);
+  }
+  return armLinks;
+}
+
+
+
+
 void BulletRaveSyncher::updateBullet(bool updateMotionState) {
   for (int iBody = 0; iBody < m_bodies.size(); ++iBody) {
     btTransform tf = util::toBtTransform(m_links[iBody]->GetTransform(), GeneralConfig::scale);
@@ -61,12 +89,23 @@ ss  << d << ", ";
   return ss.str();
 }
 
+void ArmPrinter::printAll() {
+  vector<double> dofvals;
+  m_left->robot->robot->GetDOFValues(dofvals);
+
+  BOOST_FOREACH(KinBody::JointPtr joint, m_left->robot->robot->GetJoints()) {
+    cout << joint->GetName() << ": " << dofvals[joint->GetDOFIndex()] << endl;
+  }
+  cout << "all dof vals: " << dofvals << endl;
+  cout << "transform: " << m_left->robot->robot->GetTransform() << endl;
+}
+
 void ArmPrinter::printJoints() {
-  cout << "left joints: " << commaSep(m_left->getDOFValues()) << " right: " << commaSep(m_right->getDOFValues())
+  cout << "cart left: " << commaSep(m_left->getDOFValues()) << " right: " << commaSep(m_right->getDOFValues())
       << endl;
 }
 void ArmPrinter::printCarts() {
-  cout << "right joints: " << m_left->getTransform() << "right: " << m_right->getTransform() << endl;
+  cout << "cart left: " << m_left->getTransform() << "right: " << m_right->getTransform() << endl;
 }
 
 std::vector<OpenRAVE::KinBody::LinkPtr> getAffectedLinks(OpenRAVE::RobotBasePtr robot, const std::vector<int>& dofInds) {
@@ -103,4 +142,39 @@ vector<btTransform> getGripperPoses(const MatrixXd& traj, RaveRobotObject::Manip
   }
   rrom->setDOFValues(dofOrig);
   return out;
+}
+
+BulletRaveSyncherPtr syncherFromArm(RaveRobotObject::Manipulator::Ptr rrom) {
+  vector<KinBody::LinkPtr> armLinks = getArmLinks(rrom->manip);
+  vector<btRigidBody*> armBodies;
+  BOOST_FOREACH(KinBody::LinkPtr& link, armLinks) {
+    armBodies.push_back(rrom->robot->associatedObj(link)->rigidBody.get());
+  }
+  return BulletRaveSyncherPtr(new BulletRaveSyncher(armLinks, armBodies));
+}
+
+BulletRaveSyncherPtr fullBodySyncher(RaveRobotObject* rro) {
+  RobotBasePtr robot = rro->robot;
+  std::set<KinBody::LinkPtr> linkSet;
+  for (int i=0; i < rro->numCreatedManips(); ++i) {
+    KinBody::LinkPtr eeLink = rro->getManipByIndex(i)->manip->GetEndEffector();
+    vector<KinBody::LinkPtr> chain;
+    robot->GetChain(0,eeLink->GetIndex(), chain);
+    BOOST_FOREACH(KinBody::LinkPtr link, chain) linkSet.insert(link);
+  }
+
+  stringstream ss;
+
+  vector<btRigidBody*> bodies;
+  vector<KinBody::LinkPtr> links;
+  BOOST_FOREACH(KinBody::LinkPtr link, linkSet) {
+    BulletObject::Ptr bobj = rro->associatedObj(link);
+    if (bobj) {
+      bodies.push_back(bobj->rigidBody.get());
+      links.push_back(link);
+      ss << link->GetName() << " ";
+    }
+  }
+  LOG_DEBUG("synched links: " << ss);
+  return BulletRaveSyncherPtr(new BulletRaveSyncher(links, bodies));
 }

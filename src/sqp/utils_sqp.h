@@ -98,6 +98,14 @@ void printAllConstraints(const GRBModel& model);
 inline double pospart(double x) {
   return (x > 0) ? x : 0;
 }
+inline double sq(double x) {
+  return x * x;
+}
+inline double clip(double x, double lo, double hi) {
+  return x < lo ? lo :
+                x > hi ? hi :
+                       x;
+}
 
 inline std::string base_filename(char* in) {
   std::string s(in);

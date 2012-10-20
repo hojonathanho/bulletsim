@@ -7,6 +7,8 @@
 #include "simulation/simulation_fwd.h"
 #include "traj_costs.h"
 
+#include "utils/logging.h"
+
 class PlotHandles {
 	// in a plotting function, return plot handles
 	// it'll add the plots to the environment when it's created
@@ -113,4 +115,8 @@ public:
 };
 
 void interactiveTrajPlot(const Eigen::MatrixXd& traj, RaveRobotObject::Manipulator::Ptr arm, Scene* scene);
-PlotHandles plotCollisions(const TrajCartCollInfo& trajCartInfo, double safeDist);
+void clearCollisionPlots();
+void plotCollisions(const TrajCartCollInfo& trajCartInfo, double safeDist);
+
+void adjustWorldTransparency(float);
+void makeFullyTransparent(EnvironmentObject::Ptr obj);

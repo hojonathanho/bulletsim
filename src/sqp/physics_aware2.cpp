@@ -96,9 +96,6 @@ void PushCollision::removeVariablesAndConstraints() {
 }
 #endif
 
-static inline double sq(double x) {
-  return x * x;
-}
 
 PushCollision::PushCollision(RaveRobotObjectPtr robot, OpenRAVE::KinBody::LinkPtr link,
                              btRigidBody* body, std::vector<int> dofInds) :
@@ -110,11 +107,8 @@ PushCollision::PushCollision(RaveRobotObjectPtr robot, OpenRAVE::KinBody::LinkPt
 
   m_bodyShape = dynamic_cast<btConvexShape*> (body->getCollisionShape());
   assert(m_bodyShape);
-  btCompoundShape* linkCompoundShape = dynamic_cast<btCompoundShape*> (m_linkBody->getCollisionShape());
-  assert(linkCompoundShape);
-  m_linkBodyShape = dynamic_cast<btConvexShape*> (linkCompoundShape->getChildShape(0));
+  m_linkBodyShape = dynamic_cast<btConvexShape*> (m_linkBody->getCollisionShape());
   assert(m_linkBodyShape);
-  assert(linkCompoundShape->getNumChildShapes()==1);
 }
 
 double PushCollision::calcPenCost(const Eigen::VectorXd& dofs) {

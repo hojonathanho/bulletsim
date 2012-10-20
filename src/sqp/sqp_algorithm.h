@@ -29,6 +29,8 @@ public:
   Eigen::VectorXd m_times; // note that these aren't times in meaningful. they're just the integer indices
   TrustRegionAdjusterPtr m_tra; // this is the problem component that determines how much you're allowed to chnage at each iteration
   bool m_exactObjectiveReady, m_approxObjectiveReady;
+  std::map<std::string, VarVector> m_varVecs;
+
 
   PlanningProblem();
   void addComponent(ProblemComponentPtr comp);
@@ -123,10 +125,11 @@ public:
   double m_exactObjective;
   TrajCartCollInfo m_cartCollInfo;
   Eigen::VectorXd m_coeffVec;
+  bool m_useAffine;
   void removeVariablesAndConstraints();
   CollisionCost(OpenRAVE::RobotBasePtr robot, btDynamicsWorld* world, BulletRaveSyncherPtr brs,
-                const vector<int>& dofInds, double distPen, double coeff) :
-    m_robot(robot), m_world(world), m_brs(brs), m_dofInds(dofInds), m_distPen(distPen), m_coeff(coeff) {
+                const vector<int>& dofInds, double distPen, double coeff, bool useAffine=false) :
+    m_robot(robot), m_world(world), m_brs(brs), m_dofInds(dofInds), m_distPen(distPen), m_coeff(coeff), m_useAffine(useAffine) {
   }
   virtual int getAttrs() {
     return HAS_COST;
@@ -179,7 +182,7 @@ public:
 
 class TrustRegionAdjuster : public ProblemComponent {
 public:
-  int m_shrinkage;
+  double m_shrinkage;
   TrustRegionAdjuster() : m_shrinkage(1) {}
   virtual int getAttrs() {
     return HAS_CONSTRAINT;
@@ -220,20 +223,21 @@ public:
 };
 
 class JointBounds : public TrustRegionAdjuster {
-  // todo: set these in constructor
+public:
   Eigen::VectorXd m_jointLowerLimit;
   Eigen::VectorXd m_jointUpperLimit;
   Eigen::VectorXd m_maxDiffPerIter;
   bool m_startFixed, m_endFixed;
   GRBQConstr m_cnt;
-  void construct(bool startFixed, bool endFixed, const Eigen::VectorXd& maxDiffPerIter,
-                 OpenRAVE::RobotBase::ManipulatorPtr manip, int extraDofs);
+  void construct(OpenRAVE::RobotBasePtr robot, bool startFixed, bool endFixed, const Eigen::VectorXd& maxDiffPerIter,
+                 const std::vector<int>& dofInds, int extraDofs);
 
-public:
   JointBounds(bool startFixed, bool endFixed, const Eigen::VectorXd& maxDiffPerIter,
               OpenRAVE::RobotBase::ManipulatorPtr manip);
   JointBounds(bool startFixed, bool endFixed, const Eigen::VectorXd& maxDiffPerIter,
               OpenRAVE::RobotBase::ManipulatorPtr manip, int extraDofs);
+  JointBounds(OpenRAVE::RobotBasePtr robot, bool startFixed, bool endFixed, const Eigen::VectorXd& maxDiffPerIter,
+              const std::vector<int>& dofInds);
 
   void onAdd();
   void onRemove() {
@@ -247,24 +251,40 @@ public:
 
 
 class CartesianPoseCost : public CostFunc {
+public:
   GRBQuadExpr m_obj;
+
+  /// just for l1 version
+  bool m_l1;
+  std::vector<GRBConstr> m_cnts;
+  std::vector<GRBVar> m_vars;
+  ////
+
   RaveRobotObject::Manipulator::Ptr m_manip;
   Eigen::Vector3d m_posTarg;
   Eigen::Vector4d m_rotTarg;
   double m_posCoeff, m_rotCoeff;
   int m_timestep;
-public:
+  double m_exactObjective;
+  std::vector<int> m_dofInds;
   CartesianPoseCost(RaveRobotObject::Manipulator::Ptr manip, const btTransform& target, int timestep, double posCoeff,
                     double rotCoeff) :
     m_manip(manip), m_posTarg(toVector3d(target.getOrigin())), m_rotTarg(toVector4d(target.getRotation())),
-        m_posCoeff(posCoeff), m_rotCoeff(rotCoeff), m_timestep(timestep) {
+        m_posCoeff(posCoeff), m_rotCoeff(rotCoeff), m_timestep(timestep), m_dofInds(m_manip->manip->GetArmIndices()) {
+  }
+  CartesianPoseCost(RaveRobotObject::Manipulator::Ptr manip, const std::vector<int>& dofInds, const btTransform& target, int timestep, double posCoeff,
+                    double rotCoeff) :
+    m_manip(manip), m_posTarg(toVector3d(target.getOrigin())), m_rotTarg(toVector4d(target.getRotation())),
+        m_posCoeff(posCoeff), m_rotCoeff(rotCoeff), m_timestep(timestep), m_dofInds(dofInds) {
   }
 
   void updateModel(const Eigen::MatrixXd& traj, GRBQuadExpr& objective);
+  void removeConstraints();
   double getApproxCost() {
     return m_obj.getValue();
   }
-  double getCachedCost();
+  double getCachedCost() {return m_exactObjective;}
+  double getCost();
   void subdivide(const std::vector<double>& insertTimes, const Eigen::VectorXd& oldTimes,
                  const Eigen::VectorXd& newTimes);
 };

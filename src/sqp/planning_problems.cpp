@@ -167,6 +167,15 @@ void addFixedEnd(MatrixXd& traj, int nEnd) {
   for (int i=0; i < nEnd; ++i) traj.row(oldLen+i) = traj.row(oldLen-1);
 }
 
+VectorXd concatenate(VectorXd x0, VectorXd x1) {
+  VectorXd out(x0.size()+x1.size());
+  out.middleRows(0,x0.size()) = x0;
+  out.middleRows(x0.size(),x1.size());
+  return out;
+}
+
+
+
 bool planArmToGrasp(PlanningProblem& prob, const Eigen::VectorXd& startJoints, const btTransform& goalTrans, RaveRobotObject::Manipulator::Ptr arm) {
   BulletRaveSyncherPtr brs = syncherFromArm(arm);
   int nEnd = 6;
@@ -180,9 +189,7 @@ bool planArmToGrasp(PlanningProblem& prob, const Eigen::VectorXd& startJoints, c
 
   MatrixXd initTraj = makeTraj(startJoints, endJoints, SQPConfig::nStepsInit);
   int oldLen = initTraj.rows();
-  cout << "old len " << oldLen << endl;
   addFixedEnd(initTraj, nEnd);
-  cout << "new len " << initTraj.rows() << endl;
   typedef pair<double, double> paird;
   vector<paird> allowedCollisionIntervals;
   allowedCollisionIntervals.push_back(paird(oldLen, oldLen+nEnd));
@@ -204,6 +211,40 @@ bool planArmToGrasp(PlanningProblem& prob, const Eigen::VectorXd& startJoints, c
   return outerOptimization(prob, cc, allowedCollisionIntervals, 200, 100);
 
 }
+
+
+bool planArmBaseToCartTarget(PlanningProblem& prob, const Eigen::VectorXd& startJoints, const btTransform& goalTrans,
+                             RaveRobotObject::Manipulator::Ptr arm) {
+  BulletRaveSyncherPtr brs = fullBodySyncher(arm->robot);
+
+  VectorXd endJoints = startJoints;
+  Vector2d goalXY(goalTrans.getOrigin().x(), goalTrans.getOrigin().y());
+  Vector2d goalDir = (goalXY - startJoints.middleRows(7,2)).normalized();
+  endJoints.middleRows(7,2) = goalXY - goalDir*1.; // 1 meter behind goal
+
+  MatrixXd initTraj = makeTraj(startJoints, endJoints, SQPConfig::nStepsInit); // xxx nsteps
+  VectorXd maxStepMvmt = defaultMaxStepMvmt(initTraj);
+  maxStepMvmt.middleRows(7,2).setConstant(2);
+
+
+  CartesianPoseCostPtr cp(new CartesianPoseCost(arm, goalTrans, initTraj.rows() - 1, 1000.,0));
+  LengthConstraintAndCostPtr lcc(new LengthConstraintAndCost(true, false, maxStepMvmt, SQPConfig::lengthCoef));
+  CollisionCostPtr cc(new CollisionCost(arm->robot->robot,   arm->robot->getEnvironment()->bullet->dynamicsWorld, brs,
+      arm->manip->GetArmIndices(), SQPConfig::distPen, SQPConfig::collCoefInit,true));
+  JointBoundsPtr jb(new JointBounds(true, false, maxStepMvmt, arm->manip,3));
+  jb->m_jointUpperLimit(9) = 1e-2; // since rotation is screwy
+  jb->m_jointLowerLimit(9) = -1e-2;
+  cp->m_l1 = true;
+
+  prob.initialize(initTraj, false);
+  prob.addComponent(lcc);
+  prob.addComponent(cc);
+  prob.addTrustRegionAdjuster(jb);
+  prob.addComponent(cp);
+//  prob.testObjectives();
+  return outerOptimization(prob, cc, vector<paird>(), 200, 100);
+}
+
 
 #if 0
 bool planArmToGrasp(PlanningProblem& prob, btTransform& target) {

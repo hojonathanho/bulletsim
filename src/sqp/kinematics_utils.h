@@ -10,6 +10,14 @@ Eigen::VectorXd toXYZROD(const btTransform& tf);
 btTransform fromXYZROD(const Eigen::VectorXd& xyzrod);
 void setTransformFromXYZROD(btRigidBody* body, const Eigen::VectorXd& xyzrod);
 
+
+void getArmKinInfo(const OpenRAVE::RobotBasePtr& robot, const OpenRAVE::RobotBase::ManipulatorPtr manip, std::vector<OpenRAVE::KinBody::LinkPtr>& armLinks, std::vector<OpenRAVE::KinBody::JointPtr>& armJoints, std::vector<int>& chainDepthOfBodies);
+
+std::vector<OpenRAVE::KinBody::JointPtr> getArmJoints(OpenRAVE::RobotBase::ManipulatorPtr manip);
+std::vector<OpenRAVE::KinBody::LinkPtr> getArmLinks(OpenRAVE::RobotBase::ManipulatorPtr manip);
+std::vector<OpenRAVE::KinBody::LinkPtr> getAffectedLinks(OpenRAVE::RobotBasePtr robot, const std::vector<int>& dofInds);
+
+
 class BulletRaveSyncher {
 public:
   std::vector<OpenRAVE::KinBody::LinkPtr> m_links; // what links are part of the object we're planning with
@@ -20,14 +28,12 @@ public:
 };
 
 
-
-std::vector<OpenRAVE::KinBody::LinkPtr> getAffectedLinks(OpenRAVE::RobotBasePtr robot, const std::vector<int>& dofInds);
-
 std::vector<btVector3> getGripperPositions(const Eigen::MatrixXd& traj, RaveRobotObject::Manipulator::Ptr rrom);
 
 std::vector<btTransform> getGripperPoses(const Eigen::MatrixXd& traj, RaveRobotObject::Manipulator::Ptr rrom);
 
 BulletRaveSyncherPtr syncherFromArm(RaveRobotObject::Manipulator::Ptr rrom);
+BulletRaveSyncherPtr fullBodySyncher(RaveRobotObject* rro);
 
 class ArmPrinter {
 public:
@@ -38,5 +44,6 @@ public:
   m_left(left), m_right(right) {}
   void printJoints();
   void printCarts();
+  void printAll();
 };
 

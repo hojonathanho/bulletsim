@@ -17,12 +17,13 @@ class RobotJointSetter : public StateSetter {
   OpenRAVE::RobotBasePtr m_robot;
   std::vector<int> m_dofInds;
   BulletRaveSyncherPtr m_brs;
+  bool m_useAffine;
 public:
-  RobotJointSetter(RaveRobotObject::Ptr robot, const std::vector<int>& dofInds);
+  RobotJointSetter(RaveRobotObject::Ptr robot, const std::vector<int>& dofInds, bool useAffine=false);
   void setState(const Eigen::VectorXd&);
   Eigen::VectorXd getState();
   int getNumDof() {
-    return m_dofInds.size();
+    return m_dofInds.size()+m_useAffine*3;
   }
 };
 

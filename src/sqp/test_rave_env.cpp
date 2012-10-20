@@ -64,7 +64,7 @@ void removeBodiesFromBullet(vector<BulletObject::Ptr> objs, btDynamicsWorld* wor
 
 int main(int argc, char *argv[]) {
 
-  BulletConfig::linkPadding = .02;
+  BulletConfig::linkPadding = .04;
   GeneralConfig::verbose=20000;
   GeneralConfig::scale = 10.;
 
@@ -82,6 +82,8 @@ int main(int argc, char *argv[]) {
 
   util::setGlobalEnv(scene.env);
   util::setGlobalScene(&scene);
+  scene.addVoidKeyCallback('=', boost::bind(&adjustWorldTransparency, .05), "increase opacity");
+  scene.addVoidKeyCallback('-', boost::bind(&adjustWorldTransparency, -.05), "decrease opacity");
 
 
   Json::Value probInfo = readJson(LocalConfig::probSpec);
@@ -101,7 +103,7 @@ int main(int argc, char *argv[]) {
   removeBodiesFromBullet(pr2->children, scene.env->bullet->dynamicsWorld);
   BOOST_FOREACH(EnvironmentObjectPtr obj, scene.env->objects) {
     BulletObjectPtr bobj = boost::dynamic_pointer_cast<BulletObject>(obj);
-    obj->setColor(randf(),randf(),randf(),.4);
+    obj->setColor(randf(),randf(),randf(),1);
 //    if (bobj) makeFullyTransparent(bobj);
   }
   pr2->setColor(0,1,1, .4);
@@ -115,14 +117,9 @@ int main(int argc, char *argv[]) {
 
   TIC();
   PlanningProblem prob;
-//  prob.addPlotter(ArmPlotterPtr(new ArmPlotter(arm, &scene,  SQPConfig::plotDecimation)));
+  prob.addPlotter(ArmPlotterPtr(new ArmPlotter(arm, &scene,  SQPConfig::plotDecimation)));
 
 
-
-  if (SQPConfig::pauseEachIter) {
-    boost::function<void(PlanningProblem*)> func = boost::bind(&Scene::idle, &scene, true);
-    prob.m_callbacks.push_back(func);
-  }
   if (probInfo["goal_type"] == "joint") {
     int nJoints = 7;
     VectorXd startJoints = toVectorXd(arm->getDOFValues());
@@ -162,7 +159,7 @@ int main(int argc, char *argv[]) {
   }
 
 
-//  prob.m_plotters[0].reset();
+  prob.m_plotters[0].reset();
 
   BulletConfig::linkPadding = 0;
   scene.env->remove(pr2);

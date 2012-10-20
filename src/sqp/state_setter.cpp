@@ -5,9 +5,9 @@
 #include "utils_sqp.h"
 #include "simulation/bullet_io.h"
 using namespace Eigen;
-RaveRobotObject::Ptr asdf;
-RobotJointSetter::RobotJointSetter(RaveRobotObject::Ptr robot, const std::vector<int>& dofInds) :
-  m_robot(robot->robot), m_dofInds(dofInds) {
+
+RobotJointSetter::RobotJointSetter(RaveRobotObject::Ptr robot, const std::vector<int>& dofInds, bool useAffine) :
+  m_robot(robot->robot), m_dofInds(dofInds), m_useAffine(useAffine) {
   std::vector<OpenRAVE::KinBody::LinkPtr> links = getAffectedLinks(robot->robot, dofInds);
   vector<btRigidBody*> bodies;
   links.clear();
@@ -18,21 +18,29 @@ RobotJointSetter::RobotJointSetter(RaveRobotObject::Ptr robot, const std::vector
     }
   }
   m_brs.reset(new BulletRaveSyncher(links, bodies));
-  asdf = robot;
 }
 
 void RobotJointSetter::setState(const Eigen::VectorXd& state) {
-  m_robot->SetActiveDOFs(m_dofInds);
+  if (m_useAffine) {
+    m_robot->SetActiveDOFs(m_dofInds, DOF_X | DOF_Y | DOF_RotationAxis, OpenRAVE::RaveVector<double>(0,0,1));
+  }
+  else {
+    m_robot->SetActiveDOFs(m_dofInds);
+  }
   m_robot->SetActiveDOFValues(toDoubleVec(state));
-//  asdf->setDOFValues(m_dofInds, toDoubleVec(state));
   m_brs->updateBullet(true);
-//  asdf->updateBullet();
 }
 
 VectorXd RobotJointSetter::getState() {
-  m_robot->SetActiveDOFs(m_dofInds);
+  if (m_useAffine) {
+    m_robot->SetActiveDOFs(m_dofInds, DOF_X | DOF_Y | DOF_RotationAxis, OpenRAVE::RaveVector<double>(0,0,1));
+  }
+  else {
+    m_robot->SetActiveDOFs(m_dofInds);
+  }
   vector<double> x;
   m_robot->GetActiveDOFValues(x);
+
   return toVectorXd(x);
 }
 
