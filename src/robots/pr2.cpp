@@ -235,6 +235,13 @@ PR2Manager::PR2Manager(Scene &s) : scene(s), inputState() {
     registerSceneCallbacks();
 }
 
+static void drive(RaveRobotObject* robot, float dx, float dy, float da) {
+  LOG_DEBUG_FMT("driving %.2f %.2f %.2f", dx, dy, da);
+  btTransform tf = robot->getTransform();
+  tf = tf * btTransform(btQuaternion(0,0,da), btVector3(dx*METERS, dy*METERS, 0));
+  robot->setTransform(tf);
+}
+
 void PR2Manager::registerSceneCallbacks() {
     Scene::Callback mousecb = boost::bind(&PR2Manager::processMouseInput, this, _1);
     scene.addCallback(osgGA::GUIEventAdapter::PUSH, mousecb);
@@ -246,6 +253,14 @@ void PR2Manager::registerSceneCallbacks() {
 
     if (SceneConfig::enableRobot && SceneConfig::enableHaptics)
         scene.addPreStepCallback(boost::bind(&PR2Manager::processHapticInput, this));
+
+    scene.addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Left, boost::bind(drive, pr2.get(), 0,.05, 0));
+    scene.addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Right, boost::bind(drive, pr2.get(), 0,-.05, 0));
+    scene.addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Up, boost::bind(drive, pr2.get(), .05,0,  0));
+    scene.addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Down, boost::bind(drive, pr2.get(), -.05,0, 0));
+    scene.addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Leftbracket, boost::bind(drive, pr2.get(), 0,0, .05));
+    scene.addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Rightbracket, boost::bind(drive, pr2.get(), 0,0, -.05));
+
 }
 
 void PR2Manager::loadRobot() {

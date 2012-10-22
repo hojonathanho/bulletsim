@@ -11,6 +11,7 @@ struct BulletConfig : Config {
   static float restitution;
   static float margin;
   static float linkPadding;
+  static bool graphicsMesh;
 
   BulletConfig() : Config() {
     params.push_back(new Parameter<float>("gravity", &gravity.m_floats[2], "gravity (z component)")); 
@@ -21,6 +22,7 @@ struct BulletConfig : Config {
     params.push_back(new Parameter<float>("restitution", &restitution, "not currently implemented"));
     params.push_back(new Parameter<float>("margin", &margin, "not currently implemented"));
     params.push_back(new Parameter<float>("linkPadding", &linkPadding, "expand links by that much if they're convex hull shapes"));
+    params.push_back(new Parameter<bool>("graphicsMesh", &graphicsMesh, "visualize a high res graphics mesh"));
   }
 
 };

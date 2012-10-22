@@ -1,9 +1,10 @@
 #include "simulation/simplescene.h"
 #include "collision_map_tools.h"
-#include "robots/pr2.h"
+#include "robots/robot_manager.h"
 #include "clouds/cloud_ops.h"
 #include "simulation/simulation_fwd.h"
 #include "simulation/bullet_io.h"
+#include "kinematics_utils.h"
 
 struct LocalConfig : Config {
 
@@ -24,25 +25,6 @@ struct LocalConfig : Config {
 string LocalConfig::loadCloud="";
 string LocalConfig::loadEnv="";
 
-
-class ArmPrinter {
-public:
-  static string commaSep(std::vector<double> v) {
-    stringstream ss;
-    BOOST_FOREACH(double d, v) ss << d << ", ";
-    return ss.str();
-  }
-
-  RaveRobotObject::Manipulator::Ptr m_left, m_right;
-  ArmPrinter(RaveRobotObject::Manipulator::Ptr left, RaveRobotObject::Manipulator::Ptr right) :
-    m_left(left), m_right(right) {}
-  void printJoints() {
-    cout << "left joints: " << commaSep(m_left->getDOFValues()) << " right: " << commaSep(m_right->getDOFValues()) << endl;
-  }
-  void printCarts() {
-    cout << "right joints: " << m_left->getTransform() << "right: " << m_right->getTransform() << endl;
-  }
-};
 
 int main(int argc, char* argv[]) {
     Parser parser;
@@ -73,15 +55,16 @@ int main(int argc, char* argv[]) {
 
     RaveRobotObjectPtr  pr2 = getRobotByName(scene.env, scene.rave, "pr2");
     if (!pr2) pr2 = getRobotByName(scene.env, scene.rave, "PR2");
+    if (!pr2) pr2 = getRobotByName(scene.env, scene.rave, "BarrettWAM");
     assert (pr2);
 
-    PR2Manager pr2m(scene);
-    assert (pr2m.pr2Right);
+    RobotManager pr2m(scene);
+    assert (pr2m.botRight);
 
-    ArmPrinter ap(pr2m.pr2Left, pr2m.pr2Right);
+    ArmPrinter ap(pr2m.botLeft, pr2m.botRight);
     scene.addVoidKeyCallback('c',boost::bind(&ArmPrinter::printCarts, &ap), "print cart");
     scene.addVoidKeyCallback('j',boost::bind(&ArmPrinter::printJoints, &ap), "print joints");
-
+    scene.addVoidKeyCallback('a', boost::bind(&ArmPrinter::printAll, &ap), "print all dofs");
 
     scene.startViewer();
     while (true) {

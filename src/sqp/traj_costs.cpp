@@ -8,6 +8,7 @@
 #include "simulation/config_bullet.h"
 #include "config_sqp.h"
 #include "simulation/openravesupport.h"
+#include "kinematics_utils.h"
 using namespace std;
 using namespace OpenRAVE;
 using namespace util;
@@ -39,30 +40,6 @@ void getArmKinInfo(const RobotBasePtr& robot, const RobotBase::ManipulatorPtr ma
   }
 }
 
-std::vector<KinBody::JointPtr> getArmJoints(OpenRAVE::RobotBase::ManipulatorPtr manip) {
-  std::vector<KinBody::JointPtr> armJoints;
-  BOOST_FOREACH(int ind, manip->GetArmIndices()) armJoints.push_back(manip->GetRobot()->GetJointFromDOFIndex(ind));
-  return armJoints;
-}
-
-std::vector<KinBody::LinkPtr> getArmLinks(OpenRAVE::RobotBase::ManipulatorPtr manip) {
-  RobotBasePtr robot = manip->GetRobot();
-  int rootLinkInd = robot->GetLink("torso_lift_link")->GetIndex();
-  vector<KinBody::JointPtr> armJoints = getArmJoints(manip);
-  KinBody::JointPtr& firstJoint = armJoints[0];
-
-  vector<KinBody::LinkPtr> armLinks;
-  BOOST_FOREACH(KinBody::LinkPtr link, robot->GetLinks()) {
-    // check chain between link and torso_lift_link
-    // see if it contains firstJoint
-    vector<KinBody::JointPtr> jointChain;
-    robot->GetChain(rootLinkInd, link->GetIndex(), jointChain);
-    if (link->GetGeometries().size() && count(jointChain.begin(), jointChain.end(), firstJoint)) armLinks.push_back(link);
-  }
-  return armLinks;
-}
-
-
 
 
 #if 0
@@ -80,12 +57,20 @@ MatrixXd discreteSecondDeriv(MatrixXd& in) {
 }
 #endif
 
-TrajCartCollInfo collectTrajCollisions(const Eigen::MatrixXd& traj, RobotBasePtr robot, BulletRaveSyncher& brs, btCollisionWorld* world, const std::vector<int>& dofInds) {
+TrajCartCollInfo collectTrajCollisions(const Eigen::MatrixXd& traj, RobotBasePtr robot, BulletRaveSyncher& brs, btCollisionWorld* world, const std::vector<int>& dofInds, bool useAffine) {
   ScopedRobotSave srs(robot);
   TrajCartCollInfo out(traj.rows());
-  robot->SetActiveDOFs(dofInds);
+  if (useAffine) {
+    robot->SetActiveDOFs(dofInds, DOF_X | DOF_Y | DOF_RotationAxis, OpenRAVE::RaveVector<double>(0,0,1));
+  }
+  else {
+    robot->SetActiveDOFs(dofInds);
+  }
   vector<int> linkInds;
-  BOOST_FOREACH(KinBody::LinkPtr link, brs.m_links) linkInds.push_back(link->GetIndex());
+  BOOST_FOREACH(KinBody::LinkPtr link, brs.m_links) {
+    if (link->GetParent() == robot) linkInds.push_back(link->GetIndex());
+    else (linkInds.push_back(getGrabberLink(link->GetParent())->GetIndex()));
+  }
   for (int iStep=0; iStep<traj.rows(); ++iStep) {
     robot->SetActiveDOFValues(toDoubleVec(traj.row(iStep)));
     brs.updateBullet();
@@ -98,14 +83,29 @@ TrajCartCollInfo collectTrajCollisions(const Eigen::MatrixXd& traj, RobotBasePtr
         Collision& collision = collisionCollector.m_collisions[iColl];
         btVector3 point = ((collision.m_obj0 == body) ? collision.m_world0 : collision.m_world1)/METERS;
         btVector3 normal = (collision.m_obj0 == body) ? collision.m_normal : -collision.m_normal;
-        double dist = collision.m_distance/METERS+BulletConfig::linkPadding;
-        out[iStep].push_back(LinkCollision(dist, linkInds[iBody], point, normal));
+        double dist = collision.m_distance/METERS+SQPConfig::padMult*BulletConfig::linkPadding;
+        if (point.getZ() > .05*METERS) out[iStep].push_back(LinkCollision(dist, linkInds[iBody], point, normal));
       }
     }
+    LOG_DEBUG_FMT("%i collisions at time %i", out[iStep].size(), iStep);
   }
   return out;
 }
 
+btConvexShape* getConvexCollisionShape(btCollisionShape* shape) {
+  if (shape->getShapeType() == COMPOUND_SHAPE_PROXYTYPE) {
+    btCompoundShape* compound = static_cast<btCompoundShape*>(shape);
+    assert(compound->getNumChildShapes()==1);
+    btConvexShape* out = static_cast<btConvexShape*>(compound->getChildShape(0));
+    assert(out != NULL);
+    return out;
+  }
+  else {
+    btConvexShape* out = static_cast<btConvexShape*>(shape);
+    assert(out != NULL);
+    return out;
+  }
+}
 
 TrajCartCollInfo continuousTrajCollisions(const Eigen::MatrixXd& traj,
     OpenRAVE::RobotBasePtr robot, BulletRaveSyncher& brs, btCollisionWorld* world,
@@ -129,13 +129,15 @@ TrajCartCollInfo continuousTrajCollisions(const Eigen::MatrixXd& traj,
     vector<btTransform> newTransforms;
     BOOST_FOREACH(OpenRAVE::KinBody::LinkPtr link, brs.m_links) newTransforms.push_back(toBtTransform(link->GetTransform(),METERS));
     for (int iBody=0; iBody < brs.m_bodies.size(); ++iBody) {
-      btCompoundShape* shape = dynamic_cast<btCompoundShape*>(brs.m_bodies[iBody]->getCollisionShape());
-      btConvexShape* cShape = dynamic_cast<btConvexShape*>(shape->getChildShape(0));
+
+      btConvexShape* cShape = getConvexCollisionShape(brs.m_bodies[iBody]->getCollisionShape());
+      if (cShape == NULL) printf("bad link: %s\n", brs.m_links[iBody]->GetName().c_str());
+      assert(cShape != NULL);
       btCollisionWorld::ClosestConvexResultCallback ccc(btVector3(NAN, NAN, NAN), btVector3(NAN, NAN, NAN));
       // XXX in general there is some arbitrary child shape transform
       // but for our pr2 model loaded by openravesupport.cpp, there's only one child shape, and transform is the idenetiy
-      world->convexSweepTest(cShape, oldTransforms[iBody], newTransforms[iBody], ccc, (BulletConfig::linkPadding - dSafeCont)*METERS);
-      if (ccc.hasHit()) {
+      world->convexSweepTest(cShape, oldTransforms[iBody], newTransforms[iBody], ccc, (SQPConfig::padMult*BulletConfig::linkPadding - dSafeCont)*METERS);
+      if (ccc.hasHit() && ccc.m_hitPointWorld.getZ() > .05*METERS) {
         out[iStep-1].push_back(LinkCollision(.05, linkInds[iBody], ccc.m_hitPointWorld, ccc.m_hitNormalWorld));
         out[iStep-1][0].frac = ccc.m_closestHitFraction;
       }
@@ -147,60 +149,44 @@ TrajCartCollInfo continuousTrajCollisions(const Eigen::MatrixXd& traj,
 }
 
 JointCollInfo cartToJointCollInfo(const CartCollInfo& in, const Eigen::VectorXd& dofVals, RobotBasePtr robot,
-    const std::vector<int>& dofInds) {
+    const std::vector<int>& dofInds, bool useAffine) {
 
   ScopedRobotSave srs(robot);
 
-  robot->SetActiveDOFs(dofInds);
+  if (useAffine) {
+    robot->SetActiveDOFs(dofInds, DOF_X | DOF_Y | DOF_RotationAxis, OpenRAVE::RaveVector<double>(0,0,1));
+  }
+  else {
+    robot->SetActiveDOFs(dofInds);
+  }
   robot->SetActiveDOFValues(toDoubleVec(dofVals));
-  vector<KinBody::JointPtr> joints;
-  BOOST_FOREACH(int dofInd, dofInds) joints.push_back(robot->GetJointFromDOFIndex(dofInd));
 
   JointCollInfo out;
   out.dists.resize(in.size());
   out.jacs.resize(in.size());
 
+  int nJoints = dofInds.size() + useAffine*3;
+
   for (int iColl = 0; iColl < in.size(); ++iColl) {
     const LinkCollision& lc = in[iColl];
-//    out.jacs[iColl] = VectorXd::Zero(joints.size());
     out.dists[iColl] = lc.dist;
-#if 0
-    for (int iJoint = 0; iJoint < chainDepthOfBodies[lc.linkInd]; ++iJoint) {
-      const KinBody::JointPtr& joint = joints[iJoint];
-      out.jacs[iColl](iJoint) += (lc.point - toBtVector(joint->GetAnchor())) .cross(toBtVector(joint->GetAxis())) .dot(lc.normal);
-      out.dists[iColl] = lc.dist;
-    }
-#endif
 
-#if 0
-    for (int iJoint = 0; iJoint < joints.size(); ++iJoint) {
-      if (robot->DoesAffect(dofInds[iJoint], lc.linkInd)) {
-        const KinBody::JointPtr& joint = joints[iJoint];
-        out.jacs[iColl](iJoint) = (lc.point - toBtVector(joint->GetAnchor())) .cross(toBtVector(joint->GetAxis())) .dot(lc.normal);
-      }
-    }
-#endif
-
-#if 1
-    int nJoints = joints.size();
     std::vector<double> jacvec(3*nJoints);
     robot->CalculateActiveJacobian(lc.linkInd, toRaveVector(lc.point), jacvec);
     out.jacs[iColl] = - toVector3d(lc.normal).transpose() * Eigen::Map<MatrixXd>(jacvec.data(), 3, nJoints);
-//    cout << grad.transpose() << endl;
-//    cout << out.jacs[iColl].transpose() << endl;
-//    cout << (grad - out.jacs[iColl]).norm() << endl;
-//    assert ((grad - out.jacs[iColl]).norm() < 1e-6);
-#endif
+    if (useAffine) out.jacs[iColl](nJoints - 1) *= -1;
 
   }
   return out;
 }
 
+
+
 TrajJointCollInfo trajCartToJointCollInfo(const TrajCartCollInfo& in, const Eigen::MatrixXd& traj, RobotBasePtr robot,
-    const std::vector<int>& dofInds) {
+    const std::vector<int>& dofInds, bool useAffine) {
   TrajJointCollInfo out(in.size());
   for (int iStep=0; iStep < in.size(); ++iStep) {
-    out[iStep] = cartToJointCollInfo(in[iStep], traj.row(iStep), robot, dofInds);
+    out[iStep] = cartToJointCollInfo(in[iStep], traj.row(iStep), robot, dofInds, useAffine);
   }
   return out;
 }
@@ -218,7 +204,7 @@ void calcCollisionInfo(btRigidBody* body, btCollisionWorld* world, std::vector<b
     Collision& collision = collisionCollector.m_collisions[iColl];
     points[iColl] = (collision.m_obj0 == body) ? collision.m_world0 : collision.m_world1;
     normals[iColl] = (collision.m_obj0 == body) ? collision.m_normal : -collision.m_normal;
-    dists[iColl] = (collision.m_distance + BulletConfig::linkPadding) / METERS;
+    dists[iColl] = (collision.m_distance + SQPConfig::padMult*BulletConfig::linkPadding) / METERS;
   }
 }
 
@@ -314,89 +300,6 @@ TrajJointCollInfo GenericCCE::collectCollisionInfo(const Eigen::MatrixXd& traj) 
 #endif
 
 
-//std::vector< std::vector<Collision> >
-//TrajCollInfo getTrajCollisions(){}
-
-float ArmCCE::calcCost(const Eigen::MatrixXd& traj) {
-  float val = 0;
-  int nSteps = traj.rows();
-
-  vector<int> armInds;
-  BOOST_FOREACH(KinBody::JointPtr joint, m_joints) armInds.push_back(joint->GetDOFIndex());
-  m_robot->SetActiveDOFs(armInds);
-  vector<double> curVals;
-  m_robot->GetActiveDOFValues(curVals);
-
-  for (int iStep=0; iStep < nSteps; ++iStep) {
-    m_robot->SetActiveDOFValues(toDoubleVec(traj.row(iStep)));
-    m_syncher.updateBullet();
-    for (int iBody=0; iBody < m_bodies.size(); ++iBody) {
-      val += calcCollisionCost(m_bodies[iBody], m_world);
-    }
-  }
-
-  m_robot->SetActiveDOFValues(curVals);
-  m_syncher.updateBullet();
-  return val;
-}
-
-void ArmCCE::calcCostAndGrad(const Eigen::MatrixXd& traj, double& val, Eigen::MatrixXd& grad) {
-  int nSteps = traj.rows();
-
-  vector<int> armInds;
-  BOOST_FOREACH(KinBody::JointPtr joint, m_joints) armInds.push_back(joint->GetDOFIndex());
-  m_robot->SetActiveDOFs(armInds);
-  vector<double> curVals;
-  m_robot->GetActiveDOFValues(curVals);
-
-  grad = MatrixXd::Zero(nSteps, m_nJoints);
-  int totalNumColl=0;
-
-  for (int iStep=0; iStep < nSteps; ++iStep) {
-    m_robot->SetActiveDOFValues(toDoubleVec(traj.row(iStep)));
-    m_syncher.updateBullet();
-    VectorXd gradHere;
-    double costHere;
-    int numCollHere;
-    calcCollisionCostAndJointGrad(m_bodies, m_world, m_robot, m_joints, m_chainDepthOfBodies, costHere, gradHere, numCollHere);
-    grad.row(iStep) += gradHere;
-    val += costHere;
-    totalNumColl += numCollHere;
-  }
-
-  m_robot->SetActiveDOFValues(curVals);
-  m_syncher.updateBullet();
-
-  LOG_INFO_FMT("total number of collisions: %i", totalNumColl);
-}
-
-TrajJointCollInfo ArmCCE::collectCollisionInfo(const Eigen::MatrixXd& traj) {
-  int nSteps = traj.rows();
-
-  vector<int> armInds;
-  BOOST_FOREACH(KinBody::JointPtr joint, m_joints) armInds.push_back(joint->GetDOFIndex());
-  m_robot->SetActiveDOFs(armInds);
-  vector<double> curVals;
-  m_robot->GetActiveDOFValues(curVals);
-
-  vector<JointCollInfo> trajCollisionInfo(nSteps);
-  for (int iStep=0; iStep < nSteps; ++iStep) {
-    m_robot->SetActiveDOFValues(toDoubleVec(traj.row(iStep)));
-    m_syncher.updateBullet();
-    calcMultiBodyJointSpaceCollisionInfo(m_bodies, m_world, m_robot, m_joints, m_chainDepthOfBodies, trajCollisionInfo[iStep].jacs, trajCollisionInfo[iStep].dists);
-  }
-
-  m_robot->SetActiveDOFValues(curVals);
-  m_syncher.updateBullet();
-
-  return trajCollisionInfo;
-}
-
-void BulletRaveSyncher::updateBullet() {
-  for (int iBody = 0; iBody < m_bodies.size(); ++iBody) {
-    m_bodies[iBody]->setCenterOfMassTransform(util::toBtTransform(m_links[iBody]->GetTransform(), GeneralConfig::scale));
-  }
-}
 
 
 void countCollisions(const TrajJointCollInfo& trajCollInfo, double safeDist, int& nNear, int& nUnsafe, int& nColl) {
@@ -406,7 +309,10 @@ void countCollisions(const TrajJointCollInfo& trajCollInfo, double safeDist, int
   for (int iStep = 0; iStep < trajCollInfo.size(); ++iStep) {
     const vector<double>& dists = trajCollInfo[iStep].dists;
     for (int iColl=0; iColl < trajCollInfo[iStep].jacs.size(); ++iColl) {
-      if (dists[iColl] < 0) ++nColl;
+      if (dists[iColl] < 0) {
+        ++nColl;
+        LOG_INFO_FMT("COLLISION AT TIME %i",iStep);
+      }
       else if (dists[iColl] < safeDist) ++nUnsafe;
       else ++nNear;
     }

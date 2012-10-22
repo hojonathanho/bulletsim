@@ -14,13 +14,19 @@ link_directories(${GUROBI_LIBRARY_DIR})
 add_executable(test_grb_eigen test_grb_eigen.cpp)
 target_link_libraries(test_grb_eigen gurobi_c++ gurobi50)
 
-add_library(sqp traj_costs.cpp utils_sqp.cpp config_sqp.cpp sqp_algorithm.cpp collision_boxes.cpp collision_map_tools.cpp planning_problems.cpp physics_aware.cpp)
+add_library(sqp traj_costs.cpp utils_sqp.cpp config_sqp.cpp sqp_algorithm.cpp collision_boxes.cpp 
+collision_map_tools.cpp planning_problems.cpp physics_aware2.cpp plotters.cpp state_setter.cpp kinematics_utils.cpp
+functions.cpp)
 
 target_link_libraries(sqp utils simulation robots ${Boost_LIBRARIES} ${BULLET_LIBS} ${OpenRAVE_LIBRARIES} gurobi_c++ gurobi50)
 
 
 add_executable(test_traj_eval_grb test_traj_eval_grb2.cpp)
 target_link_libraries(test_traj_eval_grb sqp)
+
+add_executable(test_cart_with_base test_cart_with_base.cpp)
+target_link_libraries(test_cart_with_base sqp)
+
 
 include_directories(${PCL_INCLUDE_DIRS})
 include_directories("/opt/ros/fuerte/stacks/geometry/tf/include"
@@ -46,3 +52,6 @@ target_link_libraries(test_rave_env simulation robots sqp json)
 
 add_executable(test_push_object test_push_object.cpp)
 target_link_libraries(test_push_object simulation robots sqp)
+
+add_executable(test_sqp_simple test_sqp_simple.cpp sqp.cpp config_sqp.cpp)
+target_link_libraries(test_sqp_simple utils gurobi_c++ gurobi50)

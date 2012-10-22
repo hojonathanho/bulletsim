@@ -14,17 +14,23 @@ using namespace std;
 #include "util.h"
 #include "config_bullet.h"
 
+class RaveObject;
+
 struct RaveInstance {
   typedef boost::shared_ptr<RaveInstance> Ptr;
 
   bool isRoot;
   EnvironmentBasePtr env;
+  std::map<KinBodyPtr, RaveObject*> rave2bulletsim;
+  std::map<RaveObject*, KinBodyPtr> bulletsim2rave;
 
   RaveInstance();
+  RaveInstance(OpenRAVE::EnvironmentBasePtr);
   RaveInstance(const RaveInstance &o, int cloneOpts);
   ~RaveInstance();
 };
 
+void LoadFromRave(Environment::Ptr env, RaveInstance::Ptr rave, bool dynamicRobots = false);
 void Load(Environment::Ptr env, RaveInstance::Ptr rave, const string& name, bool dynamicRobots = false);
 // copy constructor. will never call RaveInitialize or RaveDestroy
 
@@ -36,7 +42,6 @@ enum TrimeshMode {
 
 class RaveObject : public CompoundObject<BulletObject> {
 protected:
-  RaveInstance::Ptr rave;
 
   // these two containers just keep track of the smart pointers
   // so that the objects get deallocated on destruction
@@ -59,12 +64,12 @@ protected:
 
   // for the loaded robot, this will create BulletObjects
   // and place them into the children vector
-  void initRaveObject(RaveInstance::Ptr rave_, KinBodyPtr body_, TrimeshMode trimeshMode, float fmargin, bool isDynamic);
+  void initRaveObject(RaveInstance::Ptr rave_, KinBodyPtr body_, TrimeshMode trimeshMode, bool isDynamic);
   RaveObject() {} // for manual copying
 
 public:
   typedef boost::shared_ptr<RaveObject> Ptr;
-
+  RaveInstance::Ptr rave;
   KinBodyPtr body;
 
   RaveObject(RaveInstance::Ptr rave_, KinBodyPtr body, TrimeshMode trimeshMode = CONVEX_HULL, bool isDynamic=true);
@@ -73,6 +78,10 @@ public:
 
   void init();
   void destroy();
+  void prePhysics() {
+    updateBullet();
+    CompoundObject<BulletObject>::prePhysics();
+  }
 
   // forking
   EnvironmentObject::Ptr copy(Fork &f) const;
@@ -80,11 +89,11 @@ public:
 
   // Gets equivalent rigid bodies in OpenRAVE and in Bullet
   BulletObject::Ptr associatedObj(KinBody::LinkPtr link) const {
-    std::map<KinBody::LinkPtr, BulletObject::Ptr>::const_iterator i                            = linkMap.find(link);
+    std::map<KinBody::LinkPtr, BulletObject::Ptr>::const_iterator i = linkMap.find(link);
     return i == linkMap.end() ? BulletObject::Ptr() : i->second;
   }
   KinBody::LinkPtr associatedObj(btCollisionObject *obj) const {
-    std::map<btCollisionObject *, KinBody::LinkPtr>::const_iterator i                          = collisionObjMap.find(obj);
+    std::map<btCollisionObject *, KinBody::LinkPtr>::const_iterator i = collisionObjMap.find(obj);
     return i == collisionObjMap.end() ? KinBody::LinkPtr() : i->second;
   }
 
@@ -121,6 +130,17 @@ public:
   void setDOFValues(const vector<int> &indices, const vector<dReal> &vals);
   vector<double> getDOFValues(const vector<int> &indices);
   vector<double> getDOFValues();
+  void setTransform(const btTransform& trans) {
+    robot->SetTransform(util::toRaveTransform(util::scaleTransform(trans,1/METERS)));
+    updateBullet();
+  }
+  void setTransform(float x, float y, float a) {
+    setTransform(btTransform(btQuaternion(0,0,a), btVector3(x,y,0)));
+  }
+  btTransform getTransform() {
+    return util::toBtTransform(robot->GetTransform(), METERS);
+  }
+
 
   struct Manipulator {
     RaveRobotObject *robot;
@@ -138,7 +158,6 @@ public:
     btTransform getTransform() const {
       return robot->toWorldFrame(util::toBtTransform(manip->GetTransform()));
     }
-
     // Gets one IK solution closest to the current position in joint space
     bool solveIKUnscaled(const OpenRAVE::Transform &targetTrans,
 			 vector<dReal> &vsolution);
@@ -184,23 +203,30 @@ public:
   Manipulator::Ptr createManipulator(const std::string &manipName, bool useFakeGrabber         = false);
   void destroyManipulator(Manipulator::Ptr m); // not necessary to call this on destruction
   Manipulator::Ptr getManipByIndex(int i) const { return createdManips[i]; }
+  Manipulator::Ptr getManipByName(const std::string& name);
   int numCreatedManips() const { return createdManips.size(); }
 protected:
   std::vector<Manipulator::Ptr> createdManips;
   RaveRobotObject() {}
 };
 
+std::vector<RaveRobotObject::Ptr> getRobots(Environment::Ptr env, RaveInstance::Ptr rave);
 RaveObject::Ptr getObjectByName(Environment::Ptr env, RaveInstance::Ptr rave, const string& name);
 RaveRobotObject::Ptr getRobotByName(Environment::Ptr env, RaveInstance::Ptr rave, const string& name);
 
 class ScopedRobotSave {
   std::vector<double> m_dofvals;
+  OpenRAVE::Transform m_tf;
   OpenRAVE::RobotBasePtr m_robot;
 public:
   ScopedRobotSave(OpenRAVE::RobotBasePtr robot) : m_robot(robot) {
     robot->GetDOFValues(m_dofvals);
+    m_tf = robot->GetTransform();
   }
-  ~ScopedRobotSave() {m_robot->SetDOFValues(m_dofvals);}
+  ~ScopedRobotSave() {
+    m_robot->SetDOFValues(m_dofvals);
+    m_robot->SetTransform(m_tf);
+  }
 };
 
 

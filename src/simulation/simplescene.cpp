@@ -11,11 +11,18 @@
 using namespace std;
 
 Scene::Scene() {
+  setup();
+}
+Scene::Scene(OpenRAVE::EnvironmentBasePtr env) {
+  rave.reset(new RaveInstance(env));
+  setup();
+}
+
+void Scene::setup() {
     osg.reset(new OSGInstance());
     bullet.reset(new BulletInstance());
 
-    if (SceneConfig::enableRobot)
-        rave.reset(new RaveInstance());
+    if (!rave) rave.reset(new RaveInstance());
 
     env.reset(new Environment(bullet, osg));
 
@@ -60,6 +67,28 @@ void Scene::startViewer() {
     dbgDraw->setEnabled(false);
     bullet->dynamicsWorld->setDebugDrawer(dbgDraw.get());
     osg->root->addChild(dbgDraw->getSceneGraph());
+
+    {
+    osg::ref_ptr<osg::Light> light = new osg::Light;
+    light->setLightNum(0);
+    light->setPosition(osg::Vec4(-10*METERS,0,10*METERS,1));
+    osg::ref_ptr<osg::LightSource> lightSource = new osg::LightSource;
+    lightSource->setLight(light.get());
+    light->setDiffuse(osg::Vec4(1,.9,.9,1)*.5);
+    osg->root->addChild(lightSource.get());
+    osg->root->getOrCreateStateSet()->setMode(GL_LIGHT0, osg::StateAttribute::ON);
+    }
+
+    {
+    osg::ref_ptr<osg::Light> light = new osg::Light;
+    light->setLightNum(1);
+    light->setPosition(osg::Vec4(10*METERS,0,10*METERS,1));
+    osg::ref_ptr<osg::LightSource> lightSource = new osg::LightSource;
+    lightSource->setLight(light.get());
+    light->setDiffuse(osg::Vec4(.9,.9,1,1)*.5);
+    osg->root->addChild(lightSource.get());
+    osg->root->getOrCreateStateSet()->setMode(GL_LIGHT1, osg::StateAttribute::ON);
+    }
 
     viewer.setUpViewInWindow(0, 0, ViewerConfig::windowWidth, ViewerConfig::windowHeight);
     manip = new EventHandler(*this);

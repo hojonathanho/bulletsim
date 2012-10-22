@@ -8,19 +8,13 @@ IF (NOT CMAKE_BUILD_TYPE)
  SET(CMAKE_BUILD_TYPE "RelWithDebInfo")
 ENDIF (NOT CMAKE_BUILD_TYPE)
 
-message("if cmake can't find anything, you need to put /opt/ros/fuerte/share:/opt/ros/fuerte/stacks on your ROS_PACKAGE_PATH")
-
-
-#find_package(catkin REQUIRED)
-#catkin_stack()
-#catkin_project(bulletsim)
 
 
 # external libraries
 find_package(Boost COMPONENTS system filesystem program_options REQUIRED)
 
 find_package(Eigen3 REQUIRED)
-find_package(OpenRAVE 0.6 REQUIRED)
+find_package(OpenRAVE 0.8 REQUIRED)
 find_package(OpenThreads REQUIRED)
 find_package(osg REQUIRED)
 find_package(osgDB REQUIRED)
@@ -34,6 +28,8 @@ set(OSG_INCLUDE_DIRS ${OPENTHREADS_LIBRARY_INCLUDE_DIR} ${OSG_LIBRARY_INCLUDE_DI
 find_package(OpenCV REQUIRED)
 find_package(PCL REQUIRED)
 
+
+message("if cmake can't find anything, you need to put /opt/ros/fuerte/share:/opt/ros/fuerte/stacks on your ROS_PACKAGE_PATH")
 find_package(ROS REQUIRED COMPONENTS
  sensor_msgs geometry_msgs std_msgs
  roscpp rosconsole message_filters
@@ -41,7 +37,6 @@ find_package(ROS REQUIRED COMPONENTS
  roscpp_serialization
  #bulletsim_msgs
 )
-
 
 set(BUILD_SHARED_LIBS 0)
 add_definitions(${PCL_DEFINITIONS})
@@ -67,11 +62,6 @@ set(PHASESPACE_DIR ${BULLETSIM_SOURCE_DIR}/lib/phasespace)
 set(PHASESPACE_INCLUDE_DIR ${PHASESPACE_DIR}/include)
 set(PHASESPACE_LIBS ${PHASESPACE_DIR}/libowlsock.so)
 
-# other external libraries, hardcoded
-set(WM_ROOT "~/Src/GeometricTools/WildMagic5")
-set(WM_INCLUDE_DIR "${WM_ROOT}/SDK/Include")
-set(WM_LIBRARY_DIR "${WM_ROOT}/SDK/Library/Debug")
-set(WM_LIBRARIES Wm5Core Wm5Imagics Wm5Mathematics Wm5Physics)
 set(GUROBI_INCLUDE_DIR "$ENV{GUROBI_HOME}/include")
 set(GUROBI_LIBRARY_DIR "$ENV{GUROBI_HOME}/lib")
 

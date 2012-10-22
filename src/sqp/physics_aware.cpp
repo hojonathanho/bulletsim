@@ -85,6 +85,8 @@ MatrixXd getSinBasis(const VectorXd& t, int maxFreq) {
   return out;
 }
 
+Eigen::MatrixXd PushObject::getGradient();
+
 void PushObject::updateModel(const Eigen::MatrixXd& traj, GRBQuadExpr& objective) {
   VectorXd& times = m_problem->m_times;
   MatrixXd perts_tk = getSinBasis(times/times.maxCoeff(), fmin(6, times.size()/2));

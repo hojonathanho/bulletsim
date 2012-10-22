@@ -19,12 +19,6 @@ using namespace util;
 #include <signal.h>
 #include <stdlib.h>
 
-void makeFullyTransparent(BulletObject::Ptr obj) {
-  osg::Depth* depth = new osg::Depth;
-  depth->setWriteMask(false);
-  obj->node->getOrCreateStateSet()->setAttributeAndModes(depth, osg::StateAttribute::ON);
-}
-
 RaveRobotObject::Ptr pr2;
 
 float clipf(float x,float lo,float hi) {
@@ -83,11 +77,6 @@ const static double postures[][7] = { { -0.4, 1.0, 0.0, -2.05, 0.0, -0.1, 0.0 },
     { 0, 0, 0, 0, 0, 0, 0 } }; //4=outstretched
 
 
-void removeBodiesFromBullet(vector<BulletObject::Ptr> objs, btDynamicsWorld* world) {
-  BOOST_FOREACH(BulletObject::Ptr obj, objs) {
-    if (obj && obj->rigidBody) world->removeRigidBody(obj->rigidBody.get());
-  }
-}
 
 int main(int argc, char *argv[]) {
 
@@ -147,6 +136,7 @@ int main(int argc, char *argv[]) {
   bool success = planArmToJointTarget(prob, startJoints, endJoints, rarm);
   LOG_INFO("total time: " << TOC());
   prob.m_plotters[0].reset();
+//  prob.testObjectives();
 #if 0
   btTransform tf(btQuaternion(-0.119206, 0.979559, 0.159614, 0.0278758),
       btVector3(0.457689, -0.304135, 0.710815));
