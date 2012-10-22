@@ -14,17 +14,23 @@ using namespace std;
 #include "util.h"
 #include "config_bullet.h"
 
+class RaveObject;
+
 struct RaveInstance {
   typedef boost::shared_ptr<RaveInstance> Ptr;
 
   bool isRoot;
   EnvironmentBasePtr env;
+  std::map<KinBodyPtr, RaveObject*> rave2bulletsim;
+  std::map<RaveObject*, KinBodyPtr> bulletsim2rave;
 
   RaveInstance();
+  RaveInstance(OpenRAVE::EnvironmentBasePtr);
   RaveInstance(const RaveInstance &o, int cloneOpts);
   ~RaveInstance();
 };
 
+void LoadFromRave(Environment::Ptr env, RaveInstance::Ptr rave, bool dynamicRobots = false);
 void Load(Environment::Ptr env, RaveInstance::Ptr rave, const string& name, bool dynamicRobots = false);
 // copy constructor. will never call RaveInitialize or RaveDestroy
 
@@ -36,7 +42,6 @@ enum TrimeshMode {
 
 class RaveObject : public CompoundObject<BulletObject> {
 protected:
-  RaveInstance::Ptr rave;
 
   // these two containers just keep track of the smart pointers
   // so that the objects get deallocated on destruction
@@ -59,12 +64,12 @@ protected:
 
   // for the loaded robot, this will create BulletObjects
   // and place them into the children vector
-  void initRaveObject(RaveInstance::Ptr rave_, KinBodyPtr body_, TrimeshMode trimeshMode, float fmargin, bool isDynamic);
+  void initRaveObject(RaveInstance::Ptr rave_, KinBodyPtr body_, TrimeshMode trimeshMode, bool isDynamic);
   RaveObject() {} // for manual copying
 
 public:
   typedef boost::shared_ptr<RaveObject> Ptr;
-
+  RaveInstance::Ptr rave;
   KinBodyPtr body;
 
   RaveObject(RaveInstance::Ptr rave_, KinBodyPtr body, TrimeshMode trimeshMode = CONVEX_HULL, bool isDynamic=true);
@@ -73,6 +78,10 @@ public:
 
   void init();
   void destroy();
+  void prePhysics() {
+    updateBullet();
+    CompoundObject<BulletObject>::prePhysics();
+  }
 
   // forking
   EnvironmentObject::Ptr copy(Fork &f) const;
@@ -80,11 +89,11 @@ public:
 
   // Gets equivalent rigid bodies in OpenRAVE and in Bullet
   BulletObject::Ptr associatedObj(KinBody::LinkPtr link) const {
-    std::map<KinBody::LinkPtr, BulletObject::Ptr>::const_iterator i                            = linkMap.find(link);
+    std::map<KinBody::LinkPtr, BulletObject::Ptr>::const_iterator i = linkMap.find(link);
     return i == linkMap.end() ? BulletObject::Ptr() : i->second;
   }
   KinBody::LinkPtr associatedObj(btCollisionObject *obj) const {
-    std::map<btCollisionObject *, KinBody::LinkPtr>::const_iterator i                          = collisionObjMap.find(obj);
+    std::map<btCollisionObject *, KinBody::LinkPtr>::const_iterator i = collisionObjMap.find(obj);
     return i == collisionObjMap.end() ? KinBody::LinkPtr() : i->second;
   }
 

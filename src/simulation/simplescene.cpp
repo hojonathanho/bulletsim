@@ -11,11 +11,18 @@
 using namespace std;
 
 Scene::Scene() {
+  setup();
+}
+Scene::Scene(OpenRAVE::EnvironmentBasePtr env) {
+  rave.reset(new RaveInstance(env));
+  setup();
+}
+
+void Scene::setup() {
     osg.reset(new OSGInstance());
     bullet.reset(new BulletInstance());
 
-    if (SceneConfig::enableRobot)
-        rave.reset(new RaveInstance());
+    if (!rave) rave.reset(new RaveInstance());
 
     env.reset(new Environment(bullet, osg));
 

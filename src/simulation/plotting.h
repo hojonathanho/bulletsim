@@ -26,6 +26,7 @@ public:
   void destroy(){
     getEnvironment()->osg->root->removeChild(m_geode.get());
   }
+  osg::Node *getOSGNode() const { return m_geode.get(); }
   void setDefaultColor(float r, float g, float b, float a);
   void forceTransparency(float a);
   virtual ~PlotObject() {}

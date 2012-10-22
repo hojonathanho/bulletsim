@@ -1,5 +1,5 @@
-#include "openravesupport.h"
 #include <openrave-core.h>
+#include "openravesupport.h"
 #include <BulletCollision/CollisionShapes/btShapeHull.h>
 #include "convexdecomp.h"
 #include "utils/config.h"
@@ -29,6 +29,11 @@ btVector3 computeCentroid(const KinBody::Link::TRIMESH& mesh) {
 	return sum / mesh.vertices.size();
 }
 
+RaveInstance::RaveInstance(OpenRAVE::EnvironmentBasePtr env_) {
+  env = env_;
+  env->StopSimulation();
+}
+
 RaveInstance::RaveInstance() {
 	isRoot = true;
 	RaveInitialize(true);
@@ -49,6 +54,28 @@ RaveInstance::~RaveInstance() {
 		RaveDestroy();
 }
 
+void LoadFromRave(Environment::Ptr env, RaveInstance::Ptr rave, bool dynamicRobots) {
+
+  std::set<string> bodiesAlreadyLoaded;
+  BOOST_FOREACH(EnvironmentObject::Ptr obj, env->objects) {
+    RaveObject* robj = dynamic_cast<RaveObject*>(obj.get());
+    if (robj) bodiesAlreadyLoaded.insert(robj->body->GetName());
+  }
+
+  std::vector<boost::shared_ptr<OpenRAVE::KinBody> > bodies;
+  rave->env->GetBodies(bodies);
+  BOOST_FOREACH(OpenRAVE::KinBodyPtr body, bodies) {
+    if (bodiesAlreadyLoaded.find(body->GetName()) == bodiesAlreadyLoaded.end()) {
+      if (body->IsRobot()) env->add(RaveRobotObject::Ptr(new RaveRobotObject(rave, boost::dynamic_pointer_cast<RobotBase>(body), CONVEX_HULL, dynamicRobots)));
+      else {
+        cout << "loading " << body->GetName() << endl;;
+        env->add(RaveObject::Ptr(new RaveObject(rave, body, CONVEX_HULL, true)));
+      }
+    }
+  }
+
+}
+
 void Load(Environment::Ptr env, RaveInstance::Ptr rave, const string& filename,
 		bool dynamicRobots) {
 	bool success = rave->env->Load(filename);
@@ -56,23 +83,7 @@ void Load(Environment::Ptr env, RaveInstance::Ptr rave, const string& filename,
 		throw runtime_error(
 				(boost::format("couldn't load %s!\n") % (filename)).str());
 
-	std::set<string> bodiesAlreadyLoaded;
-	BOOST_FOREACH(EnvironmentObject::Ptr obj, env->objects) {
-		RaveObject* robj = dynamic_cast<RaveObject*>(obj.get());
-		if (robj) bodiesAlreadyLoaded.insert(robj->body->GetName());
-	}
-
-	std::vector<boost::shared_ptr<OpenRAVE::KinBody> > bodies;
-	rave->env->GetBodies(bodies);
-	BOOST_FOREACH(OpenRAVE::KinBodyPtr body, bodies) {
-		if (bodiesAlreadyLoaded.find(body->GetName()) == bodiesAlreadyLoaded.end()) {
-			if (body->IsRobot()) env->add(RaveRobotObject::Ptr(new RaveRobotObject(rave, boost::dynamic_pointer_cast<RobotBase>(body), CONVEX_HULL, dynamicRobots)));
-			else {
-				cout << "loading " << body->GetName() << endl;;
-				env->add(RaveObject::Ptr(new RaveObject(rave, body, CONVEX_HULL, true)));
-			}
-		}
-	}
+	LoadFromRave(env, rave);
 
 }
 
@@ -101,7 +112,7 @@ RaveRobotObject::Ptr getRobotByName(Environment::Ptr env, RaveInstance::Ptr rave
 }
 
 RaveObject::RaveObject(RaveInstance::Ptr rave_, KinBodyPtr body_, TrimeshMode trimeshMode, bool isDynamic) {
-	initRaveObject(rave_, body_, trimeshMode, BulletConfig::margin * METERS, isDynamic);
+	initRaveObject(rave_, body_, trimeshMode, isDynamic);
 }
 
 void RaveObject::init() {
@@ -190,7 +201,7 @@ static BulletObject::Ptr createFromLink(KinBody::LinkPtr link,
         std::vector<boost::shared_ptr<btCollisionShape> >& subshapes,
         std::vector<boost::shared_ptr<btStridingMeshInterface> >& meshes,
          TrimeshMode trimeshMode,
-        float fmargin, bool isDynamic) {
+        bool isDynamic) {
 
   LOG_DEBUG("creating link from " << link->GetName());
 
@@ -206,7 +217,8 @@ static BulletObject::Ptr createFromLink(KinBody::LinkPtr link,
 		return BulletObject::Ptr();
 	}
 
-	bool useCompound = geometries.size() > 1;
+//	bool useCompound = geometries.size() > 1;
+	bool useCompound = true;
   bool useGraphicsMesh = false;
 
 	btCompoundShape* compound;
@@ -215,9 +227,6 @@ static BulletObject::Ptr createFromLink(KinBody::LinkPtr link,
     compound->setMargin(0); //margin: compound. seems to have no effect when positive but has an effect when negative
 	}
 
-//	float volumeAccumulator(0);
-	btVector3 firstMomentAccumulator(0,0,0);
-
 
 
 #if OPENRAVE_VERSION_MINOR>6
@@ -225,20 +234,19 @@ static BulletObject::Ptr createFromLink(KinBody::LinkPtr link,
 #else
 	for (std::list<KinBody::Link::GEOMPROPERTIES>::const_iterator geom = geometries.begin(); geom != geometries.end(); ++geom) {
 #endif
-		btVector3 offset(0, 0, 0);
 
+	  const KinBody::Link::TRIMESH &mesh = geom->GetCollisionMesh();
 		boost::shared_ptr<btCollisionShape> subshape;
-		const KinBody::Link::TRIMESH &mesh = geom->GetCollisionMesh();
 
 		switch (geom->GetType()) {
 		case KinBody::Link::GEOMPROPERTIES::GeomBox:
 			subshape.reset(new btBoxShape(util::toBtVector(GeneralConfig::scale
-					* geom->GetBoxExtents())));
+					* geom->GetBoxExtents()) + btVector3(1,1,1)*BulletConfig::linkPadding*METERS));
 			break;
 
 		case KinBody::Link::GEOMPROPERTIES::GeomSphere:
 			subshape.reset(new btSphereShape(GeneralConfig::scale
-					* geom->GetSphereRadius()));
+					* geom->GetSphereRadius() + BulletConfig::linkPadding*METERS));
 			break;
 
 		case KinBody::Link::GEOMPROPERTIES::GeomCylinder:
@@ -254,7 +262,7 @@ static BulletObject::Ptr createFromLink(KinBody::LinkPtr link,
 				break;
 			if (trimeshMode == CONVEX_DECOMP) {
 				printf("running convex decomposition\n");
-				ConvexDecomp decomp(fmargin);
+				ConvexDecomp decomp(BulletConfig::margin*METERS);
 				for (size_t i = 0; i < mesh.vertices.size(); ++i)
 					decomp.addPoint(util::toBtVector(mesh.vertices[i]));
 				for (size_t i = 0; i < mesh.indices.size(); i += 3)
@@ -271,14 +279,14 @@ static BulletObject::Ptr createFromLink(KinBody::LinkPtr link,
 				 printf("%d\n", mesh.indices[z]);
 				 printf("-----------\n");*/
 
-				offset = computeCentroid(mesh)*METERS*0;
 
 				for (size_t i = 0; i < mesh.indices.size(); i += 3)
-					ptrimesh->addTriangle(util::toBtVector(mesh.vertices[i])*METERS - offset,
-										  util::toBtVector(mesh.vertices[i+1])*METERS - offset,
-										  util::toBtVector(mesh.vertices[i+2])*METERS - offset);
+					ptrimesh->addTriangle(util::toBtVector(mesh.vertices[i])*METERS,
+										  util::toBtVector(mesh.vertices[i+1])*METERS,
+										  util::toBtVector(mesh.vertices[i+2])*METERS);
 				// store the trimesh somewhere so it doesn't get deallocated by the smart pointer
 				meshes.push_back(boost::shared_ptr<btStridingMeshInterface>(ptrimesh));
+
 				if (BulletConfig::graphicsMesh) useGraphicsMesh = true;
 
 				if (trimeshMode == CONVEX_HULL) {
@@ -313,20 +321,22 @@ static BulletObject::Ptr createFromLink(KinBody::LinkPtr link,
 
 		// store the subshape somewhere so it doesn't get deallocated by the smart pointer
 		subshapes.push_back(subshape);
-		subshape->setMargin(0); //margin: subshape. seems to result in padding convex shape AND increases collision dist on top of that
-		btTransform transform = util::toBtTransform(geom->GetTransform(),GeneralConfig::scale);
-		transform.setOrigin(transform.getOrigin() + offset);
-		if (useCompound) compound->addChildShape(transform, subshape.get());
+//		if (geom->GetType() == KinBody::Link::GEOMPROPERTIES::GeomTrimesh) subshape->setMargin(0);
+		subshape->setMargin(BulletConfig::margin*METERS);  //margin: subshape. seems to result in padding convex shape AND increases collision dist on top of that
+		btTransform geomTrans = util::toBtTransform(geom->GetTransform(),GeneralConfig::scale);
+		if (useCompound) compound->addChildShape(geomTrans, subshape.get());
 	}
 
-	btTransform childTrans = util::toBtTransform(link->GetTransform(),GeneralConfig::scale);
 
 	float mass = isDynamic ? link->GetMass() : 0;
 	BulletObject::Ptr child;
-	if (useCompound)
-	  child.reset(new BulletObject(mass, compound, childTrans,!isDynamic));
+	if (useCompound) {
+    btTransform childTrans = util::toBtTransform(link->GetTransform(),GeneralConfig::scale);
+	  child.reset(new BulletObject(mass, compound,childTrans,!isDynamic));
+	}
 	else {
-    child.reset(new BulletObject(mass, subshapes.back(), childTrans, !isDynamic));
+	  btTransform geomTrans = util::toBtTransform(link->GetTransform() * link->GetGeometry(0)->GetTransform(),METERS);
+    child.reset(new BulletObject(mass, subshapes.back(), geomTrans, !isDynamic));
     if (useGraphicsMesh) child->graphicsShape.reset(new btBvhTriangleMeshShape(meshes.back().get(), true));
 	}
 
@@ -395,15 +405,17 @@ BulletConstraint::Ptr createFromJoint(KinBody::JointPtr joint, std::map<KinBody:
 }
 
 void RaveObject::initRaveObject(RaveInstance::Ptr rave_, KinBodyPtr body_,
-		TrimeshMode trimeshMode, float fmargin, bool isDynamic) {
+		TrimeshMode trimeshMode, bool isDynamic) {
 	rave = rave_;
 	body = body_;
+	rave->rave2bulletsim[body] = this;
+  rave->bulletsim2rave[this] = body;
 
 	const std::vector<KinBody::LinkPtr> &links = body->GetLinks();
 	getChildren().reserve(links.size());
 	// iterate through each link in the robot (to be stored in the children vector)
 	BOOST_FOREACH(KinBody::LinkPtr link, links) {
-		BulletObject::Ptr child = createFromLink(link, subshapes, meshes, trimeshMode, fmargin, isDynamic && !link->IsStatic());
+		BulletObject::Ptr child = createFromLink(link, subshapes, meshes, trimeshMode, isDynamic && !link->IsStatic());
 		if (child) getChildren().push_back(child);
 
 		linkMap[link] = child;
@@ -585,12 +597,12 @@ void RaveObject::postCopy(EnvironmentObject::Ptr copy, Fork &f) const {
 
 RaveRobotObject::RaveRobotObject(RaveInstance::Ptr rave_, RobotBasePtr robot_, TrimeshMode trimeshMode, bool isDynamic) {
 	robot = robot_;
-	initRaveObject(rave_, robot_, trimeshMode, BulletConfig::margin * METERS, isDynamic);
+	initRaveObject(rave_, robot_, trimeshMode, isDynamic);
 }
 
 RaveRobotObject::RaveRobotObject(RaveInstance::Ptr rave_, const std::string &uri, TrimeshMode trimeshMode, bool isDynamic) {
 	robot = rave_->env->ReadRobotURI(uri);
-	initRaveObject(rave_, robot, trimeshMode, BulletConfig::margin * METERS, isDynamic);
+	initRaveObject(rave_, robot, trimeshMode, isDynamic);
 	rave->env->AddRobot(robot);
 }
 

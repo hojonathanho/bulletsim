@@ -191,7 +191,7 @@ public:
         }
     }
 
-    void init() {
+    virtual void init() {
         typename ChildVector::iterator i;
         for (i = children.begin(); i != children.end(); ++i) {
             if (*i) {
@@ -201,21 +201,21 @@ public:
         }
     }
 
-    void prePhysics() {
+    virtual void prePhysics() {
         typename ChildVector::iterator i;
         for (i = children.begin(); i != children.end(); ++i)
             if (*i)
                 (*i)->prePhysics();
     }
 
-    void preDraw() {
+    virtual void preDraw() {
         typename ChildVector::iterator i;
         for (i = children.begin(); i != children.end(); ++i)
             if (*i)
                 (*i)->preDraw();
     }
 
-    void destroy() {
+    virtual void destroy() {
         typename ChildVector::iterator i;
         for (i = children.begin(); i != children.end(); ++i)
             if (*i)
