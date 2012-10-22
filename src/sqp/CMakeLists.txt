@@ -8,8 +8,8 @@ include_directories(
 
 SET(CMAKE_CXX_FLAGS "-Wall -Wno-sign-compare -Wno-reorder")
 
-include_directories(${GUROBI_INCLUDE_DIR})
-link_directories(${GUROBI_LIBRARY_DIR})
+include_directories(/home/joschu/Src/gurobi501/linux64/include)
+link_directories(/home/joschu/Src/gurobi501/linux64/lib)
 
 add_executable(test_grb_eigen test_grb_eigen.cpp)
 target_link_libraries(test_grb_eigen gurobi_c++ gurobi50)
@@ -32,9 +32,6 @@ include_directories(${PCL_INCLUDE_DIRS})
 include_directories("/opt/ros/fuerte/stacks/geometry/tf/include"
 					"/opt/ros/fuerte/stacks/geometry/tf/msg_gen/cpp/include"
 					"/opt/ros/fuerte/stacks/geometry/tf/srv_gen/cpp/include")
-include_directories("${BULLETSIM_SOURCE_DIR}/bulletsim_msgs/build/gen/cpp")
-message("asdf ${BULLETSIM_SOURCE_DIR}/bulletsim_msgs/build/gen/cpp/bulletsim_msgs")
-
 
 link_directories("/opt/ros/fuerte/stacks/geometry/tf/lib")
 
