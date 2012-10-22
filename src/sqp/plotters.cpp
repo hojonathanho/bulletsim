@@ -102,7 +102,7 @@ ArmPlotter::ArmPlotter(RaveRobotObject::Manipulator::Ptr rrom, Scene* scene, int
   m_syncher(syncherFromArm(rrom)) {
   vector<BulletObject::Ptr> armObjs;
   BOOST_FOREACH(KinBody::LinkPtr link, m_syncher->m_links)
-    armObjs.push_back(rrom->robot->associatedObj(link));
+    armObjs.push_back(rrom->robot->rave->rave2bulletsim[link->GetParent()]->associatedObj(link));
   init(rrom, armObjs, scene, decimation);
 }
 
@@ -209,6 +209,8 @@ void plotCollisions(const TrajCartCollInfo& trajCartInfo, double safeDist) {
     escapes.reset(new PlotLines(5));
     getGlobalEnv()->add(collisions);
     getGlobalEnv()->add(escapes);
+    collisions->getOSGNode()->getOrCreateStateSet()->setMode(GL_DEPTH_TEST, osg::StateAttribute::OFF);
+    escapes->getOSGNode()->getOrCreateStateSet()->setMode(GL_DEPTH_TEST, osg::StateAttribute::OFF);
   }
 
   const osg::Vec4 GREEN(0, 1, 0, 1), YELLOW(1, 1, 0, 1), RED(1, 0, 0, 1);
@@ -230,15 +232,15 @@ void plotCollisions(const TrajCartCollInfo& trajCartInfo, double safeDist) {
   }
   assert(collPts->size() == colors->size());
   assert(escPts->size() == 2*colors->size());
+
+  if (collPts->size() == 1) {
+    collPts->push_back(osg::Vec3(0,0,0));
+    colors->push_back(osg::Vec4(0,0,0,0));
+    escPts->push_back(osg::Vec3(0,0,0));
+    escPts->push_back(osg::Vec3(1,0,0));
+  }
   collisions->setPoints(collPts, colors);
   escapes->setPoints(escPts, colors);
-
-}
-
-#include <osg/Depth>
-void makeFullyTransparent(EnvironmentObject::Ptr obj) {
-  osg::Depth* depth = new osg::Depth;
-  depth->setWriteMask(false);
-  obj->getOSGNode()->getOrCreateStateSet()->setAttributeAndModes(depth, osg::StateAttribute::ON);
+  LOG_DEBUG_FMT("plotting %i collisions", collPts->size());
 }
 

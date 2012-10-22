@@ -55,7 +55,7 @@ void RobotManager::initIK() {
   }
   BOOST_FOREACH(RobotBase::ManipulatorPtr manip, bot->robot->GetManipulators()) {
     string name = manip->GetName();
-    if (name == "arm") {
+    if (name == "arm" || name == "Arm") {
       botLeft = botRight =  bot->createManipulator(name);
     }
     if (name == "leftarm") {

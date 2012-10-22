@@ -119,4 +119,3 @@ void clearCollisionPlots();
 void plotCollisions(const TrajCartCollInfo& trajCartInfo, double safeDist);
 
 void adjustWorldTransparency(float);
-void makeFullyTransparent(EnvironmentObject::Ptr obj);

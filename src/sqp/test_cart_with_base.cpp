@@ -18,11 +18,6 @@ using namespace util;
 RaveRobotObject::Ptr pr2;
 
 
-void removeBodiesFromBullet(vector<BulletObject::Ptr> objs, btDynamicsWorld* world) {
-  BOOST_FOREACH(BulletObject::Ptr obj, objs) {
-    if (obj && obj->rigidBody) world->removeRigidBody(obj->rigidBody.get());
-  }
-}
 
 int main(int argc, char *argv[]) {
 
@@ -53,7 +48,7 @@ int main(int argc, char *argv[]) {
   pr2 = pr2m.pr2;
   RaveRobotObject::Manipulator::Ptr arm = pr2m.pr2Right;
   removeBodiesFromBullet(pr2->children, scene.env->bullet->dynamicsWorld);
-  	BOOST_FOREACH(EnvironmentObjectPtr obj, scene.env->objects) if(obj && obj->getOSGNode()) makeFullyTransparent(obj);
+
   //	makeFullyTransparent(table);
 
 

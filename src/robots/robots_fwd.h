@@ -6,6 +6,8 @@ class PR2SoftBodyGripper;
 typedef boost::shared_ptr<PR2SoftBodyGripper> PR2SoftBodyGripperPtr;
 class PR2Manager;
 typedef boost::shared_ptr<PR2Manager> PR2ManagerPtr;
+class RobotManager;
+typedef boost::shared_ptr<RobotManager> RobotManagerPtr;
 class Grab;
 typedef boost::shared_ptr<Grab> GrabPtr;
 class Monitor;

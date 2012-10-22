@@ -47,3 +47,11 @@ public:
   void printAll();
 };
 
+
+void removeBodiesFromBullet(vector<BulletObject::Ptr> objs, btDynamicsWorld* world);
+
+
+// unfortunately there doesn't seem to be a way to find out which link is grabbing which
+// so i resort to hackery
+KinBody::LinkPtr getGrabberLink(KinBodyPtr body);
+void setGrabberLink(KinBody::LinkPtr grabber, KinBodyPtr body);

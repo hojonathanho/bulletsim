@@ -19,12 +19,6 @@ using namespace util;
 #include <signal.h>
 #include <stdlib.h>
 
-void makeFullyTransparent(BulletObject::Ptr obj) {
-  osg::Depth* depth = new osg::Depth;
-  depth->setWriteMask(false);
-  obj->node->getOrCreateStateSet()->setAttributeAndModes(depth, osg::StateAttribute::ON);
-}
-
 RaveRobotObject::Ptr pr2;
 
 float clipf(float x,float lo,float hi) {
@@ -83,11 +77,6 @@ const static double postures[][7] = { { -0.4, 1.0, 0.0, -2.05, 0.0, -0.1, 0.0 },
     { 0, 0, 0, 0, 0, 0, 0 } }; //4=outstretched
 
 
-void removeBodiesFromBullet(vector<BulletObject::Ptr> objs, btDynamicsWorld* world) {
-  BOOST_FOREACH(BulletObject::Ptr obj, objs) {
-    if (obj && obj->rigidBody) world->removeRigidBody(obj->rigidBody.get());
-  }
-}
 
 int main(int argc, char *argv[]) {
 

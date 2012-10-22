@@ -67,7 +67,10 @@ TrajCartCollInfo collectTrajCollisions(const Eigen::MatrixXd& traj, RobotBasePtr
     robot->SetActiveDOFs(dofInds);
   }
   vector<int> linkInds;
-  BOOST_FOREACH(KinBody::LinkPtr link, brs.m_links) linkInds.push_back(link->GetIndex());
+  BOOST_FOREACH(KinBody::LinkPtr link, brs.m_links) {
+    if (link->GetParent() == robot) linkInds.push_back(link->GetIndex());
+    else (linkInds.push_back(getGrabberLink(link->GetParent())->GetIndex()));
+  }
   for (int iStep=0; iStep<traj.rows(); ++iStep) {
     robot->SetActiveDOFValues(toDoubleVec(traj.row(iStep)));
     brs.updateBullet();
@@ -80,7 +83,7 @@ TrajCartCollInfo collectTrajCollisions(const Eigen::MatrixXd& traj, RobotBasePtr
         Collision& collision = collisionCollector.m_collisions[iColl];
         btVector3 point = ((collision.m_obj0 == body) ? collision.m_world0 : collision.m_world1)/METERS;
         btVector3 normal = (collision.m_obj0 == body) ? collision.m_normal : -collision.m_normal;
-        double dist = collision.m_distance/METERS+BulletConfig::linkPadding;
+        double dist = collision.m_distance/METERS+SQPConfig::padMult*BulletConfig::linkPadding;
         if (point.getZ() > .05*METERS) out[iStep].push_back(LinkCollision(dist, linkInds[iBody], point, normal));
       }
     }
@@ -89,6 +92,20 @@ TrajCartCollInfo collectTrajCollisions(const Eigen::MatrixXd& traj, RobotBasePtr
   return out;
 }
 
+btConvexShape* getConvexCollisionShape(btCollisionShape* shape) {
+  if (shape->getShapeType() == COMPOUND_SHAPE_PROXYTYPE) {
+    btCompoundShape* compound = static_cast<btCompoundShape*>(shape);
+    assert(compound->getNumChildShapes()==1);
+    btConvexShape* out = static_cast<btConvexShape*>(compound->getChildShape(0));
+    assert(out != NULL);
+    return out;
+  }
+  else {
+    btConvexShape* out = static_cast<btConvexShape*>(shape);
+    assert(out != NULL);
+    return out;
+  }
+}
 
 TrajCartCollInfo continuousTrajCollisions(const Eigen::MatrixXd& traj,
     OpenRAVE::RobotBasePtr robot, BulletRaveSyncher& brs, btCollisionWorld* world,
@@ -112,13 +129,14 @@ TrajCartCollInfo continuousTrajCollisions(const Eigen::MatrixXd& traj,
     vector<btTransform> newTransforms;
     BOOST_FOREACH(OpenRAVE::KinBody::LinkPtr link, brs.m_links) newTransforms.push_back(toBtTransform(link->GetTransform(),METERS));
     for (int iBody=0; iBody < brs.m_bodies.size(); ++iBody) {
-      btConvexShape* cShape = dynamic_cast<btConvexShape*>(brs.m_bodies[iBody]->getCollisionShape());
+
+      btConvexShape* cShape = getConvexCollisionShape(brs.m_bodies[iBody]->getCollisionShape());
       if (cShape == NULL) printf("bad link: %s\n", brs.m_links[iBody]->GetName().c_str());
       assert(cShape != NULL);
       btCollisionWorld::ClosestConvexResultCallback ccc(btVector3(NAN, NAN, NAN), btVector3(NAN, NAN, NAN));
       // XXX in general there is some arbitrary child shape transform
       // but for our pr2 model loaded by openravesupport.cpp, there's only one child shape, and transform is the idenetiy
-      world->convexSweepTest(cShape, oldTransforms[iBody], newTransforms[iBody], ccc, (BulletConfig::linkPadding - dSafeCont)*METERS);
+      world->convexSweepTest(cShape, oldTransforms[iBody], newTransforms[iBody], ccc, (SQPConfig::padMult*BulletConfig::linkPadding - dSafeCont)*METERS);
       if (ccc.hasHit() && ccc.m_hitPointWorld.getZ() > .05*METERS) {
         out[iStep-1].push_back(LinkCollision(.05, linkInds[iBody], ccc.m_hitPointWorld, ccc.m_hitNormalWorld));
         out[iStep-1][0].frac = ccc.m_closestHitFraction;
@@ -186,7 +204,7 @@ void calcCollisionInfo(btRigidBody* body, btCollisionWorld* world, std::vector<b
     Collision& collision = collisionCollector.m_collisions[iColl];
     points[iColl] = (collision.m_obj0 == body) ? collision.m_world0 : collision.m_world1;
     normals[iColl] = (collision.m_obj0 == body) ? collision.m_normal : -collision.m_normal;
-    dists[iColl] = (collision.m_distance + BulletConfig::linkPadding) / METERS;
+    dists[iColl] = (collision.m_distance + SQPConfig::padMult*BulletConfig::linkPadding) / METERS;
   }
 }
 
@@ -291,7 +309,10 @@ void countCollisions(const TrajJointCollInfo& trajCollInfo, double safeDist, int
   for (int iStep = 0; iStep < trajCollInfo.size(); ++iStep) {
     const vector<double>& dists = trajCollInfo[iStep].dists;
     for (int iColl=0; iColl < trajCollInfo[iStep].jacs.size(); ++iColl) {
-      if (dists[iColl] < 0) ++nColl;
+      if (dists[iColl] < 0) {
+        ++nColl;
+        LOG_INFO_FMT("COLLISION AT TIME %i",iStep);
+      }
       else if (dists[iColl] < safeDist) ++nUnsafe;
       else ++nNear;
     }

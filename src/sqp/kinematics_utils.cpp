@@ -56,7 +56,7 @@ std::vector<KinBody::JointPtr> getArmJoints(OpenRAVE::RobotBase::ManipulatorPtr 
 
 std::vector<KinBody::LinkPtr> getArmLinks(OpenRAVE::RobotBase::ManipulatorPtr manip) {
   RobotBasePtr robot = manip->GetRobot();
-  int rootLinkInd = robot->GetLink("torso_lift_link")->GetIndex();
+  int rootLinkInd = manip->GetBase()->GetIndex();
   vector<KinBody::JointPtr> armJoints = getArmJoints(manip);
   KinBody::JointPtr& firstJoint = armJoints[0];
 
@@ -150,8 +150,26 @@ BulletRaveSyncherPtr syncherFromArm(RaveRobotObject::Manipulator::Ptr rrom) {
   BOOST_FOREACH(KinBody::LinkPtr& link, armLinks) {
     armBodies.push_back(rrom->robot->associatedObj(link)->rigidBody.get());
   }
+
+  vector<KinBodyPtr> grabbedBodies;
+  rrom->robot->robot->GetGrabbed(grabbedBodies);
+  BOOST_FOREACH(KinBodyPtr body, grabbedBodies) {
+    RaveObject* robj = rrom->robot->rave->rave2bulletsim[body];
+    BOOST_FOREACH(KinBody::LinkPtr link, body->GetLinks()) {
+      armLinks.push_back(link);
+      armBodies.push_back(robj->associatedObj(link)->rigidBody.get());
+    }
+  }
   return BulletRaveSyncherPtr(new BulletRaveSyncher(armLinks, armBodies));
 }
+
+void removeBodiesFromBullet(vector<BulletObject::Ptr> objs, btDynamicsWorld* world) {
+  BOOST_FOREACH(BulletObject::Ptr obj, objs) {
+    world->removeRigidBody(obj->rigidBody.get());
+  }
+}
+
+
 
 BulletRaveSyncherPtr fullBodySyncher(RaveRobotObject* rro) {
   RobotBasePtr robot = rro->robot;
@@ -177,4 +195,12 @@ BulletRaveSyncherPtr fullBodySyncher(RaveRobotObject* rro) {
   }
   LOG_DEBUG("synched links: " << ss);
   return BulletRaveSyncherPtr(new BulletRaveSyncher(links, bodies));
+}
+
+static std::map<KinBodyPtr, KinBody::LinkPtr> grabmap;
+KinBody::LinkPtr getGrabberLink(KinBodyPtr body) {
+  return grabmap[body];
+}
+void setGrabberLink(KinBody::LinkPtr grabber, KinBodyPtr body) {
+  grabmap[body] = grabber;
 }

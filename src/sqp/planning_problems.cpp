@@ -69,11 +69,11 @@ vector<double> getSubdivisionTimes(const TrajCartCollInfo& cci, const Eigen::Vec
 }
 
 
-bool outerOptimization(PlanningProblem& prob, CollisionCostPtr cc, const std::vector<paird>& allowedCollisionIntervals, double maxCollCoeff, int maxSteps) {
+bool outerOptimization(PlanningProblem& prob, CollisionCostPtr cc, const std::vector<paird>& allowedCollisionIntervals) {
   for (int outerOptIter = 0;; ++outerOptIter) {
     LOG_INFO_FMT("outer optimization iteration: %i", outerOptIter);
+    if (prob.m_tra->m_shrinkage < SQPConfig::shrinkLimit) prob.m_tra->m_shrinkage = 10*SQPConfig::shrinkLimit;
     prob.optimize(SQPConfig::maxIter);
-    printAllConstraints(*prob.m_model);
 
     // discrete is safe, else double coll coeff (but if it's at the upper limit, quit)
     // continuous is safe, else resample (but if you're at the max number of samples, quit)
@@ -82,8 +82,8 @@ bool outerOptimization(PlanningProblem& prob, CollisionCostPtr cc, const std::ve
 
 
     if (!isSafe(discCollInfo, SQPConfig::distDiscSafe, prob.m_times,allowedCollisionIntervals)) { // not discrete safe
-      if (cc->m_coeff < maxCollCoeff) {
-        cc->m_coeff = fmin(cc->m_coeff * COLL_COST_MULT, maxCollCoeff);
+      if (cc->m_coeff < SQPConfig::maxCollCoef) {
+      cc->m_coeff = fmin(cc->m_coeff * COLL_COST_MULT, SQPConfig::maxCollCoef);
         LOG_INFO_FMT("trajectory was not discrete-safe. collision coeff <- %.2f", cc->m_coeff);
         continue;
       }
@@ -99,7 +99,7 @@ bool outerOptimization(PlanningProblem& prob, CollisionCostPtr cc, const std::ve
       insertTimes = filterOutIntervals(insertTimes, allowedCollisionIntervals);
       if (insertTimes.size() > 0) {
         LOG_INFO("trajectory was discrete-safe but not continuous-safe");
-        if (prob.m_times.size() < maxSteps) {
+        if (prob.m_times.size() < SQPConfig::maxSteps) {
           assert(insertTimes.size() > 0);
           LOG_INFO("subdividing at times" << insertTimes);
           prob.subdivide(insertTimes);
@@ -143,7 +143,7 @@ bool planArmToCartTarget(PlanningProblem& prob, const Eigen::VectorXd& startJoin
   prob.addComponent(cc);
   prob.addTrustRegionAdjuster(jb);
   prob.addComponent(cp);
-  return outerOptimization(prob, cc, vector<paird>(), 200, 100);
+  return outerOptimization(prob, cc, vector<paird>());
 
 }
 
@@ -158,7 +158,7 @@ bool planArmToJointTarget(PlanningProblem& prob, const Eigen::VectorXd& startJoi
   prob.addComponent(lcc);
   prob.addComponent(cc);
   prob.addTrustRegionAdjuster(jb);
-  return outerOptimization(prob, cc, vector<paird>(), 200, 100);
+  return outerOptimization(prob, cc, vector<paird>());
 }
 
 void addFixedEnd(MatrixXd& traj, int nEnd) {
@@ -208,7 +208,7 @@ bool planArmToGrasp(PlanningProblem& prob, const Eigen::VectorXd& startJoints, c
   prob.addTrustRegionAdjuster(jb);
   prob.addComponent(cp);
   prob.addComponent(cvc);
-  return outerOptimization(prob, cc, allowedCollisionIntervals, 200, 100);
+  return outerOptimization(prob, cc, allowedCollisionIntervals);
 
 }
 
@@ -242,7 +242,7 @@ bool planArmBaseToCartTarget(PlanningProblem& prob, const Eigen::VectorXd& start
   prob.addTrustRegionAdjuster(jb);
   prob.addComponent(cp);
 //  prob.testObjectives();
-  return outerOptimization(prob, cc, vector<paird>(), 200, 100);
+  return outerOptimization(prob, cc, vector<paird>());
 }
 
 

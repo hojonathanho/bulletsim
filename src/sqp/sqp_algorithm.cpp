@@ -925,8 +925,6 @@ void PlanningProblem::optimizeModel() {
 void PlanningProblem::optimize(int maxIter) {
 
   assert(m_tra);
-  BOOST_FOREACH(TrajPlotterPtr plotter, m_plotters)
-    plotter->plotTraj(m_currentTraj);
 
   MatrixXd prevTraj;
   vector<double> trueObjBefore, approxObjAfter;
@@ -934,16 +932,21 @@ void PlanningProblem::optimize(int maxIter) {
   TIC();
   updateModel();
   LOG_INFO_FMT("total convexification time: %.2f", TOC());
+
+  BOOST_FOREACH(TrajPlotterPtr plotter, m_plotters)
+    plotter->plotTraj(m_currentTraj);
+  if (SQPConfig::pauseEachIter) {
+    util::getGlobalScene()->step(0);
+    util::getGlobalScene()->idle(true);
+  }
+
+
   double trueObj = getCachedCost();
   trueObjBefore.push_back(trueObj);
   LOG_INFO_FMT("Total exact objective before: %.2f", trueObj);
 
   for (int iter = 0; iter < maxIter;) {
 
-    if (m_tra->m_shrinkage < 1e-2) {
-      LOG_INFO("trust region got shrunk too much. stopping");
-      break;
-    }
 
     assert(trueObjBefore.size() == iter+1);
     assert(approxObjAfter.size() == iter);
@@ -968,6 +971,7 @@ void PlanningProblem::optimize(int maxIter) {
       LOG_FATAL_FMT("Bad GRB status: %s", grb_statuses[status]);
       throw;
     }
+    printAllConstraints(*m_model);
 
     double approxObj = getApproxCost();
     prevTraj = m_currentTraj;
@@ -986,25 +990,24 @@ void PlanningProblem::optimize(int maxIter) {
 #endif
 
 
+    BOOST_FOREACH(TrajChangePlotterPtr plotter, m_changePlotters)
+      plotter->plotTrajs(prevTraj, m_currentTraj);
+
+
 
     m_approxObjectiveReady = false;
     m_exactObjectiveReady = false;
 
+    TIC();
+    updateModel();
+
     BOOST_FOREACH(TrajPlotterPtr plotter, m_plotters)
       plotter->plotTraj(m_currentTraj);
-		BOOST_FOREACH(TrajChangePlotterPtr plotter, m_changePlotters)
-			plotter->plotTrajs(m_currentTraj, prevTraj);
-    BOOST_FOREACH(Callback& cb, m_callbacks)
-      cb(this);
-		
     if (SQPConfig::pauseEachIter) {
       util::getGlobalScene()->step(0);
       util::getGlobalScene()->idle(true);
     }
-    clearPlotHandles();
 
-    TIC();
-    updateModel();
     LOG_INFO_FMT("total convexification time: %.2f", TOC());
     LOG_DEBUG("current traj:"<<endl<<m_currentTraj);
 
@@ -1016,10 +1019,9 @@ void PlanningProblem::optimize(int maxIter) {
       m_currentTraj = prevTraj;
       LOG_INFO("objective got worse! rolling back and shrinking trust region.");
       m_tra->adjustTrustRegion(SQPConfig::trShrink);
-//      updateModel();
-      continue;
+			updateModel();
     }
-
+    else {
     LOG_INFO_FMT("Total exact objective: %.2f", trueObj);
     LOG_INFO("accepting traj modification");
     trueObjBefore.push_back(trueObj);
@@ -1044,10 +1046,19 @@ void PlanningProblem::optimize(int maxIter) {
       LOG_INFO("cost didn't improve much. stopping iteration");
       break;
     }
-
     ++iter;
+    }
+
+    if (m_tra->m_shrinkage < SQPConfig::shrinkLimit) {
+      LOG_INFO("trust region got shrunk too much. stopping");
+      break;
+    }
+
+
 
   }
+
+
 
 }
 

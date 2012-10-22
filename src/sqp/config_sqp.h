@@ -12,10 +12,14 @@ struct SQPConfig : Config {
   static double distPen;
   static double distDiscSafe;
   static double distContSafe;
+  static double maxSteps;
+  static double maxCollCoef;
   static int maxIter;
   static double trExpand, trShrink, trThresh;
+  static double shrinkLimit;
   static double doneIterThresh;
   static bool enablePlot;
+  static int padMult;
 
   SQPConfig() : Config() {
     params.push_back(new Parameter<double>("collCoefInit", &collCoefInit, "coeff for collision cost"));
@@ -27,16 +31,22 @@ struct SQPConfig : Config {
     params.push_back(new Parameter<double>("distPen", &distPen, "distance to start penalizing"));
     params.push_back(new Parameter<double>("distDiscSafe", &distDiscSafe, "safety distance for discrete collision checking"));
     params.push_back(new Parameter<double>("distContSafe", &distContSafe, "safety distance for continuous collision checking"));
+    params.push_back(new Parameter<double>("maxCollCoef", &maxCollCoef, "max collision coefficient"));
+    params.push_back(new Parameter<double>("maxSteps", &maxSteps, "maximum number of steps in subdivided traj"));
     params.push_back(new Parameter<int>("maxIter", &maxIter, "max iterations for sqp procedure"));
     params.push_back(new Parameter<double>("trShrink", &trShrink, "shrink factor"));
     params.push_back(new Parameter<double>("trExpand", &trExpand, "expand factor"));
     params.push_back(new Parameter<double>("trThresh", &trThresh, "threshold to expand/shrink trust region"));
+    params.push_back(new Parameter<double>("shrinkLimit", &shrinkLimit, "maximum trust region shrinkage"));
     params.push_back(new Parameter<double>("doneIterThresh", &doneIterThresh, "done iterating threshold"));
     params.push_back(new Parameter<bool>("enablePlot", &enablePlot, "enablePlot"));
+    params.push_back(new Parameter<int>("padMult", &padMult, "1 if obstacles aren't padded, 2 if they are."));
   }
 };
 
 #ifdef __CDT_PARSER__
     #undef BOOST_FOREACH
     #define BOOST_FOREACH(a, b) for(a; ; )
+  #undef BOOST_REVERSE_FOREACH
+  #define BOOST_REVERSE_FOREACH(a, b) for(a; ; )
 #endif

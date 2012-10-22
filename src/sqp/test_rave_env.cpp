@@ -33,11 +33,6 @@ Json::Value readJson(fs::path jsonfile) {
 
 float randf() {return (float)rand()/(float)RAND_MAX;}
 
-void makeFullyTransparent(BulletObject::Ptr obj) {
-  osg::Depth* depth = new osg::Depth;
-  depth->setWriteMask(false);
-  obj->node->getOrCreateStateSet()->setAttributeAndModes(depth, osg::StateAttribute::ON);
-}
 
 struct LocalConfig: Config {
   static int nSteps;
@@ -54,13 +49,6 @@ struct LocalConfig: Config {
 int LocalConfig::nSteps = 100;
 int LocalConfig::nIter = 100;
 string LocalConfig::probSpec = "";
-
-void removeBodiesFromBullet(vector<BulletObject::Ptr> objs, btDynamicsWorld* world) {
-  BOOST_FOREACH(BulletObject::Ptr obj, objs) {
-    if (obj && obj->rigidBody)
-      world->removeRigidBody(obj->rigidBody.get());
-  }
-}
 
 int main(int argc, char *argv[]) {
 
