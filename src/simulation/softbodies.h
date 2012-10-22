@@ -12,20 +12,29 @@ public:
 		btSoftBody::Node* m_n[4];
 		btSoftBody::Face* m_f[4];
 	};
+	// Analogous to softBody->m_tetras, except that this is of our own datatype Tetra and not btSoftBody::Tetra . 
+	// This is more useful because the Tetra data structure contains a pointer to faces.
 	vector<Tetra> tetras_internal;
+	// This is filled only for tetrameshes. It contains the faces being pointed by tetras_internal.
 	btSoftBody::tFaceArray faces_internal;
 
 	void computeNodeFaceMapping();
 	void computeNodeFaceTetraMapping();
 	void computeBoundaries();
 
+	// The following 2 dimensional vectors map indices between nodes, faces and tetras.
+	// size(node2faces)  = [ # nodes , # faces that node i is attached to ]
+	// size(face2nodes)  = [ # faces , # nodes a face has (i.e. 3) ]
+	// size(face2tetras) = [ # faces , # tetras that face j is attached to (i.e. 1 or 2) ]
+	// size(tetra2faces) = [ # tetras , # faces that tetra t has (i.e. 4) ]
 	vector<vector<int> > node2faces;
 	vector<vector<int> > face2nodes;
-
 	vector<vector<int> > face2tetras;
 	vector<vector<int> > tetra2faces;
 public:
+	// Currently, this should only be filled for tetrameshes. node_boundaries[i] indicates if the node is at a boundary face.
 	vector<bool> node_boundaries;
+	// This should only be filled for tetrameshes. face_boundaries[j] indicates if faces_internal[j] is a boundary face.
 	vector<bool> face_boundaries;
 
 protected:
