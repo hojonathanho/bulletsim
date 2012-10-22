@@ -119,7 +119,9 @@ TrajCartCollInfo continuousTrajCollisions(const Eigen::MatrixXd& traj,
   robot->SetActiveDOFValues(toDoubleVec(traj.row(0)));
 
   vector<btTransform> oldTransforms;
-  BOOST_FOREACH(OpenRAVE::KinBody::LinkPtr link, brs.m_links) oldTransforms.push_back(toBtTransform(link->GetTransform(), METERS));
+  BOOST_FOREACH(OpenRAVE::KinBody::LinkPtr link, brs.m_links){
+    oldTransforms.push_back(toBtTransform(link->GetTransform(), METERS));
+  }
 
   TrajCartCollInfo out(traj.rows()-1);
 
@@ -127,7 +129,9 @@ TrajCartCollInfo continuousTrajCollisions(const Eigen::MatrixXd& traj,
   for (int iStep=1; iStep < traj.rows(); ++iStep) {
     robot->SetActiveDOFValues(toDoubleVec(traj.row(iStep)));
     vector<btTransform> newTransforms;
-    BOOST_FOREACH(OpenRAVE::KinBody::LinkPtr link, brs.m_links) newTransforms.push_back(toBtTransform(link->GetTransform(),METERS));
+    BOOST_FOREACH(OpenRAVE::KinBody::LinkPtr link, brs.m_links){
+      newTransforms.push_back(toBtTransform(link->GetTransform(),METERS));
+    }
     for (int iBody=0; iBody < brs.m_bodies.size(); ++iBody) {
 
       btConvexShape* cShape = getConvexCollisionShape(brs.m_bodies[iBody]->getCollisionShape());

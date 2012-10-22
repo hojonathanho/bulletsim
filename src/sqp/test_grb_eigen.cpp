@@ -82,7 +82,6 @@ int main() {
     cout << "objective: " << model.getObjective() << endl;
     cout << "x value: " << x.get(GRB_DoubleAttr_X) << endl;
     cout << "x+y value: " << xy.getValue();
-    model.s
     cout << "objective: " << model.getObjective() << endl;
     cout << "x value: " << x.get(GRB_DoubleAttr_X) << endl;
     cout << "x+y value: " << xy.getValue();

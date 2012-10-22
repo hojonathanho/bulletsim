@@ -855,7 +855,7 @@ void PlanningProblem::testObjectives() {
       LOG_INFO_FMT("%s: exact: %.3f, approx: %.3f", getClassName(*comp).c_str(), exactObj, approxObj);
       ASSERT_ALMOST_EQUAL2(approxObj, exactObj, 1e-5,1e-7);
   }
-
+  // GRB requires you to call optimize before evaluating expr
   LOG_INFO("Orig objective: " << getApproxCost());
 
   double epsilon = 1e-5;

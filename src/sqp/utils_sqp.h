@@ -148,6 +148,7 @@ struct Collision {
   }
 };
 
+/** Collision information for a link */
 struct LinkCollision {
   double dist;
   int linkInd;
@@ -158,7 +159,10 @@ struct LinkCollision {
     dist(dist_), linkInd(linkInd_), point(point_), normal(normal_) {}
 };
 
+/** A vector of collisions for links in one timestep */
 typedef std::vector<LinkCollision> CartCollInfo;
+
+/** A vector of vectors of collisions for each step in a trajectory */
 typedef std::vector<CartCollInfo> TrajCartCollInfo;
 struct JointCollInfo {
   std::vector<Eigen::VectorXd> jacs;
