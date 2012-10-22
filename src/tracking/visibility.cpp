@@ -5,11 +5,12 @@
 #include "simulation/config_bullet.h"
 #include "utils/my_assert.h"
 #include "simulation/bullet_io.h"
+#include "simulation/util.h"
 
 using namespace Eigen;
 
 static const float DEPTH_OCCLUSION_DIST = .03;
-static const float RAY_SHORTEN_DIST = .1;
+static const float RAY_SHORTEN_DIST = .0001;
 static const float MIN_DEPTH = .4;
 
 VectorXf EverythingIsVisible::checkNodeVisibility(TrackedObject::Ptr obj) {
@@ -87,6 +88,8 @@ BulletRaycastVisibility::BulletRaycastVisibility(btDynamicsWorld* world, Coordin
 	: m_world(world), m_transformer(transformer) {
 }
 
+//#define PLOT_RAYCAST
+
 #ifdef PLOT_RAYCAST
 #include "plotting_tracking.h"
 #endif
@@ -105,7 +108,7 @@ VectorXf BulletRaycastVisibility::checkNodeVisibility(TrackedObject::Ptr obj) {
     if (!rayTestLines) {
       rayTestLines.reset(new PlotLines(4));
       rayHitPoints.reset(new PlotPoints(30));
-      getGlobalEnv()->add(rayTestLines);
+      util::getGlobalEnv()->add(rayTestLines);
       rayTestLines->setColor(1,1,1,1);
       printf("adding ray test lines to env\n");
     }

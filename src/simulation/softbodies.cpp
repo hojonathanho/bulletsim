@@ -136,7 +136,7 @@ bool areFacesEqual(btSoftBody::Face face0, btSoftBody::Face face1) {
 			assert(face1.m_n[c] != face1.m_n[d]);
 		}
 
-	for (int c; c<3; c++)
+	for (int c=0; c<3; c++)
 		if (findNode(face0.m_n[c], face1.m_n, 3) == 3) return false;
 	return true;
 }
@@ -365,7 +365,18 @@ void BulletSoftObject::setTextureAfterInit() {
 }
 
 void BulletSoftObject::setTexture(cv::Mat image, const btTransform& camFromWorld) {
-	const btSoftBody::tFaceArray& faces = softBody->m_faces;
+	btSoftBody::tFaceArray faces;
+
+	// for 2D deformable objects
+	for (int i = 0; i < softBody->m_faces.size(); ++i) {
+		faces.push_back(softBody->m_faces[i]);
+	}
+	// for 3D deformable objects
+	for (int j = 0; j < faces_internal.size(); ++j) {
+		if (face_boundaries[j]) {
+			faces.push_back(faces_internal[j]);
+		}
+	}
 
 	tritexcoords = new osg::Vec2Array;
 	for (int j=0; j<faces.size(); j++) {
@@ -1369,7 +1380,6 @@ BulletSoftObject::Ptr makeCloth(const vector<btVector3>& corners, int resolution
 
 // Assumes top_corners are in a plane parallel to the xy-plane
 // The bottom corners are the top_corners shifted by thickness in the negative z direction
-// good max_tet_vol: 0.0008*METERS*METERS*METERS
 BulletSoftObject::Ptr makeSponge(const vector<btVector3>& top_corners, float thickness, float mass, float max_tet_vol) {
 	assert(thickness > 0);
   btSoftBodyWorldInfo unusedWorldInfo;
@@ -1382,6 +1392,8 @@ BulletSoftObject::Ptr makeSponge(const vector<btVector3>& top_corners, float thi
   pm->m_kLST = 0.4;
 
   psb->generateBendingConstraints(2,pm);
+  //psb->setPose(true,false);
+  //psb->m_cfg.kVC = 100;
 
 	psb->setVolumeMass(mass);
 
@@ -1393,7 +1405,7 @@ BulletSoftObject::Ptr makeSponge(const vector<btVector3>& top_corners, float thi
   psb->m_cfg.collisions += btSoftBody::fCollision::CL_RS; ///Cluster vs convex rigid vs soft
   //psb->m_cfg.collisions += btSoftBody::fCollision::VF_SS;	///Vertex vs face soft vs soft handling
   psb->m_cfg.collisions += btSoftBody::fCollision::CL_SS; ///Cluster vs cluster soft vs soft handling
-  //psb->m_cfg.collisions	+= btSoftBody::fCollision::CL_SELF; ///Cluster soft body self collision
+  psb->m_cfg.collisions	+= btSoftBody::fCollision::CL_SELF; ///Cluster soft body self collision
 
   psb->m_cfg.kDF = 1.0; // Dynamic friction coefficient
 

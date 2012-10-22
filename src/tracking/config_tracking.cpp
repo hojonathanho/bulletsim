@@ -23,13 +23,15 @@ float TrackingConfig::kp_rope = 1;
 float TrackingConfig::kd_rope = 0;
 float TrackingConfig::kp_cloth = 1500;
 float TrackingConfig::kd_cloth = 15;
-float TrackingConfig::kp_box = 15;
-float TrackingConfig::kd_box = 0.2;
+float TrackingConfig::kp_box = 100;
+float TrackingConfig::kd_box = 10;
 
 float TrackingConfig::tracked_node_distance = 0.05;
 float TrackingConfig::node_distance = 0.01; // 1 cm between nodes
 float TrackingConfig::surface_density = 0.01/(0.1*0.1); // 10 grams per 100 cm2
 int TrackingConfig::node_pixel = 10;
+
+float TrackingConfig::sponge_res = 0.03;
 
 std::string TrackingConfig::record_camera_pos_file = "";
 std::string TrackingConfig::playback_camera_pos_file = "";

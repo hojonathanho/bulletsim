@@ -82,7 +82,6 @@ public:
 
 
   bool plan(ColorCloudPtr dsCloud, PlanTraj::Request& request, PlanTraj::Response& response) {
-    m_pr2m.pr2->setColor(1,1,1,.4);
     if (m_collisionBoxes) m_scene.env->remove(m_collisionBoxes);
     m_collisionBoxes = collisionBoxesFromPointCloud(dsCloud, .02);
     m_scene.env->add(m_collisionBoxes);
@@ -113,13 +112,13 @@ public:
     planner.addComponent(jb);
     planner.initialize(initTraj);
 
-    TrajPlotter::Ptr plotter(new ArmPlotter(arm, &m_scene, *planner.m_cce, LocalConfig::plotDecimation));
+    static TrajPlotterPtr plotter(new ArmPlotter(arm, &m_scene, *planner.m_cce, LocalConfig::plotDecimation));
     planner.setPlotter(plotter);
 
     planner.optimize(LocalConfig::nIter);
-    plotter->clear();
+//    plotter->clear();
 
-    m_pr2m.pr2->setColor(1,1,1,1);
+//    m_pr2m.pr2->setColor(1,1,1,1);
 
 
     if (LocalConfig::test) {
@@ -179,6 +178,7 @@ int main(int argc, char* argv[]) {
 
 	Scene scene;
 	PR2Manager pr2m(scene);
+    pr2m.pr2->setColor(1,1,1,.4);
 	RaveRobotObject::Ptr pr2 = pr2m.pr2;
 	RaveRobotObject::Manipulator::Ptr rarm = pr2m.pr2Right;
 	RaveRobotObject::Manipulator::Ptr larm = pr2m.pr2Left;
@@ -215,6 +215,7 @@ int main(int argc, char* argv[]) {
     PlanTraj::Response resp;
     PlanningServer server(NULL, scene, pr2m, 0);
     server.plan(dsCloud, req, resp);
+    scene.idle(true);
   }
   else {
     ros::init(argc, argv, "planning_server");

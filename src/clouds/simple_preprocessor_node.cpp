@@ -31,6 +31,7 @@ struct LocalConfig : Config {
   static bool removeOutliers;
   static float clusterTolerance;
   static float clusterMinSize;
+  static bool hueFilter;
   static bool boxFilter;
   static bool trackbars;
 
@@ -44,6 +45,7 @@ struct LocalConfig : Config {
     params.push_back(new Parameter<bool>("removeOutliers", &removeOutliers, "remove outliers"));
     params.push_back(new Parameter<float>("clusterTolerance", &clusterTolerance, "points within this distance are in the same cluster"));
     params.push_back(new Parameter<float>("clusterMinSize", &clusterMinSize, "the clusters found must have at least this number of points. 0 means no filtering"));
+    params.push_back(new Parameter<bool>("hueFilter", &hueFilter, "hue filter"));
     params.push_back(new Parameter<bool>("boxFilter", &boxFilter, "box filter"));
     params.push_back(new Parameter<bool>("trackbars", &trackbars, "show hue trackbars"));
   }
@@ -58,6 +60,7 @@ float LocalConfig::downsample = .02;
 bool LocalConfig::removeOutliers = false;
 float LocalConfig::clusterTolerance = 0.03;
 float LocalConfig::clusterMinSize = 40;
+bool LocalConfig::hueFilter = true;
 bool LocalConfig::boxFilter = false;
 bool LocalConfig::trackbars = false;
 
@@ -150,7 +153,7 @@ public:
 
     ColorCloudPtr cloud_out = cloud_in;
     if (LocalConfig::boxFilter) cloud_out = orientedBoxFilter(cloud_in, m_axes, m_mins, m_maxes);
-    cloud_out = hueFilter(cloud_out, MIN_HUE, MAX_HUE, MIN_SAT, MAX_SAT, MIN_VAL, MAX_VAL);
+    if (LocalConfig::hueFilter) cloud_out = hueFilter(cloud_out, MIN_HUE, MAX_HUE, MIN_SAT, MAX_SAT, MIN_VAL, MAX_VAL);
     if (LocalConfig::downsample > 0) cloud_out = downsampleCloud(cloud_out, LocalConfig::downsample);
     if (LocalConfig::removeOutliers) cloud_out = removeOutliers(cloud_out, 1, 10);
     if (LocalConfig::clusterMinSize > 0) cloud_out = clusterFilter(cloud_out, LocalConfig::clusterTolerance, LocalConfig::clusterMinSize);

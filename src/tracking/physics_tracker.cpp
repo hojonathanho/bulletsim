@@ -40,13 +40,15 @@ void PhysicsTracker::updateFeatures() {
 	m_obsPts = m_obsFeatures->getFeatures();
 
 	m_vis = m_visInt->checkNodeVisibility(m_objFeatures->m_obj);
+
+	m_vis += 0.1*VectorXf::Ones(m_vis.size());
 }
 
 void PhysicsTracker::expectationStep() {
 
   boost::posix_time::ptime e_time = boost::posix_time::microsec_clock::local_time();
   m_pZgivenC = calculateResponsibilities(m_estPts, m_obsPts, m_stdev, m_vis, m_objFeatures->m_obj->getOutlierDist(), m_objFeatures->m_obj->getOutlierStdev());
-  LOG_DEBUG("E time " << (boost::posix_time::microsec_clock::local_time() - e_time).total_milliseconds());
+  LOG_TRACE("E time " << (boost::posix_time::microsec_clock::local_time() - e_time).total_milliseconds());
 
 #if 0
 	if (isFinite(m_estPts) && isFinite(m_obsPts) && isFinite(m_vis) && isFinite(m_stdev)) {
@@ -114,6 +116,7 @@ PhysicsTrackerVisualizer::PhysicsTrackerVisualizer(Scene* scene, PhysicsTracker:
 	m_estPlot(new PlotSpheres()),
 	m_estTransPlot(new PlotSpheres()),
 	m_estCalcPlot(new PlotSpheres()),
+	m_visPlot(new PlotSpheres()),
 	m_corrPlot(new PlotLines()),
 
 	m_enableObsInlierPlot(false),
@@ -122,6 +125,7 @@ PhysicsTrackerVisualizer::PhysicsTrackerVisualizer(Scene* scene, PhysicsTracker:
 	m_enableEstPlot(false),
 	m_enableEstTransPlot(false),
 	m_enableEstCalcPlot(false),
+	m_enableVisPlot(false),
 	m_enableCorrPlot(false),
 	m_nodeCorrPlot(-1)
 {
@@ -131,6 +135,7 @@ PhysicsTrackerVisualizer::PhysicsTrackerVisualizer(Scene* scene, PhysicsTracker:
 	m_scene->env->add(m_estPlot);
 	m_scene->env->add(m_estTransPlot);
 	m_scene->env->add(m_estCalcPlot);
+	m_scene->env->add(m_visPlot);
 	m_scene->env->add(m_corrPlot);
 	m_corrPlot->setDefaultColor(1,1,0,.3);
 
@@ -140,10 +145,11 @@ PhysicsTrackerVisualizer::PhysicsTrackerVisualizer(Scene* scene, PhysicsTracker:
 	m_scene->addVoidKeyCallback('o',boost::bind(toggle, &m_enableObsPlot), "plot observations");
 	m_scene->addVoidKeyCallback('O',boost::bind(toggle, &m_enableObsTransPlot), "plot observations (lab colorspace)");
 	m_scene->addVoidKeyCallback('i',boost::bind(toggle, &m_enableObsInlierPlot), "plot observations colored by inlier frac");
+	m_scene->addVoidKeyCallback('v',boost::bind(toggle, &m_enableVisPlot), "plot visibility variable at the estimated nodes");
 	m_scene->addVoidKeyCallback('r',boost::bind(toggle, &m_enableEstCalcPlot), "plot target positions for nodes");
 
-  m_scene->addVoidKeyCallback('[',boost::bind(add, &m_nodeCorrPlot, -1), "??");
-  m_scene->addVoidKeyCallback(']',boost::bind(add, &m_nodeCorrPlot, 1), "??");
+  m_scene->addVoidKeyCallback('[',boost::bind(add, &m_nodeCorrPlot, -1), "toggle between all and each of the correspondence lines");
+  m_scene->addVoidKeyCallback(']',boost::bind(add, &m_nodeCorrPlot, 1), "toggle between all and each of the correspondence lines");
 }
 
 void PhysicsTrackerVisualizer::update() {
@@ -175,6 +181,9 @@ void PhysicsTrackerVisualizer::update() {
 	    plotNodesAsSpheres(FE::activeFeatures2Feature(nodes, FE::FT_XYZ), FE::activeFeatures2Feature(nodes, FE::FT_LAB), VectorXf::Ones(nodes.rows()), FE::activeFeatures2Feature(stdev, FE::FT_XYZ), m_estCalcPlot);
 	}
 	else m_estCalcPlot->clear();
+
+	if (m_enableVisPlot) plotNodesAsSpheres(toEigenMatrix(obj->getPoints()), vis.replicate(1,3), VectorXf::Ones(vis.size()) * 0.3, FE::activeFeatures2Feature(stdev, FE::FT_XYZ), m_visPlot);
+	else m_visPlot->clear();
 
 	if (m_enableCorrPlot) drawCorrLines(m_corrPlot, toBulletVectors(objFeatures->getFeatures(FE::FT_XYZ)), toBulletVectors(obsFeatures->getFeatures(FE::FT_XYZ)), pZgivenC, 0.01, m_nodeCorrPlot);
 	else m_corrPlot->clear();

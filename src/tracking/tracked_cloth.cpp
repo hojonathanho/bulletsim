@@ -85,18 +85,22 @@ void TrackedCloth::initColors() {
 	cv::Mat tex_image = getSim()->getTexture();
 	if (!tex_image.empty()) {
 		cout << "initColors using texture" << endl;
+//		cv::Mat circle_image = tex_image.clone();
 		for (int i=0; i < m_nNodes; i++) {
 			cv::Point2f pixel = getTexCoord(i);
 			int i_pixel = pixel.y;
 			int j_pixel = pixel.x;
-			int range = 20;
+			int range = 5;
 			//TODO weighted average window
 //			printf("tex image: %i %i %i %i\n", tex_image.rows, tex_image.cols, i_pixel, j_pixel);
 			cv::Mat window_pixels = windowRange(tex_image, i_pixel, j_pixel, range, range);
+//			if (i%100 == 0 || (i+1)%100==0)
+//				cv::circle(circle_image, pixel, range, cv::Scalar(0,255,0));
 
 			Vector3f bgr = toEigenMatrixImage(window_pixels).colwise().mean();
 			m_colors.row(i) = bgr.transpose();
 		}
+//		cv::imwrite("/home/alex/Desktop/circle_image.jpg", circle_image);
 	}
 	else {
 		cout << "initColors using color" << endl;

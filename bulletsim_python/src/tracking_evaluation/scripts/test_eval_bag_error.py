@@ -3,7 +3,7 @@ from __future__ import division
 import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("bagfile")
-parser.add_argument("item",choices=["rope","cloth"])
+parser.add_argument("--item",choices=["rope","cloth"],default="rope")
 parser.add_argument("--robot", action="store_true")
 parser.add_argument("--redo_bag", action="store_true")
 args = parser.parse_args()
@@ -37,8 +37,8 @@ else:
 tracker_arr, tracker_times, tracker_triangles, owl_arr, owl_times = bag_data
 
 
-
-
+#assert abs(tracker_times.max() - owl_times.max()) < 1
+tracker_times -= (tracker_times.min() - owl_times.min()-2)
 
 if args.item == "cloth":
     used_leds = [i for pair in led_pairs for i in pair]    
@@ -46,26 +46,39 @@ if args.item == "cloth":
     for (ind,led) in enumerate(used_leds):
         led2ind[led] = ind
     ind_pairs = [(led2ind[led0], led2ind[led1]) for (led0, led1) in led_pairs]    
-    marker2info =  ev.calculate_cloth_tracking_score(tracker_arr, tracker_times, tracker_triangles, owl_arr[:,used_leds,:], owl_times, ind_pairs,demean_at_beginning=False)
+    marker2info =  ev.calculate_cloth_tracking_score1(tracker_arr, tracker_times, tracker_triangles, owl_arr[:,used_leds,:], owl_times, ind_pairs)
 elif args.item == "rope":
     used_leds = rope_leds
     marker2info = ev.calculate_rope_tracking_score(tracker_arr, tracker_times, owl_arr[:,used_leds,:], owl_times, used_leds)
 
 if 1:
+    errors = []
     median_errors = []
     for info in marker2info:
-        err_q = ev.norms(info["position_demeaned"],1)
+        err_q = ev.norms(info["position_relative"],1)
+        errors.extend(err_q.tolist())
         median_errors.append(np.median(err_q))
+        
+        
+    import scipy.stats as ss
+    per_errors = []
+    for per in xrange(0,101,10):
+        per_errors.append(ss.scoreatpercentile(errors, per))
+        print per, ss.scoreatpercentile(errors, per)
+
+    
+    np.savetxt(osp.join(osp.dirname(args.bagfile),"per_errors.txt"), per_errors)
         #err_q = err_q3[:,0]
-        plt.plot(info["times"], err_q,'.')
+        
+        #plt.plot(info["times"], err_q,'.')        
     plt.xlabel('seconds')
     plt.ylabel('error (m)')
     plt.legend([str(led) for led in used_leds])
 
-    print "median erros", median_errors
-    print "median median error:", np.median(median_errors)
+    #print "median erros", median_errors
+    #print "median median error:", np.median(median_errors)
 
-if 1:
+if 0:
     import mayavi.mlab as mlab
     mlab.figure(1)
     mlab.clf()
@@ -93,7 +106,7 @@ if 1:
     
     mlab.points3d([0],[0],[0], color=(1,1,1),scale_factor=.1)
         
-if 1:
+if 0:
     mlab.figure(2)
     mlab.clf()
     import mayavi.mlab as mlab

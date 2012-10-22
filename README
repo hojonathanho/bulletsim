@@ -14,6 +14,7 @@ Prepare to install openrave:
 Now, open the synaptic ('sudo synaptic') gui:
   openrave0.6-dp-dev
   openrave0.6-dp-plugins-all
+  openrave0.6-dp-data
 If the above doesn't appear in synaptic, in the terminal do these first and then do the synaptic step again:
   sudo apt-get remove openrave*
   sudo apt-get update

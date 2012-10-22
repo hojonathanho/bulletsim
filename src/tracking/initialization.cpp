@@ -18,11 +18,14 @@
 #include "simulation/bullet_io.h"
 #include "simulation/softbodies.h"
 #include "utils/logging.h"
+#include "clouds/geom.h"
+#include "clouds/cloud_ops.h"
 
 //DEBUG
 #include "physics_tracker.h"
 #include "plotting_tracking.h"
 #include "simulation/util.h"
+#include <pcl/io/pcd_io.h>
 using namespace Eigen;
 
 using namespace std;
@@ -58,7 +61,7 @@ TrackedObject::Ptr toTrackedObject(const bulletsim_msgs::ObjectInit& initMsg, Co
 	  printf("Resolution: %d %d\n", resolution_x, resolution_y);
 
 	  vector<btVector3> poly_corners = polyCorners(cloud);
-	  //BOOST_FOREACH(btVector3& poly_corner, poly_corners) util::drawSpheres(poly_corner, Vector3f(1,0,0), 0.5, 2, env);
+//	  BOOST_FOREACH(btVector3& poly_corner, poly_corners) util::drawSpheres(poly_corner, Vector3f(1,0,0), 0.5, 2, util::getGlobalEnv());
   	BulletSoftObject::Ptr sim = makeCloth(poly_corners, resolution_x, resolution_y, mass);
   	if (!image.empty())
   	  sim->setTexture(image, toBulletTransform(transformer->camFromWorldEigen));
@@ -66,26 +69,21 @@ TrackedObject::Ptr toTrackedObject(const bulletsim_msgs::ObjectInit& initMsg, Co
 	  //Shift the whole cloth upwards in case some of it starts below the table surface
 	  sim->softBody->translate(btVector3(0,0,0.01*METERS));
 
-	  //for (int i=0; i<sim->softBody->m_nodes.size(); i++) {
-//		for (int i=0; i<10; i++) {
-//			util::drawSpheres(sim->softBody->m_nodes[i].m_x, Vector3f(1,0,0), 0.5, 2, env);
-//	  	cv::Point2f pixel = sim->getTexCoord(i);
-//	  	image.at<cv::Vec3b>(pixel.y, pixel.x) = cv::Vec3b(255,255,255);
-//	  }
-//	  cv::imwrite("/home/alex/Desktop/tshirt_tex2.jpg", image);
-
 	  TrackedCloth::Ptr tracked_towel(new TrackedCloth(sim, resolution_x, resolution_y, sx, sy));
-
 	  return tracked_towel;
   }
   else if (initMsg.type == "box") {
-		vector<btVector3> top_corners = polyCorners(cloud);
-		float thickness = top_corners[0].z();
-		BulletSoftObject::Ptr sim = makeSponge(top_corners, thickness, 3);
-		sim->setColor(1,1,1,1);
+  	ColorCloudPtr plane_cloud = filterPlane(cloud, 0.02*METERS);
+  	vector<btVector3> top_corners = getUprightRectCorners(toBulletVectors(plane_cloud));
+		//util::drawPoly(top_corners, Vector3f(1,0,0), 1, util::getGlobalEnv());
+		float thickness = top_corners[0].z()-.01*METERS;
+		BulletSoftObject::Ptr sim = makeSponge(top_corners, thickness, 100, pow(TrackingConfig::sponge_res*METERS,3));
+  	if (!image.empty())
+  	  sim->setTexture(image, toBulletTransform(transformer->camFromWorldEigen));
+//		sim->setColor(1,1,1,1);
 
 	  //Shift the whole sponge upwards in case some of it starts below the table surface
-	  sim->softBody->translate(btVector3(0,0,0.01*METERS));
+	  sim->softBody->translate(btVector3(0,0,.01*METERS));
 
 		TrackedSponge::Ptr tracked_sponge(new TrackedSponge(sim));
 		return tracked_sponge;

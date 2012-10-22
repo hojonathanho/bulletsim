@@ -94,33 +94,17 @@ void plotNodesAsSpheres(const vector<btVector3>& nodes, const VectorXf& pVis, co
   spheres->plot(centers, colors, sizes);
 }
 
-void plotNodesAsSpheres(const Eigen::MatrixXf nodes, const Eigen::VectorXf& pVis, const Eigen::MatrixXf& stdev, PlotSpheres::Ptr spheres) {
-	assert(nodes.rows() == pVis.rows());
-	assert(nodes.rows() == stdev.rows());
-	assert(nodes.cols() == stdev.cols());
-	MatrixXf centers = nodes.leftCols(3);
-	MatrixXf colors(nodes.rows(), 4);
-	if (nodes.cols() >= 6)
-		//colors << nodes.middleCols(3,3).rowwise().reverse(), 0.25*VectorXf::Ones(nodes.rows());
-		colors << nodes.middleCols(3,3).rowwise().reverse(), pVis;
-		//colors << nodes.middleCols(3,3).rowwise().reverse(), nodes.col(6);
-	else
-		colors = Vector4f(1,1,1,1).transpose().replicate(nodes.rows(), 1);
-	VectorXf sizes = (stdev.leftCols(3)/4.0).rowwise().mean();
-	spheres->plot(util::toVec3Array(centers), util::toVec4Array(colors), toVec(sizes));
-}
-
 //Standard
-void plotNodesAsSpheres(const Eigen::MatrixXf centers, const Eigen::MatrixXf colors, const Eigen::VectorXf& pVis, const Eigen::MatrixXf& stdev, PlotSpheres::Ptr spheres) {
+void plotNodesAsSpheres(const Eigen::MatrixXf centers, const Eigen::MatrixXf colors, const Eigen::VectorXf& alphas, const Eigen::MatrixXf& stdev, PlotSpheres::Ptr spheres) {
 	int K = centers.rows();
 	assert(centers.cols() == 3);
 	assert(colors.rows() == K);
 	assert(colors.cols() == 3);
-	assert(pVis.size() == K);
+	assert(alphas.size() == K);
 	assert(stdev.rows() == K);
 
 	MatrixXf rgba(colors.rows(), 4);
-	rgba << colors.rowwise().reverse(), pVis;
+	rgba << colors.rowwise().reverse(), alphas;
 	VectorXf sizes = stdev.rowwise().mean()/4.0;
 	spheres->plot(util::toVec3Array(centers), util::toVec4Array(rgba), toVec(sizes));
 }

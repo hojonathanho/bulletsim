@@ -5,6 +5,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--plotting", action="store_true")
 parser.add_argument("--save_requests", action="store_true")
 parser.add_argument("--load_request", type=str)
+parser.add_argument("--simple_rope_init", action="store_true")
 args = parser.parse_args()
 
 
@@ -16,7 +17,7 @@ import bulletsim_msgs.msg as bm
 import geometry_msgs.msg as gm
 import rospy
 from brett2.ros_utils import RvizWrapper
-from tracking_initialization.rope_initialization import find_path_through_point_cloud
+import  tracking_initialization.rope_initialization as ri
 from tracking_initialization.object_recognition_lol import determine_object_type
 import numpy as np
 import cv2
@@ -56,8 +57,11 @@ def handle_initialization_request(req):
         print req.cloud.header
         poly_pub.publish(resp.objectInit.towel_corners)
     
-    if obj_type == "rope":
-        total_path_3d = find_path_through_point_cloud(xyz, plotting=args.plotting)            
+    elif obj_type == "rope":
+        if args.simple_rope_init:
+            total_path_3d = ri.find_path_through_point_cloud_simple(xyz, plotting=args.plotting)            
+        else:
+            total_path_3d = ri.find_path_through_point_cloud(xyz, plotting=args.plotting)            
         resp = bs.InitializationResponse()
         resp.objectInit.type = "rope"
         rope = resp.objectInit.rope = bm.Rope()
@@ -74,7 +78,24 @@ def handle_initialization_request(req):
         pose_array.poses = [gm.Pose(position=point, orientation=gm.Quaternion(0,0,0,1)) for point in rope.nodes]
 #        marker_handles[0] = rviz.draw_curve(pose_array,0)
 
-        
+    elif obj_type == "box":
+        xyz = xyz[abs(xyz[:,2]-np.median(xyz[:,2]))<.05,:]
+        center, (height, width), angle = cv2.minAreaRect(xyz[:,:2].astype('float32').reshape(1,-1,2))
+        angle *= np.pi/180
+        print 'width', width, 'height', height, 'angle', 'median', np.median(xyz[:,2]),angle*180/np.pi
+
+        resp = bs.InitializationResponse()
+        resp.objectInit.type = "box"
+        rope = resp.objectInit.box = bm.Box()
+
+        #rope.header = req.cloud.header                                                 
+        rope.center.x = center[0]
+        rope.center.y = center[1]
+        rope.center.z = np.median(xyz[:,2])/2.0
+        rope.extents.x = height
+        rope.extents.y = width
+        rope.extents.z = np.median(xyz[:,2])
+        rope.angle = angle
     
     return resp
     

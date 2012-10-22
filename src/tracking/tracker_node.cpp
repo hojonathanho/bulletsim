@@ -73,6 +73,8 @@ void callback(const vector<sensor_msgs::PointCloud2ConstPtr>& cloud_msg, const v
   }
   filteredCloud = downsampleCloud(filteredCloud, TrackingConfig::downsample*METERS);
   //filteredCloud = filterZ(filteredCloud, -0.1*METERS, 0.20*METERS);
+//  for (int i=0; i<filteredCloud->size(); i++)
+//  	filteredCloud->at(i).z += 0.20*METERS;
 
   pending = true;
 }
@@ -97,6 +99,12 @@ int main(int argc, char* argv[]) {
   ros::init(argc, argv,"tracker_node");
   ros::NodeHandle nh;
 
+  // set up scene
+  Scene scene;
+  scene.startViewer();
+  util::setGlobalEnv(scene.env);
+
+
   listener = new tf::TransformListener();
 
   for (int i=0; i<nCameras; i++)
@@ -120,25 +128,10 @@ int main(int argc, char* argv[]) {
     if (!ros::ok()) throw runtime_error("caught signal while waiting for first message");
   }
 
-  // set up scene
-  Scene scene;
-  util::setGlobalEnv(scene.env);
-
-  if (TrackingConfig::record_camera_pos_file != "" &&
-      TrackingConfig::playback_camera_pos_file != "") {
-    throw runtime_error("can't both record and play back camera positions");
-  }
-  CamSync camsync(scene);
-  if (TrackingConfig::record_camera_pos_file != "") {
-    camsync.enable(CamSync::RECORD, TrackingConfig::record_camera_pos_file);
-  } else if (TrackingConfig::playback_camera_pos_file != "") {
-    camsync.enable(CamSync::PLAYBACK, TrackingConfig::playback_camera_pos_file);
-  }
-
-  ViewerConfig::cameraHomePosition = transformers[0]->worldFromCamUnscaled.getOrigin();
-  ViewerConfig::cameraHomeCenter = ViewerConfig::cameraHomePosition + transformers[0]->worldFromCamUnscaled.getBasis().getColumn(2);
-  ViewerConfig::cameraHomeUp = -transformers[0]->worldFromCamUnscaled.getBasis().getColumn(1);
-  scene.startViewer();
+  CoordinateTransformer* transformer = transformers[0];
+  scene.manip->setTransformation(util::toOSGVector(METERS*transformer->worldFromCamUnscaled.getOrigin()),
+      util::toOSGVector(METERS*transformer->worldFromCamUnscaled.getOrigin()+METERS*transformer->worldFromCamUnscaled.getBasis().getColumn(2)),
+      util::toOSGVector(-transformer->worldFromCamUnscaled.getBasis().getColumn(1)));
 
 	TrackedObject::Ptr trackedObj = callInitServiceAndCreateObject(filteredCloud, rgb_images[0], mask_images[0], transformers[0]);
   if (!trackedObj) throw runtime_error("initialization of object failed.");
@@ -170,10 +163,23 @@ int main(int argc, char* argv[]) {
   boost::shared_ptr<ImageTopicRecorder> image_topic_recorder;
   if (RecordingConfig::record == RECORD_RENDER_ONLY) {
 		screen_recorder.reset(new ScreenThreadRecorder(scene.viewer, RecordingConfig::dir + "/" +  RecordingConfig::video_file + "_tracked.avi"));
+  } else if (RecordingConfig::record == RECORD_TOPIC_ONLY) {
+		image_topic_recorder.reset(new ImageTopicRecorder(nh, image_topics[0], RecordingConfig::dir + "/" +  RecordingConfig::video_file + "_topic.avi"));
   } else if (RecordingConfig::record == RECORD_RENDER_AND_TOPIC) {
 		screen_recorder.reset(new ScreenThreadRecorder(scene.viewer, RecordingConfig::dir + "/" +  RecordingConfig::video_file + "_tracked.avi"));
 		image_topic_recorder.reset(new ImageTopicRecorder(nh, image_topics[0], RecordingConfig::dir + "/" +  RecordingConfig::video_file + "_topic.avi"));
   }
+
+  if (TrackingConfig::record_camera_pos_file != "" &&
+			TrackingConfig::playback_camera_pos_file != "") {
+		throw runtime_error("can't both record and play back camera positions");
+	}
+	CamSync camsync(scene);
+	if (TrackingConfig::record_camera_pos_file != "") {
+		camsync.enable(CamSync::RECORD, TrackingConfig::record_camera_pos_file);
+	} else if (TrackingConfig::playback_camera_pos_file != "") {
+		camsync.enable(CamSync::PLAYBACK, TrackingConfig::playback_camera_pos_file);
+	}
 
   scene.setSyncTime(false);
   scene.setDrawing(true);

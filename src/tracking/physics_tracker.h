@@ -56,7 +56,8 @@ public:
   PlotSpheres::Ptr m_estPlot;
   PlotSpheres::Ptr m_estTransPlot;
   PlotSpheres::Ptr m_estCalcPlot;
+  PlotSpheres::Ptr m_visPlot;
   PlotLines::Ptr m_corrPlot;
-  bool m_enableObsInlierPlot, m_enableObsPlot, m_enableObsTransPlot, m_enableEstPlot, m_enableEstTransPlot, m_enableEstCalcPlot, m_enableCorrPlot;
+  bool m_enableObsInlierPlot, m_enableObsPlot, m_enableObsTransPlot, m_enableEstPlot, m_enableEstTransPlot, m_enableEstCalcPlot, m_enableVisPlot, m_enableCorrPlot;
   int m_nodeCorrPlot;
 };

@@ -17,6 +17,7 @@ std::ostream& operator<<(std::ostream& os, const std::map<T,S>& m)
 	}
 	os << " )";
 	os.flush();
+	return os;
 }
 
 template <typename T>
@@ -30,6 +31,7 @@ std::ostream& operator<<(std::ostream& os, const std::vector<T>& v)
 	}
 	os << " ]";
 	os.flush();
+	return os;
 }
 
 template <typename T>

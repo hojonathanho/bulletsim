@@ -10,6 +10,7 @@
 #include "physics_tracker.h"
 #include "initialization.h"
 #include "simulation/simplescene.h"
+#include "simulation/config_viewer.h"
 #include "config_tracking.h"
 #include "robots/pr2.h"
 #include "robots/ros2rave.h"
@@ -61,7 +62,8 @@ void callback (const sensor_msgs::PointCloud2ConstPtr& cloudMsg, const sensor_ms
 
 void initializeTrackedObject() {
   ros::NodeHandle nh;
-  sensor_msgs::ImageConstPtr msg = ros::topic::waitForMessage<sensor_msgs::Image>(TrackingConfig::cameraTopics[0], nh, ros::Duration(1));
+  sensor_msgs::ImageConstPtr msg = ros::topic::waitForMessage<sensor_msgs::Image>("/preprocessor/kinect1/image", nh, ros::Duration(1));
+  if (!msg) throw std::runtime_error("initializeTrackedObject: couldn't get first image message");
   cv::Mat image_and_mask = cv_bridge::toCvCopy(msg)->image;
   cv::Mat image, mask;
   extractImageAndMask(image_and_mask, image, mask);
@@ -90,6 +92,7 @@ int main(int argc, char* argv[]) {
   parser.addGroup(GeneralConfig());
   parser.addGroup(BulletConfig());
   parser.addGroup(RecordingConfig());
+  parser.addGroup(ViewerConfig());
   parser.addGroup(LocalConfig());
   GeneralConfig::scale = 10;
   parser.read(argc, argv);
@@ -119,12 +122,14 @@ int main(int argc, char* argv[]) {
 
 
 
-  DemoRecorder::Ptr demoRecord;
-  if (RecordingConfig::record) {
-    demoRecord.reset(new DemoRecorder(nh, "/camera/rgb/image_rect_color", scene.viewer));
+  boost::shared_ptr<ScreenThreadRecorder> screen_recorder;
+  boost::shared_ptr<ImageTopicRecorder> image_topic_recorder;
+  if (RecordingConfig::record == RECORD_RENDER_ONLY) {
+        screen_recorder.reset(new ScreenThreadRecorder(scene.viewer, RecordingConfig::dir + "/" +  RecordingConfig::video_file + "_tracked.avi"));
+  } else if (RecordingConfig::record == RECORD_RENDER_AND_TOPIC) {
+        screen_recorder.reset(new ScreenThreadRecorder(scene.viewer, RecordingConfig::dir + "/" +  RecordingConfig::video_file + "_tracked.avi"));
+        image_topic_recorder.reset(new ImageTopicRecorder(nh, "/preprocessor" + TrackingConfig::cameraTopics[0] + "/image", RecordingConfig::dir + "/" +  RecordingConfig::video_file + "_topic.avi"));
   }
-//  boost::thread recordThread(boost::bind(&DemoRecorder::frameLoop, demoRecord.get(), 20));
-
 
   CoordinateTransformer cam_transformer;
   btTransform baseFromCam;
@@ -145,6 +150,9 @@ int main(int argc, char* argv[]) {
   }
   if (!ros::ok()) throw runtime_error("caught signal while waiting for first message");
 
+  scene.manip->setTransformation(util::toOSGVector(METERS*cam_transformer.worldFromCamUnscaled.getOrigin()),
+      util::toOSGVector(METERS*cam_transformer.worldFromCamUnscaled.getOrigin()+METERS*cam_transformer.worldFromCamUnscaled.getBasis().getColumn(2)),
+      util::toOSGVector(-cam_transformer.worldFromCamUnscaled.getBasis().getColumn(1)));
 
   initializeTrackedObject();
   GrabManager lgm, rgm;

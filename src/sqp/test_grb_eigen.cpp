@@ -10,6 +10,8 @@ int main() {
   GRBModel model(env);
   GRBVar v1,v2;
   GRBVar v3 = model.addVar(-1,1,0,GRB_CONTINUOUS);
+  cout << "same?" << v1.sameAs(v2) << endl;;
+  cout << "same?" << v1.sameAs(v3) << endl;;
   cout << "null?" << v1.get(GRB_StringAttr_VarName) << endl;
 #if 0
   VarMatrix vm(5,5);

@@ -47,7 +47,7 @@ osg::ref_ptr<osg::Vec4Array> toVec4Array(const Eigen::MatrixXf& in) {
     return out;
 }
 
-void drawSpheres(vector<btVector3> points, Vector3f color, float alpha, float radius, Environment::Ptr env) {
+PlotSpheres::Ptr drawSpheres(vector<btVector3> points, Vector3f color, float alpha, float radius, Environment::Ptr env) {
 	PlotSpheres::Ptr plot_spheres(new PlotSpheres());
 	env->add(plot_spheres);
 
@@ -56,13 +56,14 @@ void drawSpheres(vector<btVector3> points, Vector3f color, float alpha, float ra
 	rgba << color.transpose().replicate(points.size(),1) , VectorXf::Constant(points.size(), alpha);
 	VectorXf sizes = VectorXf::Constant(points.size(), radius);
 	plot_spheres->plot(util::toVec3Array(centers), util::toVec4Array(rgba), toVec(sizes));
+	return plot_spheres;
 }
 
-void drawSpheres(btVector3 point, Vector3f color, float alpha, float radius, Environment::Ptr env) {
-	drawSpheres(vector<btVector3>(1,point), color, alpha, radius, env);
+PlotSpheres::Ptr drawSpheres(btVector3 point, Vector3f color, float alpha, float radius, Environment::Ptr env) {
+	return drawSpheres(vector<btVector3>(1,point), color, alpha, radius, env);
 }
 
-void drawLines(vector<btVector3> points0, vector<btVector3> points1, Vector3f color, float alpha, Environment::Ptr env) {
+PlotLines::Ptr drawLines(vector<btVector3> points0, vector<btVector3> points1, Vector3f color, float alpha, Environment::Ptr env) {
 	assert(points0.size() == points1.size());
 	PlotLines::Ptr plot_lines(new PlotLines());
 	env->add(plot_lines);
@@ -76,9 +77,10 @@ void drawLines(vector<btVector3> points0, vector<btVector3> points1, Vector3f co
 		lineColors.push_back(btVector4(color(0), color(1), color(2), alpha));
 	}
 	plot_lines->setPoints(linePoints, lineColors);
+	return plot_lines;
 }
 
-void drawPoly(vector<btVector3> points, Vector3f color, float alpha, Environment::Ptr env) {
+PlotLines::Ptr drawPoly(vector<btVector3> points, Vector3f color, float alpha, Environment::Ptr env) {
 	vector<btVector3> pts0;
 	vector<btVector3> pts1;
 	for (int i=0; i<(points.size()-1); i++) {
@@ -88,14 +90,15 @@ void drawPoly(vector<btVector3> points, Vector3f color, float alpha, Environment
 	pts0.push_back(points[points.size()-1]);
 	pts1.push_back(points[0]);
 
-	drawLines(pts0, pts1, color, alpha, env);
+	return drawLines(pts0, pts1, color, alpha, env);
 }
 
-void drawAxes(btTransform transform, float size, Environment::Ptr env) {
+PlotAxes::Ptr drawAxes(btTransform transform, float size, Environment::Ptr env) {
 	PlotAxes::Ptr plot_axes(new PlotAxes());
 	env->add(plot_axes);
 
 	plot_axes->setup(transform, size);
+	return plot_axes;
 }
 
 static Environment::Ptr gEnv;

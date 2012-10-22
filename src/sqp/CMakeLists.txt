@@ -6,19 +6,21 @@ include_directories(
     ${EIGEN3_INCLUDE_DIR}
 )
 
+SET(CMAKE_CXX_FLAGS "-Wall -Wno-sign-compare -Wno-reorder")
+
 include_directories(/home/joschu/Src/gurobi501/linux64/include)
 link_directories(/home/joschu/Src/gurobi501/linux64/lib)
 
 add_executable(test_grb_eigen test_grb_eigen.cpp)
 target_link_libraries(test_grb_eigen gurobi_c++ gurobi50)
 
-add_library(sqp traj_costs.cpp utils_sqp.cpp sqp_algorithm.cpp collision_boxes.cpp collision_map_tools.cpp)
+add_library(sqp traj_costs.cpp utils_sqp.cpp config_sqp.cpp sqp_algorithm.cpp collision_boxes.cpp collision_map_tools.cpp)
 
 target_link_libraries(sqp utils simulation robots ${Boost_LIBRARIES} ${BULLET_LIBS} ${OpenRAVE_LIBRARIES} gurobi_c++ gurobi50)
 
+
 add_executable(test_traj_eval_grb test_traj_eval_grb2.cpp)
 target_link_libraries(test_traj_eval_grb sqp)
-
 
 include_directories(${PCL_INCLUDE_DIRS})
 include_directories("/opt/ros/fuerte/stacks/geometry/tf/include"
@@ -35,3 +37,6 @@ target_link_libraries(interact_with_point_cloud clouds sqp)
 
 add_executable(test_ros_ser test_ros_ser.cpp)
 target_link_libraries(test_ros_ser ${ROS_LIBRARIES})
+
+add_executable(test_rave_env test_rave_env.cpp)
+target_link_libraries(test_rave_env simulation robots)

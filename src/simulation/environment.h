@@ -84,11 +84,11 @@ public:
 
 		//gets the index of the closest part of the object (face, capsule, rigid_body, etc)
 		//for rigid bodies, there is only one index so this will always return 0
-		virtual int getIndex(const btTransform& transform) { std::runtime_error("getIndex() hasn't been defined yet"); }
-		virtual int getIndexSize() { std::runtime_error("getIndex() hasn't been defined yet"); }
+		virtual int getIndex(const btTransform& transform) { std::runtime_error("getIndex() hasn't been defined yet"); return 0; }
+		virtual int getIndexSize() { std::runtime_error("getIndex() hasn't been defined yet"); return 0; }
 		//gets the transform of the indexed part
 		//for rigid bodies, this just returns the rigid body's transform
-		virtual btTransform getIndexTransform(int index) { std::runtime_error("getIndexTransform() hasn't been defined yet"); }
+		virtual btTransform getIndexTransform(int index) { std::runtime_error("getIndexTransform() hasn't been defined yet"); return btTransform(); }
 };
 
 struct Environment {

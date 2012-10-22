@@ -272,7 +272,7 @@ btSoftBody* CreatePolygonPatch(btSoftBodyWorldInfo& worldInfo, std::vector<btVec
 
 	// transformed corners with their z axis dropped off
 	vector<cv::Point2f> corners_2d(xy_corners.size());
-	for (int i; i<corners_2d.size(); i++)
+	for (int i=0; i<corners_2d.size(); i++)
 		corners_2d[i] = cv::Point2f(xy_corners[i].x(), xy_corners[i].y());
 
 	// transformed rectangle corners of the transformed corners

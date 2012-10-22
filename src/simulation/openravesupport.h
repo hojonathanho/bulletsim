@@ -117,7 +117,7 @@ public:
 
   void setDOFValues(const vector<int> &indices, const vector<dReal> &vals);
   vector<double> getDOFValues(const vector<int> &indices);
-
+  vector<double> getDOFValues();
 
   struct Manipulator {
     RaveRobotObject *robot;
@@ -189,6 +189,18 @@ protected:
 
 RaveObject::Ptr getObjectByName(Environment::Ptr env, RaveInstance::Ptr rave, const string& name);
 RaveRobotObject::Ptr getRobotByName(Environment::Ptr env, RaveInstance::Ptr rave, const string& name);
+
+class ScopedRobotSave {
+  std::vector<double> m_dofvals;
+  OpenRAVE::RobotBasePtr m_robot;
+public:
+  ScopedRobotSave(OpenRAVE::RobotBasePtr robot) : m_robot(robot) {
+    robot->GetDOFValues(m_dofvals);
+  }
+  ~ScopedRobotSave() {m_robot->SetDOFValues(m_dofvals);}
+};
+
+
 
 
 

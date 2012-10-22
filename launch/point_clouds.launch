@@ -21,7 +21,7 @@
 		</include>
 	</group>
 
-	<node name="drop1" pkg="topic_tools" type="drop" args="/$(arg camera)/depth_registered/points 2 3 /drop/points"/>
-	<node name="preprocessor" pkg="binary_symlinks" type="qpreprocessor_node" output="screen"  args="--inputTopic=/drop/points --downsample=0.008 --removeOutliers=true --outlierRadius=0.016 --outlierMinK=0 --clusterMinSize=15 --zClipLow=-0.02 --backgroundRead=false --backgroundFile=/home/alex/Desktop/preprocessor.yml" /> 
+	<node name="drop" pkg="topic_tools" type="drop" args="/$(arg camera)/depth_registered/points 1 2 /drop/$(arg camera)/points"/>
+	<node name="preprocessor" pkg="binary_symlinks" type="qpreprocessor_node" output="screen"  args="--inputTopic=/drop/$(arg camera)/points --downsample=0.008 --removeOutliers=true --outlierRadius=0.016 --outlierMinK=0 --clusterMinSize=15 --zClipLow=-0.02 --backgroundRead=false --backgroundFile=/home/alex/Desktop/preprocessor.yml" /> 
 
 </launch>

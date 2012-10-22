@@ -214,10 +214,10 @@ btSoftBody* CreatePrism(btSoftBodyWorldInfo& worldInfo,
 		in.pointlist[i * 3 + 2] = corners_base[i].z();
   }
   // Set top nodes
-  for (i = corners_base.size(); i < corners_base.size()*2; i++) {
-    in.pointlist[i * 3]     = polygon_translation.x() + in.pointlist[(i - corners_base.size()) * 3];
-    in.pointlist[i * 3 + 1] = polygon_translation.y() + in.pointlist[(i - corners_base.size()) * 3 + 1];
-    in.pointlist[i * 3 + 2] = polygon_translation.z();
+  for (i=0; i<corners_base.size(); i++) {
+    in.pointlist[(i+corners_base.size()) * 3]     = polygon_translation.x() + in.pointlist[i * 3];
+    in.pointlist[(i+corners_base.size()) * 3 + 1] = polygon_translation.y() + in.pointlist[i * 3 + 1];
+    in.pointlist[(i+corners_base.size()) * 3 + 2] = polygon_translation.z() + in.pointlist[i * 3 + 2];
   }
 
   in.numberoffacets = corners_base.size() + 2;

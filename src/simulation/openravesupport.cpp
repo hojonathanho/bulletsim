@@ -181,8 +181,11 @@ static BulletObject::Ptr createFromLink(KinBody::LinkPtr link,
          TrimeshMode trimeshMode,
         float fmargin, bool isDynamic) {
 
-	const std::list<KinBody::Link::GEOMPROPERTIES> &geometries =
-			link->GetGeometries();
+#if OPENRAVE_VERSION_MINOR>6
+  const std::vector<boost::shared_ptr<OpenRAVE::KinBody::Link::GEOMPROPERTIES> > & geometries=link->GetGeometries();
+#else
+  const std::list<KinBody::Link::GEOMPROPERTIES> &geometries =link->GetGeometries();
+#endif
 	// sometimes the OpenRAVE link might not even have any geometry data associated with it
 	// (this is the case with the PR2 model). therefore just add an empty BulletObject
 	// pointer so we know to skip it in the future
@@ -194,12 +197,15 @@ static BulletObject::Ptr createFromLink(KinBody::LinkPtr link,
 	btCompoundShape *compound = new btCompoundShape();
 	compound->setMargin(0); //margin: compound. seems to have no effect when positive but has an effect when negative
 
-	float volumeAccumulator(0);
+//	float volumeAccumulator(0);
 	btVector3 firstMomentAccumulator(0,0,0);
 
-	for (std::list<KinBody::Link::GEOMPROPERTIES>::const_iterator geom =
-			geometries.begin(); geom != geometries.end(); ++geom) {
 
+#if OPENRAVE_VERSION_MINOR>6
+	BOOST_FOREACH(const boost::shared_ptr<OpenRAVE::KinBody::Link::GEOMPROPERTIES>& geom, geometries) {
+#else
+	for (std::list<KinBody::Link::GEOMPROPERTIES>::const_iterator geom = geometries.begin(); geom != geometries.end(); ++geom) {
+#endif
 		btVector3 offset(0, 0, 0);
 
 		boost::shared_ptr<btCollisionShape> subshape;
@@ -451,6 +457,12 @@ vector<double> RaveRobotObject::getDOFValues(const vector<int>& indices) {
 	robot->SetActiveDOFs(indices);
 	vector<double> out;
 	robot->GetActiveDOFValues(out);
+	return out;
+}
+
+vector<double> RaveRobotObject::getDOFValues() {
+	vector<double> out;
+	robot->GetDOFValues(out);
 	return out;
 }
 

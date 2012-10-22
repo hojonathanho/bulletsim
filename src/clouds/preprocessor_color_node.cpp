@@ -95,7 +95,7 @@ float LocalConfig::clusterMinSize = 0;
 float LocalConfig::outlierRadius = 0.02;
 int LocalConfig::outlierMinK = 0;
 float LocalConfig::offset = 0.02;
-string LocalConfig::boundaryFile = "polygon";
+string LocalConfig::boundaryFile = string(getenv("BULLETSIM_SOURCE_DIR")) + "/data/boundary/polygon.bdr";
 int LocalConfig::boundaryType = LOAD_FILE;
 bool LocalConfig::debugMask = false;
 int LocalConfig::threads = 4;
@@ -298,8 +298,8 @@ public:
 
     geometry_msgs::PolygonStamped polyStamped;
     polyStamped.polygon = m_poly;
+    polyStamped.header = msg_in.header;
     polyStamped.header.frame_id = LocalConfig::groundFrame;
-    polyStamped.header.stamp = ros::Time::now();
 
     m_mutex.lock();
     m_cloudPub.publish(msg_out);
@@ -327,16 +327,17 @@ public:
       hull_vertices[0].vertices.push_back(0);
 
     } else {
+			if (LocalConfig::boundaryType == TABLE)
+				cloud = colorSpaceFilter(cloud, MIN_L, MAX_L, MIN_A, MAX_A, MIN_B, MAX_B, CV_BGR2Lab, false, true); //green cloud
+			ColorCloudPtr cloud_filtered = downsampleCloud(cloud, .005);
+			pcl::ModelCoefficients::Ptr coefficients(new pcl::ModelCoefficients);
+			cloud_filtered = filterPlane(cloud_filtered, 0.03, coefficients);
+			cloud_filtered = getBiggestCluster(cloud_filtered, .02);
+			ColorCloudPtr cloud_projected = projectOntoPlane(cloud_filtered, coefficients); // full table cloud
 
-      ColorCloudPtr cloud_filtered = downsampleCloud(cloud, .005);
-      pcl::ModelCoefficients::Ptr coefficients(new pcl::ModelCoefficients);
-      cloud_filtered = filterPlane(cloud_filtered, 0.03, coefficients);
-      cloud_filtered = getBiggestCluster(cloud_filtered, .02);
-      ColorCloudPtr cloud_projected = projectOntoPlane(cloud_filtered, coefficients); // full table cloud
-
-//      if (LocalConfig::boundaryType == RED_MARKERS) cloud_projected = colorSpaceFilter(cloud_projected, 0, 255, 0, 166, 0, 255, CV_BGR2Lab, false, true); // red table cloud
-      if (LocalConfig::boundaryType == RED_MARKERS) cloud_projected = hueFilter(cloud_projected, 160, 10, 150, 255, 100, 255);
-      cloud_hull = findConvexHull(cloud_projected, hull_vertices);
+			//if (LocalConfig::boundaryType == RED_MARKERS) cloud_projected = colorSpaceFilter(cloud_projected, 0, 255, 0, 166, 0, 255, CV_BGR2Lab, false, true); // red table cloud
+			if (LocalConfig::boundaryType == RED_MARKERS) cloud_projected = hueFilter(cloud_projected, 160, 10, 150, 255, 100, 255);
+			cloud_hull = findConvexHull(cloud_projected, hull_vertices);
 
       // transform the poly points from camera to ground frame
       btTransform transform = waitForAndGetTransform(m_listener, LocalConfig::groundFrame, msg_in.header.frame_id);

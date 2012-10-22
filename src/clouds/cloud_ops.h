@@ -20,7 +20,7 @@ ColorCloudPtr projectOntoPlane(const ColorCloudPtr in, pcl::ModelCoefficients::P
 ColorCloudPtr filterZ(ColorCloudPtr in, float low, float high);
 ColorCloudPtr filterY(ColorCloudPtr in, float low, float high);
 ColorCloudPtr filterX(ColorCloudPtr in, float low, float high);
-ColorCloudPtr filterPlane(ColorCloudPtr in, float dist_thresh, pcl::ModelCoefficients::Ptr coefficients);
+ColorCloudPtr filterPlane(ColorCloudPtr in, float dist_thresh, pcl::ModelCoefficients::Ptr coefficients = pcl::ModelCoefficients::Ptr(new pcl::ModelCoefficients));
 Eigen::VectorXf getCircle(ColorCloudPtr cloud);
 Eigen::VectorXf getEnclosingCircle(ColorCloudPtr cloud);
 ColorCloudPtr getBiggestCluster(ColorCloudPtr in, float tol);

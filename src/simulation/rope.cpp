@@ -72,7 +72,7 @@ void createRopeTransforms(vector<btTransform>& transforms, vector<btScalar>& len
 }
 
 
-CapsuleRope::CapsuleRope(const vector<btVector3>& ctrlPoints, btScalar radius_, float angStiffness_, float angDamping_, float linDamping_, float angLimit_) {
+CapsuleRope::CapsuleRope(const vector<btVector3>& ctrlPoints, btScalar radius_, float angStiffness_, float angDamping_, float linDamping_, float angLimit_, float linStopErp_) {
   radius = radius_;
   angStiffness = angStiffness_;
   angDamping = angDamping_;
@@ -86,7 +86,7 @@ CapsuleRope::CapsuleRope(const vector<btVector3>& ctrlPoints, btScalar radius_, 
     btTransform trans = transforms[i];
     btScalar len = lengths[i];
     float mass = 1;
-    CapsuleObject::Ptr child(new CapsuleObject(1,radius,len,trans));
+    CapsuleObject::Ptr child(new CapsuleObject(mass,radius,len,trans));
     child->rigidBody->setDamping(linDamping,angDamping);
     child->rigidBody->setFriction(1);
 
@@ -94,6 +94,7 @@ CapsuleRope::CapsuleRope(const vector<btVector3>& ctrlPoints, btScalar radius_, 
 
     if (i>0) {
       boost::shared_ptr<btPoint2PointConstraint> jointPtr(new btPoint2PointConstraint(*children[i-1]->rigidBody,*children[i]->rigidBody,btVector3(len/2,0,0),btVector3(-len/2,0,0)));
+      jointPtr->setParam(BT_CONSTRAINT_STOP_ERP, linStopErp_);
       joints.push_back(BulletConstraint::Ptr(new BulletConstraint(jointPtr, true)));
 
       boost::shared_ptr<btGeneric6DofSpringConstraint> springPtr = createBendConstraint(len,children[i-1]->rigidBody,children[i]->rigidBody,angDamping,angStiffness,angLimit);
@@ -155,7 +156,7 @@ vector<btMatrix3x3> CapsuleRope::getRotations() {
 	vector<btMatrix3x3> out;
 	for (int i=0; i < children.size(); i++) {
 		btRigidBody* body = children[i]->rigidBody.get();
-		btCapsuleShape* capsule = dynamic_cast<btCapsuleShapeX*>(body->getCollisionShape());
+//		btCapsuleShape* capsule = dynamic_cast<btCapsuleShapeX*>(body->getCollisionShape());
 		btTransform tf = body->getCenterOfMassTransform();
 		out.push_back(tf.getBasis());
 	}
@@ -200,7 +201,7 @@ void CapsuleRope::setTexture(cv::Mat image, cv::Mat mask, const btTransform& cam
 				if (radius_frac == 0.0) {
 					cv::Point2f uv = xyz2uv(camFromWorld * sub_node);
 					cv::Vec3b color = image.at<cv::Vec3b>(uv.y, uv.x);
-					if (mask.at<bool>(uv.y, uv.x)) {
+					if (uv.y >= 0 && uv.x >= 0 && uv.y < mask.rows && uv.x < mask.cols && mask.at<bool>(uv.y, uv.x)) {
 						bin_colors.push_back(color);
 						//util::drawSpheres(sub_node, Vector3f(((float)color[2])/255.0, ((float)color[1])/255.0, ((float)color[0])/255.0), 1, 0.001*METERS, util::getGlobalEnv());
 					}
@@ -210,8 +211,8 @@ void CapsuleRope::setTexture(cv::Mat image, cv::Mat mask, const btTransform& cam
 //						btVector3 surf_pt = sub_node + radius_frac*radius*toBulletVector(AngleAxisf(angle, node_rot.col(0)) * node_rot.col(1));
 						btVector3 surf_pt = sub_node + radius_frac*radius* (btMatrix3x3(btQuaternion(node_rot.getColumn(0), angle)) * node_rot.getColumn(1));
 						cv::Point2f uv = xyz2uv(camFromWorld * surf_pt);
-						cv::Vec3b color = image.at<cv::Vec3b>(uv.y, uv.x);
-						if (mask.at<bool>(uv.y, uv.x)) {
+						if (uv.y >= 0 && uv.x >= 0 && uv.y < mask.rows && uv.x < mask.cols && mask.at<bool>(uv.y, uv.x)) {
+							cv::Vec3b color = image.at<cv::Vec3b>(uv.y, uv.x);
 							bin_colors.push_back(color);
 							//util::drawSpheres(surf_pt, Vector3f(((float)color[2])/255.0, ((float)color[1])/255.0, ((float)color[0])/255.0), 1, 0.001*METERS, util::getGlobalEnv());
 						}

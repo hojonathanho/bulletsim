@@ -9,6 +9,30 @@
 using namespace std;
 using namespace Eigen;
 
+
+vector<btVector3> getUprightRectCorners(const std::vector<btVector3>& in) {
+
+
+  vector<cv::Point2f> pts2d;
+
+  float zmax=0;
+  BOOST_FOREACH(const btVector3& pt, in) {
+    pts2d.push_back(cv::Point2f(pt.x(), pt.y()));
+    zmax = fmax(zmax, pt.z());
+  }
+
+  cv::RotatedRect rect = cv::minAreaRect(pts2d);
+  cv::Point2f verts2d[4];
+  rect.points(verts2d);
+
+  vector<btVector3> points3d;
+  for (int i = 0; i < 4; i++) {
+      points3d.push_back(  btVector3(verts2d[i].x, verts2d[i].y, zmax));
+  }
+  return points3d;
+}
+
+
 void perpBasis(const Vector3f& v1, Vector3f& v2, Vector3f& v3) {
 	v2 = Vector3f(-v1[1], v1[0], 0);
 	if (v2.norm() == 0)

@@ -250,14 +250,22 @@ void PR2Manager::registerSceneCallbacks() {
 void PR2Manager::loadRobot() {
   if (!SceneConfig::enableRobot) return;
 
-  OpenRAVE::RobotBasePtr maybeRobot = scene.rave->env->GetRobot("pr2");
+  RaveRobotObject::Ptr maybeRobot = getRobotByName(scene.env, scene.rave, "pr2");
 
-  if (maybeRobot) { // if pr2 already loaded into openrave, use it
-    pr2.reset(new RaveRobotObject(scene.rave, maybeRobot));
-    scene.env->add(pr2);
+  if (maybeRobot) { // if pr2 already loaded into scene, use it
+    pr2 = maybeRobot;
+    if (std::count(scene.env->objects.begin(), scene.env->objects.end(), maybeRobot) == 0) {
+      scene.env->add(pr2);
+    }
   } else {
-    static const char ROBOT_MODEL_FILE[] = "robots/pr2-beta-static.zae";
-    pr2.reset(new RaveRobotObject(scene.rave, ROBOT_MODEL_FILE));
+    RobotBasePtr maybeRaveRobot = scene.rave->env->GetRobot("pr2");
+    if (maybeRaveRobot) { // pr2 loaded into rave but not scene
+      pr2.reset(new RaveRobotObject(scene.rave, maybeRaveRobot));
+    }
+    else { // pr2 not loaded into rave or scene
+      static const char ROBOT_MODEL_FILE[] = "robots/pr2-beta-static.zae";
+      pr2.reset(new RaveRobotObject(scene.rave, ROBOT_MODEL_FILE));
+    }
     scene.env->add(pr2);
   }
 }
