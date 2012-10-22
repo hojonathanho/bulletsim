@@ -40,14 +40,19 @@ vector<double> filterOutIntervals(const std::vector<double>& in, const std::vect
   BOOST_FOREACH(const double d, in) if (!inSomeInterval(d, exclude)) out.push_back(d);
   return out;
 }
-
+/**
+ * @param lc a LinkCollision corresponding to a link in collision
+ * @param time the time the collision occurs
+ * @param allowedCollisions mapping of link indices to allowed time intervals
+ *  for collision
+ * @return true if the given LinkCollision is allowed
+ */
 bool linkInAllowedCollision(const LinkCollision lc, double time,
-    const std::vector<AllowedLinkCollision>& allowedCollisions){
-  BOOST_FOREACH(const AllowedLinkCollision alc, allowedCollisions){
-    if(alc.linkIndex == lc.linkInd){
-      if(inSomeInterval(time, alc.intervals)){
-        return true;
-      }
+    const map<int, vector<paird> >& allowedCollisions){
+  map<int, vector<paird> >::const_iterator intervals = allowedCollisions.find(lc.linkInd);
+  if(intervals != allowedCollisions.end()){
+    if(inSomeInterval(time, intervals->second)){
+      return true;
     }
   }
   return false;
@@ -65,7 +70,7 @@ bool linkInAllowedCollision(const LinkCollision lc, double time,
 //TODO: Perhaps there should be a trajectory class, and this should be a member
 //TODO: Allow specific links to collide rather than time intervals
 bool isSafe(const TrajCartCollInfo& cci, double distSafe, const Eigen::VectorXd& times,
-		const std::vector<AllowedLinkCollision>& allowedCollisions) {
+		const map<int, vector<paird> >& allowedCollisions) {
 //  countCollisions(const TrajJointCollInfo& trajCollInfo, double safeDist, int& nNear, int& nUnsafe, int& nColl)
   assert(cci.size() == times.size());
   vector<double> discreteUnsafeTimes;
@@ -94,7 +99,7 @@ bool isSafe(const TrajCartCollInfo& cci, double distSafe, const Eigen::VectorXd&
  * @return a list of new times to be sampled in a new trajectory
  */
 vector<double> getSubdivisionTimes(const TrajCartCollInfo& cci, const Eigen::VectorXd& times,
-    const std::vector<AllowedLinkCollision>& allowedCollisions) {
+    const map<int, vector<paird> >& allowedCollisions) {
   int nContColl=0;
   vector<double> insertTimes;
   for (int i = 0; i < cci.size() - 1; ++i) {
@@ -135,7 +140,7 @@ vector<double> getSubdivisionTimes(const TrajCartCollInfo& cci, const Eigen::Vec
  * @param maxSteps the maximum number of steps in the trajectory
  */
 bool outerOptimization(PlanningProblem& prob, CollisionCostPtr cc,
-		const std::vector<AllowedLinkCollision>& allowedCollisions) {
+		const map<int, vector<paird> >& allowedCollisions) {
   for (int outerOptIter = 0;; ++outerOptIter) {
     LOG_INFO_FMT("outer optimization iteration: %i", outerOptIter);
     if (prob.m_tra->m_shrinkage < SQPConfig::shrinkLimit) prob.m_tra->m_shrinkage = 10*SQPConfig::shrinkLimit;
@@ -210,7 +215,7 @@ bool planArmToCartTarget(PlanningProblem& prob, const Eigen::VectorXd& startJoin
   prob.addComponent(cc);
   prob.addTrustRegionAdjuster(jb);
   prob.addComponent(cp);
-  return outerOptimization(prob, cc, vector<AllowedLinkCollision>());
+  return outerOptimization(prob, cc, map<int, vector<paird> >());
 
 }
 
@@ -225,7 +230,7 @@ bool planArmToJointTarget(PlanningProblem& prob, const Eigen::VectorXd& startJoi
   prob.addComponent(lcc);
   prob.addComponent(cc);
   prob.addTrustRegionAdjuster(jb);
-  return outerOptimization(prob, cc, vector<AllowedLinkCollision>());
+  return outerOptimization(prob, cc, map<int, vector<paird> >());
 }
 
 /**
@@ -266,9 +271,9 @@ bool planArmToGrasp(PlanningProblem& prob, const Eigen::VectorXd& startJoints, c
   vector<paird> allowedCollisionIntervals;
   allowedCollisionIntervals.push_back(paird(oldLen, oldLen+nEnd));
   int gripperInd = arm->manip->GetEndEffector()->GetIndex();
-  AllowedLinkCollision allowEndEffector(gripperInd, allowedCollisionIntervals);
-  vector<AllowedLinkCollision> allowedCollisions;
-  allowedCollisions.push_back(allowEndEffector);
+
+  map<int, vector<paird> > allowedCollisions;
+  allowedCollisions[gripperInd] = allowedCollisionIntervals;
 
   LengthConstraintAndCostPtr lcc(new LengthConstraintAndCost(true, false, defaultMaxStepMvmt(initTraj), SQPConfig::lengthCoef));
   CollisionCostPtr cc(new CollisionCost(arm->robot->robot,   arm->robot->getEnvironment()->bullet->dynamicsWorld, brs,

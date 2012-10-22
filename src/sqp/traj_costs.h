@@ -43,10 +43,3 @@ TrajJointCollInfo trajCartToJointCollInfo(const TrajCartCollInfo& in, const Eige
     const std::vector<int>& dofInds, bool useAffine);
 
 void countCollisions(const TrajJointCollInfo& trajCollInfo, double safeDist, int& nNear, int& nUnsafe, int& nColl);
-
-struct AllowedLinkCollision{
-	int linkIndex;
-	std::vector<paird> intervals;
-	AllowedLinkCollision(int linkIndex, std::vector<paird> intervals):
-	  linkIndex(linkIndex), intervals(intervals){};
-};
