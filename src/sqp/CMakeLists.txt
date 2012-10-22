@@ -49,3 +49,6 @@ target_link_libraries(test_rave_env simulation robots sqp json)
 
 add_executable(test_push_object test_push_object.cpp)
 target_link_libraries(test_push_object simulation robots sqp)
+
+add_executable(test_sqp_simple test_sqp_simple.cpp sqp.cpp config_sqp.cpp)
+target_link_libraries(test_sqp_simple utils gurobi_c++ gurobi50)
