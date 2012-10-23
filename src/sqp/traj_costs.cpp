@@ -87,7 +87,6 @@ TrajCartCollInfo collectTrajCollisions(const Eigen::MatrixXd& traj, RobotBasePtr
         if (point.getZ() > .05*METERS) out[iStep].push_back(LinkCollision(dist, linkInds[iBody], point, normal));
       }
     }
-    LOG_DEBUG_FMT("%i collisions at time %i", out[iStep].size(), iStep);
   }
   return out;
 }
@@ -311,7 +310,6 @@ void countCollisions(const TrajJointCollInfo& trajCollInfo, double safeDist, int
     for (int iColl=0; iColl < trajCollInfo[iStep].jacs.size(); ++iColl) {
       if (dists[iColl] < 0) {
         ++nColl;
-        LOG_INFO_FMT("COLLISION AT TIME %i",iStep);
       }
       else if (dists[iColl] < safeDist) ++nUnsafe;
       else ++nNear;

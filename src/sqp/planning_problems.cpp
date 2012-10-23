@@ -72,7 +72,7 @@ vector<double> getSubdivisionTimes(const TrajCartCollInfo& cci, const Eigen::Vec
 bool outerOptimization(PlanningProblem& prob, CollisionCostPtr cc, const std::vector<paird>& allowedCollisionIntervals) {
   for (int outerOptIter = 0;; ++outerOptIter) {
     LOG_INFO_FMT("outer optimization iteration: %i", outerOptIter);
-    if (prob.m_tra->m_shrinkage < SQPConfig::shrinkLimit) prob.m_tra->m_shrinkage = 10*SQPConfig::shrinkLimit;
+    if (prob.m_tra->m_shrinkage < SQPConfig::shrinkLimit) prob.m_tra->adjustTrustRegion(10*SQPConfig::shrinkLimit / prob.m_tra->m_shrinkage);
     prob.optimize(SQPConfig::maxIter);
 
     // discrete is safe, else double coll coeff (but if it's at the upper limit, quit)
@@ -150,6 +150,7 @@ bool planArmToCartTarget(PlanningProblem& prob, const Eigen::VectorXd& startJoin
 bool planArmToJointTarget(PlanningProblem& prob, const Eigen::VectorXd& startJoints, const Eigen::VectorXd& endJoints, RaveRobotObject::Manipulator::Ptr arm) {
   BulletRaveSyncherPtr brs = syncherFromArm(arm);
   MatrixXd initTraj = makeTraj(startJoints, endJoints, SQPConfig::nStepsInit); // xxx nsteps
+  LOG_DEBUG("initial traj: \n" << initTraj);
   LengthConstraintAndCostPtr lcc(new LengthConstraintAndCost(true, true, defaultMaxStepMvmt(initTraj), SQPConfig::lengthCoef));
   CollisionCostPtr cc(new CollisionCost(arm->robot->robot,   arm->robot->getEnvironment()->bullet->dynamicsWorld, brs,
       arm->manip->GetArmIndices(), SQPConfig::distPen, SQPConfig::collCoefInit));

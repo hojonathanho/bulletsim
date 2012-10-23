@@ -32,3 +32,7 @@ class Rigidity : Cost {
 class DynamicsError : Cost {
 	vector<btRigidBody*> m_objs;
 };
+
+class Dissipation : Cost {
+	vector<btRigidBody*> m_objs;
+};

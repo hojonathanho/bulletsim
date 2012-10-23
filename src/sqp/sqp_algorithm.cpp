@@ -495,6 +495,9 @@ void getGripperTransAndJac(RaveRobotObject::Manipulator::Ptr manip, const Vector
 void CartesianPoseCost::removeConstraints() {
   BOOST_FOREACH(GRBConstr& cnt, m_cnts)
     m_problem->m_model->remove(cnt);
+  BOOST_FOREACH(GRBVar& var, m_vars)
+    m_problem->m_model->remove(var);
+  m_vars.clear();
   m_cnts.clear();
 }
 
@@ -968,7 +971,8 @@ void PlanningProblem::optimize(int maxIter) {
     LOG_INFO_FMT("optimization time: %.2f", TOC());
     int status = m_model->get(GRB_IntAttr_Status);
     if (status != GRB_OPTIMAL) {
-      LOG_FATAL_FMT("Bad GRB status: %s", grb_statuses[status]);
+      LOG_FATAL_FMT("Bad GRB status: %s. problem written to /tmp/sqp_fail.lp", grb_statuses[status]);
+      m_model->write("/tmp/sqp_fail.lp");
       throw;
     }
     printAllConstraints(*m_model);
@@ -1140,7 +1144,6 @@ void PlanningProblem::initialize(const Eigen::MatrixXd& initTraj, bool endFixed,
   m_trajVars = VarArray(initTraj.rows(), initTraj.cols());
   m_optMask = VectorXb::Ones(initTraj.rows());
 //  m_optMask(0) = false;
-  if (endFixed) m_optMask(initTraj.rows() - 1) = false;
   for (int iRow = 0; iRow < m_currentTraj.rows(); ++iRow) {
     if (1 || m_optMask(iRow)) {
       for (int iCol = 0; iCol < m_currentTraj.cols(); ++iCol) {

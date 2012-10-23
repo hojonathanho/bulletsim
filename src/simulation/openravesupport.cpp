@@ -69,7 +69,7 @@ void LoadFromRave(Environment::Ptr env, RaveInstance::Ptr rave, bool dynamicRobo
       if (body->IsRobot()) env->add(RaveRobotObject::Ptr(new RaveRobotObject(rave, boost::dynamic_pointer_cast<RobotBase>(body), CONVEX_HULL, dynamicRobots)));
       else {
         cout << "loading " << body->GetName() << endl;;
-        env->add(RaveObject::Ptr(new RaveObject(rave, body, CONVEX_HULL, true)));
+        env->add(RaveObject::Ptr(new RaveObject(rave, body, CONVEX_HULL, dynamicRobots)));
       }
     }
   }
@@ -83,7 +83,7 @@ void Load(Environment::Ptr env, RaveInstance::Ptr rave, const string& filename,
 		throw runtime_error(
 				(boost::format("couldn't load %s!\n") % (filename)).str());
 
-	LoadFromRave(env, rave);
+	LoadFromRave(env, rave, dynamicRobots);
 
 }
 
@@ -130,6 +130,7 @@ void RaveObject::destroy() {
 	typedef std::map<KinBody::JointPtr, BulletConstraint::Ptr> map_t;
 	map_t mmap;
 	BOOST_FOREACH( map_t::value_type &joint_cnt, mmap ) getEnvironment()->removeConstraint(joint_cnt.second);
+
 }
 
 
