@@ -72,13 +72,11 @@ void updateTraj(const VarArray& trajVars, Eigen::MatrixXd& traj) {
     }
 }
 
-void setVarsToTraj(const Eigen::MatrixXd traj, const VectorXb& optmask, VarArray& trajVars) {
+void setVarsToTraj(const Eigen::MatrixXd traj, VarArray& trajVars) {
   for (int i = 0; i < traj.rows(); ++i)
-    if (optmask(i)) for (int j = 0; j < traj.cols(); ++j)
+    for (int j = 0; j < traj.cols(); ++j)
       trajVars.at(i, j).set(GRB_DoubleAttr_X, traj(i, j));
 }
-
-
 
 void CollisionCost::subdivide(const std::vector<double>& insertTimes, const VectorXd& oldTimes,
     const VectorXd& newTimes) {
@@ -1166,7 +1164,6 @@ void PlanningProblem::writeTrajToJSON(std::string filename){
   outputData["trajectory"]["length"] = Json::Value(rowCount);
   outputData["trajectory"]["indices"] = Json::Value(Json::arrayValue);
   outputData["trajectory"]["values"] = Json::Value(Json::arrayValue);
-  //m_
   for(int i = 0; i< m_currentTraj.rows(); i++){
     Json::Value row = Json::Value(Json::arrayValue);
     for(int j = 0; j < m_currentTraj.cols(); j++){
@@ -1179,4 +1176,24 @@ void PlanningProblem::writeTrajToJSON(std::string filename){
   Json::StyledWriter writer;
   outputFile << writer.write(outputData);
   outputFile.close();
+}
+
+Eigen::MatrixXd loadTrajFromJSON(std::string filename){
+  Json::Value root;
+  Json::Reader reader;
+  bool success = reader.parse(filename.c_str(), root);
+  if(!success){
+    LOG_ERROR_FMT("Failed to load trajectory data from %s", filename.c_str());
+    return MatrixXd();
+  }
+
+  int length = root["trajetory"]["length"].asInt();
+  int width = root["trajectory"]["values"][0].size();
+  MatrixXd trajData(length, width);
+  for(int i = 0; i < length; i++){
+    for(int j = 0; j < width; j++){
+      trajData(i,j) = root["trajectory"]["values"][i][j].asDouble();
+    }
+  }
+  return trajData;
 }
