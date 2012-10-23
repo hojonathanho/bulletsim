@@ -322,7 +322,7 @@ bool planArmBaseToCartTarget(PlanningProblem& prob, const Eigen::VectorXd& start
   prob.addTrustRegionAdjuster(jb);
   prob.addComponent(cp);
 //  prob.testObjectives();
-  return outerOptimization(prob, cc, vector<AllowedLinkCollision>());
+  return outerOptimization(prob, cc, map<int, vector<paird> >());
 }
 
 
