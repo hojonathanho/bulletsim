@@ -30,14 +30,6 @@ double LocalConfig::trajSlow = 2.;
 string LocalConfig::reinit_segs = "";
 bool LocalConfig::drawing = false;
 
-struct RopeInitModule : public PyModule {
-  RopeInitModule() : PyModule("bulletsim/bulletsim_python/src/tracking_initialization/rope_initialization.py") { }
-
-  py::object find_path_through_point_cloud(py::object xyzs) {
-    return getModule().attr("find_path_through_point_cloud")(xyzs);
-  }
-};
-
 static void stepCallback(LFDRopeScene *s, SegRopeStates *recorded_states, py::dict traj, int step) {
   // Called on each step of playback. Record the state of the rope.
   string seg_name = py::extract<string>(traj["seg_name"]);
@@ -48,19 +40,7 @@ static void stepCallback(LFDRopeScene *s, SegRopeStates *recorded_states, py::di
 }
 
 static vector<btVector3> initRope(const string &demo_seg) {
-  // load rope from h5 file
-  DemoLoadingModule demoLoader;
-  py::object demos = demoLoader.loadDemos(LocalConfig::task);
-  RopeInitModule ropeInitializer;
-  py::object pyrope = ropeInitializer.find_path_through_point_cloud(demos[demo_seg]["cloud_xyz"]);
-  vector<btVector3> ropeCtlPts;
-  for (int i = 0; i < py::len(pyrope); ++i) {
-    btScalar x = py::extract<btScalar>(pyrope[i][0]);
-    btScalar y = py::extract<btScalar>(pyrope[i][1]);
-    btScalar z = py::extract<btScalar>(pyrope[i][2]);
-    ropeCtlPts.push_back(btVector3(x, y, z) * METERS);
-  }
-  return ropeCtlPts;
+  return loadRopeStateFromDemoCloud(LocalConfig::task, demo_seg);
 }
 
 static bool segCallback(LFDRopeScene *s, const string &segname) {
@@ -78,7 +58,7 @@ static bool segCallback(LFDRopeScene *s, const string &segname) {
     }
   }
   if (ok) {
-    s->scene->resetRope(initRope(segname));
+    s->scene->resetRope(rope);
     s->scene->stepFor(DT, 0.1);
     return true;
   }
@@ -94,7 +74,12 @@ int main(int argc, char *argv[]) {
   LFDRopeScene s(argc, argv, LocalConfig());
 
   // Load rope from 00.00/cloud_xyz (the first point cloud)
+  try {
   s.resetScene(initRope("00.00"));
+  } catch (const py::error_already_set &e) {
+    PyErr_Print();
+    throw e;
+  }
   util::setGlobalEnv(s.scene->env);
 
   if (LocalConfig::drawing) {

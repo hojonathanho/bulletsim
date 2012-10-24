@@ -12,26 +12,31 @@ struct LocalConfig : public Config {
   static string rope;
   static float pert;
   static double trajSlow;
-  static bool ilqr;
+  static bool loadRopeFromDemo;
   LocalConfig() : Config() { 
     params.push_back(new Parameter<string>("task", &task, "task name"));
     params.push_back(new Parameter<string>("rope", &rope, "rope control points file"));
     params.push_back(new Parameter<float>("pert", &pert, "rope perturbation variance"));
     params.push_back(new Parameter<double>("trajSlow", &trajSlow, "slowdown factor for trajectory execution"));
-    params.push_back(new Parameter<bool>("ilqr", &ilqr, "use ILQR to control robot"));
+    params.push_back(new Parameter<bool>("loadRopeFromDemo", &loadRopeFromDemo, "load rope from demo observation"));
   }
 };
 string LocalConfig::task;
 string LocalConfig::rope;
 float LocalConfig::pert = 1.;
 double LocalConfig::trajSlow = 1.;
-bool LocalConfig::ilqr = false;
+bool LocalConfig::loadRopeFromDemo = false;
 
 int main(int argc, char *argv[]) {
   LFDRopeScene s(argc, argv, LocalConfig());
 
   // Load rope
-  vector<btVector3> ropeCtlPts = toBulletVectors(floatMatFromFile(LocalConfig::rope)) * METERS;
+  vector<btVector3> ropeCtlPts;
+  if (LocalConfig::loadRopeFromDemo) {
+    ropeCtlPts = loadRopeStateFromDemoCloud(LocalConfig::task, "00.00");
+  } else {
+    ropeCtlPts = toBulletVectors(floatMatFromFile(LocalConfig::rope)) * METERS;
+  }
   if (LocalConfig::pert != 0.) {
     try {
       lfd::CurvePerturbation cpert;

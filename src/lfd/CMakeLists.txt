@@ -24,6 +24,7 @@ add_library(lfd
   lfd_python_wrapper.cpp
   rope_scenes.cpp
   lfd_rope_common.cpp
+  dynamics.cpp
 )
 target_link_libraries(lfd
   simulation
@@ -37,3 +38,6 @@ target_link_libraries(lfd_rope lfd)
 
 add_executable(record_sim_tracking record_sim_tracking.cpp)
 target_link_libraries(record_sim_tracking lfd hdf5_cpp hdf5)
+
+add_executable(test_simpletrajoptimizer test_simpletrajoptimizer.cpp)
+target_link_libraries(test_simpletrajoptimizer lfd)

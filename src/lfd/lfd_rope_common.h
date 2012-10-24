@@ -29,6 +29,8 @@ struct RopeStatePlot : public PlotLines {
   void setRope(const RopeState &rs, const Eigen::Vector3f &color, float alpha);
 };
 
+RopeState loadRopeStateFromDemoCloud(const string &demo_task, const string &demo_seg);
+
 } // namespace lfd
 
 #endif // _LFD_ROPE_COMMON_H_

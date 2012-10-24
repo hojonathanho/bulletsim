@@ -26,6 +26,14 @@ public:
   py::object loadDemos(const string &task, const string &demo_list_file="knot_demos.yaml");
 };
 
+struct RopeInitModule : public PyModule {
+  RopeInitModule() : PyModule("bulletsim/bulletsim_python/src/tracking_initialization/rope_initialization.py") { }
+
+  py::object find_path_through_point_cloud(py::object xyzs) {
+    return getModule().attr("find_path_through_point_cloud")(xyzs);
+  }
+};
+
 } // namespace lfd
 
 #endif // _LFD_PYTHON_WRAPPER_H_

@@ -2,10 +2,11 @@
 
 #include "utils/logging.h"
 #include "utils_python.h"
+#include "lfd_python_wrapper.h"
 
 namespace lfd {
 
-static const float table_dist_from_robot = 0.2;
+static const float table_dist_from_robot = 0.15;
 static const float table_width = 1, table_length = 1;
 static const float table_height = 0.76;
 static vector<btVector3> initTableCornersWorld() {
@@ -76,6 +77,22 @@ void RopeStatePlot::setRope(const RopeState &rs, const Eigen::Vector3f &color, f
 		lineColors.push_back(btVector4(color(0), color(1), color(2), alpha));
 	}
   setPoints(linePoints, lineColors);
+}
+
+RopeState loadRopeStateFromDemoCloud(const string &demo_task, const string &demo_seg) {
+  // load rope from h5 file
+  DemoLoadingModule demoLoader;
+  py::object demos = demoLoader.loadDemos(demo_task);
+  RopeInitModule ropeInitializer;
+  py::object pyrope = ropeInitializer.find_path_through_point_cloud(demos[demo_seg]["cloud_xyz"]);
+  vector<btVector3> ropeCtlPts;
+  for (int i = 0; i < py::len(pyrope); ++i) {
+    btScalar x = py::extract<btScalar>(pyrope[i][0]);
+    btScalar y = py::extract<btScalar>(pyrope[i][1]);
+    btScalar z = py::extract<btScalar>(pyrope[i][2]);
+    ropeCtlPts.push_back(btVector3(x, y, z) * METERS);
+  }
+  return ropeCtlPts;
 }
 
 

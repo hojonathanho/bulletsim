@@ -52,6 +52,7 @@ public:
   TaskExecuter(TableRopeScene &scene_);
 
   void setTrajExecSlowdown(double s);
+  void setExecOneStep(bool b);
 
   typedef boost::function<void(py::dict, int)> TrajStepCallback;
   void setTrajStepCallback(TrajStepCallback f);
@@ -67,6 +68,7 @@ private:
   ExecutionModule pymod; // some actions are implemented in python
   int currStep;
   double trajExecSlowdown;
+  bool execOneStep;
   TrajStepCallback stepCallback;
   SegCallback segCallback;
 

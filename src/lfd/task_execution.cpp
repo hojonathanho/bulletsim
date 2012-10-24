@@ -143,7 +143,7 @@ bool Trajectory::checkIntegrity() {
 }
 
 
-TaskExecuter::TaskExecuter(TableRopeScene &scene_) : scene(scene_), trajExecSlowdown(1.0) {
+TaskExecuter::TaskExecuter(TableRopeScene &scene_) : scene(scene_), trajExecSlowdown(1.0), execOneStep(false) {
 }
 
 void TaskExecuter::setTrajExecSlowdown(double s) {
@@ -156,6 +156,10 @@ void TaskExecuter::setTrajStepCallback(TrajStepCallback f) {
 
 void TaskExecuter::setSegCallback(SegCallback f) {
   segCallback = f;
+}
+
+void TaskExecuter::setExecOneStep(bool b) {
+  execOneStep = b;
 }
 
 bool TaskExecuter::isTerminalState(State s) const {
@@ -174,7 +178,12 @@ TaskExecuter::State TaskExecuter::nextState(State s, Transition t) const {
     if (t == TR_FAILURE) return ST_FAILURE;
     break;
   case ST_EXEC_TRAJ:
-    if (t == TR_SUCCESS) return ST_LOOK_AT_OBJ;
+    if (t == TR_SUCCESS) {
+      if (execOneStep) {
+        return ST_SUCCESS;
+      }
+      return ST_LOOK_AT_OBJ;
+    }
     if (t == TR_FAILURE) return ST_LOOK_AT_OBJ; 
     break;
   }
