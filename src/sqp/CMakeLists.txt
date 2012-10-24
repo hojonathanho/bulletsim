@@ -4,12 +4,12 @@ include_directories(
     ${BULLETSIM_SOURCE_DIR}/src
     ${OpenRAVE_INCLUDE_DIRS}
     ${EIGEN3_INCLUDE_DIR}
+    ${GUROBI_INCLUDE_DIR}
 )
 
 SET(CMAKE_CXX_FLAGS "-Wall -Wno-sign-compare -Wno-reorder")
 
-include_directories(/home/joschu/Src/gurobi501/linux64/include)
-link_directories(/home/joschu/Src/gurobi501/linux64/lib)
+link_directories(${GUROBI_LIBRARY_DIR})
 
 add_executable(test_grb_eigen test_grb_eigen.cpp)
 target_link_libraries(test_grb_eigen gurobi_c++ gurobi50)
