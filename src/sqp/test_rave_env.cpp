@@ -35,26 +35,22 @@ float randf() {return (float)rand()/(float)RAND_MAX;}
 
 
 struct LocalConfig: Config {
-  static int nSteps;
-  static int nIter;
   static string probSpec;
   static string jsonOutputPath;
   LocalConfig() :
     Config() {
-    params.push_back(new Parameter<int> ("nSteps", &nSteps, "n samples of trajectory"));
-    params.push_back(new Parameter<int> ("nIter", &nIter, "num iterations"));
     params.push_back(new Parameter<string> ("probSpec", &probSpec, "problem specification"));
     params.push_back(new Parameter<string> ("jsonOutputPath", &jsonOutputPath, "path to output final trajectory as JSON"));
   }
 };
-int LocalConfig::nSteps = 100;
-int LocalConfig::nIter = 100;
 string LocalConfig::probSpec = "";
 string LocalConfig::jsonOutputPath = "";
 
 int main(int argc, char *argv[]) {
 
-  BulletConfig::linkPadding = .04;
+  BulletConfig::linkPadding = .02;
+  BulletConfig::margin = .01;
+  SQPConfig::padMult = 2;
   GeneralConfig::verbose=20000;
   GeneralConfig::scale = 10.;
 
@@ -78,7 +74,7 @@ int main(int argc, char *argv[]) {
 
   Json::Value probInfo = readJson(LocalConfig::probSpec);
 
-  if (probInfo.isMember("env")) Load(scene.env, scene.rave, probInfo["env"].asString());
+  if (probInfo.isMember("env")) Load(scene.env, scene.rave, probInfo["env"].asString(),false);
   else ASSERT_FAIL();
 
   vector<double> startJoints;
@@ -114,7 +110,7 @@ int main(int argc, char *argv[]) {
     int nJoints = 7;
     VectorXd startJoints = toVectorXd(arm->getDOFValues());
     VectorXd endJoints = toVectorXd(goal);
-    MatrixXd initTraj = makeTraj(startJoints, endJoints, LocalConfig::nSteps);
+    MatrixXd initTraj = makeTraj(startJoints, endJoints, SQPConfig::nStepsInit);
     LengthConstraintAndCostPtr lcc(new LengthConstraintAndCost(true, true, defaultMaxStepMvmt(
         initTraj), SQPConfig::lengthCoef));
     CollisionCostPtr cc(new CollisionCost(pr2->robot, scene.env->bullet->dynamicsWorld, brs,

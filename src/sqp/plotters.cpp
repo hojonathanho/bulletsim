@@ -241,6 +241,6 @@ void plotCollisions(const TrajCartCollInfo& trajCartInfo, double safeDist) {
   }
   collisions->setPoints(collPts, colors);
   escapes->setPoints(escPts, colors);
-  LOG_DEBUG_FMT("plotting %i collisions", collPts->size());
+  LOG_DEBUG_FMT("plotting %i proximities", collPts->size());
 }
 

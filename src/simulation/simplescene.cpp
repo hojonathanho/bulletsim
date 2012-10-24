@@ -114,10 +114,6 @@ void Scene::help() {
 }
 
 void Scene::step(float dt, int maxsteps, float internaldt) {
-//    static float startTime=viewer.getFrameStamp()->getSimulationTime(), endTime;
-//
-//    if (syncTime && drawingOn)
-//        endTime = viewer.getFrameStamp()->getSimulationTime();
 
     // run pre-step callbacks
     for (int i = 0; i < prestepCallbacks.size(); ++i)
@@ -133,11 +129,6 @@ void Scene::step(float dt, int maxsteps, float internaldt) {
 
     draw();
 
-//    if (syncTime && drawingOn) {
-//        float timeLeft = dt - (endTime - startTime);
-//        idleFor(timeLeft);
-//        startTime = endTime + timeLeft;
-//    }
 }
 
 void Scene::step(float dt) {
@@ -175,8 +166,6 @@ void Scene::draw() {
 }
 
 void Scene::startLoop() {
-    bool oldSyncTime = syncTime;
-    syncTime = false;
     loopState.looping = true;
     loopState.prevTime = loopState.currTime =
         viewer.getFrameStamp()->getSimulationTime();
@@ -185,7 +174,6 @@ void Scene::startLoop() {
         step(loopState.currTime - loopState.prevTime);
         loopState.prevTime = loopState.currTime;
     }
-    syncTime = oldSyncTime;
 }
 
 void Scene::startFixedTimestepLoop(float dt) {

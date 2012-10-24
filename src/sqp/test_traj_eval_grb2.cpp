@@ -10,6 +10,8 @@
 #include "config_sqp.h"
 #include <osg/Depth>
 #include "planning_problems.h"
+#include "plotters.h"
+#include "kinematics_utils.h"
 using namespace std;
 using namespace Eigen;
 using namespace util;
@@ -20,20 +22,6 @@ using namespace util;
 #include <stdlib.h>
 
 RaveRobotObject::Ptr pr2;
-
-float clipf(float x,float lo,float hi) {
-  return fmin(fmax(x,lo),hi);
-}
-
-void adjustWorldTransparency(float inc) {
-  static float a=1;
-  a=clipf(a+inc,0,1);
-  EnvironmentPtr env = util::getGlobalEnv();
-  BOOST_FOREACH(EnvironmentObjectPtr obj, env->objects) {
-    if (obj) obj->setColor(1,1,1,a);
-  }
-
-}
 
 void handler(int sig) {
   void *array[10];
@@ -49,23 +37,17 @@ void handler(int sig) {
 }
 
 struct LocalConfig: Config {
-  static int nSteps;
-  static int nIter;
   static int startPosture;
   static int endPosture;
   static int plotType;
 
   LocalConfig() :
     Config() {
-    params.push_back(new Parameter<int> ("nSteps", &nSteps, "n samples of trajectory"));
-    params.push_back(new Parameter<int> ("nIter", &nIter, "num iterations"));
     params.push_back(new Parameter<int> ("startPosture", &startPosture, "start posture"));
     params.push_back(new Parameter<int> ("endPosture", &endPosture, "end posture"));
     params.push_back(new Parameter<int> ("plotType", &plotType, "0: grippers, 1: arms"));
   }
 };
-int LocalConfig::nSteps = 100;
-int LocalConfig::nIter = 100;
 int LocalConfig::startPosture = 3;
 int LocalConfig::endPosture = 1;
 int LocalConfig::plotType = 1;
@@ -82,11 +64,12 @@ int main(int argc, char *argv[]) {
 
   signal(SIGABRT, handler); // install our handler
 
-  BulletConfig::linkPadding = .02;
+  BulletConfig::linkPadding = .04;
+  BulletConfig::margin = .01;
+  SQPConfig::padMult = 1;
   GeneralConfig::verbose=20000;
   GeneralConfig::scale = 10.;
 
-  //	BulletConfig::margin = .01;
   Parser parser;
   parser.addGroup(GeneralConfig());
   //	parser.addGroup(BulletConfig());
@@ -126,10 +109,7 @@ int main(int argc, char *argv[]) {
   PlanningProblem prob;
 
   scene.startViewer();
-  if (SQPConfig::pauseEachIter) {
-    boost::function<void(PlanningProblem*)> func = boost::bind(&Scene::idle, &scene, true);
-    prob.m_callbacks.push_back(func);
-  }
+
   prob.addPlotter(ArmPlotterPtr(new ArmPlotter(rarm, &scene, SQPConfig::plotDecimation)));
 
   TIC();

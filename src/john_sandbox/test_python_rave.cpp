@@ -26,11 +26,35 @@ btTransform frontPickPose(const btVector3& center, const btVector3& halfExtents)
   return btTransform(rot, pos);
 }
 
-void execTraj(const MatrixXd& traj, RaveRobotObject::Manipulator::Ptr arm) {
+void execTraj(const MatrixXd& traj, RaveRobotObject::Manipulator::Ptr arm, Scene& scene) {
+  scene.idle(true);
   for (int i=0; i < traj.rows(); ++i) {
     arm->setDOFValues(toDoubleVec(traj.row(i)));
-    getGlobalScene()->step(.05,10,.01);
-    sleep(.03);
+    scene.step(.05,10,.01);
+    printf("press p to continue traj\n");
+    scene.idle(true);
+  }
+}
+
+void updateRaveFromBullet(RaveInstancePtr rave, EnvironmentPtr env) {
+  typedef std::map<KinBodyPtr, RaveObject*>::value_type RaveBullet;
+  BOOST_FOREACH(RaveBullet rb, rave->rave2bulletsim) {
+    if (!rb.first->IsRobot())
+      rb.first->SetTransform(toRaveTransform(rb.second->children[0]->rigidBody->getCenterOfMassTransform(), 1/METERS));
+  }
+}
+void updateBulletFromRave(RaveInstancePtr rave, EnvironmentPtr env) {
+  typedef std::map<KinBodyPtr, RaveObject*>::value_type RaveBullet;
+  BOOST_FOREACH(RaveBullet rb, rave->rave2bulletsim) {
+    rb.second->updateBullet();
+  }
+}
+
+void idleTwoScenes(Scene& scene0, Scene& scene1) {
+  while (true) {
+    scene0.step(0);
+    scene1.step(1);
+    sleep(.1);
   }
 }
 
@@ -38,7 +62,7 @@ int main(int argc, char* argv []) {
 
   GeneralConfig::scale=10;
   SQPConfig::distContSafe = -.1;
-  SQPConfig::distDiscSafe = .01;
+  SQPConfig::distDiscSafe = 0;
   SQPConfig::distPen = .02;
   BulletConfig::linkPadding = .02;
   BulletConfig::margin = .001;
@@ -84,23 +108,37 @@ int main(int argc, char* argv []) {
   scene.addVoidKeyCallback('=', boost::bind(&adjustWorldTransparency, .05), "increase opacity");
   scene.addVoidKeyCallback('-', boost::bind(&adjustWorldTransparency, -.05), "decrease opacity");
 
-  LoadFromRave(scene.env, scene.rave);
+  LoadFromRave(scene.env, scene.rave,false);
   RobotManager rm(scene);
   rm.bot->setColor(0,0,1,.8);
 
-  vector<RaveObject::Ptr> boxes;
+  Scene scene2(penv);
+  double origLinkPadding = BulletConfig::linkPadding;
+  BulletConfig::linkPadding=0;
+  LoadFromRave(scene2.env, scene2.rave);
+  BulletConfig::linkPadding = origLinkPadding;
+  RobotManager rm2(scene2);
+
+
+  ArmPrinter ap(rm2.botLeft, rm2.botRight);
+  scene2.addVoidKeyCallback('c',boost::bind(&ArmPrinter::printCarts, &ap), "print cart");
+  scene2.addVoidKeyCallback('j',boost::bind(&ArmPrinter::printJoints, &ap), "print joints");
+  scene2.addVoidKeyCallback('a', boost::bind(&ArmPrinter::printAll, &ap), "print all dofs");
+
+  vector<RaveObject::Ptr> boxes, boxes2;
 
   osg::Depth* depth = new osg::Depth;
   depth->setWriteMask( false );
   cv::Mat ipiLogo = cv::imread("/home/joschu/Dropbox/Proj/ipi/ipilogo400x343.png");
   assert(!ipiLogo.empty());
   int iBox=0;
-  BOOST_FOREACH(EnvironmentObject::Ptr obj, scene.env->objects) {
-    RaveObject::Ptr maybeRO = boost::dynamic_pointer_cast<RaveObject>(obj);
+  for (int i=0; i < scene.env->objects.size(); ++i) {
+    RaveObject::Ptr maybeRO = boost::dynamic_pointer_cast<RaveObject>(scene.env->objects[i]);
     if (maybeRO && maybeRO->body->GetName().substr(0,3) == "box") {
       if (iBox++>3) {
         maybeRO->setTexture(ipiLogo);
         boxes.push_back(maybeRO);
+        boxes2.push_back(boost::dynamic_pointer_cast<RaveObject>(scene2.env->objects[i]));
         cout << "mass:" << 1/maybeRO->associatedObj(maybeRO->body->GetLinks()[0])->rigidBody->getInvMass() << endl;
       }
       else {
@@ -111,33 +149,33 @@ int main(int argc, char* argv []) {
     }
   }
 
+  btTransform tDrop = btTransform(btQuaternion(0, 1, 0, 0), btVector3(.430341, -.949606, .911267));
 
-  btTransform tDrop(
-      btMatrix3x3(-1,0,0,
-                  0,1,0,
-                  0,0,-1),
-      btVector3(.5, -.6, 1.3));
 drawAxes(scaleTransform(tDrop, METERS), .1*METERS, scene.env);
   float bside = .35;
   float bheight=.30;
 
-  setGlobalScene(&scene);
-  setGlobalEnv(scene.env);
+  setGlobalScene(&scene2);
+  setGlobalEnv(scene2.env);
   if (GeneralConfig::verbose > 0) getGRBEnv()->set(GRB_IntParam_OutputFlag, 0);
   scene.startViewer();
+  scene2.startViewer();
 
   removeBodiesFromBullet(rm.bot->children, scene.env->bullet->dynamicsWorld);
 
-
-  BOOST_REVERSE_FOREACH(RaveObject::Ptr curBox, boxes) {
+  for (int iBox = 0; iBox < boxes.size(); ++iBox) {
+    RaveObject::Ptr curBox = boxes[iBox];
     {
       btTransform goalTrans = frontPickPose(toBtVector(curBox->body->GetTransform().trans), btVector3(bside, bside,
                                                                                                       bheight) / 2);
       PlanningProblem prob;
       prob.addPlotter(ArmPlotterPtr(new ArmPlotter(rm.botRight, &scene, SQPConfig::plotDecimation)));
       planArmToCartTarget(prob, toVectorXd(rm.botRight->getDOFValues()), goalTrans, rm.botRight);
+      prob.optimize(50);
       rm.botRight->setDOFValues(toDoubleVec(prob.m_currentTraj.row(prob.m_currentTraj.rows() - 1)));
-      execTraj(prob.m_currentTraj, rm.botRight);
+      execTraj(prob.m_currentTraj, rm2.botRight, scene2);
+      updateRaveFromBullet(scene2.rave, scene2.env);
+      updateBulletFromRave(scene.rave, scene.env);
     }
     rm.botRight->manip->GetRobot()->Grab(curBox->body, rm.botRight->manip->GetEndEffector());
     setGrabberLink(rm.botRight->manip->GetEndEffector(), curBox->body);
@@ -145,14 +183,17 @@ drawAxes(scaleTransform(tDrop, METERS), .1*METERS, scene.env);
       PlanningProblem prob;
       prob.addPlotter(ArmPlotterPtr(new ArmPlotter(rm.botRight, &scene, SQPConfig::plotDecimation)));
       planArmToCartTarget(prob, toVectorXd(rm.botRight->getDOFValues()), tDrop, rm.botRight);
-      execTraj(prob.m_currentTraj, rm.botRight);
+      prob.optimize(50);
+      execTraj(prob.m_currentTraj, rm2.botRight, scene2);
+      updateRaveFromBullet(scene2.rave, scene2.env);
+      updateBulletFromRave(scene.rave, scene.env);
     }
+    idleTwoScenes(scene, scene2);
     rm.botRight->manip->GetRobot()->ReleaseAllGrabbed();
     scene.env->remove(curBox);
+    scene2.env->remove(boxes2[iBox]);
 
   }
-
-  scene.startLoop();
 
 
 }

@@ -271,12 +271,12 @@ public:
   CartesianPoseCost(RaveRobotObject::Manipulator::Ptr manip, const btTransform& target, int timestep, double posCoeff,
                     double rotCoeff) :
     m_manip(manip), m_posTarg(toVector3d(target.getOrigin())), m_rotTarg(toVector4d(target.getRotation())),
-        m_posCoeff(posCoeff), m_rotCoeff(rotCoeff), m_timestep(timestep), m_dofInds(m_manip->manip->GetArmIndices()) {
+        m_posCoeff(posCoeff), m_rotCoeff(rotCoeff), m_timestep(timestep), m_dofInds(m_manip->manip->GetArmIndices()), m_l1(false) {
   }
   CartesianPoseCost(RaveRobotObject::Manipulator::Ptr manip, const std::vector<int>& dofInds, const btTransform& target, int timestep, double posCoeff,
                     double rotCoeff) :
     m_manip(manip), m_posTarg(toVector3d(target.getOrigin())), m_rotTarg(toVector4d(target.getRotation())),
-        m_posCoeff(posCoeff), m_rotCoeff(rotCoeff), m_timestep(timestep), m_dofInds(dofInds) {
+        m_posCoeff(posCoeff), m_rotCoeff(rotCoeff), m_timestep(timestep), m_dofInds(dofInds), m_l1(false) {
   }
 
   void updateModel(const Eigen::MatrixXd& traj, GRBQuadExpr& objective);
