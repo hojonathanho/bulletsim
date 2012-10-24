@@ -36,7 +36,7 @@ public:
     typedef boost::shared_ptr<Monitor> Ptr;
     Monitor(); // must call setManip if using this constructor
   Monitor(RaveRobotObject::Manipulator::Ptr);
-
+  virtual ~Monitor() {}
     void setClosedThreshold(float t) { closedThreshold = t; }
 
     virtual void update();

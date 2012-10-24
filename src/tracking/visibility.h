@@ -8,6 +8,7 @@ public:
   typedef boost::shared_ptr<VisibilityInterface> Ptr;
 	virtual Eigen::VectorXf checkNodeVisibility(TrackedObject::Ptr) = 0;
 	virtual void updateInput(const cv::Mat&) {}
+	virtual ~VisibilityInterface() {}
 };
 
 class EverythingIsVisible : public VisibilityInterface {

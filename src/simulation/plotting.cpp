@@ -193,6 +193,7 @@ void PlotBoxes::addBox(const osg::Vec3 &center, float lenx, float leny, float le
 }
 
 void PlotAxes::setup(const btTransform &tf, float size) {
+  m_ends.reset(new PlotSpheres());
   btMatrix3x3 mat(tf.getRotation());
   osg::Vec3f origin = util::toOSGVector(tf.getOrigin());
   osg::Vec3f x = util::toOSGVector(mat.getColumn(0));
@@ -201,15 +202,20 @@ void PlotAxes::setup(const btTransform &tf, float size) {
   setup(origin, x, y, z, size);
 }
 
+PlotAxes::PlotAxes(const btTransform& tf, float size) {
+	setup(tf, size);
+}
+
 PlotAxes::PlotAxes(osg::Vec3f origin, osg::Vec3f x, osg::Vec3f y, osg::Vec3f z, float size) {
   setup(origin, x, y, z, size);
 
-
+#if 0
   osg::ref_ptr<osg::StateSet> stateset = new osg::StateSet();
   osg::ref_ptr<osg::BlendFunc> blendFunc = new osg::BlendFunc;
   blendFunc->setFunction(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
   stateset->setAttributeAndModes(blendFunc);
   stateset->setMode(GL_BLEND, osg::StateAttribute::ON);
+#endif
 
 }
 

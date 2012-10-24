@@ -3,9 +3,9 @@
 
 int main(int argc, char *argv[]) {
     Parser parser;
-    parser.addGroup(GeneralConfig());
-    parser.addGroup(BulletConfig());
-    parser.addGroup(SceneConfig());
+//    parser.addGroup(GeneralConfig());
+//    parser.addGroup(BulletConfig());
+//    parser.addGroup(SceneConfig());
     parser.read(argc, argv);
 
     SceneConfig::enableIK = false;
@@ -38,6 +38,8 @@ int main(int argc, char *argv[]) {
     Fork::Ptr fork(new Fork(scene.env, bullet2, osg2));
 
     SphereObject::Ptr sphere2 = boost::static_pointer_cast<SphereObject> (fork->forkOf(sphere));
+    printf("did a fork\n");
+    assert(sphere2);
     sphere2->rigidBody->applyCentralForce(btVector3(0, 50, 0));
 
     for ( ; i < 1000; ++i) {

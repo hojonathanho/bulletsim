@@ -25,6 +25,7 @@ public:
   Eigen::MatrixXf m_colors;
 
   TrackedObject(EnvironmentObject::Ptr sim, string type);
+  virtual ~TrackedObject();
   void init();
 
   virtual std::vector<btVector3> getPoints() = 0;

@@ -9,7 +9,7 @@
 // (the OSG model will be created from the btRigidBody, and
 // will be added to the scene graph and the dynamics world, respectively)
 class BulletObject : public EnvironmentObject {
-protected:
+public:
     struct MotionState : public btDefaultMotionState {
         typedef boost::shared_ptr<MotionState> Ptr;
         BulletObject &obj;
@@ -36,7 +36,7 @@ protected:
         Ptr clone(BulletObject &newObj);
     };
 
-public:
+
     typedef boost::shared_ptr<BulletObject> Ptr;
 
     const bool isKinematic;
@@ -49,6 +49,7 @@ public:
     // on destruction of the BulletObject
     MotionState::Ptr motionState;
     boost::shared_ptr<btCollisionShape> collisionShape;
+    boost::shared_ptr<btCollisionShape> graphicsShape;
 
     // OSG MEMBERS
     osg::ref_ptr<osg::Node> node;
@@ -64,6 +65,7 @@ public:
 
     // this constructor computes a ConstructionInfo for you
     BulletObject(btScalar mass, btCollisionShape *cs, const btTransform &initTrans, bool isKinematic_=false);
+    BulletObject(btScalar mass, boost::shared_ptr<btCollisionShape> cs, const btTransform &initTrans, bool isKinematic_=false);
 
     BulletObject(const BulletObject &o); // copy constructor
     virtual ~BulletObject() { }

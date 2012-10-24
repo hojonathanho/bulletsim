@@ -269,21 +269,21 @@ osg::Node* osgNodeFromBtCollisionShape( const btCollisionShape* btShape, const b
         const btBvhTriangleMeshShape* btTriMesh = static_cast< const btBvhTriangleMeshShape* >( btShape );
         // Do NOT pass in a transform. Unlike cylinder, sphere, and box,
         // tri meshes are always in absolute space.
-        return( osgNodeFromBtCollisionShape( btTriMesh ) );
+        return( osgNodeFromBtCollisionShape( btTriMesh , trans) );
     }
     else if( btShape->getShapeType() == CONVEX_TRIANGLEMESH_SHAPE_PROXYTYPE )
     {
         const btConvexTriangleMeshShape* btConvexTriMesh = static_cast< const btConvexTriangleMeshShape* >( btShape );
         // Do NOT pass in a transform. Unlike cylinder, sphere, and box,
         // tri meshes are always in absolute space.
-        return( osgNodeFromBtCollisionShape( btConvexTriMesh ) );
+        return( osgNodeFromBtCollisionShape( btConvexTriMesh , trans) );
     }
     else if( btShape->getShapeType() == CONVEX_HULL_SHAPE_PROXYTYPE )
     {
         const btConvexHullShape* convexHull = static_cast< const btConvexHullShape* >( btShape );
         // Do NOT pass in a transform. Unlike cylinder, sphere, and box,
         // tri meshes are always in absolute space.
-        return( osgNodeFromBtCollisionShape( convexHull ) );
+        return( osgNodeFromBtCollisionShape( convexHull , trans ) );
     }
     else if( btShape->getShapeType() == COMPOUND_SHAPE_PROXYTYPE )
     {
@@ -487,9 +487,8 @@ osg::Node* osgNodeFromBtCollisionShape( const btConvexTriangleMeshShape* btTriMe
     geode->addDrawable( geom );
 
     // added code: compute normals
-    osgUtil::SmoothingVisitor sv;
-    sv.apply(*geode);
-    // end added code
+//    osgUtil::SmoothingVisitor sv;
+//    sv.apply(*geode);
 
     osg::Matrix m = asOsgMatrix( trans );
     if (m.isIdentity())
@@ -540,8 +539,15 @@ osg::Node* osgNodeFromBtCollisionShape( const btConvexHullShape* hull, const btT
 
     // added code: compute normals
     osgUtil::SmoothingVisitor sv;
+    sv.setCreaseAngle(.3);
     sv.apply(*geode.get());
     // end added code
+
+//    geom->setNormalBinding(osg::Geometry::BIND_PER_PRIMITIVE);
+//    std::cout << "Hi" << std::endl;
+    // end added code
+
+
 
     osg::Matrix m = asOsgMatrix( trans );
     if (m.isIdentity())

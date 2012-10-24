@@ -1,3 +1,4 @@
+#pragma once
 #include <boost/shared_ptr.hpp>
 class FakeGripper;
 typedef boost::shared_ptr<FakeGripper> FakeGripperPtr;

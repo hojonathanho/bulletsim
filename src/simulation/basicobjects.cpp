@@ -69,6 +69,27 @@ BulletObject::BulletObject(btScalar mass, btCollisionShape *cs, const btTransfor
 
 }
 
+BulletObject::BulletObject(btScalar mass, boost::shared_ptr<btCollisionShape> cs, const btTransform &initTrans, bool isKinematic_) : isKinematic(isKinematic_), enable_texture(false), m_color(1,1,1,1) {
+    motionState.reset(new MotionState(*this, initTrans));
+    collisionShape = cs;
+
+    btVector3 fallInertia(0, 0, 0);
+    if (!isKinematic)
+        collisionShape->calculateLocalInertia(mass, fallInertia);
+    CI ci(mass, cs.get(), fallInertia);
+    ci.m_motionState = motionState.get();
+
+    rigidBody.reset(new btRigidBody(ci));
+
+    if (isKinematic) {
+        rigidBody->setCollisionFlags(rigidBody->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);
+    }
+  rigidBody->setActivationState(DISABLE_DEACTIVATION);
+  rigidBody->setFriction(BulletConfig::friction);
+
+}
+
+
 void BulletObject::init() {
     getEnvironment()->bullet->dynamicsWorld->addRigidBody(rigidBody.get());
     node = createOSGNode();
@@ -89,7 +110,8 @@ void BulletObject::init() {
 }
 
 osg::ref_ptr<osg::Node> BulletObject::createOSGNode() {
-    return osg::ref_ptr<osg::Node>(osgbCollision::osgNodeFromBtCollisionShape(collisionShape.get()));
+  btCollisionShape* shape = graphicsShape ? graphicsShape.get() : collisionShape.get();
+  return osg::ref_ptr<osg::Node>(osgbCollision::osgNodeFromBtCollisionShape(shape));
 }
 
 btScalar IDENTITY[] = {1,0,0,0,
@@ -124,7 +146,7 @@ void BulletObject::destroy() {
     getEnvironment()->osg->root->removeChild(transform.get());
 }
 
-BulletObject::BulletObject(const BulletObject &o) : isKinematic(o.isKinematic) {
+BulletObject::BulletObject(const BulletObject &o) : isKinematic(o.isKinematic), enable_texture(o.enable_texture), m_color(o.m_color) {
     // we need to access lots of private members of btRigidBody and etc
     // the easiest way to do this is to use serialization
 
