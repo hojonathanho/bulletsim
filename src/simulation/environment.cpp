@@ -107,9 +107,14 @@ void Environment::step(btScalar dt, int maxSubSteps, btScalar fixedTimeStep) {
         (*i)->prePhysics();
     if (dt > 0)
       bullet->dynamicsWorld->stepSimulation(dt, maxSubSteps, fixedTimeStep);
+    preDraw();
+    bullet->softBodyWorldInfo->m_sparsesdf.GarbageCollect();
+}
+
+void Environment::preDraw() {
+    ObjectList::iterator i;
     for (i = objects.begin(); i != objects.end(); ++i)
         (*i)->preDraw();
-    bullet->softBodyWorldInfo->m_sparsesdf.GarbageCollect();
 }
 
 Fork::Fork(const Environment *parentEnv_, BulletInstance::Ptr bullet, OSGInstance::Ptr osg) :

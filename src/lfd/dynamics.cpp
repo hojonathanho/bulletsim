@@ -47,6 +47,7 @@ void RopeRobotSystem::enableDrawing() {
     scene->setup(env);
   }*/
   if (scene && !scene->osg->root->containsNode(env->osg->root.get())) {
+    env->preDraw();
     scene->osg->root->addChild(env->osg->root.get());
   }
 }

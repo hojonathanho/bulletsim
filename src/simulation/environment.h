@@ -116,6 +116,7 @@ struct Environment {
     void removeConstraint(EnvironmentObject::Ptr cnt);
 
     void step(btScalar dt, int maxSubSteps, btScalar fixedTimeStep);
+    void preDraw(); // for drawing without running physics
 };
 
 // An Environment Fork is a wrapper around an Environment with an operator
