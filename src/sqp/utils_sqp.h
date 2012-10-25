@@ -81,6 +81,11 @@ public:
 typedef BasicArray<GRBVar> VarArray;
 typedef std::vector<GRBVar> VarVector;
 typedef Eigen::Matrix<bool, Eigen::Dynamic, 1> VectorXb;
+typedef BasicArray<GRBLinExpr> ExprMatrix;
+typedef vector<GRBLinExpr> ExprVector;
+ExprVector operator+(const VarVector&, const VarVector&);
+
+
 
 std::vector<double> toDoubleVec(const Eigen::VectorXd& in);
 inline Eigen::Vector3d toVector3d(const btVector3& in) {

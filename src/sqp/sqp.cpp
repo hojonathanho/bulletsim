@@ -19,6 +19,11 @@ static const char* grb_statuses[] = { "XXX", //0
     "SUBOPTIMAL" //13
 };
 
+static GRBEnv* grbEnv = new GRBEnv();
+GRBEnv* getGRBEnv() {
+  return grbEnv;
+}
+
 const char* getGRBStatusString(int status) {
 	assert(status >= 1 && status <= 13);
 	return grb_statuses[status];
@@ -41,12 +46,26 @@ void ConvexPart::removeFromModel() {
 	}
 }
 
+OptimizationProblem::OptimizationProblem() {
+  m_model = new GRBModel(*getGRBEnv());
+}
+
+OptimizationProblem::~OptimizationProblem() {
+  delete m_model;
+}
+
 
 double OptimizationProblem::getApproxObjective() {
 	return m_model->get(GRB_DoubleAttr_ObjVal);
 }
 
-
+/*
+void optimizationProblem::updateValues() {
+	BOOST_FOREACH(ValVarMap::value_type& valvar, m_val2var) {
+		*m_val2var[valvar.first] = m_val2var.second.get(GRB_DoubleAttr_X);
+	}
+}
+*/
 vector<ConvexObjectivePtr> OptimizationProblem::convexifyObjectives() {
 	vector<ConvexObjectivePtr> out;
 	BOOST_FOREACH(CostPtr& cost, m_costs) {
@@ -63,12 +82,24 @@ vector<ConvexConstraintPtr> OptimizationProblem::convexifyConstraints() {
 	return out;
 }
 
+void OptimizationProblem::addCost(CostPtr cost) {
+	m_costs.push_back(cost);
+}
+void OptimizationProblem::addConstraint(ConstraintPtr cnt) {
+	m_cnts.push_back(cnt);
+}
+void OptimizationProblem::setTrustRegion(TrustRegionPtr tra) {
+	m_tra = tra;
+	assert(m_cnts.size()==0 /* trust region must be first constraint */);
+	addConstraint(tra);
+}
+
 int OptimizationProblem::convexOptimize() {
 	m_model->optimize();
 	return m_model->get(GRB_IntAttr_Status);
 }
 
-double getSum(vector<ConvexObjectivePtr>& objectives) {
+double OptimizationProblem::sumObjectives(vector<ConvexObjectivePtr>& objectives) {
 	double sum = 0;
 	BOOST_FOREACH(const ConvexObjectivePtr& obj, objectives) {
 		sum += obj->m_val;		
@@ -94,7 +125,7 @@ void OptimizationProblem::setupConvexProblem(const vector<ConvexObjectivePtr>& o
 OptimizationProblem::OptStatus OptimizationProblem::optimize() {
 
 	vector<ConvexObjectivePtr> objectives = convexifyObjectives();
-	double objectiveVal = getSum(objectives);
+	double objectiveVal = sumObjectives(objectives);
 	vector<ConvexConstraintPtr> constraints = convexifyConstraints();
 	setupConvexProblem(objectives, constraints);
 
@@ -117,7 +148,7 @@ OptimizationProblem::OptStatus OptimizationProblem::optimize() {
 		
 		
 		vector<ConvexObjectivePtr> newObjectives = convexifyObjectives();
-		double newObjectiveVal = getSum(newObjectives);
+		double newObjectiveVal = sumObjectives(newObjectives);
 
 		double trueImprove = objectiveVal - newObjectiveVal;
 		double approxImprove = objectiveVal - approxObjectiveVal;
@@ -130,8 +161,7 @@ OptimizationProblem::OptStatus OptimizationProblem::optimize() {
 			LOG_INFO("objective got worse! rolling back and shrinking trust region");			
 			rollbackValues();
 			m_tra->adjustTrustRegion(SQPConfig::trShrink);
-			ConvexConstraintPtr cnt = m_tra->convexify();
-			cnt->addToModel();
+			constraints[0] = m_tra->convexify(); // first constraint should be trust region!!
 		}
 		else {
 						

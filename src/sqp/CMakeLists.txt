@@ -11,11 +11,11 @@ SET(CMAKE_CXX_FLAGS "-Wall -Wno-sign-compare -Wno-reorder")
 include_directories(/home/joschu/Src/gurobi501/linux64/include)
 link_directories(/home/joschu/Src/gurobi501/linux64/lib)
 
-add_executable(test_grb_eigen test_grb_eigen.cpp)
-target_link_libraries(test_grb_eigen gurobi_c++ gurobi50)
+#add_executable(test_grb_eigen test_grb_eigen.cpp)
+#target_link_libraries(test_grb_eigen gurobi_c++ gurobi50)
 
 add_library(sqp traj_costs.cpp utils_sqp.cpp config_sqp.cpp sqp_algorithm.cpp collision_boxes.cpp 
-collision_map_tools.cpp planning_problems.cpp physics_aware2.cpp plotters.cpp state_setter.cpp kinematics_utils.cpp
+collision_map_tools.cpp planning_problems.cpp plotters.cpp state_setter.cpp kinematics_utils.cpp
 functions.cpp)
 
 target_link_libraries(sqp utils simulation robots ${Boost_LIBRARIES} ${BULLET_LIBS} ${OpenRAVE_LIBRARIES} gurobi_c++ gurobi50)
@@ -35,8 +35,8 @@ include_directories("/opt/ros/fuerte/stacks/geometry/tf/include"
 
 link_directories("/opt/ros/fuerte/stacks/geometry/tf/lib")
 
-add_executable(planning_server planning_server.cpp)
-target_link_libraries(planning_server ${ROS_LIBRARIES} sqp clouds tf)
+#add_executable(planning_server planning_server.cpp)
+#target_link_libraries(planning_server ${ROS_LIBRARIES} sqp clouds tf)
 
 add_executable(interact_with_point_cloud interact_with_point_cloud.cpp)
 target_link_libraries(interact_with_point_cloud clouds sqp)
@@ -47,8 +47,16 @@ target_link_libraries(test_ros_ser ${ROS_LIBRARIES})
 add_executable(test_rave_env test_rave_env.cpp)
 target_link_libraries(test_rave_env simulation robots sqp json)
 
-add_executable(test_push_object test_push_object.cpp)
-target_link_libraries(test_push_object simulation robots sqp)
+#add_executable(test_push_object test_push_object.cpp)
+#target_link_libraries(test_push_object simulation robots sqp)
 
 add_executable(test_sqp_simple test_sqp_simple.cpp sqp.cpp config_sqp.cpp)
 target_link_libraries(test_sqp_simple utils gurobi_c++ gurobi50)
+
+
+add_executable(test_dynamics_solver test_dynamics_solver.cpp sqp.cpp sqp_dynamics.cpp config_sqp.cpp)
+target_link_libraries(test_dynamics_solver utils gurobi_c++ gurobi50 simulation)
+
+find_package(PythonLibs REQUIRED)
+add_executable(test_box_picking test_box_picking.cpp)
+target_link_libraries(test_box_picking simulation robots sqp ${PYTHON_LIBRARIES} boost_python)

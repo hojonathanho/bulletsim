@@ -1,8 +1,10 @@
 #pragma once
-#include "simulation/environment.h"
-#include "simulation/openravesupport.h"
+#include "simulation/simulation_fwd.h"
 #include "sqp_fwd.h"
 #include <Eigen/Dense>
+#include <openrave/openrave.h>
+
+class btRigidBody;
 
 class StateSetter {
 public:
@@ -19,7 +21,7 @@ class RobotJointSetter : public StateSetter {
   BulletRaveSyncherPtr m_brs;
   bool m_useAffine;
 public:
-  RobotJointSetter(RaveRobotObject::Ptr robot, const std::vector<int>& dofInds, bool useAffine=false);
+  RobotJointSetter(RaveRobotObjectPtr robot, const std::vector<int>& dofInds, bool useAffine=false);
   void setState(const Eigen::VectorXd&);
   Eigen::VectorXd getState();
   int getNumDof() {

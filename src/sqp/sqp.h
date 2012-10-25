@@ -74,28 +74,29 @@ public:
 	TrustRegionPtr m_tra;
 	GRBModel* m_model;
 	
-	OptimizationProblem(GRBModel* model) : m_model(model) {}
+	/*
+	typedef map<double*, GRBVar> ValVarMap;
+	map<double*, GRBVar> m_val2var;
+	*/
+	
+	OptimizationProblem();
+	virtual ~OptimizationProblem();
 	
 	virtual void updateValues() = 0;
 	virtual void storeValues() = 0;
 	virtual void rollbackValues() = 0;
 	virtual void preOptimize() {} // put plot callbacks and stuff here
 	virtual void postOptimize() {} // ditto
+	virtual double sumObjectives(vector<ConvexObjectivePtr>&);
+	// you usually just add up m_val. but might need to something else
 	OptStatus optimize();
 	int convexOptimize();
 	double getApproxObjective();
 	vector<ConvexObjectivePtr> convexifyObjectives();
 	vector<ConvexConstraintPtr> convexifyConstraints();
-	void addCost(CostPtr cost) {
-		m_costs.push_back(cost);
-	}
-	void addConstraint(ConstraintPtr cnt) {
-		m_cnts.push_back(cnt);
-	}
-	void setTrustRegion(TrustRegionPtr tra) {
-		m_tra = tra;
-		addConstraint(tra);
-	}
+	void addCost(CostPtr cost);
+	void addConstraint(ConstraintPtr cnt);
+	void setTrustRegion(TrustRegionPtr tra);
 	void setupConvexProblem(const vector<ConvexObjectivePtr>&, const vector<ConvexConstraintPtr>&);
 
 };

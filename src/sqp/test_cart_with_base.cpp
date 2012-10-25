@@ -12,6 +12,7 @@
 #include "state_setter.h"
 #include "plotters.h"
 #include <osg/Depth>
+#include "sqp/kinematics_utils.h"
 using namespace std;
 using namespace Eigen;
 using namespace util;

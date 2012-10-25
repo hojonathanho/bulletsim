@@ -121,7 +121,7 @@ bool outerOptimization(PlanningProblem& prob, CollisionCostPtr cc, const std::ve
 }
 
 
-bool planArmToCartTarget(PlanningProblem& prob, const Eigen::VectorXd& startJoints, const btTransform& goalTrans, RaveRobotObject::Manipulator::Ptr arm) {
+bool planArmToCartTarget(PlanningProblem& prob, const Eigen::VectorXd& startJoints, const btTransform& goalTrans, RaveRobotObject::Manipulator::Ptr arm, bool doOptimize) {
   BulletRaveSyncherPtr brs = syncherFromArm(arm);
   vector<double> ikSoln;
   bool ikSuccess = arm->solveIKUnscaled(util::toRaveTransform(goalTrans), ikSoln);
@@ -143,7 +143,10 @@ bool planArmToCartTarget(PlanningProblem& prob, const Eigen::VectorXd& startJoin
   prob.addComponent(cc);
   prob.addTrustRegionAdjuster(jb);
   prob.addComponent(cp);
-  return outerOptimization(prob, cc, vector<paird>());
+	if (doOptimize)
+		return outerOptimization(prob, cc, vector<paird>());
+	else
+		return true;
 
 }
 
