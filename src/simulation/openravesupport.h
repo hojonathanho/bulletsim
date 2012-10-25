@@ -71,6 +71,7 @@ public:
   typedef boost::shared_ptr<RaveObject> Ptr;
   RaveInstance::Ptr rave;
   KinBodyPtr body;
+  bool is_dynamic;
 
   RaveObject(RaveInstance::Ptr rave_, KinBodyPtr body, TrimeshMode trimeshMode = CONVEX_HULL, bool isDynamic=true);
   // This constructor assumes the robot is already in openrave. Use this if you're loading a bunch of stuff from an
@@ -78,10 +79,7 @@ public:
 
   void init();
   void destroy();
-  void prePhysics() {
-    updateBullet();
-    CompoundObject<BulletObject>::prePhysics();
-  }
+  void prePhysics();
 
   // forking
   EnvironmentObject::Ptr copy(Fork &f) const;

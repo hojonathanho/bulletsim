@@ -49,6 +49,18 @@ BulletObject::BulletObject(CI ci, const btTransform &initTrans, bool isKinematic
 
 }
 
+void BulletObject::setKinematic(bool newKin) {
+  if (newKin) {
+    rigidBody->setActivationState(rigidBody->getActivationState() | DISABLE_SIMULATION);
+    rigidBody->setGravity(btVector3(0,0,0));
+  }
+  else {
+    rigidBody->setActivationState(rigidBody->getActivationState() | ~DISABLE_SIMULATION);
+    rigidBody->setGravity(BulletConfig::gravity*METERS);
+  }
+
+}
+
 BulletObject::BulletObject(btScalar mass, btCollisionShape *cs, const btTransform &initTrans, bool isKinematic_) : isKinematic(isKinematic_), enable_texture(false), m_color(1,1,1,1) {
     motionState.reset(new MotionState(*this, initTrans));
     collisionShape.reset(cs);

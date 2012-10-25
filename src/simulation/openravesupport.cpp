@@ -225,7 +225,7 @@ static BulletObject::Ptr createFromLink(KinBody::LinkPtr link,
 	btCompoundShape* compound;
 	if (useCompound) {
     compound = new btCompoundShape();
-    compound->setMargin(0); //margin: compound. seems to have no effect when positive but has an effect when negative
+    compound->setMargin(1e-5); //margin: compound. seems to have no effect when positive but has an effect when negative
 	}
 
 
@@ -413,6 +413,11 @@ void RaveObject::initRaveObject(RaveInstance::Ptr rave_, KinBodyPtr body_,
   rave->bulletsim2rave[this] = body;
 
 	const std::vector<KinBody::LinkPtr> &links = body->GetLinks();
+
+
+  is_dynamic = isDynamic && !links[0]->IsStatic(); // XXXXXXX
+
+
 	getChildren().reserve(links.size());
 	// iterate through each link in the robot (to be stored in the children vector)
 	BOOST_FOREACH(KinBody::LinkPtr link, links) {
@@ -473,6 +478,13 @@ void RaveRobotObject::setDOFValues(const vector<int> &indices, const vector<dRea
   }
   updateBullet();
 }
+
+void RaveObject::prePhysics() {
+   if (!is_dynamic) {
+     updateBullet();
+   }
+   CompoundObject<BulletObject>::prePhysics();
+ }
 
 void RaveObject::updateBullet() {
 	// update bullet structures

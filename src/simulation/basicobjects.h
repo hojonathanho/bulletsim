@@ -24,8 +24,8 @@ public:
 
         void setKinematicPos(const btTransform &pos) {
             if (!obj.isKinematic) {
-                cout << "warning: calling setKinematicPos on the motionstate of a non-kinematic object" << endl;
-                return;
+//                cout << "warning: calling setKinematicPos on the motionstate of a non-kinematic object" << endl;
+//                return;
             }
             btDefaultMotionState::setWorldTransform(pos);
             // if we want to do collision detection in between timesteps,
@@ -82,6 +82,8 @@ public:
     void init();
     void preDraw();
     void destroy();
+
+    void setKinematic(bool newKin);
 
     // by default uses osgBullet. Can be overridden to provide custom OSG mesh
     virtual osg::ref_ptr<osg::Node> createOSGNode();
