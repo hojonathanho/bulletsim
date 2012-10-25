@@ -66,7 +66,10 @@ struct Scene {
 
   Scene();
   Scene(OpenRAVE::EnvironmentBasePtr);
-  void setup();
+  Scene(Environment::Ptr);
+  Scene(Environment::Ptr, RaveInstance::Ptr);
+  void setup(bool populate=true);
+  void setup(Environment::Ptr);
 
 
   void showWindow(bool showWindow, bool realtime);

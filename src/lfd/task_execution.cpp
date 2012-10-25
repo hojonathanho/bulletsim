@@ -143,7 +143,19 @@ bool Trajectory::checkIntegrity() {
 }
 
 
-TaskExecuter::TaskExecuter(TableRopeScene &scene_) : scene(scene_), trajExecSlowdown(1.0), execOneStep(false) {
+TaskExecuter::TaskExecuter(TableRopeScene &scene_) : scene(scene_), trajExecSlowdown(1.0), execOneStep(false), execStepInterval(make_pair(-1,-1)), plotting(true), initialized(false) {
+}
+
+void TaskExecuter::init(const string &taskName) {
+  py::list tableBounds;
+  tableBounds.append(scene.tableCornersWorld[0].x() / GeneralConfig::scale);
+  tableBounds.append(scene.tableCornersWorld[2].x() / GeneralConfig::scale);
+  tableBounds.append(scene.tableCornersWorld[0].y() / GeneralConfig::scale);
+  tableBounds.append(scene.tableCornersWorld[2].y() / GeneralConfig::scale);
+  tableBounds.append(scene.tableCornersWorld[0].z() / GeneralConfig::scale);
+  tableBounds.append(scene.tableCornersWorld[2].z() / GeneralConfig::scale);
+  pymod.init(taskName, tableBounds);
+  initialized = true;
 }
 
 void TaskExecuter::setTrajExecSlowdown(double s) {
@@ -160,6 +172,18 @@ void TaskExecuter::setSegCallback(SegCallback f) {
 
 void TaskExecuter::setExecOneStep(bool b) {
   execOneStep = b;
+}
+
+void TaskExecuter::setExecStepInterval(int l, int u) {
+  execStepInterval = std::make_pair(l, u);
+}
+
+void TaskExecuter::setPlotting(bool b) {
+  plotting = b;
+}
+
+Trajectory TaskExecuter::getLastExecutedTraj() const {
+  return lastExecutedTraj;
 }
 
 bool TaskExecuter::isTerminalState(State s) const {
@@ -208,15 +232,9 @@ TaskExecuter::Transition TaskExecuter::execState(State s) {
 }
 
 TaskExecuter::State TaskExecuter::run(const string &taskName, State start) {
-  py::list tableBounds;
-  tableBounds.append(scene.tableCornersWorld[0].x() / GeneralConfig::scale);
-  tableBounds.append(scene.tableCornersWorld[2].x() / GeneralConfig::scale);
-  tableBounds.append(scene.tableCornersWorld[0].y() / GeneralConfig::scale);
-  tableBounds.append(scene.tableCornersWorld[2].y() / GeneralConfig::scale);
-  tableBounds.append(scene.tableCornersWorld[0].z() / GeneralConfig::scale);
-  tableBounds.append(scene.tableCornersWorld[2].z() / GeneralConfig::scale);
-  pymod.init(taskName, tableBounds);
-
+  if (!initialized) {
+    init(taskName);
+  }
   State s = start;
   currStep = 0;
   do {
@@ -291,9 +309,9 @@ static inline double clampGripperAngle(double a) {
   return scale*a < MIN_ANGLE ? MIN_ANGLE : scale*a;
 }
 
-TaskExecuter::Transition TaskExecuter::action_execTraj() {
+void TaskExecuter::execRawTrajectory(const Trajectory &t) {
   RaveRobotObject::Ptr pr2 = scene.pr2m->pr2;
-  Trajectory t(readData("trajectory"), pr2);
+  lastExecutedTraj = t;
 
   // calculate slowdown
   const int simSteps = (int) ceil(trajExecSlowdown * t.steps);
@@ -302,25 +320,42 @@ TaskExecuter::Transition TaskExecuter::action_execTraj() {
     sim2real[(int)(trajExecSlowdown * i)] = i;
   }
 
-  RopeStatePlot::Ptr warped_tracked_plot(new RopeStatePlot());
-  RopeStatePlot::Ptr orig_tracked_plot(new RopeStatePlot());
-  PlotPoints::Ptr demo_cloud_plot(new PlotPoints());
-  util::getGlobalEnv()->add(warped_tracked_plot);
-  util::getGlobalEnv()->add(orig_tracked_plot);
-  util::getGlobalEnv()->add(demo_cloud_plot);
+  RopeStatePlot::Ptr warped_tracked_plot;
+  RopeStatePlot::Ptr orig_tracked_plot;
+  PlotPoints::Ptr demo_cloud_plot;
+  if (plotting) {
+    warped_tracked_plot.reset(new RopeStatePlot());
+    orig_tracked_plot.reset(new RopeStatePlot());
+    demo_cloud_plot.reset(new PlotPoints());
+    util::getGlobalEnv()->add(warped_tracked_plot);
+    util::getGlobalEnv()->add(orig_tracked_plot);
+    util::getGlobalEnv()->add(demo_cloud_plot);
+  }
 
   scene.setGrabBodies(scene.getRope()->getChildren());
   for (int k = 0; k < simSteps; ++k) {
     int i = sim2real[k];
+
+    if (execStepInterval.first != -1) {
+      if (i < execStepInterval.first) {
+        continue;
+      }
+      if (i > execStepInterval.second) {
+        break;
+      }
+    }
+
     if (i != -1) {
 
       // rope state plotting
-      demo_cloud_plot->setPoints(cloudToPoints(readData("trajectory")["demo"]["cloud_xyz_ds"], pr2));
-      if (!t.trackedStates.empty()) {
-        warped_tracked_plot->setRope(t.trackedStates[i], Eigen::Vector3f(1, 0, 0), 0.5);
-      }
-      if (!t.origTrackedStates.empty()) {
-        orig_tracked_plot->setRope(t.origTrackedStates[i], Eigen::Vector3f(0, 0, 1), 0.4);
+      if (plotting) {
+        demo_cloud_plot->setPoints(cloudToPoints(readData("trajectory")["demo"]["cloud_xyz_ds"], pr2));
+        if (!t.trackedStates.empty()) {
+          warped_tracked_plot->setRope(t.trackedStates[i], Eigen::Vector3f(1, 0, 0), 0.5);
+        }
+        if (!t.origTrackedStates.empty()) {
+          orig_tracked_plot->setRope(t.origTrackedStates[i], Eigen::Vector3f(0, 0, 1), 0.4);
+        }
       }
 
       // left
@@ -355,7 +390,8 @@ TaskExecuter::Transition TaskExecuter::action_execTraj() {
 
       if (stepCallback) {
         // TODO: make stepCallback take the Trajectory, not the py::dict
-        stepCallback(py::extract<py::dict>(readData("trajectory")), i);
+        //stepCallback(py::extract<py::dict>(readData("trajectory")), i);
+        stepCallback(t, i);
       }
     }
 
@@ -365,13 +401,20 @@ TaskExecuter::Transition TaskExecuter::action_execTraj() {
   scene.m_lMonitor->release();
   scene.m_rMonitor->release();
 
-  warped_tracked_plot->clear();
-  orig_tracked_plot->clear();
-  demo_cloud_plot->clear();
-  util::getGlobalEnv()->remove(warped_tracked_plot);
-  util::getGlobalEnv()->remove(orig_tracked_plot);
-  util::getGlobalEnv()->remove(demo_cloud_plot);
+  if (plotting) {
+    warped_tracked_plot->clear();
+    orig_tracked_plot->clear();
+    demo_cloud_plot->clear();
+    util::getGlobalEnv()->remove(warped_tracked_plot);
+    util::getGlobalEnv()->remove(orig_tracked_plot);
+    util::getGlobalEnv()->remove(demo_cloud_plot);
+  }
+}
 
+TaskExecuter::Transition TaskExecuter::action_execTraj() {
+  RaveRobotObject::Ptr pr2 = scene.pr2m->pr2;
+  Trajectory t(readData("trajectory"), pr2);
+  execRawTrajectory(t);
   return TR_SUCCESS;
 }
 

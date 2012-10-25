@@ -43,6 +43,9 @@ void RopeRobotSystem::enableDrawing(Scene *s) {
 }
 
 void RopeRobotSystem::enableDrawing() {
+  /*if (scene) {
+    scene->setup(env);
+  }*/
   if (scene && !scene->osg->root->containsNode(env->osg->root.get())) {
     scene->osg->root->addChild(env->osg->root.get());
   }
@@ -90,31 +93,23 @@ struct SimpleTrajOptimizerImpl {
     return toState(sys->rope->getControlPoints());
   }
 
-  static SimpleTrajOptimizer::Control toControl(const btTransform &manipTrans0, const btTransform &manipTrans1) {
-    btVector3 dx = manipTrans1.getOrigin() - manipTrans0.getOrigin();
-    btScalar rx0, ry0, rz0; manipTrans0.getBasis().getEulerZYX(rz0, ry0, rx0);
-    btScalar rx1, ry1, rz1; manipTrans1.getBasis().getEulerZYX(rz1, ry1, rx1);
+  static SimpleTrajOptimizer::Control toControl(const vector<double> &dofs0, const vector<double> &dofs1) {
     SimpleTrajOptimizer::Control u;
-    u << dx.x(),  dx.y(), dx.z(),
-         (rx1 - rx0), (ry1 - ry0), (rz1 - rz0);
+    for (int i = 0; i < 7; ++i) {
+      u(i) = dofs1[i] - dofs0[i];
+    }
     return u;
   }
 
   static void applyControlAndExec(RopeRobotSystem::Ptr sys, const SimpleTrajOptimizer::Control &u) {
-    btTransform tr = sys->manip->getTransform();
-
-    btTransform tr2; tr2.setIdentity();
-    tr2.setOrigin(tr.getOrigin() + btVector3(u(0), u(1), u(2)));
-
-    btScalar rx, ry, rz; tr.getBasis().getEulerZYX(rz, ry, rx);
-    tr2.getBasis().setEulerZYX(rz + u(5), ry + u(4), rx + u(3));
-
-    sys->manip->moveByIK(tr2);
+    vector<double> dofs = sys->manip->getDOFValues();
+    for (int i = 0; i < 7; ++i) {
+      dofs[i] += u(i);
+    }
+    sys->manip->setDOFValues(dofs);
     sys->env->step(DT, BulletConfig::maxSubSteps, BulletConfig::internalTimeStep);
 
     if (sys->scene) {
-      cout << "gonna draw that shit" << endl;
-      sys->enableDrawing();
       sys->scene->draw();
     }
   }
@@ -177,12 +172,17 @@ SimpleTrajOptimizer::NominalTraj SimpleTrajOptimizer::execNominalTraj(
 ) {
   NominalTraj outTraj;
   RopeRobotSystem::Ptr sys = initSys->fork();
+
   sys->enableDrawing(dbgScene);
+  sys->draw();
+  dbgScene->idle(true);
+
   assert(traj.x.size() > 0);
   for (int i = 0; i < traj.u.size(); ++i) {
     outTraj.x.push_back(SimpleTrajOptimizerImpl::extractState(sys));
     outTraj.u.push_back(traj.u[i]);
     SimpleTrajOptimizerImpl::applyControlAndExec(sys, traj.u[i]);
+    dbgScene->idle(true);
   }
   outTraj.x.push_back(SimpleTrajOptimizerImpl::extractState(sys));
   assert(outTraj.x.size() == traj.x.size());
@@ -192,14 +192,14 @@ SimpleTrajOptimizer::NominalTraj SimpleTrajOptimizer::execNominalTraj(
 
 SimpleTrajOptimizer::NominalTraj SimpleTrajOptimizer::toNominalTraj(
   const vector<RopeState> &ropeStates,
-  const vector<btTransform> &manipPoses
+  const vector<vector<double> > &manipDofs
 ) {
-  assert(ropeStates.size() == manipPoses.size());
+  assert(ropeStates.size() == manipDofs.size());
   NominalTraj n;
   for (int i = 0; i < ropeStates.size(); ++i) {
     n.x.push_back(SimpleTrajOptimizerImpl::toState(ropeStates[i]));
-    if (i < manipPoses.size() - 1) {
-      n.u.push_back(SimpleTrajOptimizerImpl::toControl(manipPoses[i], manipPoses[i+1]));
+    if (i < manipDofs.size() - 1) {
+      n.u.push_back(SimpleTrajOptimizerImpl::toControl(manipDofs[i], manipDofs[i+1]));
     }
   }
   return n;
@@ -207,16 +207,16 @@ SimpleTrajOptimizer::NominalTraj SimpleTrajOptimizer::toNominalTraj(
 
 void SimpleTrajOptimizer::NominalTrajBuilder::append(RopeRobotSystem::Ptr sys) {
   ropeStates.push_back(sys->rope->getControlPoints());
-  manipPoses.push_back(sys->manip->getTransform());
+  manipDofs.push_back(sys->manip->getDOFValues());
 }
 
 void SimpleTrajOptimizer::NominalTrajBuilder::clear() {
   ropeStates.clear();
-  manipPoses.clear();
+  manipDofs.clear();
 }
 
 SimpleTrajOptimizer::NominalTraj SimpleTrajOptimizer::NominalTrajBuilder::build() {
-  return SimpleTrajOptimizer::toNominalTraj(ropeStates, manipPoses);
+  return SimpleTrajOptimizer::toNominalTraj(ropeStates, manipDofs);
 }
 
 void SimpleTrajOptimizer::run() {

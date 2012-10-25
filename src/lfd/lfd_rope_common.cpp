@@ -6,7 +6,8 @@
 
 namespace lfd {
 
-static const float table_dist_from_robot = 0.15;
+//static const float table_dist_from_robot = 0.15;
+static const float table_dist_from_robot = 0.2;
 static const float table_width = 1, table_length = 1;
 static const float table_height = 0.76;
 static vector<btVector3> initTableCornersWorld() {

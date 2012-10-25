@@ -30,6 +30,9 @@ target_link_libraries(test_fork simulation)
 add_executable(test_fork_softbody test_fork_softbody.cpp)
 target_link_libraries(test_fork_softbody simulation)
 
+add_executable(test_fork_robot test_fork_robot.cpp)
+target_link_libraries(test_fork_robot simulation robots)
+
 add_executable(test_shirt test_shirt.cpp)
 target_link_libraries(test_shirt simulation)
 

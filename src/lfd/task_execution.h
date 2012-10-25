@@ -53,13 +53,19 @@ public:
 
   void setTrajExecSlowdown(double s);
   void setExecOneStep(bool b);
+  void setExecStepInterval(int l, int u);
+  void setPlotting(bool);
 
-  typedef boost::function<void(py::dict, int)> TrajStepCallback;
+  typedef boost::function<void(const Trajectory &, int)> TrajStepCallback;
   void setTrajStepCallback(TrajStepCallback f);
   typedef boost::function<bool(const string&)> SegCallback;
   void setSegCallback(SegCallback f);
 
+  Trajectory getLastExecutedTraj() const;
+
+  void init(const string &taskName);
   State run(const string &taskName, State start=ST_LOOK_AT_OBJ);
+  void execRawTrajectory(const Trajectory &t);
 
 private:
   static Transition transitionFromString(const string &s); 
@@ -69,6 +75,11 @@ private:
   int currStep;
   double trajExecSlowdown;
   bool execOneStep;
+  std::pair<int, int> execStepInterval;
+  Trajectory lastExecutedTraj;
+  bool plotting;
+  bool initialized;
+
   TrajStepCallback stepCallback;
   SegCallback segCallback;
 

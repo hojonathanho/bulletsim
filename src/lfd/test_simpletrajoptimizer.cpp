@@ -19,8 +19,13 @@ string LocalConfig::task;
 float LocalConfig::pert = 1.;
 double LocalConfig::trajSlow = 3.;
 
-static void stepCallback(LFDRopeScene *s, SimpleTrajOptimizer::NominalTrajBuilder *trajbuilder, py::dict traj, int step) {
-  trajbuilder->append(*s);
+static int execint_a = -1, execint_b = -1;
+static void stepCallback(LFDRopeScene *s, SimpleTrajOptimizer::NominalTrajBuilder *trajbuilder, const lfd::Trajectory &traj, int step) {
+  if (traj.lGrabTraj[step]) {
+    if (execint_a == -1) execint_a = step;
+    trajbuilder->append(*s);
+  }
+  if (execint_a != -1 && execint_b == -1) execint_b = step;
 }
 
 int main(int argc, char *argv[]) {
@@ -33,13 +38,14 @@ int main(int argc, char *argv[]) {
   s.resetScene(ropeCtlPts);
   util::setGlobalEnv(s.scene->env);
 
-/*  s.scene->startViewer();
+  s.scene->startViewer();
   s.scene->viewer.frame();
-  s.scene->setDrawing(true);*/
+  s.scene->setDrawing(true);
 
   SimpleTrajOptimizer::NominalTrajBuilder trajbuilder;
 
   lfd::TaskExecuter ex(*s.scene);
+  ex.init(LocalConfig::task);
   ex.setTrajExecSlowdown(LocalConfig::trajSlow);
   ex.setTrajStepCallback(boost::bind(stepCallback, &s, &trajbuilder, _1, _2));
   ex.setExecOneStep(true);
@@ -61,12 +67,28 @@ int main(int argc, char *argv[]) {
   s2.scene->startViewer();
   s2.scene->setDrawing(true);
 
+  lfd::TaskExecuter ex2(*s2.scene);
+  ex2.init(LocalConfig::task);
+  ex2.setPlotting(false);
+  ex2.setTrajExecSlowdown(LocalConfig::trajSlow);
+  ex2.setExecStepInterval(0, execint_a);
+  cout << "prep execution interval up to " << execint_a << endl;
+  ex2.execRawTrajectory(ex.getLastExecutedTraj());
+
+  s2.scene->idle(true);
+
   SimpleTrajOptimizer opt;
   opt.setDebuggingScene(s2.scene.get());
+
+//  Scene dbgScene;
+//  opt.setDebuggingScene(&dbgScene);
+//  dbgScene.startViewer();
+//  dbgScene.setDrawing(true);
 
   opt.execNominalTraj(RopeRobotSystem::InitFrom(s2), ntraj);
 
   s2.scene->startFixedTimestepLoop(DT);
+//  dbgScene.startFixedTimestepLoop(DT);
 
   return 0;
 }
