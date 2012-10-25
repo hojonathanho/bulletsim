@@ -9,6 +9,7 @@
 #include "config_sqp.h"
 #include "simulation/openravesupport.h"
 #include "kinematics_utils.h"
+#include "simulation/bullet_io.h"
 using namespace std;
 using namespace OpenRAVE;
 using namespace util;
@@ -118,7 +119,9 @@ TrajCartCollInfo continuousTrajCollisions(const Eigen::MatrixXd& traj,
   robot->SetActiveDOFValues(toDoubleVec(traj.row(0)));
 
   vector<btTransform> oldTransforms;
-  BOOST_FOREACH(OpenRAVE::KinBody::LinkPtr link, brs.m_links) oldTransforms.push_back(toBtTransform(link->GetTransform(), METERS));
+  BOOST_FOREACH(OpenRAVE::KinBody::LinkPtr link, brs.m_links){
+    oldTransforms.push_back(toBtTransform(link->GetTransform(), METERS));
+  }
 
   TrajCartCollInfo out(traj.rows()-1);
 
@@ -126,7 +129,9 @@ TrajCartCollInfo continuousTrajCollisions(const Eigen::MatrixXd& traj,
   for (int iStep=1; iStep < traj.rows(); ++iStep) {
     robot->SetActiveDOFValues(toDoubleVec(traj.row(iStep)));
     vector<btTransform> newTransforms;
-    BOOST_FOREACH(OpenRAVE::KinBody::LinkPtr link, brs.m_links) newTransforms.push_back(toBtTransform(link->GetTransform(),METERS));
+    BOOST_FOREACH(OpenRAVE::KinBody::LinkPtr link, brs.m_links){
+      newTransforms.push_back(toBtTransform(link->GetTransform(),METERS));
+    }
     for (int iBody=0; iBody < brs.m_bodies.size(); ++iBody) {
 
       btConvexShape* cShape = getConvexCollisionShape(brs.m_bodies[iBody]->getCollisionShape());
@@ -171,6 +176,7 @@ JointCollInfo cartToJointCollInfo(const CartCollInfo& in, const Eigen::VectorXd&
     out.dists[iColl] = lc.dist;
 
     std::vector<double> jacvec(3*nJoints);
+    LOG_INFO(useAffine << " | " << lc.linkInd << " | " << lc.point << " | " << jacvec);
     robot->CalculateActiveJacobian(lc.linkInd, toRaveVector(lc.point), jacvec);
     out.jacs[iColl] = - toVector3d(lc.normal).transpose() * Eigen::Map<MatrixXd>(jacvec.data(), 3, nJoints);
     if (useAffine) out.jacs[iColl](nJoints - 1) *= -1;

@@ -18,7 +18,7 @@ struct KinematicsInfo {
 KinematicsInfo getSingleArmKinematics(const OpenRAVE::RobotBase::ManipulatorPtr manip);
 #endif
 
-
+typedef std::pair<double,double> paird;
 
 
 struct CollisionCollector: public btCollisionWorld::ContactResultCallback {
@@ -43,4 +43,3 @@ TrajJointCollInfo trajCartToJointCollInfo(const TrajCartCollInfo& in, const Eige
     const std::vector<int>& dofInds, bool useAffine);
 
 void countCollisions(const TrajJointCollInfo& trajCollInfo, double safeDist, int& nNear, int& nUnsafe, int& nColl);
-

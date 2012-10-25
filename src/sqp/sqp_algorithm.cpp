@@ -6,6 +6,7 @@
 #include "utils/conversions.h"
 #include <typeinfo>
 #include "config_sqp.h"
+#include <json/json.h>
 #include "plotters.h"
 #include "kinematics_utils.h"
 
@@ -64,23 +65,22 @@ Eigen::MatrixXd makeTraj(const Eigen::VectorXd& startJoints, const Eigen::Vector
 
 }
 
-void updateTraj(const VarArray& trajVars, const VectorXb& optmask, Eigen::MatrixXd& traj) {
+void updateTraj(const VarArray& trajVars, Eigen::MatrixXd& traj) {
   for (int i = 0; i < traj.rows(); ++i)
-    if (optmask(i)) for (int j = 0; j < traj.cols(); ++j) {
+    for (int j = 0; j < traj.cols(); ++j) {
       traj(i, j) = trajVars.at(i, j).get(GRB_DoubleAttr_X);
     }
 }
 
-void setVarsToTraj(const Eigen::MatrixXd traj, const VectorXb& optmask, VarArray& trajVars) {
+void setVarsToTraj(const Eigen::MatrixXd traj, VarArray& trajVars) {
   for (int i = 0; i < traj.rows(); ++i)
-    if (optmask(i)) for (int j = 0; j < traj.cols(); ++j)
+    for (int j = 0; j < traj.cols(); ++j)
       trajVars.at(i, j).set(GRB_DoubleAttr_X, traj(i, j));
 }
 
-
-
 void CollisionCost::subdivide(const std::vector<double>& insertTimes, const VectorXd& oldTimes,
     const VectorXd& newTimes) {
+
   if (m_coeffVec.size() > 0) m_coeffVec = interp2d(newTimes, oldTimes, m_coeffVec);
 }
 
@@ -140,7 +140,7 @@ void CollisionCost::updateModel(const Eigen::MatrixXd& traj, GRBQuadExpr& object
   printCollisionReport(trajJointInfo, SQPConfig::distDiscSafe);
 
   for (int iStep = 0; iStep < traj.rows(); ++iStep)
-    if (m_problem->m_optMask(iStep)) for (int iColl = 0; iColl < trajJointInfo[iStep].jacs.size(); ++iColl) {
+    for (int iColl = 0; iColl < trajJointInfo[iStep].jacs.size(); ++iColl) {
       m_vars.push_back(m_problem->m_model->addVar(0, GRB_INFINITY, 0, GRB_CONTINUOUS, "hinge"));
     }
   m_problem->m_model->update();
@@ -157,23 +157,21 @@ void CollisionCost::updateModel(const Eigen::MatrixXd& traj, GRBQuadExpr& object
 
   int varCount = 0;
   for (int iStep = 0; iStep < traj.rows(); ++iStep) {
-    if (m_problem->m_optMask(iStep)) {
-      std::vector<Eigen::VectorXd>& jacs = trajJointInfo[iStep].jacs;
-      std::vector<double>& dists = trajJointInfo[iStep].dists;
-      VarVector jointVars = m_problem->m_trajVars.row(iStep);
-      for (int iColl = 0; iColl < trajJointInfo[iStep].jacs.size(); ++iColl) {
-        GRBVar& hinge = m_vars[varCount];
-        //        hinge.set(GRB_DoubleAttr_X, dists[iColl]);
-        ++varCount;
-        GRBLinExpr jacDotTheta;
-        jacDotTheta.addTerms(jacs[iColl].data(), jointVars.data(), traj.cols());
-        GRBConstr hingeCnt = m_problem->m_model->addConstr(hinge >= -dists[iColl] + jacDotTheta
+    std::vector<Eigen::VectorXd>& jacs = trajJointInfo[iStep].jacs;
+    std::vector<double>& dists = trajJointInfo[iStep].dists;
+    VarVector jointVars = m_problem->m_trajVars.row(iStep);
+    for (int iColl = 0; iColl < trajJointInfo[iStep].jacs.size(); ++iColl) {
+      GRBVar& hinge = m_vars[varCount];
+      //        hinge.set(GRB_DoubleAttr_X, dists[iColl]);
+      ++varCount;
+      GRBLinExpr jacDotTheta;
+      jacDotTheta.addTerms(jacs[iColl].data(), jointVars.data(), traj.cols());
+      GRBConstr hingeCnt = m_problem->m_model->addConstr(hinge >= -dists[iColl] + jacDotTheta
             + m_distPen - jacs[iColl].dot(traj.row(iStep)), "hinge");
-        m_cnts.push_back(hingeCnt);
-        coeffs.push_back(coeffs_t[iStep]);
-        m_exactObjective += coeffs_t[iStep] * pospart(-dists[iColl] + m_distPen);
-        //        cout << "asdf: " << coeffs_t[iStep] * pospart(-dists[iColl]+m_safeDist);
-      }
+      m_cnts.push_back(hingeCnt);
+      coeffs.push_back(coeffs_t[iStep]);
+      m_exactObjective += coeffs_t[iStep] * pospart(-dists[iColl] + m_distPen);
+      //        cout << "asdf: " << coeffs_t[iStep] * pospart(-dists[iColl]+m_safeDist);
     }
   }
   assert(varCount == m_vars.size());
@@ -291,16 +289,11 @@ void LengthConstraintAndCost::onAdd() {
   for (int iStep = 1; iStep < traj.rows(); ++iStep)
     for (int iJoint = 0; iJoint < traj.cols(); ++iJoint) {
       GRBLinExpr vel;
-      if (m_problem->m_optMask(iStep)) {
-        vel += m_problem->m_trajVars.at(iStep, iJoint);
-        assert(isValidVar(m_problem->m_trajVars.at(iStep,iJoint)));
-      }
-      else vel += traj(iStep, iJoint);
-      if (m_problem->m_optMask(iStep - 1)) {
-        vel -= m_problem->m_trajVars.at(iStep - 1, iJoint);
-        assert(isValidVar(m_problem->m_trajVars.at(iStep-1,iJoint)));
-      }
-      else vel -= traj(iStep - 1, iJoint);
+      vel += m_problem->m_trajVars.at(iStep, iJoint);
+      assert(isValidVar(m_problem->m_trajVars.at(iStep,iJoint)));
+
+      vel -= m_problem->m_trajVars.at(iStep - 1, iJoint);
+      assert(isValidVar(m_problem->m_trajVars.at(iStep-1,iJoint)));
       double dt = m_problem->m_times(iStep) - m_problem->m_times(iStep - 1);
       vel = vel / dt;
       m_cnts.push_back(m_problem->m_model->addConstr(vel <= m_maxStepMvmt(iJoint), "vel"));
@@ -386,13 +379,14 @@ void JointBounds::updateModel(const Eigen::MatrixXd& traj, GRBQuadExpr& objectiv
 
 
 
-  for (int iStep = 0; iStep < traj.rows(); ++iStep) if (m_problem->m_optMask(iStep))
+  for (int iStep = 0; iStep < traj.rows(); ++iStep) {
     for (int iJoint = 0; iJoint < traj.cols(); ++iJoint) {
-  m_problem->m_trajVars.at(iStep, iJoint).set(GRB_DoubleAttr_LB, fmax(traj(iStep, iJoint)
+      m_problem->m_trajVars.at(iStep, iJoint).set(GRB_DoubleAttr_LB, fmax(traj(iStep, iJoint)
           - m_maxDiffPerIter(iJoint), m_jointLowerLimit(iJoint)));
-  m_problem->m_trajVars.at(iStep, iJoint).set(GRB_DoubleAttr_UB, fmin(traj(iStep, iJoint)
+      m_problem->m_trajVars.at(iStep, iJoint).set(GRB_DoubleAttr_UB, fmin(traj(iStep, iJoint)
           + m_maxDiffPerIter(iJoint), m_jointUpperLimit(iJoint)));
     }
+  }
 
 }
 
@@ -821,7 +815,7 @@ void PlanningProblem::forceOptimizeHere() {
   vector<GRBConstr> cnts;
   for (int i = 0; i < m_currentTraj.rows(); ++i) {
     for (int j = 0; j < m_currentTraj.cols(); ++j) {
-      if (m_optMask(i)) cnts.push_back(m_model->addConstr(m_trajVars.at(i, j)
+      cnts.push_back(m_model->addConstr(m_trajVars.at(i, j)
           == m_currentTraj(i, j)));
     }
   }
@@ -862,7 +856,7 @@ void PlanningProblem::testObjectives() {
       LOG_INFO_FMT("%s: exact: %.3f, approx: %.3f", getClassName(*comp).c_str(), exactObj, approxObj);
       ASSERT_ALMOST_EQUAL2(approxObj, exactObj, 1e-5,1e-7);
   }
-
+  // GRB requires you to call optimize before evaluating expr
   LOG_INFO("Orig objective: " << getApproxCost());
 
   double epsilon = 1e-5;
@@ -875,38 +869,36 @@ void PlanningProblem::testObjectives() {
     prob2numGrad[prob] = NAN * MatrixXd::Ones(savedTraj.rows(), savedTraj.cols());
   }
 
-  for (int i = 0; i < m_currentTraj.rows(); ++i)
-    if (m_optMask(i)) {
-      for (int j = 0; j < m_currentTraj.cols(); ++j) {
-        m_currentTraj(i, j) = savedTraj(i, j) + epsilon;
-        BOOST_FOREACH(CostFuncPtr comp, getCostComponents()) {
-          forceOptimizeHere();// XXX might be infeasible!!!
-          int status = m_model->get(GRB_IntAttr_Status);
-          if (status == GRB_OPTIMAL) {
+  for (int i = 0; i < m_currentTraj.rows(); ++i){
+    for (int j = 0; j < m_currentTraj.cols(); ++j) {
+      m_currentTraj(i, j) = savedTraj(i, j) + epsilon;
+      BOOST_FOREACH(CostFuncPtr comp, getCostComponents()) {
+        forceOptimizeHere();// XXX might be infeasible!!!
+        int status = m_model->get(GRB_IntAttr_Status);
+        if (status == GRB_OPTIMAL) {
 //            LOG_INFO_FMT("gradient test %s %i %i", getClassName(*comp).c_str(), i, j);
-            double pertApproxObj = comp->getApproxCost();
-            double approxGrad = (pertApproxObj - comp2approx[comp]) / (epsilon);
-            prob2linGrad[comp](i, j) = approxGrad;
-          }
+          double pertApproxObj = comp->getApproxCost();
+          double approxGrad = (pertApproxObj - comp2approx[comp]) / (epsilon);
+          prob2linGrad[comp](i, j) = approxGrad;
         }
-        m_currentTraj(i, j) = savedTraj(i, j);
       }
+      m_currentTraj(i, j) = savedTraj(i, j);
     }
+  }
 
-  for (int i = 0; i < m_currentTraj.rows(); ++i)
-    if (m_optMask(i)) {
-      for (int j = 0; j < m_currentTraj.cols(); ++j) {
-        m_currentTraj(i, j) = savedTraj(i, j) + epsilon;
-        updateModel();
-        BOOST_FOREACH(CostFuncPtr comp, getCostComponents()) {
-//          LOG_INFO_FMT("gradient test %s %i %i", getClassName(*comp).c_str(), i, j);
-          double pertExactObj = comp->getCachedCost();
-          double exactGrad = (pertExactObj - comp2approx[comp]) / (epsilon);
-          prob2numGrad[comp](i, j) = exactGrad;
-        }
-        m_currentTraj(i, j) = savedTraj(i, j);
+  for (int i = 0; i < m_currentTraj.rows(); ++i){
+    for (int j = 0; j < m_currentTraj.cols(); ++j) {
+      m_currentTraj(i, j) = savedTraj(i, j) + epsilon;
+      updateModel();
+      BOOST_FOREACH(CostFuncPtr comp, getCostComponents()) {
+//      LOG_INFO_FMT("gradient test %s %i %i", getClassName(*comp).c_str(), i, j);
+        double pertExactObj = comp->getCachedCost();
+        double exactGrad = (pertExactObj - comp2approx[comp]) / (epsilon);
+        prob2numGrad[comp](i, j) = exactGrad;
       }
+      m_currentTraj(i, j) = savedTraj(i, j);
     }
+  }
 
   BOOST_FOREACH(ProblemComponentPtr comp, getCostComponents()) {
     cout << "grad check: " << getClassName(*comp) << "-------------" << endl;
@@ -979,7 +971,7 @@ void PlanningProblem::optimize(int maxIter) {
 
     double approxObj = getApproxCost();
     prevTraj = m_currentTraj;
-    updateTraj(m_trajVars, m_optMask, m_currentTraj);
+    updateTraj(m_trajVars, m_currentTraj);
 
 #ifdef DEBUG_ALL_COSTS
     vector<double> costs_after, acosts_after;
@@ -1001,7 +993,6 @@ void PlanningProblem::optimize(int maxIter) {
 
     m_approxObjectiveReady = false;
     m_exactObjectiveReady = false;
-
     TIC();
     updateModel();
 
@@ -1125,10 +1116,7 @@ void PlanningProblem::subdivide(const std::vector<double>& insertTimes) {
   m_times = newTimes;
   m_trajVars = newTrajVars;
   m_currentTraj = newTraj;
-  VectorXb newOptMask = VectorXb::Ones(nNew);
-  newOptMask(0) = m_optMask(0);
-  newOptMask(nNew - 1) = m_optMask(m_optMask.size() - 1);
-  m_optMask = newOptMask;
+
   //  cout << m_optMask.transpose() << endl;
   m_model->update();
   BOOST_FOREACH(ProblemComponentPtr comp, m_comps) {
@@ -1142,17 +1130,27 @@ void PlanningProblem::initialize(const Eigen::MatrixXd& initTraj, bool endFixed,
   m_times = times;
   m_currentTraj = initTraj;
   m_trajVars = VarArray(initTraj.rows(), initTraj.cols());
-  m_optMask = VectorXb::Ones(initTraj.rows());
+  int timesteps = m_currentTraj.rows();
 //  m_optMask(0) = false;
-  for (int iRow = 0; iRow < m_currentTraj.rows(); ++iRow) {
-    if (1 || m_optMask(iRow)) {
-      for (int iCol = 0; iCol < m_currentTraj.cols(); ++iCol) {
-        char namebuf[10];
-        sprintf(namebuf, "j_%i_%i", iRow, iCol);
-        m_trajVars.at(iRow, iCol) = m_model->addVar(0, 0, 0, GRB_CONTINUOUS, namebuf);
-      }
+//  if (endFixed) m_optMask(initTraj.rows() - 1) = false;
+  for (int iRow = 0; iRow < timesteps; ++iRow) {
+    for (int iCol = 0; iCol < m_currentTraj.cols(); ++iCol) {
+      char namebuf[10];
+      sprintf(namebuf, "j_%i_%i", iRow, iCol);
+      m_trajVars.at(iRow, iCol) = m_model->addVar(0, 0, 0, GRB_CONTINUOUS, namebuf);
     }
   }
+  m_model->update();
+  // Add equality constraints for endpoints
+  for(int j=0; j < m_currentTraj.cols(); j++){
+    m_model->addConstr(m_trajVars.at(0, j), GRB_EQUAL, m_currentTraj(0, j));
+  }
+  if(endFixed){
+    for(int j=0; j < m_currentTraj.cols(); j++){
+      m_model->addConstr(m_trajVars.at(timesteps-1, j) == m_currentTraj(timesteps-1, j));
+    }
+  }
+
   m_model->update();
   int nRow = m_currentTraj.rows();
   for (int i=0; i < initTraj.cols(); ++i) {
@@ -1163,5 +1161,43 @@ void PlanningProblem::initialize(const Eigen::MatrixXd& initTraj, bool endFixed,
   m_initialized = true;
 }
 
+void PlanningProblem::writeTrajToJSON(std::string filename){
+  Json::Value outputData(Json::objectValue);
+  outputData["trajectory"] = Json::Value(Json::objectValue);
+  int rowCount = m_currentTraj.rows();
+  outputData["trajectory"]["length"] = Json::Value(rowCount);
+  outputData["trajectory"]["indices"] = Json::Value(Json::arrayValue);
+  outputData["trajectory"]["values"] = Json::Value(Json::arrayValue);
+  for(int i = 0; i< m_currentTraj.rows(); i++){
+    Json::Value row = Json::Value(Json::arrayValue);
+    for(int j = 0; j < m_currentTraj.cols(); j++){
+      row.append(m_currentTraj(i,j));
+    }
+    outputData["trajectory"]["values"].append(row);
+  }
+  std::ofstream outputFile;
+  outputFile.open(filename.c_str());
+  Json::StyledWriter writer;
+  outputFile << writer.write(outputData);
+  outputFile.close();
+}
 
+Eigen::MatrixXd loadTrajFromJSON(std::string filename){
+  Json::Value root;
+  Json::Reader reader;
+  bool success = reader.parse(filename.c_str(), root);
+  if(!success){
+    LOG_ERROR_FMT("Failed to load trajectory data from %s", filename.c_str());
+    return MatrixXd();
+  }
 
+  int length = root["trajetory"]["length"].asInt();
+  int width = root["trajectory"]["values"][0].size();
+  MatrixXd trajData(length, width);
+  for(int i = 0; i < length; i++){
+    for(int j = 0; j < width; j++){
+      trajData(i,j) = root["trajectory"]["values"][i][j].asDouble();
+    }
+  }
+  return trajData;
+}

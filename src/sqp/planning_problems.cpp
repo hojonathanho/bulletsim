@@ -13,63 +13,134 @@
 using namespace std;
 using namespace Eigen;
 
-typedef std::pair<double,double> paird;
-
 
 static double COLL_COST_MULT = 3;
 
-bool inSomeInterval(double d, const std::vector<paird>& exclude) {
-  bool excluded = false;
-  BOOST_FOREACH(const paird& interval, exclude) {
-    if (d >= interval.first && d <= interval.second) excluded=true;
+/**
+ * Returns true if d is within one of the given intervals
+ * @param d the floating point number to test
+ * @param intervals a list of intervals to test
+ * @return true if d is within one of the given intervals
+ */
+bool inSomeInterval(double d, const std::vector<paird>& intervals) {
+  bool included = false;
+  BOOST_FOREACH(const paird& interval, intervals) {
+    if (d >= interval.first && d <= interval.second) included=true;
   }
-  return excluded;
+  return included;
 }
-
+/**
+ * Removes numbers from in which fall within the specified intervals
+ * @param in input vector of doubles to be filtered
+ * @param exclude vector of intervals to be excluded from the output
+ * @return the filtered vector of doubles
+ */
 vector<double> filterOutIntervals(const std::vector<double>& in, const std::vector<paird>& exclude) {
   vector<double> out;
   BOOST_FOREACH(const double d, in) if (!inSomeInterval(d, exclude)) out.push_back(d);
   return out;
 }
-
-
-
-
-bool isSafe(const TrajCartCollInfo& cci, double distSafe, const Eigen::VectorXd& times, const std::vector<paird>& allowedCollisionIntervals) {
+/**
+ * @param lc a LinkCollision corresponding to a link in collision
+ * @param time the time the collision occurs
+ * @param allowedCollisions mapping of link indices to allowed time intervals
+ *  for collision
+ * @return true if the given LinkCollision is allowed
+ */
+bool linkInAllowedCollision(const LinkCollision lc, double time,
+    const map<int, vector<paird> >& allowedCollisions){
+  map<int, vector<paird> >::const_iterator intervals = allowedCollisions.find(lc.linkInd);
+  if(intervals != allowedCollisions.end()){
+    if(inSomeInterval(time, intervals->second)){
+      return true;
+    }
+  }
+  return false;
+}
+/**
+ * Returns whether the given trajectory is safe according to the given minimum
+ * distance from collisions, optionally ignoring collisions in specified
+ * time intervals of the trajectory
+ *
+ * @param cci Collision information for the trajectory
+ * @param distSafe minimum distance from potential collisions
+ * @param times a vector of time values for the trajectory
+ * @param allowedCollisions time intervals in which collisions are allowed
+ */
+//TODO: Perhaps there should be a trajectory class, and this should be a member
+//TODO: Allow specific links to collide rather than time intervals
+bool isSafe(const TrajCartCollInfo& cci, double distSafe, const Eigen::VectorXd& times,
+		const map<int, vector<paird> >& allowedCollisions) {
 //  countCollisions(const TrajJointCollInfo& trajCollInfo, double safeDist, int& nNear, int& nUnsafe, int& nColl)
   assert(cci.size() == times.size());
   vector<double> discreteUnsafeTimes;
   for (int i=0; i < cci.size(); ++i) {
-    if (!inSomeInterval(times(i), allowedCollisionIntervals)) {
-      BOOST_FOREACH(const LinkCollision& lc, cci[i]) {
-        if (lc.dist < distSafe) {
-          discreteUnsafeTimes.push_back(times(i));
-        }
-      }
-    }
+	  BOOST_FOREACH(const LinkCollision& lc, cci[i]) {
+	    bool linkInAllowedCollisions = linkInAllowedCollision(lc, times(i), allowedCollisions);
+		  if(!linkInAllowedCollisions && lc.dist < distSafe){
+		    discreteUnsafeTimes.push_back(times(i));
+		  }
+	  }
   }
   if (discreteUnsafeTimes.size() >0) {
     LOG_INFO("steps with a discrete collision: " << discreteUnsafeTimes);
     stringstream ss;
-    BOOST_FOREACH(paird p, allowedCollisionIntervals) ss << "(" << p.first << "," << p.second << ") ";
-    LOG_INFO("allowed collision intervals:" << ss.str());
+//    BOOST_FOREACH(paird p, allowedCollisionIntervals) ss << "(" << p.first << "," << p.second << ") ";
+//    LOG_INFO("allowed collision intervals:" << ss.str());
   }
   return discreteUnsafeTimes.size()==0;
 }
 
-
-vector<double> getSubdivisionTimes(const TrajCartCollInfo& cci, const Eigen::VectorXd& times) {
+/**
+ * Given a trajectory with continuous collisions, this function decides when to
+ * add points to the trajectory to form a safe trajectory
+ * @param cci collision information for a trajectory
+ * @param times time information for a trajectory
+ * @return a list of new times to be sampled in a new trajectory
+ */
+vector<double> getSubdivisionTimes(const TrajCartCollInfo& cci, const Eigen::VectorXd& times,
+    const map<int, vector<paird> >& allowedCollisions) {
   int nContColl=0;
   vector<double> insertTimes;
-  for (int i = 0; i < cci.size(); ++i) {
+  for (int i = 0; i < cci.size() - 1; ++i) {
     nContColl += cci[i].size();
-    if (cci[i].size() > 0) insertTimes.push_back((times(i) + times(i+1)) / 2);
+    if (cci[i].size() > 0){
+      BOOST_FOREACH(const LinkCollision& lc, cci[i]) {
+        // Check if this link is allowed to collide
+        // (the distance is meaningless for continuous collisions)
+        bool linkInAllowedCollisions = linkInAllowedCollision(lc, times(i), allowedCollisions);
+        if(!linkInAllowedCollisions){
+          insertTimes.push_back((times(i) + times(i+1)) / 2);
+        }
+      }
+    }
   }
   return insertTimes;
 }
 
-
-bool outerOptimization(PlanningProblem& prob, CollisionCostPtr cc, const std::vector<paird>& allowedCollisionIntervals) {
+/**
+ * @brief Solves a planning problem by adjusting parameters to make sure the
+ * resulting trajectory is safe.
+ *
+ * Pseudocode:
+ * 	while problem is not safe and within parameter limits
+ * 	  problem.optimize()
+ * 	  if problem is not discreteSafe
+ * 	  	collisionCoefficient <- 2*collisionCoefficient
+ * 	  else if problem is not continuousSafe
+ * 	  	subdivide trajectory in segments that are in continuous collision
+ * 	  if parameter limits violated
+ * 	  	return false
+ * 	return true
+ *
+ * @param prob the planning problem
+ * @param cc collision cost calculator
+ * @param allowedCollisionIntervals	time intervals in which collisions are allowed
+ * @param maxCollCoeff the maximum collision coefficient to use
+ * @param maxSteps the maximum number of steps in the trajectory
+ */
+bool outerOptimization(PlanningProblem& prob, CollisionCostPtr cc,
+		const map<int, vector<paird> >& allowedCollisions) {
   for (int outerOptIter = 0;; ++outerOptIter) {
     LOG_INFO_FMT("outer optimization iteration: %i", outerOptIter);
     if (prob.m_tra->m_shrinkage < SQPConfig::shrinkLimit) prob.m_tra->adjustTrustRegion(10*SQPConfig::shrinkLimit / prob.m_tra->m_shrinkage);
@@ -80,8 +151,7 @@ bool outerOptimization(PlanningProblem& prob, CollisionCostPtr cc, const std::ve
 
     TrajCartCollInfo& discCollInfo = cc->m_cartCollInfo;
 
-
-    if (!isSafe(discCollInfo, SQPConfig::distDiscSafe, prob.m_times,allowedCollisionIntervals)) { // not discrete safe
+    if (!isSafe(discCollInfo, SQPConfig::distDiscSafe, prob.m_times,allowedCollisions)) { // not discrete safe
       if (cc->m_coeff < SQPConfig::maxCollCoef) {
       cc->m_coeff = fmin(cc->m_coeff * COLL_COST_MULT, SQPConfig::maxCollCoef);
         LOG_INFO_FMT("trajectory was not discrete-safe. collision coeff <- %.2f", cc->m_coeff);
@@ -92,12 +162,12 @@ bool outerOptimization(PlanningProblem& prob, CollisionCostPtr cc, const std::ve
         return false;
       }
     }
-    else { // not continuous safe
+    else { // check continuous safety
       TrajCartCollInfo contCollInfo = continuousTrajCollisions(prob.m_currentTraj, cc->m_robot, *cc->m_brs,
           cc->m_world, cc->m_dofInds, SQPConfig::distContSafe);
-      vector<double> insertTimes = getSubdivisionTimes(contCollInfo, prob.m_times);
-      insertTimes = filterOutIntervals(insertTimes, allowedCollisionIntervals);
-      if (insertTimes.size() > 0) {
+      vector<double> insertTimes = getSubdivisionTimes(contCollInfo, prob.m_times, allowedCollisions);
+      //insertTimes = filterOutIntervals(insertTimes, allowedCollisionIntervals);
+      if (insertTimes.size() > 0) {	// Not continuous safe
         LOG_INFO("trajectory was discrete-safe but not continuous-safe");
         if (prob.m_times.size() < SQPConfig::maxSteps) {
           assert(insertTimes.size() > 0);
@@ -120,8 +190,10 @@ bool outerOptimization(PlanningProblem& prob, CollisionCostPtr cc, const std::ve
   }
 }
 
-
 bool planArmToCartTarget(PlanningProblem& prob, const Eigen::VectorXd& startJoints, const btTransform& goalTrans, RaveRobotObject::Manipulator::Ptr arm, bool doOptimize) {
+ /**
+  * Generates a plan for moving the arm to a cartesian goal
+  */
   BulletRaveSyncherPtr brs = syncherFromArm(arm);
   vector<double> ikSoln;
   bool ikSuccess = arm->solveIKUnscaled(util::toRaveTransform(goalTrans), ikSoln);
@@ -144,10 +216,9 @@ bool planArmToCartTarget(PlanningProblem& prob, const Eigen::VectorXd& startJoin
   prob.addTrustRegionAdjuster(jb);
   prob.addComponent(cp);
 	if (doOptimize)
-		return outerOptimization(prob, cc, vector<paird>());
+		return outerOptimization(prob, cc, map<int, vector<paird> >());
 	else
 		return true;
-
 }
 
 bool planArmToJointTarget(PlanningProblem& prob, const Eigen::VectorXd& startJoints, const Eigen::VectorXd& endJoints, RaveRobotObject::Manipulator::Ptr arm) {
@@ -162,9 +233,14 @@ bool planArmToJointTarget(PlanningProblem& prob, const Eigen::VectorXd& startJoi
   prob.addComponent(lcc);
   prob.addComponent(cc);
   prob.addTrustRegionAdjuster(jb);
-  return outerOptimization(prob, cc, vector<paird>());
+  return outerOptimization(prob, cc, map<int, vector<paird> >());
 }
 
+/**
+ * @brief Adds steps to the end of the trajectory, copying the current last row
+ * @param traj the trajectory to extend
+ * @param nEnd the number of steps to add
+ */
 void addFixedEnd(MatrixXd& traj, int nEnd) {
   int oldLen = traj.rows();
   traj.conservativeResize(oldLen + nEnd, NoChange);
@@ -197,7 +273,10 @@ bool planArmToGrasp(PlanningProblem& prob, const Eigen::VectorXd& startJoints, c
   typedef pair<double, double> paird;
   vector<paird> allowedCollisionIntervals;
   allowedCollisionIntervals.push_back(paird(oldLen, oldLen+nEnd));
+  int gripperInd = arm->manip->GetEndEffector()->GetIndex();
 
+  map<int, vector<paird> > allowedCollisions;
+  allowedCollisions[gripperInd] = allowedCollisionIntervals;
 
   LengthConstraintAndCostPtr lcc(new LengthConstraintAndCost(true, false, defaultMaxStepMvmt(initTraj), SQPConfig::lengthCoef));
   CollisionCostPtr cc(new CollisionCost(arm->robot->robot,   arm->robot->getEnvironment()->bullet->dynamicsWorld, brs,
@@ -212,7 +291,7 @@ bool planArmToGrasp(PlanningProblem& prob, const Eigen::VectorXd& startJoints, c
   prob.addTrustRegionAdjuster(jb);
   prob.addComponent(cp);
   prob.addComponent(cvc);
-  return outerOptimization(prob, cc, allowedCollisionIntervals);
+  return outerOptimization(prob, cc, allowedCollisions);
 
 }
 
@@ -246,7 +325,7 @@ bool planArmBaseToCartTarget(PlanningProblem& prob, const Eigen::VectorXd& start
   prob.addTrustRegionAdjuster(jb);
   prob.addComponent(cp);
 //  prob.testObjectives();
-  return outerOptimization(prob, cc, vector<paird>());
+  return outerOptimization(prob, cc, map<int, vector<paird> >());
 }
 
 

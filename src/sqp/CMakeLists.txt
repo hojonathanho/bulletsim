@@ -8,8 +8,8 @@ include_directories(
 
 SET(CMAKE_CXX_FLAGS "-Wall -Wno-sign-compare -Wno-reorder")
 
-include_directories(/home/joschu/Src/gurobi501/linux64/include)
-link_directories(/home/joschu/Src/gurobi501/linux64/lib)
+include_directories(${GUROBI_INCLUDE_DIR})
+link_directories(${GUROBI_LIBRARY_DIR})
 
 #add_executable(test_grb_eigen test_grb_eigen.cpp)
 #target_link_libraries(test_grb_eigen gurobi_c++ gurobi50)
@@ -18,7 +18,7 @@ add_library(sqp traj_costs.cpp utils_sqp.cpp config_sqp.cpp sqp_algorithm.cpp co
 collision_map_tools.cpp planning_problems.cpp plotters.cpp state_setter.cpp kinematics_utils.cpp
 functions.cpp)
 
-target_link_libraries(sqp utils simulation robots ${Boost_LIBRARIES} ${BULLET_LIBS} ${OpenRAVE_LIBRARIES} gurobi_c++ gurobi50)
+target_link_libraries(sqp utils simulation robots ${Boost_LIBRARIES} ${BULLET_LIBS} ${OpenRAVE_LIBRARIES} gurobi_c++ gurobi50 json)
 
 
 add_executable(test_traj_eval_grb test_traj_eval_grb2.cpp)
@@ -32,6 +32,8 @@ include_directories(${PCL_INCLUDE_DIRS})
 include_directories("/opt/ros/fuerte/stacks/geometry/tf/include"
 					"/opt/ros/fuerte/stacks/geometry/tf/msg_gen/cpp/include"
 					"/opt/ros/fuerte/stacks/geometry/tf/srv_gen/cpp/include")
+
+include_directories("${BULLETSIM_SOURCE_DIR}/bulletsim_msgs/build/gen/cpp")
 
 link_directories("/opt/ros/fuerte/stacks/geometry/tf/lib")
 

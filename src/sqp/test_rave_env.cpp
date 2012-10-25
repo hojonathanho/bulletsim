@@ -36,13 +36,15 @@ float randf() {return (float)rand()/(float)RAND_MAX;}
 
 struct LocalConfig: Config {
   static string probSpec;
-
+  static string jsonOutputPath;
   LocalConfig() :
     Config() {
     params.push_back(new Parameter<string> ("probSpec", &probSpec, "problem specification"));
+    params.push_back(new Parameter<string> ("jsonOutputPath", &jsonOutputPath, "path to output final trajectory as JSON"));
   }
 };
 string LocalConfig::probSpec = "";
+string LocalConfig::jsonOutputPath = "";
 
 int main(int argc, char *argv[]) {
 
@@ -142,6 +144,9 @@ int main(int argc, char *argv[]) {
 
   }
 
+  if(!LocalConfig::jsonOutputPath.empty()){
+    prob.writeTrajToJSON(LocalConfig::jsonOutputPath);
+  }
 
   prob.m_plotters[0].reset();
 

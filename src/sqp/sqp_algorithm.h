@@ -15,11 +15,11 @@ class Scene;
 
 
 class PlanningProblem {
+  // fixed size optimization problem
 public:
   typedef boost::function<void(PlanningProblem*)> Callback;
   VarArray m_trajVars; // trajectory variables in optimization. sometimes the endpoints are not actually added to Gurobi model
   Eigen::MatrixXd m_currentTraj;
-  VectorXb m_optMask; // mask that indicates which timesteps are in the optimization
   boost::shared_ptr<GRBModel> m_model;
   std::vector<TrajPlotterPtr> m_plotters;
 	std::vector<TrajChangePlotterPtr> m_changePlotters;
@@ -53,6 +53,7 @@ public:
   void forceOptimizeHere();
   void subdivide(const std::vector<double>& insertTimes); // resample in time (resamples all subproblems)
   void testObjectives(); // checks that the linearizations computed by all of the objectives is correct by comparing getApproxCost and getCachedCost
+  void writeTrajToJSON(std::string filename);
   void addTrustRegionAdjuster(TrustRegionAdjusterPtr tra); // actually there's only one right now so "add" is wrong
 };
 
@@ -343,7 +344,7 @@ Eigen::MatrixXd makeTraj(const Eigen::VectorXd& startJoints, const Eigen::Vector
 Eigen::MatrixXd makeTraj(RaveRobotObject::Manipulator::Ptr manip, const Eigen::VectorXd& startJoints,
                          const btTransform endTransform, int nSteps);
 Eigen::MatrixXd makeTraj(RaveRobotObject::Manipulator::Ptr manip, const std::vector<btTransform>& transforms);
-void updateTraj(const VarArray& trajVars, const VectorXb& optmask, Eigen::MatrixXd& traj);
+void updateTraj(const VarArray& trajVars, Eigen::MatrixXd& traj);
 
 
 

@@ -174,22 +174,20 @@ double PushCollision::getCost() {
   Eigen::MatrixXd& traj = m_problem->m_currentTraj;
   double cost = 0;
 
-  for (int iStep = 0; iStep < traj.rows(); ++iStep)
-    if (m_problem->m_optMask(iStep)) {
+  for (int iStep = 0; iStep < traj.rows(); ++iStep){
+    double penCost, violCostBefore(0), violCostAfter(0);
 
-      double penCost, violCostBefore(0), violCostAfter(0);
+    penCost = calcPenCost(traj.row(iStep)); // that's easy, just get the closest point
+    if (iStep > 0)
+      violCostBefore = calcViolCost(traj.row(iStep - 1), traj.row(iStep));
+    if (iStep < traj.rows() - 1)
+      violCostAfter = calcViolCost(traj.row(iStep), traj.row(iStep + 1));
 
-      penCost = calcPenCost(traj.row(iStep)); // that's easy, just get the closest point
-      if (iStep > 0)
-        violCostBefore = calcViolCost(traj.row(iStep - 1), traj.row(iStep));
-      if (iStep < traj.rows() - 1)
-        violCostAfter = calcViolCost(traj.row(iStep), traj.row(iStep + 1));
-
-      cost += penCost + violCostBefore;
-      if (iStep == traj.rows() - 1) {
-        cost += violCostAfter;
-      }
+    cost += penCost + violCostBefore;
+    if (iStep == traj.rows() - 1) {
+      cost += violCostAfter;
     }
+  }
 
   return cost;
 
@@ -206,41 +204,40 @@ void PushCollision::getCostAndGradient(double& cost, Eigen::MatrixXd& gradient) 
 
   double epsilon = 1e-4;
 
-  for (int iStep = 0; iStep < traj.rows(); ++iStep)
-    if (m_problem->m_optMask(iStep)) {
+  for (int iStep = 0; iStep < traj.rows(); ++iStep){
 
-      double penCost(0), violCostBefore(0), violCostAfter(0), penCost1(0), violCostBefore1(0), violCostAfter1(0);
+    double penCost(0), violCostBefore(0), violCostAfter(0), penCost1(0), violCostBefore1(0), violCostAfter1(0);
 
-      penCost = calcPenCost(traj.row(iStep)); // that's easy, just get the closest point
+    penCost = calcPenCost(traj.row(iStep)); // that's easy, just get the closest point
+    if (iStep > 0)
+      violCostBefore = calcViolCost(traj.row(iStep - 1), traj.row(iStep));
+    if (iStep < traj.rows() - 1)
+      violCostAfter = calcViolCost(traj.row(iStep), traj.row(iStep + 1));
+
+    cost += penCost + violCostBefore;
+    if (iStep == traj.rows() - 1) {
+      cost += violCostAfter;
+    }
+
+    LOG_INFO_FMT("step: %i. pen %.3e. violbefore: %.3e. violafter: %.3e", iStep, penCost, violCostBefore, violCostAfter);
+
+    for (int iDof = 0; iDof < traj.cols(); ++iDof) {
+
+      VectorXd pertDofs = traj.row(iStep);
+      pertDofs(iDof) += epsilon;
+
+      penCost1 = calcPenCost(pertDofs);
       if (iStep > 0)
-        violCostBefore = calcViolCost(traj.row(iStep - 1), traj.row(iStep));
+        violCostBefore1 = calcViolCost(traj.row(iStep - 1), pertDofs);
       if (iStep < traj.rows() - 1)
-        violCostAfter = calcViolCost(traj.row(iStep), traj.row(iStep + 1));
+        violCostAfter1 = calcViolCost(pertDofs, traj.row(iStep + 1));
 
-      cost += penCost + violCostBefore;
-      if (iStep == traj.rows() - 1) {
-        cost += violCostAfter;
-      }
-
-      LOG_INFO_FMT("step: %i. pen %.3e. violbefore: %.3e. violafter: %.3e", iStep, penCost, violCostBefore, violCostAfter);
-
-      for (int iDof = 0; iDof < traj.cols(); ++iDof) {
-
-        VectorXd pertDofs = traj.row(iStep);
-        pertDofs(iDof) += epsilon;
-
-        penCost1 = calcPenCost(pertDofs);
-        if (iStep > 0)
-          violCostBefore1 = calcViolCost(traj.row(iStep - 1), pertDofs);
-        if (iStep < traj.rows() - 1)
-          violCostAfter1 = calcViolCost(pertDofs, traj.row(iStep + 1));
-
-        gradient(iStep, iDof)
-            = ((penCost1 + violCostBefore1 + violCostAfter1) - (penCost + violCostBefore + violCostAfter)) / epsilon;
-
-      }
+      gradient(iStep, iDof)
+          = ((penCost1 + violCostBefore1 + violCostAfter1) - (penCost + violCostBefore + violCostAfter)) / epsilon;
 
     }
+
+  }
 //#define TEST_COST_AND_GRAD
 #ifdef TEST_COST_AND_GRAD
 ASSERT_ALMOST_EQUAL2(cost, getCost(), 1e-8, 1e-8);
