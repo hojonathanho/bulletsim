@@ -26,79 +26,78 @@ namespace fs = boost::filesystem;
 
 
 #define MAX_RAYCAST_DISTANCE 100.0
+	 
 
 BulletObject::MotionState::Ptr BulletObject::MotionState::clone(BulletObject &newObj) {
     btTransform t; getWorldTransform(t);
     return Ptr(new MotionState(newObj, t));
 }
 
-BulletObject::BulletObject(CI ci, const btTransform &initTrans, bool isKinematic_) : isKinematic(isKinematic_), enable_texture(false), m_color(1,1,1,1) {
-    BOOST_ASSERT(ci.m_motionState == NULL);
-    if (isKinematic) {
-        ci.m_mass = 0;
-        ci.m_localInertia = btVector3(0, 0, 0);
-    }
-    motionState.reset(new MotionState(*this, initTrans));
-    ci.m_motionState = motionState.get();
-    collisionShape.reset(ci.m_collisionShape);
-    rigidBody.reset(new btRigidBody(ci));
-    if (isKinematic) {
-        rigidBody->setCollisionFlags(rigidBody->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);
-    }
-	rigidBody->setActivationState(DISABLE_DEACTIVATION);
+void BulletObject::setKinematic(bool isKinematic_) {
 
+
+  if (!isKinematic && isKinematic_) {
+    isKinematic = isKinematic_;
+    setFlagsAndActivation();
+		rigidBody->setMassProps(0, btVector3(0,0,0));
+		if (getEnvironment()) {
+			getEnvironment()->bullet->dynamicsWorld->removeRigidBody(rigidBody.get());
+			getEnvironment()->bullet->dynamicsWorld->addRigidBody(rigidBody.get());
+		}
+	}
+	else if (isKinematic && !isKinematic_) {
+	  isKinematic = isKinematic_;
+	  setFlagsAndActivation();
+	  btVector3(inertia);
+	  float mass=1;
+	  rigidBody->getCollisionShape()->calculateLocalInertia(mass, inertia);
+		rigidBody->setMassProps(mass, inertia); // XXX
+		rigidBody->updateInertiaTensor();
+		if (getEnvironment()) {
+			getEnvironment()->bullet->dynamicsWorld->removeRigidBody(rigidBody.get());
+			getEnvironment()->bullet->dynamicsWorld->addRigidBody(rigidBody.get());
+		}
+	}
 }
 
-void BulletObject::setKinematic(bool newKin) {
-  if (newKin) {
-    rigidBody->setActivationState(rigidBody->getActivationState() | DISABLE_SIMULATION);
-    rigidBody->setGravity(btVector3(0,0,0));
-  }
-  else {
-    rigidBody->setActivationState(rigidBody->getActivationState() | ~DISABLE_SIMULATION);
-    rigidBody->setGravity(BulletConfig::gravity*METERS);
-  }
 
+void BulletObject::setFlagsAndActivation() {
+	if (isKinematic) {
+		rigidBody->setActivationState(DISABLE_DEACTIVATION);	
+    rigidBody->setCollisionFlags(btCollisionObject::CF_KINEMATIC_OBJECT);
+	}
+	else {
+		rigidBody->setActivationState(ACTIVE_TAG);
+    rigidBody->setCollisionFlags(0);
+	}
 }
 
-BulletObject::BulletObject(btScalar mass, btCollisionShape *cs, const btTransform &initTrans, bool isKinematic_) : isKinematic(isKinematic_), enable_texture(false), m_color(1,1,1,1) {
-    motionState.reset(new MotionState(*this, initTrans));
-    collisionShape.reset(cs);
 
-    btVector3 fallInertia(0, 0, 0);
-    if (!isKinematic)
-        collisionShape->calculateLocalInertia(mass, fallInertia);
-    CI ci(mass, cs, fallInertia);
-    ci.m_motionState = motionState.get();
+void BulletObject::construct(btScalar mass, boost::shared_ptr<btCollisionShape> cs, const btTransform& initTrans, bool isKinematic_) {
+	enable_texture = false;
+	m_color = osg::Vec4(1,1,1,1);
+	isKinematic = isKinematic_;
+	collisionShape = cs;
+	
+  btVector3 fallInertia(0, 0, 0);
+  collisionShape->calculateLocalInertia(mass, fallInertia);
+  CI ci(mass, cs.get(), fallInertia);
+  motionState.reset(new MotionState(*this, initTrans));
+  ci.m_motionState = motionState.get();
 
-    rigidBody.reset(new btRigidBody(ci));
+  rigidBody.reset(new btRigidBody(ci));
 
-    if (isKinematic) {
-        rigidBody->setCollisionFlags(rigidBody->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);
-    }
-	rigidBody->setActivationState(DISABLE_DEACTIVATION);
-	rigidBody->setFriction(BulletConfig::friction);
-
+	setFlagsAndActivation();
+	rigidBody->setFriction(BulletConfig::friction);	
 }
 
-BulletObject::BulletObject(btScalar mass, boost::shared_ptr<btCollisionShape> cs, const btTransform &initTrans, bool isKinematic_) : isKinematic(isKinematic_), enable_texture(false), m_color(1,1,1,1) {
-    motionState.reset(new MotionState(*this, initTrans));
-    collisionShape = cs;
+BulletObject::BulletObject(btScalar mass, btCollisionShape *cs, const btTransform &initTrans, bool isKinematic_) {
+  boost::shared_ptr<btCollisionShape> csPtr(cs);
+	construct(mass, csPtr, initTrans, isKinematic_);
+}
 
-    btVector3 fallInertia(0, 0, 0);
-    if (!isKinematic)
-        collisionShape->calculateLocalInertia(mass, fallInertia);
-    CI ci(mass, cs.get(), fallInertia);
-    ci.m_motionState = motionState.get();
-
-    rigidBody.reset(new btRigidBody(ci));
-
-    if (isKinematic) {
-        rigidBody->setCollisionFlags(rigidBody->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);
-    }
-  rigidBody->setActivationState(DISABLE_DEACTIVATION);
-  rigidBody->setFriction(BulletConfig::friction);
-
+BulletObject::BulletObject(btScalar mass, boost::shared_ptr<btCollisionShape> cs, const btTransform &initTrans, bool isKinematic_) {
+	construct(mass, cs, initTrans, isKinematic_);
 }
 
 

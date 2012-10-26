@@ -167,8 +167,7 @@ void Scene::draw() {
 
 void Scene::startLoop() {
     loopState.looping = true;
-    loopState.prevTime = loopState.currTime =
-        viewer.getFrameStamp()->getSimulationTime();
+    loopState.prevTime = loopState.currTime = viewer.getFrameStamp()->getSimulationTime();
     while (loopState.looping && drawingOn && !viewer.done()) {
         loopState.currTime = viewer.getFrameStamp()->getSimulationTime();
         step(loopState.currTime - loopState.prevTime);

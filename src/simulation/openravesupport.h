@@ -30,8 +30,8 @@ struct RaveInstance {
   ~RaveInstance();
 };
 
-void LoadFromRave(Environment::Ptr env, RaveInstance::Ptr rave, bool dynamicRobots = false);
-void Load(Environment::Ptr env, RaveInstance::Ptr rave, const string& name, bool dynamicRobots = false);
+void LoadFromRave(Environment::Ptr env, RaveInstance::Ptr rave);
+void Load(Environment::Ptr env, RaveInstance::Ptr rave, const string& name);
 // copy constructor. will never call RaveInitialize or RaveDestroy
 
 enum TrimeshMode {
@@ -64,16 +64,16 @@ protected:
 
   // for the loaded robot, this will create BulletObjects
   // and place them into the children vector
-  void initRaveObject(RaveInstance::Ptr rave_, KinBodyPtr body_, TrimeshMode trimeshMode, bool isDynamic);
+  void initRaveObject(RaveInstance::Ptr rave_, KinBodyPtr body_, TrimeshMode trimeshMode, bool isKinematic);
   RaveObject() {} // for manual copying
+  bool isKinematic;
 
 public:
   typedef boost::shared_ptr<RaveObject> Ptr;
   RaveInstance::Ptr rave;
   KinBodyPtr body;
-  bool is_dynamic;
 
-  RaveObject(RaveInstance::Ptr rave_, KinBodyPtr body, TrimeshMode trimeshMode = CONVEX_HULL, bool isDynamic=true);
+  RaveObject(RaveInstance::Ptr rave_, KinBodyPtr body, TrimeshMode trimeshMode = CONVEX_HULL, bool isKinematic=true);
   // This constructor assumes the robot is already in openrave. Use this if you're loading a bunch of stuff from an
   // xml file, and you want to put everything in bullet
 
@@ -111,8 +111,9 @@ public:
   // Positions the robot according to DOF values in the OpenRAVE model
   // and copy link positions to the Bullet rigid bodies.
   void updateBullet();
+  // update's openrave stuff based on bullet
+  void updateRave();
 
-  // IK support
 };
 
 class RaveRobotObject : public RaveObject {
@@ -120,8 +121,12 @@ public:
   typedef boost::shared_ptr<RaveRobotObject> Ptr;
   RobotBasePtr robot;
 
-  RaveRobotObject(RaveInstance::Ptr rave_, RobotBasePtr robot, TrimeshMode trimeshMode = CONVEX_HULL, bool isDynamic=false);
-  RaveRobotObject(RaveInstance::Ptr rave_, const std::string &uri, TrimeshMode trimeshMode = CONVEX_HULL, bool isDynamic = false);
+  map<RaveObject::Ptr, KinBody::LinkPtr> m_targ2grabber;
+  map<KinBody::LinkPtr, RaveObject::Ptr> m_grabber2targ;
+
+
+  RaveRobotObject(RaveInstance::Ptr rave_, RobotBasePtr robot, TrimeshMode trimeshMode = CONVEX_HULL, bool isStatic=true);
+  RaveRobotObject(RaveInstance::Ptr rave_, const std::string &uri, TrimeshMode trimeshMode = CONVEX_HULL, bool isStatic=true);
 
   EnvironmentObject::Ptr copy(Fork &f) const;
 
@@ -138,7 +143,11 @@ public:
   btTransform getTransform() {
     return util::toBtTransform(robot->GetTransform(), METERS);
   }
-
+	void grab(RaveObject::Ptr target, KinBody::LinkPtr link);
+  void release(RaveObject::Ptr target);
+	KinBody::LinkPtr getGrabberLink(RaveObject::Ptr target);
+	KinBody::LinkPtr getGrabberLink(KinBodyPtr target);
+	
 
   struct Manipulator {
     RaveRobotObject *robot;

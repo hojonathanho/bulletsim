@@ -12,6 +12,7 @@ struct BulletConfig : Config {
   static float margin;
   static float linkPadding;
   static bool graphicsMesh;
+	static int kinematicPolicy;
 
   BulletConfig() : Config() {
     params.push_back(new Parameter<float>("gravity", &gravity.m_floats[2], "gravity (z component)")); 
@@ -23,8 +24,8 @@ struct BulletConfig : Config {
     params.push_back(new Parameter<float>("margin", &margin, "not currently implemented"));
     params.push_back(new Parameter<float>("linkPadding", &linkPadding, "expand links by that much if they're convex hull shapes"));
     params.push_back(new Parameter<bool>("graphicsMesh", &graphicsMesh, "visualize a high res graphics mesh"));
+		params.push_back(new Parameter<int>("kinematicPolicy", &kinematicPolicy, "0: nothing dynamic. 1: non-robot kinbodies dynamic 2: everything dynamic"));
   }
-
 };
 
 #define DT BulletConfig::dt
