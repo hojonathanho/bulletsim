@@ -484,12 +484,13 @@ void btSoftBody::cutSoftBody(ImplicitFn* ifn,btScalar accurary) {
 
 ///
 
-struct btSoftBody::cutPlane {
+//struct btSoftBody::cutPlane {
+struct bro {
 	std::vector<btVector3> 	c_corners;
 	btVector3				c_origin,c_xax,c_yax,c_zax;
 	btScalar 				c_f1,c_f2,c_length;
 
-	cutPlane (btVector3 p1, btVector3 p2, btVector3 p3, btVector3 p4,
+	bro (btVector3 p1, btVector3 p2, btVector3 p3, btVector3 p4,
 				btScalar f1, btScalar f2)	{
 		assert(0<f1 && f1<f2 && f2<1);
 		c_f1 = f1;
@@ -515,12 +516,11 @@ struct btSoftBody::cutPlane {
 	}
 };
 
-static btScalar				ImplicitSolve(	btSoftBody::cutPlane* inf,
-										  	btVector3& a,
-										  	btVector3& b,
-										  const btScalar accuracy,
-										  const int maxiterations=256)
-{
+static btScalar		ImplicitSolve(	btSoftBody::cutPlane* inf,
+								  	btVector3& a,
+								  	btVector3& b,
+								  	const btScalar accuracy,
+								  	const int maxiterations=256) {
 	btScalar	span[2]={0,1};
 	btScalar	values[2]={inf->Eval(a),inf->Eval(b)};
 	if(values[0]>values[1])
@@ -544,6 +544,7 @@ static btScalar				ImplicitSolve(	btSoftBody::cutPlane* inf,
 	}
 	return(-1);
 }
+
 
 //##############################################################################
 /** Function for cutting a planar soft-body, using an implicit function.
@@ -889,33 +890,7 @@ void btSoftBody::cutPlaneSoftBody(btSoftBody::cutPlane* info, btScalar accuracy)
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-//// Important function to create new psb
+// Important function to create new psb
 
 btSoftBody*	CreateFromSoftBodyExcludeNodes(btSoftBody* softBody, std::vector<int> exclude_nodes_idx)
 {
