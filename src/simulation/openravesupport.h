@@ -146,8 +146,7 @@ public:
 	void grab(RaveObject::Ptr target, KinBody::LinkPtr link);
   void release(RaveObject::Ptr target);
 	KinBody::LinkPtr getGrabberLink(RaveObject::Ptr target);
-	KinBody::LinkPtr getGrabberLink(KinBodyPtr target);
-	
+
 
   struct Manipulator {
     RaveRobotObject *robot;

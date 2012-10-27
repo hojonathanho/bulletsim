@@ -571,6 +571,10 @@ void RaveRobotObject::release(RaveObject::Ptr targ) {
   m_grabber2targ.erase(link);
 }
 
+KinBody::LinkPtr RaveRobotObject::getGrabberLink(RaveObject::Ptr target) {
+  return m_targ2grabber[target];
+}
+
 
 RaveRobotObject::Manipulator::Ptr RaveRobotObject::getManipByName(const std::string& name) {
   BOOST_FOREACH(Manipulator::Ptr manip, createdManips) {

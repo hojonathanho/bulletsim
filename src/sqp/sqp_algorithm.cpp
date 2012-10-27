@@ -107,7 +107,7 @@ void CollisionCost::updateModel(const Eigen::MatrixXd& traj, GRBQuadExpr& object
 
 
   m_cartCollInfo = collectTrajCollisions(traj, m_robot, *m_brs, m_world, m_dofInds, m_useAffine);
-  TrajJointCollInfo trajJointInfo = trajCartToJointCollInfo(m_cartCollInfo, traj, m_robot,
+  TrajJointCollInfo trajJointInfo = trajCartToJointCollInfo(m_cartCollInfo, traj, m_robot->robot,
       m_dofInds, m_useAffine);
 
 #if 0
@@ -402,22 +402,13 @@ void getGripperTransAndJac(RaveRobotObject::Manipulator::Ptr manip, const Vector
   RobotBasePtr robot = manip->robot->robot;
   ScopedRobotSave srs(robot);
 
-  if (dofInds.size() == dofVals.size()) {
-    robot->SetActiveDOFs(dofInds);
-  }
-  else {
-    robot->SetActiveDOFs(dofInds, DOF_X | DOF_Y | DOF_RotationAxis, OpenRAVE::RaveVector<double>(0,0,1));
-  }
+  bool useAffine = (dofInds.size() != dofVals.size());
+  robot->SetActiveDOFs(dofInds);
   robot->SetActiveDOFValues(toDoubleVec(dofVals),false);
 
   int linkInd = manip->manip->GetEndEffector()->GetIndex();
 
-  std::vector<double> jacvec(3*dofVals.size());
-  robot->CalculateActiveJacobian(linkInd, manip->manip->GetEndEffectorTransform().trans, jacvec);
-
-  jac = Eigen::Map<MatrixXd>(jacvec.data(), 3, dofVals.size());
-
-  if (dofInds.size() != dofVals.size()) jac.col(jac.cols()-1) *= -1; // numerical jac didn't match with analytic
+  jac = calcPointJacobian(robot, linkInd, util::toBtVector(manip->manip->GetEndEffectorTransform().trans), useAffine);
 
 #if 0
   {

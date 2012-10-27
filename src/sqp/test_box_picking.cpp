@@ -212,7 +212,7 @@ int main(int argc, char* argv[]) {
       updateBulletFromRave(scene.rave, scene.env);
     }
     rm.botRight->manip->GetRobot()->Grab(curBox->body, rm.botRight->manip->GetEndEffector());
-    boxes2[iBox]->is_dynamic = false;
+    boxes2[iBox]->isDynamic = false;
     boxes2[iBox]->children[0]->setKinematic(true);
     setGrabberLink(rm.botRight->manip->GetEndEffector(), curBox->body);
     {
@@ -226,8 +226,7 @@ int main(int argc, char* argv[]) {
     }
 
     rm.botRight->manip->GetRobot()->ReleaseAllGrabbed();
-    boxes2[iBox]->is_dynamic = true;
-    boxes2[iBox]->children[0]->setKinematic(false);
+    boxes2[iBox]->setDynamic(true);
     //    idleTwoScenes(scene, scene2);
 
     static int boxcount=0;

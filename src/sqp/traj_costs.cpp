@@ -58,7 +58,8 @@ MatrixXd discreteSecondDeriv(MatrixXd& in) {
 }
 #endif
 
-TrajCartCollInfo collectTrajCollisions(const Eigen::MatrixXd& traj, RobotBasePtr robot, BulletRaveSyncher& brs, btCollisionWorld* world, const std::vector<int>& dofInds, bool useAffine) {
+TrajCartCollInfo collectTrajCollisions(const Eigen::MatrixXd& traj, RaveRobotObject* rro, BulletRaveSyncher& brs, btCollisionWorld* world, const std::vector<int>& dofInds, bool useAffine) {
+  RobotBasePtr& robot = rro->robot;
   ScopedRobotSave srs(robot);
   TrajCartCollInfo out(traj.rows());
   if (useAffine) {
@@ -69,9 +70,22 @@ TrajCartCollInfo collectTrajCollisions(const Eigen::MatrixXd& traj, RobotBasePtr
   }
   vector<int> linkInds;
   BOOST_FOREACH(KinBody::LinkPtr link, brs.m_links) {
-    if (link->GetParent() == robot) linkInds.push_back(link->GetIndex());
-    else (linkInds.push_back(getGrabberLink(link->GetParent())->GetIndex()));
+    if (link->GetParent() == robot) {
+      linkInds.push_back(link->GetIndex());
+    }
+    else { // go through all the grabbed objects, find the link in question
+      int grabberIndex=-1;
+      typedef map<RaveObject::Ptr, KinBody::LinkPtr>::value_type Targ2GrabberPair;
+      BOOST_FOREACH(Targ2GrabberPair& targ_grabber, rro->m_targ2grabber) {
+        BOOST_FOREACH(KinBody::LinkPtr targLink, targ_grabber.first->body->GetLinks()) {
+          if (targLink == link) grabberIndex = targ_grabber.second->GetIndex();
+        }
+      }
+      assert (grabberIndex != -1); // if this fails, robot wasn't actually grabbing the object whose link is part of collision cost
+      linkInds.push_back(grabberIndex);
+    }
   }
+
   for (int iStep=0; iStep<traj.rows(); ++iStep) {
     robot->SetActiveDOFValues(toDoubleVec(traj.row(iStep)));
     brs.updateBullet();
@@ -152,35 +166,19 @@ TrajCartCollInfo continuousTrajCollisions(const Eigen::MatrixXd& traj,
   return out;
 }
 
-JointCollInfo cartToJointCollInfo(const CartCollInfo& in, const Eigen::VectorXd& dofVals, RobotBasePtr robot,
-    const std::vector<int>& dofInds, bool useAffine) {
-
-  ScopedRobotSave srs(robot);
-
-  if (useAffine) {
-    robot->SetActiveDOFs(dofInds, DOF_X | DOF_Y | DOF_RotationAxis, OpenRAVE::RaveVector<double>(0,0,1));
-  }
-  else {
-    robot->SetActiveDOFs(dofInds);
-  }
-  robot->SetActiveDOFValues(toDoubleVec(dofVals));
-
+JointCollInfo cartToJointCollInfo(const CartCollInfo& in, const Eigen::VectorXd& dofVals, RobotBasePtr robot, bool useAffine) {
+  // assumes that you've set active dofs
   JointCollInfo out;
   out.dists.resize(in.size());
   out.jacs.resize(in.size());
 
-  int nJoints = dofInds.size() + useAffine*3;
+  OpenRAVE::Transform robotTF = robot->GetTransform();
 
   for (int iColl = 0; iColl < in.size(); ++iColl) {
     const LinkCollision& lc = in[iColl];
     out.dists[iColl] = lc.dist;
-
-    std::vector<double> jacvec(3*nJoints);
-    LOG_INFO(useAffine << " | " << lc.linkInd << " | " << lc.point << " | " << jacvec);
-    robot->CalculateActiveJacobian(lc.linkInd, toRaveVector(lc.point), jacvec);
-    out.jacs[iColl] = - toVector3d(lc.normal).transpose() * Eigen::Map<MatrixXd>(jacvec.data(), 3, nJoints);
-    if (useAffine) out.jacs[iColl](nJoints - 1) *= -1;
-
+    MatrixXd jac = calcPointJacobian(robot, lc.linkInd, lc.point, useAffine);
+    out.jacs[iColl] = - toVector3d(lc.normal).transpose() * jac;
   }
   return out;
 }
@@ -190,8 +188,9 @@ JointCollInfo cartToJointCollInfo(const CartCollInfo& in, const Eigen::VectorXd&
 TrajJointCollInfo trajCartToJointCollInfo(const TrajCartCollInfo& in, const Eigen::MatrixXd& traj, RobotBasePtr robot,
     const std::vector<int>& dofInds, bool useAffine) {
   TrajJointCollInfo out(in.size());
+  robot->SetActiveDOFs(dofInds);
   for (int iStep=0; iStep < in.size(); ++iStep) {
-    out[iStep] = cartToJointCollInfo(in[iStep], traj.row(iStep), robot, dofInds, useAffine);
+    out[iStep] = cartToJointCollInfo(in[iStep], traj.row(iStep), robot, useAffine);
   }
   return out;
 }

@@ -37,7 +37,7 @@ void calcCollisionCostAndJointGrad(const std::vector<btRigidBody*>& bodies, btCo
                                 double& cost, Eigen::VectorXd& grad, int& nColl);
 
 
-TrajCartCollInfo collectTrajCollisions(const Eigen::MatrixXd& traj, OpenRAVE::RobotBasePtr robot, BulletRaveSyncher& brs, btCollisionWorld* world, const std::vector<int>& dofInds, bool useAffine);
+TrajCartCollInfo collectTrajCollisions(const Eigen::MatrixXd& traj, RaveRobotObject* robot, BulletRaveSyncher& brs, btCollisionWorld* world, const std::vector<int>& dofInds, bool useAffine);
 TrajCartCollInfo continuousTrajCollisions(const Eigen::MatrixXd& traj, OpenRAVE::RobotBasePtr robot, BulletRaveSyncher& brs, btCollisionWorld* world, const std::vector<int>& dofInds, float allowedPen);
 TrajJointCollInfo trajCartToJointCollInfo(const TrajCartCollInfo& in, const Eigen::MatrixXd& traj, OpenRAVE::RobotBasePtr robot,
     const std::vector<int>& dofInds, bool useAffine);

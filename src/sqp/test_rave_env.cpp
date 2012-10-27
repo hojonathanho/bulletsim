@@ -74,14 +74,14 @@ int main(int argc, char *argv[]) {
 
   Json::Value probInfo = readJson(LocalConfig::probSpec);
 
-  if (probInfo.isMember("env")) Load(scene.env, scene.rave, probInfo["env"].asString(),false);
+  if (probInfo.isMember("env")) Load(scene.env, scene.rave, probInfo["env"].asString());
   else ASSERT_FAIL();
 
   vector<double> startJoints;
   for (int i=0; i < probInfo["start_joints"].size(); ++i) startJoints.push_back(probInfo["start_joints"][i].asDouble());
 
   RaveRobotObject::Ptr pr2 = getRobotByName(scene.env, scene.rave, probInfo["robot"].asString());
-  RaveRobotObject::Manipulator::Ptr arm = pr2->createManipulator(probInfo["manip"].asString(), false);
+  RaveRobotObject::Manipulator::Ptr arm = pr2->createManipulator(probInfo["manip"].asString());
 
   assert(pr2);
   assert(arm);
@@ -113,7 +113,7 @@ int main(int argc, char *argv[]) {
     MatrixXd initTraj = makeTraj(startJoints, endJoints, SQPConfig::nStepsInit);
     LengthConstraintAndCostPtr lcc(new LengthConstraintAndCost(true, true, defaultMaxStepMvmt(
         initTraj), SQPConfig::lengthCoef));
-    CollisionCostPtr cc(new CollisionCost(pr2->robot, scene.env->bullet->dynamicsWorld, brs,
+    CollisionCostPtr cc(new CollisionCost(pr2.get(), scene.env->bullet->dynamicsWorld, brs,
         arm->manip->GetArmIndices(), SQPConfig::distPen, SQPConfig::collCoefInit));
     JointBoundsPtr jb(new JointBounds(true, true, defaultMaxStepMvmt(initTraj) / 5, arm->manip));
     prob.initialize(initTraj, true);

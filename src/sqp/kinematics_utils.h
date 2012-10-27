@@ -16,6 +16,7 @@ void getArmKinInfo(const OpenRAVE::RobotBasePtr& robot, const OpenRAVE::RobotBas
 std::vector<OpenRAVE::KinBody::JointPtr> getArmJoints(OpenRAVE::RobotBase::ManipulatorPtr manip);
 std::vector<OpenRAVE::KinBody::LinkPtr> getArmLinks(OpenRAVE::RobotBase::ManipulatorPtr manip);
 std::vector<OpenRAVE::KinBody::LinkPtr> getAffectedLinks(OpenRAVE::RobotBasePtr robot, const std::vector<int>& dofInds);
+Eigen::MatrixXd calcPointJacobian(const RobotBasePtr& robot, int linkInd, const btVector3& pt, bool useAffine);
 
 
 class BulletRaveSyncher {
@@ -50,8 +51,3 @@ public:
 
 void removeBodiesFromBullet(vector<BulletObject::Ptr> objs, btDynamicsWorld* world);
 
-
-// unfortunately there doesn't seem to be a way to find out which link is grabbing which
-// so i resort to hackery
-KinBody::LinkPtr getGrabberLink(KinBodyPtr body);
-void setGrabberLink(KinBody::LinkPtr grabber, KinBodyPtr body);

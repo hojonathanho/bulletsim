@@ -163,7 +163,7 @@ bool outerOptimization(PlanningProblem& prob, CollisionCostPtr cc,
       }
     }
     else { // check continuous safety
-      TrajCartCollInfo contCollInfo = continuousTrajCollisions(prob.m_currentTraj, cc->m_robot, *cc->m_brs,
+      TrajCartCollInfo contCollInfo = continuousTrajCollisions(prob.m_currentTraj, cc->m_robot->robot, *cc->m_brs,
           cc->m_world, cc->m_dofInds, SQPConfig::distContSafe);
       vector<double> insertTimes = getSubdivisionTimes(contCollInfo, prob.m_times, allowedCollisions);
       //insertTimes = filterOutIntervals(insertTimes, allowedCollisionIntervals);
@@ -205,7 +205,7 @@ bool planArmToCartTarget(PlanningProblem& prob, const Eigen::VectorXd& startJoin
 
   MatrixXd initTraj = makeTraj(startJoints, endJoints, SQPConfig::nStepsInit);
   LengthConstraintAndCostPtr lcc(new LengthConstraintAndCost(true, false, defaultMaxStepMvmt(initTraj), SQPConfig::lengthCoef));
-  CollisionCostPtr cc(new CollisionCost(arm->robot->robot,   arm->robot->getEnvironment()->bullet->dynamicsWorld, brs,
+  CollisionCostPtr cc(new CollisionCost(arm->robot,   arm->robot->getEnvironment()->bullet->dynamicsWorld, brs,
       arm->manip->GetArmIndices(), SQPConfig::distPen, SQPConfig::collCoefInit));
   JointBoundsPtr jb(new JointBounds(true, false, defaultMaxStepMvmt(initTraj) / 5, arm->manip));
   CartesianPoseCostPtr cp(new CartesianPoseCost(arm, goalTrans, initTraj.rows() - 1, 1000., 1000));
@@ -226,7 +226,7 @@ bool planArmToJointTarget(PlanningProblem& prob, const Eigen::VectorXd& startJoi
   MatrixXd initTraj = makeTraj(startJoints, endJoints, SQPConfig::nStepsInit); // xxx nsteps
   LOG_DEBUG("initial traj: \n" << initTraj);
   LengthConstraintAndCostPtr lcc(new LengthConstraintAndCost(true, true, defaultMaxStepMvmt(initTraj), SQPConfig::lengthCoef));
-  CollisionCostPtr cc(new CollisionCost(arm->robot->robot,   arm->robot->getEnvironment()->bullet->dynamicsWorld, brs,
+  CollisionCostPtr cc(new CollisionCost(arm->robot,   arm->robot->getEnvironment()->bullet->dynamicsWorld, brs,
       arm->manip->GetArmIndices(), SQPConfig::distPen, SQPConfig::collCoefInit));
   JointBoundsPtr jb(new JointBounds(true, true, defaultMaxStepMvmt(initTraj) / 5, arm->manip));
   prob.initialize(initTraj, true);
@@ -279,7 +279,7 @@ bool planArmToGrasp(PlanningProblem& prob, const Eigen::VectorXd& startJoints, c
   allowedCollisions[gripperInd] = allowedCollisionIntervals;
 
   LengthConstraintAndCostPtr lcc(new LengthConstraintAndCost(true, false, defaultMaxStepMvmt(initTraj), SQPConfig::lengthCoef));
-  CollisionCostPtr cc(new CollisionCost(arm->robot->robot,   arm->robot->getEnvironment()->bullet->dynamicsWorld, brs,
+  CollisionCostPtr cc(new CollisionCost(arm->robot,   arm->robot->getEnvironment()->bullet->dynamicsWorld, brs,
       arm->manip->GetArmIndices(), SQPConfig::distPen, SQPConfig::collCoefInit));
   JointBoundsPtr jb(new JointBounds(true, false, defaultMaxStepMvmt(initTraj) / 5, arm->manip));
   CartesianPoseCostPtr cp(new CartesianPoseCost(arm, goalTrans, initTraj.rows() - 1, 10000., 10000));
@@ -312,7 +312,7 @@ bool planArmBaseToCartTarget(PlanningProblem& prob, const Eigen::VectorXd& start
 
   CartesianPoseCostPtr cp(new CartesianPoseCost(arm, goalTrans, initTraj.rows() - 1, 1000.,0));
   LengthConstraintAndCostPtr lcc(new LengthConstraintAndCost(true, false, maxStepMvmt, SQPConfig::lengthCoef));
-  CollisionCostPtr cc(new CollisionCost(arm->robot->robot,   arm->robot->getEnvironment()->bullet->dynamicsWorld, brs,
+  CollisionCostPtr cc(new CollisionCost(arm->robot,   arm->robot->getEnvironment()->bullet->dynamicsWorld, brs,
       arm->manip->GetArmIndices(), SQPConfig::distPen, SQPConfig::collCoefInit,true));
   JointBoundsPtr jb(new JointBounds(true, false, maxStepMvmt, arm->manip,3));
   jb->m_jointUpperLimit(9) = 1e-2; // since rotation is screwy
