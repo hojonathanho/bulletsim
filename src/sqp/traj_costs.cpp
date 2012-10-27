@@ -166,19 +166,18 @@ TrajCartCollInfo continuousTrajCollisions(const Eigen::MatrixXd& traj,
   return out;
 }
 
-JointCollInfo cartToJointCollInfo(const CartCollInfo& in, const Eigen::VectorXd& dofVals, RobotBasePtr robot, bool useAffine) {
+JointCollInfo cartToJointCollInfo(const CartCollInfo& in,  RobotBasePtr robot, bool useAffine) {
   // assumes that you've set active dofs
   JointCollInfo out;
   out.dists.resize(in.size());
   out.jacs.resize(in.size());
-
-  OpenRAVE::Transform robotTF = robot->GetTransform();
 
   for (int iColl = 0; iColl < in.size(); ++iColl) {
     const LinkCollision& lc = in[iColl];
     out.dists[iColl] = lc.dist;
     MatrixXd jac = calcPointJacobian(robot, lc.linkInd, lc.point, useAffine);
     out.jacs[iColl] = - toVector3d(lc.normal).transpose() * jac;
+
   }
   return out;
 }
@@ -187,10 +186,12 @@ JointCollInfo cartToJointCollInfo(const CartCollInfo& in, const Eigen::VectorXd&
 
 TrajJointCollInfo trajCartToJointCollInfo(const TrajCartCollInfo& in, const Eigen::MatrixXd& traj, RobotBasePtr robot,
     const std::vector<int>& dofInds, bool useAffine) {
+  ScopedRobotSave srs(robot);
   TrajJointCollInfo out(in.size());
   robot->SetActiveDOFs(dofInds);
   for (int iStep=0; iStep < in.size(); ++iStep) {
-    out[iStep] = cartToJointCollInfo(in[iStep], traj.row(iStep), robot, useAffine);
+    robot->SetActiveDOFValues(toDoubleVec(traj.row(iStep)));
+    out[iStep] = cartToJointCollInfo(in[iStep], robot, useAffine);
   }
   return out;
 }

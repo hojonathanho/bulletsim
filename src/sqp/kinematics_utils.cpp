@@ -72,19 +72,23 @@ std::vector<KinBody::LinkPtr> getArmLinks(OpenRAVE::RobotBase::ManipulatorPtr ma
 }
 
 MatrixXd calcPointJacobian(const RobotBasePtr& robot, int linkInd, const btVector3& pt, bool useAffine) {
-  int nJoints = robot->GetActiveDOF();
-  int ndof = nJoints + 3 * useAffine;
-  std::vector<double> jacvec(3 * nJoints);
+  int njoints = robot->GetActiveDOF();
+  int ndof = njoints + 3 * useAffine;
+  std::vector<double> jacvec(3 * njoints);
   robot->CalculateActiveJacobian(linkInd, util::toRaveVector(pt), jacvec);
-  OpenRAVE::Transform robotTF = robot->GetTransform();
-
   MatrixXd jac(3, ndof);
-  Matrix3d affineJac = Matrix3d::Identity();
-  affineJac(0,2) = -(pt.y() - robotTF.trans.y);
-  affineJac(1,2) = pt.x() - robotTF.trans.x;
-  affineJac(2,2) = 0;
-  jac.leftCols(nJoints) = Eigen::Map<MatrixXd>(jacvec.data(), 3, nJoints);
-  jac.rightCols(3) = affineJac;
+  jac.leftCols(njoints) = Eigen::Map<MatrixXd>(jacvec.data(), 3, njoints);
+
+  if (useAffine) {
+    OpenRAVE::Transform robotTF = robot->GetTransform();
+
+    Matrix3d affineJac = Matrix3d::Identity();
+    affineJac(0,2) = -(pt.y() - robotTF.trans.y);
+    affineJac(1,2) = pt.x() - robotTF.trans.x;
+    affineJac(2,2) = 0;
+    jac.rightCols(3) = affineJac;
+  }
+
   return jac;
 }
 

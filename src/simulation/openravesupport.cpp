@@ -161,7 +161,7 @@ static BulletObject::Ptr createFromLink(KinBody::LinkPtr link,
 	btCompoundShape* compound;
 	if (useCompound) {
     compound = new btCompoundShape();
-    compound->setMargin(1e-5); //margin: compound. seems to have no effect when positive but has an effect when negative
+    compound->setMargin(1e-5*METERS); //margin: compound. seems to have no effect when positive but has an effect when negative
 	}
 
 

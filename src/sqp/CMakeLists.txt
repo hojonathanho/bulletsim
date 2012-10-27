@@ -49,16 +49,21 @@ target_link_libraries(test_ros_ser ${ROS_LIBRARIES})
 add_executable(test_rave_env test_rave_env.cpp)
 target_link_libraries(test_rave_env simulation robots sqp json)
 
-#add_executable(test_push_object test_push_object.cpp)
-#target_link_libraries(test_push_object simulation robots sqp)
-
-add_executable(test_sqp_simple test_sqp_simple.cpp sqp.cpp config_sqp.cpp)
-target_link_libraries(test_sqp_simple utils gurobi_c++ gurobi50)
-
-
-add_executable(test_dynamics_solver test_dynamics_solver.cpp sqp.cpp sqp_dynamics.cpp config_sqp.cpp)
-target_link_libraries(test_dynamics_solver utils gurobi_c++ gurobi50 simulation)
-
 find_package(PythonLibs REQUIRED)
 add_executable(test_box_picking test_box_picking.cpp)
 target_link_libraries(test_box_picking simulation robots sqp ${PYTHON_LIBRARIES} boost_python)
+
+#########################################
+
+add_library(sqp2 sqp.cpp config_sqp.cpp)
+target_link_libraries(sqp2 utils gurobi_c++ gurobi50)
+
+add_executable(test_scalar_opt test_scalar_opt.cpp)
+target_link_libraries(test_scalar_opt sqp2)
+
+add_executable(test_vector_opt test_vector_opt.cpp)
+target_link_libraries(test_vector_opt sqp2)
+
+add_executable(test_dynamics_solver test_dynamics_solver.cpp)
+target_link_libraries(test_dynamics_solver sqp2 simulation)
+
