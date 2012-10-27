@@ -85,6 +85,7 @@ int main(int argc, char *argv[]) {
 
   Scene scene;
   util::setGlobalEnv(scene.env);
+  util::setGlobalScene(&scene);
   BoxObject::Ptr table(new BoxObject(0, GeneralConfig::scale * btVector3(.85, .55, table_thickness
       / 2), btTransform(btQuaternion(0, 0, 0, 1), GeneralConfig::scale * btVector3(1.1, 0,
       table_height - table_thickness / 2))));

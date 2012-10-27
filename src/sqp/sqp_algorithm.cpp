@@ -404,7 +404,7 @@ void getGripperTransAndJac(RaveRobotObject::Manipulator::Ptr manip, const Vector
 
   bool useAffine = (dofInds.size() != dofVals.size());
   robot->SetActiveDOFs(dofInds);
-  robot->SetActiveDOFValues(toDoubleVec(dofVals),false);
+  robot->SetActiveDOFValues(toDoubleVec(dofVals.topRows(dofInds.size())));
 
   int linkInd = manip->manip->GetEndEffector()->GetIndex();
 

@@ -161,7 +161,9 @@ OptimizationProblem::OptStatus OptimizationProblem::optimize() {
 			LOG_INFO("objective got worse! rolling back and shrinking trust region");			
 			rollbackValues();
 			m_tra->adjustTrustRegion(SQPConfig::trShrink);
-			constraints[0] = m_tra->convexify(); // first constraint should be trust region!!
+			constraints[0]->removeFromModel(); // first constraint should be trust region!
+			constraints[0] = m_tra->convexify();
+			constraints[0]->addToModel();
 		}
 		else {
 						
