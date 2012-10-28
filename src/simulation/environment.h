@@ -37,7 +37,7 @@ struct BulletInstance {
     void setGravity(const btVector3 &gravity);
     void setDefaultGravity();
 
-    // Populates out with all objects colliding with obj, possibly ignoring some objects
+    // Populates OUT with all objects colliding with OBJ, possibly ignoring some objects
     // dynamicsWorld->updateAabbs() must be called before contactTest
     // see http://bulletphysics.org/Bullet/phpBB3/viewtopic.php?t=4850
     typedef std::set<const btCollisionObject *> CollisionObjectSet;
@@ -65,6 +65,7 @@ public:
     // however it should call f.registerCopy() for each Bullet
     // collision object that it makes.
     virtual EnvironmentObject::Ptr copy(Fork &f) const = 0;
+
     // postCopy is called after all objects are copied and inserted into f.env.
     // This is useful for updating constraints, anchors, etc.
     // You're free to use f.forkOf()  or f.copyOf() to get equivalent objects in the new env.
@@ -80,15 +81,16 @@ public:
     virtual osg::Node *getOSGNode() const { return NULL; }
 
     virtual void setColor(float r, float g, float b, float a) {};
-		virtual void adjustTransparency(float increment) {};
+    virtual void adjustTransparency(float increment) {};
 
-		//gets the index of the closest part of the object (face, capsule, rigid_body, etc)
-		//for rigid bodies, there is only one index so this will always return 0
-		virtual int getIndex(const btTransform& transform) { std::runtime_error("getIndex() hasn't been defined yet"); }
-		virtual int getIndexSize() { std::runtime_error("getIndex() hasn't been defined yet"); }
-		//gets the transform of the indexed part
-		//for rigid bodies, this just returns the rigid body's transform
-		virtual btTransform getIndexTransform(int index) { std::runtime_error("getIndexTransform() hasn't been defined yet"); }
+    //gets the index of the closest part of the object (face, capsule, rigid_body, etc)
+    //for rigid bodies, there is only one index so this will always return 0
+    virtual int getIndex(const btTransform& transform) { std::runtime_error("getIndex() hasn't been defined yet"); }
+    virtual int getIndexSize() { std::runtime_error("getIndex() hasn't been defined yet"); }
+
+    //gets the transform of the indexed part
+    //for rigid bodies, this just returns the rigid body's transform
+    virtual btTransform getIndexTransform(int index) { std::runtime_error("getIndexTransform() hasn't been defined yet"); }
 };
 
 struct Environment {
@@ -146,10 +148,12 @@ public:
         DataMap::const_iterator i = dataMap.find(orig);
         return i == dataMap.end() ? NULL : i->second;
     }
+
     EnvironmentObject::Ptr forkOf(EnvironmentObject::Ptr orig) const {
         ObjectMap::const_iterator i = objMap.find(orig.get());
         return i == objMap.end() ? EnvironmentObject::Ptr() : i->second;
     }
+
     EnvironmentObject::Ptr forkOf(EnvironmentObject *orig) const {
         ObjectMap::const_iterator i = objMap.find(orig);
         return i == objMap.end() ? EnvironmentObject::Ptr() : i->second;

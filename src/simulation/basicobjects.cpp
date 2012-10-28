@@ -114,8 +114,8 @@ void BulletObject::preDraw() {
     rigidBody->getMotionState()->getWorldTransform(btTrans);
 
     btScalar m[16];
-   	btTrans.getOpenGLMatrix(m);
-		//transform->setMatrix(osg::Matrix(identityIfBad(m)));
+    btTrans.getOpenGLMatrix(m);
+    //transform->setMatrix(osg::Matrix(identityIfBad(m)));
     transform->setMatrix(osg::Matrix(m));
 }
 
@@ -213,37 +213,37 @@ BulletObject::BulletObject(const BulletObject &o) : isKinematic(o.isKinematic) {
 }
 
 void BulletObject::MoveAction::step(float dt) {
-    if (done()) return;
-    stepTime(dt);
-    const float a = fracElapsed();
-    // linear interpolation of pos
-    btVector3 newpos = (1-a)*start.getOrigin() + a*end.getOrigin();
-    btQuaternion newrot = start.getRotation().slerp(end.getRotation(), a);
-    btTransform newtrans(newrot, newpos);
-    if (obj->isKinematic)
-        obj->motionState->setKinematicPos(newtrans);
-    else
-        obj->motionState->setWorldTransform(newtrans);
+  if (done()) return;
+  stepTime(dt);
+  const float a = fracElapsed();
+  // linear interpolation of pos
+  btVector3 newpos = (1-a)*start.getOrigin() + a*end.getOrigin();
+  btQuaternion newrot = start.getRotation().slerp(end.getRotation(), a);
+  btTransform newtrans(newrot, newpos);
+  if (obj->isKinematic)
+    obj->motionState->setKinematicPos(newtrans);
+  else
+    obj->motionState->setWorldTransform(newtrans);
 }
 
 void BulletObject::setColor(float r, float g, float b, float a) {
-		m_color = osg::Vec4f(r,g,b,a);
-		if (node) setColorAfterInit();
-		enable_texture = false;
+  m_color = osg::Vec4f(r,g,b,a);
+  if (node) setColorAfterInit();
+  enable_texture = false;
 }
 
 void BulletObject::setColorAfterInit() {
-		//clear out texture mapping information
-  	osg::StateSet *ss = node->getOrCreateStateSet();
-		ss->getTextureAttributeList().clear();
-		ss->getTextureModeList().clear();
+  //clear out texture mapping information
+  osg::StateSet *ss = node->getOrCreateStateSet();
+  ss->getTextureAttributeList().clear();
+  ss->getTextureModeList().clear();
 
-  	if (m_color.a() != 1.0f) {
-  		osg::StateSet *ss = node->getOrCreateStateSet();
-  		ss->setRenderingHint(osg::StateSet::TRANSPARENT_BIN);
-    }
-    SetColorsVisitor visitor(m_color.r(),m_color.g(),m_color.b(),m_color.a());
-    node->accept(visitor);
+  if (m_color.a() != 1.0f) {
+    osg::StateSet *ss = node->getOrCreateStateSet();
+    ss->setRenderingHint(osg::StateSet::TRANSPARENT_BIN);
+  }
+  SetColorsVisitor visitor(m_color.r(),m_color.g(),m_color.b(),m_color.a());
+  node->accept(visitor);
 }
 
 void BulletObject::setTexture(const cv::Mat& image) {
@@ -251,33 +251,33 @@ void BulletObject::setTexture(const cv::Mat& image) {
 	image.copyTo(*m_cvimage);
 
 	//hack to convert cv::Mat images to osg::Image images
-  fs::path p = fs::temp_directory_path() / fs::unique_path("%%%%-%%%%-%%%%-%%%%.jpg");
+	fs::path p = fs::temp_directory_path() / fs::unique_path("%%%%-%%%%-%%%%-%%%%.jpg");
 	cv::imwrite(p.c_str(), image);
 	m_image = osgDB::readImageFile(p.c_str());
-  fs::remove(p);
+	fs::remove(p);
 
 	if (node) setTextureAfterInit();
 	enable_texture = true;
 }
 
 void BulletObject::setTextureAfterInit() {
-	if (m_image) {
-		// clear out color information
-		m_color = osg::Vec4f(1,1,1,m_color.a());
-		setColorAfterInit();
+  if (m_image) {
+    // clear out color information
+    m_color = osg::Vec4f(1,1,1,m_color.a());
+    setColorAfterInit();
 
-		osg::Texture2D* texture = new osg::Texture2D;
-		// protect from being optimized away as static state:
-		texture->setDataVariance(osg::Object::DYNAMIC);
-		// Assign the texture to the image we read from file:
-		texture->setImage(m_image.get());
-		// Create a new StateSet with default settings:
-		//osg::StateSet* stateOne = new osg::StateSet();
-		osg::StateSet* state = node->getOrCreateStateSet();
-		// Assign texture unit 0 of our new StateSet to the texture
-		// we just created and enable the texture.
-		state->setTextureAttributeAndModes(0,texture,osg::StateAttribute::ON);
-	}
+    osg::Texture2D* texture = new osg::Texture2D;
+    // protect from being optimized away as static state:
+    texture->setDataVariance(osg::Object::DYNAMIC);
+    // Assign the texture to the image we read from file:
+    texture->setImage(m_image.get());
+    // Create a new StateSet with default settings:
+    //osg::StateSet* stateOne = new osg::StateSet();
+    osg::StateSet* state = node->getOrCreateStateSet();
+    // Assign texture unit 0 of our new StateSet to the texture
+    // we just created and enable the texture.
+    state->setTextureAttributeAndModes(0,texture,osg::StateAttribute::ON);
+  }
 }
 
 void BulletObject::adjustTransparency(float increment) {
@@ -478,8 +478,7 @@ GrabberKinematicObject::GrabberKinematicObject(float radius_, float height_) :
     radius(radius_), height(height_),
     constraintPivot(0, 0, height_), // this is where objects will attach to
     BulletObject(0, new btConeShapeZ(radius_, height_),
-            btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0)), true) {
-}
+		 btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0)), true) { }
 
 osg::ref_ptr<osg::Node> GrabberKinematicObject::createOSGNode() {
     osg::ref_ptr<osg::Geode> geode = new osg::Geode;
@@ -581,8 +580,7 @@ SphereObject::SphereObject(btScalar mass_, btScalar radius_, const btTransform &
 
 BoxObject::BoxObject(btScalar mass_, const btVector3 &halfExtents_, const btTransform &initTrans) :
     mass(mass_), halfExtents(halfExtents_),
-    BulletObject(mass_, new btBoxShape(halfExtents_), initTrans) {
-}
+    BulletObject(mass_, new btBoxShape(halfExtents_), initTrans) { }
 
 CapsuleObject::CapsuleObject(btScalar mass_, btScalar radius_, btScalar height_, const btTransform &initTrans) :
     mass(mass_), radius(radius_), height(height_),

@@ -86,10 +86,10 @@ BulletSoftObject::Ptr CustomScene::createCloth(btScalar s, btScalar z, btVector3
 
 	// cut the soft-body
 	if (shouldCut) {
-	cutPlane cut (center + 0.05*corner4 + 0.95*corner2,
+	cutPlane cut (center + 0.05*corner3 + 0.95*corner4,
+			      center + 0.05*corner4 + 0.95*corner2,
 			      center + 0.05*corner2 + 0.95*corner1,
 			      center + 0.05*corner1 + 0.95*corner3,
-			      center + 0.05*corner3 + 0.95*corner4,
 			      0.25,0.75);
 	cutPlaneSoftBody(psb, &cut, 0.001);
 	}
@@ -125,6 +125,7 @@ void CustomScene::createFork() {
     cout << (tmpRobot->getEnvironment() == fork->env.get()) << endl;
 }
 
+
 void CustomScene::swapFork() {
     // swaps the forked robot with the real one
     cout << "swapping!" << endl;
@@ -154,10 +155,10 @@ void CustomScene::run() {
     const float table_thickness = .05;
     BoxObject::Ptr table(new BoxObject(0, GeneralConfig::scale * btVector3(.75,.75,table_thickness/2),
                                        btTransform(btQuaternion(0, 0, 0, 1),
-                        		                   GeneralConfig::scale * btVector3(1.2, 0, table_height-table_thickness/2))));
+                        		                   GeneralConfig::scale * btVector3(0.85, 0, table_height-table_thickness/2))));
     table->rigidBody->setFriction(10);
 
-    BulletSoftObject::Ptr cloth(createCloth(GeneralConfig::scale * 0.5, 0, GeneralConfig::scale * btVector3(0.9, 0, table_height+0.01)));
+    BulletSoftObject::Ptr cloth(createCloth(GeneralConfig::scale * 0.5, 0, GeneralConfig::scale * btVector3(0.6, 0, table_height+0.01)));
     btSoftBody * const psb = cloth->softBody.get();
     pr2m.pr2->ignoreCollisionWith(psb);
 

@@ -1189,7 +1189,7 @@ int				btSoftBody::generateClusters(int k,int maxiterations)
 }
 
 //
-void btSoftBody::refine(ImplicitFn* ifn,btScalar accurary,bool   )
+void btSoftBody::refine(ImplicitFn* ifn,btScalar accurary, bool cut)
 {
 	const Node*			nbase = &m_nodes[0];
 	int					ncount = m_nodes.size();

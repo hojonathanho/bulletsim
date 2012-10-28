@@ -1,7 +1,7 @@
 #ifndef _CUSTOM_KEY_HANDLER_
 #define _CUSTOM_KEY_HANDLER_
 
-//#include "config.h"
+
 
 #include "CustomScene.h"
 

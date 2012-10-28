@@ -5,6 +5,8 @@
  *      Author: alex
  */
 
+
+#include <BulletSoftBody/btSoftBodyInternals.h>
 #include "softBodyHelpers.h"
 #include "util.h"
 #include <algorithm>
@@ -312,7 +314,391 @@ btSoftBody* CreatePolygonPatch(btSoftBodyWorldInfo& worldInfo, std::vector<btVec
 }
 
 
+static btScalar		ImplicitSolve(	cutPlane* inf,
+								  	btVector3& a,
+								  	btVector3& b,
+								  	const btScalar accuracy,
+								  	const int maxiterations) {
+	btScalar	span[2]={0,1};
+	btScalar	values[2]={inf->Eval(a),inf->Eval(b)};
+	if(values[0]>values[1])
+	{
+		btSwap(span[0],span[1]);
+		btSwap(values[0],values[1]);
+	}
+	if(values[0]>-accuracy) return(-1);
+	if(values[1]<+accuracy) return(-1);
+	for(int i=0;i<maxiterations;++i)
+	{
+		const btScalar	t=Lerp(span[0],span[1],values[0]/(values[0]-values[1]));
+		btVector3 c = Lerp(a,b,t);
+		const btScalar	v=inf->Eval(c);
+		if((t<=0)||(t>=1))		break;
+		if(btFabs(v)<accuracy)	return(t);
+		if(v<0)
+		{ span[0]=t;values[0]=v; }
+		else
+		{ span[1]=t;values[1]=v; }
+	}
+	return(-1);
+}
 
 
 
+/** Function for cutting a planar soft-body, using an implicit function.
+ * Uses btSoftBody::refine.*/
+void cutPlaneSoftBody(btSoftBody* psb, cutPlane* info, btScalar accuracy) {
+	// First node address
+	const btSoftBody::Node*	nbase = &(psb->m_nodes[0]);
 
+	// Number of nodes (initial)
+	int					ncount = psb->m_nodes.size();
+
+	// Undirected graph representation: represents links and face-edges b/w nodes
+	btSymMatrix<int>	edges(ncount,-2);
+
+	int	newnodes=0;
+	int i,j,k,ni;
+
+	//printf("Number of initial links: %d\n", psb->m_links.size());
+
+
+	/* Filter out		*/
+	//Remove BENDING links connecting nodes on different sides of implicit function boundary
+	for(i=0;i<psb->m_links.size();++i) {
+		btSoftBody::Link&	l=psb->m_links[i];
+		if(l.m_bbending) {
+			btScalar t = ImplicitSolve(info, l.m_n[0]->m_x, l.m_n[1]->m_x,accuracy);
+			if (t<0) continue;
+			const btVector3 x = Lerp(l.m_n[0]->m_x, l.m_n[1]->m_x,t);
+			if (info->shouldConsider(x)){
+				if(!SameSign(info->Eval(l.m_n[0]->m_x),info->Eval(l.m_n[1]->m_x)))
+				{
+					btSwap(psb->m_links[i],psb->m_links[psb->m_links.size()-1]);
+					psb->m_links.pop_back();--i;
+				}
+			}
+		}
+	}
+	//printf("Number of links after rough filtering: %d\n", psb->m_links.size());
+
+	/* Fill edges : Build the edge matrix, by going over links and faces*/
+	for(i=0;i<psb->m_links.size();++i) { // LINKS
+		btSoftBody::Link&	l=psb->m_links[i];
+		edges(int(l.m_n[0]-nbase),int(l.m_n[1]-nbase))=-1;
+	}
+
+
+	for(i=0;i<psb->m_faces.size();++i) {// FACE-EDGES
+		btSoftBody::Face&	f=psb->m_faces[i];
+		edges(int(f.m_n[0]-nbase),int(f.m_n[1]-nbase))=-1;
+		edges(int(f.m_n[1]-nbase),int(f.m_n[2]-nbase))=-1;
+		edges(int(f.m_n[2]-nbase),int(f.m_n[0]-nbase))=-1;
+	}
+
+
+	/* Intersect		*/
+	for(i=0;i<ncount;++i) {
+		for(j=i+1;j<ncount;++j) {
+			// For all pairs of nodes:
+			if(edges(i,j)==-1)  // if there is an edge b/w them
+			{
+				btSoftBody::Node&			a=psb->m_nodes[i];  // a <-- the first node
+				btSoftBody::Node&			b=psb->m_nodes[j];  // b <-- the second node
+				const btScalar	t=ImplicitSolve(info,a.m_x,b.m_x,accuracy);  // t : ta + (1-t)b is on the edge if 0<t, else -1
+				if(t>0)   // if the nodes are on the opposite sides of the boundary
+				{
+					//printf("found a link connecting opposite sides\n");
+					const btVector3	x=Lerp(a.m_x,b.m_x,t); // x <-- position of the node at the boundary: linear interpolation of the positions of a and b
+
+					if (!info->shouldConsider(x)) continue;
+
+					const btVector3	v=Lerp(a.m_v,b.m_v,t); // v <-- velocity of the node at the boundary: linear interpolation of the velocities of a and b
+
+					// find out the mass of the new node.
+					btScalar		m=0;
+					if(a.m_im>0)  // if a movable
+					{
+						if(b.m_im>0) // if a and b are movable, m is finite (!=0) else 0
+						{
+							const btScalar	ma=1/a.m_im;
+							const btScalar	mb=1/b.m_im;
+							const btScalar	mc=Lerp(ma,mb,t);
+							const btScalar	f=(ma+mb)/(ma+mb+mc);
+							a.m_im=1/(ma*f);
+							b.m_im=1/(mb*f);
+							m=mc*f;
+						}
+						else
+						{ a.m_im/=0.5;m=1/a.m_im; }
+					}
+					else
+					{
+						if(b.m_im>0)
+						{ b.m_im/=0.5;m=1/b.m_im; }
+						else
+							m=0;
+					}
+
+					// Create a new node with interpolated position and mass
+					psb->appendNode(x,m);
+					edges(i,j)=psb->m_nodes.size()-1;  // edges(i,j) <-- index of the interpolated new node ( > 0)
+					psb->m_nodes[edges(i,j)].m_v=v;
+					++newnodes;
+				}
+			}
+		}
+	}
+	//printf("number of interpolated nodes : %d\n", newnodes);
+
+
+	nbase=&psb->m_nodes[0];  // <-- address of the first node
+	/* Refine links
+	 *
+	 *  a------->b |==> a------->t---->b
+	 *  t : interpolated node
+	 **/
+	for(i=0,ni=psb->m_links.size();i<ni;++i)
+	{
+		btSoftBody::Link&		feat=psb->m_links[i];
+		const int	idx[]={	int(feat.m_n[0]-nbase),
+				int(feat.m_n[1]-nbase) };
+		if((idx[0]<ncount)&&(idx[1]<ncount))
+		{
+			const int ni=edges(idx[0],idx[1]);
+			if(ni>0)
+			{
+				psb->appendLink(i);
+				btSoftBody::Link*		pft[]={	&psb->m_links[i],
+						&psb->m_links[psb->m_links.size()-1]};
+				pft[0]->m_n[0]=&psb->m_nodes[idx[0]];
+				pft[0]->m_n[1]=&psb->m_nodes[ni];
+				pft[1]->m_n[0]=&psb->m_nodes[ni];
+				pft[1]->m_n[1]=&psb->m_nodes[idx[1]];
+			}
+		}
+	}
+	//printf("Number of links after edge-interpolation: %d\n", psb->m_links.size());
+
+
+	/* Refine faces:
+	 * Similar to "edge-breaking" for links [above]
+	 * */
+	for(i=0;i<psb->m_faces.size();++i)
+	{
+		const btSoftBody::Face&	feat=psb->m_faces[i];
+		const int	idx[]={	int(feat.m_n[0]-nbase),
+				int(feat.m_n[1]-nbase),
+				int(feat.m_n[2]-nbase)};
+		for(j=2,k=0;k<3;j=k++)
+		{
+			if((idx[j]<ncount)&&(idx[k]<ncount))
+			{
+				const int ni=edges(idx[j],idx[k]);
+				if(ni>0)
+				{
+					psb->appendFace(i);
+					const int	l=(k+1)%3;
+					btSoftBody::Face*		pft[]={	&psb->m_faces[i],
+							&psb->m_faces[psb->m_faces.size()-1]};
+					pft[0]->m_n[0]=&psb->m_nodes[idx[l]];
+					pft[0]->m_n[1]=&psb->m_nodes[idx[j]];
+					pft[0]->m_n[2]=&psb->m_nodes[ni];
+					pft[1]->m_n[0]=&psb->m_nodes[ni];
+					pft[1]->m_n[1]=&psb->m_nodes[idx[k]];
+					pft[1]->m_n[2]=&psb->m_nodes[idx[l]];
+					psb->appendLink(ni,idx[l],pft[0]->m_material);
+					--i;break;
+				}
+			}
+		}
+	}
+	//printf("Number of links after face refine: %d\n", psb->m_links.size());
+
+
+
+	/* Cut	: Deletes the links/ faces/ nodes/ anchors. */
+	btAlignedObjectArray<int>	cnodes;
+	const int			 pcount=ncount;
+	ncount=psb->m_nodes.size();
+	cnodes.resize(ncount,0);
+
+	nbase=&psb->m_nodes[0];
+	//printf("Found nbase \n");
+	/* Links		*/
+	//printf("\tNumber of nodes: %d\n", psb->m_nodes.size());
+	//printf("\tNumber of links: %d\n", psb->m_links.size());
+
+	//std::cout<<psb->m_links.size()<<std::endl;
+	for(i=0,ni=psb->m_links.size();i<ni;++i)  {
+		const int		id[]={	int(psb->m_links[i].m_n[0]-nbase),
+				int(psb->m_links[i].m_n[1]-nbase) };
+
+		//printf("\tlink#: %d, n1: %d, n2: %d\n", i, id[0], id[1]);
+
+		//std::cout<<i<<std::endl;
+
+		//printf("Finding position of node 1\n");
+		btVector3 n1 = psb->m_nodes[id[0]].m_x;
+		//printf("Finding position of node 2\n");
+		btVector3 n2 = psb->m_nodes[id[1]].m_x;
+
+		//printf ("Finding eval of nodes \n");
+		btScalar eval1 = info->Eval(n1);
+		btScalar eval2 = info->Eval(n2);
+
+		//printf ("Finding shouldConsider of nodes \n");
+		bool   should1 = info->shouldConsider(n1);
+		bool   should2 = info->shouldConsider(n2);
+
+		if (btFabs(eval1) < accuracy
+				&& btFabs (eval2) < accuracy
+				&& eval1*eval2 < 0
+				&& should1 && should2) { // throw out the link.
+			btSwap(psb->m_links[i],psb->m_links[psb->m_links.size()-1]);
+			psb->m_links.pop_back();--i;
+		} else {
+			if (btFabs(eval1) < accuracy
+					&& should1) {
+				if (eval2 > accuracy) { // (2) in far +ve. (1) is within accuracy and is shouldConsider
+					if(!cnodes[id[0]]) {// create a copy of the node
+						const btVector3	v=psb->m_nodes[id[0]].m_v;
+						btScalar		m=psb->getMass(id[0]);
+						if(m>0) { m*=0.5;psb->m_nodes[id[0]].m_im/=0.5; }
+						psb->appendNode(n1,m);
+						cnodes[id[0]]=psb->m_nodes.size()-1;
+						psb->m_nodes[cnodes[id[0]]].m_v=v;
+					}
+					psb->m_links[i].m_n[0] = &psb->m_nodes[cnodes[id[0]]];
+				}
+			} else if (btFabs(eval2) < accuracy
+					&& should2) {
+				if (eval1 > accuracy) { // (1) in far +ve. (2) is within accuracy and is shouldConsider
+					if(!cnodes[id[1]]) {// create a copy of the node
+						const btVector3	v=psb->m_nodes[id[1]].m_v;
+						btScalar		m=psb->getMass(id[1]);
+						if(m>0) { m*=0.5;psb->m_nodes[id[1]].m_im/=0.5; }
+						psb->appendNode(n2,m);
+						cnodes[id[1]]=psb->m_nodes.size()-1;
+						psb->m_nodes[cnodes[id[1]]].m_v=v;
+					}
+					psb->m_links[i].m_n[1] = &psb->m_nodes[cnodes[id[1]]];
+
+				}
+			}
+		}
+	}
+
+
+	/* Faces : split faces 	*/
+	for(i=0,ni=psb->m_faces.size();i<ni;++i) {
+		btSoftBody::Node**	n  = psb->m_faces[i].m_n;
+		const int	id[]={	int(n[0]-nbase),
+				int(n[1]-nbase),
+				int(n[2]-nbase) };
+
+
+		btVector3 n0 = n[0]->m_x;
+		btVector3 n1 = n[1]->m_x;
+		btVector3 n2 = n[2]->m_x;
+
+		btScalar eval0 = info->Eval(n0);
+		btScalar eval1 = info->Eval(n1);
+		btScalar eval2 = info->Eval(n2);
+
+		bool   should0 = info->shouldConsider(n0);
+		bool   should1 = info->shouldConsider(n1);
+		bool   should2 = info->shouldConsider(n2);
+
+		if( (eval0 > accuracy)
+				||(eval1 > accuracy)
+				||(eval2 > accuracy) ) {
+
+			int iden = 0;
+
+			// for node 0:
+			if (btFabs(eval0) < accuracy && should0 ) {
+				if(!cnodes[id[0]]) {// create a copy of the node
+					const btVector3	v=psb->m_nodes[id[0]].m_v;
+					btScalar		m=psb->getMass(id[0]);
+					if(m>0) { m*=0.5;psb->m_nodes[id[0]].m_im/=0.5; }
+					psb->appendNode(n0,m);
+					cnodes[id[0]]=psb->m_nodes.size()-1;
+					psb->m_nodes[cnodes[id[0]]].m_v=v;
+				}
+				n[0] = &psb->m_nodes[cnodes[id[0]]];
+				iden += 1;
+			}
+
+			// for node 1:
+			if (btFabs(eval1) < accuracy && should1 ) {
+				if(!cnodes[id[1]]) {// create a copy of the node
+					const btVector3	v=psb->m_nodes[id[1]].m_v;
+					btScalar		m=psb->getMass(id[1]);
+					if(m>0) { m*=0.5;psb->m_nodes[id[1]].m_im/=0.5; }
+					psb->appendNode(n1,m);
+					cnodes[id[1]]=psb->m_nodes.size()-1;
+					psb->m_nodes[cnodes[id[1]]].m_v=v;
+				}
+				n[1] = &psb->m_nodes[cnodes[id[1]]];
+				iden += 10;
+			}
+
+			// for node 2:
+			if (btFabs(eval2) < accuracy && should2 ) {
+				if(!cnodes[id[2]]) {// create a copy of the node
+					const btVector3	v=psb->m_nodes[id[2]].m_v;
+					btScalar		m=psb->getMass(id[2]);
+					if(m>0) { m*=0.5;psb->m_nodes[id[2]].m_im/=0.5; }
+					psb->appendNode(n2,m);
+					cnodes[id[2]]=psb->m_nodes.size()-1;
+					psb->m_nodes[cnodes[id[2]]].m_v=v;
+				}
+				n[2] = &psb->m_nodes[cnodes[id[2]]];
+				iden += 100;
+			}
+
+			switch(iden) {
+			case 11:
+				psb->appendLink(cnodes[id[0]], cnodes[id[1]], psb->m_faces[i].m_material, true);
+				break;
+			case 101:
+				psb->appendLink(cnodes[id[0]], cnodes[id[2]], psb->m_faces[i].m_material, true);
+				break;
+			case 110:
+				psb->appendLink(cnodes[id[1]], cnodes[id[2]], psb->m_faces[i].m_material, true);
+				break;
+			}
+		}
+	}
+
+
+	/* Clean orphans	*/
+	int							nnodes=psb->m_nodes.size();
+	btAlignedObjectArray<int>	ranks;
+	btAlignedObjectArray<int>	todelete;
+	ranks.resize(nnodes,0);
+	for(i=0,ni=psb->m_links.size();i<ni;++i)
+	{
+		for(int j=0;j<2;++j) ranks[int(psb->m_links[i].m_n[j]-nbase)]++;
+	}
+	for(i=0,ni=psb->m_faces.size();i<ni;++i)
+	{
+		for(int j=0;j<3;++j) ranks[int(psb->m_faces[i].m_n[j]-nbase)]++;
+	}
+
+	for(i=0;i<psb->m_links.size();++i)
+	{
+		const int	id[]={	int(psb->m_links[i].m_n[0]-nbase),
+				int(psb->m_links[i].m_n[1]-nbase)};
+		const bool	sg[]={	ranks[id[0]]==1,
+				ranks[id[1]]==1};
+		if(sg[0]||sg[1])
+		{
+			--ranks[id[0]];
+			--ranks[id[1]];
+			btSwap(psb->m_links[i],psb->m_links[psb->m_links.size()-1]);
+			psb->m_links.pop_back();--i;
+		}  }
+	psb->m_bUpdateRtCst=true;
+}
