@@ -158,7 +158,7 @@ void CustomScene::run() {
                         		                   GeneralConfig::scale * btVector3(0.85, 0, table_height-table_thickness/2))));
     table->rigidBody->setFriction(10);
 
-    BulletSoftObject::Ptr cloth(createCloth(GeneralConfig::scale * 0.5, 0, GeneralConfig::scale * btVector3(0.6, 0, table_height+0.01)));
+    cloth = createCloth(GeneralConfig::scale * 0.5, 0, GeneralConfig::scale * btVector3(0.6, 0, table_height+0.01));
     btSoftBody * const psb = cloth->softBody.get();
     pr2m.pr2->ignoreCollisionWith(psb);
 

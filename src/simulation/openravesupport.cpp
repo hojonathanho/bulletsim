@@ -449,7 +449,7 @@ void RaveObject::updateBullet() {
 		if (!c)
 			continue;
 		c->motionState->setKinematicPos(util::toBtTransform(transforms[i],
-				GeneralConfig::scale));
+															GeneralConfig::scale));
 	}
 
 }
@@ -702,4 +702,49 @@ void RaveRobotObject::destroyManipulator(RaveRobotObject::Manipulator::Ptr m) {
 		return;
 	(*i).reset();
 	createdManips.erase(i);
+}
+
+
+OpenRAVE::KinBodyPtr createKinBodyFromBulletSoftObject(BulletSoftObject::Ptr sb, RaveInstance::Ptr rave) {
+	size_t i;
+	btSoftBody* psb = sb->softBody.get();
+	const btSoftBody::Node*	nbase = &(psb->m_nodes[0]);
+
+
+    OpenRAVE::KinBody::Link::TRIMESH raveMesh;
+
+    // fill in the vertices of the mesh
+	 raveMesh.vertices.resize(psb->m_nodes.size());
+     for(i=0;i<psb->m_nodes.size();++i)	 {
+		btVector3 node_pos = psb->m_nodes[i].m_x / GeneralConfig::scale;
+		OpenRAVE::Vector vec = util::toRaveVector(node_pos);
+	    raveMesh.vertices[i] = vec;
+	}
+
+	// fill the indices for the faces of the trimesh
+	raveMesh.indices.resize(3 * (psb->m_faces.size()),0);
+	for(i=0;i<psb->m_faces.size();i++)	 {
+		const btSoftBody::Face&	feat=psb->m_faces[i];
+		const int	idx[]={	int(feat.m_n[0]-nbase),
+             				int(feat.m_n[1]-nbase),
+			             	int(feat.m_n[2]-nbase)};
+		raveMesh.indices[3*i]   = idx[0];
+		raveMesh.indices[3*i+1] = idx[1];
+		raveMesh.indices[3*i+2] = idx[2];
+	}
+
+    // Get a random name for the body.
+    std::stringstream ss; ss << "TrimeshBody" << (int) clock();
+    const std::string name = ss.str();
+
+	// create a kinbody from mesh and add to the environment
+    OpenRAVE::KinBodyPtr raveBodyPtr;
+    { // lock the openrave env
+    	OpenRAVE::EnvironmentMutex::scoped_lock lockenv(rave->env->GetMutex());
+    	raveBodyPtr = OpenRAVE::RaveCreateKinBody(rave->env);
+    	raveBodyPtr->InitFromTrimesh(raveMesh, true);
+    	raveBodyPtr->SetName(name);
+    	rave->env->AddKinBody(raveBodyPtr);
+    } // rave env is unlocked
+    return raveBodyPtr;
 }

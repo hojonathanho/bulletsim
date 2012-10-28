@@ -30,6 +30,12 @@ public:
 	RaveRobotObject::Ptr origRobot, tmpRobot;
 	PR2Manager pr2m;
 
+	// the cloth to be sutured
+	BulletSoftObject::Ptr cloth;
+
+	OpenRAVE::ViewerBasePtr rave_viewer;
+	bool isRaveViewer;
+
 	/** Points which are to be plotted in the scene : correspond to
 	    nodes in the soft-body (cloth). */
 	PlotPoints::Ptr plot_points;
@@ -38,7 +44,7 @@ public:
      *  left grippers are. **/
 	PlotAxes::Ptr cut_axes;
 
-	CustomScene() : pr2m(*this) { }
+	CustomScene() : pr2m(*this), isRaveViewer(false) { }
 
 	void createFork();
 	void swapFork();

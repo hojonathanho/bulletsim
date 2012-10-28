@@ -7,6 +7,7 @@
 
 #include "simulation/config_bullet.h"
 #include "simulation/config_viewer.h"
+#include "simulation/openravesupport.h"
 
 #include <boost/date_time/posix_time/posix_time.hpp>
 

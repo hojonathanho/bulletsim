@@ -11,8 +11,10 @@ using namespace std;
 
 #include "environment.h"
 #include "basicobjects.h"
+#include "softbodies.h"
 #include "util.h"
 #include "config_bullet.h"
+
 
 struct RaveInstance {
   typedef boost::shared_ptr<RaveInstance> Ptr;
@@ -190,7 +192,15 @@ protected:
 RaveObject::Ptr getObjectByName(Environment::Ptr env, RaveInstance::Ptr rave, const string& name);
 RaveRobotObject::Ptr getRobotByName(Environment::Ptr env, RaveInstance::Ptr rave, const string& name);
 
+//KinBodyPtr createKinBodyFromBulletSoftObject(btSoftBody* psb, RaveInstance::Ptr rave);
+/**KinBodyPtr BodyFrombtSoftBody(BulletSoftObject::Ptr psb, RaveInstance::Ptr rave) {
+	boost::shared_ptr<btSoftBody> sb = psb->softBody;
+	return createKinBodyFromBulletSoftObject(sb.get(), rave);
+}*/
+
+//KinBodyPtr createKinbodyFromBulletSoftObject(BulletSoftObject::Ptr psb, RaveInstance::Ptr rave);
 
 
+OpenRAVE::KinBodyPtr createKinBodyFromBulletSoftObject(BulletSoftObject::Ptr sb, RaveInstance::Ptr rave);
 
 #endif // _OPENRAVESUPPORT_H_

@@ -62,7 +62,9 @@ target_link_libraries(test_softbody_mappings simulation)
 
 ################################################################
 include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/test_surgical)
-link_directories( ${CMAKE_CURRENT_SOURCE_DIR}/test_surgical )
+#link_directories( ${CMAKE_CURRENT_SOURCE_DIR}/test_surgical )
 
-add_executable(test_suture_cloth test_suture_cloth.cpp test_surgical/CustomScene.cpp test_surgical/CustomKeyHandler.cpp test_surgical/CustomScene.h test_surgical/CustomKeyHandler.h)
+add_executable(test_suture_cloth test_suture_cloth.cpp
+                            	 test_surgical/CustomScene.cpp
+                            	 test_surgical/CustomKeyHandler.cpp)
 target_link_libraries(test_suture_cloth simulation robots)

@@ -1,3 +1,6 @@
+#ifndef _PR2_SOFTY_
+#define _PR2_SOFTY_
+
 #include "simulation/simplescene.h"
 #include "simulation/softbodies.h"
 #include <BulletSoftBody/btSoftBodyHelpers.h>
@@ -233,3 +236,5 @@ public:
         }
     }
 };
+
+#endif
