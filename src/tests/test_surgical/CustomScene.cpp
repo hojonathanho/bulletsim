@@ -153,7 +153,7 @@ void CustomScene::run() {
     const float dt = BulletConfig::dt;
     const float table_height = .5;
     const float table_thickness = .05;
-    BoxObject::Ptr table(new BoxObject(0, GeneralConfig::scale * btVector3(.75,.75,table_thickness/2),
+    table = BoxObject::Ptr(new BoxObject(0, GeneralConfig::scale * btVector3(.75,.75,table_thickness/2),
                                        btTransform(btQuaternion(0, 0, 0, 1),
                         		                   GeneralConfig::scale * btVector3(0.85, 0, table_height-table_thickness/2))));
     table->rigidBody->setFriction(10);

@@ -33,6 +33,9 @@ public:
 	// the cloth to be sutured
 	BulletSoftObject::Ptr cloth;
 
+	// the table in the scene
+	BoxObject::Ptr table;
+
 	OpenRAVE::ViewerBasePtr rave_viewer;
 	bool isRaveViewer;
 

@@ -705,12 +705,16 @@ void RaveRobotObject::destroyManipulator(RaveRobotObject::Manipulator::Ptr m) {
 }
 
 
-OpenRAVE::KinBodyPtr createKinBodyFromBulletSoftObject(BulletSoftObject::Ptr sb, RaveInstance::Ptr rave) {
+/* Adds the a trimesh built from the current state of the softbody SB to the openrave
+ * environment RAVE. Returns a pointer to the kinematicbody created and added to the environment.*/
+OpenRAVE::KinBodyPtr createKinBodyFromBulletSoftObject(BulletSoftObject::Ptr sb,
+													   RaveInstance::Ptr rave,
+													   std::string name) {
 	size_t i;
 	btSoftBody* psb = sb->softBody.get();
 	const btSoftBody::Node*	nbase = &(psb->m_nodes[0]);
 
-
+	// --> Create the Trimesh
     OpenRAVE::KinBody::Link::TRIMESH raveMesh;
 
     // fill in the vertices of the mesh
@@ -734,12 +738,14 @@ OpenRAVE::KinBodyPtr createKinBodyFromBulletSoftObject(BulletSoftObject::Ptr sb,
 	}
 
     // Get a random name for the body.
-    std::stringstream ss; ss << "TrimeshBody" << (int) clock();
-    const std::string name = ss.str();
+	if (name=="") {
+		std::stringstream ss; ss << "TrimeshBody" << (int) clock();
+		name = ss.str();
+	}
 
 	// create a kinbody from mesh and add to the environment
     OpenRAVE::KinBodyPtr raveBodyPtr;
-    { // lock the openrave env
+    { // lock the rave env
     	OpenRAVE::EnvironmentMutex::scoped_lock lockenv(rave->env->GetMutex());
     	raveBodyPtr = OpenRAVE::RaveCreateKinBody(rave->env);
     	raveBodyPtr->InitFromTrimesh(raveMesh, true);
@@ -747,4 +753,42 @@ OpenRAVE::KinBodyPtr createKinBodyFromBulletSoftObject(BulletSoftObject::Ptr sb,
     	rave->env->AddKinBody(raveBodyPtr);
     } // rave env is unlocked
     return raveBodyPtr;
+}
+
+
+/* Adds an openrave box kinematic-body to the openrave environment RAVE, based on the
+ * the bullet box object BOX.
+ * Returns a pointer to the kinematic-body created and added to the environment. */
+OpenRAVE::KinBodyPtr createKinBodyFromBulletBoxObject(BoxObject::Ptr box,
+		 	 	 	 	 	 	 	 	 	 	 	  RaveInstance::Ptr rave,
+		 	 	 	 	 	 	 	 	 	 	 	  std::string name) {
+	// get the box orientation and size
+	btTransform boxTransform;
+	box->motionState->getWorldTransform(boxTransform);
+	boxTransform.setOrigin(boxTransform.getOrigin() / GeneralConfig::scale);
+	btVector3 halfExtents = box->getHalfExtents() / GeneralConfig::scale;
+
+	OpenRAVE::RaveVector<OpenRAVE::dReal> pos(0,0,0);
+	OpenRAVE::RaveVector<OpenRAVE::dReal> extents(halfExtents.getX(), halfExtents.getY(), halfExtents.getZ());
+	std::vector<OpenRAVE::AABB> boxInfo;
+	OpenRAVE::AABB ibox(pos, extents);
+	boxInfo.push_back(ibox);
+
+	// Get a random name for the body.
+	if (name=="") {
+		std::stringstream ss; ss << "BoxBody" << (int) clock();
+		name = ss.str();
+	}
+
+	// create a kinbody from mesh and add to the environment
+    OpenRAVE::KinBodyPtr raveBoxPtr;
+    { // lock the rave env
+    	OpenRAVE::EnvironmentMutex::scoped_lock lockenv(rave->env->GetMutex());
+    	raveBoxPtr = OpenRAVE::RaveCreateKinBody(rave->env);
+    	raveBoxPtr->InitFromBoxes(boxInfo, true);
+    	raveBoxPtr->SetName(name);
+    	raveBoxPtr->SetTransform(util::toRaveTransform(boxTransform));
+    	rave->env->AddKinBody(raveBoxPtr);
+    } // rave env is unlocked
+    return raveBoxPtr;
 }

@@ -69,7 +69,7 @@ set(GUROBI_INCLUDE_DIR "$ENV{GUROBI_HOME}/include")
 set(GUROBI_LIBRARY_DIR "$ENV{GUROBI_HOME}/lib")
 
 # build options
-option(BUILD_TESTS "Build test/demo programs" off)
+option(BUILD_TESTS "Build test/demo programs" on)
 option(BUILD_TRACKING "Build tracking code" on)
 
 set(BUILD_SHARED_LIBS off)

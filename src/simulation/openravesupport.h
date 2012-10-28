@@ -180,7 +180,7 @@ public:
   // If useFakeGrabber is true, the manipulator will use a GrabberKinematicObject
   // which can "grab" objects by simply setting a point constraint with the nearest
   // object in front of the manipulator. Pass in false for realistic grasping.
-  Manipulator::Ptr createManipulator(const std::string &manipName, bool useFakeGrabber         = false);
+  Manipulator::Ptr createManipulator(const std::string &manipName, bool useFakeGrabber = false);
   void destroyManipulator(Manipulator::Ptr m); // not necessary to call this on destruction
   Manipulator::Ptr getManipByIndex(int i) const { return createdManips[i]; }
   int numCreatedManips() const { return createdManips.size(); }
@@ -192,15 +192,14 @@ protected:
 RaveObject::Ptr getObjectByName(Environment::Ptr env, RaveInstance::Ptr rave, const string& name);
 RaveRobotObject::Ptr getRobotByName(Environment::Ptr env, RaveInstance::Ptr rave, const string& name);
 
-//KinBodyPtr createKinBodyFromBulletSoftObject(btSoftBody* psb, RaveInstance::Ptr rave);
-/**KinBodyPtr BodyFrombtSoftBody(BulletSoftObject::Ptr psb, RaveInstance::Ptr rave) {
-	boost::shared_ptr<btSoftBody> sb = psb->softBody;
-	return createKinBodyFromBulletSoftObject(sb.get(), rave);
-}*/
 
-//KinBodyPtr createKinbodyFromBulletSoftObject(BulletSoftObject::Ptr psb, RaveInstance::Ptr rave);
+/* Adds the a trimesh built from the current state of the softbody SB to the openrave
+ * environment RAVE. Returns a pointer to the kinematicbody created and added to the environment.*/
+OpenRAVE::KinBodyPtr createKinBodyFromBulletSoftObject(BulletSoftObject::Ptr sb, RaveInstance::Ptr rave, std::string name="");
 
-
-OpenRAVE::KinBodyPtr createKinBodyFromBulletSoftObject(BulletSoftObject::Ptr sb, RaveInstance::Ptr rave);
+/* Adds an openrave box kinematic-body to the openrave environment RAVE, based on the
+ * the bullet box object BOX.
+ * Returns a pointer to the kinematic-body created and added to the environment. */
+OpenRAVE::KinBodyPtr createKinBodyFromBulletBoxObject(BoxObject::Ptr box, RaveInstance::Ptr rave, string name="");
 
 #endif // _OPENRAVESUPPORT_H_
