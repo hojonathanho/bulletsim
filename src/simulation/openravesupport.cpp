@@ -750,7 +750,24 @@ OpenRAVE::KinBodyPtr createKinBodyFromBulletSoftObject(BulletSoftObject::Ptr sb,
     	raveBodyPtr = OpenRAVE::RaveCreateKinBody(rave->env);
     	raveBodyPtr->InitFromTrimesh(raveMesh, true);
     	raveBodyPtr->SetName(name);
-    	rave->env->AddKinBody(raveBodyPtr);
+
+    	// Set random color for viewing
+        #if OPENRAVE_VERSION_MINOR>6
+    	const std::vector<boost::shared_ptr<OpenRAVE::KinBody::Link::GEOMPROPERTIES> > & geometries= raveBodyPtr->GetLinks()[0]->GetGeometries();
+    	BOOST_FOREACH(const boost::shared_ptr<OpenRAVE::KinBody::Link::GEOMPROPERTIES>& geom, geometries) {
+        #else
+        const std::list<KinBody::Link::GEOMPROPERTIES> &geometries =raveBodyPtr->GetLinks()[0]->GetGeometries();
+        for (std::list<KinBody::Link::GEOMPROPERTIES>::const_iterator geom = geometries.begin(); geom != geometries.end(); ++geom) {
+        #endif
+
+		OpenRAVE::geometry::RaveVector<float> color(0,//(float)rand()/RAND_MAX,
+				                                    (float)rand()/RAND_MAX,
+				                                    (float)rand()/RAND_MAX,
+        			                                (float)rand()/RAND_MAX);
+        geom->SetDiffuseColor(color);
+       }
+
+        rave->env->AddKinBody(raveBodyPtr);
     } // rave env is unlocked
     return raveBodyPtr;
 }
@@ -788,6 +805,22 @@ OpenRAVE::KinBodyPtr createKinBodyFromBulletBoxObject(BoxObject::Ptr box,
     	raveBoxPtr->InitFromBoxes(boxInfo, true);
     	raveBoxPtr->SetName(name);
     	raveBoxPtr->SetTransform(util::toRaveTransform(boxTransform));
+
+    	// Set random color for viewing
+        #if OPENRAVE_VERSION_MINOR>6
+    	const std::vector<boost::shared_ptr<OpenRAVE::KinBody::Link::GEOMPROPERTIES> > & geometries= raveBoxPtr->GetLinks()[0]->GetGeometries();
+    	BOOST_FOREACH(const boost::shared_ptr<OpenRAVE::KinBody::Link::GEOMPROPERTIES>& geom, geometries) {
+        #else
+        const std::list<KinBody::Link::GEOMPROPERTIES> &geometries =raveBoxPtr->GetLinks()[0]->GetGeometries();
+        for (std::list<KinBody::Link::GEOMPROPERTIES>::const_iterator geom = geometries.begin(); geom != geometries.end(); ++geom) {
+        #endif
+		OpenRAVE::geometry::RaveVector<float> color((float)rand()/RAND_MAX,
+				                                    0,//(float)rand()/RAND_MAX,
+				                                    (float)rand()/RAND_MAX,
+        			                                (float)rand()/RAND_MAX);
+        geom->SetDiffuseColor(color);
+       }
+
     	rave->env->AddKinBody(raveBoxPtr);
     } // rave env is unlocked
     return raveBoxPtr;
