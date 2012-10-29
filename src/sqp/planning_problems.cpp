@@ -8,7 +8,7 @@
 #include "config_sqp.h"
 #include "sqp/config_sqp.h"
 #include "sqp/kinematics_utils.h"
-
+#include <algorithm>
 
 using namespace std;
 using namespace Eigen;
@@ -109,7 +109,8 @@ vector<double> getSubdivisionTimes(const TrajCartCollInfo& cci, const Eigen::Vec
         // Check if this link is allowed to collide
         // (the distance is meaningless for continuous collisions)
         bool linkInAllowedCollisions = linkInAllowedCollision(lc, times(i), allowedCollisions);
-        if(!linkInAllowedCollisions){
+        if(!linkInAllowedCollisions &&  // Don't double count collisions
+            std::find(insertTimes.begin(), insertTimes.end(), (times(i) + times(i+1)) / 2) == insertTimes.end()){
           insertTimes.push_back((times(i) + times(i+1)) / 2);
         }
       }
