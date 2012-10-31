@@ -5,7 +5,6 @@
 #include <BulletSoftBody/btSoftRigidDynamicsWorld.h>
 #include <BulletSoftBody/btSoftBodyRigidBodyCollisionConfiguration.h>
 #include <opencv2/core/core.hpp>
-#include <opencv2/highgui/highgui.hpp>
 #include <osgbCollision/GLDebugDrawer.h>
 #include <vector>
 #include <boost/shared_ptr.hpp>

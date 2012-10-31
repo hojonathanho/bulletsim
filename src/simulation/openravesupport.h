@@ -2,19 +2,19 @@
 #define _OPENRAVESUPPORT_H_
 
 #include <openrave/openrave.h>
-using namespace OpenRAVE;
-
 #include <btBulletDynamicsCommon.h>
-
 #include <vector>
-using namespace std;
-
 #include "environment.h"
 #include "basicobjects.h"
 #include "util.h"
+#include "simulation_fwd.h"
 #include "config_bullet.h"
 
-class RaveObject;
+using namespace std;
+using namespace OpenRAVE;
+
+
+
 
 struct RaveInstance {
   typedef boost::shared_ptr<RaveInstance> Ptr;
@@ -40,7 +40,9 @@ enum TrimeshMode {
   RAW, // use btBvhTriangleMeshShape (not recommended, makes simulation very slow)
 };
 
-class RaveObject : public CompoundObject<BulletObject> {
+
+typedef CompoundObject<BulletObject> CompoundBulletObject;
+class RaveObject : public CompoundBulletObject {
 protected:
 
   // these two containers just keep track of the smart pointers
@@ -119,6 +121,8 @@ public:
 class RaveRobotObject : public RaveObject {
 public:
   typedef boost::shared_ptr<RaveRobotObject> Ptr;
+	typedef RobotManipulator Manipulator;
+	
   RobotBasePtr robot;
 
   map<RaveObject::Ptr, KinBody::LinkPtr> m_targ2grabber;
@@ -147,73 +151,73 @@ public:
   void release(RaveObject::Ptr target);
 	KinBody::LinkPtr getGrabberLink(RaveObject::Ptr target);
 
-
-  struct Manipulator {
-    RaveRobotObject *robot;
-    ModuleBasePtr ikmodule;
-    RobotBase::ManipulatorPtr manip, origManip;
-    int index; // id for this manipulator in this robot instance
-
-    bool useFakeGrabber;
-    GrabberKinematicObject::Ptr grabber;
-    void updateGrabberPos();
-
-    typedef boost::shared_ptr<Manipulator> Ptr;
-    Manipulator(RaveRobotObject *robot_) : robot(robot_) { }
-
-    btTransform getTransform() const {
-      return robot->toWorldFrame(util::toBtTransform(manip->GetTransform()));
-    }
-    // Gets one IK solution closest to the current position in joint space
-    bool solveIKUnscaled(const OpenRAVE::Transform &targetTrans,
-			 vector<dReal> &vsolution);
-    bool solveIK(const btTransform &targetTrans, vector<dReal> &vsolution) {
-      return solveIKUnscaled(
-              util::toRaveTransform(robot->toRaveFrame(targetTrans)),
-              vsolution);
-    }
-
-    // Gets all IK solutions
-    bool solveAllIKUnscaled(const OpenRAVE::Transform &targetTrans,
-			    vector<vector<dReal> > &vsolutions);
-    bool solveAllIK(const btTransform &targetTrans,
-		    vector<vector<dReal> > &vsolutions) {
-      return solveAllIKUnscaled(
-              util::toRaveTransform(robot->toRaveFrame(targetTrans)),
-              vsolutions);
-    }
-    vector<double> getDOFValues();
-    void setDOFValues(const vector<double>& vals);
-
-    // Moves the manipulator with IK to targetTrans in unscaled coordinates
-    // Returns false if IK cannot find a solution
-    // If checkCollisions is true, then this will return false if the new
-    // robot pose collides with anything in the environment (true otherwise).
-    // The robot will revert is position to the pre-collision state if
-    // revertOnCollision is set to true.
-    bool moveByIKUnscaled(const OpenRAVE::Transform &targetTrans, bool checkCollisions = false, bool revertOnCollision=true);
-    // Moves the manipulator in scaled coordinates
-    bool moveByIK(const btTransform &targetTrans, bool checkCollisions = false, bool revertOnCollision=true) {
-      return moveByIKUnscaled(util::toRaveTransform(robot->toRaveFrame(targetTrans)), checkCollisions, revertOnCollision);
-    }
-
-    float getGripperAngle();
-    void setGripperAngle(float);
-
-    Manipulator::Ptr copy(RaveRobotObject::Ptr newRobot, Fork &f);
-  };
-
   // If useFakeGrabber is true, the manipulator will use a GrabberKinematicObject
   // which can "grab" objects by simply setting a point constraint with the nearest
   // object in front of the manipulator. Pass in false for realistic grasping.
-  Manipulator::Ptr createManipulator(const std::string &manipName, bool useFakeGrabber         = false);
-  void destroyManipulator(Manipulator::Ptr m); // not necessary to call this on destruction
-  Manipulator::Ptr getManipByIndex(int i) const { return createdManips[i]; }
-  Manipulator::Ptr getManipByName(const std::string& name);
+  RobotManipulatorPtr createManipulator(const std::string &manipName, bool useFakeGrabber         = false);
+  void destroyManipulator(RobotManipulatorPtr m); // not necessary to call this on destruction
+  RobotManipulatorPtr getManipByIndex(int i) const { return createdManips[i]; }
+  RobotManipulatorPtr getManipByName(const std::string& name);
   int numCreatedManips() const { return createdManips.size(); }
 protected:
-  std::vector<Manipulator::Ptr> createdManips;
+  std::vector<RobotManipulatorPtr> createdManips;
   RaveRobotObject() {}
+};
+
+struct RobotManipulator {
+  typedef boost::shared_ptr<RobotManipulator> Ptr;
+
+  RaveRobotObject *robot;
+  ModuleBasePtr ikmodule;
+  RobotBase::ManipulatorPtr manip, origManip;
+  int index; // id for this manipulator in this robot instance
+
+  bool useFakeGrabber;
+  GrabberKinematicObject::Ptr grabber;
+  void updateGrabberPos();
+
+  RobotManipulator(RaveRobotObject *robot_) : robot(robot_) { }
+
+  btTransform getTransform() const {
+    return robot->toWorldFrame(util::toBtTransform(manip->GetTransform()));
+  }
+  // Gets one IK solution closest to the current position in joint space
+  bool solveIKUnscaled(const OpenRAVE::Transform &targetTrans,
+     vector<dReal> &vsolution);
+  bool solveIK(const btTransform &targetTrans, vector<dReal> &vsolution) {
+    return solveIKUnscaled(
+            util::toRaveTransform(robot->toRaveFrame(targetTrans)),
+            vsolution);
+  }
+
+  // Gets all IK solutions
+  bool solveAllIKUnscaled(const OpenRAVE::Transform &targetTrans,
+        vector<vector<dReal> > &vsolutions);
+  bool solveAllIK(const btTransform &targetTrans,
+      vector<vector<dReal> > &vsolutions) {
+    return solveAllIKUnscaled(
+            util::toRaveTransform(robot->toRaveFrame(targetTrans)),
+            vsolutions);
+  }
+  vector<double> getDOFValues();
+  void setDOFValues(const vector<double>& vals);
+
+  // Moves the manipulator with IK to targetTrans in unscaled coordinates
+  // Returns false if IK cannot find a solution
+  // If checkCollisions is true, then this will return false if the new
+  // robot pose collides with anything in the environment (true otherwise).
+  // The robot will revert is position to the pre-collision state if
+  // revertOnCollision is set to true.
+  bool moveByIKUnscaled(const OpenRAVE::Transform &targetTrans, bool checkCollisions = false, bool revertOnCollision=true);
+  // Moves the manipulator in scaled coordinates
+  bool moveByIK(const btTransform &targetTrans, bool checkCollisions = false, bool revertOnCollision=true) {
+    return moveByIKUnscaled(util::toRaveTransform(robot->toRaveFrame(targetTrans)), checkCollisions, revertOnCollision);
+  }
+
+  float getGripperAngle();
+  void setGripperAngle(float);
+
+  RobotManipulatorPtr copy(RaveRobotObjectPtr newRobot, Fork &f);
 };
 
 std::vector<RaveRobotObject::Ptr> getRobots(Environment::Ptr env, RaveInstance::Ptr rave);

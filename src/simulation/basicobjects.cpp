@@ -100,6 +100,8 @@ BulletObject::BulletObject(btScalar mass, boost::shared_ptr<btCollisionShape> cs
 	construct(mass, cs, initTrans, isKinematic_);
 }
 
+BulletObject::~BulletObject() {
+}
 
 void BulletObject::init() {
     getEnvironment()->bullet->dynamicsWorld->addRigidBody(rigidBody.get());

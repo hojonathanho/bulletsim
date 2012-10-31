@@ -55,15 +55,7 @@ Eigen::VectorXd defaultMaxStepMvmt(const Eigen::MatrixXd& traj) {
   return maxStepMvmt;
 }
 
-Eigen::MatrixXd makeTraj(const Eigen::VectorXd& startJoints, const Eigen::VectorXd& endJoints,
-    int nSteps) {
-  assert(startJoints.size() == endJoints.size());
-  Eigen::MatrixXd startEndJoints(2, startJoints.size());
-  startEndJoints.row(0) = startJoints;
-  startEndJoints.row(1) = endJoints;
-  return interp2d(VectorXd::LinSpaced(nSteps, 0, 1), VectorXd::LinSpaced(2, 0, 1), startEndJoints);
 
-}
 
 void updateTraj(const VarArray& trajVars, Eigen::MatrixXd& traj) {
   for (int i = 0; i < traj.rows(); ++i)

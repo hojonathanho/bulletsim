@@ -5,6 +5,8 @@
 #include "utils/config.h"
 #include "bullet_io.h"
 #include "utils/logging.h"
+#include "config_bullet.h"
+
 #include <set>
 
 using namespace OpenRAVE;
@@ -576,8 +578,8 @@ KinBody::LinkPtr RaveRobotObject::getGrabberLink(RaveObject::Ptr target) {
 }
 
 
-RaveRobotObject::Manipulator::Ptr RaveRobotObject::getManipByName(const std::string& name) {
-  BOOST_FOREACH(Manipulator::Ptr manip, createdManips) {
+RobotManipulatorPtr RaveRobotObject::getManipByName(const std::string& name) {
+  BOOST_FOREACH(RobotManipulatorPtr manip, createdManips) {
     if (manip->manip->GetName() == name) return manip;
   }
   return Manipulator::Ptr();
@@ -635,7 +637,7 @@ bool RaveRobotObject::Manipulator::solveIKUnscaled(
 	return true;
 }
 
-bool RaveRobotObject::Manipulator::solveAllIKUnscaled(
+bool RobotManipulator::solveAllIKUnscaled(
 		const OpenRAVE::Transform &targetTrans,
 		vector<vector<dReal> > &vsolutions) {
 
@@ -649,7 +651,7 @@ bool RaveRobotObject::Manipulator::solveAllIKUnscaled(
 	return true;
 }
 
-bool RaveRobotObject::Manipulator::moveByIKUnscaled(
+bool RobotManipulator::moveByIKUnscaled(
 		const OpenRAVE::Transform &targetTrans, bool checkCollisions,
 		bool revertOnCollision) {
 
@@ -678,33 +680,33 @@ bool RaveRobotObject::Manipulator::moveByIKUnscaled(
 	return true;
 }
 
-float RaveRobotObject::Manipulator::getGripperAngle() {
+float RobotManipulator::getGripperAngle() {
 	vector<int> inds = manip->GetGripperIndices();
 	vector<double> vals = robot->getDOFValues(inds);
 	return vals[0];
 }
 
-void RaveRobotObject::Manipulator::setGripperAngle(float x) {
+void RobotManipulator::setGripperAngle(float x) {
 	vector<int> inds = manip->GetGripperIndices();
 	vector<double> vals(inds.size(),x);
 	robot->setDOFValues(inds, vals);
 }
 
-vector<double> RaveRobotObject::Manipulator::getDOFValues() {
+vector<double> RobotManipulator::getDOFValues() {
 	return robot->getDOFValues(manip->GetArmIndices());
 }
 
-void RaveRobotObject::Manipulator::setDOFValues(const vector<double>& vals) {
+void RobotManipulator::setDOFValues(const vector<double>& vals) {
 	robot->setDOFValues(manip->GetArmIndices(), vals);
 }
 
 
-RaveRobotObject::Manipulator::Ptr RaveRobotObject::Manipulator::copy(
+RobotManipulator::Ptr RaveRobotObject::Manipulator::copy(
 		RaveRobotObject::Ptr newRobot, Fork &f) {
 	OpenRAVE::EnvironmentMutex::scoped_lock lock(
 			newRobot->rave->env->GetMutex());
 
-	Manipulator::Ptr o(new Manipulator(newRobot.get()));
+	RobotManipulator::Ptr o(new RobotManipulator(newRobot.get()));
 
 	o->ikmodule = ikmodule;
 	o->origManip = origManip;

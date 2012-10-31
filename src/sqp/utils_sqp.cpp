@@ -31,6 +31,20 @@ void printAllConstraints(const GRBModel& model) {
 
   LOG_DEBUG("active: " << active.str());
   LOG_DEBUG("inactive: " << inactive.str());
+}
 
 
+void setValsToVars(VarVector& vars, VectorXd& vals) {
+  assert(vars.size()==vals.size());
+  for (int i=0; i < vars.size(); ++i) {
+    vals(i) = vars[i].get(GRB_DoubleAttr_X);
+  }
+}
+void setValsToVars(VarArray& vars, MatrixXd& vals) {
+  assert(vars.rows()==vals.rows());
+  for (int i=0; i < vars.rows(); ++i) {
+    for (int j=0; j < vars.cols(); ++j) {
+      vals(i,j) = vars(i,j).get(GRB_DoubleAttr_X);
+    }
+  }
 }

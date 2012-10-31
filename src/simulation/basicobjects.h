@@ -61,7 +61,7 @@ public:
     BulletObject(btScalar mass, boost::shared_ptr<btCollisionShape> cs, const btTransform &initTrans, bool isKinematic_=false);
 
     BulletObject(const BulletObject &o); // copy constructor
-    virtual ~BulletObject() { }
+    virtual ~BulletObject();
     EnvironmentObject::Ptr copy(Fork &f) const {
         Ptr o(new BulletObject(*this));
         internalCopy(o, f);

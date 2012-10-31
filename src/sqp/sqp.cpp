@@ -45,16 +45,18 @@ vector<double> evalApproxObjectives(const vector<ConvexObjectivePtr>& in) {
   return out;
 }
 
-void OptimizationProblem::printObjectiveInfo(const vector<double>& oldExact,
+void Optimizer::printObjectiveInfo(const vector<double>& oldExact,
     const vector<double>& newApprox, const vector<double>& newExact) {
   LOG_INFO("cost | exact | approx-improve | exact-improve | ratio");
   for (int i=0; i < m_costs.size(); ++i) {
     double approxImprove = oldExact[i] - newApprox[i];
     double exactImprove = oldExact[i] - newExact[i];
     LOG_INFO_FMT("%.15s | %.3e | %.3e | %.3e | %.3e", m_costs[i]->getName().c_str(),
-                 oldExact[i], approxImprove, exactImprove, approxImprove/exactImprove);
+                 oldExact[i], approxImprove, exactImprove, exactImprove/approxImprove);
   }
 }
+
+ConvexPart::ConvexPart() : m_inModel(false) {}
 
 void ConvexPart::addToModel(GRBModel* model) {
   m_model = model;
@@ -85,61 +87,65 @@ ConvexPart::~ConvexPart() {
   assert(!m_inModel);
 }
 
-OptimizationProblem::OptimizationProblem() {
+TrustRegion::TrustRegion() : m_shrinkage(1) {}
+
+void TrustRegion::resetTrustRegion() {
+  adjustTrustRegion(1./m_shrinkage);
+}
+
+Optimizer::Optimizer() {
   m_model = new GRBModel(*getGRBEnv());
 }
 
-OptimizationProblem::~OptimizationProblem() {
+Optimizer::~Optimizer() {
   delete m_model;
 }
 
-double OptimizationProblem::getApproxObjective() {
+double Optimizer::getApproxObjective() {
   return m_model->get(GRB_DoubleAttr_ObjVal);
 }
 
 /*
- void optimizationProblem::updateValues() {
+ void Optimizer::updateValues() {
  BOOST_FOREACH(ValVarMap::value_type& valvar, m_val2var) {
  *m_val2var[valvar.first] = m_val2var.second.get(GRB_DoubleAttr_X);
  }
  }
  */
-vector<ConvexObjectivePtr> OptimizationProblem::convexifyObjectives() {
+vector<ConvexObjectivePtr> Optimizer::convexifyObjectives() {
   vector<ConvexObjectivePtr> out;
   BOOST_FOREACH(CostPtr& cost, m_costs) {
-    out.push_back(cost->convexify());
+    out.push_back(cost->convexify(m_model));
   }
   return out;
 }
 
-vector<ConvexConstraintPtr> OptimizationProblem::convexifyConstraints() {
+vector<ConvexConstraintPtr> Optimizer::convexifyConstraints() {
   vector<ConvexConstraintPtr> out;
   BOOST_FOREACH(ConstraintPtr& cnt, m_cnts) {
-    out.push_back(cnt->convexify());
+    out.push_back(cnt->convexify(m_model));
   }
   return out;
 }
 
-void OptimizationProblem::addCost(CostPtr cost) {
-  cost->m_model = m_model;
+void Optimizer::addCost(CostPtr cost) {
   m_costs.push_back(cost);
 }
-void OptimizationProblem::addConstraint(ConstraintPtr cnt) {
-  cnt->m_model = m_model;
+void Optimizer::addConstraint(ConstraintPtr cnt) {
   m_cnts.push_back(cnt);
 }
-void OptimizationProblem::setTrustRegion(TrustRegionPtr tra) {
+void Optimizer::setTrustRegion(TrustRegionPtr tra) {
   m_tra = tra;
   assert(m_cnts.size()==0); //trust region must be first constraint
   addConstraint(tra);
 }
 
-int OptimizationProblem::convexOptimize() {
+int Optimizer::convexOptimize() {
   m_model->optimize();
   return m_model->get(GRB_IntAttr_Status);
 }
 
-vector<double> OptimizationProblem::evaluateObjectives() {
+vector<double> Optimizer::evaluateObjectives() {
   vector<double> out(m_costs.size());
   for (int i=0; i < m_costs.size(); ++i) {
     out[i] = m_costs[i]->evaluate();
@@ -147,7 +153,7 @@ vector<double> OptimizationProblem::evaluateObjectives() {
   return out;
 }
 
-void OptimizationProblem::setupConvexProblem(const vector<ConvexObjectivePtr>& objectives, const vector<
+void Optimizer::setupConvexProblem(const vector<ConvexObjectivePtr>& objectives, const vector<
     ConvexConstraintPtr>& constraints) {
   m_model->update();
   BOOST_FOREACH(const ConvexConstraintPtr& part, constraints)
@@ -159,14 +165,23 @@ void OptimizationProblem::setupConvexProblem(const vector<ConvexObjectivePtr>& o
   }
   m_model->setObjective(objective);
   m_model->update();
-
 }
 
-OptimizationProblem::OptStatus OptimizationProblem::optimize() {
+void Optimizer::clearConvexProblem(const vector<ConvexObjectivePtr>& objectives, const vector<
+    ConvexConstraintPtr>& constraints) {
+  BOOST_FOREACH(const ConvexConstraintPtr& part, constraints)
+    part->removeFromModel();
+  BOOST_FOREACH(const ConvexPartPtr& part, objectives)
+    part->removeFromModel();	
+}
+
+#include "utils/utils_vector.h"
+Optimizer::OptStatus Optimizer::optimize() {
 
   ////////////
   double trueImprove, approxImprove, improveRatio; // will be used to check for convergence
   vector<double> newObjectiveVals, objectiveVals;
+	bool grbFail=false;
   /////////
 
 
@@ -185,6 +200,10 @@ OptimizationProblem::OptStatus OptimizationProblem::optimize() {
     setupConvexProblem(objectives, constraints);
     ///////////////////////////////////
 
+    LOG_INFO("objectiveVals before: " << objectiveVals);
+    for (int i=0; i < m_costs.size(); ++i) std::cout << m_costs[i]->getName() << " " << m_costs[i]->evaluate() << std::endl;
+
+
     while (true) { // trust region adjustment
 
 
@@ -192,14 +211,15 @@ OptimizationProblem::OptStatus OptimizationProblem::optimize() {
       preOptimize();
       int grbStatus = convexOptimize();
       if (grbStatus != GRB_OPTIMAL) {
-        LOG_ERROR_FMT("bad GRB status: %s", getGRBStatusString(grbStatus));
-        return GRB_FAIL;
+        LOG_ERROR_FMT("bad GRB status: %s. problem written to /tmp/sqp_fail.lp", getGRBStatusString(grbStatus));
+	      m_model->write("/tmp/sqp_fail.lp");
+				grbFail = true;
+				break;
       }
       storeValues();
       updateValues();
       postOptimize();
       //////////////////////////////////////////////
-
 
       ////////// calculate new objectives ////////////
       vector<double> approxObjectiveVals = evalApproxObjectives(objectives);
@@ -213,14 +233,18 @@ OptimizationProblem::OptStatus OptimizationProblem::optimize() {
       LOG_INFO_FMT("true improvement: %.2e.  approx improvement: %.2e.  ratio: %.2f", trueImprove, approxImprove, improveRatio);
       //////////////////////////////////////////////
 
+      if (approxImprove < 1e-4) {
+        LOG_INFO("not much room to improve in this problem.");
+        break;
+      }
 
       if (newObjectiveVal > objectiveVal) {
         LOG_INFO("objective got worse! rolling back and shrinking trust region");
         rollbackValues();
         m_tra->adjustTrustRegion(SQPConfig::trShrink);
         // just change trust region constraint, keep everything else the same
-        constraints[0]->removeFromModel(); // first constraint should be trust region!
-        constraints[0] = m_tra->convexify();
+        constraints[0]->removeFromModel(); // first constraint = trust region!
+        constraints[0] = m_tra->convexify(m_model);
         constraints[0]->addToModel(m_model);
       }
       else {
@@ -232,13 +256,13 @@ OptimizationProblem::OptStatus OptimizationProblem::optimize() {
       }
 
     }
-
-    BOOST_FOREACH(const ConvexConstraintPtr& part, constraints)
-      part->removeFromModel();
-    BOOST_FOREACH(const ConvexPartPtr& part, objectives)
-      part->removeFromModel();
+		
+		clearConvexProblem(objectives, constraints);
 
     //// exit conditions ///
+		if (grbFail) {
+			return GRB_FAIL;
+		}		
     if (iter >= SQPConfig::maxIter) {
       LOG_INFO("reached iteration limit");
       return ITERATION_LIMIT;
@@ -251,6 +275,10 @@ OptimizationProblem::OptStatus OptimizationProblem::optimize() {
     if (trueImprove < SQPConfig::doneIterThresh && improveRatio > SQPConfig::trThresh) {
       LOG_INFO_FMT("cost improvement below convergence threshold (%.3e < %.3e). stopping", SQPConfig::doneIterThresh, SQPConfig::trThresh);
       return CONVERGED; // xxx should probably check that it improved multiple times in a row
+    }
+    if (approxImprove < 1e-4) {
+      LOG_INFO("no room to improve, according to convexification");
+      return CONVERGED;
     }
 
     ///////////////////////

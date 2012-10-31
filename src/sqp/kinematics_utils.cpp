@@ -5,8 +5,10 @@
 #include <opencv2/calib3d/calib3d.hpp>
 #include "utils_sqp.h"
 #include "utils/logging.h"
+#include "utils/interpolation.h"
 using namespace std;
 using namespace Eigen;
+
 
 Eigen::VectorXd toXYZROD(const btTransform& tf) {
   Eigen::VectorXd out(6);
@@ -45,6 +47,28 @@ btTransform fromXYZROD(const Eigen::VectorXd& xyzrod) {
 }
 void setTransformFromXYZROD(btRigidBody* body, const VectorXd& xyzrod) {
   body->setCenterOfMassTransform(fromXYZROD(xyzrod));
+}
+
+Eigen::MatrixXd makeTraj(const Eigen::VectorXd& startJoints, const Eigen::VectorXd& endJoints,
+    int nSteps) {
+  assert(startJoints.size() == endJoints.size());
+  Eigen::MatrixXd startEndJoints(2, startJoints.size());
+  startEndJoints.row(0) = startJoints;
+  startEndJoints.row(1) = endJoints;
+  return interp2d(VectorXd::LinSpaced(nSteps, 0, 1), VectorXd::LinSpaced(2, 0, 1), startEndJoints);
+
+}
+
+void getJointLimits(const RobotBasePtr& robot, const vector<int>& dofInds, VectorXd& lower, VectorXd& upper) {
+  lower.resize(dofInds.size());
+  upper.resize(dofInds.size());
+
+  vector<double> ul, ll;
+  for (int i = 0; i < dofInds.size(); ++i) {
+    robot->GetJointFromDOFIndex(dofInds[i])->GetLimits(ll, ul);
+    lower(i) = ll[0];
+    upper(i) = ul[0];
+  }
 }
 
 
@@ -142,6 +166,42 @@ std::vector<OpenRAVE::KinBody::LinkPtr> getAffectedLinks(OpenRAVE::RobotBasePtr 
   return out;
 }
 
+bool doesAffect(const RobotBasePtr& robot, const vector<int>& dofInds, int linkInd) {
+  BOOST_FOREACH(int dofInd, dofInds) {
+    if (robot->DoesAffect(dofInd, linkInd)) return true;
+  }
+  return false;
+}
+
+void getAffectedLinks2(RobotBasePtr robot, const vector<int>& dofInds, vector<KinBody::LinkPtr>& links,
+                       vector<int>& linkInds) {
+  const vector<KinBody::LinkPtr>& robotLinks = robot->GetLinks();
+  links.clear();
+  linkInds.clear();
+  BOOST_FOREACH(const KinBody::LinkPtr& link, robotLinks) {
+    if (link->GetGeometries().size()>0 && doesAffect(robot, dofInds, link->GetIndex())) {
+      links.push_back(link);
+      linkInds.push_back(link->GetIndex());
+    }
+  }
+
+  vector<KinBodyPtr> grabbed;
+  robot->GetGrabbed(grabbed);
+  BOOST_FOREACH(const KinBodyPtr& body, grabbed) {
+    KinBody::LinkPtr grabberLink = robot->IsGrabbing(body);
+    assert(grabberLink);
+    if (doesAffect(robot, dofInds, grabberLink->GetIndex())) {
+      BOOST_FOREACH(const KinBody::LinkPtr& link, body->GetLinks()) {
+        if (link->GetGeometries().size()>0) {
+          links.push_back(link);
+          linkInds.push_back(grabberLink->GetIndex());
+        }
+      }
+    }
+  }
+
+}
+
 vector<btVector3> getGripperPositions(const MatrixXd& traj, RaveRobotObject::Manipulator::Ptr rrom) {
   vector<double> dofOrig = rrom->getDOFValues();
   vector<btVector3> out;
@@ -216,4 +276,6 @@ BulletRaveSyncherPtr fullBodySyncher(RaveRobotObject* rro) {
   LOG_DEBUG("synched links: " << ss);
   return BulletRaveSyncherPtr(new BulletRaveSyncher(links, bodies));
 }
+
+
 

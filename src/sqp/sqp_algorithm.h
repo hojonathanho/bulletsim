@@ -12,8 +12,6 @@ GRBEnv* getGRBEnv();
 
 class Scene;
 
-
-
 class PlanningProblem {
   // fixed size optimization problem
 public:
@@ -340,7 +338,6 @@ public:
 };
 
 Eigen::VectorXd defaultMaxStepMvmt(const Eigen::MatrixXd& traj);
-Eigen::MatrixXd makeTraj(const Eigen::VectorXd& startJoints, const Eigen::VectorXd& endJoints, int nSteps);
 Eigen::MatrixXd makeTraj(RaveRobotObject::Manipulator::Ptr manip, const Eigen::VectorXd& startJoints,
                          const btTransform endTransform, int nSteps);
 Eigen::MatrixXd makeTraj(RaveRobotObject::Manipulator::Ptr manip, const std::vector<btTransform>& transforms);

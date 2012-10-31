@@ -1,21 +1,29 @@
 #pragma once
 #include "simulation/environment.h"
 #include "sqp_fwd.h"
+#include "simulation/simulation_fwd.h"
+#include "simulation/openravesupport.h"
 #include <Eigen/Dense>
 #include <openrave/openrave.h>
-#include "simulation/openravesupport.h"
-
+using Eigen::VectorXd;
+using Eigen::MatrixXd;
+using std::vector;
+using namespace OpenRAVE;
 
 Eigen::VectorXd toXYZROD(const btTransform& tf);
 btTransform fromXYZROD(const Eigen::VectorXd& xyzrod);
 void setTransformFromXYZROD(btRigidBody* body, const Eigen::VectorXd& xyzrod);
 
 
-void getArmKinInfo(const OpenRAVE::RobotBasePtr& robot, const OpenRAVE::RobotBase::ManipulatorPtr manip, std::vector<OpenRAVE::KinBody::LinkPtr>& armLinks, std::vector<OpenRAVE::KinBody::JointPtr>& armJoints, std::vector<int>& chainDepthOfBodies);
+Eigen::MatrixXd makeTraj(const Eigen::VectorXd& startJoints, const Eigen::VectorXd& endJoints, int nSteps);
+
+void getJointLimits(const RobotBasePtr& robot, const vector<int>& dofInds, VectorXd& lower, VectorXd& upper);
 
 std::vector<OpenRAVE::KinBody::JointPtr> getArmJoints(OpenRAVE::RobotBase::ManipulatorPtr manip);
 std::vector<OpenRAVE::KinBody::LinkPtr> getArmLinks(OpenRAVE::RobotBase::ManipulatorPtr manip);
 std::vector<OpenRAVE::KinBody::LinkPtr> getAffectedLinks(OpenRAVE::RobotBasePtr robot, const std::vector<int>& dofInds);
+void getAffectedLinks2(RobotBasePtr robot, const vector<int>& dofInds,
+                       vector<KinBody::LinkPtr>& links, vector<int>& linkInds);
 Eigen::MatrixXd calcPointJacobian(const RobotBasePtr& robot, int linkInd, const btVector3& pt, bool useAffine);
 
 
@@ -50,4 +58,9 @@ public:
 
 
 void removeBodiesFromBullet(vector<BulletObject::Ptr> objs, btDynamicsWorld* world);
+
+void registerGrab(KinBody::LinkPtr grabberLink, KinBodyPtr grabbedBody);
+KinBody::LinkPtr getGrabberLink(KinBodyPtr body);
+void registerRelease(KinBodyPtr body);
+
 

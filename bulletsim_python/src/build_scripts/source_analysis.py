@@ -6,7 +6,10 @@ def find_classes(text):
     """
     nest_level = 0
     brace_re = re.compile("[\{\}]")
-    class_re = re.compile("(?:class|struct)\s*(\w+)\s*(?:\:\s*public\s*\w+)?\s*\{")
+    classname_re = "[\w\<\>\:]+"
+    class_re = re.compile(
+        "(?:class|struct)\s*(\w+)\s*(?:\:\s*public\s*" 
+        + classname_re  + "(?:,\s*public\s*" + classname_re + ")*)?\s*\{")
     
     classes = []
     lines = text.split("\n")

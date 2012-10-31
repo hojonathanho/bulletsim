@@ -1,15 +1,34 @@
-#include "simulation/simplescene.h"
 #include "plotters.h"
-#include "traj_costs.h"
+#include "simulation/simplescene.h"
 #include "utils/logging.h"
 #include "kinematics_utils.h"
 #include "state_setter.h"
 #include "utils/clock.h"
 #include "config_sqp.h"
+#include "collisions.h"
+#include "simulation/plotting.h"
+#include "simulation/fake_gripper.h"
 
 using namespace util;
 using namespace std;
 using namespace Eigen;
+
+void pauseScene() {
+	Scene* scene = util::getGlobalScene();
+	assert(scene != NULL);
+	printf("press p to resume\n");
+	scene->idle(true);
+}
+
+PlotHandles::PlotHandles(const std::vector<EnvironmentObject::Ptr>& plots, Environment::Ptr env) : m_plots(plots), m_env(env) {
+	for (int i=0; i < m_plots.size(); ++i) m_env->add(plots[i]);
+}
+PlotHandles::~PlotHandles() {
+	for (int i=0; i < m_plots.size(); ++i) {
+		m_env->remove(m_plots[i]);
+	}
+}
+
 
 void StatePlotter::plotTraj(const Eigen::MatrixXd& traj) {
   ScopedStateSave sss(m_ss.get());
@@ -72,7 +91,7 @@ void GripperPlotter::plotTraj(const MatrixXd& traj) {
 
 GripperPlotter::~GripperPlotter() {
   clear();
-  m_osgRoot->removeChild(m_curve);
+  m_osgRoot->removeChild(m_curve.get());
 }
 
 GripperAxesPlotter::GripperAxesPlotter(RaveRobotObject::Manipulator::Ptr manip, int startCol, Environment::Ptr env, float size) :
@@ -122,7 +141,7 @@ void ArmPlotter::init(RaveRobotObject::Manipulator::Ptr rrom,
 }
 
 ArmPlotter::~ArmPlotter() {
-  m_osgRoot->removeChild(m_curve);
+  m_osgRoot->removeChild(m_curve.get());
   m_scene->env->remove(m_axes);
 }
 

@@ -5,14 +5,15 @@
 #include <Eigen/Dense>
 #include "utils_sqp.h"
 #include "sqp.h"
-#include <btBulletCollisionCommon.h>
+#include <btBulletDynamicsCommon.h>
 using std::vector;
 using std::map;
 using Eigen::MatrixXd;
 using Eigen::VectorXd;
 
-class DynamicsSolver : public OptimizationProblem {
+class TrajDynSolver : public Optimizer {
 public:
+
 
   const static int CW_TIME = -1; // timestep that is set up in collision world
   const static int POSE_DIM = 3; // dimensionality of pose
@@ -28,9 +29,8 @@ public:
   int m_numTimesteps;
   bool m_initialized;
 
-  DynamicsSolver(btCollisionWorld* m_world, int numTimeSteps);
+  TrajDynSolver(btCollisionWorld* m_world, int numTimeSteps);
 
-	double sumObjectives(vector<ConvexObjectivePtr>&);
 	void updateValues();
 	void storeValues();
 	void rollbackValues();
@@ -55,25 +55,116 @@ public:
 
 };
 
-class DynamicsCost : public Cost {
+class TrajDynComponent {
 public:
-  DynamicsSolver* m_solver;
-  DynamicsSolver* getSolver();
+  TrajDynSolver* m_solver;
+  TrajDynSolver* getSolver();
 
 };
 
-class NoFricDynCost : public DynamicsCost {
+
+class TrajDynErrCost : public TrajDynComponent, public Cost {
 public:
 	vector<btRigidBody*> m_bodies;
-	ConvexObjectivePtr convexify();
+	ConvexObjectivePtr convexify(GRBModel* model);
 	double evaluate();
 };
 
-class OverlapCost : public DynamicsCost {
+class TrajOverlapCost : public TrajDynComponent, public Cost {
 public:
 	vector<btRigidBody*> m_bodies;
-	ConvexObjectivePtr convexify();
+	ConvexObjectivePtr convexify(GRBModel* model);
 	double evaluate();
 };
 
 StateSetterPtr makeStateSetter(vector<btRigidBody*>&);
+
+
+////////
+
+
+class DynSolver : public Optimizer {
+public:
+
+
+  const static int POSE_DIM = 3; // dimensionality of pose
+
+  vector<btRigidBody*> m_bodies;
+  map<btRigidBody*, VectorXd>  m_obj2poses;
+  map<btRigidBody*, VarVector> m_obj2poseVars;
+  map<btRigidBody*, VectorXd> m_obj2poses_backup;
+  map<btRigidBody*, VectorXd> m_obj2prevPoses;
+  map<btRigidBody*, string> m_obj2name;
+  map<btRigidBody*, vector<GRBConstr> > m_holdCnts;
+
+  btCollisionWorld* m_world;
+  bool m_initialized;
+
+  DynSolver(btCollisionWorld* world);
+
+	void updateValues();
+	void storeValues();
+	void rollbackValues();
+
+  double fixPermanentVarsAndOptimize();
+	
+  VarVector& getPoseVars(btRigidBody*);
+  VectorXd& getPoseValues(btRigidBody*);
+  ExprVector getVelVars(btRigidBody*);
+
+  void addObject(btRigidBody*, const string& name);
+  void constrainPose(btRigidBody*);
+  void getPosesFromWorld();
+  void release(btRigidBody*);
+  void initialize();
+
+  void updateBodies();
+
+};
+
+
+class DynComponent {
+public:
+  DynComponent(DynSolver*);
+  DynSolver* m_solver;
+  DynSolver* getSolver() {
+    return m_solver;
+  }
+
+};
+
+class DynErrCost: public Cost, public DynComponent {
+public:
+  double m_forceErrCoeff, m_normalForceCoeff;
+  DynErrCost(DynSolver* solver, double normalForceCoeff, double forceErrorCoeff);
+	ConvexObjectivePtr convexify(GRBModel* model);
+	double evaluate();
+  string getName() {return "DynErrCost";}
+};
+
+class VelCost : public Cost, public DynComponent {
+public:
+   double m_coeff;
+   VelCost(DynSolver* solver, double coeff);
+   ConvexObjectivePtr convexify(GRBModel* model);
+   double evaluate();
+   string getName() {return "VelCost";}
+ };
+
+
+class DynOverlapCost: public Cost, public DynComponent {
+public:
+  double m_overlapCoeff;
+  DynOverlapCost(DynSolver* solver, double overlapCoeff);
+  ConvexObjectivePtr convexify(GRBModel* model);
+  double evaluate();
+  string getName() {return "DynOverlapCost";}
+};
+
+class DynTrustRegion : public TrustRegion, public DynComponent {
+public:
+  VectorXd m_maxDiffPerIter;
+  DynTrustRegion(DynSolver* solver);
+  ConvexConstraintPtr convexify(GRBModel* model);
+  void adjustTrustRegion(double ratio);
+};

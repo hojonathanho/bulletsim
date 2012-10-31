@@ -70,14 +70,13 @@ public:
 };
 
 
-class VectorOptimization : public OptimizationProblem {
+class VectorOptimizer : public Optimizer {
 public:
   vector<GRBVar> m_xvar;
   VectorXd m_x;
   VectorXd m_x_backup;
-  VectorOptimization() :
-    OptimizationProblem(),
-    m_x(std::numeric_limits<double>::quiet_NaN()) {}
+  VectorOptimizer() :
+    Optimizer() {}
   void updateValues() {
     for (int i=0; i < m_x.size(); ++i) {
       m_x[i] = m_xvar[i].get(GRB_DoubleAttr_X);
@@ -107,7 +106,7 @@ public:
   }
 };
 #if 0
-class VectorOptimization : public OptimizationProblem {
+class VectorOptimization : public Optimizer {
 public:
   vector<GRBVar> vecs;
   vector<double> vals;

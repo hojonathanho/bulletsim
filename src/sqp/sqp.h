@@ -15,7 +15,7 @@ public:
 	void addToModel(GRBModel* model);
 	void removeFromModel();
 
-	ConvexPart() : m_inModel(false) {}
+	ConvexPart();
 	virtual ~ConvexPart();
   bool m_inModel;
   GRBModel* m_model;
@@ -44,31 +44,28 @@ public:
 
 class Cost {
 public:
-	virtual ConvexObjectivePtr convexify()=0;
+	virtual ConvexObjectivePtr convexify(GRBModel* model)=0;
 	virtual double evaluate() = 0;
-	virtual string getName() {
-	  return "unnamed cost";
-	}
+	virtual string getName() {return "Unnamed";}
 
-	GRBModel* m_model;
 };
 
 class Constraint {
 public:
-	virtual ConvexConstraintPtr convexify()=0;
+	virtual ConvexConstraintPtr convexify(GRBModel* model)=0;
 
-	GRBModel* m_model;
 };
 
 
 class TrustRegion : public Constraint {
 public:
 	double m_shrinkage;
-	TrustRegion() : m_shrinkage(1) {}
+	TrustRegion();
 	virtual void adjustTrustRegion(double ratio) = 0;
+	void resetTrustRegion();
 };
 
-class OptimizationProblem {
+class Optimizer {
 public:
 
 	enum OptStatus {
@@ -83,8 +80,8 @@ public:
 	TrustRegionPtr m_tra;
 	GRBModel* m_model;
 	
-	OptimizationProblem();
-	virtual ~OptimizationProblem();
+	Optimizer();
+	virtual ~Optimizer();
 	
 	virtual void updateValues() = 0;
 	virtual void storeValues() = 0;
@@ -97,7 +94,7 @@ public:
   void addConstraint(ConstraintPtr cnt);
   void setTrustRegion(TrustRegionPtr tra);
 
-private:
+protected:
 
   int convexOptimize();
 	double getApproxObjective();
@@ -107,6 +104,7 @@ private:
 	void printObjectiveInfo(const vector<double>& oldExact,
 	     const vector<double>& newApprox, const vector<double>& newExact);
 	void setupConvexProblem(const vector<ConvexObjectivePtr>&, const vector<ConvexConstraintPtr>&);
+	void clearConvexProblem(const vector<ConvexObjectivePtr>&, const vector<ConvexConstraintPtr>&);
 
 };
 
