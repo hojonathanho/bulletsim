@@ -3,11 +3,24 @@
 using namespace std;
 using namespace Eigen;
 
+
+MatrixXd calcJacobian(const fVectorOfVector& f, const Eigen::VectorXd& x0, double epsilon) {
+  int nIn = x0.size();
+  VectorXd y0 = f(x0);
+  int nOut = y0.size();
+  MatrixXd out(nOut, nIn);
+  VectorXd x = x0;
+  for (int i = 0; i < nIn; ++i) {
+    x(i) = x0(i) + epsilon;
+    out.col(i) = (f(x) - y0) / epsilon;
+    x(i) = x0(i);
+  }
+  return out;
+}
+
 Eigen::MatrixXd matGrad(const fScalarOfMatrix& f, const Eigen::MatrixXd& x0, double epsilon) {
 	double y0 = f(x0);
-
 	MatrixXd grad(x0.rows(), x0.cols());
-
 	MatrixXd x = x0;
 	for (int i=0; i < x0.rows(); ++i) {
 		for (int j=0; j < x0.cols(); ++j) {

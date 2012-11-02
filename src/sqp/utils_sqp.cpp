@@ -2,6 +2,21 @@
 #include "utils/logging.h"
 #include <boost/format.hpp>
 using namespace std;
+
+VectorXd arange(int n) {
+  VectorXd out(n);
+  for (int i=0; i < n; ++i) out(i) = i;
+  return out;
+}
+
+MatrixXd linearInterp(const Eigen::VectorXd& startJoints, const Eigen::VectorXd& endJoints, int nSteps) {
+  MatrixXd out(nSteps, startJoints.size());
+  for (int i=0; i < nSteps; ++i) {
+    out.row(i) = ((double)i/nSteps)*endJoints + ((double)(nSteps-i)/nSteps)*startJoints;
+  }
+  return out;
+}
+
 std::vector<double> toDoubleVec(const Eigen::VectorXd& in) {
   vector<double> out;
   out.assign(in.data(), in.data() + in.size());

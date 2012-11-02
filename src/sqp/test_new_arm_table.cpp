@@ -40,11 +40,6 @@ const static double postures[][7] = { { -0.4, 1.0, 0.0, -2.05, 0.0, -0.1, 0.0 },
     { 0, 0, 0, 0, 0, 0, 0 } }; //4=outstretched
 
 
-VectorXd arange(int n) {
-  VectorXd out(n);
-  for (int i=0; i < n; ++i) out(i) = i;
-  return out;
-}
 
 int main(int argc, char *argv[]) {
 
@@ -100,7 +95,7 @@ int main(int argc, char *argv[]) {
   getJointLimits(pr2->robot, dofInds, lower, upper);
   cout << lower.size() << " " << upper.size() << " " << maxPerIter.size() << endl;
   trajOpt.setTrustRegion(TrustRegionPtr(new JointBounds(&trajOpt, maxPerIter, lower, upper)));
-  trajOpt.addCost(CostPtr(new CollisionCost(&trajOpt, pr2, dofInds, false, SQPConfig::collCoefInit)));
+  trajOpt.addCost(CostPtr(new CollisionCost(&trajOpt, pr2.get(), dofInds, false, SQPConfig::collCoefInit)));
   trajOpt.addCost(CostPtr(new JntLenCost(&trajOpt, .1)));
 
   trajOpt.m_plotters.push_back(ArmPlotterPtr(new ArmPlotter(pr2m.pr2Right, &scene, 1)));

@@ -19,12 +19,12 @@ static const char* grb_statuses[] = { "XXX", //0
     "SUBOPTIMAL" //13
     };
 
-static GRBEnv* grbEnv;
+static boost::shared_ptr<GRBEnv> grbEnv;
 void initializeGRB() {
- grbEnv = new GRBEnv();
+ grbEnv.reset(new GRBEnv());
  if (GeneralConfig::verbose > 0) grbEnv->set(GRB_IntParam_OutputFlag, 0);
 }
-GRBEnv* getGRBEnv() {
+boost::shared_ptr<GRBEnv> getGRBEnv() {
   return grbEnv;
 }
 
@@ -84,7 +84,7 @@ void ConvexPart::removeFromModel() {
 }
 
 ConvexPart::~ConvexPart() {
-  assert(!m_inModel);
+//  assert(!m_inModel);
 }
 
 TrustRegion::TrustRegion() : m_shrinkage(1) {}
@@ -175,7 +175,6 @@ void Optimizer::clearConvexProblem(const vector<ConvexObjectivePtr>& objectives,
     part->removeFromModel();	
 }
 
-#include "utils/utils_vector.h"
 Optimizer::OptStatus Optimizer::optimize() {
 
   ////////////
@@ -233,14 +232,16 @@ Optimizer::OptStatus Optimizer::optimize() {
       LOG_INFO_FMT("true improvement: %.2e.  approx improvement: %.2e.  ratio: %.2f", trueImprove, approxImprove, improveRatio);
       //////////////////////////////////////////////
 
-      if (approxImprove < 1e-4) {
+      if (approxImprove < 1e-7) {
         LOG_INFO("not much room to improve in this problem.");
+        rollbackValues();
         break;
       }
 
+
       if (newObjectiveVal > objectiveVal) {
         LOG_INFO("objective got worse! rolling back and shrinking trust region");
-        rollbackValues();
+        rollbackValues();//
         m_tra->adjustTrustRegion(SQPConfig::trShrink);
         // just change trust region constraint, keep everything else the same
         constraints[0]->removeFromModel(); // first constraint = trust region!
@@ -276,7 +277,7 @@ Optimizer::OptStatus Optimizer::optimize() {
       LOG_INFO_FMT("cost improvement below convergence threshold (%.3e < %.3e). stopping", SQPConfig::doneIterThresh, SQPConfig::trThresh);
       return CONVERGED; // xxx should probably check that it improved multiple times in a row
     }
-    if (approxImprove < 1e-4) {
+    if (approxImprove < 1e-7) {
       LOG_INFO("no room to improve, according to convexification");
       return CONVERGED;
     }
@@ -284,4 +285,12 @@ Optimizer::OptStatus Optimizer::optimize() {
     ///////////////////////
 
   }
+}
+
+void addHingeCost(ConvexObjectivePtr& cost, double coeff, const GRBLinExpr& err, GRBModel* model, const string& desc) {
+    GRBVar errcost = model->addVar(0,GRB_INFINITY,0, GRB_CONTINUOUS);
+    cost->m_vars.push_back(errcost);
+    cost->m_exprs.push_back(err - errcost);
+    cost->m_cntNames.push_back(desc);
+    cost->m_objective += coeff * errcost;
 }

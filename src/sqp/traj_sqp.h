@@ -3,6 +3,7 @@
 #include "utils_sqp.h"
 #include "simulation/simulation_fwd.h"
 #include "sqp/sqp_fwd.h"
+#include "simulation/openrave_fwd.h"
 
 class btDynamicsWorld;
 class TrajPlotter;
@@ -44,7 +45,7 @@ public:
 	VarArray& getVars() {
 		return m_opt->m_vars;
 	}
-	int getWidth() {
+	int getDof() {
 	  return m_opt->m_traj.cols();
 	}
 	int getLength() {
@@ -57,22 +58,35 @@ public:
 
 class CollisionCost : public Cost, public TrajComponent {
 public:
-  RaveRobotObjectPtr m_robot;
+  RaveRobotObject* m_robot;
 	vector<int> m_dofInds;
   bool m_useAffine;
   double m_coeff;
 	
-	CollisionCost(TrajOptimizer* opt, RaveRobotObjectPtr robot, const vector<int>& dofInds, bool useAffine, double coeff);
+	CollisionCost(TrajOptimizer* opt, RaveRobotObject* robot, const vector<int>& dofInds, bool useAffine, double coeff);
 	double evaluate();
   ConvexObjectivePtr convexify(GRBModel* model);	
 	string getName() {return "CollisionCost";}
 };
+
 class CartPoseCost : public Cost, public TrajComponent {
 public:
+  RobotManipulatorPtr m_arm;
+  void* m_link;
+  vector<int> m_dofInds;
+  bool m_useAffine;
+  Vector3d m_posTarg;
+  Vector4d m_rotTarg;
+  double m_posCoeff, m_rotCoeff;
+  bool m_l1;
+
+  CartPoseCost(TrajOptimizer* opt, RobotManipulatorPtr arm, void* link, const vector<int>& dofInds,
+               bool useAffine, const btTransform& goal, double posCoeff, double rotCoeff, bool l1);
 	double evaluate();
   ConvexObjectivePtr convexify(GRBModel* model);	
 	string getName() {return "CartPoseCost";}
 };
+
 class JntLenCost : public Cost, public TrajComponent {
 public:
   double m_coeff;
@@ -93,6 +107,7 @@ public:
   ConvexConstraintPtr convexify(GRBModel* model);
 	void adjustTrustRegion(double ratio);
 };
+
 class CartVelCnt : public Constraint, public TrajComponent {
 public:
   ConvexConstraintPtr convexify(GRBModel* model);

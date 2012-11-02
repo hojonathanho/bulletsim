@@ -87,7 +87,7 @@ class DynSolver : public Optimizer {
 public:
 
 
-  const static int POSE_DIM = 3; // dimensionality of pose
+  const static int POSE_DIM = 6; // dimensionality of pose
 
   vector<btRigidBody*> m_bodies;
   map<btRigidBody*, VectorXd>  m_obj2poses;
@@ -144,7 +144,7 @@ public:
 
 class VelCost : public Cost, public DynComponent {
 public:
-   double m_coeff;
+   VectorXd m_weights;
    VelCost(DynSolver* solver, double coeff);
    ConvexObjectivePtr convexify(GRBModel* model);
    double evaluate();

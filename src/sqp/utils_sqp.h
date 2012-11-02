@@ -10,6 +10,9 @@ using std::string;
 using std::vector;
 using Eigen::MatrixXd;
 using Eigen::VectorXd;
+using Eigen::Vector3d;
+using Eigen::Vector4d;
+
 
 template<class T>
 struct BasicArray {
@@ -118,6 +121,9 @@ inline double clip(double x, double lo, double hi) {
                 x > hi ? hi :
                        x;
 }
+
+VectorXd arange(int n);
+MatrixXd linearInterp(const VectorXd& start, const VectorXd& end, int nSteps);
 
 inline std::string base_filename(char* in) {
   std::string s(in);

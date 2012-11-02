@@ -108,3 +108,4 @@ protected:
 
 };
 
+void addHingeCost(ConvexObjectivePtr& cost, double coeff, const GRBLinExpr& err, GRBModel* model, const string& desc);

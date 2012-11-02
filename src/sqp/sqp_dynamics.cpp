@@ -8,6 +8,13 @@
 #include "utils/logging.h"
 using std::cout;
 using std::endl;
+using Eigen::Matrix3d;
+using Eigen::Vector3d;
+
+extern Eigen::VectorXd toXYZROD(const btTransform& tf);
+extern btTransform fromXYZROD(const Eigen::VectorXd& xyzrod);
+Matrix3d rotJacWorld(const Vector3d& ptWorld, const Vector3d& centerWorld, const Vector3d& rod);
+
 
 template<typename S, typename T>
 vector<T> sliceVec(const vector<T>& in, int start, int end) {
@@ -169,11 +176,11 @@ void TrajDynSolver::initialize() {
   m_initialized = true;
 }
 
-////////////////////
 
 TrajDynSolver* TrajDynComponent::getSolver() {
   return m_solver;
 }
+
 
 GRBLinExpr makeDerivExpr(const VectorXd& grad, const VarVector& vars, const VectorXd& curvals) {
   assert (grad.size() == vars.size());
@@ -184,8 +191,10 @@ GRBLinExpr makeDerivExpr(const VectorXd& grad, const VarVector& vars, const Vect
 }
 
 VectorXd calcDistJacobian(const btVector3& penpt, const btVector3& normal, const VectorXd& pose) {
-  assert (TrajDynSolver::POSE_DIM == 3);
-  return toVector3d(normal);
+  VectorXd out(6);
+  out.topRows(3) = toVector3d(normal);
+  out.bottomRows(3) = toVector3d(normal).transpose()*rotJacWorld(toVector3d(penpt), pose.topRows(3), pose.bottomRows(3));
+  return out;
 
 }
 
@@ -218,7 +227,7 @@ ConvexObjectivePtr TrajOverlapCost::convexify(GRBModel* model) {
                                                getSolver()->getPoseValues(objA)); // XXX CHECK SIGN
         GRBLinExpr dDistOfB = makeDerivExpr(dDist_dPoseB, getSolver()->getPoseVars(objB),
                                                getSolver()->getPoseValues(objB));
-        GRBLinExpr overlap = - (dDistOfA + dDistOfB + pt.getDistance());
+        GRBLinExpr overlap = - (dDistOfA + dDistOfB + pt.getDistance()/METERS);
         out->m_exprs.push_back(overlap - overlap_cost);
         out->m_cntNames.push_back("hingefunc");
         out->m_objective += overlap_cost;
@@ -245,7 +254,7 @@ double TrajOverlapCost::evaluate() {
       int numContacts = contactManifold->getNumContacts();
       for (int j = 0; j < numContacts; ++j) {
         btManifoldPoint& pt = contactManifold->getContactPoint(j);
-        out += pospart(-pt.getDistance());
+        out += pospart(-pt.getDistance()/METERS);
       }
     }
 
@@ -340,13 +349,13 @@ void DynSolver::updateValues() {
 
 void DynSolver::getPosesFromWorld() {
   BOOST_FOREACH(btRigidBody* body, m_bodies) {
-    m_obj2prevPoses[body] = toVector3d(body->getCenterOfMassPosition());
+    m_obj2prevPoses[body] = toXYZROD(body->getCenterOfMassTransform());
   }
 }
 
 void DynSolver::updateBodies() {
   BOOST_FOREACH(btRigidBody* body, m_bodies) {
-    btTransform tf(btQuaternion::getIdentity(), toBulletVector(m_obj2poses[body]));
+    btTransform tf = fromXYZROD(m_obj2poses[body]);
     body->setCenterOfMassTransform(tf);
     body->getMotionState()->setWorldTransform(tf);
 
@@ -392,10 +401,9 @@ void DynSolver::addObject(btRigidBody* o, const string& name) {
   m_bodies.push_back(o);
   m_obj2name[o] = name;
   m_obj2poseVars[o] = VarVector(POSE_DIM);
-  m_obj2poses[o] = toVector3d(o->getCenterOfMassPosition());
-  m_obj2prevPoses[o] = toVector3d(o->getCenterOfMassPosition());
+  m_obj2poses[o] = toXYZROD(o->getCenterOfMassTransform());
+  m_obj2prevPoses[o] = toXYZROD(o->getCenterOfMassTransform());
   VarVector& poseVars = m_obj2poseVars[o];
-  VectorXd initPose = toVector3d(o->getCenterOfMassPosition());
 
   for (int j = 0; j < POSE_DIM; ++j) {
     char namebuf[20];
@@ -435,12 +443,18 @@ DynComponent::DynComponent(DynSolver* solver) :
 
 
 VelCost::VelCost(DynSolver* solver, double coeff) :
-  DynComponent(solver), m_coeff(coeff) {}
+  DynComponent(solver) {
+  m_weights.resize(6);
+  m_weights << 1,1,1,.3,.3,.3;
+  m_weights *= coeff;
+}
 
 ConvexObjectivePtr VelCost::convexify(GRBModel* model) {
   ConvexObjectivePtr out(new ConvexObjective());
   BOOST_FOREACH(btRigidBody* body, getSolver()->m_bodies) {
-    out->m_objective += m_coeff * exprNorm2(exprSub(getSolver()->m_obj2poseVars[body], getSolver()->m_obj2prevPoses[body]));
+    out->m_objective += exprNorm2(
+        exprMult(exprSub(getSolver()->m_obj2poseVars[body], getSolver()->m_obj2prevPoses[body]),
+                 m_weights));
   }
   return out;
 }
@@ -448,7 +462,7 @@ ConvexObjectivePtr VelCost::convexify(GRBModel* model) {
 double VelCost::evaluate() {
   double out=0;
   BOOST_FOREACH(btRigidBody* body, getSolver()->m_bodies) {
-    out += m_coeff * (getSolver()->m_obj2poses[body] -  getSolver()->m_obj2prevPoses[body]).squaredNorm();
+    out +=  m_weights.cwiseProduct(getSolver()->m_obj2poses[body] -  getSolver()->m_obj2prevPoses[body]).squaredNorm();
   }
   return out;
 }
@@ -462,7 +476,7 @@ ConvexObjectivePtr DynErrCost::convexify(GRBModel* model) {
 
   typedef map<btRigidBody*, ExprVector> CO2Force;
   CO2Force netForces;
-  BOOST_FOREACH(btRigidBody* body, getSolver()->m_bodies) netForces[body] = ExprVector(3);
+  BOOST_FOREACH(btRigidBody* body, getSolver()->m_bodies) netForces[body] = ExprVector(DynSolver::POSE_DIM);
   ConvexObjectivePtr out(new ConvexObjective());
 
   getSolver()->m_world->performDiscreteCollisionDetection();
@@ -532,7 +546,10 @@ ConvexObjectivePtr DynOverlapCost::convexify(GRBModel* model) {
                                              getSolver()->getPoseValues(objA)); // XXX CHECK SIGN
       GRBLinExpr dDistOfB = makeDerivExpr(dDist_dPoseB, getSolver()->getPoseVars(objB),
                                              getSolver()->getPoseValues(objB));
-      GRBLinExpr overlap = -(dDistOfA + dDistOfB + pt.getDistance());
+//      cout << "dDist_dPoseA " << dDist_dPoseA.transpose() << endl;
+//      cout << "dDist_dPoseB " << dDist_dPoseB.transpose() << endl;
+
+      GRBLinExpr overlap = -(dDistOfA + dDistOfB + pt.getDistance()/METERS);
       out->m_exprs.push_back(overlap - overlap_cost);
       out->m_cntNames.push_back("hingefunc");
       out->m_objective += m_overlapCoeff * overlap_cost;
@@ -553,14 +570,14 @@ double DynOverlapCost::evaluate() {
     int numContacts = contactManifold->getNumContacts();
     for (int j = 0; j < numContacts; ++j) {
       btManifoldPoint& pt = contactManifold->getContactPoint(j);
-      out += m_overlapCoeff * pospart(-pt.getDistance());
+      out += m_overlapCoeff * pospart(-pt.getDistance()/METERS);
     }
   }
   return out;
 }
 
 DynTrustRegion::DynTrustRegion(DynSolver* solver) : DynComponent(solver) {
-  m_maxDiffPerIter = VectorXd::Constant(3, 1);
+  m_maxDiffPerIter = VectorXd::Constant(DynSolver::POSE_DIM, .2);
 }
 
 ConvexConstraintPtr DynTrustRegion::convexify(GRBModel* model) {

@@ -55,7 +55,7 @@ target_link_libraries(test_box_picking simulation robots sqp ${PYTHON_LIBRARIES}
 
 #########################################
 
-add_library(sqp2 expr_ops.cpp sqp_dynamics.cpp sqp.cpp config_sqp.cpp traj_sqp.cpp collisions.cpp kinematics_utils.cpp plotters.cpp utils_sqp.cpp)
+add_library(sqp2 expr_ops.cpp sqp_dynamics.cpp sqp.cpp config_sqp.cpp traj_sqp.cpp collisions.cpp kinematics_utils.cpp plotters.cpp utils_sqp.cpp functions.cpp)
 target_link_libraries(sqp2 utils gurobi_c++ gurobi50 simulation)
 
 add_executable(test_new_arm_table test_new_arm_table.cpp)
@@ -70,3 +70,5 @@ target_link_libraries(test_vector_opt sqp2)
 add_executable(test_dynamics_solver test_dynamics_solver.cpp sqp_dynamics.cpp state_setter.cpp kinematics_utils.cpp utils_sqp.cpp)
 target_link_libraries(test_dynamics_solver sqp2 simulation)
 
+add_executable(test_rodrigues_jac test_rodrigues_jac.cpp)
+target_link_libraries(test_rodrigues_jac sqp2)
