@@ -93,6 +93,7 @@ void MonitorForGrabbingWithTelekinesis::grab() {
       m_grabs.push_back(grab);
       m_env->addConstraint(grab);
       m_bodies[i]->setColor(0,0,1,1);
+      cout << "CONSTRAINTS AFTER GRABBING: " << m_env->constraints.size() << endl;
     }
   }
 }
@@ -164,11 +165,12 @@ TableRopeScene::TableRopeScene(const vector<btVector3> &tableCornersWorld_, cons
 
   resetRope(controlPointsWorld);
   env->add(m_table);
-  setGrabBodies(m_rope->children);
 }
 
 void TableRopeScene::resetRope(const vector<btVector3> &ctrlPoints) {
   if (m_rope) {
+    m_lMonitor->release();
+    m_rMonitor->release();
     env->remove(m_rope);
   }
   m_rope.reset(new CapsuleRope(
@@ -181,6 +183,7 @@ void TableRopeScene::resetRope(const vector<btVector3> &ctrlPoints) {
     .9 // linStopErp
   ));
   env->add(m_rope);
+  setGrabBodies(m_rope->children);
 }
 
 vector<btVector3> operator*(const vector<btVector3>& in, float a) {

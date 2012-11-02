@@ -333,6 +333,7 @@ void TaskExecuter::execRawTrajectory(const Trajectory &t) {
   }
 
   scene.setGrabBodies(scene.getRope()->getChildren());
+  bool prematureEnd = false;
   for (int k = 0; k < simSteps; ++k) {
     int i = sim2real[k];
 
@@ -341,6 +342,7 @@ void TaskExecuter::execRawTrajectory(const Trajectory &t) {
         continue;
       }
       if (i > execStepInterval.second) {
+        prematureEnd = true;
         break;
       }
     }
@@ -398,8 +400,10 @@ void TaskExecuter::execRawTrajectory(const Trajectory &t) {
     scene.step(DT);
   }
 
-  scene.m_lMonitor->release();
-  scene.m_rMonitor->release();
+  if (!prematureEnd) {
+    scene.m_lMonitor->release();
+    scene.m_rMonitor->release();
+  }
 
   if (plotting) {
     warped_tracked_plot->clear();

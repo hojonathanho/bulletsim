@@ -348,7 +348,6 @@ EnvironmentObject::Ptr BulletConstraint::copy(Fork &f) const {
     // get equivalents of rigid bodies in the new cloned world
     btRigidBody *rbA = (btRigidBody *) f.copyOf(&cnt->getRigidBodyA());
     btRigidBody *rbB = (btRigidBody *) f.copyOf(&cnt->getRigidBodyB());
-    BOOST_ASSERT(rbA && rbB);
 
     // create new constraint
     boost::shared_ptr<btTypedConstraint> newcnt;

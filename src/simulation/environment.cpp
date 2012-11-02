@@ -140,6 +140,7 @@ void Fork::copyObjects() {
         env->add(copy);
         objMap[i->get()] = copy;
     }
+    assert(env->objects.size() == parentEnv->objects.size());
     // some objects might need processing after all objects have been added
     // e.g. anchors and joints for soft bodies
     for (i = parentEnv->objects.begin(); i != parentEnv->objects.end(); ++i)
@@ -152,6 +153,7 @@ void Fork::copyObjects() {
         env->addConstraint(copy);
         objMap[j->get()] = copy;
     }
+    assert(env->constraints.size() == parentEnv->constraints.size());
     for (j = parentEnv->constraints.begin(); j != parentEnv->constraints.end(); ++j)
         (*j)->postCopy(objMap[j->get()], *this);
 }
