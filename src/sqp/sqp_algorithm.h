@@ -12,14 +12,12 @@ GRBEnv* getGRBEnv();
 
 class Scene;
 
-
-
 class PlanningProblem {
+  // fixed size optimization problem
 public:
   typedef boost::function<void(PlanningProblem*)> Callback;
   VarArray m_trajVars; // trajectory variables in optimization. sometimes the endpoints are not actually added to Gurobi model
   Eigen::MatrixXd m_currentTraj;
-  VectorXb m_optMask; // mask that indicates which timesteps are in the optimization
   boost::shared_ptr<GRBModel> m_model;
   std::vector<TrajPlotterPtr> m_plotters;
 	std::vector<TrajChangePlotterPtr> m_changePlotters;
@@ -53,6 +51,7 @@ public:
   void forceOptimizeHere();
   void subdivide(const std::vector<double>& insertTimes); // resample in time (resamples all subproblems)
   void testObjectives(); // checks that the linearizations computed by all of the objectives is correct by comparing getApproxCost and getCachedCost
+  void writeTrajToJSON(std::string filename);
   void addTrustRegionAdjuster(TrustRegionAdjusterPtr tra); // actually there's only one right now so "add" is wrong
 };
 
@@ -114,7 +113,7 @@ public:
   std::vector<GRBConstr> m_cnts;
   GRBLinExpr m_obj;
 
-  OpenRAVE::RobotBasePtr m_robot;
+  RaveRobotObject* m_robot;
   btDynamicsWorld* m_world;
   BulletRaveSyncherPtr m_brs;
   vector<int> m_dofInds;
@@ -127,7 +126,7 @@ public:
   Eigen::VectorXd m_coeffVec;
   bool m_useAffine;
   void removeVariablesAndConstraints();
-  CollisionCost(OpenRAVE::RobotBasePtr robot, btDynamicsWorld* world, BulletRaveSyncherPtr brs,
+  CollisionCost(RaveRobotObject* robot, btDynamicsWorld* world, BulletRaveSyncherPtr brs,
                 const vector<int>& dofInds, double distPen, double coeff, bool useAffine=false) :
     m_robot(robot), m_world(world), m_brs(brs), m_dofInds(dofInds), m_distPen(distPen), m_coeff(coeff), m_useAffine(useAffine) {
   }
@@ -339,11 +338,10 @@ public:
 };
 
 Eigen::VectorXd defaultMaxStepMvmt(const Eigen::MatrixXd& traj);
-Eigen::MatrixXd makeTraj(const Eigen::VectorXd& startJoints, const Eigen::VectorXd& endJoints, int nSteps);
 Eigen::MatrixXd makeTraj(RaveRobotObject::Manipulator::Ptr manip, const Eigen::VectorXd& startJoints,
                          const btTransform endTransform, int nSteps);
 Eigen::MatrixXd makeTraj(RaveRobotObject::Manipulator::Ptr manip, const std::vector<btTransform>& transforms);
-void updateTraj(const VarArray& trajVars, const VectorXb& optmask, Eigen::MatrixXd& traj);
+void updateTraj(const VarArray& trajVars, Eigen::MatrixXd& traj);
 
 
 

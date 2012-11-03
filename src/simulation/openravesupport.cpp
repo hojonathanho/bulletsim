@@ -5,6 +5,8 @@
 #include "utils/config.h"
 #include "bullet_io.h"
 #include "utils/logging.h"
+#include "config_bullet.h"
+
 #include <set>
 
 using namespace OpenRAVE;
@@ -54,7 +56,7 @@ RaveInstance::~RaveInstance() {
 		RaveDestroy();
 }
 
-void LoadFromRave(Environment::Ptr env, RaveInstance::Ptr rave, bool dynamicRobots) {
+void LoadFromRave(Environment::Ptr env, RaveInstance::Ptr rave) {
 
   std::set<string> bodiesAlreadyLoaded;
   BOOST_FOREACH(EnvironmentObject::Ptr obj, env->objects) {
@@ -66,24 +68,24 @@ void LoadFromRave(Environment::Ptr env, RaveInstance::Ptr rave, bool dynamicRobo
   rave->env->GetBodies(bodies);
   BOOST_FOREACH(OpenRAVE::KinBodyPtr body, bodies) {
     if (bodiesAlreadyLoaded.find(body->GetName()) == bodiesAlreadyLoaded.end()) {
-      if (body->IsRobot()) env->add(RaveRobotObject::Ptr(new RaveRobotObject(rave, boost::dynamic_pointer_cast<RobotBase>(body), CONVEX_HULL, dynamicRobots)));
+      if (body->IsRobot()) env->add(RaveRobotObject::Ptr(new RaveRobotObject(
+				rave, boost::dynamic_pointer_cast<RobotBase>(body), CONVEX_HULL, BulletConfig::kinematicPolicy <= 1)));
       else {
-        cout << "loading " << body->GetName() << endl;;
-        env->add(RaveObject::Ptr(new RaveObject(rave, body, CONVEX_HULL, dynamicRobots)));
+        LOG_INFO("loading " << body->GetName());
+        env->add(RaveObject::Ptr(new RaveObject(rave, body, CONVEX_HULL, BulletConfig::kinematicPolicy == 0)));
       }
     }
   }
 
 }
 
-void Load(Environment::Ptr env, RaveInstance::Ptr rave, const string& filename,
-		bool dynamicRobots) {
+void Load(Environment::Ptr env, RaveInstance::Ptr rave, const string& filename) {
 	bool success = rave->env->Load(filename);
 	if (!success)
 		throw runtime_error(
 				(boost::format("couldn't load %s!\n") % (filename)).str());
 
-	LoadFromRave(env, rave, dynamicRobots);
+	LoadFromRave(env, rave);
 
 }
 
@@ -111,8 +113,8 @@ RaveRobotObject::Ptr getRobotByName(Environment::Ptr env, RaveInstance::Ptr rave
   return boost::dynamic_pointer_cast<RaveRobotObject>(getObjectByName(env, rave, name));
 }
 
-RaveObject::RaveObject(RaveInstance::Ptr rave_, KinBodyPtr body_, TrimeshMode trimeshMode, bool isDynamic) {
-	initRaveObject(rave_, body_, trimeshMode, isDynamic);
+RaveObject::RaveObject(RaveInstance::Ptr rave_, KinBodyPtr body_, TrimeshMode trimeshMode, bool isKinematic_) {
+	initRaveObject(rave_, body_, trimeshMode, isKinematic_);
 }
 
 void RaveObject::init() {
@@ -134,75 +136,11 @@ void RaveObject::destroy() {
 }
 
 
-btCompoundShape* shiftTransform(btCompoundShape* boxCompound,btScalar mass,btTransform& shift)
-{
-	btCompoundShape* newBoxCompound;
-	btTransform principal;
-	btVector3 principalInertia;
-	btScalar* masses = new btScalar[boxCompound->getNumChildShapes()];
-	for (int j=0;j<boxCompound->getNumChildShapes();j++)
-	{
-		//evenly distribute mass
-		masses[j]=mass/boxCompound->getNumChildShapes();
-	}
-
-
-	boxCompound->calculatePrincipalAxisTransform(masses,principal,principalInertia);
-
-
-	///create a new compound with world transform/center of mass properly aligned with the principal axis
-
-	///non-recursive compound shapes perform better
-
-#ifdef USE_RECURSIVE_COMPOUND
-
-	btCompoundShape* newCompound = new btCompoundShape();
-	newCompound->addChildShape(principal.inverse(),boxCompound);
-	newBoxCompound = newCompound;
-	//m_collisionShapes.push_back(newCompound);
-
-	//btDefaultMotionState* myMotionState = new btDefaultMotionState(startTransform);
-	//btRigidBody::btRigidBodyConstructionInfo rbInfo(mass,myMotionState,newCompound,principalInertia);
-
-#else
-#ifdef CHANGE_COMPOUND_INPLACE
-	newBoxCompound = boxCompound;
-	for (int i=0;i<boxCompound->getNumChildShapes();i++)
-	{
-		btTransform newChildTransform = principal.inverse()*boxCompound->getChildTransform(i);
-		///updateChildTransform is really slow, because it re-calculates the AABB each time. todo: add option to disable this update
-		boxCompound->updateChildTransform(i,newChildTransform);
-	}
-	bool isDynamic = (mass != 0.f);
-	btVector3 localInertia(0,0,0);
-	if (isDynamic)
-		boxCompound->calculateLocalInertia(mass,localInertia);
-
-#else
-	///creation is faster using a new compound to store the shifted children
-	newBoxCompound = new btCompoundShape();
-	for (int i=0;i<boxCompound->getNumChildShapes();i++)
-	{
-		btTransform newChildTransform = principal.inverse()*boxCompound->getChildTransform(i);
-		///updateChildTransform is really slow, because it re-calculates the AABB each time. todo: add option to disable this update
-		newBoxCompound->addChildShape(newChildTransform,boxCompound->getChildShape(i));
-	}
-
-
-
-#endif
-
-#endif//USE_RECURSIVE_COMPOUND
-
-	shift = principal;
-	return newBoxCompound;
-}
-
 static BulletObject::Ptr createFromLink(KinBody::LinkPtr link,
         std::vector<boost::shared_ptr<btCollisionShape> >& subshapes,
         std::vector<boost::shared_ptr<btStridingMeshInterface> >& meshes,
          TrimeshMode trimeshMode,
-        bool isDynamic) {
+        bool isKinematic) {
 
   LOG_DEBUG("creating link from " << link->GetName());
 
@@ -225,7 +163,7 @@ static BulletObject::Ptr createFromLink(KinBody::LinkPtr link,
 	btCompoundShape* compound;
 	if (useCompound) {
     compound = new btCompoundShape();
-    compound->setMargin(0); //margin: compound. seems to have no effect when positive but has an effect when negative
+    compound->setMargin(1e-5*METERS); //margin: compound. seems to have no effect when positive but has an effect when negative
 	}
 
 
@@ -329,15 +267,16 @@ static BulletObject::Ptr createFromLink(KinBody::LinkPtr link,
 	}
 
 
-	float mass = isDynamic ? link->GetMass() : 0;
+	float mass = link->GetMass();
+	if (mass==0 && !isKinematic) LOG_WARN_FMT("warning: link %s is non-kinematic but mass is zero", link->GetName().c_str());
 	BulletObject::Ptr child;
 	if (useCompound) {
     btTransform childTrans = util::toBtTransform(link->GetTransform(),GeneralConfig::scale);
-	  child.reset(new BulletObject(mass, compound,childTrans,!isDynamic));
+	  child.reset(new BulletObject(mass, compound,childTrans,isKinematic));
 	}
 	else {
 	  btTransform geomTrans = util::toBtTransform(link->GetTransform() * link->GetGeometry(0)->GetTransform(),METERS);
-    child.reset(new BulletObject(mass, subshapes.back(), geomTrans, !isDynamic));
+    child.reset(new BulletObject(mass, subshapes.back(), geomTrans, isKinematic));
     if (useGraphicsMesh) child->graphicsShape.reset(new btBvhTriangleMeshShape(meshes.back().get(), true));
 	}
 
@@ -406,40 +345,45 @@ BulletConstraint::Ptr createFromJoint(KinBody::JointPtr joint, std::map<KinBody:
 }
 
 void RaveObject::initRaveObject(RaveInstance::Ptr rave_, KinBodyPtr body_,
-		TrimeshMode trimeshMode, bool isDynamic) {
+		TrimeshMode trimeshMode, bool isKinematic_) {
 	rave = rave_;
 	body = body_;
 	rave->rave2bulletsim[body] = this;
   rave->bulletsim2rave[this] = body;
 
 	const std::vector<KinBody::LinkPtr> &links = body->GetLinks();
+
+	isKinematic = isKinematic_;
+
 	getChildren().reserve(links.size());
 	// iterate through each link in the robot (to be stored in the children vector)
 	BOOST_FOREACH(KinBody::LinkPtr link, links) {
-		BulletObject::Ptr child = createFromLink(link, subshapes, meshes, trimeshMode, isDynamic && !link->IsStatic());
-    if (!child) continue;
-		getChildren().push_back(child);
+		BulletObject::Ptr child = createFromLink(link, subshapes, meshes, trimeshMode, isKinematic);
+		if (child) getChildren().push_back(child);
+
 		linkMap[link] = child;
 		childPosMap[child] = getChildren().size() - 1;
-    collisionObjMap[child->rigidBody.get()] = link;
-    // since the joints are always in contact, we should ignore their collisions
-    // when setting joint positions (OpenRAVE should take care of them anyway)
-    ignoreCollisionWith(child->rigidBody.get());
-  }
+		if (child) {
+			collisionObjMap[child->rigidBody.get()] = link;
+		// since the joints are always in contact, we should ignore their collisions
+		// when setting joint positions (OpenRAVE should take care of them anyway)
+			ignoreCollisionWith(child->rigidBody.get());
+		}
+	}
 
-  if (isDynamic) {
-    vector<KinBody::JointPtr> vbodyjoints; vbodyjoints.reserve(body->GetJoints().size()+body->GetPassiveJoints().size());
-    vbodyjoints.insert(vbodyjoints.end(),body->GetJoints().begin(),body->GetJoints().end());
-    vbodyjoints.insert(vbodyjoints.end(),body->GetPassiveJoints().begin(),body->GetPassiveJoints().end());
-    BOOST_FOREACH(KinBody::JointPtr joint, vbodyjoints) {
-      BulletConstraint::Ptr constraint = createFromJoint(joint, linkMap);
-      if (constraint) {
-        // todo: put this in init:
-        // getEnvironment()->bullet->dynamicsWorld->addConstraint(constraint->cnt, bIgnoreCollision);
-        jointMap[joint] = constraint;
-      }
-    }
-  }
+	if (!isKinematic) {
+		vector<KinBody::JointPtr> vbodyjoints; vbodyjoints.reserve(body->GetJoints().size()+body->GetPassiveJoints().size());
+		vbodyjoints.insert(vbodyjoints.end(),body->GetJoints().begin(),body->GetJoints().end());
+		vbodyjoints.insert(vbodyjoints.end(),body->GetPassiveJoints().begin(),body->GetPassiveJoints().end());
+		BOOST_FOREACH(KinBody::JointPtr joint, vbodyjoints) {
+			BulletConstraint::Ptr constraint = createFromJoint(joint, linkMap);
+			if (constraint) {
+				// todo: put this in init:
+				// getEnvironment()->bullet->dynamicsWorld->addConstraint(constraint->cnt, bIgnoreCollision);
+				jointMap[joint] = constraint;
+			}
+		}
+	}
 }
 
 bool RaveObject::detectCollisions() {
@@ -462,14 +406,21 @@ bool RaveObject::detectCollisions() {
 }
 
 void RaveRobotObject::setDOFValues(const vector<int> &indices, const vector<dReal> &vals) {
-  // update openrave structure
-  {
-//    EnvironmentMutex::scoped_lock lock(rave->env->GetMutex());
-    robot->SetActiveDOFs(indices);
-    robot->SetActiveDOFValues(vals);
-//    rave->env->UpdatePublishedBodies();
-  }
-  updateBullet();
+	robot->SetActiveDOFs(indices);
+  robot->SetActiveDOFValues(vals);
+	updateBullet();
+	typedef map<RaveObject::Ptr, KinBody::LinkPtr>::value_type Targ2GrabberPair;
+	BOOST_FOREACH(Targ2GrabberPair& targ_grabber, m_targ2grabber) targ_grabber.first->updateBullet();
+}
+
+void RaveObject::prePhysics() {
+  CompoundObject<BulletObject>::prePhysics();
+}
+
+void RaveObject::updateRave() {
+  assert(children.size() ==1);
+  body->SetTransform(util::toRaveTransform(children[0]->rigidBody->getCenterOfMassTransform(),1/METERS));
+//    children[i]->motionState->setKinematicPos(util::toBtTransform(transforms[linkIndsWithGeometry[i]],GeneralConfig::scale));
 }
 
 void RaveObject::updateBullet() {
@@ -562,19 +513,41 @@ void RaveObject::postCopy(EnvironmentObject::Ptr copy, Fork &f) const {
 		o->ignoreCollisionObjs.insert((btCollisionObject *) f.copyOf(*i));
 }
 
-RaveRobotObject::RaveRobotObject(RaveInstance::Ptr rave_, RobotBasePtr robot_, TrimeshMode trimeshMode, bool isDynamic) {
+RaveRobotObject::RaveRobotObject(RaveInstance::Ptr rave_, RobotBasePtr robot_, TrimeshMode trimeshMode, bool isKinematic_) {
 	robot = robot_;
-	initRaveObject(rave_, robot_, trimeshMode, isDynamic);
+	initRaveObject(rave_, robot_, trimeshMode, isKinematic_);
 }
 
-RaveRobotObject::RaveRobotObject(RaveInstance::Ptr rave_, const std::string &uri, TrimeshMode trimeshMode, bool isDynamic) {
+RaveRobotObject::RaveRobotObject(RaveInstance::Ptr rave_, const std::string &uri, TrimeshMode trimeshMode, bool isKinematic_) {
 	robot = rave_->env->ReadRobotURI(uri);
-	initRaveObject(rave_, robot, trimeshMode, isDynamic);
+	initRaveObject(rave_, robot, trimeshMode, isKinematic_);
 	rave->env->AddRobot(robot);
 }
 
-RaveRobotObject::Manipulator::Ptr RaveRobotObject::getManipByName(const std::string& name) {
-  BOOST_FOREACH(Manipulator::Ptr manip, createdManips) {
+void RaveRobotObject::grab(RaveObject::Ptr targ, KinBody::LinkPtr link) {
+  assert(targ->children.size()==1);
+  targ->updateRave();
+  robot->Grab(targ->body, link);
+	targ->children[0]->setKinematic(true);
+  m_targ2grabber[targ] = link;
+	m_grabber2targ[link] = targ;
+}
+
+void RaveRobotObject::release(RaveObject::Ptr targ) {
+  robot->Release(targ->body);
+  targ->children[0]->setKinematic(false);
+  KinBody::LinkPtr link = m_targ2grabber[targ];
+  m_targ2grabber.erase(targ);
+  m_grabber2targ.erase(link);
+}
+
+KinBody::LinkPtr RaveRobotObject::getGrabberLink(RaveObject::Ptr target) {
+  return m_targ2grabber[target];
+}
+
+
+RobotManipulatorPtr RaveRobotObject::getManipByName(const std::string& name) {
+  BOOST_FOREACH(RobotManipulatorPtr manip, createdManips) {
     if (manip->manip->GetName() == name) return manip;
   }
   return Manipulator::Ptr();
@@ -633,7 +606,7 @@ bool RaveRobotObject::Manipulator::solveIKUnscaled(
 	return true;
 }
 
-bool RaveRobotObject::Manipulator::solveAllIKUnscaled(
+bool RobotManipulator::solveAllIKUnscaled(
 		const OpenRAVE::Transform &targetTrans,
 		vector<vector<dReal> > &vsolutions) {
 
@@ -649,7 +622,7 @@ bool RaveRobotObject::Manipulator::solveAllIKUnscaled(
 	return true;
 }
 
-bool RaveRobotObject::Manipulator::moveByIKUnscaled(
+bool RobotManipulator::moveByIKUnscaled(
 		const OpenRAVE::Transform &targetTrans, bool checkCollisions,
 		bool revertOnCollision) {
 
@@ -678,33 +651,33 @@ bool RaveRobotObject::Manipulator::moveByIKUnscaled(
 	return true;
 }
 
-float RaveRobotObject::Manipulator::getGripperAngle() {
+float RobotManipulator::getGripperAngle() {
 	vector<int> inds = manip->GetGripperIndices();
 	vector<double> vals = robot->getDOFValues(inds);
 	return vals[0];
 }
 
-void RaveRobotObject::Manipulator::setGripperAngle(float x) {
+void RobotManipulator::setGripperAngle(float x) {
 	vector<int> inds = manip->GetGripperIndices();
 	vector<double> vals(inds.size(),x);
 	robot->setDOFValues(inds, vals);
 }
 
-vector<double> RaveRobotObject::Manipulator::getDOFValues() {
+vector<double> RobotManipulator::getDOFValues() {
 	return robot->getDOFValues(manip->GetArmIndices());
 }
 
-void RaveRobotObject::Manipulator::setDOFValues(const vector<double>& vals) {
+void RobotManipulator::setDOFValues(const vector<double>& vals) {
 	robot->setDOFValues(manip->GetArmIndices(), vals);
 }
 
 
-RaveRobotObject::Manipulator::Ptr RaveRobotObject::Manipulator::copy(
+RobotManipulator::Ptr RaveRobotObject::Manipulator::copy(
 		RaveRobotObject::Ptr newRobot, Fork &f) {
 	OpenRAVE::EnvironmentMutex::scoped_lock lock(
 			newRobot->rave->env->GetMutex());
 
-	Manipulator::Ptr o(new Manipulator(newRobot.get()));
+	RobotManipulator::Ptr o(new RobotManipulator(newRobot.get()));
 
 	o->ikmodule = ikmodule;
 	o->origManip = origManip;

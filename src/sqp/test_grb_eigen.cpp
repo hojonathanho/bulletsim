@@ -6,58 +6,13 @@
 using namespace std;
 using namespace Eigen;
 
-void merged(const vector<double>& v0, const vector<double>& v1, vector<double>& out, vector<int>& inds0, vector<int>& inds1) {
-  int nNew = v0.size() + v1.size();
-  out.resize(nNew);
-  inds0.resize(v0.size());
-  inds1.resize(v1.size());
-
-  int i0(0), i1(0);
-  bool done0(false), done1(false);
-  for (int i=0; i < nNew; ++i) {
-    if (i0 == v0.size()) done0=true;
-    if (i1 == v1.size()) done1=true;
-    assert(!done0 || !done1);
-    if (!done0 && (done1 || v0[i0] < v1[i1])) {
-      out[i] = v0[i0];
-      inds0[i0] = i;
-      ++i0;
-    }
-    else {
-      out[i] = v1[i1];
-      inds1[i1] = i;
-      ++i1;
-    }
-  }
-}
 
 
 int main() {
-#if 0
-  vector<double> V0,V1,Vout;
-  vector<int> I0, I1;
-  V0.push_back(0.05);
-  V0.push_back(1);
-  V0.push_back(2);
-  V0.push_back(3);
-  V1.push_back(.5);
-  V1.push_back(2.5);
-  V1.push_back(3.5);
-  merged(V0, V1, Vout, I0, I1);
-  cout << Vout << endl;
-  cout << I0 << endl;
-  cout << I1 << endl;
-  V0.clear();
-  merged(V0, V1, Vout, I0, I1);
-  cout << Vout << endl;
-  V1.clear();
-  merged(V0, V1, Vout, I0, I1);
-  cout << Vout << endl;
-  VectorXd x = VectorXd::LinSpaced(10,0,9);
-  cout << x << endl;
   typedef Matrix<GRBVar, Dynamic, Dynamic> VarMatrix;
-
-#endif
+  VarMatrix vm(3,3);
+  VarMatrix vm1(3,3);
+  VarMatrix vm2 = vm + vm1;
 
   GRBEnv env = GRBEnv();
   GRBModel model = GRBModel(env);
@@ -82,7 +37,6 @@ int main() {
     cout << "objective: " << model.getObjective() << endl;
     cout << "x value: " << x.get(GRB_DoubleAttr_X) << endl;
     cout << "x+y value: " << xy.getValue();
-    model.s
     cout << "objective: " << model.getObjective() << endl;
     cout << "x value: " << x.get(GRB_DoubleAttr_X) << endl;
     cout << "x+y value: " << xy.getValue();

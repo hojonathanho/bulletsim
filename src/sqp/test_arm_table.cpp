@@ -64,8 +64,8 @@ int main(int argc, char *argv[]) {
 
   signal(SIGABRT, handler); // install our handler
 
-  BulletConfig::linkPadding = .04;
-  BulletConfig::margin = .01;
+  BulletConfig::linkPadding = .02;
+  BulletConfig::margin = 0;
   SQPConfig::padMult = 1;
   GeneralConfig::verbose=20000;
   GeneralConfig::scale = 10.;
@@ -81,10 +81,10 @@ int main(int argc, char *argv[]) {
   const float table_height = .65;
   const float table_thickness = .06;
 
-  if (GeneralConfig::verbose > 0) getGRBEnv()->set(GRB_IntParam_OutputFlag, 0);
-
+  initializeGRB();
   Scene scene;
   util::setGlobalEnv(scene.env);
+  util::setGlobalScene(&scene);
   BoxObject::Ptr table(new BoxObject(0, GeneralConfig::scale * btVector3(.85, .55, table_thickness
       / 2), btTransform(btQuaternion(0, 0, 0, 1), GeneralConfig::scale * btVector3(1.1, 0,
       table_height - table_thickness / 2))));

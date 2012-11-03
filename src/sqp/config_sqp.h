@@ -44,9 +44,3 @@ struct SQPConfig : Config {
   }
 };
 
-#ifdef __CDT_PARSER__
-    #undef BOOST_FOREACH
-    #define BOOST_FOREACH(a, b) for(a; ; )
-  #undef BOOST_REVERSE_FOREACH
-  #define BOOST_REVERSE_FOREACH(a, b) for(a; ; )
-#endif

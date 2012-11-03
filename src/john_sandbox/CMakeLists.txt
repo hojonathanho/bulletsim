@@ -73,8 +73,8 @@ add_executable(try_config_vectors try_config_vectors.cpp)
 target_link_libraries(try_config_vectors simulation)
 
 find_package(PythonLibs REQUIRED)
-add_executable(test_python_rave test_python_rave.cpp)
-target_link_libraries(test_python_rave simulation robots sqp ${PYTHON_LIBRARIES} boost_python)
-
 add_executable(test_box_overlap test_box_overlap.cpp)
 target_link_libraries(test_box_overlap simulation ${PYTHON_LIBRARIES} boost_python sqp)
+
+add_executable(test_grab test_grab.cpp)
+target_link_libraries(test_grab simulation robots)

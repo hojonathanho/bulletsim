@@ -1,57 +1,48 @@
 #pragma once
-#include "simulation/environment.h"
 #include "utils_sqp.h"
-#include "simulation/plotting.h"
-#include "simulation/fake_gripper.h"
 #include "sqp_fwd.h"
 #include "simulation/simulation_fwd.h"
-#include "traj_costs.h"
-
 #include "utils/logging.h"
+#include "collisions.h"
+#include <osg/Group>
+
+
+void pauseScene();
 
 class PlotHandles {
 	// in a plotting function, return plot handles
 	// it'll add the plots to the environment when it's created
 	// and then remove them when it's destroyed
-	std::vector<EnvironmentObject::Ptr> m_plots;
-	Environment::Ptr m_env;
+	std::vector<EnvironmentObjectPtr> m_plots;
+	EnvironmentPtr m_env;
 public:
-	PlotHandles(const std::vector<EnvironmentObject::Ptr>& plots, Environment::Ptr env) : m_plots(plots), m_env(env) {
-		for (int i=0; i < m_plots.size(); ++i) m_env->add(plots[i]);
-	}
-	~PlotHandles() {
-		for (int i=0; i < m_plots.size(); ++i) {
-			m_env->remove(m_plots[i]);
-		}
-	}
+	PlotHandles(const std::vector<EnvironmentObjectPtr>& plots, EnvironmentPtr env);
+	~PlotHandles();
 };
 
 class TrajPlotter {
 public:
   typedef boost::shared_ptr<TrajPlotter> Ptr;
   virtual void plotTraj(const Eigen::MatrixXd& traj) = 0;
-  virtual void clear() {
-  }
-  virtual ~TrajPlotter() {
-  }
+  virtual void clear() {}
+  virtual ~TrajPlotter() {}
 };
 
 class TrajChangePlotter {
 public:
 	virtual void plotTrajs(const Eigen::MatrixXd& traj0, const Eigen::MatrixXd& traj1) = 0;
-	virtual ~TrajChangePlotter() {
-	}
+	virtual ~TrajChangePlotter() {}
 };
 
 class GripperAxesPlotter : public TrajPlotter {
 	PlotHandlesPtr m_handles;
-	RaveRobotObject::Manipulator::Ptr m_manip;
+	RobotManipulatorPtr m_manip;
 	int m_startCol;
-	Environment::Ptr m_env;
+	EnvironmentPtr m_env;
 	float m_size;
 	
 public:
-	GripperAxesPlotter(RaveRobotObject::Manipulator::Ptr, int startCol, Environment::Ptr env, float size);
+	GripperAxesPlotter(RobotManipulatorPtr, int startCol, EnvironmentPtr env, float size);
 	void plotTraj(const Eigen::MatrixXd& traj);
 	void clear();
 	~GripperAxesPlotter();
@@ -69,15 +60,15 @@ public:
 
 class GripperPlotter : public TrajPlotter {
 public:
-  std::vector<FakeGripper::Ptr> m_grippers;
-  PlotCurve::Ptr m_curve;
-  RaveRobotObject::Manipulator::Ptr m_rrom;
+  std::vector<FakeGripperPtr> m_grippers;
+  PlotCurvePtr m_curve;
+  RobotManipulatorPtr m_rrom;
   Scene* m_scene;
   osg::Group* m_osgRoot;
   int m_decimation;
   void plotTraj(const Eigen::MatrixXd& traj);
   void clear();
-  GripperPlotter(RaveRobotObject::Manipulator::Ptr, Scene*, int decimation = 1);
+  GripperPlotter(RobotManipulatorPtr, Scene*, int decimation = 1);
   ~GripperPlotter();
   void setNumGrippers(int n);
 };
@@ -94,19 +85,19 @@ public:
 
 class ArmPlotter : public TrajPlotter {
   typedef boost::shared_ptr<ArmPlotter> Ptr;
-  RaveRobotObject::Manipulator::Ptr m_rrom;
-  std::vector<BulletObject::Ptr> m_origs;
-  BasicArray<FakeObjectCopy::Ptr> m_fakes;
-  PlotCurve::Ptr m_curve;
-  PlotAxes::Ptr m_axes;
+  RobotManipulatorPtr m_rrom;
+  std::vector<BulletObjectPtr> m_origs;
+  BasicArray<FakeObjectCopyPtr> m_fakes;
+  osg::ref_ptr<PlotCurve> m_curve;
+  PlotAxesPtr m_axes;
   Scene* m_scene;
   osg::Group* m_osgRoot;
   int m_decimation;
   BulletRaveSyncherPtr m_syncher;
 public:
   void plotTraj(const Eigen::MatrixXd& traj);
-  ArmPlotter(RaveRobotObject::Manipulator::Ptr rrom, Scene* scene, int decimation = 1);
-  void init(RaveRobotObject::Manipulator::Ptr, const std::vector<BulletObject::Ptr>&, Scene*, int decimation);
+  ArmPlotter(RobotManipulatorPtr rrom, Scene* scene, int decimation = 1);
+  void init(RobotManipulatorPtr, const std::vector<BulletObjectPtr>&, Scene*, int decimation);
   void setLength(int n);
   void clear() {
     setLength(0);
@@ -114,7 +105,7 @@ public:
   ~ArmPlotter();
 };
 
-void interactiveTrajPlot(const Eigen::MatrixXd& traj, RaveRobotObject::Manipulator::Ptr arm, Scene* scene);
+void interactiveTrajPlot(const Eigen::MatrixXd& traj, RobotManipulatorPtr arm, Scene* scene);
 void clearCollisionPlots();
 void plotCollisions(const TrajCartCollInfo& trajCartInfo, double safeDist);
 

@@ -35,7 +35,7 @@ find_package(ROS REQUIRED COMPONENTS
  roscpp rosconsole message_filters
  cpp_common rostime roscpp_traits
  roscpp_serialization
- bulletsim_msgs
+# bulletsim_msgs
 )
 
 set(BUILD_SHARED_LIBS 0)

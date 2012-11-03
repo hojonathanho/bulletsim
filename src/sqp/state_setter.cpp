@@ -4,9 +4,10 @@
 #include "kinematics_utils.h"
 #include "utils_sqp.h"
 #include "simulation/bullet_io.h"
+#include "simulation/openravesupport.h"
 using namespace Eigen;
 
-RobotJointSetter::RobotJointSetter(RaveRobotObject::Ptr robot, const std::vector<int>& dofInds, bool useAffine) :
+RobotJointSetter::RobotJointSetter(RaveRobotObjectPtr robot, const std::vector<int>& dofInds, bool useAffine) :
   m_robot(robot->robot), m_dofInds(dofInds), m_useAffine(useAffine) {
   std::vector<OpenRAVE::KinBody::LinkPtr> links = getAffectedLinks(robot->robot, dofInds);
   vector<btRigidBody*> bodies;

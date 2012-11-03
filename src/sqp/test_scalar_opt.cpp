@@ -54,9 +54,13 @@ public:
 		double yprimeprime = (yplus + yminus - 2*y)/(eps*eps/4);
 		ConvexObjectivePtr out(new ConvexObjective());
 		out->m_objective = .5 * yprimeprime * (m_xvar - m_x)*(m_xvar - m_x) + yprime * (m_xvar - m_x) + y;
-		out->m_val = y;
 		return out;			
 	}
+
+	string getName() {
+	  return "Polynomial";
+	}
+
 };
 
 
@@ -65,8 +69,8 @@ public:
 	GRBVar m_var;
 	double m_val;
 	double m_val_backup;
-	ScalarOptimization(GRBModel* model) : 
-		OptimizationProblem(model), 
+	ScalarOptimization() :
+		OptimizationProblem(),
 		m_val(std::numeric_limits<double>::quiet_NaN()) {}
 	void updateValues() {
 		cout << boost::format("x: %.2f -> %.2f")%m_val%(m_var.get(GRB_DoubleAttr_X)) << endl;
@@ -108,11 +112,11 @@ int main(int argc, char* argv[]) {
 	parser.addGroup(GeneralConfig());
 	parser.addGroup(SQPConfig());
 	parser.read(argc, argv);
-	GRBEnv env;
-	GRBModel model(env);
-	double coeffs_a[3] = {1,2,1};
-	vector<double> coeffs(coeffs_a, coeffs_a+3);
-	ScalarOptimization opt(&model);
+	initializeGRB();
+	const int deg=4;
+	double coeffs_a[deg+1] = {1,2,3,4,5};
+	vector<double> coeffs(coeffs_a, coeffs_a+deg+1);
+	ScalarOptimization opt;
 	opt.initialize(3);
 	opt.setTrustRegion(TrustRegionPtr(new ScalarBox(opt.m_var, opt.m_val, 5)));
 	CostPtr p( new Polynomial(coeffs, opt.m_var, opt.m_val));

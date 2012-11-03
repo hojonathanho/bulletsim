@@ -5,8 +5,69 @@
 #include <opencv2/calib3d/calib3d.hpp>
 #include "utils_sqp.h"
 #include "utils/logging.h"
+#include "utils/conversions.h"
+#include "utils/interpolation.h"
+#include <Eigen/Geometry>
+#include "functions.h"
 using namespace std;
 using namespace Eigen;
+
+OpenRAVE::Transform toRaveTransform(const btQuaternion& q, const btVector3& p) {
+  return OpenRAVE::Transform(util::toRaveQuaternion(q), util::toRaveVector(p));
+}
+OpenRAVE::Transform toRaveTransform(double x, double y, double a) {
+  return toRaveTransform(btQuaternion(0,0,a), btVector3(x,y,0));
+}
+
+
+Matrix3d rod2mat_cv(const Vector3d& rod0) {
+  cv::Mat_<double> rot(3, 3);
+  cv::Mat_<double> rod(3, 1);
+  rod << rod0(0), rod0(1), rod0(2);
+  cv::Rodrigues(rod, rot);
+  return Map<Matrix3d>(reinterpret_cast<double*>(rot.data));
+}
+
+Vector3d calcPtWorld(const Vector3d& ptLocal, const Vector3d& centerWorld, const Vector3d& rod) {
+  return centerWorld + rod2mat_cv(rod) * ptLocal;
+}
+
+Matrix3d rotJacLocal(const Vector3d& ptLocal, const Vector3d& rod) {
+  struct F : public fVectorOfVector {
+    VectorXd m_ptLocal;
+    F(const VectorXd& ptLocal1) : m_ptLocal(ptLocal1) {}
+    VectorXd operator()(const VectorXd& rod1) const {
+      return calcPtWorld(m_ptLocal, Vector3d(0,0,0), rod1);
+    }
+  };
+  return calcJacobian(F(ptLocal), rod);
+}
+
+Matrix3d rotJacWorld(const Vector3d& ptWorld, const Vector3d& centerWorld, const Vector3d& rod) {
+  Affine3d A;
+  A = Eigen::Translation3d(centerWorld) * rod2mat_cv(rod);
+  Vector3d ptLocal = A.inverse() * ptWorld;
+  return rotJacLocal(ptLocal, rod);
+}
+
+Eigen::VectorXd toXYZROD_wrong(const btTransform& tf) {
+  Eigen::Affine3d aff = toEigenTransform(tf).cast<double>();
+  Eigen::VectorXd out(6);
+  out.topRows(3) = aff.translation();
+  AngleAxisd aa;
+  aa = aff.rotation();
+  out.bottomRows(3) = aa.angle() * aa.axis();
+  return out;
+}
+
+
+btTransform fromXYZROD_wrong(const Eigen::VectorXd& xyzrod) {
+  Eigen::Affine3f T;
+  Vector3f rod = xyzrod.bottomRows(3).cast<float>();
+  T = Translation3f(xyzrod.topRows(3).cast<float>()) * AngleAxisf(rod.norm(), rod.normalized());
+  return toBulletTransform(T);
+}
+
 
 Eigen::VectorXd toXYZROD(const btTransform& tf) {
   Eigen::VectorXd out(6);
@@ -43,8 +104,31 @@ btTransform fromXYZROD(const Eigen::VectorXd& xyzrod) {
   btVector3 t(xyzrod(0), xyzrod(1), xyzrod(2));
   return btTransform(q, t);
 }
+
 void setTransformFromXYZROD(btRigidBody* body, const VectorXd& xyzrod) {
   body->setCenterOfMassTransform(fromXYZROD(xyzrod));
+}
+
+Eigen::MatrixXd makeTraj(const Eigen::VectorXd& startJoints, const Eigen::VectorXd& endJoints,
+    int nSteps) {
+  assert(startJoints.size() == endJoints.size());
+  Eigen::MatrixXd startEndJoints(2, startJoints.size());
+  startEndJoints.row(0) = startJoints;
+  startEndJoints.row(1) = endJoints;
+  return interp2d(VectorXd::LinSpaced(nSteps, 0, 1), VectorXd::LinSpaced(2, 0, 1), startEndJoints);
+
+}
+
+void getJointLimits(const RobotBasePtr& robot, const vector<int>& dofInds, VectorXd& lower, VectorXd& upper) {
+  lower.resize(dofInds.size());
+  upper.resize(dofInds.size());
+
+  vector<double> ul, ll;
+  for (int i = 0; i < dofInds.size(); ++i) {
+    robot->GetJointFromDOFIndex(dofInds[i])->GetLimits(ll, ul);
+    lower(i) = ll[0];
+    upper(i) = ul[0];
+  }
 }
 
 
@@ -71,6 +155,59 @@ std::vector<KinBody::LinkPtr> getArmLinks(OpenRAVE::RobotBase::ManipulatorPtr ma
   return armLinks;
 }
 
+void setDofVals(RobotBasePtr robot,  const vector<int>& dofInds, const VectorXd& dofVals) {
+  if (dofInds.size() > 0) robot->SetActiveDOFs(dofInds); //otherwise just use the active dofs
+  robot->SetActiveDOFValues(toDoubleVec(dofVals));
+}
+
+void setDofVals(RobotBasePtr robot,  const vector<int>& dofInds, const VectorXd& dofVals, const Vector3d& affVals) {
+  robot->SetTransform(toRaveTransform(affVals(0), affVals(1), affVals(2)));
+  setDofVals(robot, dofInds, dofVals);
+}
+
+MatrixXd calcPointJacobian(const RobotBasePtr& robot, int linkInd, const btVector3& pt, bool useAffine) {
+  int njoints = robot->GetActiveDOF();
+  int ndof = njoints + 3 * useAffine;
+  std::vector<double> jacvec(3 * njoints);
+  robot->CalculateActiveJacobian(linkInd, util::toRaveVector(pt), jacvec);
+  MatrixXd jac(3, ndof);
+  jac.leftCols(njoints) = Eigen::Map<MatrixXd>(jacvec.data(), 3, njoints);
+
+  if (useAffine) {
+    OpenRAVE::Transform robotTF = robot->GetTransform();
+
+    Matrix3d affineJac = Matrix3d::Identity();
+    affineJac(0,2) = -(pt.y() - robotTF.trans.y);
+    affineJac(1,2) = pt.x() - robotTF.trans.x;
+    affineJac(2,2) = 0;
+    jac.rightCols(3) = affineJac;
+  }
+
+  return jac;
+}
+
+void calcActiveLinkJac(KinBody::Link* link, RobotBasePtr robot, MatrixXd& posjac, MatrixXd& rotjac) {
+  struct F : public fVectorOfVector {
+    KinBody::Link* m_link;
+    RobotBasePtr m_robot;
+    F(KinBody::Link* link, RobotBasePtr robot) : m_link(link), m_robot(robot) {}
+    VectorXd operator()(const VectorXd& vals) const {
+      setDofVals(m_robot, vector<int>(), vals.topRows(vals.size()-3), vals.bottomRows(3));
+      VectorXd out(7);
+      OpenRAVE::Transform tf = m_link->GetTransform();
+      out.topRows(3) = toVector3d(tf.trans);
+      out.bottomRows(4) = toQuatVector4d(tf.rot);
+      return out;
+    }
+  };
+
+  ScopedRobotSave srs(robot);
+  vector<double> curvals; robot->GetActiveDOFValues(curvals);
+  MatrixXd fulljac = calcJacobian(F(link, robot), toVectorXd(curvals), 1e-5);
+  posjac = fulljac.topRows(3);
+  rotjac = fulljac.bottomRows(4);
+
+}
 
 
 
@@ -120,6 +257,42 @@ std::vector<OpenRAVE::KinBody::LinkPtr> getAffectedLinks(OpenRAVE::RobotBasePtr 
     }
   }
   return out;
+}
+
+bool doesAffect(const RobotBasePtr& robot, const vector<int>& dofInds, int linkInd) {
+  BOOST_FOREACH(int dofInd, dofInds) {
+    if (robot->DoesAffect(dofInd, linkInd)) return true;
+  }
+  return false;
+}
+
+void getAffectedLinks2(RobotBasePtr robot, const vector<int>& dofInds, vector<KinBody::LinkPtr>& links,
+                       vector<int>& linkInds) {
+  const vector<KinBody::LinkPtr>& robotLinks = robot->GetLinks();
+  links.clear();
+  linkInds.clear();
+  BOOST_FOREACH(const KinBody::LinkPtr& link, robotLinks) {
+    if (link->GetGeometries().size()>0 && doesAffect(robot, dofInds, link->GetIndex())) {
+      links.push_back(link);
+      linkInds.push_back(link->GetIndex());
+    }
+  }
+
+  vector<KinBodyPtr> grabbed;
+  robot->GetGrabbed(grabbed);
+  BOOST_FOREACH(const KinBodyPtr& body, grabbed) {
+    KinBody::LinkPtr grabberLink = robot->IsGrabbing(body);
+    assert(grabberLink);
+    if (doesAffect(robot, dofInds, grabberLink->GetIndex())) {
+      BOOST_FOREACH(const KinBody::LinkPtr& link, body->GetLinks()) {
+        if (link->GetGeometries().size()>0) {
+          links.push_back(link);
+          linkInds.push_back(grabberLink->GetIndex());
+        }
+      }
+    }
+  }
+
 }
 
 vector<btVector3> getGripperPositions(const MatrixXd& traj, RaveRobotObject::Manipulator::Ptr rrom) {
@@ -197,10 +370,5 @@ BulletRaveSyncherPtr fullBodySyncher(RaveRobotObject* rro) {
   return BulletRaveSyncherPtr(new BulletRaveSyncher(links, bodies));
 }
 
-static std::map<KinBodyPtr, KinBody::LinkPtr> grabmap;
-KinBody::LinkPtr getGrabberLink(KinBodyPtr body) {
-  return grabmap[body];
-}
-void setGrabberLink(KinBody::LinkPtr grabber, KinBodyPtr body) {
-  grabmap[body] = grabber;
-}
+
+

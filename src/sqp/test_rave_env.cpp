@@ -1,12 +1,11 @@
 #include "simulation/simplescene.h"
 #include "simulation/config_bullet.h"
-#include "robots/pr2.h"
+#include "robots/robot_manager.h"
 #include "simulation/bullet_io.h"
 #include <boost/foreach.hpp>
 #include "utils/vector_io.h"
 #include "utils/logging.h"
 #include "utils/clock.h"
-#include "sqp_algorithm.h"
 #include "config_sqp.h"
 #include <osg/Depth>
 #include <json/json.h>
@@ -15,6 +14,8 @@
 #include "planning_problems.h"
 #include "kinematics_utils.h"
 #include "plotters.h"
+#include "traj_sqp.h"
+#include "planning_problems2.h"
 using namespace std;
 using namespace Eigen;
 using namespace util;
@@ -36,13 +37,15 @@ float randf() {return (float)rand()/(float)RAND_MAX;}
 
 struct LocalConfig: Config {
   static string probSpec;
-
+  static string jsonOutputPath;
   LocalConfig() :
     Config() {
     params.push_back(new Parameter<string> ("probSpec", &probSpec, "problem specification"));
+    params.push_back(new Parameter<string> ("jsonOutputPath", &jsonOutputPath, "path to output final trajectory as JSON"));
   }
 };
 string LocalConfig::probSpec = "";
+string LocalConfig::jsonOutputPath = "";
 
 int main(int argc, char *argv[]) {
 
@@ -72,14 +75,15 @@ int main(int argc, char *argv[]) {
 
   Json::Value probInfo = readJson(LocalConfig::probSpec);
 
-  if (probInfo.isMember("env")) Load(scene.env, scene.rave, probInfo["env"].asString(),false);
+  if (probInfo.isMember("env")) Load(scene.env, scene.rave, probInfo["env"].asString());
   else ASSERT_FAIL();
+
 
   vector<double> startJoints;
   for (int i=0; i < probInfo["start_joints"].size(); ++i) startJoints.push_back(probInfo["start_joints"][i].asDouble());
 
   RaveRobotObject::Ptr pr2 = getRobotByName(scene.env, scene.rave, probInfo["robot"].asString());
-  RaveRobotObject::Manipulator::Ptr arm = pr2->createManipulator(probInfo["manip"].asString(), false);
+  RaveRobotObject::Manipulator::Ptr arm = pr2->createManipulator(probInfo["manip"].asString());
 
   assert(pr2);
   assert(arm);
@@ -97,51 +101,29 @@ int main(int argc, char *argv[]) {
 
   arm->setGripperAngle(.5);
 
-  BulletRaveSyncherPtr brs = syncherFromArm(arm);
-
   TIC();
-  PlanningProblem prob;
-  prob.addPlotter(ArmPlotterPtr(new ArmPlotter(arm, &scene,  SQPConfig::plotDecimation)));
+  TrajOptimizer opt;
+  opt.addPlotter(ArmPlotterPtr(new ArmPlotter(arm, &scene,  SQPConfig::plotDecimation)));
 
 
   if (probInfo["goal_type"] == "joint") {
-    int nJoints = 7;
     VectorXd startJoints = toVectorXd(arm->getDOFValues());
     VectorXd endJoints = toVectorXd(goal);
-    MatrixXd initTraj = makeTraj(startJoints, endJoints, SQPConfig::nStepsInit);
-    LengthConstraintAndCostPtr lcc(new LengthConstraintAndCost(true, true, defaultMaxStepMvmt(
-        initTraj), SQPConfig::lengthCoef));
-    CollisionCostPtr cc(new CollisionCost(pr2->robot, scene.env->bullet->dynamicsWorld, brs,
-        arm->manip->GetArmIndices(), SQPConfig::distPen, SQPConfig::collCoefInit));
-    JointBoundsPtr jb(new JointBounds(true, true, defaultMaxStepMvmt(initTraj) / 5, arm->manip));
-    prob.initialize(initTraj, true);
-    prob.addComponent(lcc);
-    prob.addComponent(cc);
-    prob.addComponent(jb);
   }
   else if (probInfo["goal_type"] == "cart") {
-
-    VectorXd startJoints = toVectorXd(arm->getDOFValues());
     btTransform goalTrans = btTransform(btQuaternion(goal[0], goal[1], goal[2], goal[3]),
-        btVector3(goal[4], goal[5], goal[6]));
-    util::drawAxes(goalTrans, .15 * METERS, scene.env);
-    TIC1();
-    planArmToCartTarget(prob, startJoints, goalTrans, arm);
-    cout << "total time: " << TOC();
-
+            btVector3(goal[4], goal[5], goal[6]));
+    setupArmToCartTarget(opt, goal, arm);
   }
   else if (probInfo["goal_type"] == "grasp") {
-
-    VectorXd startJoints = toVectorXd(arm->getDOFValues());
     btTransform goalTrans = btTransform(btQuaternion(goal[0], goal[1], goal[2], goal[3]),
-        btVector3(goal[4], goal[5], goal[6]));
-    util::drawAxes(goalTrans, .15 * METERS, scene.env);
-    TIC1();
-    planArmToGrasp(prob, startJoints, goalTrans, arm);
-    cout << "total time: " << TOC();
-
+            btVector3(goal[4], goal[5], goal[6]));
+    setupArmToCartTarget(opt, goal, arm);
   }
 
+  if(!LocalConfig::jsonOutputPath.empty()){
+    prob.writeTrajToJSON(LocalConfig::jsonOutputPath);
+  }
 
   prob.m_plotters[0].reset();
 
