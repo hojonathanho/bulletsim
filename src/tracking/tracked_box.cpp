@@ -70,11 +70,3 @@ void TrackedBox::applyEvidence(const Eigen::MatrixXf& corr, const MatrixXf& obsP
 		//getSim()->rigidBody->applyCentralImpulse(impulses[i]);
 	}
 }
-
-
-const VectorXf TrackedBox::getPriorDist() {
-	VectorXf prior_dist(3);
-	prior_dist << TrackingConfig::pointPriorDist*METERS, TrackingConfig::pointPriorDist*METERS, TrackingConfig::pointPriorDist*METERS;
-	cout << "fixme: TrackedBox::getPriorDist()" << endl;
-	return prior_dist;
-}

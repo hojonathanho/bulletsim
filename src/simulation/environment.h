@@ -10,6 +10,7 @@
 #include <vector>
 #include <boost/shared_ptr.hpp>
 #include <iostream>
+#include <stdexcept>
 using namespace std;
 
 struct OSGInstance {
@@ -36,7 +37,7 @@ struct BulletInstance {
     void setGravity(const btVector3 &gravity);
     void setDefaultGravity();
 
-    // Populates out with all objects colliding with obj, possibly ignoring some objects
+    // Populates OUT with all objects colliding with OBJ, possibly ignoring some objects
     // dynamicsWorld->updateAabbs() must be called before contactTest
     // see http://bulletphysics.org/Bullet/phpBB3/viewtopic.php?t=4850
     typedef std::set<const btCollisionObject *> CollisionObjectSet;
@@ -64,6 +65,7 @@ public:
     // however it should call f.registerCopy() for each Bullet
     // collision object that it makes.
     virtual EnvironmentObject::Ptr copy(Fork &f) const = 0;
+
     // postCopy is called after all objects are copied and inserted into f.env.
     // This is useful for updating constraints, anchors, etc.
     // You're free to use f.forkOf()  or f.copyOf() to get equivalent objects in the new env.
@@ -79,7 +81,16 @@ public:
     virtual osg::Node *getOSGNode() const { return NULL; }
 
     virtual void setColor(float r, float g, float b, float a) {};
-		virtual void adjustTransparency(float increment) {};
+    virtual void adjustTransparency(float increment) {};
+
+    //gets the index of the closest part of the object (face, capsule, rigid_body, etc)
+    //for rigid bodies, there is only one index so this will always return 0
+    virtual int getIndex(const btTransform& transform) { std::runtime_error("getIndex() hasn't been defined yet"); }
+    virtual int getIndexSize() { std::runtime_error("getIndex() hasn't been defined yet"); }
+
+    //gets the transform of the indexed part
+    //for rigid bodies, this just returns the rigid body's transform
+    virtual btTransform getIndexTransform(int index) { std::runtime_error("getIndexTransform() hasn't been defined yet"); }
 };
 
 struct Environment {
@@ -137,10 +148,12 @@ public:
         DataMap::const_iterator i = dataMap.find(orig);
         return i == dataMap.end() ? NULL : i->second;
     }
+
     EnvironmentObject::Ptr forkOf(EnvironmentObject::Ptr orig) const {
         ObjectMap::const_iterator i = objMap.find(orig.get());
         return i == objMap.end() ? EnvironmentObject::Ptr() : i->second;
     }
+
     EnvironmentObject::Ptr forkOf(EnvironmentObject *orig) const {
         ObjectMap::const_iterator i = objMap.find(orig);
         return i == objMap.end() ? EnvironmentObject::Ptr() : i->second;
@@ -238,6 +251,32 @@ public:
           if (*i)
               (*i)->adjustTransparency(increment);
 		}
+
+		int getIndex(const btTransform& transform) {
+			const btVector3 pos = transform.getOrigin();
+			int j_nearest = -1;
+			float nearest_length2 = DBL_MAX;
+			for (int i=0; i<children.size(); i++) {
+				int j = i*children[i]->getIndexSize() + children[i]->getIndex(transform);
+				const btVector3 center = children[i]->getIndexTransform(j % children[i]->getIndexSize()).getOrigin();
+				const float length2 = (pos - center).length2();
+				if (length2 < nearest_length2) {
+					j_nearest = j;
+					nearest_length2 = length2;
+				}
+			}
+			return j_nearest;
+		}
+
+		int getIndexSize() {
+			return children.size() * children[0]->getIndexSize();
+		}
+
+		btTransform getIndexTransform(int index) {
+			const int index_size = children[0]->getIndexSize();
+			return children[index/index_size]->getIndexTransform(index % index_size);
+		}
+
 };
 
 class Action {

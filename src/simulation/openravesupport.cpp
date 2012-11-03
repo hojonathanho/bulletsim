@@ -85,6 +85,10 @@ RaveObject::Ptr getObjectByName(Environment::Ptr env, RaveInstance::Ptr rave, co
   return RaveObject::Ptr();
 }
 
+RaveRobotObject::Ptr getRobotByName(Environment::Ptr env, RaveInstance::Ptr rave, const string& name) {
+  return boost::dynamic_pointer_cast<RaveRobotObject>(getObjectByName(env, rave, name));
+}
+
 RaveObject::RaveObject(RaveInstance::Ptr rave_, KinBodyPtr body_, TrimeshMode trimeshMode, bool isDynamic) {
 	initRaveObject(rave_, body_, trimeshMode, BulletConfig::margin * METERS, isDynamic);
 }
@@ -177,8 +181,13 @@ static BulletObject::Ptr createFromLink(KinBody::LinkPtr link,
          TrimeshMode trimeshMode,
         float fmargin, bool isDynamic) {
 
-	const std::list<KinBody::Link::GEOMPROPERTIES> &geometries =
-			link->GetGeometries();
+#if OPENRAVE_VERSION_MINOR>6
+  const std::vector<boost::shared_ptr<OpenRAVE::KinBody::Link::GEOMPROPERTIES> > & geometries=link->GetGeometries();
+#else
+  const std::list<KinBody::Link::GEOMPROPERTIES> &geometries =link->GetGeometries();
+#endif
+
+
 	// sometimes the OpenRAVE link might not even have any geometry data associated with it
 	// (this is the case with the PR2 model). therefore just add an empty BulletObject
 	// pointer so we know to skip it in the future
@@ -193,9 +202,11 @@ static BulletObject::Ptr createFromLink(KinBody::LinkPtr link,
 	float volumeAccumulator(0);
 	btVector3 firstMomentAccumulator(0,0,0);
 
-	for (std::list<KinBody::Link::GEOMPROPERTIES>::const_iterator geom =
-			geometries.begin(); geom != geometries.end(); ++geom) {
-
+#if OPENRAVE_VERSION_MINOR>6
+	BOOST_FOREACH(const boost::shared_ptr<OpenRAVE::KinBody::Link::GEOMPROPERTIES>& geom, geometries) {
+#else
+        for (std::list<KinBody::Link::GEOMPROPERTIES>::const_iterator geom = geometries.begin(); geom != geometries.end(); ++geom) {
+#endif
 		btVector3 offset(0, 0, 0);
 
 		boost::shared_ptr<btCollisionShape> subshape;
@@ -438,7 +449,7 @@ void RaveObject::updateBullet() {
 		if (!c)
 			continue;
 		c->motionState->setKinematicPos(util::toBtTransform(transforms[i],
-				GeneralConfig::scale));
+															GeneralConfig::scale));
 	}
 
 }
@@ -691,4 +702,126 @@ void RaveRobotObject::destroyManipulator(RaveRobotObject::Manipulator::Ptr m) {
 		return;
 	(*i).reset();
 	createdManips.erase(i);
+}
+
+
+/* Adds the a trimesh built from the current state of the softbody SB to the openrave
+ * environment RAVE. Returns a pointer to the kinematicbody created and added to the environment.*/
+OpenRAVE::KinBodyPtr createKinBodyFromBulletSoftObject(BulletSoftObject::Ptr sb,
+													   RaveInstance::Ptr rave,
+													   std::string name) {
+	size_t i;
+	btSoftBody* psb = sb->softBody.get();
+	const btSoftBody::Node*	nbase = &(psb->m_nodes[0]);
+
+	// --> Create the Trimesh
+    OpenRAVE::KinBody::Link::TRIMESH raveMesh;
+
+    // fill in the vertices of the mesh
+	 raveMesh.vertices.resize(psb->m_nodes.size());
+     for(i=0;i<psb->m_nodes.size();++i)	 {
+		btVector3 node_pos = psb->m_nodes[i].m_x / GeneralConfig::scale;
+		OpenRAVE::Vector vec = util::toRaveVector(node_pos);
+	    raveMesh.vertices[i] = vec;
+	}
+
+	// fill the indices for the faces of the trimesh
+	raveMesh.indices.resize(3 * (psb->m_faces.size()),0);
+	for(i=0;i<psb->m_faces.size();i++)	 {
+		const btSoftBody::Face&	feat=psb->m_faces[i];
+		const int	idx[]={	int(feat.m_n[0]-nbase),
+             				int(feat.m_n[1]-nbase),
+			             	int(feat.m_n[2]-nbase)};
+		raveMesh.indices[3*i]   = idx[0];
+		raveMesh.indices[3*i+1] = idx[1];
+		raveMesh.indices[3*i+2] = idx[2];
+	}
+
+    // Get a random name for the body.
+	if (name=="") {
+		std::stringstream ss; ss << "TrimeshBody" << (int) clock();
+		name = ss.str();
+	}
+
+	// create a kinbody from mesh and add to the environment
+    OpenRAVE::KinBodyPtr raveBodyPtr;
+    { // lock the rave env
+    	OpenRAVE::EnvironmentMutex::scoped_lock lockenv(rave->env->GetMutex());
+    	raveBodyPtr = OpenRAVE::RaveCreateKinBody(rave->env);
+    	raveBodyPtr->InitFromTrimesh(raveMesh, true);
+    	raveBodyPtr->SetName(name);
+
+    	// Set random color for viewing
+        #if OPENRAVE_VERSION_MINOR>6
+    	const std::vector<boost::shared_ptr<OpenRAVE::KinBody::Link::GEOMPROPERTIES> > & geometries= raveBodyPtr->GetLinks()[0]->GetGeometries();
+    	BOOST_FOREACH(const boost::shared_ptr<OpenRAVE::KinBody::Link::GEOMPROPERTIES>& geom, geometries) {
+        #else
+        const std::list<KinBody::Link::GEOMPROPERTIES> &geometries =raveBodyPtr->GetLinks()[0]->GetGeometries();
+        for (std::list<KinBody::Link::GEOMPROPERTIES>::const_iterator geom = geometries.begin(); geom != geometries.end(); ++geom) {
+        #endif
+
+		OpenRAVE::geometry::RaveVector<float> color(0,//(float)rand()/RAND_MAX,
+				                                    (float)rand()/RAND_MAX,
+				                                    (float)rand()/RAND_MAX,
+        			                                (float)rand()/RAND_MAX);
+        geom->SetDiffuseColor(color);
+       }
+
+        rave->env->AddKinBody(raveBodyPtr);
+    } // rave env is unlocked
+    return raveBodyPtr;
+}
+
+
+/* Adds an openrave box kinematic-body to the openrave environment RAVE, based on the
+ * the bullet box object BOX.
+ * Returns a pointer to the kinematic-body created and added to the environment. */
+OpenRAVE::KinBodyPtr createKinBodyFromBulletBoxObject(BoxObject::Ptr box,
+		 	 	 	 	 	 	 	 	 	 	 	  RaveInstance::Ptr rave,
+		 	 	 	 	 	 	 	 	 	 	 	  std::string name) {
+	// get the box orientation and size
+	btTransform boxTransform;
+	box->motionState->getWorldTransform(boxTransform);
+	boxTransform.setOrigin(boxTransform.getOrigin() / GeneralConfig::scale);
+	btVector3 halfExtents = box->getHalfExtents() / GeneralConfig::scale;
+
+	OpenRAVE::RaveVector<OpenRAVE::dReal> pos(0,0,0);
+	OpenRAVE::RaveVector<OpenRAVE::dReal> extents(halfExtents.getX(), halfExtents.getY(), halfExtents.getZ());
+	std::vector<OpenRAVE::AABB> boxInfo;
+	OpenRAVE::AABB ibox(pos, extents);
+	boxInfo.push_back(ibox);
+
+	// Get a random name for the body.
+	if (name=="") {
+		std::stringstream ss; ss << "BoxBody" << (int) clock();
+		name = ss.str();
+	}
+
+	// create a kinbody from mesh and add to the environment
+    OpenRAVE::KinBodyPtr raveBoxPtr;
+    { // lock the rave env
+    	OpenRAVE::EnvironmentMutex::scoped_lock lockenv(rave->env->GetMutex());
+    	raveBoxPtr = OpenRAVE::RaveCreateKinBody(rave->env);
+    	raveBoxPtr->InitFromBoxes(boxInfo, true);
+    	raveBoxPtr->SetName(name);
+    	raveBoxPtr->SetTransform(util::toRaveTransform(boxTransform));
+
+    	// Set random color for viewing
+        #if OPENRAVE_VERSION_MINOR>6
+    	const std::vector<boost::shared_ptr<OpenRAVE::KinBody::Link::GEOMPROPERTIES> > & geometries= raveBoxPtr->GetLinks()[0]->GetGeometries();
+    	BOOST_FOREACH(const boost::shared_ptr<OpenRAVE::KinBody::Link::GEOMPROPERTIES>& geom, geometries) {
+        #else
+        const std::list<KinBody::Link::GEOMPROPERTIES> &geometries =raveBoxPtr->GetLinks()[0]->GetGeometries();
+        for (std::list<KinBody::Link::GEOMPROPERTIES>::const_iterator geom = geometries.begin(); geom != geometries.end(); ++geom) {
+        #endif
+		OpenRAVE::geometry::RaveVector<float> color((float)rand()/RAND_MAX,
+				                                    0,//(float)rand()/RAND_MAX,
+				                                    (float)rand()/RAND_MAX,
+        			                                (float)rand()/RAND_MAX);
+        geom->SetDiffuseColor(color);
+       }
+
+    	rave->env->AddKinBody(raveBoxPtr);
+    } // rave env is unlocked
+    return raveBoxPtr;
 }

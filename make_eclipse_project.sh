@@ -1,4 +1,4 @@
-rm -rf ~/build/bulletsim_eclipse
-mkdir ~/build/bulletsim_eclipse
-cd ~/build/bulletsim_eclipse
-cmake -G"Eclipse CDT4 - Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug -DBUILD_PERCEPTION=ON -DJOHNS_ADVENTURES=ON ~/bulletsim
+rm -rf $BULLETSIM_BUILD_DIR/bulletsim_eclipse
+mkdir $BULLETSIM_BUILD_DIR/bulletsim_eclipse
+cd $BULLETSIM_BUILD_DIR/bulletsim_eclipse
+cmake -G"Eclipse CDT4 - Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON $BULLETSIM_SOURCE_DIR

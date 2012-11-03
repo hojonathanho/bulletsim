@@ -14,12 +14,12 @@
 #include <BulletSoftBody/btSoftBodyHelpers.h>
 
 btSoftBody* CreateFromTetGenFile(btSoftBodyWorldInfo& worldInfo,
-																	const char* ele_filename,
-																	const char* face_filename,
-																	const char* node_filename,
-																	bool bfacelinks,
-																	bool btetralinks,
-																	bool bfacesfromtetras);
+				 const char* ele_filename,
+				 const char* face_filename,
+				 const char* node_filename,
+				 bool bfacelinks,
+				 bool btetralinks,
+				 bool bfacesfromtetras);
 
 // quality:  Quality mesh generation. Minimum radius-edge ratio.
 // max_tet_vol: Maximum tetrahedron volume constraint.

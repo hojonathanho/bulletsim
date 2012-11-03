@@ -43,11 +43,9 @@ void makeHistogram(const VectorXf& vals, float res, VectorXi& counts, VectorXf& 
 float getTableHeight(ColorCloudPtr cloud) {
   MatrixXf xyz = toEigenMatrix(cloud);
   VectorXf z = clipSet(xyz.block(0,2,xyz.rows(), 1),MIN_HEIGHT,MAX_HEIGHT);
-  cout << z.block(0,0,10,1).transpose();
-  float res = HIST_RES;
   VectorXi counts;
   VectorXf binedges;
-  makeHistogram(z, res, counts, binedges);
+  makeHistogram(z, HIST_RES, counts, binedges);
   int iMax;
   counts.maxCoeff(&iMax);
   return binedges(iMax) + res/2;

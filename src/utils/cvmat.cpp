@@ -1,6 +1,23 @@
 #include "cvmat.h"
+#include <algorithm>
 
 using namespace Eigen;
+using namespace std;
+
+Eigen::MatrixXf compressPCA(const cv::PCA& pca, Eigen::MatrixXf features) {
+	int maxComponents = pca.eigenvectors.rows;
+	cv::Mat cv_features(features.rows(), features.cols(), CV_32FC1, features.data());
+	cv::Mat cv_comp_features(features.rows(), maxComponents, CV_32FC1);
+	for( int i = 0; i < cv_comp_features.rows; i++ ) {
+		pca.project(cv_features.row(i), cv_comp_features.row(i));
+	}
+	return Map<MatrixXf>((float*)cv_comp_features.data, cv_comp_features.rows, cv_comp_features.cols);
+}
+
+cv::Mat windowRange(const cv::Mat& image, int i_pixel, int j_pixel, int i_range, int j_range) {
+	return image(cv::Range(max(i_pixel - i_range, 0), min(i_pixel + i_range, image.rows-1)),
+			cv::Range(max(j_pixel - j_range, 0), min(j_pixel + j_range, image.cols-1)));
+}
 
 //As usual, cv::Mat is CV_8UC3 BGR
 //Vector3f mean(const cv::Mat& image) {
@@ -185,4 +202,80 @@ cv::Mat matchRotation(cv::Mat rot_image, cv::Mat ref_image) {
 		}
 	}
 	return match_image;
+}
+
+// Wrapper for OpenCV's polylines. This one takes a vector instead of an array.
+void polylines(cv::Mat im, vector<vector<cv::Point2f> > points, bool isClosed, const cv::Scalar & color, int thickness, int lineType, int shift){
+	cv::Point ** pts = new cv::Point*[points.size()];
+	for (int ctr_id=0; ctr_id<points.size(); ctr_id++) {
+		pts[ctr_id] = new cv::Point[points[ctr_id].size()];
+		for (int v_id=0; v_id<points[ctr_id].size(); v_id++) {
+			pts[ctr_id][v_id] = points[ctr_id][v_id];
+		}
+	}
+
+	int * npts = new int[points.size()];
+
+	// find number of points for each contour
+	for (int i = 0; i < points.size() ; i++)
+		npts[i] = points[i].size();
+
+	// draw
+	cv::polylines(im, const_cast<const cv::Point**>(pts), npts, points.size(), isClosed, color, thickness, lineType, shift);
+
+	for (int ctr_id=0; ctr_id<points.size(); ctr_id++) delete [] pts[ctr_id];
+	delete [] pts;
+	delete [] npts;
+}
+
+// Given a binary image, finds the corners of the biggest polygon contour.
+vector<cv::Point2f> polyCorners(cv::Mat mask) {
+	vector<vector<cv::Point> > contours;
+	vector<cv::Vec4i> hierarchy;
+
+	cv::findContours( mask, contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_SIMPLE );
+
+	assert(contours.size() != 0);
+
+	// iterate through all the top-level contours,
+	int idx = 0;
+	int idx_max = 0;
+	double area_max = cv::contourArea(cv::Mat(contours[idx_max]));
+	for( ; idx >= 0; idx = hierarchy[idx][0] ) {
+		double area = cv::contourArea(cv::Mat(contours[idx]));
+		if (area > area_max) {
+			idx_max = idx;
+			area_max = area;
+		}
+	}
+
+	cv::Mat curve(contours[idx_max]);
+	curve.convertTo(curve, CV_32FC1);
+	vector<cv::Point2f> poly_points;
+	cv::approxPolyDP(curve, poly_points, 10, true);
+	return poly_points;
+}
+
+// Returns the corners of the rectangle
+vector<cv::Point2f> rectCorners(cv::RotatedRect rect) {
+	vector<cv::Point2f> corners;
+
+	vector<cv::Point2f> unrot_corners;
+	unrot_corners.push_back(cv::Point2f(-rect.size.width/2.0, -rect.size.height/2.0));
+	unrot_corners.push_back(cv::Point2f(-rect.size.width/2.0, rect.size.height/2.0));
+	unrot_corners.push_back(cv::Point2f(rect.size.width/2.0, rect.size.height/2.0));
+	unrot_corners.push_back(cv::Point2f(rect.size.width/2.0, -rect.size.height/2.0));
+
+	float angle = rect.angle * M_PI/180.0;
+	cv::Mat rot(2,2,CV_32FC1);
+	rot.at<float>(0,0) = cos(angle);
+	rot.at<float>(0,1) = -sin(angle);
+	rot.at<float>(1,0) = sin(angle);
+	rot.at<float>(1,1) = cos(angle);
+
+	for (int i=0; i<unrot_corners.size(); i++) {
+		cv::Mat corner = cv::Mat(rect.center) + rot*cv::Mat(unrot_corners[i]);
+		corners.push_back(cv::Point2f(corner.at<float>(0,0), corner.at<float>(0,1)));
+	}
+	return corners;
 }

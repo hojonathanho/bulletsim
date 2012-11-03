@@ -1,0 +1,12 @@
+<launch>
+
+  <node pkg="robot_self_filter" type="self_filter" respawn="true" name="laser_self_filter" output="screen">
+     <remap from="cloud_in" to="/preprocessor/points" />
+     <remap from="cloud_out" to="/preprocessor/points_self_filtered" />
+     <param name="sensor_frame" type="string" value="/camera_rgb_optical_frame" />
+     <param name="subsample_value" type="double" value=".02"/>
+     <rosparam command="load" file="$(find pr2_arm_navigation_perception)/config/self_filter_right_left.yaml" />
+  </node>
+  <node pkg="rope_vision" type="initialization_service.py" name="rope_initializer"/>  
+
+</launch>

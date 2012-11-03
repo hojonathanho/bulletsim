@@ -1,15 +1,20 @@
 include_directories(
-    ${PCL_INCLUDE_DIRS}
-    ${BULLETSIM_SOURCE_DIR}/src
+  ${BULLETSIM_SOURCE_DIR}/src
+  ${PCL_INCLUDE_DIRS}
+  ${TETGEN_DIR}
+
+  ${ROS_ROOT_DIR}/include
+  ${ROS_ROOT_DIR}/stacks/vision_opencv/cv_bridge/include
+  ${ROS_ROOT_DIR}/stacks/geometry/tf/include
+  ${ROS_ROOT_DIR}/stacks/geometry/tf/msg_gen/cpp/include
+  ${ROS_ROOT_DIR}/stacks/geometry/tf/srv_gen/cpp/include
 )
 
-
-include_directories("/opt/ros/fuerte/stacks/vision_opencv/cv_bridge/include") # XXX bad
-include_directories("/opt/ros/fuerte/stacks/geometry/tf/include"
-					"/opt/ros/fuerte/stacks/geometry/tf/msg_gen/cpp/include"
-					"/opt/ros/fuerte/stacks/geometry/tf/srv_gen/cpp/include") # fuck this shit
-link_directories("/opt/ros/fuerte/stacks/geometry/tf/lib"
-	"/opt/ros/fuerte/stacks/vision_opencv/cv_bridge/lib")
+link_directories(
+  ${TETGEN_DIR}
+  ${ROS_ROOT_DIR}/stacks/geometry/tf/lib
+	${ROS_ROOT_DIR}/stacks/vision_opencv/cv_bridge/lib
+)
 
 add_library(tracking 
 	algorithm_common.cpp 
@@ -23,16 +28,19 @@ add_library(tracking
 	sparse_utils.cpp
 	tracked_object.cpp 
 	tracked_rope.cpp
+	tracked_cloth.cpp
 	tracked_towel.cpp
+	tracked_sponge.cpp
 	tracked_box.cpp
 	utils_tracking.cpp
 	visibility.cpp
 	feature_extractor.cpp
 	tracked_compound.cpp
+  cam_sync.cpp
 )
-	
+
 target_link_libraries(tracking
-	simulation clouds robots)
+	simulation clouds robots cv_bridge)
 	
 add_executable(tracker_node tracker_node.cpp)
 target_link_libraries(tracker_node tracking simulation clouds tf cv_bridge ${OpenCV_LIBS} ${ROS_LIBRARIES} boost_signals)

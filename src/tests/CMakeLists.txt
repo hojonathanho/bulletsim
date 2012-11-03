@@ -1,5 +1,6 @@
 include_directories( ${TETGEN_DIR}
     ${PCL_INCLUDE_DIRS} )
+
 link_directories( ${TETGEN_DIR} )
 
 add_executable(test_simplescene test_simplescene.cpp)
@@ -53,5 +54,17 @@ target_link_libraries(test_picking simulation utils)
 add_executable(test_hand test_hand.cpp)
 target_link_libraries(test_hand simulation)
 
-add_executable(test_raven test_raven.cpp)
-target_link_libraries(test_raven robots simulation)
+#add_executable(test_raven test_raven.cpp)
+#target_link_libraries(test_raven robots simulation)
+
+add_executable(test_softbody_mappings test_softbody_mappings.cpp)
+target_link_libraries(test_softbody_mappings simulation)
+
+################################################################
+include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/test_surgical)
+#link_directories( ${CMAKE_CURRENT_SOURCE_DIR}/test_surgical )
+
+add_executable(test_suture_cloth test_suture_cloth.cpp
+                            	 test_surgical/CustomScene.cpp
+                            	 test_surgical/CustomKeyHandler.cpp)
+target_link_libraries(test_suture_cloth simulation robots)

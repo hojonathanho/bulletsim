@@ -1,0 +1,37 @@
+#!/usr/bin/wish
+# phasespace application launcher
+
+# find the installation directory
+# we need the dependencies in it
+set dir [file dirname $argv0];
+if {$dir != "."} { cd $dir; }
+
+wm title . "demos"
+wm geometry . -2+0
+
+set pack_opts "-fill x"
+#" -side left"
+
+eval pack [frame .a] $pack_opts
+
+#eval pack [label .a.apps -text "Apps" -font {-family courier -size 12 -weight bold -slant italic} ]
+
+if {[file executable master]} { eval pack [button .a.master -text "Master" -command { call ./master }] $pack_opts }
+if {[file executable paint]} { eval pack [button .a.paint -text "Paint" -command { call ./paint }] $pack_opts }
+
+if {[file executable align]} { eval pack [button .a.align -text "Align" -command { call ./align calib.rb}] $pack_opts }
+
+#eval pack [label .a.demos -text "Demos" -font {-family courier -size 12 -weight bold -slant italic} ]
+#if {[file executable paint]} { eval pack [button .a.laser -text "Laser" -command { call ./paint -laser}] $pack_opts }
+
+#eval pack [button .quit -text "Close" -command {exit}] $pack_opts
+
+proc call { prog args} {
+    catch {eval exec $prog -full $args }
+}
+
+#master
+#paint
+#laser passive point tracker
+#align
+#close

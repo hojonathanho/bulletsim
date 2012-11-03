@@ -9,7 +9,7 @@ using namespace Eigen;
 
 Grab::Grab(btRigidBody* rb, const btVector3& pos, btDynamicsWorld* world_) {
   world = world_;
-  cnt = new btGeneric6DofConstraint(*rb,btTransform(btQuaternion(0,0,0,1),btVector3(0,0,0)),true); // second parameter?
+  cnt = new btGeneric6DofConstraint(*rb,btTransform::getIdentity(),true); // second parameter?
   cnt->setLinearLowerLimit(btVector3(0,0,0));
   cnt->setLinearUpperLimit(btVector3(0,0,0));
   cnt->setAngularLowerLimit(btVector3(0,0,0));
@@ -20,7 +20,7 @@ Grab::Grab(btRigidBody* rb, const btVector3& pos, btDynamicsWorld* world_) {
 
 Grab::Grab(btRigidBody* rb, const btTransform& pose, btDynamicsWorld* world_) {
   world = world_;
-  cnt = new btGeneric6DofConstraint(*rb,btTransform(btQuaternion(0,0,0,1),btVector3(0,0,0)),true); // second parameter?
+  cnt = new btGeneric6DofConstraint(*rb,rb->getCenterOfMassTransform().inverseTimes(pose),true); // second parameter?
   cnt->setLinearLowerLimit(btVector3(0,0,0));
   cnt->setLinearUpperLimit(btVector3(0,0,0));
   cnt->setAngularLowerLimit(btVector3(0,0,0));
@@ -88,18 +88,41 @@ MonitorForGrabbing::MonitorForGrabbing(RaveRobotObject::Manipulator::Ptr manip, 
 {
 }
 
-void MonitorForGrabbing::setBodies(vector<BulletObject::Ptr>& bodies) {m_bodies = bodies;}
+void MonitorForGrabbing::setBodies(vector<BulletObject::Ptr>& bodies) {}
+
+btRigidBody* getNearestDynamicBody(btDynamicsWorld* world, btVector3& pt) {
+  btCollisionObjectArray& rigidobjs = world->getCollisionObjectArray();
+
+
+
+  float bestDist = SIMD_INFINITY;
+  float bestInd = -1;
+  bool bestIsRigid = true;
+
+  for (int i = 0; i < rigidobjs.size(); ++i) {
+    btRigidBody* maybeRB = btRigidBody::upcast(rigidobjs[i]);
+    if (maybeRB && maybeRB->getInvMass() != 0) {
+      float dist = maybeRB->getCenterOfMassPosition().distance(pt);
+      if (dist < bestDist) {
+        bestDist = dist;
+        bestInd = i;
+      }
+    }
+  }
+
+  assert (bestInd != -1);
+  return btRigidBody::upcast(rigidobjs[bestInd]);
+}
 
 void MonitorForGrabbing::grab() {
   // grabs nearest object
   cout << "grabbing nearest object" << endl;
   btTransform curPose = m_manip->getTransform();
-  int i;
-  BulletObject::Ptr nearestObj = getNearestBody(m_bodies, curPose.getOrigin(), i);
-  if (nearestObj->rigidBody->getCenterOfMassPosition().distance(curPose.getOrigin()) < .05*METERS) {
+  btRigidBody* nearestBody = getNearestDynamicBody(m_world, curPose.getOrigin());
+  if (nearestBody->getCenterOfMassPosition().distance(curPose.getOrigin()) < .1*METERS) {
     LOG_INFO("object is close enough: grabbing");
-    m_grab = new Grab(nearestObj->rigidBody.get(), curPose.getOrigin(), m_world);
-    nearestObj->setColor(0,0,1,1);
+    m_grab = new Grab(nearestBody, curPose, m_world);
+//    nearestObj->setColor(0,0,1,1);
   }
   else {
     LOG_INFO("object is too far away");

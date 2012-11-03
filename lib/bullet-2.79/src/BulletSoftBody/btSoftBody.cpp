@@ -1189,7 +1189,7 @@ int				btSoftBody::generateClusters(int k,int maxiterations)
 }
 
 //
-void			btSoftBody::refine(ImplicitFn* ifn,btScalar accurary,bool cut)
+void btSoftBody::refine(ImplicitFn* ifn,btScalar accurary, bool cut)
 {
 	const Node*			nbase = &m_nodes[0];
 	int					ncount = m_nodes.size();
@@ -1198,6 +1198,8 @@ void			btSoftBody::refine(ImplicitFn* ifn,btScalar accurary,bool cut)
 	int i,j,k,ni;
 
 	/* Filter out		*/ 
+	//Remove links connecting nodes on different sides of implicit function boundary
+	//if they are bending links.
 	for(i=0;i<m_links.size();++i)
 	{
 		Link&	l=m_links[i];
@@ -1208,8 +1210,9 @@ void			btSoftBody::refine(ImplicitFn* ifn,btScalar accurary,bool cut)
 				btSwap(m_links[i],m_links[m_links.size()-1]);
 				m_links.pop_back();--i;
 			}
-		}	
+		}
 	}
+
 	/* Fill edges		*/ 
 	for(i=0;i<m_links.size();++i)
 	{
@@ -1290,6 +1293,7 @@ void			btSoftBody::refine(ImplicitFn* ifn,btScalar accurary,bool cut)
 			}
 		}
 	}
+
 	/* Refine faces		*/ 
 	for(i=0;i<m_faces.size();++i)
 	{
@@ -1322,7 +1326,7 @@ void			btSoftBody::refine(ImplicitFn* ifn,btScalar accurary,bool cut)
 	}
 	/* Cut				*/ 
 	if(cut)
-	{	
+	{
 		btAlignedObjectArray<int>	cnodes;
 		const int					pcount=ncount;
 		int							i;
@@ -1343,7 +1347,7 @@ void			btSoftBody::refine(ImplicitFn* ifn,btScalar accurary,bool cut)
 			}
 		}
 		nbase=&m_nodes[0];
-		/* Links		*/ 
+		/* Links		*/
 		for(i=0,ni=m_links.size();i<ni;++i)
 		{
 			const int		id[]={	int(m_links[i].m_n[0]-nbase),
@@ -1438,6 +1442,11 @@ void			btSoftBody::refine(ImplicitFn* ifn,btScalar accurary,bool cut)
 	}
 	m_bUpdateRtCst=true;
 }
+
+
+////////////////////////////////// CUT SOFT BODY ////////////////////////////////
+
+
 
 //
 bool			btSoftBody::cutLink(const Node* node0,const Node* node1,btScalar position)

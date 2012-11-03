@@ -21,6 +21,20 @@ Scene::Scene() {
     ground.reset(new BoxObject(0, btVector3(5*METERS, 5*METERS, 0.01*METERS), btTransform(btQuaternion(0,0,0,1), btVector3(0,0,-0.01*METERS))));
     ground->collisionShape->setMargin(0.001*METERS);
     ground->rigidBody->setFriction(1.0);
+    // in centimeters
+		float width = 2*ground->getHalfExtents().x() * 100/METERS;
+		float height = 2*ground->getHalfExtents().y() * 100/METERS;
+		cv::Mat tex (height, width, CV_8UC3);
+		// chessboard of squares of 10 cm
+		for (int i=0; i<tex.rows; i++) {
+			for (int j=0; j<tex.cols; j++) {
+				if ((i/10)%2 != (j/10)%2) tex.at<cv::Vec3b>(i,j) = cv::Vec3b(135,184,222);
+				//if ((i/10)%2 != (j/10)%2) tex.at<cv::Vec3b>(i,j) = cv::Vec3b(179,222,245);
+				else tex.at<cv::Vec3b>(i,j) = cv::Vec3b(211,211,211);
+			}
+		}
+		ground->setTexture(tex);
+
     env->add(ground);
 
     // default callbacks
@@ -46,7 +60,8 @@ void Scene::startViewer() {
 
     viewer.setUpViewInWindow(0, 0, ViewerConfig::windowWidth, ViewerConfig::windowHeight);
     manip = new EventHandler(*this);
-    manip->setHomePosition(util::toOSGVector(ViewerConfig::cameraHomePosition)*METERS, osg::Vec3(), osg::Z_AXIS);
+    manip->setHomePosition(util::toOSGVector(ViewerConfig::cameraHomePosition)*METERS, util::toOSGVector(ViewerConfig::cameraHomeCenter)*METERS, util::toOSGVector(ViewerConfig::cameraHomeUp)*METERS);
+    manip->setWheelZoomFactor(ViewerConfig::zoomFactor);
     viewer.setCameraManipulator(manip);
     viewer.setSceneData(osg->root.get());
     viewer.realize();

@@ -1,37 +1,42 @@
 #pragma once
 #include <vector>
 #include <Eigen/Dense>
-#include "sparse_utils.h"
+#include <cv.h>
 #include "clouds/pcl_typedefs.h"
 #include "config_tracking.h"
 #include "tracked_object.h"
-#include "tracking_defs.h"
+#include "utils_tracking.h"
 
 class FeatureExtractor {
 public:
 	typedef boost::shared_ptr<FeatureExtractor> Ptr;
 	enum
 	{
+		FT_ALL = -1,
 		FT_XYZ = 0,
 		FT_BGR,
 		FT_LAB,
 		FT_NORMAL,
 		FT_LABEL,
+		FT_SURF,
+		FT_PCASURF,
+		FT_GRADNORM,
 
 		FT_COUNT
 	};
 	typedef int FeatureType;
 
 	//Don't modify them directly
-	static int m_dim;
 	static std::vector<FeatureType> m_types;
+	static int m_dim;
 	static int m_allDim;
+	static const int FT_SIZES[];
 
   FeatureExtractor();
 
-  //The children of this class is responsible for updating m_features before these are called
-  Eigen::MatrixXf& getFeatures() { return m_features; }
-  Eigen::MatrixXf getFeatures(FeatureType fType);
+  //The children of this class is responsible for updating m_features before this are called
+  //returns the submatrix of m_features that contain the feature fType.
+  Eigen::Block<Eigen::MatrixXf> getFeatures(FeatureType fType=FT_ALL);
 
   virtual void updateFeatures() = 0;
   virtual Eigen::MatrixXf computeFeature(FeatureType fType) = 0;
@@ -49,15 +54,7 @@ public:
 
 protected:
   Eigen::MatrixXf m_features;
-
-  //Don't touch these
-  Eigen::MatrixXf getFeatureCols(FeatureType fType) {
-  	return m_features.middleCols(m_startCols[m_allType2Ind[fType]], m_sizes[m_allType2Ind[fType]]);
-  }
-  void setFeatureCols(FeatureType fType, const Eigen::MatrixXf& fCols) {
-  	assert(m_sizes[m_allType2Ind[fType]] == fCols.cols());
-  	m_features.middleCols(m_startCols[m_allType2Ind[fType]], m_sizes[m_allType2Ind[fType]]) = fCols;
-  }
+  static cv::PCA pca_surf;
 
 private:
 	static std::vector<int> m_allSizes;
@@ -77,8 +74,11 @@ class CloudFeatureExtractor : public FeatureExtractor {
 public:
 	typedef boost::shared_ptr<CloudFeatureExtractor> Ptr;
 	ColorCloudPtr m_cloud;
+	cv::Mat m_image;
+	CoordinateTransformer* m_transformer;
 
 	void updateInputs(ColorCloudPtr cloud);
+	void updateInputs(ColorCloudPtr cloud, cv::Mat image, CoordinateTransformer* transformer);
 	void updateFeatures();
   Eigen::MatrixXf computeFeature(FeatureType fType);
 };
@@ -91,5 +91,6 @@ public:
 
   TrackedObjectFeatureExtractor(TrackedObject::Ptr obj);
   void updateFeatures();
+  void setObj(TrackedObject::Ptr obj);
   Eigen::MatrixXf computeFeature(FeatureType fType);
 };
