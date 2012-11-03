@@ -75,6 +75,7 @@ void TrajOptimizer::setEndFixed() {
 }
 
 TrajComponent::TrajComponent(TrajOptimizer* opt) : m_opt(opt) {}
+TrajCost::TrajCost(TrajOptimizer* opt) : TrajComponent(opt) {}
 
 #define MEMO_CALC(lhs, rhs, key, cache) do {\
 	typeof(cache)::iterator it = cache.find(key);\
@@ -86,10 +87,10 @@ TrajComponent::TrajComponent(TrajOptimizer* opt) : m_opt(opt) {}
 static map<double, TrajCartCollInfo> collisionCache;
 
 CollisionCost::CollisionCost(TrajOptimizer* opt, RaveRobotObject* robot, const vector<int>& dofInds, bool useAffine, double coeff) :
-    TrajComponent(opt), m_robot(robot), m_dofInds(dofInds), m_useAffine(useAffine), m_coeff(coeff) {}
+    TrajCost(opt), m_robot(robot), m_dofInds(dofInds), m_useAffine(useAffine), m_coeff(coeff) {}
 
-double CollisionCost::evaluate() {
-	TrajCartCollInfo tcci = collectTrajCollisions(getTraj(), m_robot, m_dofInds, m_useAffine);
+double CollisionCost::evaluate(const MatrixXd& traj) {
+	TrajCartCollInfo tcci = collectTrajCollisions(traj, m_robot, m_dofInds, m_useAffine);
 	double out = 0;
 	BOOST_FOREACH(CartCollInfo& cci, tcci) {
 		BOOST_FOREACH(LinkCollision& lc, cci) {
@@ -132,7 +133,7 @@ ConvexObjectivePtr CollisionCost::convexify(GRBModel* model) {
 
 CartPoseCost::CartPoseCost(TrajOptimizer* opt, RobotManipulatorPtr arm, void* link, const vector<int>& dofInds,
              bool useAffine, const btTransform& goal, double posCoeff, double rotCoeff, bool l1) :
-             TrajComponent(opt),
+             TrajCost(opt),
              m_arm(arm),
              m_link(link),
              m_dofInds(dofInds),
@@ -145,9 +146,9 @@ CartPoseCost::CartPoseCost(TrajOptimizer* opt, RobotManipulatorPtr arm, void* li
 {}
 
 
-double CartPoseCost::evaluate() {
+double CartPoseCost::evaluate(const MatrixXd& traj) {
   ScopedRobotSave(m_arm->robot->robot);
-  VectorXd dofvals = getTraj().row(getLength()-1);
+  VectorXd dofvals = traj.row(getLength()-1);
   if (m_useAffine) setDofVals(m_arm->robot->robot, m_dofInds, dofvals.topRows(m_dofInds.size()), dofvals.bottomRows(3));
   else setDofVals(m_arm->robot->robot, m_dofInds, dofvals);
   OpenRAVE::Transform tfCur = static_cast<KinBody::Link*>(m_link)->GetTransform();
@@ -211,7 +212,7 @@ ConvexObjectivePtr CartPoseCost::convexify(GRBModel* model) {
 
 
 
-JntLenCost::JntLenCost(TrajOptimizer* opt, double coeff) : TrajComponent(opt), m_coeff(coeff) {}
+JntLenCost::JntLenCost(TrajOptimizer* opt, double coeff) : TrajCost(opt), m_coeff(coeff) {}
 
 ConvexObjectivePtr JntLenCost::convexify(GRBModel* model) {
 	VarArray& vars = getVars();
@@ -232,14 +233,13 @@ ConvexObjectivePtr JntLenCost::convexify(GRBModel* model) {
 
 }
 
-double JntLenCost::evaluate() {
-  MatrixXd& vars = getTraj();
+double JntLenCost::evaluate(const MatrixXd& traj) {
   double out = 0;
-  for (int iStep = 1; iStep < vars.rows(); ++iStep) {
-    for (int iJoint = 0; iJoint < vars.cols(); ++iJoint) {
-      double vel = vars(iStep, iJoint) - vars(iStep-1, iJoint);
+  for (int iStep = 1; iStep < traj.rows(); ++iStep) {
+    for (int iJoint = 0; iJoint < traj.cols(); ++iJoint) {
+      double vel = traj(iStep, iJoint) - traj(iStep-1, iJoint);
       double dt = getTimes()(iStep) - getTimes()(iStep - 1);
-      out += m_coeff * vars.rows() * dt * (vel * vel);
+      out += m_coeff * traj.rows() * dt * (vel * vel);
       // xxx should scale other costs to make them invariant to sampling
       // instead of making this proportional to sampling
     }

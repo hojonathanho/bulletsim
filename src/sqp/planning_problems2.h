@@ -5,7 +5,7 @@
 #include <Eigen/Dense>
 using Eigen::VectorXd;
 
-void setupArmToJointTarget(Optimizer& opt, const VectorXd& endJoints);
-void setupArmToCartTarget(Optimizer& opt, const btTransform& goal, RobotManipulatorPtr arm);
-void setupArmToGrasp(Optimizer& opt, const btTransform& goal, RobotManipulatorPtr arm);
-void setupArmToCartTargetWithBase(Optimizer& opt, const btTransform& goalTrans, RobotManipulatorPtr arm);
+void setupArmToJointTarget(TrajOptimizer& opt, const VectorXd& endJoints);
+void setupArmToCartTarget(TrajOptimizer& opt, const btTransform& goal, RobotManipulatorPtr arm);
+void setupArmToGrasp(TrajOptimizer& opt, const btTransform& goal, RobotManipulatorPtr arm);
+void setupArmToCartTargetWithBase(TrajOptimizer& opt, const btTransform& goalTrans, RobotManipulatorPtr arm);

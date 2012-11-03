@@ -32,31 +32,30 @@ public:
 
 class TrajComponent {
 public:
-	virtual void resample(const vector<double>& insertTimes, const VectorXd& oldTimes, const VectorXd& newTimes) {
+  TrajOptimizer* m_opt;
+
+  virtual void resample(const vector<double>& insertTimes, const VectorXd& oldTimes, const VectorXd& newTimes) {
 		assert(0);
 	}
 	
 	TrajComponent(TrajOptimizer*);
-	TrajOptimizer* m_opt;
 
-	MatrixXd& getTraj() {
-		return m_opt->m_traj;
-	}
-	VarArray& getVars() {
-		return m_opt->m_vars;
-	}
-	int getDof() {
-	  return m_opt->m_traj.cols();
-	}
-	int getLength() {
-		return m_opt->m_traj.rows();
-	}
-	VectorXd& getTimes() {
-		return m_opt->m_times;
+	MatrixXd& getTraj() {return m_opt->m_traj;}
+	VarArray& getVars() {return m_opt->m_vars;}
+	int getDof() {return m_opt->m_traj.cols();}
+	int getLength() {return m_opt->m_traj.rows();}
+	VectorXd& getTimes() {return m_opt->m_times;
 	}
 };
 
-class CollisionCost : public Cost, public TrajComponent {
+class TrajCost : public Cost, public TrajComponent {
+public:
+  TrajCost(TrajOptimizer*);
+  virtual double evaluate(const MatrixXd&)=0;
+  double evaluate() {return evaluate(getTraj());}
+};
+
+class CollisionCost : public TrajCost {
 public:
   RaveRobotObject* m_robot;
 	vector<int> m_dofInds;
@@ -64,12 +63,12 @@ public:
   double m_coeff;
 	
 	CollisionCost(TrajOptimizer* opt, RaveRobotObject* robot, const vector<int>& dofInds, bool useAffine, double coeff);
-	double evaluate();
+	double evaluate(const MatrixXd&);
   ConvexObjectivePtr convexify(GRBModel* model);	
 	string getName() {return "CollisionCost";}
 };
 
-class CartPoseCost : public Cost, public TrajComponent {
+class CartPoseCost : public TrajCost {
 public:
   RobotManipulatorPtr m_arm;
   void* m_link;
@@ -82,17 +81,19 @@ public:
 
   CartPoseCost(TrajOptimizer* opt, RobotManipulatorPtr arm, void* link, const vector<int>& dofInds,
                bool useAffine, const btTransform& goal, double posCoeff, double rotCoeff, bool l1);
+  double evaluate(const MatrixXd&);
 	double evaluate();
   ConvexObjectivePtr convexify(GRBModel* model);	
 	string getName() {return "CartPoseCost";}
 };
 
-class JntLenCost : public Cost, public TrajComponent {
+class JntLenCost : public TrajCost {
 public:
   double m_coeff;
 
   JntLenCost(TrajOptimizer* opt, double coeff);
 
+  double evaluate(const MatrixXd&);
 	double evaluate();
   ConvexObjectivePtr convexify(GRBModel* model);	
 	string getName() {return "JntLenCost";}
@@ -112,3 +113,8 @@ class CartVelCnt : public Constraint, public TrajComponent {
 public:
   ConvexConstraintPtr convexify(GRBModel* model);
 };
+
+void checkLinearization(TrajCost&);
+void checkConvexification(TrajCost&);
+void checkAllLinearizations(TrajOptimizer&);
+void checkAllConvexifications(TrajOptimizer&);

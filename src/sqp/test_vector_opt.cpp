@@ -20,7 +20,7 @@ public:
     m_shrinkage *= ratio;
     LOG_INFO("new radii: " << m_radii);
   }
-  ConvexConstraintPtr convexify() {
+  ConvexConstraintPtr convexify(GRBModel* model) {
     for (int i=0; i < m_xvar.size(); ++i) {
       m_xvar[i].set(GRB_DoubleAttr_LB, m_x[i] - m_radii[i]);
       m_xvar[i].set(GRB_DoubleAttr_UB, m_x[i] + m_radii[i]);
@@ -46,7 +46,7 @@ public:
     return evaluate(m_x);
   }
 
-  ConvexObjectivePtr convexify() {
+  ConvexObjectivePtr convexify(GRBModel* model) {
     double eps = 1e-4;
     double y = evaluate(m_x);
 
@@ -130,7 +130,7 @@ int main(int argc, char* argv[]) {
   parser.addGroup(SQPConfig());
   parser.read(argc, argv);
   initializeGRB();
-  VectorOptimization opt;
+  VectorOptimizer opt;
   opt.initialize(Eigen::Vector2d(0,0));
   opt.setTrustRegion(TrustRegionPtr(new VectorBox(opt.m_xvar, opt.m_x, Eigen::Vector2d::Constant(2,.1))));
   QuadBasinTest f;
