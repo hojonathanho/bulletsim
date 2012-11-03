@@ -125,3 +125,5 @@ Example 2: Two kinects
 
 Note
   When replaying, use_sim_time needs to be true. This is set automatically, but for all nodes to see this change, they need to be restarted (including rviz).
+
+--HELIM
