@@ -1,8 +1,8 @@
 include_directories( ${TETGEN_DIR}
     ${PCL_INCLUDE_DIRS} )
-
-link_directories( ${TETGEN_DIR} )
-
+    
+link_directories( ${TETGEN_DIR} )    
+	
 add_executable(test_simplescene test_simplescene.cpp)
 target_link_libraries(test_simplescene simulation robots)
 
@@ -68,3 +68,8 @@ add_executable(test_suture_cloth test_suture_cloth.cpp
                             	 test_surgical/CustomScene.cpp
                             	 test_surgical/CustomKeyHandler.cpp)
 target_link_libraries(test_suture_cloth simulation robots)
+
+add_executable(test_piercing test_piercing.cpp
+                            	 test_surgical/CustomScenePiercing.cpp
+                            	 test_surgical/CustomKeyHandlerPiercing.cpp)
+target_link_libraries(test_piercing simulation robots)

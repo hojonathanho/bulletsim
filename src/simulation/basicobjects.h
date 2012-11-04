@@ -250,6 +250,7 @@ public:
         return o;
     }
     osg::ref_ptr<osg::Node> createOSGNode();
+    inline btScalar getHeight() { return height; }
 };
 
 // A wrapper for btCapsuleShape
