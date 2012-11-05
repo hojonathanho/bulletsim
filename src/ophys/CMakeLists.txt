@@ -10,5 +10,8 @@ include_directories(
 set(CMAKE_CXX_FLAGS "-Wall -Wno-sign-compare -Wno-reorder")
 link_directories(${GUROBI_LIBRARY_DIR})
 
-add_executable(test_rope_sim test_rope_sim.cpp)
-target_link_libraries(test_rope_sim sqp2 simulation)
+add_library(ophys particlesystem.cpp ophys_config.cpp)
+target_link_libraries(ophys sqp2 simulation)
+
+add_executable(test_particlesystem test_particlesystem.cpp)
+target_link_libraries(test_particlesystem ophys)
