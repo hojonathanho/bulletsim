@@ -277,7 +277,7 @@ public:
 
 };
 
-class Action {
+class ObjectAction {
 protected:
     float timeElapsed;
     float execTime;
@@ -290,9 +290,9 @@ protected:
     void setColor(float r, float g, float b, float a);
 
 public:
-    typedef boost::shared_ptr<Action> Ptr;
-    Action() : isDone(false), timeElapsed(0.), execTime(1.) { }
-    Action(float execTime_) : isDone(false), timeElapsed(0.), execTime(execTime_) { }
+    typedef boost::shared_ptr<ObjectAction> Ptr;
+    ObjectAction() : isDone(false), timeElapsed(0.), execTime(1.) { }
+    ObjectAction(float execTime_) : isDone(false), timeElapsed(0.), execTime(execTime_) { }
 
     virtual bool done() const { return timeElapsed >= execTime || isDone; }
     virtual void step(float dt) = 0;

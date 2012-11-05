@@ -9,6 +9,11 @@ using namespace ophys;
 #include <iostream>
 using namespace std;
 
+void addAnchorCost(int p, const Vector3d &anchorpt, ParticleSystemOptimizer *opt) {
+  PointAnchorCost::Ptr anchorCost(new PointAnchorCost(*opt, p, anchorpt));
+  opt->addCost(anchorCost);
+}
+
 int main(int argc, char *argv[]) {
   Parser parser;
   parser.addGroup(GeneralConfig());
@@ -21,11 +26,14 @@ int main(int argc, char *argv[]) {
 
   initializeGRB();
 
-  int nparticles = 10;
+  const int nparticles = 10;
+  const double ropeLen = 2*METERS;
+
   ParticleSystemState initState;
+  double segRlen = ropeLen / (nparticles-1.0);
   for (int i = 0; i < nparticles; ++i) {
     ParticleState p;
-    p.x << (-1 + 2*i/(nparticles-1.0))*METERS, 0, 5*METERS;
+    p.x << (-ropeLen/2. + ropeLen*i/(nparticles-1.0)), 0, 5*METERS;
     p.v << 0, 0, 0;
     p.a << 0, 0, 0;
     initState.push_back(p);
@@ -33,19 +41,18 @@ int main(int argc, char *argv[]) {
 
   Scene scene;
 
-  ParticleSystem ps(initState);
+  RopeSystem ps(initState, segRlen);
   ps.attachToScene(&scene);
+
+  // anchor the first point to its initial spot
+  ps.setPreOptCallback(boost::bind(&addAnchorCost, 0, initState[0].x, _1));
 
   scene.startViewer();
 
-  for (int iter = 1; iter <= 1000000; ++iter) {
-    //cout << "\n\n=" << iter << "=================\n\n" << endl;
+  for (int iter = 1; ; ++iter) {
     ps.step(OPhysConfig::dt);
-    //cout << "==== finished iter " << iter << endl;
     scene.step(0);
-//      scene.idleFor(0.2);
   }
-
 
   return 0;
 }

@@ -115,8 +115,8 @@ struct Scene {
   void idle(bool b);
   void toggleIdle();
 
-  void runAction(Action &a, float dt);
-  void runAction(Action::Ptr a, float dt) { runAction(*a.get(), dt); }
+  void runAction(ObjectAction &a, float dt);
+  void runAction(ObjectAction::Ptr a, float dt) { runAction(*a.get(), dt); }
 
   virtual void draw();
 

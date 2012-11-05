@@ -15,3 +15,6 @@ target_link_libraries(ophys sqp2 simulation)
 
 add_executable(test_particlesystem test_particlesystem.cpp)
 target_link_libraries(test_particlesystem ophys)
+
+add_executable(test_ropesystem test_ropesystem.cpp)
+target_link_libraries(test_ropesystem ophys)

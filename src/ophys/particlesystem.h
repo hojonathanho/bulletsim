@@ -12,6 +12,13 @@ using std::vector;
 #include "sqp/sqp.h"
 #include "ophys_config.h"
 
+#include "simulation/plotting.h"
+
+class Scene;
+
+namespace ophys {
+
+
 struct ParticleState {
   boost::array<GRBVar, 3> var_x, var_v, var_a;
   Vector3d x, v, a; // position, velocity, acceleration
@@ -67,12 +74,19 @@ struct NoExternalForcesConstraint : public ConvexConstraint {
   NoExternalForcesConstraint(ParticleSystemOptimizer &o);
 };
 
+struct GroundConstraint : public ConvexConstraint {
+  typedef boost::shared_ptr<GroundConstraint> Ptr;
+  GroundConstraint(ParticleSystemOptimizer &o, double groundZ);
+};
+
 struct ConvexConstraintWrapper : public Constraint {
   typedef boost::shared_ptr<ConvexConstraintWrapper> Ptr;
 
   ConvexConstraintPtr m_cnt;
   ConvexConstraintWrapper(ConvexConstraintPtr cnt) : m_cnt(cnt) { }
   ConvexConstraintPtr convexify(GRBModel* model) { return m_cnt; }
+
+  static void AddToOpt(Optimizer &opt, ConvexConstraintPtr cnt);
 };
 
 struct PhysicsStepCost : public Cost {
@@ -87,17 +101,74 @@ struct PhysicsStepCost : public Cost {
   ConvexObjectivePtr convexify(GRBModel* model);
 };
 
+struct PointDistanceCost : public Cost {
+  typedef boost::shared_ptr<PointDistanceCost> Ptr;
+
+  ParticleSystemOptimizer &m_opt;
+  int m_p, m_q;
+  double m_d;
+
+  PointDistanceCost(ParticleSystemOptimizer &opt, int p, int q, double d);
+
+  string getName();
+  double evaluate();
+  double evaluate(const MatrixX3d &pointsOverTime);
+  ConvexObjectivePtr convexify(GRBModel *model);
+
+private:
+  MatrixX3d getCurrPointMatrix() const;
+};
+
+struct PointAnchorCost : public Cost {
+  typedef boost::shared_ptr<PointAnchorCost> Ptr;
+
+  ParticleSystemOptimizer &m_opt;
+  int m_p;
+  Vector3d m_anchorpt;
+
+  PointAnchorCost(ParticleSystemOptimizer &opt, int p, const Vector3d &anchorpt);
+  string getName();
+  double evaluate();
+  double evaluate(const MatrixX3d &pointOverTime);
+  ConvexObjectivePtr convexify(GRBModel *model);
+
+private:
+  MatrixX3d getCurrPointMatrix() const;
+};
+
 
 class ParticleSystem {
 public:
   ParticleSystemState m_currState;
+  PlotSpheres::Ptr m_plotSpheres;
+  Scene *m_scene;
 
   ParticleSystem(const ParticleSystemState &initState);
   void step(double dt);
   void step();
 
-  void updateOSG();
+  void attachToScene(Scene *);
+  void draw();
+
+  typedef boost::function<void(ParticleSystemOptimizer *)> PreOptCallback;
+  void setPreOptCallback(PreOptCallback cb);
+
+protected:
+  virtual void setupOpt(ParticleSystemOptimizer &opt);
+  PreOptCallback m_preOptCallback;
 };
 
+
+class RopeSystem : public ParticleSystem {
+public:
+  RopeSystem(const ParticleSystemState &initState, double segrlen);
+  const double m_segrlen; // segment resting length
+
+protected:
+  virtual void setupOpt(ParticleSystemOptimizer &opt);
+};
+
+
+} // namespace ophys
 
 #endif // __OPHYS_PARTICLE_SYSTEM_H__
