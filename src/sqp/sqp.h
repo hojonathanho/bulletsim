@@ -26,19 +26,27 @@ public:
 	vector<GRBLinExpr> m_exprs; // expressions that are <= 0
 	vector<GRBConstr> m_cnts; // expressions get turned into constraints
 
+  vector<string> m_eqcntNames; // future names for constraints
+  vector<GRBLinExpr> m_eqexprs; // expressions athat are == 0
+  vector<GRBConstr> m_eqcnts; // expressions get turned into constraints
+
   vector<string> m_qcntNames; // future names for constraints
 	vector<GRBQuadExpr> m_qexprs; // expression that are >= 0
-	vector<GRBConstr> m_qcnts; // expressions get turned into constraints
+	vector<GRBQConstr> m_qcnts; // expressions get turned into constraints
 
+  string m_name;
+  virtual string getName() { return m_name; }
 };
 
 class ConvexObjective : public ConvexPart {
 public:
 	GRBQuadExpr m_objective;
+  virtual ~ConvexObjective() { }
 };
 
 class ConvexConstraint : public ConvexPart {
 public:
+  virtual ~ConvexConstraint() { }
 };
 
 
@@ -47,12 +55,14 @@ public:
 	virtual ConvexObjectivePtr convexify(GRBModel* model)=0;
 	virtual double evaluate() = 0;
 	virtual string getName() {return "Unnamed";}
+  virtual ~Cost() { }
 
 };
 
 class Constraint {
 public:
 	virtual ConvexConstraintPtr convexify(GRBModel* model)=0;
+  virtual ~Constraint() { }
 
 };
 
@@ -61,6 +71,7 @@ class TrustRegion : public Constraint {
 public:
 	double m_shrinkage;
 	TrustRegion();
+	virtual ~TrustRegion() { }
 	virtual void adjustTrustRegion(double ratio) = 0;
 	void resetTrustRegion();
 };
@@ -92,6 +103,7 @@ public:
 	OptStatus optimize();
   void addCost(CostPtr cost);
   void addConstraint(ConstraintPtr cnt);
+  void removeConstraint(ConstraintPtr cnt);
   void setTrustRegion(TrustRegionPtr tra);
 
 protected:
@@ -108,5 +120,5 @@ protected:
 
 };
 
-void addHingeCost(ConvexObjectivePtr& cost, double coeff, const GRBLinExpr& err, GRBModel* model, const string& desc);
+void addHingeCost(ConvexObjectivePtr cost, double coeff, const GRBLinExpr& err, GRBModel* model, const string& desc);
 

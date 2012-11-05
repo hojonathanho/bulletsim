@@ -1,5 +1,8 @@
 #include "solver.h"
 
+#include "sqp/sqp.h"
+#include "ophys_common.h"
+
 namespace ophys {
 
 PhysicsSolver::PhysicsSolver() {
@@ -15,5 +18,6 @@ class PhysicsSolverImpl {
   PhysicsSolverImpl() {
   }
 };
+
 
 } // namespace ophys

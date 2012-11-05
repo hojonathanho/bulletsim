@@ -59,22 +59,30 @@ void Optimizer::printObjectiveInfo(const vector<double>& oldExact,
 ConvexPart::ConvexPart() : m_inModel(false) {}
 
 void ConvexPart::addToModel(GRBModel* model) {
+  LOG_DEBUG("adding " << m_name << " to model");
   m_model = model;
-  m_cnts.reserve(m_exprs.size());
+
+  assert(m_exprs.size() == m_cntNames.size());
   for (int i = 0; i < m_exprs.size(); ++i) {
     m_cnts.push_back(m_model->addConstr(m_exprs[i] <= 0, m_cntNames[i].c_str()));
   }
-  for (int i = 0; i < m_qexprs.size(); ++i) {
-    m_qcnts.push_back(m_model->addConstr(m_exprs[i] >= 0, m_qcntNames[i].c_str()));
+
+  assert(m_eqexprs.size() == m_eqcntNames.size());
+  for (int i = 0; i < m_eqexprs.size(); ++i) {
+    m_eqcnts.push_back(m_model->addConstr(m_eqexprs[i] == 0, m_eqcntNames[i].c_str()));
   }
-  m_inModel = true;
+
+  assert(m_qexprs.size() == m_qcntNames.size());
+  for (int i = 0; i < m_qexprs.size(); ++i) {
+    m_qcnts.push_back(m_model->addQConstr(m_qexprs[i] >= 0, m_qcntNames[i].c_str()));
+  }
 }
 
 void ConvexPart::removeFromModel() {
   BOOST_FOREACH(GRBConstr& cnt, m_cnts) {
     m_model->remove(cnt);
   }
-  BOOST_FOREACH(GRBConstr& qcnt, m_qcnts) {
+  BOOST_FOREACH(GRBQConstr& qcnt, m_qcnts) {
     m_model->remove(qcnt);
   }
   BOOST_FOREACH(GRBVar& var, m_vars) {
@@ -200,7 +208,7 @@ Optimizer::OptStatus Optimizer::optimize() {
     ///////////////////////////////////
 
     LOG_INFO("objectiveVals before: " << objectiveVals);
-    for (int i=0; i < m_costs.size(); ++i) std::cout << m_costs[i]->getName() << " " << m_costs[i]->evaluate() << std::endl;
+    for (int i=0; i < m_costs.size(); ++i) LOG_INFO(m_costs[i]->getName() << " " << m_costs[i]->evaluate());
 
 
     while (true) { // trust region adjustment
