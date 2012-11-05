@@ -1,3 +1,9 @@
+/**
+ * Author: 	Sibi Venkatesan
+ * 		   	(code adopted from Ankush Gupta)
+ * Attempts to pierce cloth
+ */
+
 #include "CustomScenePiercing.h"
 #include "CustomKeyHandlerPiercing.h"
 
@@ -23,6 +29,7 @@ void getContactPointsWith(btSoftBody *psb, btCollisionObject *pco, btSoftBody::t
                 if(ms>0) {
                     // there's a lot of extra information we don't need to compute
                     // since we just want to find the contact points
+
 #if 0
                     const btTransform&      wtr=m_rigidBody?m_rigidBody->getWorldTransform() : m_colObj1->getWorldTransform();
                     static const btMatrix3x3        iwiStatic(0,0,0,0,0,0,0,0,0);
@@ -117,6 +124,8 @@ void CustomScene::cutCloth (bool fwd) {
 
 	// Number of points/ point for piercing
 	int numPts = 0;
+	const btSoftBody::Node*			nbase = &cloth->softBody->m_nodes[0];
+
 	btVector3 pointToPierce(0,0,0);
 
 	btVector3 Tip = getNeedleTip(fwd);
@@ -138,17 +147,13 @@ void CustomScene::cutCloth (bool fwd) {
 	}
 
 	if (!piercing) {
-		btVector3 maxvel(0,0,0);
+		std::cout<<"Stress on different contact points: "<<std::endl;
 		for (int i = 0; i < numContacts; ++i) {
-			std::cout<<"Contact point "<<i+1<<": " <<rcnts[i].m_node->m_x[0]<<","<<rcnts[i].m_node->m_x[1]<<","<<rcnts[i].m_node->m_x[2]<<std::endl;
-			std::cout<<"Velocity: "<<rcnts[i].m_node->m_v[0]<<","<<rcnts[i].m_node->m_v[1]<<","<<rcnts[i].m_node->m_v[2]<<std::endl;
-
-			if (maxvel.length() < rcnts[i].m_node->m_v.length())
-				maxvel = rcnts[i].m_node->m_v;
+			std::cout<<cloth->nodeStress[int(rcnts[i].m_node - nbase)]<<std::endl;
 		}
+		std::cout<<"Mean stress: "<<cloth->meanStress<<std::endl;
 		std::cout<<"Pierce point: "<<pointToPierce[0]<<","<<pointToPierce[1]<<","<<pointToPierce[2]<<std::endl;
-		std::cout<<"Maxvel: "<<maxvel[0]<<","<<maxvel[1]<<","<<maxvel[2]<<std::endl;
-		std::cout<<"Maxvel magnitude: "<<maxvel.length()<<std::endl;
+
 		return;
 	}
 
@@ -156,7 +161,7 @@ void CustomScene::cutCloth (bool fwd) {
 
 	ImplicitSphere	iSphere(pointToPierce,0.02*GeneralConfig::scale);
 
-	cloth->softBody->refine(&iSphere,0.0001,true);
+	cloth->refine(&iSphere, 0.0001, true);
 }
 
 btVector3 CustomScene::getNeedleTip (bool fwd) {

@@ -46,6 +46,13 @@ public:
 
     boost::shared_ptr<btSoftBody> softBody;
 
+
+    vector<vector<int> > 	edges;
+    vector<float> 			nodeStress;
+    float 					meanStress;
+    void 					calculateEdges ();
+    void 					computeStress ();
+
     // constructors/destructors
     BulletSoftObject(boost::shared_ptr<btSoftBody> softBody_) : softBody(softBody_), nextAnchorHandle(0)
     {
@@ -54,6 +61,10 @@ public:
     		computeNodeFaceTetraMapping();
     		computeBoundaries();
     	}
+
+        ////////////////////// CHANGES BY SIBI:
+    	calculateEdges();
+
     }
     BulletSoftObject(btSoftBody *softBody_) : softBody(softBody_), nextAnchorHandle(0)
     {
@@ -62,7 +73,10 @@ public:
 				computeNodeFaceTetraMapping();
 				computeBoundaries();
    		}
-		}
+
+		////////////////////// CHANGES BY SIBI:
+		calculateEdges();
+	}
     virtual ~BulletSoftObject() { }
 
     // serialization (TODO: serialize anchors also?)
@@ -81,15 +95,15 @@ public:
     // sets the image and the texture coordinates
     void setTexture(cv::Mat image, const btTransform& camFromWorld);
     cv::Point2f getTexCoord(int nodeIdx);
-  void adjustTransparency(float increment);
+    void adjustTransparency(float increment);
 
 		// for softbody transforms. look at EnvironmentObject for precise definition.
-  int getIndex(const btTransform& transform);
-  int getIndexSize();
-  btTransform getIndexTransform(int index);
+    int getIndex(const btTransform& transform);
+    int getIndexSize();
+    btTransform getIndexTransform(int index);
 
-  bool checkIntersection(const btVector3& start, const btVector3& end);
-  vector<btVector3> getIntersectionPoints(const btVector3& start, const btVector3& end);
+    bool checkIntersection(const btVector3& start, const btVector3& end);
+    vector<btVector3> getIntersectionPoints(const btVector3& start, const btVector3& end);
 
     // custom anchor management
     typedef int AnchorHandle;
@@ -99,12 +113,19 @@ public:
     int getAnchorIdx(AnchorHandle h) const;
     bool hasAnchorAttached(int nodeidx) const;
 
+    ////////////////////// CHANGES BY SIBI:
+    // Separate nodes/links/faces on softBody based on whether they are inside or outside
+    // region defined by implicitFn. If cut is true, region is actually cut away.
+    void refine(btSoftBody::ImplicitFn* impFn, float accuracy, bool cut);
+    /////////////////////////////////////////
+
     EnvironmentObject::Ptr copy(Fork &f) const;
     void postCopy(EnvironmentObject::Ptr copy, Fork &f) const;
 
     // called by Environment
     void init();
     void preDraw();
+    void prePhysics();
     void destroy();
 
     osg::Node *getOSGNode() const { return transform.get(); }

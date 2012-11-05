@@ -454,6 +454,73 @@ vector<btVector3> BulletSoftObject::getIntersectionPoints(const btVector3& start
 	return inter_points;
 }
 
+/////////////////////////////////// SIBI'S CHANGES///////////////////////////////////////
+// Fills vector with adjacency list of nodes. Looks at all links to fill it in.
+// Assuming edges of faces are already contained in links.
+void BulletSoftObject::calculateEdges () {
+
+	edges.clear();
+	edges.resize(softBody->m_nodes.size());
+	const btSoftBody::Node*			nbase = &softBody->m_nodes[0];
+	const int nl = softBody->m_links.size();
+	int i;
+	/* Fill edges		*/
+	for(i=0; i<nl; ++i)
+	{
+		btSoftBody::Link&	l=softBody->m_links[i];
+		edges[int(l.m_n[0]-nbase)].push_back(int(l.m_n[1]-nbase));
+		edges[int(l.m_n[1]-nbase)].push_back(int(l.m_n[0]-nbase));
+	}
+	/* Links do this already
+	for(i=0; i<nf ; ++i)
+	{
+		btSoftBody::Face&	f=softBody->m_faces[i];
+		edges[int(f.m_n[0]-nbase)].push_back(int(f.m_n[1]-nbase));
+		edges[int(f.m_n[1]-nbase)].push_back(int(f.m_n[0]-nbase));
+		edges[int(f.m_n[1]-nbase)].push_back(int(f.m_n[2]-nbase));
+		edges[int(f.m_n[2]-nbase)].push_back(int(f.m_n[1]-nbase));
+		edges[int(f.m_n[2]-nbase)].push_back(int(f.m_n[0]-nbase));
+		edges[int(f.m_n[0]-nbase)].push_back(int(f.m_n[2]-nbase));
+	}*/
+
+	nodeStress.clear();
+	nodeStress.resize(softBody->m_nodes.size());
+	computeStress();
+}
+
+// Computes average deviation from neighboring nodes for each node.
+// Also computes total average deviation.
+void BulletSoftObject::computeStress () {
+
+	const int ns=softBody->m_nodes.size();
+	int i,j;
+	meanStress = 0;
+	for (i=0; i<ns; ++i){
+		nodeStress[i] = 0;
+		for (j=0; j<edges[i].size(); ++j)
+			nodeStress[i] += (softBody->m_nodes[i].m_x - softBody->m_nodes[j].m_x).length();
+		if (edges[i].size())
+			nodeStress[i] /= edges[i].size();
+		meanStress += nodeStress[i];
+	}
+	meanStress /= ns;
+
+	//std::cout<<"Mean stress: "<< meanStress<< std::endl;
+}
+
+// Separate nodes/links/faces on softBody based on whether they are inside or outside
+// region defined by implicitFn. If cut is true, region is actually cut away.
+void BulletSoftObject::refine(btSoftBody::ImplicitFn* impFn, float accuracy, bool cut) {
+	softBody->refine(impFn, accuracy, cut);
+	calculateEdges();
+}
+
+void BulletSoftObject::prePhysics () {
+	computeStress();
+}
+
+/////////////////////////////////// SIBI'S CHANGES///////////////////////////////////////
+
 void BulletSoftObject::preDraw() {
 	transform->setMatrix(osgbCollision::asOsgMatrix(softBody->getWorldTransform()));
 
