@@ -18,3 +18,6 @@ target_link_libraries(test_particlesystem ophys)
 
 add_executable(test_ropesystem test_ropesystem.cpp)
 target_link_libraries(test_ropesystem ophys)
+
+add_executable(test_gurobi_constraints test_gurobi_constraints.cpp)
+target_link_libraries(test_gurobi_constraints ophys)

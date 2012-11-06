@@ -49,9 +49,14 @@ int main(int argc, char *argv[]) {
 
   scene.startViewer();
 
+  /*ps.step(OPhysConfig::dt, 100);
+  ps.play();*/
+
   for (int iter = 1; ; ++iter) {
-    ps.step(OPhysConfig::dt);
+    ps.step(OPhysConfig::dt, 1);
+    ps.draw();
     scene.step(0);
+//    scene.idle(true);
   }
 
   return 0;

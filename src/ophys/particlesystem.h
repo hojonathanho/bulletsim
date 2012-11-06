@@ -57,6 +57,9 @@ struct ParticleSystemTrustRegion : public TrustRegion {
   ParticleSystemOptimizer &m_opt;
   boost::multi_array<double, 3> m_x_radii, m_v_radii, m_a_radii;
 
+  bool m_infinite;
+  void setInfinite(bool);
+
   ParticleSystemTrustRegion(ParticleSystemOptimizer &opt);
   void adjustTrustRegion(double ratio);
   ConvexConstraintPtr convexify(GRBModel* model);
@@ -87,6 +90,11 @@ struct ConvexConstraintWrapper : public Constraint {
   ConvexConstraintPtr convexify(GRBModel* model) { return m_cnt; }
 
   static void AddToOpt(Optimizer &opt, ConvexConstraintPtr cnt);
+};
+
+struct PhysicsStepConstraint : public ConvexConstraint {
+  typedef boost::shared_ptr<PhysicsStepConstraint> Ptr;
+  PhysicsStepConstraint(ParticleSystemOptimizer &o);
 };
 
 struct PhysicsStepCost : public Cost {
@@ -136,26 +144,42 @@ private:
   MatrixX3d getCurrPointMatrix() const;
 };
 
+struct PointDistanceConstraint : public Constraint {
+	ConvexConstraintPtr convexify(GRBModel* model);
+};
+
 
 class ParticleSystem {
 public:
   ParticleSystemState m_currState;
+  ParticleSystemStateVec m_currStates;
   PlotSpheres::Ptr m_plotSpheres;
   Scene *m_scene;
 
   ParticleSystem(const ParticleSystemState &initState);
-  void step(double dt);
+  void step(double dt, int numSteps=1);
   void step();
 
   void attachToScene(Scene *);
   void draw();
+  void play();
 
   typedef boost::function<void(ParticleSystemOptimizer *)> PreOptCallback;
+  void setPreOptCallback0(PreOptCallback cb);
   void setPreOptCallback(PreOptCallback cb);
 
 protected:
+  virtual void setupOpt0(ParticleSystemOptimizer &opt);
   virtual void setupOpt(ParticleSystemOptimizer &opt);
+  PreOptCallback m_preOptCallback0;
   PreOptCallback m_preOptCallback;
+
+  ParticleSystemTrustRegion::Ptr m_trustRegion;
+  PhysicsStepCost::Ptr m_physicsStepCost;
+  PhysicsStepConstraint::Ptr m_physicsStepCnt;
+  InitialConditionConstraints::Ptr m_initCondCnt;
+  NoExternalForcesConstraint::Ptr m_noExtForcesCnt;
+  GroundConstraint::Ptr m_groundCnt;
 };
 
 

@@ -149,6 +149,7 @@ void ParticleSystemOptimizer::postOptimize() {
 
 ParticleSystemTrustRegion::ParticleSystemTrustRegion(ParticleSystemOptimizer &opt)
   : m_opt(opt),
+    m_infinite(false),
     m_x_radii(boost::extents[opt.m_horizon][opt.m_numParticles][3]),
     m_v_radii(boost::extents[opt.m_horizon][opt.m_numParticles][3]),
     m_a_radii(boost::extents[opt.m_horizon][opt.m_numParticles][3])
@@ -163,6 +164,8 @@ ParticleSystemTrustRegion::ParticleSystemTrustRegion(ParticleSystemOptimizer &op
     }
   }
 }
+
+void ParticleSystemTrustRegion::setInfinite(bool val) { m_infinite = val; }
 
 void ParticleSystemTrustRegion::adjustTrustRegion(double ratio) {
   m_shrinkage *= ratio;
@@ -211,14 +214,14 @@ ConvexConstraintPtr ParticleSystemTrustRegion::convexify(GRBModel* model) {
     for (int i = 0; i < m_opt.m_numParticles; ++i) {
       ParticleState &s = m_opt.m_sys[t][i];
       for (int j = 0; j < 3; ++j) {
-        s.var_x[j].set(GRB_DoubleAttr_LB, s.x[j] - m_x_radii[t][i][j]);
-        s.var_x[j].set(GRB_DoubleAttr_UB, s.x[j] + m_x_radii[t][i][j]);
+        s.var_x[j].set(GRB_DoubleAttr_LB, m_infinite ? -GRB_INFINITY : s.x[j] - m_x_radii[t][i][j]);
+        s.var_x[j].set(GRB_DoubleAttr_UB, m_infinite ? GRB_INFINITY : s.x[j] + m_x_radii[t][i][j]);
 
-        s.var_v[j].set(GRB_DoubleAttr_LB, s.v[j] - m_v_radii[t][i][j]);
-        s.var_v[j].set(GRB_DoubleAttr_UB, s.v[j] + m_v_radii[t][i][j]);
+        s.var_v[j].set(GRB_DoubleAttr_LB, m_infinite ? -GRB_INFINITY : s.v[j] - m_v_radii[t][i][j]);
+        s.var_v[j].set(GRB_DoubleAttr_UB, m_infinite ? GRB_INFINITY : s.v[j] + m_v_radii[t][i][j]);
 
-        s.var_a[j].set(GRB_DoubleAttr_LB, s.a[j] - m_a_radii[t][i][j]);
-        s.var_a[j].set(GRB_DoubleAttr_UB, s.a[j] + m_a_radii[t][i][j]);
+        s.var_a[j].set(GRB_DoubleAttr_LB, m_infinite ? -GRB_INFINITY : s.a[j] - m_a_radii[t][i][j]);
+        s.var_a[j].set(GRB_DoubleAttr_UB, m_infinite ? GRB_INFINITY : s.a[j] + m_a_radii[t][i][j]);
       }
     }
   }
@@ -404,7 +407,8 @@ double PhysicsStepCost::evaluate() {
     for (int i = 0; i < m_opt.m_numParticles; ++i) {
       for (int j = 0; j < 3; ++j) {
         // position step cost
-        cost += square(m_opt.m_sys[t+1][i].x[j] - (m_opt.m_sys[t][i].x[j] + dt*m_opt.m_sys[t][i].v[j]));
+        //cost += square(m_opt.m_sys[t+1][i].x[j] - (m_opt.m_sys[t][i].x[j] + dt*m_opt.m_sys[t][i].v[j]));
+        cost += square(m_opt.m_sys[t+1][i].x[j] - (m_opt.m_sys[t][i].x[j] + dt*m_opt.m_sys[t+1][i].v[j]));
         // velocity step cost
         cost += square(m_opt.m_sys[t+1][i].v[j] - (m_opt.m_sys[t][i].v[j] + dt*(m_opt.m_sys[t][i].a[j] + METERS*OPhysConfig::gravity[j])));
       }
@@ -422,12 +426,40 @@ ConvexObjectivePtr PhysicsStepCost::convexify(GRBModel* model) {
     for (int i = 0; i < m_opt.m_numParticles; ++i) {
       for (int j = 0; j < 3; ++j) {
         // position step cost
-        out->m_objective += ophys::square(m_opt.m_sys[t+1][i].var_x[j] - (m_opt.m_sys[t][i].var_x[j] + dt*m_opt.m_sys[t][i].var_v[j]));
+        //out->m_objective += ophys::square(m_opt.m_sys[t+1][i].var_x[j] - (m_opt.m_sys[t][i].var_x[j] + dt*m_opt.m_sys[t][i].var_v[j]));
+        out->m_objective += ophys::square(m_opt.m_sys[t+1][i].var_x[j] - (m_opt.m_sys[t][i].var_x[j] + dt*m_opt.m_sys[t+1][i].var_v[j]));
         // velocity step cost
         out->m_objective += ophys::square(m_opt.m_sys[t+1][i].var_v[j] - (m_opt.m_sys[t][i].var_v[j] + dt*(m_opt.m_sys[t][i].var_a[j] + METERS*OPhysConfig::gravity[j])));
       }
     }
   }
+  return out;
+}
+
+PhysicsStepConstraint::PhysicsStepConstraint(ParticleSystemOptimizer &opt) {
+  const double dt = OPhysConfig::dt;
+  m_name = "physics_step_constraint";
+  boost::format fmt("%s_physics_step_constraint_t%d_i%d_%c_%d");
+  // constraints representing explicit euler update
+  for (int t = 0; t < opt.m_horizon - 1; ++t) {
+    for (int i = 0; i < opt.m_numParticles; ++i) {
+      for (int j = 0; j < 3; ++j) {
+        // position constraint
+        m_eqcntNames.push_back((fmt % opt.m_varPrefix % t % i % 'x' % j).str());
+        //m_eqexprs.push_back(opt.m_sys[t+1][i].var_x[j] - (opt.m_sys[t][i].var_x[j] + dt*opt.m_sys[t][i].var_v[j]));
+        m_eqexprs.push_back(opt.m_sys[t+1][i].var_x[j] - (opt.m_sys[t][i].var_x[j] + dt*opt.m_sys[t+1][i].var_v[j]));
+        // velocity constraint
+        m_eqcntNames.push_back((fmt % opt.m_varPrefix % t % i % 'v' % j).str());
+        m_eqexprs.push_back(opt.m_sys[t+1][i].var_v[j] - (opt.m_sys[t][i].var_v[j] + dt*(opt.m_sys[t][i].var_a[j] + METERS*OPhysConfig::gravity[j])));
+      }
+    }
+  }
+}
+
+
+ConvexConstraintPtr PointDistanceConstraint::convexify(GRBModel *model) {
+  ConvexConstraintPtr out(new ConvexConstraint());
+
   return out;
 }
 
@@ -437,21 +469,50 @@ ParticleSystem::ParticleSystem(const ParticleSystemState &initState) {
   m_plotSpheres.reset(new PlotSpheres());
 }
 
-void ParticleSystem::step(double dt) {
+void ParticleSystem::step(double dt, int numSteps) {
   // update initial condition (start simulating from current state)
-  ParticleSystemOptimizer opt(m_currState.size(), 2);
+  assert(numSteps >= 1);
+  ParticleSystemOptimizer opt(m_currState.size(), numSteps + 1);
   try {
+    // first optimize subject to hard constraints with infinite trust region
+    m_trustRegion.reset(new ParticleSystemTrustRegion(opt));
+    m_trustRegion->setInfinite(true);
+    opt.setTrustRegion(m_trustRegion);
+    setupOpt0(opt);
+    if (m_preOptCallback0) {
+      m_preOptCallback0(&opt);
+    }
+    //opt.optimize();
+    LOG_INFO(" ============ STEP0 DONE ================ ");
+
+    // add in soft costs with usual trust region behavior
+    m_trustRegion->resetTrustRegion();
+    m_trustRegion->setInfinite(false);
     setupOpt(opt);
     if (m_preOptCallback) {
       m_preOptCallback(&opt);
     }
     opt.optimize();
+
+    //cout << "physics step cost: " << m_physicsStepCost->evaluate() << '\n';
+
   } catch (const GRBException &e) {
     LOG_ERROR("Gurobi exception (" << e.getErrorCode() << "): " << e.getMessage());
   }
 
   m_currState = opt.m_sys[1];
-  draw();
+  m_currStates = opt.m_sys;
+
+  //draw();
+  LOG_INFO(" ============ STEP DONE ================ ");
+}
+
+void ParticleSystem::play() {
+  for (int t = 0; t < m_currStates.size(); ++t) {
+    m_currState = m_currStates[t];
+    draw();
+    m_scene->step(0);
+  }
 }
 
 void ConvexConstraintWrapper::AddToOpt(Optimizer &opt, ConvexConstraintPtr cnt) {
@@ -459,23 +520,28 @@ void ConvexConstraintWrapper::AddToOpt(Optimizer &opt, ConvexConstraintPtr cnt) 
   opt.addConstraint(wrapper);
 }
 
-void ParticleSystem::setupOpt(ParticleSystemOptimizer &opt) {
+void ParticleSystem::setupOpt0(ParticleSystemOptimizer &opt) {
   opt.initializeFromSingleState(m_currState);
 
-  ParticleSystemTrustRegion::Ptr trustRegion(new ParticleSystemTrustRegion(opt));
-  opt.setTrustRegion(trustRegion);
+  m_initCondCnt.reset(new InitialConditionConstraints(opt, m_currState));
+  ConvexConstraintWrapper::AddToOpt(opt, m_initCondCnt);
 
-  PhysicsStepCost::Ptr physicsStepCost(new PhysicsStepCost(opt));
-  opt.addCost(physicsStepCost);
+/*  m_noExtForcesCnt.reset(new NoExternalForcesConstraint(opt));
+  ConvexConstraintWrapper::AddToOpt(opt, m_noExtForcesCnt);*/
 
-  InitialConditionConstraints::Ptr initCondCnt(new InitialConditionConstraints(opt, m_currState));
-  ConvexConstraintWrapper::AddToOpt(opt, initCondCnt);
+  m_groundCnt.reset(new GroundConstraint(opt, 0.01*METERS));
+  ConvexConstraintWrapper::AddToOpt(opt, m_groundCnt);
 
-  NoExternalForcesConstraint::Ptr noExtForcesCnt(new NoExternalForcesConstraint(opt));
-  ConvexConstraintWrapper::AddToOpt(opt, noExtForcesCnt);
+/*  m_physicsStepCnt.reset(new PhysicsStepConstraint(opt));
+  ConvexConstraintWrapper::AddToOpt(opt, m_physicsStepCnt);*/
+}
 
-  GroundConstraint::Ptr groundCnt(new GroundConstraint(opt, 0.01*METERS));
-  ConvexConstraintWrapper::AddToOpt(opt, groundCnt);
+void ParticleSystem::setupOpt(ParticleSystemOptimizer &opt) {
+
+
+  m_physicsStepCost.reset(new PhysicsStepCost(opt));
+  opt.addCost(m_physicsStepCost);
+
 }
 
 void ParticleSystem::step() {
@@ -506,6 +572,10 @@ void ParticleSystem::draw() {
   m_plotSpheres->plot(centers, rgba, radii);
 }
 
+
+void ParticleSystem::setPreOptCallback0(PreOptCallback cb) {
+  m_preOptCallback0 = cb;
+}
 
 void ParticleSystem::setPreOptCallback(PreOptCallback cb) {
   m_preOptCallback = cb;
