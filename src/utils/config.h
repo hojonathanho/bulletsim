@@ -12,14 +12,14 @@ namespace po = boost::program_options;
 
 template <typename TYPE>
 std::string toString(const TYPE& v) {
-  std::stringstream ss(std::stringstream::out);
+  std::ostringstream ss;
   ss << v;
   return ss.str();
 }
 
 template <typename TYPE>
-TYPE fromString(const std::string s) {
-  std::stringstream ss(std::stringstream::in);
+TYPE fromString(const std::string& s) {
+  std::istringstream ss;
   ss.str(s);
   TYPE x;
   ss >> x;
@@ -84,5 +84,12 @@ struct GeneralConfig : Config {
     params.push_back(new Parameter<float>("scale", &scale, "scale factor applied to distances that are assumed to be in meters")); 
   }
 };
+
+#ifdef __CDT_PARSER__
+#undef BOOST_FOREACH
+#define BOOST_FOREACH(a, b) for(a; ; )
+#undef BOOST_REVERSE_FOREACH
+#define BOOST_REVERSE_FOREACH(a, b) for(a; ; )
+#endif
 
 #define METERS GeneralConfig::scale

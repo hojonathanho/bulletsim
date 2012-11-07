@@ -65,6 +65,9 @@ struct Scene {
   void addPreDrawCallback(VoidCallback cb);
 
   Scene();
+  Scene(OpenRAVE::EnvironmentBasePtr);
+  void setup();
+
 
   void showWindow(bool showWindow, bool realtime);
 

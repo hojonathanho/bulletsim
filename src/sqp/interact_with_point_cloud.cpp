@@ -1,40 +1,74 @@
 #include "simulation/simplescene.h"
 #include "collision_map_tools.h"
-#include "robots/pr2.h"
+#include "robots/robot_manager.h"
 #include "clouds/cloud_ops.h"
-class JointPrinter {
-public:
-  RaveRobotObject::Manipulator::Ptr m_left, m_right;
-  JointPrinter(RaveRobotObject::Manipulator::Ptr left, RaveRobotObject::Manipulator::Ptr right) :
-    m_left(left), m_right(right) {}
-  void doit() {
-    cout << "left: " << m_left->getDOFValues() << "right: " << m_right->getDOFValues() << endl;
+#include "simulation/simulation_fwd.h"
+#include "simulation/bullet_io.h"
+#include "kinematics_utils.h"
+
+struct LocalConfig : Config {
+
+//  static bool printJoint;
+//  static bool printCart;
+  static string loadCloud;
+  static string loadEnv;
+
+  LocalConfig() : Config() {
+//    params.push_back(new Parameter<bool>("printJoint", &printJoint, "print joints"));
+//    params.push_back(new Parameter<bool>("printCart", &printCart, "print cart"));
+    params.push_back(new Parameter<string>("loadCLoud", &loadCloud, "load cloud"));
+    params.push_back(new Parameter<string>("loadEnv", &loadEnv, "load env"));
   }
 };
+//bool LocalConfig::printJoint=0;
+//bool LocalConfig::printCart=0;
+string LocalConfig::loadCloud="";
+string LocalConfig::loadEnv="";
+
 
 int main(int argc, char* argv[]) {
     Parser parser;
+    BulletConfig::internalTimeStep=0;
+    GeneralConfig::scale = 1;
     parser.addGroup(GeneralConfig());
-    parser.addGroup(BulletConfig());
+    parser.addGroup(LocalConfig());
     parser.read(argc, argv);
+    assert((LocalConfig::loadCloud=="") || (LocalConfig::loadEnv == ""));
 
     Scene scene;
-    PR2Manager pr2m(scene);
-    RaveRobotObject::Ptr pr2 = pr2m.pr2;
-    RaveRobotObject::Manipulator::Ptr rarm = pr2m.pr2Right;
-    RaveRobotObject::Manipulator::Ptr larm = pr2m.pr2Left;
-    JointPrinter jp(larm, rarm);
-    scene.addPreDrawCallback(boost::bind(&JointPrinter::doit, &jp));
-
-    pr2m.pr2->setDOFValues(vector<int>(1,12), vector<double>(1,.287));
 
 
-    ColorCloudPtr cloud = readPCD("/home/joschu/Data/scp/three_objs.pcd");
-    cloud = downsampleCloud(cloud, .02);
-    CollisionBoxes::Ptr collisionBoxes = collisionBoxesFromPointCloud(cloud, .02);
-    scene.env->add(collisionBoxes);
 
+    if (LocalConfig::loadEnv != "") {
+      Load(scene.env, scene.rave, LocalConfig::loadEnv);
+    }
+    else if (LocalConfig::loadCloud != "") {
+      ColorCloudPtr cloud = readPCD(LocalConfig::loadCloud);
+      cloud = downsampleCloud(cloud, .02);
+      CollisionBoxes::Ptr collisionBoxes = collisionBoxesFromPointCloud(cloud, .02);
+      scene.env->add(collisionBoxes);
+      Load(scene.env, scene.rave, "robots/pr2-beta-static.zae");
+    }
+    else
+      Load(scene.env, scene.rave, "robots/pr2-beta-static.zae");
+
+
+    RaveRobotObjectPtr  pr2 = getRobotByName(scene.env, scene.rave, "pr2");
+    if (!pr2) pr2 = getRobotByName(scene.env, scene.rave, "PR2");
+    if (!pr2) pr2 = getRobotByName(scene.env, scene.rave, "BarrettWAM");
+    assert (pr2);
+
+    RobotManager pr2m(scene);
+    assert (pr2m.botRight);
+
+    ArmPrinter ap(pr2m.botLeft, pr2m.botRight);
+    scene.addVoidKeyCallback('c',boost::bind(&ArmPrinter::printCarts, &ap), "print cart");
+    scene.addVoidKeyCallback('j',boost::bind(&ArmPrinter::printJoints, &ap), "print joints");
+    scene.addVoidKeyCallback('a', boost::bind(&ArmPrinter::printAll, &ap), "print all dofs");
 
     scene.startViewer();
-    scene.startFixedTimestepLoop(.05);
+    while (true) {
+      scene.step(0);
+      sleep(.05);
+    }
 }

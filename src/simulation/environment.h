@@ -5,12 +5,12 @@
 #include <BulletSoftBody/btSoftRigidDynamicsWorld.h>
 #include <BulletSoftBody/btSoftBodyRigidBodyCollisionConfiguration.h>
 #include <opencv2/core/core.hpp>
-#include <opencv2/highgui/highgui.hpp>
 #include <osgbCollision/GLDebugDrawer.h>
 #include <vector>
 #include <boost/shared_ptr.hpp>
 #include <iostream>
 #include <stdexcept>
+
 using namespace std;
 
 struct OSGInstance {
@@ -84,13 +84,15 @@ public:
 
 		//gets the index of the closest part of the object (face, capsule, rigid_body, etc)
 		//for rigid bodies, there is only one index so this will always return 0
-		virtual int getIndex(const btTransform& transform) { std::runtime_error("getIndex() hasn't been defined yet"); return 0; }
-		virtual int getIndexSize() { std::runtime_error("getIndex() hasn't been defined yet"); return 0; }
+		virtual int getIndex(const btTransform& transform) { throw std::runtime_error("getIndex() hasn't been defined yet"); return 0;}
+		virtual int getIndexSize() { std::runtime_error("getIndex() hasn't been defined yet"); return 0;}
 		//gets the transform of the indexed part
 		//for rigid bodies, this just returns the rigid body's transform
-		virtual btTransform getIndexTransform(int index) { std::runtime_error("getIndexTransform() hasn't been defined yet"); return btTransform(); }
+		virtual btTransform getIndexTransform(int index) { std::runtime_error("getIndexTransform() hasn't been defined yet"); return btTransform();}
 };
 
+class RaveInstance;
+typedef boost::shared_ptr<RaveInstance> RaveInstancePtr;
 struct Environment {
     typedef boost::shared_ptr<Environment> Ptr;
 
@@ -115,7 +117,6 @@ struct Environment {
     void step(btScalar dt, int maxSubSteps, btScalar fixedTimeStep);
 };
 
-
 // An Environment Fork is a wrapper around an Environment with an operator
 // that associates copied objects with their original ones
 class Fork {
@@ -126,6 +127,7 @@ public:
 
     const Environment *parentEnv;
     Environment::Ptr env;
+    RaveInstancePtr rave;
 
     typedef std::map<EnvironmentObject *, EnvironmentObject::Ptr> ObjectMap;
     ObjectMap objMap; // maps object in parentEnv to object in env
@@ -137,10 +139,9 @@ public:
         dataMap.insert(std::make_pair(orig, copy));
     }
 
-    Fork(const Environment *parentEnv_, BulletInstance::Ptr bullet, OSGInstance::Ptr osg) :
-        parentEnv(parentEnv_), env(new Environment(bullet, osg)) { copyObjects(); }
-    Fork(const Environment::Ptr parentEnv_, BulletInstance::Ptr bullet, OSGInstance::Ptr osg) :
-        parentEnv(parentEnv_.get()), env(new Environment(bullet, osg)) { copyObjects(); }
+    Fork(const Environment *parentEnv_, BulletInstance::Ptr bullet, OSGInstance::Ptr osg);
+    Fork(const Environment::Ptr parentEnv_, BulletInstance::Ptr bullet, OSGInstance::Ptr osg);
+    Fork(const Environment::Ptr parentEnv_, const RaveInstancePtr rave_, BulletInstance::Ptr bullet, OSGInstance::Ptr osg);
 
     void *copyOf(const void *orig) const {
         DataMap::const_iterator i = dataMap.find(orig);
@@ -189,7 +190,7 @@ public:
         }
     }
 
-    void init() {
+    virtual void init() {
         typename ChildVector::iterator i;
         for (i = children.begin(); i != children.end(); ++i) {
             if (*i) {
@@ -199,21 +200,21 @@ public:
         }
     }
 
-    void prePhysics() {
+    virtual void prePhysics() {
         typename ChildVector::iterator i;
         for (i = children.begin(); i != children.end(); ++i)
             if (*i)
                 (*i)->prePhysics();
     }
 
-    void preDraw() {
+    virtual void preDraw() {
         typename ChildVector::iterator i;
         for (i = children.begin(); i != children.end(); ++i)
             if (*i)
                 (*i)->preDraw();
     }
 
-    void destroy() {
+    virtual void destroy() {
         typename ChildVector::iterator i;
         for (i = children.begin(); i != children.end(); ++i)
             if (*i)

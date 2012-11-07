@@ -1,3 +1,4 @@
+#pragma once
 #include <boost/shared_ptr.hpp>
 class CoordinateTransformer;
 typedef boost::shared_ptr<CoordinateTransformer> CoordinateTransformerPtr;

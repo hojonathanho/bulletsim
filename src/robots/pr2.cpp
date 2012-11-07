@@ -1,6 +1,7 @@
 #include "pr2.h"
 #include "simulation/environment.h"
 #include "thread_socket_interface.h"
+#include "utils/logging.h"
 
 static const char LEFT_GRIPPER_LEFT_FINGER_NAME[] = "l_gripper_l_finger_tip_link";
 static const char LEFT_GRIPPER_RIGHT_FINGER_NAME[] = "l_gripper_r_finger_tip_link";
@@ -234,6 +235,13 @@ PR2Manager::PR2Manager(Scene &s) : scene(s), inputState() {
     registerSceneCallbacks();
 }
 
+static void drive(RaveRobotObject* robot, float dx, float dy, float da) {
+  LOG_DEBUG_FMT("driving %.2f %.2f %.2f", dx, dy, da);
+  btTransform tf = robot->getTransform();
+  tf = tf * btTransform(btQuaternion(0,0,da), btVector3(dx*METERS, dy*METERS, 0));
+  robot->setTransform(tf);
+}
+
 void PR2Manager::registerSceneCallbacks() {
     Scene::Callback mousecb = boost::bind(&PR2Manager::processMouseInput, this, _1);
     scene.addCallback(osgGA::GUIEventAdapter::PUSH, mousecb);
@@ -245,25 +253,35 @@ void PR2Manager::registerSceneCallbacks() {
 
     if (SceneConfig::enableRobot && SceneConfig::enableHaptics)
         scene.addPreStepCallback(boost::bind(&PR2Manager::processHapticInput, this));
+
+    scene.addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Left, boost::bind(drive, pr2.get(), 0,.05, 0));
+    scene.addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Right, boost::bind(drive, pr2.get(), 0,-.05, 0));
+    scene.addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Up, boost::bind(drive, pr2.get(), .05,0,  0));
+    scene.addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Down, boost::bind(drive, pr2.get(), -.05,0, 0));
+    scene.addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Leftbracket, boost::bind(drive, pr2.get(), 0,0, .05));
+    scene.addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Rightbracket, boost::bind(drive, pr2.get(), 0,0, -.05));
+
 }
 
 void PR2Manager::loadRobot() {
   if (!SceneConfig::enableRobot) return;
 
   RaveRobotObject::Ptr maybeRobot = getRobotByName(scene.env, scene.rave, "pr2");
+  if (!maybeRobot) maybeRobot = getRobotByName(scene.env, scene.rave, "PR2");
 
   if (maybeRobot) { // if pr2 already loaded into scene, use it
     pr2 = maybeRobot;
-    if (std::count(scene.env->objects.begin(), scene.env->objects.end(), maybeRobot) == 0) {
-      scene.env->add(pr2);
-    }
-  } else {
+    LOG_INFO("pr2 already loaded into env");
+  }
+  else {
     RobotBasePtr maybeRaveRobot = scene.rave->env->GetRobot("pr2");
     if (maybeRaveRobot) { // pr2 loaded into rave but not scene
+      LOG_INFO("pr2 loaded into rave. adding to env");
       pr2.reset(new RaveRobotObject(scene.rave, maybeRaveRobot));
     }
     else { // pr2 not loaded into rave or scene
       static const char ROBOT_MODEL_FILE[] = "robots/pr2-beta-static.zae";
+      LOG_INFO("loading pr2 from file. adding to env");
       pr2.reset(new RaveRobotObject(scene.rave, ROBOT_MODEL_FILE));
     }
     scene.env->add(pr2);

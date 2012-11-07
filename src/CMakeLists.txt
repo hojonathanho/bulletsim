@@ -18,7 +18,7 @@ include_directories(
     ${PHASESPACE_INCLUDE_DIR}
 )
 link_directories(${BULLETSIM_BINARY_DIR}/src)
-option(TESTS OFF)
+option(BUILD_TEST OFF)
 option(JOHNS_ADVENTURES OFF)
 option(JONATHANS_ADVENTURES OFF)
 option(ALEXS_ADVENTURES ON)
@@ -31,9 +31,9 @@ add_subdirectory(utils)
 #add_subdirectory(comm)
 add_subdirectory(clouds)
 
-if (TESTS)
+if (BUILD_TESTS)
 	add_subdirectory(tests)
-endif(TESTS)
+endif(BUILD_TESTS)
 
 if (JOHNS_ADVENTURES)
    add_subdirectory(john_sandbox)

@@ -10,8 +10,6 @@ include_directories(
 SET(CMAKE_CXX_FLAGS "-Wall -Wno-sign-compare -Wno-reorder")
 
 
-FIND_PACKAGE( OpenCV REQUIRED )
-
 add_library(simulation
     environment.cpp
     basicobjects.cpp

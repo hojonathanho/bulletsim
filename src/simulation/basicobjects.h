@@ -9,7 +9,7 @@
 // (the OSG model will be created from the btRigidBody, and
 // will be added to the scene graph and the dynamics world, respectively)
 class BulletObject : public EnvironmentObject {
-protected:
+public:
     struct MotionState : public btDefaultMotionState {
         typedef boost::shared_ptr<MotionState> Ptr;
         BulletObject &obj;
@@ -23,10 +23,7 @@ protected:
         }
 
         void setKinematicPos(const btTransform &pos) {
-            if (!obj.isKinematic) {
-                cout << "warning: calling setKinematicPos on the motionstate of a non-kinematic object" << endl;
-                return;
-            }
+						if (!obj.isKinematic) cout << "warning! called setKinematicPos on non-kinematic object." << endl;;
             btDefaultMotionState::setWorldTransform(pos);
             // if we want to do collision detection in between timesteps,
             // we also have to directly set this
@@ -36,10 +33,8 @@ protected:
         Ptr clone(BulletObject &newObj);
     };
 
-public:
-    typedef boost::shared_ptr<BulletObject> Ptr;
 
-    const bool isKinematic;
+    typedef boost::shared_ptr<BulletObject> Ptr;
 
     // BULLET MEMBERS
     boost::shared_ptr<btRigidBody> rigidBody;
@@ -49,6 +44,7 @@ public:
     // on destruction of the BulletObject
     MotionState::Ptr motionState;
     boost::shared_ptr<btCollisionShape> collisionShape;
+    boost::shared_ptr<btCollisionShape> graphicsShape;
 
     // OSG MEMBERS
     osg::ref_ptr<osg::Node> node;
@@ -60,13 +56,12 @@ public:
         CI(btScalar mass, btCollisionShape *collisionShape, const btVector3 &localInertia=btVector3(0,0,0)) :
             btRigidBody::btRigidBodyConstructionInfo(mass, NULL, collisionShape, localInertia) { }
     };
-    BulletObject(CI ci, const btTransform &initTrans, bool isKinematic_=false);
-
     // this constructor computes a ConstructionInfo for you
     BulletObject(btScalar mass, btCollisionShape *cs, const btTransform &initTrans, bool isKinematic_=false);
+    BulletObject(btScalar mass, boost::shared_ptr<btCollisionShape> cs, const btTransform &initTrans, bool isKinematic_=false);
 
     BulletObject(const BulletObject &o); // copy constructor
-    virtual ~BulletObject() { }
+    virtual ~BulletObject();
     EnvironmentObject::Ptr copy(Fork &f) const {
         Ptr o(new BulletObject(*this));
         internalCopy(o, f);
@@ -101,12 +96,16 @@ public:
     MoveAction::Ptr createMoveAction() { return MoveAction::Ptr(new MoveAction(this)); }
     MoveAction::Ptr createMoveAction(const btTransform &start, const btTransform &end, float time) { return MoveAction::Ptr(new MoveAction(this, start, end, time)); }
 		void setColor(float r, float g, float b, float a);
+		
 		void setTexture(const cv::Mat& image);
 		void adjustTransparency(float increment);
 
 		int getIndex(const btTransform& transform) { return 0; }
 		int getIndexSize() { return 1; }
 		btTransform getIndexTransform(int index) { return rigidBody->getCenterOfMassTransform(); }
+
+		void setKinematic(bool);
+		bool isKinematic;
 
 private:
 		bool enable_texture;
@@ -115,6 +114,8 @@ private:
 		osg::ref_ptr<osg::Image> m_image;
 		boost::shared_ptr<cv::Mat> m_cvimage;
 		void setTextureAfterInit();
+    void setFlagsAndActivation();
+    void construct(btScalar mass, boost::shared_ptr<btCollisionShape> cs, const btTransform& initTrans, bool isKinematic_);
 public:
 		cv::Mat& getTexture() { return *m_cvimage; }
 };

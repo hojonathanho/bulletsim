@@ -1,4 +1,5 @@
 #include "environment.h"
+#include "openravesupport.h"
 #include "config_bullet.h"
 
 OSGInstance::OSGInstance() {
@@ -104,11 +105,27 @@ void Environment::step(btScalar dt, int maxSubSteps, btScalar fixedTimeStep) {
     ObjectList::iterator i;
     for (i = objects.begin(); i != objects.end(); ++i)
         (*i)->prePhysics();
-    bullet->dynamicsWorld->stepSimulation(dt, maxSubSteps, fixedTimeStep);
+    if (dt > 0)
+      bullet->dynamicsWorld->stepSimulation(dt, maxSubSteps, fixedTimeStep);
     for (i = objects.begin(); i != objects.end(); ++i)
         (*i)->preDraw();
     bullet->softBodyWorldInfo->m_sparsesdf.GarbageCollect();
 }
+
+Fork::Fork(const Environment *parentEnv_, BulletInstance::Ptr bullet, OSGInstance::Ptr osg) :
+    parentEnv(parentEnv_), env(new Environment(bullet, osg)) {
+  copyObjects();
+}
+Fork::Fork(const Environment::Ptr parentEnv_, BulletInstance::Ptr bullet, OSGInstance::Ptr osg) :
+    parentEnv(parentEnv_.get()), env(new Environment(bullet, osg)) {
+  copyObjects();
+}
+Fork::Fork(const Environment::Ptr parentEnv_, const RaveInstancePtr rave_, BulletInstance::Ptr bullet, OSGInstance::Ptr osg) :
+    parentEnv(parentEnv_.get()), env(new Environment(bullet, osg)),
+    rave(rave_) {
+  copyObjects();
+}
+
 
 void Fork::copyObjects() {
     // copy objects first

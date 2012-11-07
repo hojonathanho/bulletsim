@@ -86,7 +86,6 @@ MatrixXd interp2d(const VectorXd& xNew, const VectorXd& xOld, const MatrixXd& yO
 }
 
 
-
 float blendFloats(float a, float b, float t) {
   return a*(1-t) + b*t;
 
