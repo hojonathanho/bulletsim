@@ -21,6 +21,8 @@
 #include "simulation/config_viewer.h"
 #include "simulation/softBodyHelpers.h"
 
+
+
 class CustomScene : public Scene {
 public:
 	PR2SoftBodyGripperAction::Ptr leftAction, rightAction;
@@ -30,8 +32,12 @@ public:
 	RaveRobotObject::Ptr origRobot, tmpRobot;
 	PR2Manager pr2m;
 
+
 	// the cloth to be sutured
 	BulletSoftObject::Ptr cloth;
+
+	// node indices of the nodes on the cut
+	std::vector<int> cut_nodes1, cut_nodes2;
 
 	// the table in the scene
 	BoxObject::Ptr table;
@@ -42,6 +48,9 @@ public:
 	/** Points which are to be plotted in the scene : correspond to
 	    nodes in the soft-body (cloth). */
 	PlotPoints::Ptr plot_points;
+	std::vector<btVector3> plotpoints;
+	std::vector<btVector4> plotcolors;
+
 
 	/** Axes corresponding to the location where the
      *  left grippers are. **/
@@ -71,14 +80,16 @@ public:
 	/** Draws the axes at LEFT_GRIPPER1 and LEFT_GRIPPER2. */
 	void drawAxes();
 
-	/* Creates a square cloth with side length 2s.
+	/*Creates a square cloth with side length 2s.
 	     The four coordinates of the cloth are:
 	     {(s,s) (-s,s,) (-s,-s) (s,-s)}
 	     Then, the center of the cloth (initially at (0,0,0)
 	     is translated to CENTER.*/
 	BulletSoftObject::Ptr createCloth(btScalar s, btScalar z, btVector3 center,
-				                          bool shouldCut = true,
-				                          unsigned int resx = 50, unsigned int resy =50);
+									  std::vector<int> &cut_nodes1, std::vector<int> &cut_nodes2,
+									  bool getCutIndices=true,
+				                      bool shouldCut = true,
+				                      unsigned int resx = 50, unsigned int resy =50);
 
 	/** Returns ||(v1.x, v1.y) - (v2.x, v2.y)||. */
 	btScalar inline getXYDistance(btVector3 &v1, btVector3 &v2);

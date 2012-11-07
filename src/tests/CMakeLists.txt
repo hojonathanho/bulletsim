@@ -68,3 +68,7 @@ add_executable(test_suture_cloth test_suture_cloth.cpp
                             	 test_surgical/CustomScene.cpp
                             	 test_surgical/CustomKeyHandler.cpp)
 target_link_libraries(test_suture_cloth simulation robots)
+
+
+add_executable(rave_cpp test_surgical/planning.cpp)
+target_link_libraries(rave_cpp simulation robots)

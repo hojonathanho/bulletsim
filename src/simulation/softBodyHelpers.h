@@ -60,7 +60,9 @@ static btScalar	ImplicitSolve( cutPlane* inf,
 
 /** Cuts the PSB based on cutting plane information in INFO.
  *  Cuts are executed within ACCURACY of the specifications. */
-void cutPlaneSoftBody(btSoftBody* psb, cutPlane* info, btScalar accuracy);
+void CutPlaneSoftBody(btSoftBody* psb, cutPlane* info, btScalar accuracy,
+					  std::vector<int> &cut_nodes1,
+					  std::vector<int> &cut_nodes2, bool fill_cut_nodes=true);
 
 
 btSoftBody*	CreateFromSoftBodyExcludeNodes(btSoftBody* softBody, std::vector<int> exclude_nodes_idx);

@@ -62,10 +62,13 @@ std::vector<btVector3> CustomScene::checkNodeVisibility(btVector3 camera_origin,
    The four coordinates of the cloth are:
    {(s,s,z) (-s,s,z) (-s,-s,z) (s,-s,z)}
    Then, the center of the cloth (initially at (0,0,0)
-   is translated to CENTER. */
+   is translated to CENTER.*/
 BulletSoftObject::Ptr CustomScene::createCloth(btScalar s, btScalar z, btVector3 center,
-		                                       bool shouldCut,
-		                                       unsigned int resx, unsigned int resy) {
+								  std::vector<int> &cut_nodes1, std::vector<int> &cut_nodes2,
+								  bool getCutIndices,
+			                      bool shouldCut,
+			                      unsigned int resx, unsigned int resy) {
+
 	btVector3 corner1(-s,-s,z), corner2(+s,-s,z), corner3(-s,+s,z), corner4(+s,+s,z);
 	btSoftBody* psb=btSoftBodyHelpers::CreatePatch(*(env->bullet->softBodyWorldInfo),
 													center + corner1,
@@ -91,10 +94,12 @@ BulletSoftObject::Ptr CustomScene::createCloth(btScalar s, btScalar z, btVector3
 			      center + 0.05*corner2 + 0.95*corner1,
 			      center + 0.05*corner1 + 0.95*corner3,
 			      0.25,0.75);
-	cutPlaneSoftBody(psb, &cut, 0.001);
+
+	CutPlaneSoftBody(psb, &cut, 0.001, cut_nodes1, cut_nodes2, getCutIndices);
 	}
 	return BulletSoftObject::Ptr(new BulletSoftObject(psb));
 }
+
 
 
 /** Draws the axes at LEFT_GRIPPER1 and LEFT_GRIPPER2. */
@@ -154,16 +159,23 @@ void CustomScene::run() {
     const float table_height = .5;
     const float table_thickness = .05;
     table = BoxObject::Ptr(new BoxObject(0, GeneralConfig::scale * btVector3(.75,.75,table_thickness/2),
-                                       btTransform(btQuaternion(0, 0, 0, 1),
-                        		                   GeneralConfig::scale * btVector3(0.85, 0, table_height-table_thickness/2))));
+                                         btTransform(btQuaternion(0, 0, 0, 1),
+                        		                     GeneralConfig::scale * btVector3(0.85, 0, table_height-table_thickness/2))));
     table->rigidBody->setFriction(10);
 
-    cloth = createCloth(GeneralConfig::scale * 0.5, 0, GeneralConfig::scale * btVector3(0.6, 0, table_height+0.01));
+    cloth = createCloth(GeneralConfig::scale * 0.5, 0, GeneralConfig::scale * btVector3(0.6, 0, table_height+0.01),
+    					cut_nodes1, cut_nodes2);
+
     btSoftBody * const psb = cloth->softBody.get();
     pr2m.pr2->ignoreCollisionWith(psb);
 
     env->add(table);
     env->add(cloth);
+
+    // set up the points for plotting
+    plot_points.reset(new PlotPoints(5));
+    env->add(plot_points);
+
 
     leftAction.reset(new PR2SoftBodyGripperAction(pr2m.pr2Left,
     		                                      "l_gripper_l_finger_tip_link",
@@ -177,7 +189,6 @@ void CustomScene::run() {
     //setSyncTime(true);
     startViewer();
     stepFor(dt, 2);
-
 
     leftAction->setOpenAction();
     runAction(leftAction, dt);
