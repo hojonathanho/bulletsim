@@ -1,4 +1,4 @@
-#include "multi_hyp_tracker.h"
+#include "multihyp_tracker.h"
 
 void MultiHypTracker::doIteration() {
 BOOST_FOREACH(SimplePhysicsTracker::Ptr& tracker, m_trackers)
@@ -25,7 +25,7 @@ VisibilityInterface::Ptr makeVisibilityWithNewWorld(VisibilityInterface::Ptr old
   }
   shared_ptr<BulletRaycastVisibility> maybeOldVisAll = boost::dynamic_pointer_cast<AllOcclusionsVisibility>(oldVis);
   if (maybeOldVisAll) {
-    return AllOcclusionsVisibility::Ptr(new AllOcclusionsVisibility(newWorld, maybeOldVisAll->m_depth_image_visibility->m_transformer))
+    return AllOcclusionsVisibility::Ptr(new AllOcclusionsVisibility(newWorld, maybeOldVisAll->m_depth_image_visibility->m_transformer));
   }
   shared_ptr<BulletRaycastVisibility> maybeOldVisMulti = boost::dynamic_pointer_cast<MultiVisilibty>(oldVis);
   if (maybeOldVisMulti) {

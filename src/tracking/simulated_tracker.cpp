@@ -30,49 +30,21 @@
 using namespace Eigen;
 using namespace std;
 
-BulletSoftObject::Ptr initCloth(btSoftBodyWorldInfo& world_info, btScalar sx, btScalar sy, int rx, int ry, btScalar z) {
-	int n_tex_coords = (rx - 1)*(ry -1)*12;
-	float * tex_coords = new float[ n_tex_coords ];
-	int fixed=0;//4+8;
-	btSoftBody*		psb=btSoftBodyHelpers::CreatePatchUV(world_info,btVector3(-sx,-sy,z),
-		btVector3(+sx,-sy,z),
-		btVector3(-sx,+sy,z),
-		btVector3(+sx,+sy,z),rx,ry,fixed,true,tex_coords);
-
-//	psb->getCollisionShape()->setMargin(0.5);
-	btSoftBody::Material* pm=psb->appendMaterial();
-	pm->m_kLST		=	0.001;
-	psb->generateBendingConstraints(2,pm);
-	psb->setTotalMass(0.1);
-
-	psb->generateClusters(512);
-	psb->getCollisionShape()->setMargin(0.002*METERS);
-
-	psb->m_cfg.collisions	=	0;
-	psb->m_cfg.collisions += btSoftBody::fCollision::SDF_RS; ///SDF based rigid vs soft
-	//psb->m_cfg.collisions += btSoftBody::fCollision::CL_RS; ///Cluster vs convex rigid vs soft
-	//psb->m_cfg.collisions += btSoftBody::fCollision::VF_SS;	///Vertex vs face soft vs soft handling
-	psb->m_cfg.collisions += btSoftBody::fCollision::CL_SS; ///Cluster vs cluster soft vs soft handling
-	psb->m_cfg.collisions	+= btSoftBody::fCollision::CL_SELF; ///Cluster soft body self collision
-
-	psb->m_cfg.kDF = 1;
-
-	psb->m_cfg.piterations = 50;
-	psb->m_cfg.citerations = 50;
-	psb->m_cfg.diterations = 50;
-//	psb->m_cfg.viterations = 10;
-
-	// this function was not in the original bullet physics
-	// this allows to swap the texture coordinates to match the swapped faces
-	psb->randomizeConstraints(tex_coords);
-
-	BulletSoftObject::Ptr bso(new BulletSoftObject(psb));
-	bso->tritexcoords = new osg::Vec2Array;
-	for (int i = 0; i < n_tex_coords; i+=2) {
-		bso->tritexcoords->push_back(osg::Vec2f(tex_coords[i], tex_coords[i+1]));
+//HACK
+osg::Vec2Array* generateTexCoordinates(BulletSoftObject::Ptr cloth, cv::Mat image, btScalar sx, btScalar sy) {
+	btSoftBody::tFaceArray faces;
+	for (int i = 0; i < cloth->softBody->m_faces.size(); ++i) {
+		faces.push_back(cloth->softBody->m_faces[i]);
 	}
-
-	return bso;
+	osg::Vec2Array* tritexcoords = new osg::Vec2Array;
+	for (int j=0; j<faces.size(); j++) {
+		for (int c=0; c<3; c++) {
+			float u = (faces[j].m_n[c]->m_x.y()+sy)/(2*sy);
+			float v = (faces[j].m_n[c]->m_x.x()+sx)/(2*sx);
+			tritexcoords->push_back(osg::Vec2f(u,1.0-v));
+		}
+	}
+	return tritexcoords;
 }
 
 void shift(BulletSoftObject::Ptr pso, btVector3 increment) {
@@ -82,101 +54,110 @@ void shift(BulletSoftObject::Ptr pso, btVector3 increment) {
 	}
 }
 
+//HACK
+cv::Mat stitchImages(cv::Mat src) {
+	cv::Mat dst(2*src.rows, 2*src.cols, src.type());
+	cv::Mat dst_roi = dst(cv::Rect(0, 0, src.cols, src.rows));
+	src.copyTo(dst_roi);
+	dst_roi = dst(cv::Rect(src.cols, 0, src.cols, src.rows));
+	src.copyTo(dst_roi);
+	dst_roi = dst(cv::Rect(0, src.rows, src.cols, src.rows));
+	src.copyTo(dst_roi);
+	dst_roi = dst(cv::Rect(src.cols, src.rows, src.cols, src.rows));
+	src.copyTo(dst_roi);
+	return dst;
+}
+
 int main(int argc, char *argv[]) {
-    GeneralConfig::scale = 100.;
-    BulletConfig::maxSubSteps = 0;
+  Eigen::internal::setNbThreads(2);
 
-    Parser parser;
-		parser.addGroup(GeneralConfig());
-		parser.addGroup(BulletConfig());
-		parser.addGroup(SceneConfig());
-	  parser.addGroup(TrackingConfig());
-		parser.read(argc, argv);
+  GeneralConfig::scale = 100;
+  BulletConfig::maxSubSteps = 0;
+  BulletConfig::gravity = btVector3(0,0,-0.1);
 
-    Scene scene;
+  Parser parser;
+  parser.addGroup(TrackingConfig());
+  parser.addGroup(GeneralConfig());
+  parser.addGroup(BulletConfig());
+  parser.addGroup(ViewerConfig());
+  parser.read(argc, argv);
 
-  	const btScalar	sx=0.32*METERS;
-  	const btScalar	sy=0.46*METERS;
-  	const btScalar	rx=32;
-  	const btScalar	ry=46;
-		const btScalar	h=0.25*METERS;
-		const int		r=30;
+  // set up scene
+  Scene scene;
+  scene.startViewer();
+  util::setGlobalEnv(scene.env);
 
-		btTransform startTransform; btCollisionShape* capsuleShape;	btCollisionShape* planeShape;	btRigidBody* body;
+	const btScalar	sx=0.32*METERS;
+	const btScalar	sy=0.46*METERS;
+	const btScalar	rx=26;
+	const btScalar	ry=23;
+	const btScalar	h=0.25*METERS;
+	const btScalar	mass=0.1;
 
-		BoxObject::Ptr plane(new BoxObject(0, btVector3(sy*2,sy*2,0.01*METERS), btTransform(btQuaternion(btVector3(1,0,0), -10.0 * M_PI/180.0), btVector3(0,0,h-0.2*METERS))));
-		plane->collisionShape->setMargin(0.001*METERS);
-		plane->rigidBody->setFriction(1.0);
-		scene.env->add(plane);
+	cv::Mat flag_tex = cv::imread(string(getenv("BULLETSIM_SOURCE_DIR")) + "/data/rgbs/flag_tex.jpg");
+  vector<btVector3> cloth_corners;
+	cloth_corners.push_back(btVector3(+sx,+sy,h));
+	cloth_corners.push_back(btVector3(+sx,-sy,h));
+  cloth_corners.push_back(btVector3(-sx,-sy,h));
+	cloth_corners.push_back(btVector3(-sx,+sy,h));
+	BulletSoftObject::Ptr cloth = makeCloth(cloth_corners, rx, ry, mass);
+	if (flag_tex.empty()) cloth->setColor(1,0,0,1);
+	else cloth->setTexture(flag_tex.clone(), generateTexCoordinates(cloth,flag_tex,sx,sy));
+	scene.env->add(cloth);
 
-		CapsuleObject::Ptr capsule(new CapsuleObject(0, 0.02*METERS,sx*2, btTransform(btQuaternion(btVector3(0,0,1), 0.0), btVector3(0,-sy*0.5,h-0.04*METERS))));
-		capsule->collisionShape->setMargin(0.002*METERS);
-		capsule->rigidBody->setFriction(0.0);
-		scene.env->add(capsule);
+	cv::Mat flag_observed_tex = stitchImages(flag_tex);
+	vector<btVector3> observed_cloth_corners;
+	observed_cloth_corners.push_back(btVector3(+2*sx,+2*sy,h));
+	observed_cloth_corners.push_back(btVector3(+2*sx,-2*sy,h));
+	observed_cloth_corners.push_back(btVector3(-2*sx,-2*sy,h));
+	observed_cloth_corners.push_back(btVector3(-2*sx,+2*sy,h));
+	BulletSoftObject::Ptr observed_cloth = makeCloth(observed_cloth_corners, 2*rx, 2*ry, 4*mass);
+	if (flag_tex.empty()) observed_cloth->setColor(1,0,0,1);
+	else observed_cloth->setTexture(flag_observed_tex.clone(), generateTexCoordinates(observed_cloth,flag_observed_tex,2*sx,2*sy));
+	TrackedObject::Ptr observed_tracked(new TrackedCloth(observed_cloth));
+	observed_tracked->init();
 
-		BoxObject::Ptr box(new BoxObject(0, btVector3(TrackingConfig::pointOutlierDist*METERS/2.0,TrackingConfig::pointOutlierDist*METERS/2.0,TrackingConfig::pointOutlierDist*METERS/2.0), btTransform(btQuaternion(btVector3(1,0,0), 0.0), btVector3(0,-0.3*METERS,h-0.1*METERS))));
-		box->collisionShape->setMargin(0.001*METERS);
-		box->rigidBody->setFriction(1.0);
-		box->setColor(1,0,0,1);
-		scene.env->add(box);
+	cv::imwrite("/home/alex/Desktop/flag4.jpg", flag_observed_tex);
 
-		BulletSoftObject::Ptr cloth = initCloth(*scene.env->bullet->softBodyWorldInfo, sx, sy, rx, ry, h);
-		cv::Mat flag_tex = cv::imread("/home/alex/Desktop/flag.jpg");
-		if (flag_tex.empty()) cloth->setColor(1,0,0,1);
-		else cloth->setTexture(flag_tex.clone());
-		scene.env->add(cloth);
+	TrackedObject::Ptr trackedObj(new TrackedCloth(cloth));
+	trackedObj->init();
+	EverythingIsVisible::Ptr visInterface(new EverythingIsVisible());
 
-		BulletSoftObject::Ptr observed_cloth = initCloth(*scene.env->bullet->softBodyWorldInfo, sx, sy, rx, ry, h);
-		if (flag_tex.empty()) observed_cloth->setColor(1,0,0,1);
-		else observed_cloth->setTexture(flag_tex.clone());
-		observed_cloth->setColor(1,0,0,1);
-		TrackedObject::Ptr observed_tracked(new TrackedTowel(observed_cloth, rx, ry, sx, sy));
-		observed_tracked->init();
+	TrackedObjectFeatureExtractor::Ptr objectFeatures(new TrackedObjectFeatureExtractor(trackedObj));
+	TrackedObjectFeatureExtractor::Ptr observedFeatures(new TrackedObjectFeatureExtractor(observed_tracked));
+	PhysicsTracker::Ptr alg(new PhysicsTracker(objectFeatures, observedFeatures, visInterface));
+	PhysicsTrackerVisualizer::Ptr trakingVisualizer(new PhysicsTrackerVisualizer(&scene, alg));
 
-		TrackedObject::Ptr trackedObj(new TrackedTowel(cloth, rx, ry, sx, sy));
-		trackedObj->init();
-		EverythingIsVisible::Ptr visInterface(new EverythingIsVisible());
+	bool applyEvidence = true;
+  scene.addVoidKeyCallback('a',boost::bind(toggle, &applyEvidence), "apply evidence");
+  scene.addVoidKeyCallback('=',boost::bind(&EnvironmentObject::adjustTransparency, trackedObj->getSim(), 0.1f), "increase opacity");
+  scene.addVoidKeyCallback('-',boost::bind(&EnvironmentObject::adjustTransparency, trackedObj->getSim(), -0.1f), "decrease opacity");
+  bool exit_loop = false;
+  scene.addVoidKeyCallback('q',boost::bind(toggle, &exit_loop), "exit");
 
-		TrackedObjectFeatureExtractor::Ptr objectFeatures(new TrackedObjectFeatureExtractor(trackedObj));
-		TrackedObjectFeatureExtractor::Ptr observedFeatures(new TrackedObjectFeatureExtractor(observed_tracked));
-		PhysicsTracker::Ptr alg(new PhysicsTracker(objectFeatures, observedFeatures, visInterface));
-		PhysicsTrackerVisualizer::Ptr trakingVisualizer(new PhysicsTrackerVisualizer(&scene, alg));
+  scene.addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Page_Up,boost::bind(shift, observed_cloth, btVector3(0,0,0.01*METERS)), "move synthetic data up");
+	scene.addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Page_Down,boost::bind(shift, observed_cloth, btVector3(0,0,-0.01*METERS)), "move synthetic data down");
+	scene.addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Left,boost::bind(shift, observed_cloth, btVector3(0,-0.01*METERS,0)), "move synthetic data left");
+	scene.addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Right,boost::bind(shift, observed_cloth, btVector3(0,0.01*METERS,0)), "move synthetic data right");
+	scene.addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Up,boost::bind(shift, observed_cloth, btVector3(-0.01*METERS,0,0)), "move synthetic data farther");
+	scene.addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Down,boost::bind(shift, observed_cloth, btVector3(0.01*METERS,0,0)), "move synthetic data closer");
 
-		bool applyEvidence = true;
-		scene.addVoidKeyCallback('a',boost::bind(toggle, &applyEvidence));
-		scene.addVoidKeyCallback('=',boost::bind(&EnvironmentObject::adjustTransparency, trackedObj->getSim(), 0.1f));
-		scene.addVoidKeyCallback('-',boost::bind(&EnvironmentObject::adjustTransparency, trackedObj->getSim(), -0.1f));
-		scene.addVoidKeyCallback('q',boost::bind(exit, 0));
-		scene.addVoidKeyCallback('u',boost::bind(shift, observed_cloth, btVector3(0,0,0.01*METERS)));
-		scene.addVoidKeyCallback('j',boost::bind(shift, observed_cloth, btVector3(0,0,-0.01*METERS)));
-		scene.addVoidKeyCallback('h',boost::bind(shift, observed_cloth, btVector3(0,-0.01*METERS,0)));
-		scene.addVoidKeyCallback('k',boost::bind(shift, observed_cloth, btVector3(0,0.01*METERS,0)));
+	//boost::posix_time::ptime sim_time = boost::posix_time::microsec_clock::local_time();
+	while (!exit_loop ) {
+		//Update the inputs of the featureExtractors and visibilities (if they have any inputs)
 
-		scene.addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Page_Up,boost::bind(shift, observed_cloth, btVector3(0,0,0.01*METERS)));
-		scene.addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Page_Down,boost::bind(shift, observed_cloth, btVector3(0,0,-0.01*METERS)));
-		scene.addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Left,boost::bind(shift, observed_cloth, btVector3(0,-0.01*METERS,0)));
-		scene.addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Right,boost::bind(shift, observed_cloth, btVector3(0,0.01*METERS,0)));
-		scene.addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Up,boost::bind(shift, observed_cloth, btVector3(-0.01*METERS,0,0)));
-		scene.addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Down,boost::bind(shift, observed_cloth, btVector3(0.01*METERS,0,0)));
+		//Do iteration
+		alg->updateFeatures();
+		alg->expectationStep();
+		alg->maximizationStep(applyEvidence);
 
-		btSoftBody::tNodeArray& target_nodes = observed_cloth->softBody->m_nodes;
+		trakingVisualizer->update();
+		scene.step(0.03);
+		//scene.step(.03,2,.015);
 
-		scene.startViewer();
+		//cout << (boost::posix_time::microsec_clock::local_time() - sim_time).total_milliseconds() << endl;
+		//sim_time = boost::posix_time::microsec_clock::local_time();
+	}
 
-    //boost::posix_time::ptime sim_time = boost::posix_time::microsec_clock::local_time();
-    while (true) {
-    	//Update the inputs of the featureExtractors and visibilities (if they have any inputs)
-
-    	//Do iteration
-    	alg->updateFeatures();
-			alg->expectationStep();
-			alg->maximizationStep(applyEvidence);
-
-			trakingVisualizer->update();
-    	scene.step(0.03);
-    	//cout << (boost::posix_time::microsec_clock::local_time() - sim_time).total_milliseconds() << endl;
-    	//sim_time = boost::posix_time::microsec_clock::local_time();
-    }
-
-    return 0;
+	return 0;
 }

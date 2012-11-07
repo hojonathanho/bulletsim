@@ -59,3 +59,6 @@ target_link_libraries(test_hand simulation)
 
 add_executable(test_softbody_mappings test_softbody_mappings.cpp)
 target_link_libraries(test_softbody_mappings simulation)
+
+add_executable(test_multihyp_tracker test_multihyp_tracker.cpp)
+target_link_libraries(test_multihyp_tracker simulation robots)

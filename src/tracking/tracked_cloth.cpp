@@ -22,7 +22,7 @@
 using namespace std;
 using namespace Eigen;
 
-TrackedCloth::TrackedCloth(BulletSoftObject::Ptr sim, int nCols, int nRows, float sx, float sy) : TrackedObject(sim, "towel"), m_sx(sx), m_sy(sy) {
+TrackedCloth::TrackedCloth(BulletSoftObject::Ptr sim) : TrackedObject(sim, "towel") {
 	for (int i=0; i<getSim()->softBody->m_nodes.size(); i++) {
 		m_node2vert.push_back(i);
 		m_vert2nodes.push_back(vector<int>(1,i));

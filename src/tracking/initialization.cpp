@@ -69,7 +69,7 @@ TrackedObject::Ptr toTrackedObject(const bulletsim_msgs::ObjectInit& initMsg, Co
 	  //Shift the whole cloth upwards in case some of it starts below the table surface
 	  sim->softBody->translate(btVector3(0,0,0.01*METERS));
 
-	  TrackedCloth::Ptr tracked_towel(new TrackedCloth(sim, resolution_x, resolution_y, sx, sy));
+	  TrackedCloth::Ptr tracked_towel(new TrackedCloth(sim));
 	  return tracked_towel;
   }
   else if (initMsg.type == "box") {

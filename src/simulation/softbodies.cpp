@@ -390,6 +390,11 @@ void BulletSoftObject::setTexture(cv::Mat image, const btTransform& camFromWorld
 	setTexture(image);
 }
 
+void BulletSoftObject::setTexture(cv::Mat image, osg::Vec2Array* texcoords) {
+	tritexcoords = texcoords;
+	setTexture(image);
+}
+
 cv::Point2f BulletSoftObject::getTexCoord(int nodeIdx) {
 	int j = node2faces[nodeIdx][0];
 	int c;
@@ -1336,6 +1341,8 @@ bool BulletSoftObject::validCheck(bool nodesOnly) const {
 #undef CHECK
 }
 
+//assumes all the corners are in a plane
+//the corners are specified in a clockwise order
 BulletSoftObject::Ptr makeCloth(const vector<btVector3>& corners, int resolution_x, int resolution_y, float mass) {
   btSoftBodyWorldInfo unusedWorldInfo;
   btSoftBody* psb = CreatePolygonPatch(unusedWorldInfo, corners, resolution_x, resolution_y, true);

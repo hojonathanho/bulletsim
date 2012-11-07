@@ -58,7 +58,7 @@ class TrackedCloth : public TrackedObject {
 public:
   typedef boost::shared_ptr<TrackedCloth> Ptr;
 
-  TrackedCloth(BulletSoftObject::Ptr, int xres, int yres, float sx, float sy);
+  TrackedCloth(BulletSoftObject::Ptr);
 
   cv::Point2f getTexCoord(const int& nodeIdx);
 
@@ -67,7 +67,6 @@ public:
   void applyEvidence(const Eigen::MatrixXf& corr, const Eigen::MatrixXf& obsPts); // add forces
   BulletSoftObject* getSim() {return dynamic_cast<BulletSoftObject*>(m_sim.get());};
   void initColors();
-  float m_sx, m_sy; //towel dimensions
 
 protected:
   std::vector<int> m_node2vert; // maps node index to bullet vertex index

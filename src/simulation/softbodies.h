@@ -89,6 +89,7 @@ public:
     void setTexture(cv::Mat image);
     // sets the image and the texture coordinates
     void setTexture(cv::Mat image, const btTransform& camFromWorld);
+    void setTexture(cv::Mat image, osg::Vec2Array* texcoords);
     cv::Point2f getTexCoord(int nodeIdx);
   void adjustTransparency(float increment);
 
