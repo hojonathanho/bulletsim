@@ -11,41 +11,58 @@
 using namespace std;
 
 Scene::Scene() {
-  setup();
+  setup(true);
 }
+
 Scene::Scene(OpenRAVE::EnvironmentBasePtr env) {
   rave.reset(new RaveInstance(env));
-  setup();
+  setup(true);
 }
 
-void Scene::setup() {
-    osg.reset(new OSGInstance());
-    bullet.reset(new BulletInstance());
+Scene::Scene(Environment::Ptr env_) {
+  setup(env_);
+}
 
+Scene::Scene(Environment::Ptr env_, RaveInstance::Ptr rave_) {
+  rave = rave_;
+  setup(env_);
+}
+
+void Scene::setup(Environment::Ptr env_) {
+  osg = env_->osg;
+  bullet = env_->bullet;
+  env = env_;
+  setup(false);
+}
+
+void Scene::setup(bool populate) {
+    if (!osg) osg.reset(new OSGInstance());
+    if (!bullet) bullet.reset(new BulletInstance());
     if (!rave) rave.reset(new RaveInstance());
-
-    env.reset(new Environment(bullet, osg));
+    if (!env) env.reset(new Environment(bullet, osg));
 
     // populate the scene with some basic objects
-    //ground.reset(new PlaneStaticObject(btVector3(0., 0., 1.), 0., btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0))));
-    ground.reset(new BoxObject(0, btVector3(5*METERS, 5*METERS, 0.01*METERS), btTransform(btQuaternion(0,0,0,1), btVector3(0,0,-0.01*METERS))));
-    ground->collisionShape->setMargin(0.001*METERS);
-    ground->rigidBody->setFriction(1.0);
-    // in centimeters
-		float width = 2*ground->getHalfExtents().x() * 100/METERS;
-		float height = 2*ground->getHalfExtents().y() * 100/METERS;
-		cv::Mat tex (height, width, CV_8UC3);
-		// chessboard of squares of 10 cm
-		for (int i=0; i<tex.rows; i++) {
-			for (int j=0; j<tex.cols; j++) {
-				if ((i/10)%2 != (j/10)%2) tex.at<cv::Vec3b>(i,j) = cv::Vec3b(135,184,222);
-				//if ((i/10)%2 != (j/10)%2) tex.at<cv::Vec3b>(i,j) = cv::Vec3b(179,222,245);
-				else tex.at<cv::Vec3b>(i,j) = cv::Vec3b(211,211,211);
-			}
-		}
-		ground->setTexture(tex);
+    if (populate) {
+      //ground.reset(new PlaneStaticObject(btVector3(0., 0., 1.), 0., btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0))));
+      ground.reset(new BoxObject(0, btVector3(5*METERS, 5*METERS, 0.01*METERS), btTransform(btQuaternion(0,0,0,1), btVector3(0,0,-0.01*METERS))));
+      ground->collisionShape->setMargin(0.001*METERS);
+      ground->rigidBody->setFriction(1.0);
+      // in centimeters
+      float width = 2*ground->getHalfExtents().x() * 100/METERS;
+      float height = 2*ground->getHalfExtents().y() * 100/METERS;
+      cv::Mat tex (height, width, CV_8UC3);
+      // chessboard of squares of 10 cm
+      for (int i=0; i<tex.rows; i++) {
+        for (int j=0; j<tex.cols; j++) {
+          if ((i/10)%2 != (j/10)%2) tex.at<cv::Vec3b>(i,j) = cv::Vec3b(135,184,222);
+          //if ((i/10)%2 != (j/10)%2) tex.at<cv::Vec3b>(i,j) = cv::Vec3b(179,222,245);
+          else tex.at<cv::Vec3b>(i,j) = cv::Vec3b(211,211,211);
+        }
+      }
+      ground->setTexture(tex);
 
-    env->add(ground);
+      env->add(ground);
+    }
 
     // default callbacks
     addVoidKeyCallback('p', boost::bind(&Scene::toggleIdle, this), "pause simulation");
@@ -123,10 +140,6 @@ void Scene::step(float dt, int maxsteps, float internaldt) {
     for (std::set<Fork::Ptr>::iterator i = forks.begin(); i != forks.end(); ++i)
         (*i)->env->step(dt, maxsteps, internaldt);
 
-    // run pre-draw callbacks
-    for (int i = 0; i < predrawCallbacks.size(); ++i)
-        predrawCallbacks[i]();
-
     draw();
 
 }
@@ -157,6 +170,11 @@ void Scene::idleFor(float time) {
 void Scene::draw() {
     if (!drawingOn)
         return;
+
+    // run pre-draw callbacks
+    for (int i = 0; i < predrawCallbacks.size(); ++i)
+        predrawCallbacks[i]();
+
     if (loopState.debugDraw) {
         dbgDraw->BeginDraw();
         bullet->dynamicsWorld->debugDrawWorld();
@@ -198,7 +216,7 @@ void Scene::toggleIdle() {
     idle(!loopState.paused);
 }
 
-void Scene::runAction(Action &a, float dt) {
+void Scene::runAction(ObjectAction &a, float dt) {
     while (!a.done()) {
         a.step(dt);
         step(dt);

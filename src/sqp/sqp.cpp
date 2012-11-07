@@ -59,26 +59,37 @@ void Optimizer::printObjectiveInfo(const vector<double>& oldExact,
 ConvexPart::ConvexPart() : m_inModel(false) {}
 
 void ConvexPart::addToModel(GRBModel* model) {
+  LOG_DEBUG("adding " << m_name << " to model");
   m_model = model;
-  m_cnts.reserve(m_exprs.size());
+
+  assert(m_exprs.size() == m_cntNames.size());
   for (int i = 0; i < m_exprs.size(); ++i) {
     m_cnts.push_back(m_model->addConstr(m_exprs[i] <= 0, m_cntNames[i].c_str()));
   }
-  for (int i = 0; i < m_qexprs.size(); ++i) {
-    m_qcnts.push_back(m_model->addConstr(m_exprs[i] >= 0, m_qcntNames[i].c_str()));
+
+  assert(m_eqexprs.size() == m_eqcntNames.size());
+  for (int i = 0; i < m_eqexprs.size(); ++i) {
+    m_eqcnts.push_back(m_model->addConstr(m_eqexprs[i] == 0, m_eqcntNames[i].c_str()));
   }
-  m_inModel = true;
+
+  assert(m_qexprs.size() == m_qcntNames.size());
+  for (int i = 0; i < m_qexprs.size(); ++i) {
+    m_qcnts.push_back(m_model->addQConstr(m_qexprs[i] >= 0, m_qcntNames[i].c_str()));
+  }
 }
 
 void ConvexPart::removeFromModel() {
-  BOOST_FOREACH(GRBConstr& cnt, m_cnts) {
-    m_model->remove(cnt);
+  for (int i = 0; i < m_cnts.size(); ++i) {
+    m_model->remove(m_cnts[i]);
   }
-  BOOST_FOREACH(GRBConstr& qcnt, m_qcnts) {
-    m_model->remove(qcnt);
+  for (int i = 0; i < m_eqcnts.size(); ++i) {
+    m_model->remove(m_eqcnts[i]);
   }
-  BOOST_FOREACH(GRBVar& var, m_vars) {
-    m_model->remove(var);
+  for (int i = 0; i < m_qcnts.size(); ++i) {
+    m_model->remove(m_qcnts[i]);
+  }
+  for (int i = 0; i < m_vars.size(); ++i) {
+    m_model->remove(m_vars[i]);
   }
   m_inModel = false;
 }
@@ -114,16 +125,16 @@ double Optimizer::getApproxObjective() {
  */
 vector<ConvexObjectivePtr> Optimizer::convexifyObjectives() {
   vector<ConvexObjectivePtr> out;
-  BOOST_FOREACH(CostPtr& cost, m_costs) {
-    out.push_back(cost->convexify(m_model));
+  for (int i = 0; i < m_costs.size(); ++i) {
+    out.push_back(m_costs[i]->convexify(m_model));
   }
   return out;
 }
 
 vector<ConvexConstraintPtr> Optimizer::convexifyConstraints() {
   vector<ConvexConstraintPtr> out;
-  BOOST_FOREACH(ConstraintPtr& cnt, m_cnts) {
-    out.push_back(cnt->convexify(m_model));
+  for (int i = 0; i < m_cnts.size(); ++i) {
+    out.push_back(m_cnts[i]->convexify(m_model));
   }
   return out;
 }
@@ -156,12 +167,13 @@ vector<double> Optimizer::evaluateObjectives() {
 void Optimizer::setupConvexProblem(const vector<ConvexObjectivePtr>& objectives, const vector<
     ConvexConstraintPtr>& constraints) {
   m_model->update();
-  BOOST_FOREACH(const ConvexConstraintPtr& part, constraints)
-    part->addToModel(m_model);
+  for (int i = 0; i < constraints.size(); ++i) {
+    constraints[i]->addToModel(m_model);
+  }
   GRBQuadExpr objective(0);
-  BOOST_FOREACH(const ConvexObjectivePtr& part, objectives) {
-    part->addToModel(m_model);
-    objective += part->m_objective;
+  for (int i = 0; i < objectives.size(); ++i) {
+    objectives[i]->addToModel(m_model);
+    objective += objectives[i]->m_objective;
   }
   m_model->setObjective(objective);
   m_model->update();
@@ -169,10 +181,13 @@ void Optimizer::setupConvexProblem(const vector<ConvexObjectivePtr>& objectives,
 
 void Optimizer::clearConvexProblem(const vector<ConvexObjectivePtr>& objectives, const vector<
     ConvexConstraintPtr>& constraints) {
-  BOOST_FOREACH(const ConvexConstraintPtr& part, constraints)
-    part->removeFromModel();
-  BOOST_FOREACH(const ConvexPartPtr& part, objectives)
-    part->removeFromModel();	
+  for (int i = 0; i < constraints.size(); ++i) {
+    constraints[i]->removeFromModel();
+  }
+  for (int i = 0; i < objectives.size(); ++i) {
+    objectives[i]->removeFromModel();
+  }
+  //m_model->update();
 }
 
 Optimizer::OptStatus Optimizer::optimize() {
@@ -200,10 +215,10 @@ Optimizer::OptStatus Optimizer::optimize() {
     ///////////////////////////////////
 
     LOG_INFO("objectiveVals before: " << objectiveVals);
-    for (int i=0; i < m_costs.size(); ++i) std::cout << m_costs[i]->getName() << " " << m_costs[i]->evaluate() << std::endl;
+    for (int i=0; i < m_costs.size(); ++i) LOG_INFO(m_costs[i]->getName() << " " << m_costs[i]->evaluate());
 
 
-    while (true) { // trust region adjustment
+    for (int trustIter = 1; ; ++trustIter) { // trust region adjustment
 
 
       ////// convex optimization /////////////////////
@@ -232,7 +247,7 @@ Optimizer::OptStatus Optimizer::optimize() {
       LOG_INFO_FMT("true improvement: %.2e.  approx improvement: %.2e.  ratio: %.2f", trueImprove, approxImprove, improveRatio);
       //////////////////////////////////////////////
 
-      if (approxImprove < 1e-7) {
+      if (approxImprove < 1e-7 && trustIter > 1) {
         LOG_INFO("not much room to improve in this problem.");
         rollbackValues();
         break;

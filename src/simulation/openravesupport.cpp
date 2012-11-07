@@ -452,10 +452,8 @@ vector<double> RaveRobotObject::getDOFValues() {
 	return out;
 }
 
-EnvironmentObject::Ptr RaveObject::copy(Fork &f) const {
-	Ptr o(new RaveObject());
-
-	internalCopy(o, f); // copies all children
+void RaveObject::internalCopy(RaveObject::Ptr o, Fork &f) const {
+	CompoundObject<BulletObject>::internalCopy(o, f); // copies all children
 
 	if (f.rave) {
 	  o->rave = f.rave;
@@ -486,47 +484,17 @@ EnvironmentObject::Ptr RaveObject::copy(Fork &f) const {
 
 	o->body = o->rave->env->GetKinBody(body->GetName());
 	o->setColor(1,0,1,.4);
+}
 
+EnvironmentObject::Ptr RaveObject::copy(Fork &f) const {
+	Ptr o(new RaveObject());
+  RaveObject::internalCopy(o, f);
 	return o;
 }
 
 EnvironmentObject::Ptr RaveRobotObject::copy(Fork &f) const {
-
 	Ptr o(new RaveRobotObject());
-
-	/////////////////////// duplicated from RaveObject::copy //////////////////
-	internalCopy(o, f); // copies all children
-
-    if (f.rave) {
-      o->rave = f.rave;
-    }
-    else {
-      o->rave.reset(new RaveInstance(*rave, OpenRAVE::Clone_Bodies));
-    }
-
-	// now we need to set up mappings in the copied robot
-	for (std::map<KinBody::LinkPtr, BulletObject::Ptr>::const_iterator i =
-			linkMap.begin(); i != linkMap.end(); ++i) {
-		const KinBody::LinkPtr raveObj = o->rave->env->GetKinBody(
-				i->first->GetParent()->GetName())->GetLink(i->first->GetName());
-
-		const int j = childPosMap.find(i->second)->second;
-		const BulletObject::Ptr bulletObj = o->getChildren()[j];
-
-		o->linkMap.insert(std::make_pair(raveObj, bulletObj));
-		o->collisionObjMap.insert(std::make_pair(bulletObj->rigidBody.get(),
-				raveObj));
-	}
-
-	for (std::map<BulletObject::Ptr, int>::const_iterator i =
-			childPosMap.begin(); i != childPosMap.end(); ++i) {
-		const int j = childPosMap.find(i->first)->second;
-		o->childPosMap.insert(std::make_pair(o->getChildren()[j], i->second));
-	}
-
-	o->body = o->rave->env->GetKinBody(body->GetName());
-    o->setColor(1,0,1,.4);
-	/////////////////// end duplicated portion //////////////////
+  RaveObject::internalCopy(o, f);
 
 	o->robot = o->rave->env->GetRobot(robot->GetName());
 	o->createdManips.reserve(createdManips.size());
@@ -630,6 +598,7 @@ bool RaveRobotObject::Manipulator::solveIKUnscaled(
 	// notice: we use origManip, which is the original manipulator (after cloning)
 	// this way we don't have to clone the iksolver, which is attached to the manipulator
 	if (!origManip->FindIKSolution(IkParameterization(targetTrans), vsolution,
+      IKFO_CheckEnvCollisions |
 			IKFO_IgnoreSelfCollisions | IKFO_IgnoreEndEffectorCollisions)) {
 		cout << "ik failed on " << manip->GetName() << endl;
 		return false;
@@ -644,7 +613,9 @@ bool RobotManipulator::solveAllIKUnscaled(
 	vsolutions.clear();
 	// see comments for solveIKUnscaled
 	if (!origManip->FindIKSolutions(IkParameterization(targetTrans),
-			vsolutions, IKFO_IgnoreSelfCollisions | IKFO_IgnoreEndEffectorCollisions)) {
+			vsolutions,
+      IKFO_CheckEnvCollisions |
+      IKFO_IgnoreSelfCollisions | IKFO_IgnoreEndEffectorCollisions)) {
 		std::cout << "ik  failed on " << manip->GetName() << endl;
 		return false;
 	}

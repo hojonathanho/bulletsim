@@ -90,5 +90,5 @@ class Environment;
 typedef boost::shared_ptr<Environment> EnvironmentPtr;
 class Fork;
 typedef boost::shared_ptr<Fork> ForkPtr;
-class Action;
-typedef boost::shared_ptr<Action> ActionPtr;
+class ObjectAction;
+typedef boost::shared_ptr<ObjectAction> ObjectActionPtr;

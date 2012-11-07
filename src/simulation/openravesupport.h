@@ -40,36 +40,8 @@ enum TrimeshMode {
   RAW, // use btBvhTriangleMeshShape (not recommended, makes simulation very slow)
 };
 
-
 typedef CompoundObject<BulletObject> CompoundBulletObject;
 class RaveObject : public CompoundBulletObject {
-protected:
-
-  // these two containers just keep track of the smart pointers
-  // so that the objects get deallocated on destruction
-  std::vector<boost::shared_ptr<btStridingMeshInterface> > meshes;
-  std::vector<boost::shared_ptr<btCollisionShape> > subshapes;
-
-  // for looking up the associated Bullet object for an OpenRAVE link
-  std::map<KinBody::LinkPtr, BulletObject::Ptr> linkMap;
-  std::map<KinBody::JointPtr, BulletConstraint::Ptr> jointMap;
-  std::map<btCollisionObject *, KinBody::LinkPtr> collisionObjMap;
-
-  // maps a child to a position in the children array. used for copying
-  std::map<BulletObject::Ptr, int> childPosMap;
-
-  // maps from child index to link index. only used in updateBullet
-  std::vector<int> linkIndsWithGeometry;
-
-  // vector of objects to ignore collision with
-  BulletInstance::CollisionObjectSet ignoreCollisionObjs;
-
-  // for the loaded robot, this will create BulletObjects
-  // and place them into the children vector
-  void initRaveObject(RaveInstance::Ptr rave_, KinBodyPtr body_, TrimeshMode trimeshMode, bool isKinematic);
-  RaveObject() {} // for manual copying
-  bool isKinematic;
-
 public:
   typedef boost::shared_ptr<RaveObject> Ptr;
   RaveInstance::Ptr rave;
@@ -115,6 +87,33 @@ public:
   void updateBullet();
   // update's openrave stuff based on bullet
   void updateRave();
+
+protected:
+  // these two containers just keep track of the smart pointers
+  // so that the objects get deallocated on destruction
+  std::vector<boost::shared_ptr<btStridingMeshInterface> > meshes;
+  std::vector<boost::shared_ptr<btCollisionShape> > subshapes;
+
+  // for looking up the associated Bullet object for an OpenRAVE link
+  std::map<KinBody::LinkPtr, BulletObject::Ptr> linkMap;
+  std::map<KinBody::JointPtr, BulletConstraint::Ptr> jointMap;
+  std::map<btCollisionObject *, KinBody::LinkPtr> collisionObjMap;
+
+  // maps a child to a position in the children array. used for copying
+  std::map<BulletObject::Ptr, int> childPosMap;
+
+  // maps from child index to link index. only used in updateBullet
+  std::vector<int> linkIndsWithGeometry;
+
+  // vector of objects to ignore collision with
+  BulletInstance::CollisionObjectSet ignoreCollisionObjs;
+
+  // for the loaded robot, this will create BulletObjects
+  // and place them into the children vector
+  void initRaveObject(RaveInstance::Ptr rave_, KinBodyPtr body_, TrimeshMode trimeshMode, bool isKinematic);
+  RaveObject() {} // for manual copying
+  void internalCopy(RaveObject::Ptr o, Fork &f) const;
+  bool isKinematic;
 
 };
 

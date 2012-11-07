@@ -2,7 +2,7 @@
 
 namespace lfd {
 
-ExecutionModule::ExecutionModule() : PyModule("/home/joschu/python/lfd/execution.py") {
+ExecutionModule::ExecutionModule() : PyModule("python/lfd/execution.py") {
 }
 
 py::object ExecutionModule::init(const string &task, py::object tableBounds) {
@@ -14,7 +14,7 @@ py::object ExecutionModule::selectTrajectory(py::object points, py::object currR
 }
 
 
-CurvePerturbation::CurvePerturbation() : PyModule("/home/joschu/python/lfd/curve_perturbation.py") {
+CurvePerturbation::CurvePerturbation() : PyModule("python/lfd/curve_perturbation.py") {
 }
 
 py::object CurvePerturbation::perturbCurve(py::object curve, double s) {
@@ -23,6 +23,13 @@ py::object CurvePerturbation::perturbCurve(py::object curve, double s) {
 
 vector<btVector3> CurvePerturbation::perturbCurve(const vector<btVector3> &pts, double s) {
   return NPnx3ToPointVec(perturbCurve(pointVecToNP(pts), s));
+}
+
+DemoLoadingModule::DemoLoadingModule() : PyModule("python/lfd/demo_loading.py") {
+}
+
+py::object DemoLoadingModule::loadDemos(const string &task, const string &demo_list_file) {
+  return getModule().attr("load_demos")(task, demo_list_file);
 }
 
 } // namespace lfd

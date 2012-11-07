@@ -86,6 +86,7 @@ struct TableRopeScene : public GrabbingScene {
   const vector<btVector3> tableCornersWorld;
 
   TableRopeScene(const vector<btVector3> &tableCornersWorld_, const vector<btVector3>& controlPointsWorld, bool telekinesis=false);
+  void resetRope(const vector<btVector3> &ctrlPoints);
 
   CapsuleRope::Ptr getRope() const { return m_rope; }
 };

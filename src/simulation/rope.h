@@ -20,6 +20,7 @@ public:
   CapsuleRope(const std::vector<btVector3>& ctrlPoints, float radius_, float angStiffness_=.1, float angDamping_=1, float linDamping_=.75, float angLimit_=.4, float linStopErp_=.2);
   void init();
   void destroy();
+
   std::vector<btVector3> getNodes();
   std::vector<btVector3> getControlPoints();
   vector<btMatrix3x3> getRotations();

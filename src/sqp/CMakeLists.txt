@@ -4,11 +4,11 @@ include_directories(
     ${BULLETSIM_SOURCE_DIR}/src
     ${OpenRAVE_INCLUDE_DIRS}
     ${EIGEN3_INCLUDE_DIR}
+    ${GUROBI_INCLUDE_DIR}
 )
 
 SET(CMAKE_CXX_FLAGS "-Wall -Wno-sign-compare -Wno-reorder")
 
-include_directories(${GUROBI_INCLUDE_DIR})
 link_directories(${GUROBI_LIBRARY_DIR})
 
 #add_executable(test_grb_eigen test_grb_eigen.cpp)
@@ -56,7 +56,7 @@ target_link_libraries(test_box_picking simulation robots sqp ${PYTHON_LIBRARIES}
 #########################################
 
 add_library(sqp2 expr_ops.cpp sqp_dynamics.cpp sqp.cpp config_sqp.cpp traj_sqp.cpp collisions.cpp kinematics_utils.cpp plotters.cpp utils_sqp.cpp functions.cpp)
-target_link_libraries(sqp2 utils gurobi_c++ gurobi50 simulation)
+target_link_libraries(sqp2 utils gurobi_c++ gurobi50)
 
 add_executable(test_new_arm_table test_new_arm_table.cpp)
 target_link_libraries(test_new_arm_table sqp2 robots simulation)
