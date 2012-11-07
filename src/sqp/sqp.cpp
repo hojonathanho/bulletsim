@@ -61,6 +61,7 @@ ConvexPart::ConvexPart() : m_inModel(false) {}
 void ConvexPart::addToModel(GRBModel* model) {
   LOG_DEBUG("adding " << m_name << " to model");
   m_model = model;
+  assert(!m_inModel);
 
   assert(m_exprs.size() == m_cntNames.size());
   for (int i = 0; i < m_exprs.size(); ++i) {
@@ -76,9 +77,11 @@ void ConvexPart::addToModel(GRBModel* model) {
   for (int i = 0; i < m_qexprs.size(); ++i) {
     m_qcnts.push_back(m_model->addQConstr(m_qexprs[i] >= 0, m_qcntNames[i].c_str()));
   }
+  m_inModel = true;
 }
 
 void ConvexPart::removeFromModel() {
+  assert(m_inModel);
   for (int i = 0; i < m_cnts.size(); ++i) {
     m_model->remove(m_cnts[i]);
   }
@@ -95,7 +98,7 @@ void ConvexPart::removeFromModel() {
 }
 
 ConvexPart::~ConvexPart() {
-//  assert(!m_inModel);
+  assert(!m_inModel);
 }
 
 TrustRegion::TrustRegion() : m_shrinkage(1) {}
@@ -206,6 +209,7 @@ Optimizer::OptStatus Optimizer::optimize() {
     ////// convexification /////////
     // slight optimization: don't evaluate objectives
     // if you just did so while checking for improvement
+
     vector<ConvexObjectivePtr> objectives = convexifyObjectives();
     if (newObjectiveVals.size() == 0) objectiveVals = evaluateObjectives();
     else objectiveVals = newObjectiveVals;

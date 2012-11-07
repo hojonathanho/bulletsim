@@ -109,6 +109,9 @@ struct PhysicsStepCost : public Cost {
   ConvexObjectivePtr convexify(GRBModel* model);
 };
 
+struct AccelCost : public Cost {
+};
+
 struct PointDistanceCost : public Cost {
   typedef boost::shared_ptr<PointDistanceCost> Ptr;
 

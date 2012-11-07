@@ -136,5 +136,6 @@ int main(int argc, char* argv[]) {
   QuadBasinTest f;
   CostPtr cost( new NonlinearCostFunc(f, opt.m_xvar, opt.m_x));
   opt.addCost(cost);
+  for (int i = 0; i<10000; ++i)
   opt.optimize();
 }

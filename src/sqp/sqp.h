@@ -17,8 +17,9 @@ public:
 
 	ConvexPart();
 	virtual ~ConvexPart();
-  bool m_inModel;
-  GRBModel* m_model;
+
+	bool m_inModel;
+	GRBModel* m_model;
 	
 	vector<GRBVar> m_vars;
 
@@ -34,19 +35,19 @@ public:
 	vector<GRBQuadExpr> m_qexprs; // expression that are >= 0
 	vector<GRBQConstr> m_qcnts; // expressions get turned into constraints
 
-  string m_name;
-  virtual string getName() { return m_name; }
+	string m_name;
+	virtual string getName() { return m_name; }
 };
 
 class ConvexObjective : public ConvexPart {
 public:
 	GRBQuadExpr m_objective;
-  virtual ~ConvexObjective() { }
+	virtual ~ConvexObjective() { }
 };
 
 class ConvexConstraint : public ConvexPart {
 public:
-  virtual ~ConvexConstraint() { }
+	virtual ~ConvexConstraint() { }
 };
 
 
@@ -55,15 +56,14 @@ public:
 	virtual ConvexObjectivePtr convexify(GRBModel* model)=0;
 	virtual double evaluate() = 0;
 	virtual string getName() {return "Unnamed";}
-  virtual ~Cost() { }
+	virtual ~Cost() { }
 
 };
 
 class Constraint {
 public:
 	virtual ConvexConstraintPtr convexify(GRBModel* model)=0;
-  virtual ~Constraint() { }
-
+	virtual ~Constraint() { }
 };
 
 
@@ -93,7 +93,7 @@ public:
 	
 	Optimizer();
 	virtual ~Optimizer();
-	
+
 	virtual void updateValues() = 0;
 	virtual void storeValues() = 0;
 	virtual void rollbackValues() = 0;
@@ -101,20 +101,21 @@ public:
 	virtual void preOptimize() {} // do plots and stuff here
 	virtual void postOptimize() {} // ditto
 	OptStatus optimize();
-  void addCost(CostPtr cost);
-  void addConstraint(ConstraintPtr cnt);
-  void removeConstraint(ConstraintPtr cnt);
-  void setTrustRegion(TrustRegionPtr tra);
+
+	void addCost(CostPtr cost);
+	void addConstraint(ConstraintPtr cnt);
+	void removeConstraint(ConstraintPtr cnt);
+	void setTrustRegion(TrustRegionPtr tra);
 
 protected:
 
-  int convexOptimize();
+	int convexOptimize();
 	double getApproxObjective();
 	vector<ConvexObjectivePtr> convexifyObjectives();
 	vector<ConvexConstraintPtr> convexifyConstraints();
 	vector<double> evaluateObjectives();
 	void printObjectiveInfo(const vector<double>& oldExact,
-	     const vector<double>& newApprox, const vector<double>& newExact);
+		const vector<double>& newApprox, const vector<double>& newExact);
 	void setupConvexProblem(const vector<ConvexObjectivePtr>&, const vector<ConvexConstraintPtr>&);
 	void clearConvexProblem(const vector<ConvexObjectivePtr>&, const vector<ConvexConstraintPtr>&);
 
