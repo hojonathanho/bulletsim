@@ -120,7 +120,7 @@ private:
 
     map<HapticEvent, boost::function<void()> > hapticEvent2Func;
 
-    void actionWrapper(Action::Ptr a, float dt) {
+    void actionWrapper(ObjectAction::Ptr a, float dt) {
         a->reset();
         scene.runAction(a, dt);
     }
@@ -143,7 +143,7 @@ public:
     void setHapticPollRate(float hz) { hapticPollRate = hz; }
 
     void setHapticCb(HapticEvent h, boost::function<void()> cb) {hapticEvent2Func[h] = cb;}
-    void setHapticCb(HapticEvent h, Action::Ptr a, float dt) { setHapticCb(h, boost::bind(&PR2Manager::actionWrapper, this, a, dt));}
+    void setHapticCb(HapticEvent h, ObjectAction::Ptr a, float dt) { setHapticCb(h, boost::bind(&PR2Manager::actionWrapper, this, a, dt));}
     void handleButtons(bool left[], bool right[]);
     void toggleLeftEngaged() {lEngaged = !lEngaged;}
     void toggleRightEngaged() {rEngaged = !rEngaged;}
