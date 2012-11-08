@@ -29,8 +29,8 @@ struct LinkCollision {
   btVector3 point; // world position
   btVector3 normal; // world normal
   float frac; // only used in continuous collision detection
-  LinkCollision(double dist_, int linkInd_, const btVector3& point_, const btVector3& normal_):
-    dist(dist_), linkInd(linkInd_), point(point_), normal(normal_) {}
+  LinkCollision(double dist_, int linkInd_, const btVector3& point_, const btVector3& normal_, const float& frac_):
+    dist(dist_), linkInd(linkInd_), point(point_), normal(normal_), frac(frac_) {}
 };
 
 /** A vector of collisions for links in one timestep */
@@ -41,13 +41,15 @@ typedef std::vector<CartCollInfo> TrajCartCollInfo;
 struct JointCollInfo {
   std::vector<Eigen::VectorXd> jacs;
   std::vector<double> dists;
+  std::vector<double> weights;
 };
 typedef std::vector< JointCollInfo > TrajJointCollInfo;
 
 
 
 TrajCartCollInfo collectTrajCollisions(const Eigen::MatrixXd& traj, RaveRobotObject* rro, const std::vector<int>& dofInds, bool useAffine);
-TrajCartCollInfo continuousTrajCollisions(const Eigen::MatrixXd& traj, OpenRAVE::RobotBasePtr robot, const std::vector<int>& dofInds, float allowedPen);
+TrajCartCollInfo continuousTrajCollisions(const Eigen::MatrixXd& traj, RaveRobotObject* rro,  const std::vector<int>& dofInds, bool useAffine, float dSafeCont);
+
 TrajJointCollInfo trajCartToJointCollInfo(const TrajCartCollInfo& in, const Eigen::MatrixXd& traj, RobotBasePtr robot,
     const std::vector<int>& dofInds, bool useAffine);
 void countCollisions(const TrajJointCollInfo& trajCollInfo, double safeDist, int& nNear, int& nUnsafe, int& nColl);

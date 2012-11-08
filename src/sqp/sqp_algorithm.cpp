@@ -1045,31 +1045,6 @@ void PlanningProblem::initialize(const Eigen::MatrixXd& initTraj, bool endFixed)
   initialize(initTraj, endFixed, times);
 }
 
-void merged(const vector<double>& v0, const vector<double>& v1, vector<double>& out,
-    vector<int>& inds0, vector<int>& inds1) {
-  int nNew = v0.size() + v1.size();
-  out.resize(nNew);
-  inds0.resize(v0.size());
-  inds1.resize(v1.size());
-
-  int i0(0), i1(0);
-  bool done0(false), done1(false);
-  for (int i = 0; i < nNew; ++i) {
-    if (i0 == v0.size()) done0 = true;
-    if (i1 == v1.size()) done1 = true;
-    assert(!done0 || !done1);
-    if (!done0 && (done1 || v0[i0] < v1[i1])) {
-      out[i] = v0[i0];
-      inds0[i0] = i;
-      ++i0;
-    }
-    else {
-      out[i] = v1[i1];
-      inds1[i1] = i;
-      ++i1;
-    }
-  }
-}
 
 void PlanningProblem::subdivide(const std::vector<double>& insertTimes) {
   int nNew = insertTimes.size() + m_times.size();

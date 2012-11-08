@@ -32,8 +32,6 @@ Json::Value readJson(fs::path jsonfile) {
   return root;
 }
 
-float randf() {return (float)rand()/(float)RAND_MAX;}
-
 
 struct LocalConfig: Config {
   static string probSpec;
@@ -50,7 +48,7 @@ string LocalConfig::jsonOutputPath = "";
 int main(int argc, char *argv[]) {
 
   BulletConfig::linkPadding = .02;
-  BulletConfig::margin = .01;
+  BulletConfig::margin = 0;
   SQPConfig::padMult = 2;
   GeneralConfig::verbose=20000;
   GeneralConfig::scale = 10.;
@@ -62,7 +60,8 @@ int main(int argc, char *argv[]) {
   parser.addGroup(SQPConfig());
   parser.read(argc, argv);
 
-  if (GeneralConfig::verbose > 0) getGRBEnv()->set(GRB_IntParam_OutputFlag, 0);
+  initializeGRB();
+
 
   Scene scene;
   scene.startViewer();
@@ -82,55 +81,60 @@ int main(int argc, char *argv[]) {
   vector<double> startJoints;
   for (int i=0; i < probInfo["start_joints"].size(); ++i) startJoints.push_back(probInfo["start_joints"][i].asDouble());
 
-  RaveRobotObject::Ptr pr2 = getRobotByName(scene.env, scene.rave, probInfo["robot"].asString());
-  RaveRobotObject::Manipulator::Ptr arm = pr2->createManipulator(probInfo["manip"].asString());
+  RaveRobotObject::Ptr robot = getRobotByName(scene.env, scene.rave, probInfo["robot"].asString());
+  RaveRobotObject::Manipulator::Ptr arm = robot->createManipulator(probInfo["manip"].asString());
 
-  assert(pr2);
+  assert(robot);
   assert(arm);
 
-  removeBodiesFromBullet(pr2->children, scene.env->bullet->dynamicsWorld);
+  removeBodiesFromBullet(robot->children, scene.env->bullet->dynamicsWorld);
   BOOST_FOREACH(EnvironmentObjectPtr obj, scene.env->objects) {
     BulletObjectPtr bobj = boost::dynamic_pointer_cast<BulletObject>(obj);
     obj->setColor(randf(),randf(),randf(),1);
 //    if (bobj) makeFullyTransparent(bobj);
   }
-  pr2->setColor(0,1,1, .4);
+  robot->setColor(0,1,1, .4);
 
-  vector<double> goal;
-  for (int i=0; i < probInfo["goal"].size(); ++i) goal.push_back(probInfo["goal"][i].asDouble());
+  VectorXd goal(probInfo["goal"].size());
+  for (int i=0; i < goal.size(); ++i) goal(i) = probInfo["goal"][i].asDouble();
 
   arm->setGripperAngle(.5);
 
   TIC();
   TrajOptimizer opt;
-  opt.addPlotter(ArmPlotterPtr(new ArmPlotter(arm, &scene,  SQPConfig::plotDecimation)));
+  opt.m_plotters.push_back(ArmPlotterPtr(new ArmPlotter(arm, &scene,  SQPConfig::plotDecimation)));
 
 
   if (probInfo["goal_type"] == "joint") {
     VectorXd startJoints = toVectorXd(arm->getDOFValues());
-    VectorXd endJoints = toVectorXd(goal);
+    bool success = setupArmToJointTarget(opt, goal, arm);
+    assert(success);
   }
   else if (probInfo["goal_type"] == "cart") {
     btTransform goalTrans = btTransform(btQuaternion(goal[0], goal[1], goal[2], goal[3]),
             btVector3(goal[4], goal[5], goal[6]));
-    setupArmToCartTarget(opt, goal, arm);
+    bool success = setupArmToCartTarget(opt, goalTrans, arm);
+    assert(success);
   }
   else if (probInfo["goal_type"] == "grasp") {
     btTransform goalTrans = btTransform(btQuaternion(goal[0], goal[1], goal[2], goal[3]),
             btVector3(goal[4], goal[5], goal[6]));
-    setupArmToCartTarget(opt, goal, arm);
+    util::drawAxes(goalTrans, .25*METERS, scene.env);
+    bool success = setupArmToCartTarget(opt, goalTrans, arm);
+    assert(success);
   }
+
+  checkAllLinearizations(opt);
+  opt.optimize();
 
   if(!LocalConfig::jsonOutputPath.empty()){
-    prob.writeTrajToJSON(LocalConfig::jsonOutputPath);
+//    prob.writeTrajToJSON(LocalConfig::jsonOutputPath);
   }
 
-  prob.m_plotters[0].reset();
+  opt.m_plotters[0].reset();
 
   BulletConfig::linkPadding = 0;
-  scene.env->remove(pr2);
-  PR2Manager pr2m1(scene);
-  interactiveTrajPlot(prob.m_currentTraj, pr2m1.pr2->getManipByIndex(arm->index),  &scene);
+  interactiveTrajPlot(opt.m_traj, robot->getManipByIndex(arm->index),  &scene);
   scene.idle(true);
 
 }

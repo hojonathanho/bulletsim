@@ -182,7 +182,7 @@ void ArmPlotter::plotTraj(const MatrixXd& traj) {
 
   TIC();
   m_scene->step(0);
-  LOG_INFO_FMT("draw time: %.3f", TOC());
+  LOG_DEBUG_FMT("draw time: %.3f", TOC());
 }
 
 void adjustWorldTransparency(float inc) {
@@ -215,6 +215,26 @@ void interactiveTrajPlot(const MatrixXd& traj, RaveRobotObject::Manipulator::Ptr
   }
 }
 
+void interactiveTrajPlot(const MatrixXd& traj, RaveRobotObject* rro, const vector<int>& dofInds, Scene* scene) {
+  ScopedRobotSave srs(rro->robot);
+  BulletRaveSyncherPtr syncher = fullBodySyncher(rro);
+
+  if (dofInds.size() == traj.cols()) {
+    rro->robot->SetActiveDOFs(dofInds);
+  }
+  else {
+    rro->robot->SetActiveDOFs(dofInds, DOF_X | DOF_Y | DOF_RotationAxis, OpenRAVE::RaveVector<double>(0,0,1));
+  }
+
+  for (int iStep = 0; iStep < traj.rows(); ++iStep) {
+    rro->robot->SetActiveDOFValues(toDoubleVec(traj.row(iStep)));
+    rro->updateBullet();
+    printf("step %i. press p to continue\n", iStep);
+    scene->step(0);
+    scene->idle(true);
+  }
+}
+
 PlotPointsPtr collisions;
 PlotLinesPtr escapes;
 
@@ -228,7 +248,7 @@ void plotCollisions(const TrajCartCollInfo& trajCartInfo, double safeDist) {
     escapes.reset(new PlotLines(5));
     getGlobalEnv()->add(collisions);
     getGlobalEnv()->add(escapes);
-    collisions->getOSGNode()->getOrCreateStateSet()->setMode(GL_DEPTH_TEST, osg::StateAttribute::OFF);
+//    collisions->getOSGNode()->getOrCreateStateSet()->setMode(GL_DEPTH_TEST, osg::StateAttribute::OFF);
     escapes->getOSGNode()->getOrCreateStateSet()->setMode(GL_DEPTH_TEST, osg::StateAttribute::OFF);
   }
 
@@ -243,7 +263,7 @@ void plotCollisions(const TrajCartCollInfo& trajCartInfo, double safeDist) {
       collPts->push_back(toOSGVector(lc.point * METERS));
       escPts->push_back(toOSGVector(lc.point * METERS));
       escPts->push_back(toOSGVector(lc.point * METERS - lc.normal * (lc.dist
-          - BulletConfig::linkPadding) * METERS));
+          - SQPConfig::padMult * BulletConfig::linkPadding) * METERS));
       if (lc.dist < 0) colors->push_back(RED);
       else if (lc.dist < safeDist) colors->push_back(YELLOW);
       else colors->push_back(GREEN);

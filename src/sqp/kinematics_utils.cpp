@@ -157,12 +157,35 @@ std::vector<KinBody::LinkPtr> getArmLinks(OpenRAVE::RobotBase::ManipulatorPtr ma
 
 void setDofVals(RobotBasePtr robot,  const vector<int>& dofInds, const VectorXd& dofVals) {
   if (dofInds.size() > 0) robot->SetActiveDOFs(dofInds); //otherwise just use the active dofs
-  robot->SetActiveDOFValues(toDoubleVec(dofVals));
+  robot->SetActiveDOFValues(toDoubleVec(dofVals),false);
 }
 
 void setDofVals(RobotBasePtr robot,  const vector<int>& dofInds, const VectorXd& dofVals, const Vector3d& affVals) {
   robot->SetTransform(toRaveTransform(affVals(0), affVals(1), affVals(2)));
   setDofVals(robot, dofInds, dofVals);
+}
+
+VectorXd genRandomDofVals(RobotBasePtr robot, const vector<int>& dofInds) {
+	VectorXd lower, upper;
+	getJointLimits(robot, dofInds, lower, upper);
+	VectorXd out;
+	for (int i=0; i < dofInds.size(); ++i) {
+	  out(i) = lower(i) + (upper(i) - lower(i)) * randf();
+	}
+	return out;
+}
+
+Vector3d genRandomWaypoint(const Vector3d& start, const Vector3d& end) {
+	double centerx = (end(0) + start(0))/2;
+	double centery = (end(1) + start(1))/2;
+	double rmax = (end.topRows(2) - start.topRows(2)).norm()/2;
+	double r = randf() * rmax;
+	double theta = randf() * 2 * SIMD_PI;
+	double x = centerx + r * cos(theta);
+	double y = centery + r * sin(theta);
+	double ang = randf() * 2 * SIMD_PI;
+	return Vector3d(x,y,ang);
+		
 }
 
 MatrixXd calcPointJacobian(const RobotBasePtr& robot, int linkInd, const btVector3& pt, bool useAffine) {
@@ -186,13 +209,15 @@ MatrixXd calcPointJacobian(const RobotBasePtr& robot, int linkInd, const btVecto
   return jac;
 }
 
-void calcActiveLinkJac(KinBody::Link* link, RobotBasePtr robot, MatrixXd& posjac, MatrixXd& rotjac) {
+void calcActiveLinkJac(const VectorXd& dofvals, KinBody::Link* link, RobotBasePtr robot, MatrixXd& posjac, MatrixXd& rotjac, bool useAffine) {
   struct F : public fVectorOfVector {
     KinBody::Link* m_link;
     RobotBasePtr m_robot;
-    F(KinBody::Link* link, RobotBasePtr robot) : m_link(link), m_robot(robot) {}
+    bool m_useAffine;
+    F(KinBody::Link* link, RobotBasePtr robot, bool useAffine) : m_link(link), m_robot(robot), m_useAffine(useAffine) {}
     VectorXd operator()(const VectorXd& vals) const {
-      setDofVals(m_robot, vector<int>(), vals.topRows(vals.size()-3), vals.bottomRows(3));
+      if (m_useAffine) setDofVals(m_robot, vector<int>(), vals.topRows(vals.size()-3), vals.bottomRows(3));
+      else setDofVals(m_robot, vector<int>(), vals);
       VectorXd out(7);
       OpenRAVE::Transform tf = m_link->GetTransform();
       out.topRows(3) = toVector3d(tf.trans);
@@ -202,8 +227,9 @@ void calcActiveLinkJac(KinBody::Link* link, RobotBasePtr robot, MatrixXd& posjac
   };
 
   ScopedRobotSave srs(robot);
-  vector<double> curvals; robot->GetActiveDOFValues(curvals);
-  MatrixXd fulljac = calcJacobian(F(link, robot), toVectorXd(curvals), 1e-5);
+  setDofVals(robot, vector<int>(), dofvals);
+  assert (link != NULL);
+  MatrixXd fulljac = calcJacobian(F(link, robot, useAffine), dofvals, 1e-5);
   posjac = fulljac.topRows(3);
   rotjac = fulljac.bottomRows(4);
 
@@ -265,6 +291,36 @@ bool doesAffect(const RobotBasePtr& robot, const vector<int>& dofInds, int linkI
   }
   return false;
 }
+
+int getRobotLinkIndex(RobotBasePtr robot, KinBody::LinkPtr link) {
+  if (link->GetParent() == robot) return link->GetIndex();
+  else {
+    return robot->IsGrabbing(link->GetParent())->GetIndex();
+  }
+}
+
+void getAffectedLinks2(RaveRobotObject* rro, vector<KinBody::LinkPtr>& links, vector<int>& linkInds) {
+  links.clear();
+  linkInds.clear();
+  RobotBasePtr robot = rro->robot;
+  links = fullBodyCollisionLinks(rro);
+  BOOST_FOREACH(KinBody::LinkPtr& link, links) linkInds.push_back(link->GetIndex());
+
+  vector<KinBodyPtr> grabbed;
+  robot->GetGrabbed(grabbed);
+  BOOST_FOREACH(const KinBodyPtr& body, grabbed) {
+    KinBody::LinkPtr grabberLink = robot->IsGrabbing(body);
+    assert(grabberLink);
+    BOOST_FOREACH(const KinBody::LinkPtr& link, body->GetLinks()) {
+      if (link->GetGeometries().size() > 0) {
+        links.push_back(link);
+        linkInds.push_back(grabberLink->GetIndex());
+      }
+    }
+  }
+
+}
+
 
 void getAffectedLinks2(RobotBasePtr robot, const vector<int>& dofInds, vector<KinBody::LinkPtr>& links,
                        vector<int>& linkInds) {
@@ -342,23 +398,35 @@ void removeBodiesFromBullet(vector<BulletObject::Ptr> objs, btDynamicsWorld* wor
   }
 }
 
-
-
-BulletRaveSyncherPtr fullBodySyncher(RaveRobotObject* rro) {
-  RobotBasePtr robot = rro->robot;
+vector<KinBody::LinkPtr> fullBodyCollisionLinks(RaveRobotObject* rro) {
   std::set<KinBody::LinkPtr> linkSet;
   for (int i=0; i < rro->numCreatedManips(); ++i) {
     KinBody::LinkPtr eeLink = rro->getManipByIndex(i)->manip->GetEndEffector();
     vector<KinBody::LinkPtr> chain;
-    robot->GetChain(0,eeLink->GetIndex(), chain);
-    BOOST_FOREACH(KinBody::LinkPtr link, chain) linkSet.insert(link);
+    rro->robot->GetChain(0,eeLink->GetIndex(), chain);
+    BOOST_FOREACH(KinBody::LinkPtr link, chain) {
+      if (link->GetGeometries().size() > 0) {
+        linkSet.insert(link);
+      }
+    }
   }
+  vector<KinBody::LinkPtr> out;
+  BOOST_FOREACH(KinBody::LinkPtr link, linkSet) {
+    out.push_back(link);
+  }
+  return out;
+}
+
+
+BulletRaveSyncherPtr fullBodySyncher(RaveRobotObject* rro) {
+  RobotBasePtr robot = rro->robot;
+
+  vector<KinBody::LinkPtr> links = fullBodyCollisionLinks(rro);
 
   stringstream ss;
 
   vector<btRigidBody*> bodies;
-  vector<KinBody::LinkPtr> links;
-  BOOST_FOREACH(KinBody::LinkPtr link, linkSet) {
+  BOOST_FOREACH(KinBody::LinkPtr link, links) {
     BulletObject::Ptr bobj = rro->associatedObj(link);
     if (bobj) {
       bodies.push_back(bobj->rigidBody.get());

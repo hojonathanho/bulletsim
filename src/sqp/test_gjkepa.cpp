@@ -1,9 +1,10 @@
 #include <BulletCollision/NarrowPhaseCollision/btGjkEpa2.h>
-#include <BulletCollision/btBulletCollisionCommon.h>
+#include <btBulletCollisionCommon.h>
 #include <iostream>
 using namespace std;
 
 int main() {
+
 	btBoxShape* box0 = new btBoxShape(btVector3(1,1,1));
 	btBoxShape* box1 = new btBoxShape(btVector3(1,1,1));
 	btTransform tf0(btQuaternion::getIdentity(),btVector3(0,0,0));

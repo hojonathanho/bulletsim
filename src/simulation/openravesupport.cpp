@@ -40,7 +40,7 @@ RaveInstance::RaveInstance() {
 	isRoot = true;
 	RaveInitialize(true);
 	env = RaveCreateEnvironment();
-	if (GeneralConfig::verbose  <= log4cplus::DEBUG_LOG_LEVEL)
+	if (GeneralConfig::verbose  <= 0)
 		RaveSetDebugLevel(Level_Debug);
 	env->StopSimulation();
 }
@@ -682,12 +682,14 @@ bool RobotManipulator::moveByIKUnscaled(
 
 float RobotManipulator::getGripperAngle() {
 	vector<int> inds = manip->GetGripperIndices();
-	vector<double> vals = robot->getDOFValues(inds);
+  if (inds.size()==0) return 0;
+  vector<double> vals = robot->getDOFValues(inds);
 	return vals[0];
 }
 
 void RobotManipulator::setGripperAngle(float x) {
 	vector<int> inds = manip->GetGripperIndices();
+	if (inds.size()==0) return;
 	vector<double> vals(inds.size(),x);
 	robot->setDOFValues(inds, vals);
 }

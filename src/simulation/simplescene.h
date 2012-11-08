@@ -92,7 +92,7 @@ struct Scene {
   // Steps physics and updates the display (if displayOn is true)
   // If syncTime is true, then these will block until the time interval passes on the system clock
   virtual void step(float dt, int maxsteps, float internaldt);
-  virtual void step(float dt);
+  void step(float dt);
   void stepFor(float dt, float time);
 
   // Blocks the caller and just runs the viewer for the specified

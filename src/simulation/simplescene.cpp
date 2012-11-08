@@ -18,6 +18,37 @@ Scene::Scene(OpenRAVE::EnvironmentBasePtr env) {
   setup();
 }
 
+void addLights(osg::ref_ptr<osg::Group> group) {
+
+  {
+  osg::ref_ptr<osg::Light> light = new osg::Light;
+  light->setLightNum(0);
+  light->setPosition(osg::Vec4(-4*METERS,0,4*METERS,1));
+  osg::ref_ptr<osg::LightSource> lightSource = new osg::LightSource;
+  lightSource->setLight(light.get());
+  light->setDiffuse(osg::Vec4(1,.9,.9,1)*.5);
+  light->setConstantAttenuation(0);
+  light->setLinearAttenuation(1./(4*METERS));
+  group->addChild(lightSource.get());
+  group->getOrCreateStateSet()->setMode(GL_LIGHT0, osg::StateAttribute::ON);
+  }
+
+  {
+  osg::ref_ptr<osg::Light> light = new osg::Light;
+  light->setLightNum(1);
+  light->setPosition(osg::Vec4(4*METERS,0,4*METERS,1));
+  osg::ref_ptr<osg::LightSource> lightSource = new osg::LightSource;
+  lightSource->setLight(light.get());
+  light->setDiffuse(osg::Vec4(.9,.9,1,1)*.5);
+  light->setConstantAttenuation(0);
+  light->setLinearAttenuation(1./(4*METERS));
+  group->addChild(lightSource.get());
+  group->getOrCreateStateSet()->setMode(GL_LIGHT1, osg::StateAttribute::ON);
+  }
+
+}
+
+
 void Scene::setup() {
     osg.reset(new OSGInstance());
     bullet.reset(new BulletInstance());
@@ -44,7 +75,7 @@ void Scene::setup() {
 			}
 		}
 		ground->setTexture(tex);
-
+		addLights(osg->root);
     env->add(ground);
 
     // default callbacks
@@ -58,6 +89,7 @@ void Scene::setup() {
     drawingOn = false; // no drawing until startViewer()
 }
 
+
 void Scene::startViewer() {
     drawingOn = syncTime = true;
     loopState.looping = loopState.paused = loopState.debugDraw = false;
@@ -68,27 +100,6 @@ void Scene::startViewer() {
     bullet->dynamicsWorld->setDebugDrawer(dbgDraw.get());
     osg->root->addChild(dbgDraw->getSceneGraph());
 
-    {
-    osg::ref_ptr<osg::Light> light = new osg::Light;
-    light->setLightNum(0);
-    light->setPosition(osg::Vec4(-10*METERS,0,10*METERS,1));
-    osg::ref_ptr<osg::LightSource> lightSource = new osg::LightSource;
-    lightSource->setLight(light.get());
-    light->setDiffuse(osg::Vec4(1,.9,.9,1)*.5);
-    osg->root->addChild(lightSource.get());
-    osg->root->getOrCreateStateSet()->setMode(GL_LIGHT0, osg::StateAttribute::ON);
-    }
-
-    {
-    osg::ref_ptr<osg::Light> light = new osg::Light;
-    light->setLightNum(1);
-    light->setPosition(osg::Vec4(10*METERS,0,10*METERS,1));
-    osg::ref_ptr<osg::LightSource> lightSource = new osg::LightSource;
-    lightSource->setLight(light.get());
-    light->setDiffuse(osg::Vec4(.9,.9,1,1)*.5);
-    osg->root->addChild(lightSource.get());
-    osg->root->getOrCreateStateSet()->setMode(GL_LIGHT1, osg::StateAttribute::ON);
-    }
 
     viewer.setUpViewInWindow(0, 0, ViewerConfig::windowWidth, ViewerConfig::windowHeight);
     manip = new EventHandler(*this);

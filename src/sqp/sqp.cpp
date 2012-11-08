@@ -47,11 +47,12 @@ vector<double> evalApproxObjectives(const vector<ConvexObjectivePtr>& in) {
 
 void Optimizer::printObjectiveInfo(const vector<double>& oldExact,
     const vector<double>& newApprox, const vector<double>& newExact) {
-  LOG_INFO("cost | exact | approx-improve | exact-improve | ratio");
+//  LOG_INFO("cost | exact | approx-improve | exact-improve | ratio");
+  LOG_INFO_FMT("%15s | %10s | %10s | %10s | %10s", "cost", "exact", "dapprox", "dexact", "ratio");
   for (int i=0; i < m_costs.size(); ++i) {
     double approxImprove = oldExact[i] - newApprox[i];
     double exactImprove = oldExact[i] - newExact[i];
-    LOG_INFO_FMT("%.15s | %.3e | %.3e | %.3e | %.3e", m_costs[i]->getName().c_str(),
+    LOG_INFO_FMT("%15s | %10.3e | %10.3e | %10.3e | %10.3e", m_costs[i]->getName().c_str(),
                  oldExact[i], approxImprove, exactImprove, exactImprove/approxImprove);
   }
 }
@@ -65,12 +66,15 @@ void ConvexPart::addToModel(GRBModel* model) {
     m_cnts.push_back(m_model->addConstr(m_exprs[i] <= 0, m_cntNames[i].c_str()));
   }
   for (int i = 0; i < m_qexprs.size(); ++i) {
-    m_qcnts.push_back(m_model->addConstr(m_exprs[i] >= 0, m_qcntNames[i].c_str()));
+    m_qcnts.push_back(m_model->addConstr(m_exprs[i] <= 0, m_qcntNames[i].c_str()));
   }
   m_inModel = true;
 }
 
 void ConvexPart::removeFromModel() {
+  BOOST_FOREACH(GRBConstr& cnt, m_eqcnts) {
+    m_model->remove(cnt);
+  }
   BOOST_FOREACH(GRBConstr& cnt, m_cnts) {
     m_model->remove(cnt);
   }
@@ -84,7 +88,7 @@ void ConvexPart::removeFromModel() {
 }
 
 ConvexPart::~ConvexPart() {
-//  assert(!m_inModel);
+  if (m_inModel) LOG_WARN("ConvexPart deleted but not removed from model");
 }
 
 TrustRegion::TrustRegion() : m_shrinkage(1) {}
@@ -199,11 +203,7 @@ Optimizer::OptStatus Optimizer::optimize() {
     setupConvexProblem(objectives, constraints);
     ///////////////////////////////////
 
-    LOG_INFO("objectiveVals before: " << objectiveVals);
-    for (int i=0; i < m_costs.size(); ++i) std::cout << m_costs[i]->getName() << " " << m_costs[i]->evaluate() << std::endl;
-
-
-    while (true) { // trust region adjustment
+    while (m_tra->m_shrinkage >= SQPConfig::shrinkLimit) { // trust region adjustment
 
 
       ////// convex optimization /////////////////////
@@ -229,7 +229,7 @@ Optimizer::OptStatus Optimizer::optimize() {
       trueImprove = objectiveVal - newObjectiveVal;
       approxImprove = objectiveVal - approxObjectiveVal;
       improveRatio = trueImprove / approxImprove;
-      LOG_INFO_FMT("true improvement: %.2e.  approx improvement: %.2e.  ratio: %.2f", trueImprove, approxImprove, improveRatio);
+      LOG_INFO_FMT("%15s | %10.3e | %10.3e | %10.3e | %10.3e", "TOTAL", objectiveVal, trueImprove, approxImprove, improveRatio);
       //////////////////////////////////////////////
 
       if (approxImprove < 1e-7) {
@@ -265,12 +265,12 @@ Optimizer::OptStatus Optimizer::optimize() {
 			return GRB_FAIL;
 		}		
     if (iter >= SQPConfig::maxIter) {
-      LOG_INFO("reached iteration limit");
+      LOG_WARN("reached iteration limit");
       return ITERATION_LIMIT;
     }
 
     if (m_tra->m_shrinkage < SQPConfig::shrinkLimit) {
-      LOG_INFO("trust region shrunk too much. stopping");
+      LOG_WARN("trust region shrunk too much. stopping");
       return SHRINKAGE_LIMIT;
     }
     if (trueImprove < SQPConfig::doneIterThresh && improveRatio > SQPConfig::trThresh) {
@@ -292,5 +292,14 @@ void addHingeCost(ConvexObjectivePtr& cost, double coeff, const GRBLinExpr& err,
     cost->m_vars.push_back(errcost);
     cost->m_exprs.push_back(err - errcost);
     cost->m_cntNames.push_back(desc);
+    cost->m_objective += coeff * errcost;
+}
+void addAbsCost(ConvexObjectivePtr& cost, double coeff, const GRBLinExpr& err, GRBModel* model, const string& desc) {
+    GRBVar errcost = model->addVar(0,GRB_INFINITY,0, GRB_CONTINUOUS);
+    cost->m_vars.push_back(errcost);
+    cost->m_exprs.push_back(err - errcost); /* errcost >= err */
+    cost->m_cntNames.push_back(desc); 
+    cost->m_exprs.push_back(-err - errcost); /* errcost >= -err */
+    cost->m_cntNames.push_back(desc); 
     cost->m_objective += coeff * errcost;
 }

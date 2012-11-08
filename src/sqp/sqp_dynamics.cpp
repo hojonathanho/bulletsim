@@ -15,6 +15,23 @@ extern Eigen::VectorXd toXYZROD(const btTransform& tf);
 extern btTransform fromXYZROD(const Eigen::VectorXd& xyzrod);
 Matrix3d rotJacWorld(const Vector3d& ptWorld, const Vector3d& centerWorld, const Vector3d& rod);
 
+double unwrap_angle(double x, double targ) {
+  while (true) {
+    if (x - targ > SIMD_PI) x -= 2*SIMD_PI;
+    else if (x - targ < -SIMD_PI) x+= 2*SIMD_PI;
+    else break;
+  }
+  return x;
+}
+
+Eigen::VectorXd toXYZROD(const btTransform& t, const Eigen::VectorXd& xyzrod) {
+  VectorXd out = toXYZROD(t);
+  for (int i=3; i < 6; ++i) {
+    out(i) = unwrap_angle(out(i), xyzrod(i));
+  }
+  return out;
+
+}
 
 template<typename S, typename T>
 vector<T> sliceVec(const vector<T>& in, int start, int end) {
@@ -181,15 +198,6 @@ TrajDynSolver* TrajDynComponent::getSolver() {
   return m_solver;
 }
 
-
-GRBLinExpr makeDerivExpr(const VectorXd& grad, const VarVector& vars, const VectorXd& curvals) {
-  assert (grad.size() == vars.size());
-  GRBLinExpr out;
-  out.addTerms(grad.data(), vars.data(), curvals.size());
-  out -= grad.dot(curvals);
-  return out;
-}
-
 VectorXd calcDistJacobian(const btVector3& penpt, const btVector3& normal, const VectorXd& pose) {
   VectorXd out(6);
   out.topRows(3) = toVector3d(normal);
@@ -349,7 +357,7 @@ void DynSolver::updateValues() {
 
 void DynSolver::getPosesFromWorld() {
   BOOST_FOREACH(btRigidBody* body, m_bodies) {
-    m_obj2prevPoses[body] = toXYZROD(body->getCenterOfMassTransform());
+    m_obj2prevPoses[body] = toXYZROD(body->getCenterOfMassTransform(), m_obj2prevPoses[body]);
   }
 }
 
@@ -459,10 +467,18 @@ ConvexObjectivePtr VelCost::convexify(GRBModel* model) {
   return out;
 }
 
+VectorXd modTwoPi(const VectorXd& x) {
+  VectorXd out = x;
+  for (int i=0; i < out.size(); ++i) {
+    out(i) = unwrap_angle(x(i), 0);
+  }
+  return out;
+}
+
 double VelCost::evaluate() {
   double out=0;
   BOOST_FOREACH(btRigidBody* body, getSolver()->m_bodies) {
-    out +=  m_weights.cwiseProduct(getSolver()->m_obj2poses[body] -  getSolver()->m_obj2prevPoses[body]).squaredNorm();
+    out +=  modTwoPi(m_weights.cwiseProduct(getSolver()->m_obj2poses[body] -  getSolver()->m_obj2prevPoses[body])).squaredNorm();
   }
   return out;
 }

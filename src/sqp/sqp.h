@@ -8,6 +8,7 @@ using std::string;
 
 const char* getGRBStatusString(int status);
 void initializeGRB();
+boost::shared_ptr<GRBEnv> getGRBEnv();
 
 class ConvexPart {
 	// constraint or cost that can be added to problem
@@ -22,12 +23,14 @@ public:
 	
 	vector<GRBVar> m_vars;
 
+  vector<GRBConstr> m_eqcnts;
+
 	vector<string> m_cntNames; // future names for constraints
 	vector<GRBLinExpr> m_exprs; // expressions that are <= 0
 	vector<GRBConstr> m_cnts; // expressions get turned into constraints
 
   vector<string> m_qcntNames; // future names for constraints
-	vector<GRBQuadExpr> m_qexprs; // expression that are >= 0
+	vector<GRBQuadExpr> m_qexprs; // expressions that are <= 0
 	vector<GRBConstr> m_qcnts; // expressions get turned into constraints
 
 };
@@ -109,4 +112,4 @@ protected:
 };
 
 void addHingeCost(ConvexObjectivePtr& cost, double coeff, const GRBLinExpr& err, GRBModel* model, const string& desc);
-
+void addAbsCost(ConvexObjectivePtr& cost, double coef, const GRBLinExpr& err, GRBModel* model, const string& desc);

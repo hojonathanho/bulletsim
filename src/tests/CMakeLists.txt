@@ -43,7 +43,7 @@ add_executable(test_scene_record test_scene_record.cpp)
 target_link_libraries(test_scene_record simulation)
 
 add_executable(test_logging test_logging.cpp)
-target_link_libraries(test_logging simulation)
+target_link_libraries(test_logging utils)
 
 add_executable(test_tetgen test_tetgen.cpp)
 target_link_libraries(test_tetgen simulation)

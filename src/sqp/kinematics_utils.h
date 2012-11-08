@@ -33,16 +33,21 @@ void getJointLimits(const RobotBasePtr& robot, const vector<int>& dofInds, Vecto
 std::vector<KinBody::JointPtr> getArmJoints(OpenRAVE::RobotBase::ManipulatorPtr manip);
 std::vector<KinBody::LinkPtr> getArmLinks(OpenRAVE::RobotBase::ManipulatorPtr manip);
 std::vector<KinBody::LinkPtr> getAffectedLinks(OpenRAVE::RobotBasePtr robot, const std::vector<int>& dofInds);
+void getAffectedLinks2(RaveRobotObject* rro, vector<KinBody::LinkPtr>& links, vector<int>& linkInds);
 void getAffectedLinks2(RobotBasePtr robot, const vector<int>& dofInds,
                        vector<KinBody::LinkPtr>& links, vector<int>& linkInds);
+int getRobotLinkIndex(RobotBasePtr robot, KinBody::LinkPtr link);
 
 void setDofVals(RobotBasePtr robot,  const vector<int>& dofInds, const VectorXd& dofVals);
 void setDofVals(RobotBasePtr robot,  const vector<int>& dofInds, const VectorXd& dofVals, const Vector3d& affVals);
 
+VectorXd genRandomDofVals(RobotBasePtr, const vector<int>& dofInds);
+MatrixXd unwindAngles(const MatrixXd&);
+Vector3d genRandomWaypoint(const Vector3d& start, const Vector3d& end);
 
 
 Eigen::MatrixXd calcPointJacobian(const RobotBasePtr& robot, int linkInd, const btVector3& pt, bool useAffine);
-void calcActiveLinkJac(KinBody::Link* link, RobotBasePtr robot, MatrixXd& posjac, MatrixXd& rotjac);
+void calcActiveLinkJac(const VectorXd& dofvals, KinBody::Link* link, RobotBasePtr robot, MatrixXd& posjac, MatrixXd& rotjac, bool useAffine);
 
 class BulletRaveSyncher {
 public:
@@ -60,6 +65,9 @@ std::vector<btTransform> getGripperPoses(const Eigen::MatrixXd& traj, RobotManip
 
 BulletRaveSyncherPtr syncherFromArm(RobotManipulatorPtr rrom);
 BulletRaveSyncherPtr fullBodySyncher(RaveRobotObject* rro);
+
+vector<KinBody::LinkPtr> fullBodyCollisionLinks(RaveRobotObject* rro);
+
 
 class ArmPrinter {
 public:

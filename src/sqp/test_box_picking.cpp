@@ -21,6 +21,13 @@ namespace py = boost::python;
 btTransform frontPickPose(const btVector3& center, const btVector3& halfExtents) {
   float eebox = .2;
   btMatrix3x3 rot(0, 0, 1, 0, -1, 0, 1, 0, 0);
+  btVector3 pos(center.x(), center.y(), center.z() + (eebox + .03));
+  return btTransform(rot, pos);
+}
+
+btTransform topPickPose(const btVector3& center, const btVector3& halfExtents) {
+  float eebox = .2;
+  btMatrix3x3 rot(0, 0, 1, 0, -1, 0, 1, 0, 0);
   btVector3 pos(center.x() - halfExtents.x() - (eebox + .03), center.y(), center.z());
   return btTransform(rot, pos);
 }
@@ -200,8 +207,10 @@ int main(int argc, char* argv[]) {
   for (int iBox = boxes.size() - 1; iBox >= 0; --iBox) {
     RaveObject::Ptr curBox = boxes[iBox];
     {
-      btTransform goalTrans = frontPickPose(toBtVector(curBox->body->GetTransform().trans), btVector3(bside, bside,
-                                                                                                      bheight) / 2);
+      btVector3 boxpos = util::toBtVector(curBox->body->GetTransform().trans);
+      btTransform goalTrans;
+      if (boxpos.z() > 1.7) goalTrans = frontPickPose(toBtVector(curBox->body->GetTransform().trans), btVector3(bside, bside, bheight) / 2);
+      else goalTrans = topPickPose(toBtVector(curBox->body->GetTransform().trans), btVector3(bside, bside, bheight) / 2);
       PlanningProblem prob;
       prob.addPlotter(ArmPlotterPtr(new ArmPlotter(rm.botRight, &scene, SQPConfig::plotDecimation)));
       planArmToCartTarget(prob, toVectorXd(rm.botRight->getDOFValues()), goalTrans, rm.botRight, false);

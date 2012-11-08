@@ -46,11 +46,30 @@ public:
   int cols() const {
     return m_nCol;
   }
+  BasicArray middleRows(int start, int n) {
+    BasicArray out;
+    out.resize(n, m_nCol);
+    for (int i=start; i < start+n; ++i) {
+      for (int j=0; j < m_nCol; ++j) {
+        out(i,j) = at(i,j);
+      }
+    }
+    return out;
+  }
+  BasicArray topRows(int n) {
+    return middleRows(0,n);
+  }
+  BasicArray bottomRows(int n) {
+    return middleRows(m_nRow-n, n);
+  }
 
   const T& at(int row, int col) const {
     return m_data.at(row * m_nCol + col);
   }
   T& at(int row, int col) {
+    return m_data.at(row * m_nCol + col);
+  }
+  const T& operator()(int row, int col) const {
     return m_data.at(row * m_nCol + col);
   }
   T& operator()(int row, int col) {
@@ -121,9 +140,13 @@ inline double clip(double x, double lo, double hi) {
                 x > hi ? hi :
                        x;
 }
+inline float randf() {return (float)rand()/(float)RAND_MAX;}
+
+GRBLinExpr makeDerivExpr(const VectorXd& grad, const VarVector& vars, const VectorXd& curvals);
 
 VectorXd arange(int n);
 MatrixXd linearInterp(const VectorXd& start, const VectorXd& end, int nSteps);
+VectorXd concatenate(VectorXd x0, VectorXd x1);
 
 inline std::string base_filename(char* in) {
   std::string s(in);

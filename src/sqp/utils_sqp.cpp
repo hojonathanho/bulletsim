@@ -12,8 +12,15 @@ VectorXd arange(int n) {
 MatrixXd linearInterp(const Eigen::VectorXd& startJoints, const Eigen::VectorXd& endJoints, int nSteps) {
   MatrixXd out(nSteps, startJoints.size());
   for (int i=0; i < nSteps; ++i) {
-    out.row(i) = ((double)i/nSteps)*endJoints + ((double)(nSteps-i)/nSteps)*startJoints;
+    out.row(i) = ((double)i/(nSteps-1))*endJoints + ((double)(nSteps-1-i)/(nSteps-1))*startJoints;
   }
+  return out;
+}
+
+VectorXd concatenate(VectorXd x0, VectorXd x1) {
+  VectorXd out(x0.size()+x1.size());
+  out.middleRows(0,x0.size()) = x0;
+  out.middleRows(x0.size(),x1.size()) = x1;
   return out;
 }
 
@@ -62,4 +69,13 @@ void setValsToVars(VarArray& vars, MatrixXd& vals) {
       vals(i,j) = vars(i,j).get(GRB_DoubleAttr_X);
     }
   }
+}
+
+
+GRBLinExpr makeDerivExpr(const VectorXd& grad, const VarVector& vars, const VectorXd& curvals) {
+  assert (grad.size() == vars.size());
+  GRBLinExpr out;
+  out.addTerms(grad.data(), vars.data(), curvals.size());
+  out -= grad.dot(curvals);
+  return out;
 }

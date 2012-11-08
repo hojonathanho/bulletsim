@@ -9,9 +9,8 @@ using namespace Eigen;
 
 RobotJointSetter::RobotJointSetter(RaveRobotObjectPtr robot, const std::vector<int>& dofInds, bool useAffine) :
   m_robot(robot->robot), m_dofInds(dofInds), m_useAffine(useAffine) {
-  std::vector<OpenRAVE::KinBody::LinkPtr> links = getAffectedLinks(robot->robot, dofInds);
   vector<btRigidBody*> bodies;
-  links.clear();
+  vector<KinBody::LinkPtr> links;
   BOOST_FOREACH(const OpenRAVE::KinBody::LinkPtr& link, robot->robot->GetLinks()){
     if (robot->associatedObj(link)){
       bodies.push_back(robot->associatedObj(link)->rigidBody.get());

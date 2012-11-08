@@ -31,9 +31,9 @@ add_subdirectory(utils)
 add_subdirectory(comm)
 add_subdirectory(clouds)
 
-if (BUILD_TESTS)
+if (BUILD_TEST)
 	add_subdirectory(tests)
-endif(BUILD_TESTS)
+endif(BUILD_TEST)
 
 if (JOHNS_ADVENTURES)
    add_subdirectory(john_sandbox)
