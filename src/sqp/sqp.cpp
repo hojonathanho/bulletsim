@@ -313,3 +313,11 @@ void addHingeCost(ConvexObjectivePtr& cost, double coeff, const GRBLinExpr& err,
     cost->m_cntNames.push_back(desc);
     cost->m_objective += coeff * errcost;
 }
+
+void addHingeCostSq(ConvexObjectivePtr& cost, double coeff, const GRBLinExpr& err, GRBModel* model, const string& desc) {
+    GRBVar errcost = model->addVar(0,GRB_INFINITY,0, GRB_CONTINUOUS);
+    cost->m_vars.push_back(errcost);
+    cost->m_exprs.push_back(err - errcost);
+    cost->m_cntNames.push_back(desc);
+    cost->m_objective += coeff * errcost * errcost;
+}

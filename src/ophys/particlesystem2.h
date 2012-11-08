@@ -77,12 +77,6 @@ public:
 
   friend class ParticleSystem2;
 
-  struct InitCondCvxConstraint : public ConvexConstraint {
-    typedef boost::shared_ptr<InitCondCvxConstraint> Ptr;
-    // s0 only needs x,v,a filled in
-    InitCondCvxConstraint(ParticleSystemOptimizer2 &opt, const ParticleSystemOptimizer2::SysState &s0);
-  };
-
 
   struct InitCondConstraint : public Constraint {
     typedef boost::shared_ptr<InitCondConstraint> Ptr;
@@ -121,17 +115,31 @@ public:
     ConvexObjectivePtr convexify(GRBModel* model);
   };
 
+#if 0
   struct PhysicsStepConstraint : public Constraint {
     typedef boost::shared_ptr<PhysicsStepConstraint> Ptr;
     ParticleSystemOptimizer2 &m_opt;
     PhysicsStepConstraint(ParticleSystemOptimizer2 &opt) : m_opt(opt) { }
     ConvexConstraintPtr convexify(GRBModel* );
   };
+#endif
 
   struct SemiImplicitEulerConstraint : public Constraint {
     typedef boost::shared_ptr<SemiImplicitEulerConstraint> Ptr;
     ParticleSystemOptimizer2 &m_opt;
     SemiImplicitEulerConstraint(ParticleSystemOptimizer2 &opt) : m_opt(opt) { }
+    ConvexConstraintPtr convexify(GRBModel* );
+  };
+
+  struct ForceConstraint : public Constraint {
+    typedef boost::shared_ptr<ForceConstraint> Ptr;
+    ParticleSystemOptimizer2 &m_opt;
+    enum Mode {
+      UNCONSTRAINED = 0,
+      GRAVITY_ONLY
+    } m_mode;
+    ForceConstraint(ParticleSystemOptimizer2 &opt) : m_opt(opt), m_mode(UNCONSTRAINED) { }
+    void setMode(Mode m) { m_mode = m; }
     ConvexConstraintPtr convexify(GRBModel* );
   };
 
@@ -162,6 +170,30 @@ public:
     double evaluateAt(const SysStatesOverTime *sys);
     ConvexObjectivePtr convexify(GRBModel* model);
   };
+
+
+  /////// position-based dynamics /////////
+  struct PDPosViolationCost : public Cost {
+    typedef boost::shared_ptr<PDPosViolationCost> Ptr;
+
+    ParticleSystemOptimizer2 &m_opt;
+    PDPosViolationCost(ParticleSystemOptimizer2 &opt) : m_opt(opt) { }
+
+    string getName() { return "pos_violation_cost"; }
+
+    double evaluate();
+    double evaluateAt(const SysStatesOverTime *sys);
+    ConvexObjectivePtr convexify(GRBModel* model);
+  };
+
+  struct PDVelocityConstraint : public Constraint {
+    typedef boost::shared_ptr<PDVelocityConstraint> Ptr;
+    ParticleSystemOptimizer2 &m_opt;
+    PDVelocityConstraint(ParticleSystemOptimizer2 &opt) : m_opt(opt) { }
+    ConvexConstraintPtr convexify(GRBModel* );
+  };
+  ///////////////////////////////////////
+
 
 private:
 
@@ -214,7 +246,7 @@ public:
   void step(double dt, int numSteps=1);
   void step();
   void setupOpt(ParticleSystemOptimizer2 &opt);
-  //void setupOpt2(ParticleSystemOptimizer2 &opt);
+  void setupOpt2(ParticleSystemOptimizer2 &opt);
 
   void attachToScene(Scene *);
   void draw();
@@ -229,10 +261,14 @@ protected:
   ParticleSystemOptimizer2::GroundCost::Ptr m_groundCost;
   ParticleSystemOptimizer2::AccelCost::Ptr m_accelCost;
 
+  ParticleSystemOptimizer2::PDPosViolationCost::Ptr m_pdPosViolationCost;
+  ParticleSystemOptimizer2::PDVelocityConstraint::Ptr m_pdVelCnt;
+
   //ParticleSystemOptimizer2::PhysicsStepCost::Ptr m_physicsStepCost;
-  ParticleSystemOptimizer2::ConstrainedPhysicsStepCost::Ptr m_constrainedPhysicsStepCost;
+  //ParticleSystemOptimizer2::ConstrainedPhysicsStepCost::Ptr m_constrainedPhysicsStepCost;
   //ParticleSystemOptimizer2::PhysicsStepConstraint::Ptr m_physicsStepCnt;
   //ParticleSystemOptimizer2::SemiImplicitEulerConstraint::Ptr m_physicsStepCnt;
+  ParticleSystemOptimizer2::ForceConstraint::Ptr m_forceConstraint;
 };
 
 

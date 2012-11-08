@@ -36,7 +36,7 @@ int main(int argc, char *argv[]) {
   ParticleSystemOptimizer2::SysState initState(LocalConfig::numParticles, ParticleSystemOptimizer2::PARTICLE_STATE_DIM);
   for (int i = 0; i < LocalConfig::numParticles; ++i) {
     initState.row(i) <<
-      (-1 + 2*i/(LocalConfig::numParticles-1.0))*METERS, 0, 5*METERS, // pos
+      (-1 + 2*i/(LocalConfig::numParticles-1.0))*METERS, 0, 3*METERS, // pos
       0, 0, 0, // vel
       0, 0, 0; // acc
   }

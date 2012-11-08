@@ -122,20 +122,6 @@ ConvexConstraintPtr ParticleSysTrustRegion::convexify(GRBModel* model) {
   return cnt;
 }
 
-
-ParticleSystemOptimizer2::InitCondCvxConstraint::InitCondCvxConstraint(
-  ParticleSystemOptimizer2 &opt, const ParticleSystemOptimizer2::SysState &s0) {
-
-  m_name = "init_cond_constraint";
-  boost::format fmt("%s_init_cond_constraint_i%d_%d");
-  for (int i = 0; i < opt.m_numParticles; ++i) {
-    for (int j = 0; j < opt.PARTICLE_STATE_DIM; ++j) {
-      m_eqcntNames.push_back((fmt % opt.m_varPrefix % i % j).str());
-      m_eqexprs.push_back(opt.m_varsys[0][i][j] - s0(i,j));
-    }
-  }
-}
-
 ConvexConstraintPtr ParticleSystemOptimizer2::InitCondConstraint::convexify(GRBModel *) {
   ConvexConstraintPtr out(new ConvexConstraint());
   out->m_name = "init_cond_constraint";
@@ -162,6 +148,7 @@ ConvexConstraintPtr ParticleSystemOptimizer2::GroundConstraint::convexify(GRBMod
   return out;
 }
 
+#if 0
 ConvexConstraintPtr ParticleSystemOptimizer2::PhysicsStepConstraint::convexify(GRBModel *model) {
   const double dt = OPhysConfig::dt;
   ConvexConstraintPtr out(new ConvexConstraint());
@@ -189,8 +176,9 @@ ConvexConstraintPtr ParticleSystemOptimizer2::PhysicsStepConstraint::convexify(G
   }
   return out;
 }
+#endif
 
-ConvexConstraintPtr ParticleSystemOptimizer2::SemiImplicitEulerConstraint::convexify(GRBModel *model) {
+ConvexConstraintPtr ParticleSystemOptimizer2::SemiImplicitEulerConstraint::convexify(GRBModel *) {
   const double dt = OPhysConfig::dt;
   ConvexConstraintPtr out(new ConvexConstraint());
   out->m_name = "physics_step_constraint";
@@ -218,6 +206,29 @@ ConvexConstraintPtr ParticleSystemOptimizer2::SemiImplicitEulerConstraint::conve
   return out;
 }
 
+
+ConvexConstraintPtr ParticleSystemOptimizer2::ForceConstraint::convexify(GRBModel* ) {
+  boost::format fmt("%s_force_constraint_t%d_i%d_%d");
+  ConvexConstraintPtr out(new ConvexConstraint());
+  out->m_name = "force_constraint";
+  for (int t = 1; t < m_opt.m_horizon; ++t) { // start at 1 to ignore initial conditions
+    for (int i = 0; i < m_opt.m_numParticles; ++i) {
+      for (int j = 0; j < 3; ++j) {
+        GRBVar &a = m_opt.varPtAcc(t, i)[j];
+        switch (m_mode) {
+        case UNCONSTRAINED:
+          break;
+        case GRAVITY_ONLY:
+          out->m_eqcntNames.push_back((fmt % m_opt.m_varPrefix % t % i % j).str());
+          out->m_eqexprs.push_back(a);
+          //out->m_eqexprs.push_back(a - METERS*OPhysConfig::gravity(j));
+          break;
+        }
+      }
+    }
+  }
+  return out;
+}
 
 
 #if 0
@@ -259,12 +270,13 @@ ConvexObjectivePtr ParticleSystemOptimizer2::PhysicsStepCost::convexify(GRBModel
 #endif
 
 #if 0
+// position-based dynamics step violations
+
 double ParticleSystemOptimizer2::PhysicsStepCost::evaluate() {
   const double dt = OPhysConfig::dt;
   double cost = 0;
   for (int t = 0; t < m_opt.m_horizon - 1; ++t) {
     for (int i = 0; i < m_opt.m_numParticles; ++i) {
-      // position-based dynamics step violations
       cost += (m_opt.ptPos(t+1,i) -
                 (m_opt.ptPos(t,i) + dt*(m_opt.ptVel(t,i) + dt*(METERS*OPhysConfig::gravity.transpose()))) // TODO: add accel
               ).squaredNorm();
@@ -350,29 +362,9 @@ GRBQuadExpr ParticleSystemOptimizer2::quadraticize(const FuncOnStatesOverTime &f
   return y;
 }
 
-// this one really sucks
+
 
 double ParticleSystemOptimizer2::ConstrainedPhysicsStepCost::evaluate() {
-  #if 0
-  const double dt = OPhysConfig::dt;
-  double cost = 0;
-  for (int t = 0; t < m_opt.m_horizon - 1; ++t) {
-    for (int i = 0; i < m_opt.m_numParticles; ++i) {
-      // position-based dynamics step violations
-      
-      double diff = m_opt.ptPos(t,i)(2) - METERS*TABLE_HEIGHT;
-      double alpha = max(0.0, diff);
-      cost += (m_opt.ptPos(t+1,i) -
-                (m_opt.ptPos(t,i) + dt*(m_opt.ptVel(t,i) + dt*(METERS*OPhysConfig::gravity.transpose()))) // TODO: add accel
-              ).squaredNorm() * alpha;
-      /*
-      cost += (m_opt.ptVel(t+1,i) -
-                (m_opt.ptPos(t+1,i) - m_opt.ptPos(t,i))/dt
-              ).squaredNorm();*/
-    }
-  }
-  return cost;
-  #endif
   return evaluateAt(&m_opt.m_sys);
 }
 
@@ -426,7 +418,6 @@ ConvexObjectivePtr ParticleSystemOptimizer2::ConstrainedPhysicsStepCost::convexi
   //out->m_objective = m_opt.quadraticize(boost::bind(&ConstrainedPhysicsStepCost::evaluateAt, this, _1), m_opt.m_sys);
   //out->m_objective = m_opt.linearize(boost::bind(&ConstrainedPhysicsStepCost::evaluateAt, this, _1), m_opt.m_sys);
 
-  #if 1
   for (int t = 0; t < m_opt.m_horizon - 1; ++t) {
     for (int i = 0; i < m_opt.m_numParticles; ++i) {
       VarVec3View varPos = m_opt.varPtPos(t, i);
@@ -489,8 +480,80 @@ ConvexObjectivePtr ParticleSystemOptimizer2::ConstrainedPhysicsStepCost::convexi
       }
     }
   }
-  #endif
 
+  return out;
+}
+
+
+double ParticleSystemOptimizer2::PDPosViolationCost::evaluate() {
+  return evaluateAt(&m_opt.m_sys);
+}
+
+double ParticleSystemOptimizer2::PDPosViolationCost::evaluateAt(const SysStatesOverTime *s) {
+  const SysStatesOverTime &sys = *s;
+  const double dt = OPhysConfig::dt;
+  double cost = 0;
+  for (int t = 0; t < m_opt.m_horizon - 1; ++t) {
+    for (int i = 0; i < m_opt.m_numParticles; ++i) {
+      // position-based dynamics step violations
+      //double alpha = max(0.0, ptPos((*sys)[t],i)(2) - METERS*TABLE_HEIGHT);
+      //double alpha = square(ptPos((*sys)[t],i)(2) - METERS*TABLE_HEIGHT);
+      double alpha = 1;
+      cost += (ptPos(sys[t+1],i) -
+                (ptPos(sys[t],i) + dt*(ptVel(sys[t],i) + dt*(METERS*OPhysConfig::gravity.transpose()))) // TODO: add accel
+              ).squaredNorm() * alpha;
+    }
+  }
+  return cost;
+}
+
+ConvexObjectivePtr ParticleSystemOptimizer2::PDPosViolationCost::convexify(GRBModel* model) {
+  const double dt = OPhysConfig::dt;
+  boost::format fmt("%s_pd_pos_violation_cost_t%d_i%d_%d");
+  ConvexObjectivePtr out(new ConvexObjective());
+  out->m_name = "pd_pos_violation_cost";
+  for (int t = 0; t < m_opt.m_horizon - 1; ++t) {
+    for (int i = 0; i < m_opt.m_numParticles; ++i) {
+      VarVec3View varPos = m_opt.varPtPos(t, i);
+      VarVec3View varVel = m_opt.varPtVel(t, i);
+      //VarVec3View varAcc = m_opt.varPtAcc(t, i);
+      VarVec3View varPos2 = m_opt.varPtPos(t+1, i);
+      VarVec3View varVel2 = m_opt.varPtVel(t+1, i);
+      //VarVec3View varAcc2 = m_opt.varPtAcc(t+1, i);
+      for (int j = 0; j < 3; ++j) {
+        // (as equality constraint with slack)
+        GRBVar posViolation = model->addVar(-GRB_INFINITY, GRB_INFINITY, 0, GRB_CONTINUOUS);
+        out->m_vars.push_back(posViolation);
+        out->m_eqcntNames.push_back((fmt % m_opt.m_varPrefix % t % i % j).str());
+        out->m_eqexprs.push_back(varPos2[j] - (varPos[j] + dt*(varVel[j] + dt*(METERS*OPhysConfig::gravity(j)))) + posViolation);
+        out->m_objective += posViolation*posViolation;
+      }
+    }
+  }
+  return out;
+}
+
+ConvexConstraintPtr ParticleSystemOptimizer2::PDVelocityConstraint::convexify(GRBModel *) {
+  const double dt = OPhysConfig::dt;
+  boost::format fmt("%s_pd_vel_constraint_t%d_i%d_%d");
+  ConvexConstraintPtr out(new ConvexConstraint());
+  out->m_name = "pd_cel_constraint";
+  // hard constraints
+  for (int t = 0; t < m_opt.m_horizon - 1; ++t) {
+    for (int i = 0; i < m_opt.m_numParticles; ++i) {
+      VarVec3View varPos = m_opt.varPtPos(t, i);
+      VarVec3View varVel = m_opt.varPtVel(t, i);
+      //VarVec3View varAcc = m_opt.varPtAcc(t, i);
+      VarVec3View varPos2 = m_opt.varPtPos(t+1, i);
+      VarVec3View varVel2 = m_opt.varPtVel(t+1, i);
+      //VarVec3View varAcc2 = m_opt.varPtAcc(t+1, i);
+      for (int j = 0; j < 3; ++j) {
+        // velocity update
+        out->m_eqcntNames.push_back((fmt % m_opt.m_varPrefix % t % i % j).str());
+        out->m_eqexprs.push_back(varVel2[j] - (varPos2[j] - varPos[j])/dt);
+      }
+    }
+  }
   return out;
 }
 
@@ -500,7 +563,7 @@ double ParticleSystemOptimizer2::GroundCost::evaluate() {
     for (int i = 0; i < m_opt.m_numParticles; ++i) {
       double z = m_opt.ptPos(t,i)(2);
       if (z < m_groundZ) {
-        cost += abs(z - m_groundZ);
+        cost += square(abs(z - m_groundZ));
       }
     }
   }
@@ -516,7 +579,7 @@ ConvexObjectivePtr ParticleSystemOptimizer2::GroundCost::convexify(GRBModel *mod
   for (int t = 0; t < m_opt.m_horizon; ++t) {
     for (int i = 0; i < m_opt.m_numParticles; ++i) {
       GRBLinExpr err = m_groundZ - m_opt.varPtPos(t, i)[2];
-      addHingeCost(out, 1, err, model, (fmt % t % i).str());
+      addHingeCostSq(out, 1, err, model, (fmt % t % i).str());
     }
   }
   return out;
@@ -527,7 +590,7 @@ double ParticleSystemOptimizer2::AccelCost::evaluate() {
   double cost = 0;
   for (int t = 0; t < m_opt.m_horizon - 1; ++t) {
     for (int i = 0; i < m_opt.m_numParticles; ++i) {
-      cost += (m_opt.ptAcc(t+1,i) - m_opt.ptAcc(t,i)).squaredNorm() + m_opt.ptAcc(t,i).squaredNorm();
+      cost += /*(m_opt.ptAcc(t+1,i) - m_opt.ptAcc(t,i)).squaredNorm() + */m_opt.ptAcc(t,i).squaredNorm();
     }
   }
   return cost;
@@ -541,8 +604,8 @@ ConvexObjectivePtr ParticleSystemOptimizer2::AccelCost::convexify(GRBModel *) {
   for (int t = 0; t < m_opt.m_horizon - 1; ++t) {
     for (int i = 0; i < m_opt.m_numParticles; ++i) {
       for (int j = 0; j < 3; ++j) {
-        GRBLinExpr diff = m_opt.varPtAcc(t+1,i)[j] - m_opt.varPtAcc(t,i)[j];
-        out->m_objective += diff*diff + m_opt.varPtAcc(t,i)[j]*m_opt.varPtAcc(t,i)[j];
+       // GRBLinExpr diff = m_opt.varPtAcc(t+1,i)[j] - m_opt.varPtAcc(t,i)[j];
+        out->m_objective += /*diff*diff +*/ m_opt.varPtAcc(t,i)[j]*m_opt.varPtAcc(t,i)[j];
       }
     }
   }
@@ -578,45 +641,40 @@ void ParticleSystem2::draw() {
 }
 
 void ParticleSystem2::setupOpt(ParticleSystemOptimizer2 &opt) {
-  
-
   m_initCondCnt.reset(new ParticleSystemOptimizer2::InitCondConstraint(opt, m_currState));
   opt.addConstraint(m_initCondCnt);
 
-/*
-  m_groundCnt.reset(new ParticleSystemOptimizer2::GroundConstraint(opt, TABLE_HEIGHT*METERS));
-  opt.addConstraint(m_groundCnt);*/
-  
+  //m_constrainedPhysicsStepCost.reset(new ParticleSystemOptimizer2::ConstrainedPhysicsStepCost(opt));
+  //opt.addCost(m_constrainedPhysicsStepCost);
 
- 
-/*
-  m_physicsStepCnt.reset(new ParticleSystemOptimizer2::SemiImplicitEulerConstraint(opt));
-  opt.addConstraint(m_physicsStepCnt);*/
 
-  /*
-  m_physicsStepCnt.reset(new ParticleSystemOptimizer2::PhysicsStepConstraint(opt));
-  opt.addConstraint(m_physicsStepCnt);*/
-/*
-  m_physicsStepCost.reset(new ParticleSystemOptimizer2::PhysicsStepCost(opt));
-  opt.addCost(m_physicsStepCost);*/
+  m_pdVelCnt.reset(new ParticleSystemOptimizer2::PDVelocityConstraint(opt));
+  opt.addConstraint(m_pdVelCnt);
 
-  m_constrainedPhysicsStepCost.reset(new ParticleSystemOptimizer2::ConstrainedPhysicsStepCost(opt));
-  opt.addCost(m_constrainedPhysicsStepCost);
-  
-    m_groundCost.reset(new ParticleSystemOptimizer2::GroundCost(opt, TABLE_HEIGHT*METERS));
+  //m_physicsStepCnt.reset(new ParticleSystemOptimizer2::SemiImplicitEulerConstraint(opt));
+  //opt.addConstraint(m_physicsStepCnt);
+
+  //m_groundCnt.reset(new ParticleSystemOptimizer2::GroundConstraint(opt, TABLE_HEIGHT*METERS));
+  //opt.addConstraint(m_groundCnt);
+
+  //m_forceConstraint.reset(new ParticleSystemOptimizer2::ForceConstraint(opt));
+  //m_forceConstraint->setMode(ParticleSystemOptimizer2::ForceConstraint::GRAVITY_ONLY);
+  //opt.addConstraint(m_forceConstraint);
+}
+
+void ParticleSystem2::setupOpt2(ParticleSystemOptimizer2 &opt) {
+  //m_forceConstraint->setMode(ParticleSystemOptimizer2::ForceConstraint::UNCONSTRAINED);
+
+  m_groundCost.reset(new ParticleSystemOptimizer2::GroundCost(opt, TABLE_HEIGHT*METERS));
   opt.addCost(m_groundCost);
 
-/*
-  m_accelCost.reset(new ParticleSystemOptimizer2::AccelCost(opt));
-  opt.addCost(m_accelCost);
-  */
+  m_pdPosViolationCost.reset(new ParticleSystemOptimizer2::PDPosViolationCost(opt));
+  opt.addCost(m_pdPosViolationCost);
+
+  //m_accelCost.reset(new ParticleSystemOptimizer2::AccelCost(opt));
+  //opt.addCost(m_accelCost);
+
 }
-/*
-void ParticleSystem2::setupOpt(ParticleSystemOptimizer2 &opt) {
- 
-
-
-}*/
 
 void ParticleSystem2::step(double dt, int numSteps) {
   assert(numSteps >= 1);
@@ -626,13 +684,18 @@ void ParticleSystem2::step(double dt, int numSteps) {
     //boost::timer timer;
     opt.initializeFromSingleState(m_currState);
 
+    // phase 1: find a nominal solution that satisfies all hard NON-APPROXIMATED constraints
+    // (need to disable trust region constraints)
     m_trustRegion.reset(new ParticleSysTrustRegion(opt));
     opt.setTrustRegion(m_trustRegion);
     m_trustRegion->setInfinite(true);
     setupOpt(opt);
+    setupOpt2(opt);
     opt.optimize();
-
 /*
+    cout << "phase 2" << endl;
+
+    // phase 2: optimize costs, with trust region enabled
     m_trustRegion->resetTrustRegion();
     m_trustRegion->setInfinite(false);
     setupOpt2(opt);
