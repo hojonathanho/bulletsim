@@ -98,7 +98,7 @@ void ConvexPart::removeFromModel() {
 }
 
 ConvexPart::~ConvexPart() {
-  assert(!m_inModel);
+  //assert(!m_inModel);
 }
 
 TrustRegion::TrustRegion() : m_shrinkage(1) {}
@@ -253,7 +253,7 @@ Optimizer::OptStatus Optimizer::optimize() {
 
       if (approxImprove < 1e-7 && trustIter > 1) {
         LOG_INFO("not much room to improve in this problem.");
-        rollbackValues();
+        //rollbackValues();
         break;
       }
 
