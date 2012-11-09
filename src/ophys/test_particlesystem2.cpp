@@ -36,7 +36,7 @@ int main(int argc, char *argv[]) {
   ParticleSystemOptimizer2::SysState initState(LocalConfig::numParticles, ParticleSystemOptimizer2::PARTICLE_STATE_DIM);
   for (int i = 0; i < LocalConfig::numParticles; ++i) {
     initState.row(i) <<
-      (-1 + 2*i/(LocalConfig::numParticles-1.0))*METERS, 0, 3*METERS, // pos
+      (-1 + 2*i/(LocalConfig::numParticles-1.0))*METERS, 0, 0.5*METERS, // pos
       0, 0, 0, // vel
       0, 0, 0; // acc
   }
@@ -65,6 +65,7 @@ int main(int argc, char *argv[]) {
   for (int i = 0; i < ps.getAllStates().size(); ++i) {
     ps.draw(ps.getAllStates()[i]);
     scene.step(0);
+    scene.idle(true);
     //scene.idleFor(0.2);
   }
   cout << "particle 0: " << ps.m_currState.row(0) << endl;

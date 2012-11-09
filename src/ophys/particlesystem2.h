@@ -177,13 +177,17 @@ public:
     typedef boost::shared_ptr<PDPosViolationCost> Ptr;
 
     ParticleSystemOptimizer2 &m_opt;
-    PDPosViolationCost(ParticleSystemOptimizer2 &opt) : m_opt(opt) { }
+    PDPosViolationCost(ParticleSystemOptimizer2 &opt) : m_opt(opt), m_penalizeViolation_ground(0) { }
 
     string getName() { return "pos_violation_cost"; }
 
     double evaluate();
     double evaluateAt(const SysStatesOverTime *sys);
     ConvexObjectivePtr convexify(GRBModel* model);
+
+    double m_penalizeViolation_ground;
+    void setGroundViolationPenalty(double v) { m_penalizeViolation_ground = v; }
+    double evaluateGroundViolationPenaltyAt(const SysStatesOverTime *s);
   };
 
   struct PDVelocityConstraint : public Constraint {

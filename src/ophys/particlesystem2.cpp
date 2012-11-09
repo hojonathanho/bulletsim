@@ -81,6 +81,9 @@ void ParticleSystemOptimizer2::postOptimize() {
     LOG_INFO("t = " << t << ":\n" << m_sys[t]);
   }
   LOG_INFO(">>>>> End Post-optimize <<<<<");
+  for (int i = 0; i < m_costs.size(); ++i) {
+    cout << "cost " << m_costs[i]->getName() << " has value: " << m_costs[i]->evaluate() << '\n';
+  }
 }
 
 ParticleSysTrustRegion::ParticleSysTrustRegion(ParticleSystemOptimizer2 &opt)
@@ -486,7 +489,7 @@ ConvexObjectivePtr ParticleSystemOptimizer2::ConstrainedPhysicsStepCost::convexi
 
 
 double ParticleSystemOptimizer2::PDPosViolationCost::evaluate() {
-  return evaluateAt(&m_opt.m_sys);
+  return evaluateAt(&m_opt.m_sys) + evaluateGroundViolationPenaltyAt(&m_opt.m_sys);
 }
 
 double ParticleSystemOptimizer2::PDPosViolationCost::evaluateAt(const SysStatesOverTime *s) {
@@ -496,12 +499,36 @@ double ParticleSystemOptimizer2::PDPosViolationCost::evaluateAt(const SysStatesO
   for (int t = 0; t < m_opt.m_horizon - 1; ++t) {
     for (int i = 0; i < m_opt.m_numParticles; ++i) {
       // position-based dynamics step violations
-      //double alpha = max(0.0, ptPos((*sys)[t],i)(2) - METERS*TABLE_HEIGHT);
-      //double alpha = square(ptPos((*sys)[t],i)(2) - METERS*TABLE_HEIGHT);
-      double alpha = 1;
-      cost += (ptPos(sys[t+1],i) -
-                (ptPos(sys[t],i) + dt*(ptVel(sys[t],i) + dt*(METERS*OPhysConfig::gravity.transpose()))) // TODO: add accel
-              ).squaredNorm() * alpha;
+      double posViolationSq =
+        (ptPos(sys[t+1],i) -
+          (ptPos(sys[t],i) + dt*(ptVel(sys[t],i) + dt*(METERS*OPhysConfig::gravity.transpose()))) // TODO: add accel
+        ).squaredNorm();
+      // cost += posViolationSq;
+      // cost += (ptPos(sys[t+1],i) -
+      //    (ptPos(sys[t],i) + dt*(ptVel(sys[t],i) + dt*(METERS*OPhysConfig::gravity.transpose()))) // TODO: add accel
+      //  ).lpNorm<1>();
+    }
+  }
+  return cost;
+}
+
+double ParticleSystemOptimizer2::PDPosViolationCost::evaluateGroundViolationPenaltyAt(const SysStatesOverTime *s) {
+  if (m_penalizeViolation_ground == 0) {
+    return 0;
+  }
+
+  const SysStatesOverTime &sys = *s;
+  const double dt = OPhysConfig::dt;
+  double cost = 0;
+  for (int t = 0; t < m_opt.m_horizon - 1; ++t) {
+    for (int i = 0; i < m_opt.m_numParticles; ++i) {
+      // position-based dynamics step violations
+      Vector3d posv = ptPos(sys[t+1],i) - (ptPos(sys[t],i) + dt*(ptVel(sys[t],i) + dt*(METERS*OPhysConfig::gravity.transpose()))); // TODO: add accel
+      double posViolationSq = posv.squaredNorm();
+      cost += m_penalizeViolation_ground * posViolationSq * square(ptPos(sys[t],i)(2) - METERS*TABLE_HEIGHT);
+
+      // penalize angle from normal from ground
+      cost += m_penalizeViolation_ground * (posv(0)*posv(0) + posv(1)*posv(1));
     }
   }
   return cost;
@@ -512,6 +539,7 @@ ConvexObjectivePtr ParticleSystemOptimizer2::PDPosViolationCost::convexify(GRBMo
   boost::format fmt("%s_pd_pos_violation_cost_t%d_i%d_%d");
   ConvexObjectivePtr out(new ConvexObjective());
   out->m_name = "pd_pos_violation_cost";
+  out->m_objective = 0;
   for (int t = 0; t < m_opt.m_horizon - 1; ++t) {
     for (int i = 0; i < m_opt.m_numParticles; ++i) {
       VarVec3View varPos = m_opt.varPtPos(t, i);
@@ -525,10 +553,28 @@ ConvexObjectivePtr ParticleSystemOptimizer2::PDPosViolationCost::convexify(GRBMo
         GRBVar posViolation = model->addVar(-GRB_INFINITY, GRB_INFINITY, 0, GRB_CONTINUOUS);
         out->m_vars.push_back(posViolation);
         out->m_eqcntNames.push_back((fmt % m_opt.m_varPrefix % t % i % j).str());
-        out->m_eqexprs.push_back(varPos2[j] - (varPos[j] + dt*(varVel[j] + dt*(METERS*OPhysConfig::gravity(j)))) + posViolation);
+        out->m_eqexprs.push_back(varPos2[j] - (varPos[j] + dt*(varVel[j] + dt*(METERS*OPhysConfig::gravity(j)))) - posViolation);
         out->m_objective += posViolation*posViolation;
+
+        // set objective = l1 norm of posViolation
+        // GRBVar u = model->addVar(0, GRB_INFINITY, 0, GRB_CONTINUOUS);
+        // out->m_cntNames.push_back((fmt % m_opt.m_varPrefix % t % i % j).str() + "_u_lb");
+        // out->m_exprs.push_back(-u - posViolation);
+        // out->m_cntNames.push_back((fmt % m_opt.m_varPrefix % t % i % j).str() + "_u_ub");
+        // out->m_exprs.push_back(-u + posViolation);
+        // out->m_objective += u;
       }
     }
+  }
+
+  // want violation to be 0 when far from ground
+  // want term ||posViolation||^2 * ||distance to ground||^2
+  // linearization is here
+  if (m_penalizeViolation_ground) {
+    out->m_objective += m_opt.linearize(
+      boost::bind(&PDPosViolationCost::evaluateGroundViolationPenaltyAt, this, _1),
+      m_opt.m_sys
+    );
   }
   return out;
 }
@@ -660,9 +706,7 @@ void ParticleSystem2::setupOpt(ParticleSystemOptimizer2 &opt) {
   //m_forceConstraint.reset(new ParticleSystemOptimizer2::ForceConstraint(opt));
   //m_forceConstraint->setMode(ParticleSystemOptimizer2::ForceConstraint::GRAVITY_ONLY);
   //opt.addConstraint(m_forceConstraint);
-}
 
-void ParticleSystem2::setupOpt2(ParticleSystemOptimizer2 &opt) {
   //m_forceConstraint->setMode(ParticleSystemOptimizer2::ForceConstraint::UNCONSTRAINED);
 
   m_groundCost.reset(new ParticleSystemOptimizer2::GroundCost(opt, TABLE_HEIGHT*METERS));
@@ -673,7 +717,10 @@ void ParticleSystem2::setupOpt2(ParticleSystemOptimizer2 &opt) {
 
   //m_accelCost.reset(new ParticleSystemOptimizer2::AccelCost(opt));
   //opt.addCost(m_accelCost);
+}
 
+void ParticleSystem2::setupOpt2(ParticleSystemOptimizer2 &opt) {
+  m_pdPosViolationCost->setGroundViolationPenalty(1.0);
 }
 
 void ParticleSystem2::step(double dt, int numSteps) {
@@ -690,17 +737,19 @@ void ParticleSystem2::step(double dt, int numSteps) {
     opt.setTrustRegion(m_trustRegion);
     m_trustRegion->setInfinite(true);
     setupOpt(opt);
-    setupOpt2(opt);
     opt.optimize();
-/*
+
     cout << "phase 2" << endl;
 
     // phase 2: optimize costs, with trust region enabled
-    m_trustRegion->resetTrustRegion();
     m_trustRegion->setInfinite(false);
-    setupOpt2(opt);
-    opt.optimize();
-*/
+    //setupOpt2(opt);
+    for (int z = 1; z < 2; ++z) {
+      m_trustRegion->resetTrustRegion();
+      m_pdPosViolationCost->setGroundViolationPenalty(pow(10.0, (double)z));
+      opt.optimize();
+    }
+
 
     //opt.postOptimize();
     //opt.m_model->write("/tmp/sqp_fail.lp");
