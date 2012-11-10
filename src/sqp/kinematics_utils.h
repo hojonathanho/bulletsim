@@ -42,7 +42,6 @@ void setDofVals(RobotBasePtr robot,  const vector<int>& dofInds, const VectorXd&
 void setDofVals(RobotBasePtr robot,  const vector<int>& dofInds, const VectorXd& dofVals, const Vector3d& affVals);
 
 VectorXd genRandomDofVals(RobotBasePtr, const vector<int>& dofInds);
-MatrixXd unwindAngles(const MatrixXd&);
 Vector3d genRandomWaypoint(const Vector3d& start, const Vector3d& end);
 
 

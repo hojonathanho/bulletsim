@@ -15,8 +15,6 @@ include_directories(${GUROBI_INCLUDE_DIR})
 link_directories(${GUROBI_LIBRARY_DIR})
 
 
-
-
 include_directories(${PCL_INCLUDE_DIRS})
 include_directories("/opt/ros/fuerte/stacks/geometry/tf/include"
 					"/opt/ros/fuerte/stacks/geometry/tf/msg_gen/cpp/include"
@@ -25,9 +23,6 @@ include_directories("/opt/ros/fuerte/stacks/geometry/tf/include"
 include_directories("${BULLETSIM_SOURCE_DIR}/bulletsim_msgs/build/gen/cpp")
 
 link_directories("/opt/ros/fuerte/stacks/geometry/tf/lib")
-
-#add_executable(planning_server planning_server.cpp)
-#target_link_libraries(planning_server ${ROS_LIBRARIES} sqp clouds tf)
 
 add_executable(interact_with_point_cloud interact_with_point_cloud.cpp)
 target_link_libraries(interact_with_point_cloud clouds sqp)
