@@ -20,13 +20,20 @@ PhysicsPlanningScene::PhysicsPlanningScene(EnvironmentBasePtr rave_) :
   addVoidKeyCallback('b',boost::bind(&PhysicsPlanningScene::toggleVisible, this), "toggle visible");
 }
 
+typedef map<KinBodyPtr, RaveObject*>::value_type KB_RO;
+
+
 
 void PhysicsPlanningScene::step(float dt, int maxsteps, float internaldt) {
-  Scene::step(dt, maxsteps, internaldt);
+  BOOST_FOREACH(KB_RO kb_ro, m_planScene->rave->rave2bulletsim) {
+    kb_ro.second->updateBullet();
+  }
+  BOOST_FOREACH(KB_RO kb_ro, rave->rave2bulletsim) {
+    kb_ro.second->updateBullet();
+  }
   m_planScene->step(0, 0, 0);
+  Scene::step(dt, maxsteps, internaldt);
 }
-
-typedef map<KinBodyPtr, RaveObject*>::value_type KB_RO;
 
 
 
@@ -38,10 +45,7 @@ void PhysicsPlanningScene::toggleVisible() {
   else {
     osg->root->addChild(m_planScene->osg->root);
     m_planVisible = true;
-    BOOST_FOREACH(KB_RO kb_ro, m_planScene->rave->rave2bulletsim) {
-      kb_ro.second->updateBullet();
-    }
-    m_planScene->step(0);
+    step(0,0,0);
   } 
 }
 

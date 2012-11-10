@@ -28,12 +28,12 @@ int main(int argc, char *argv[]) {
 
   GeneralConfig::verbose=20000;
   GeneralConfig::scale = 100.;
-  BulletConfig::linkPadding = .06;
+  BulletConfig::linkPadding = .05;
   BulletConfig::margin = 0;
-  SQPConfig::distPen = .06;
-  SQPConfig::distDiscSafe = .03;
-  SQPConfig::distContSafe = .015;
-  SQPConfig::collCoefInit = 100;
+  SQPConfig::distPen = .05;
+  SQPConfig::distDiscSafe = .02;
+  SQPConfig::distContSafe = .01;
+  SQPConfig::collCoefInit = 1000;
   SQPConfig::padMult=2;
   SQPConfig::nStepsInit = 100;
 //  bin/test_cart_with_base --distPen=.06 --linkPadding=.06 --maxSteps=10000 --enablePlot=1 --padMult=2 --margin=0  --scale=100000 --distDiscSafe=.02 --distContSafe=0
@@ -57,14 +57,13 @@ int main(int argc, char *argv[]) {
 #else
   Scene scene;
   Load(scene.env, scene.rave, "data/pr2test2.env.xml");
-  util::setGlobalEnv(scene.env);
-  util::setGlobalScene(&scene);
+  setGlobalEnv(scene.env);
+  setGlobalScene(&scene);
 #endif
 
   PR2Manager pr2m(scene);
   pr2 = pr2m.pr2;
   RaveRobotObject::Manipulator::Ptr arm = pr2m.pr2Right;
-
 //  removeBodiesFromBullet(pr2->children, scene.env->bullet->dynamicsWorld);
 
   //	makeFullyTransparent(table);
@@ -75,11 +74,13 @@ int main(int argc, char *argv[]) {
 //  startJoints << -1.832, -0.332, -1.011, -1.437, -1.1, -2.106, 3.074,   -3.4, 1.55, 0;
   startJoints << 0,0,0,0,0,0,0,   -3.4, 1.55, 0;
   setDofVals(pr2m.pr2->robot, pr2m.pr2Right->manip->GetArmIndices(), startJoints.topRows(7), startJoints.bottomRows(3));
+  getGlobalScene()->step(0);
+  getGlobalScene()->idle(true);
 
   TrajOptimizer opt;
   setupArmToCartTargetWithBase(opt, goalTrans, arm);
 
-//  util::drawSpheres(goalTrans.getOrigin()*METERS, Vector3f(1,0,0), 1, .05*METERS, scene.env);
+
 
 #ifndef PPSCENE
   scene.startViewer();
@@ -88,15 +89,15 @@ int main(int argc, char *argv[]) {
   vector<int> dofInds = arm->manip->GetArmIndices();
   dofInds.push_back(pr2->robot->GetJoint("torso_lift_joint")->GetDOFIndex());
 
-  assert(!!getRobotByName(ppscene.env, ppscene.rave, "PR2"));
-  RobotJointSetterPtr robotSetter(new RobotJointSetter(getRobotByName(ppscene.env, ppscene.rave, "PR2"), dofInds,true));
-  StatePlotterPtr statePlotter(new StatePlotter(robotSetter,&ppscene));
+  RobotJointSetterPtr robotSetter(new RobotJointSetter(getRobotByName(getGlobalScene()->env, getGlobalScene()->rave, "PR2"), dofInds,true));
+
+  StatePlotterPtr statePlotter(new StatePlotter(robotSetter,getGlobalScene()));
 
   if (SQPConfig::enablePlot) opt.m_plotters.push_back(statePlotter);
 
 
-  util::getGlobalScene()->addVoidKeyCallback('=', boost::bind(&adjustWorldTransparency, .05), "increase opacity");
-  util::getGlobalScene()->addVoidKeyCallback('-', boost::bind(&adjustWorldTransparency, -.05), "decrease opacity");
+  getGlobalScene()->addVoidKeyCallback('=', boost::bind(&adjustWorldTransparency, .05), "increase opacity");
+  getGlobalScene()->addVoidKeyCallback('-', boost::bind(&adjustWorldTransparency, -.05), "decrease opacity");
 
   trajOuterOpt(opt, AllowedCollisions());
 
@@ -107,8 +108,8 @@ int main(int argc, char *argv[]) {
   Scene scene1;
   Load(scene1.env, scene1.rave, "data/pr2test2.env.xml");
   scene1.startViewer();
-  util::setGlobalEnv(scene1.env);
-  util::setGlobalScene(&scene1);
+  setGlobalEnv(scene1.env);
+  setGlobalScene(&scene1);
   PR2Manager pr2m1(scene1);
   interactiveTrajPlot(opt.m_traj, pr2m1.pr2.get(), dofInds, &scene1);
 #else

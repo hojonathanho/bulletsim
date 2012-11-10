@@ -164,21 +164,118 @@ TrajCartCollInfo collectTrajCollisions(const Eigen::MatrixXd& traj, RaveRobotObj
 #endif
 
 
+typedef pair<btTransform, btConvexShape*> pairChildShape;
+
+vector<pairChildShape> getCompoundChildShapes(btCompoundShape *compound){
+  //loop over child shapes
+  vector<pairChildShape> vec;
+  for(int iChild = 0; iChild < compound->getNumChildShapes(); iChild++){
+    btCompoundShapeChild child = compound->getChildList()[iChild];
+    if (child.m_childShapeType == COMPOUND_SHAPE_PROXYTYPE){
+      LOG_INFO("RECURSION shapey thing");
+      vector<pairChildShape> children =
+          getCompoundChildShapes(static_cast<btCompoundShape*>(child.m_childShape));
+      btTransform base = child.m_transform;
+      BOOST_FOREACH(pairChildShape myChild, children){
+        pairChildShape p(base* myChild.first, myChild.second);
+        vec.push_back(p);
+      }
+    }else{
+      vec.push_back(pairChildShape(child.m_transform,
+          static_cast<btConvexShape*>(child.m_childShape)));
+    }
+  }
+  return vec;
+}
 btConvexShape* getConvexCollisionShape(btCollisionShape* shape) {
   if (shape->getShapeType() == COMPOUND_SHAPE_PROXYTYPE) {
-    btCompoundShape* compound = static_cast<btCompoundShape*> (shape);
-    assert(compound->getNumChildShapes()==1);
-    btConvexShape* out = static_cast<btConvexShape*> (compound->getChildShape(0));
+    btCompoundShape* compound = static_cast<btCompoundShape*>(shape);
+    //assert(compound->getNumChildShapes()==1);
+    btConvexShape* out = static_cast<btConvexShape*>(compound->getChildShape(0));
     assert(out != NULL);
     return out;
-  } else {
-    btConvexShape* out = static_cast<btConvexShape*> (shape);
+  }
+  else {
+    btConvexShape* out = static_cast<btConvexShape*>(shape);
     assert(out != NULL);
     return out;
   }
 }
 
-TrajCartCollInfo continuousTrajCollisions(const Eigen::MatrixXd& traj, RaveRobotObject* rro,
+
+TrajCartCollInfo continuousTrajCollisions(const Eigen::MatrixXd& traj,
+    RaveRobotObject* rro, const std::vector<int>& dofInds, bool useAffine, float dSafeCont) {
+  RobotBasePtr& robot = rro->robot;
+  ScopedRobotSave srs(robot);
+  btCollisionWorld* world = rro->getEnvironment()->bullet->dynamicsWorld;
+
+  vector<KinBody::LinkPtr> links;
+  vector<int> linkInds;
+  vector<btRigidBody*> bodies;
+  if (useAffine) getAffectedLinks2(rro, links, linkInds);
+  else getAffectedLinks2(rro->robot, dofInds, links, linkInds);
+  BOOST_FOREACH(KinBody::LinkPtr& link, links) {
+    bodies.push_back(rro->rave->rave2bulletsim[link->GetParent()]->associatedObj(link)->rigidBody.get());
+  }
+  BulletRaveSyncher brs(links, bodies);
+  TrajCartCollInfo out(traj.rows()-1); // except this line!!
+
+  if (useAffine) {
+    robot->SetActiveDOFs(dofInds, DOF_X | DOF_Y | DOF_RotationAxis, OpenRAVE::RaveVector<double>(0, 0, 1));
+  } else {
+    robot->SetActiveDOFs(dofInds);
+  }
+
+  robot->SetActiveDOFValues(toDoubleVec(traj.row(0)));
+
+  vector<btTransform> oldTransforms;
+  BOOST_FOREACH(OpenRAVE::KinBody::LinkPtr link, brs.m_links){
+    oldTransforms.push_back(toBtTransform(link->GetTransform(), METERS));
+  }
+
+
+
+  for (int iStep=1; iStep < traj.rows(); ++iStep) {
+    robot->SetActiveDOFValues(toDoubleVec(traj.row(iStep)));
+    vector<btTransform> newTransforms;
+    BOOST_FOREACH(OpenRAVE::KinBody::LinkPtr link, brs.m_links){
+      newTransforms.push_back(toBtTransform(link->GetTransform(),METERS));
+    }
+    for (int iBody=0; iBody < brs.m_bodies.size(); ++iBody) {
+    btCollisionShape* collisionShape = brs.m_bodies[iBody]->getCollisionShape();
+    if(collisionShape->isCompound()){
+      vector<pairChildShape> children = getCompoundChildShapes(static_cast<btCompoundShape*>(collisionShape));
+      BOOST_FOREACH(pairChildShape child, children){
+        btConvexShape *cShape = child.second;
+        assert(cShape != NULL);
+        btCollisionWorld::ClosestConvexResultCallback ccc(btVector3(NAN, NAN, NAN), btVector3(NAN, NAN, NAN));
+        world->convexSweepTest(cShape, oldTransforms[iBody]*child.first,
+            newTransforms[iBody]*child.first, ccc,
+            (SQPConfig::padMult*BulletConfig::linkPadding - dSafeCont)*METERS);
+          if (ccc.hasHit() && ccc.m_hitPointWorld.getZ() > .05*METERS) {
+            out[iStep-1].push_back(LinkCollision(.05, linkInds[iBody], ccc.m_hitPointWorld, ccc.m_hitNormalWorld, ccc.m_closestHitFraction));
+            LOG_INFO_FMT("Link in continuous collision: %s", brs.m_links[iBody]->GetName().c_str());
+          }
+        }
+      }else{
+        btConvexShape *cShape = getConvexCollisionShape(collisionShape);
+        if (cShape == NULL) printf("bad link: %s\n", brs.m_links[iBody]->GetName().c_str());
+        assert(cShape != NULL);
+        btCollisionWorld::ClosestConvexResultCallback ccc(btVector3(NAN, NAN, NAN), btVector3(NAN, NAN, NAN));
+        world->convexSweepTest(cShape, oldTransforms[iBody], newTransforms[iBody], ccc, (SQPConfig::padMult*BulletConfig::linkPadding - dSafeCont)*METERS);
+        if (ccc.hasHit() && ccc.m_hitPointWorld.getZ() > .05*METERS) {
+          out[iStep-1].push_back(LinkCollision(.05, linkInds[iBody], ccc.m_hitPointWorld, ccc.m_hitNormalWorld, ccc.m_closestHitFraction));
+          LOG_INFO_FMT("Link in continuous collision: %s", brs.m_links[iBody]->GetName().c_str());
+        }
+      }
+    }
+    oldTransforms = newTransforms;
+  }
+  return out;
+}
+
+
+TrajCartCollInfo continuousTrajCollisions1(const Eigen::MatrixXd& traj, RaveRobotObject* rro,
                   const std::vector<int>& dofInds, bool useAffine, float dSafeCont) {
 
   // COPIED VERBATIM FROM collectTrajCollisions

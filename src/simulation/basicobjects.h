@@ -23,7 +23,7 @@ public:
         }
 
         void setKinematicPos(const btTransform &pos) {
-						if (!obj.isKinematic) cout << "warning! called setKinematicPos on non-kinematic object." << endl;;
+//						if (!obj.isKinematic) cout << "warning! called setKinematicPos on non-kinematic object." << endl;;
             btDefaultMotionState::setWorldTransform(pos);
             // if we want to do collision detection in between timesteps,
             // we also have to directly set this
@@ -98,6 +98,7 @@ public:
 		void setColor(float r, float g, float b, float a);
 		
 		void setTexture(const cv::Mat& image);
+		void setTexture(osg::ref_ptr<osg::Image> image);
 		void adjustTransparency(float increment);
 
 		int getIndex(const btTransform& transform) { return 0; }

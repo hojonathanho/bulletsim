@@ -141,7 +141,10 @@ bool setupArmToCartTarget(TrajOptimizer& opt, const btTransform& goal, RobotMani
     link = arm->manip->GetEndEffector();
     linkGoal = util::toBtTransform(eeGoal * arm->manip->GetLocalToolTransform().inverse());
   }
-  
+
+  VectorXd startJoints = toVectorXd(arm->getDOFValues());
+
+#if 0
   vector<double> ikSoln;
   bool ikSuccess = arm->solveIKUnscaled(eeGoal, ikSoln);
   if (!ikSuccess) {
@@ -149,8 +152,9 @@ bool setupArmToCartTarget(TrajOptimizer& opt, const btTransform& goal, RobotMani
     return false;
   }
   VectorXd endJoints = toVectorXd(ikSoln);
-  VectorXd startJoints = toVectorXd(arm->getDOFValues());
-  endJoints = startJoints;
+#else
+  VectorXd endJoints = startJoints;
+#endif
 
   LOG_DEBUG("start " << startJoints.transpose());
   LOG_DEBUG("end " << endJoints.transpose());
@@ -213,6 +217,7 @@ bool setupArmToCartTargetWithBase(TrajOptimizer& opt, const btTransform& goalTra
 	
   KinBody::LinkPtr link = arm->manip->GetEndEffector();
   btTransform linkGoal = goalTrans * util::toBtTransform(arm->manip->GetLocalToolTransform()).inverse();
+  util::drawSpheres(linkGoal.getOrigin()*METERS, Vector3f(1,0,0), 1, .05*METERS, util::getGlobalEnv());
 
 
   static double POS_COEFF = 1000;

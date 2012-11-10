@@ -124,8 +124,9 @@ int main(int argc, char *argv[]) {
     assert(success);
   }
 
-  checkAllLinearizations(opt);
-  opt.optimize();
+//  checkAllLinearizations(opt);
+//  opt.optimize();
+  trajOuterOpt(opt, AllowedCollisions());
 
   if(!LocalConfig::jsonOutputPath.empty()){
 //    prob.writeTrajToJSON(LocalConfig::jsonOutputPath);

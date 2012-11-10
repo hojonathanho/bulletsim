@@ -101,8 +101,9 @@ int main(int argc, char *argv[]) {
   trajOpt.m_plotters.push_back(ArmPlotterPtr(new ArmPlotter(pr2m.pr2Right, &scene, 1)));
 
   trajOpt.initialize(makeTraj(startJoints, endJoints, SQPConfig::nStepsInit), arange(SQPConfig::nStepsInit));
-  trajOpt.setStartFixed();
-  trajOpt.setEndFixed();
+  setStartFixed(trajOpt);
+  setEndFixed(trajOpt);
 
   trajOpt.optimize();
+  scene.idle(true);
 }

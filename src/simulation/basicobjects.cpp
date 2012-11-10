@@ -295,6 +295,13 @@ void BulletObject::setTexture(const cv::Mat& image) {
 	enable_texture = true;
 }
 
+void BulletObject::setTexture(osg::ref_ptr<osg::Image> image) {
+  m_image = image;
+
+  if (node) setTextureAfterInit();
+  enable_texture = true;
+}
+
 void BulletObject::setTextureAfterInit() {
 	if (m_image) {
 		// clear out color information
