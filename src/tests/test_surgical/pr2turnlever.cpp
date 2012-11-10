@@ -139,8 +139,24 @@ public:
     }
 
 
-    PlannerAction PlanCallback(const PlannerBase::PlannerProgress& progress)
-    {
+    /** Sets the torso link VALUE.
+     *  Up is value==1 | Down is value == 0 */
+    void setTorso(RobotBasePtr probot, dReal value) {
+
+    	RobotBase::JointPtr torso_joint = probot->GetJoint("torso_lift_joint");
+    	int joint_dof_idx = torso_joint->GetDOFIndex();
+
+    	std::vector<int> joint_dof;
+    	joint_dof.push_back(joint_dof_idx);
+    	std::vector<double> values;
+    	values.push_back(value);
+
+    	probot->SetDOFValues(values, 1, joint_dof);
+    	// TO GET THE DOF VALUES : probot->GetDOFValues(values, indices);
+    }
+
+
+    PlannerAction PlanCallback(const PlannerBase::PlannerProgress& progress) {
         // plan callback
         return PA_None;
     }
@@ -201,7 +217,7 @@ public:
 
 
         setArmPose(probot, "side", 'r');
-
+        setTorso(probot, 1);
 
         // load inverse kinematics using ikfast
         ModuleBasePtr pikfast = RaveCreateModule(penv,"ikfast");
