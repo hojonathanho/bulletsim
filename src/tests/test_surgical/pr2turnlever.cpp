@@ -53,7 +53,7 @@ private:
     const dReal _up[7];  //=
     std::vector<dReal> arm_up;
 
-    dReal _side[7];
+    const dReal _side[7];
     std::vector<dReal> arm_side;
 
 public:
@@ -69,7 +69,7 @@ public:
     /** Set the joint values of the L('l' : left) or R('r' : right)
      * of the robot PROBOT to the JOINT_VALUES. */
     void setArmJointAngles(RobotBasePtr probot,
-    					   const vector<dReal> &joint_values, char lrb = 'l') {
+    					   const vector<dReal> &joint_values, char lr = 'l') {
     	string manip_name = probot->GetActiveManipulator()->GetName();
     	assert(("Set Joint Angles: Expecting 7 values. Not found.",
     			joint_values.size()==7));
@@ -77,7 +77,7 @@ public:
     	EnvironmentBasePtr penv = probot->GetEnv();
     	{
     		EnvironmentMutex::scoped_lock lock(penv->GetMutex());
-    		if (lrb=='l') {
+    		if (lr=='l') {
     			probot->SetActiveManipulator("leftarm");
     		} else {
     			probot->SetActiveManipulator("rightarm");
@@ -140,7 +140,7 @@ public:
 
 
     /** Sets the torso link VALUE.
-     *  Up is value==1 | Down is value == 0 */
+     *  Up is value == 1 | Down is value == 0 */
     void setTorso(RobotBasePtr probot, dReal value) {
 
     	RobotBase::JointPtr torso_joint = probot->GetJoint("torso_lift_joint");
@@ -169,7 +169,7 @@ public:
     }
 
     virtual void demothread(int argc, char ** argv) {
-        string scenefilename = "/home/ankush/sandbox/rave_suture/suture_env2.zae";
+        string scenefilename = "/home/ankush/sandbox/rave_suture/suture_env.zae";
         RaveSetDebugLevel(Level_Debug);
         penv->Load(scenefilename);
 
@@ -185,14 +185,7 @@ public:
         vbodies[1]->Enable(false);
 
 
-        /*penv->Remove(penv->GetKinBody("table"));
-        penv->Remove(penv->GetKinBody("floorwalls"));
-        penv->Remove(penv->GetKinBody("pole"));
-        penv->Remove(penv->GetKinBody("pole2"));
-        penv->Remove(penv->GetKinBody("pole3"));
-        penv->Remove(penv->GetKinBody("segway"));
-        penv->Remove(penv->GetKinBody("mug1"));
-        penv->Remove(penv->GetKinBody("dishwasher_table"));*/
+        //penv->Remove(penv->GetKinBody("table"));
 
         RobotBase::ManipulatorPtr pmanip = probot->SetActiveManipulator("rightarm");
 
@@ -209,14 +202,13 @@ public:
              Transform t = pmanip->GetEndEffectorTransform();
              t.trans += Vector(-0.3,0.0,-0.2);
 
-
              Transform t1;
              t1.trans = t.trans;
              target->SetTransform(t1);
          }
 
 
-        setArmPose(probot, "side", 'r');
+        setArmPose(probot, "up", 'b');
         setTorso(probot, 1);
 
         // load inverse kinematics using ikfast
@@ -265,6 +257,7 @@ public:
             vector<dReal> values;
             workspacetraj->Init(spec);
 
+            // vector of points for plotting the trajectory way-points
             vector<RaveVector<float> > points;
             for(size_t i = 0; i < 32; ++i) {
                 dReal angle = i*0.05;
@@ -274,9 +267,11 @@ public:
 
                 IkParameterization ikparam(Tgrasp,IKP_Transform6D);
                 values.resize(ikparam.GetNumberOfValues());
+                RAVELOG_INFO("input waypoints size: %d\n", values.size());
                 ikparam.GetValues(values.begin());
                 workspacetraj->Insert(workspacetraj->GetNumWaypoints(),values);
             }
+            //plot the trajectory way-points
             plot_handles.push_back(penv->plot3(&points[0].x, points.size(), sizeof(points[0]), 5.0f));
 
             std::vector<dReal> maxvelocities(7,1.0);
@@ -306,6 +301,7 @@ public:
        	{
             EnvironmentMutex::scoped_lock lock(penv->GetMutex()); // lock environment
             probot->SetActiveDOFs(pmanip->GetArmIndices());
+            RAVELOG_INFO("*************** ROBOT DOFs: %d\n", probot->GetActiveDOF());
             probot->Grab(target);
             PlannerBasePtr planner = RaveCreatePlanner(penv,"workspacetrajectorytracker");
             WorkspaceTrajectoryParametersPtr params(new WorkspaceTrajectoryParameters(penv));
@@ -325,14 +321,58 @@ public:
             }
             listtrajectories.push_back(outputtraj);
             listtrajectories.push_back(planningutils::ReverseTrajectory(outputtraj));
+
+            vector<dReal> data;
+            int num_waypoints = outputtraj->GetNumWaypoints();
+            RAVELOG_INFO(">>>>>>> There are %d points in the output trajectory.\n", num_waypoints);
+            for (int i = 0; i < num_waypoints; i++ ){
+            	// returns the i^th waypoint in the trajectory. configurationspace is mentioned to get the values for the appropriate transform;
+            	// the waypoint fills up data with 7 values : xyzrpy.
+            	// Instead of just getting the way-points, we can sample the trajectories
+            	// sampling trajectory: traj->Sample(vector<dReal>, time [float], configurationspec);
+            	// sampling interpolates the values of the configuration space.
+            	outputtraj->GetWaypoint(i,data, params->_configurationspecification);
+            	RAVELOG_INFO("WAYPOINT. size = %d\n", data.size());
+            	for (int i=0; i<data.size(); i++)
+            		std::cout<<"   "<<data[i]<<std::endl;
+            	std::cout<<"-------"<<std::endl;
+            }
+
+            vector<dReal> sample;
+            outputtraj->Sample(sample, 0.02);
+            RAVELOG_INFO("sampled trajectory. size = %d\n", sample.size());
+
+            //extract the joint values from the output trajectory
+            //vector<dReal> joints(probot->GetDOF());
+            //vector<int> indices(probot->GetDOF());
+            //for(size_t i = 0; i < indices.size(); ++i) {
+              //indices[i] = i;
+            //}
+
+
+
+            for (int i=0; i<sample.size(); i++)
+            	std::cout<<sample[i]<<std::endl;
+            //outputtraj->GetConfigurationSpecification().ExtractJointValues(joints.begin(),
+            	//	sample.begin(),probot,indices);
+
+
         }
 
-        while(IsOk()) {
+        RAVELOG_INFO(probot->GetController()->GetDescription());
+
+       	//while(IsOk()) {
             for(list<TrajectoryBasePtr>::iterator it = listtrajectories.begin(); it != listtrajectories.end(); ++it) {
-                probot->GetController()->SetPath(*it);
+            	probot->GetController()->SetPath(*it);
                 WaitRobot(probot);
             }
-        }
+            probot->GetController()->Reset();
+
+        //}
+
+            while(IsOk()) {
+            	boost::this_thread::sleep(boost::posix_time::milliseconds(1));
+            }
     }
 
 };
