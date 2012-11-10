@@ -8,9 +8,6 @@ include_directories(
 
 SET(CMAKE_CXX_FLAGS "-Wall -Wno-sign-compare -Wno-reorder")
 
-set(GUROBI_INCLUDE_DIR "/home/joschu/Src/gurobi501/linux64/include")
-set(GUROBI_LIBRARY_DIR "/home/joschu/Src/gurobi501/linux64/lib")
-
 include_directories(${GUROBI_INCLUDE_DIR})
 link_directories(${GUROBI_LIBRARY_DIR})
 
