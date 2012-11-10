@@ -301,7 +301,7 @@ public:
        	{
             EnvironmentMutex::scoped_lock lock(penv->GetMutex()); // lock environment
             probot->SetActiveDOFs(pmanip->GetArmIndices());
-            RAVELOG_INFO("*************** ROBOT DOFs: %d\n", probot->GetActiveDOF());
+            RAVELOG_INFO("*************** ROBOT DOFs: %d********************\n", probot->GetActiveDOF());
             probot->Grab(target);
             PlannerBasePtr planner = RaveCreatePlanner(penv,"workspacetrajectorytracker");
             WorkspaceTrajectoryParametersPtr params(new WorkspaceTrajectoryParameters(penv));
@@ -327,10 +327,14 @@ public:
             RAVELOG_INFO(">>>>>>> There are %d points in the output trajectory.\n", num_waypoints);
             for (int i = 0; i < num_waypoints; i++ ){
             	// returns the i^th waypoint in the trajectory. configurationspace is mentioned to get the values for the appropriate transform;
-            	// the waypoint fills up data with 7 values : xyzrpy.
+            	// the waypoint fills up data with 7 values : 3 translation; 4 rotation [quaternion] xyzw.
             	// Instead of just getting the way-points, we can sample the trajectories
-            	// sampling trajectory: traj->Sample(vector<dReal>, time [float], configurationspec);
+            	// sampling trajectory: traj->Sample(vector<dReal> sample, time [float], configurationspec);
             	// sampling interpolates the values of the configuration space.
+            	// printing sampled content:
+            	//    for (int i=0; i<sample.size(); i++)
+            	//        	std::cout<<sample[i]<<std::endl;
+
             	outputtraj->GetWaypoint(i,data, params->_configurationspecification);
             	RAVELOG_INFO("WAYPOINT. size = %d\n", data.size());
             	for (int i=0; i<data.size(); i++)
@@ -338,28 +342,30 @@ public:
             	std::cout<<"-------"<<std::endl;
             }
 
-            vector<dReal> sample;
-            outputtraj->Sample(sample, 0.02);
-            RAVELOG_INFO("sampled trajectory. size = %d\n", sample.size());
-
             //extract the joint values from the output trajectory
-            //vector<dReal> joints(probot->GetDOF());
-            //vector<int> indices(probot->GetDOF());
-            //for(size_t i = 0; i < indices.size(); ++i) {
-              //indices[i] = i;
-            //}
+            RAVELOG_INFO("Robot number of Active DOFs = %d\n ", probot->GetActiveDOF());
+            vector<dReal> joints(probot->GetActiveDOF());
+            vector<int> indices = probot->GetActiveDOFIndices();
+            vector<dReal> sample;
+            outputtraj->Sample(sample, 0);//outputtraj->GetDuration());
+            outputtraj->GetConfigurationSpecification().ExtractJointValues(joints.begin(),sample.begin(),probot,indices);
+            for(int k=0; k<joints.size(); k++)
+            	std::cout<<"        "<<joints[k]<<std::endl;
+            std::cout<<"-------"<<std::endl;
 
-
-
-            for (int i=0; i<sample.size(); i++)
-            	std::cout<<sample[i]<<std::endl;
-            //outputtraj->GetConfigurationSpecification().ExtractJointValues(joints.begin(),
-            	//	sample.begin(),probot,indices);
-
-
+        	// validate against the current joint values
+        	//std::vector<int> ;
+        	//joint_dof.push_back(joint_dof_idx);
+        	std::vector<double> values;
+        	probot->GetDOFValues(values, probot->GetActiveDOFIndices());
+        	RAVELOG_INFO("Validating against current joint angles....\n");
+        	assert(("Unknown number of DOF!!", values.size()==7));
+        	for(int k=0; k<values.size(); k++)
+        		std::cout<<"        "<<values[k]<<std::endl;
+        	std::cout<<"-------"<<std::endl;
         }
 
-        RAVELOG_INFO(probot->GetController()->GetDescription());
+        //RAVELOG_INFO(probot->GetController()->GetDescription());
 
        	//while(IsOk()) {
             for(list<TrajectoryBasePtr>::iterator it = listtrajectories.begin(); it != listtrajectories.end(); ++it) {
