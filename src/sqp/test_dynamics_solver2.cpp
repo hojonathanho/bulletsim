@@ -1,0 +1,77 @@
+#include "simulation/simplescene.h"
+#include "rigid_body_dynamics.h"
+#include "utils/interpolation.h"
+#include "config_sqp.h"
+#include "simulation/config_bullet.h"
+
+using namespace std;
+//
+//btTransform transformInterp(const btTransform& tf0, const btTransform& tf1, float frac) {
+//  btTransform out;
+//  out.setOrigin(tf0.getOrigin()*(1-frac) + tf1.getOrigin()*frac);
+//  out.setRotation(tf0.getRotation().slerp(tf1.getRotation(), frac));
+//}
+
+
+int main(int argc, char* argv[]) {
+
+  // create stack of boxes
+  // make another box that moves--put equality constraints on the trajectory
+  // add in costs
+  SQPConfig::maxIter = 20;
+
+
+
+  Parser parser;
+  parser.addGroup(GeneralConfig());
+  parser.addGroup(SQPConfig());
+  parser.read(argc, argv);
+
+
+  initializeGRB();
+
+  btVector3 halfExtents(.5, .5, .5);
+  float mass = 1;
+  BulletObject::Ptr
+      box0(new BoxObject(mass, halfExtents, btTransform(btQuaternion::getIdentity(), btVector3(0, 0, .5))));
+  BulletObject::Ptr
+      box1(new BoxObject(mass, halfExtents, btTransform(btQuaternion::getIdentity(), btVector3(1, 0, .5))));
+
+  BulletObject::Ptr floor(new BoxObject(mass, btVector3(5, 5, .5), btTransform(btQuaternion::getIdentity(),
+                                                                               btVector3(0, 0, -.4))));
+
+  Scene scene;
+  scene.startViewer();
+
+  btAlignedObjectArray<btCollisionObject*> objs = scene.env->bullet->dynamicsWorld->getCollisionObjectArray();
+  for (int i = 0; i < objs.size(); ++i) {
+    scene.env->bullet->dynamicsWorld->removeRigidBody(dynamic_cast<btRigidBody*> (objs[i]));
+  }
+
+  scene.env->add(box0);
+  box0->setColor(1,0,0,1);
+  box1->setColor(0,1,0,1);
+   scene.env->add(box1);
+  scene.env->add(floor);
+
+  DynSolver solver = DynSolver(scene.env->bullet->dynamicsWorld);
+  TrustRegionPtr tr(new DynTrustRegion(&solver));
+  solver.setTrustRegion(tr);
+  solver.addObject(RigidBodyPtr(new RigidBody(box0->rigidBody.get(), "box0")));
+  CostPtr dynCost(new DynErrCost(solver.m_bodies[0]));
+  solver.addCost(dynCost);
+
+  try {
+    while (true) {
+      Optimizer::OptStatus status = solver.optimize();
+      solver.finishStep();
+//      assert(status == Optimizer::CONVERGED);
+      scene.step(0);
+      scene.idle(true);
+    }
+  }
+  catch (GRBException e) {
+    cout << e.getMessage() << endl;
+  }
+
+}

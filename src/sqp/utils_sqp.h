@@ -17,12 +17,9 @@ using Eigen::Vector4d;
 template<class T>
 struct BasicArray {
 
-private:
   std::vector<T> m_data;
   int m_nRow;
   int m_nCol;
-
-public:
 
   BasicArray() :
     m_nRow(0), m_nCol(0) {
@@ -115,6 +112,7 @@ ExprVector operator+(const VarVector&, const VarVector&);
 
 void setValsToVars(VarVector& vars, VectorXd& vals);
 void setValsToVars(VarArray& vars, MatrixXd& vals);
+void setValsToVars(VarVector& vars, Vector3d& vals);
 
 std::vector<double> toDoubleVec(const Eigen::VectorXd& in);
 inline Eigen::Vector3d toVector3d(const btVector3& in) {

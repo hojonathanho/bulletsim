@@ -8,6 +8,8 @@ include_directories(
 
 SET(CMAKE_CXX_FLAGS "-Wall -Wno-sign-compare -Wno-reorder")
 
+set(GUROBI_INCLUDE_DIR "${GUROBI_HOME}/include")
+set(GUROBI_LIBRARY_DIR "${GUROBI_HOME}/lib")
 include_directories(${GUROBI_INCLUDE_DIR})
 link_directories(${GUROBI_LIBRARY_DIR})
 
@@ -33,7 +35,7 @@ target_link_libraries(test_ros_ser ${ROS_LIBRARIES})
 add_executable(test_grb_eigen1 test_grb_eigen.cpp)
 target_link_libraries(test_grb_eigen1 gurobi_c++ gurobi50 utils)
 
-add_library(sqp2 expr_ops.cpp sqp_dynamics.cpp sqp.cpp config_sqp.cpp traj_sqp.cpp 
+add_library(sqp2 expr_ops.cpp sqp.cpp config_sqp.cpp traj_sqp.cpp 
 collisions.cpp kinematics_utils.cpp plotters.cpp utils_sqp.cpp functions.cpp
 traj_safety_checks.cpp planning_problems2.cpp state_setter.cpp physics_planning_scene.cpp)
 target_link_libraries(sqp2 utils gurobi_c++ gurobi50 simulation)
@@ -50,7 +52,7 @@ target_link_libraries(test_scalar_opt sqp2)
 add_executable(test_vector_opt test_vector_opt.cpp)
 target_link_libraries(test_vector_opt sqp2)
 
-add_executable(test_dynamics_solver test_dynamics_solver.cpp sqp_dynamics.cpp state_setter.cpp kinematics_utils.cpp utils_sqp.cpp)
+add_executable(test_dynamics_solver test_dynamics_solver2.cpp rigid_body_dynamics.cpp)
 target_link_libraries(test_dynamics_solver sqp2 simulation)
 
 add_executable(test_rodrigues_jac test_rodrigues_jac.cpp)

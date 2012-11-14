@@ -61,10 +61,9 @@ set(PHASESPACE_DIR ${BULLETSIM_SOURCE_DIR}/lib/phasespace)
 set(PHASESPACE_INCLUDE_DIR ${PHASESPACE_DIR}/include)
 set(PHASESPACE_LIBS ${PHASESPACE_DIR}/libowlsock.so)
 
-
 set(GUROBI_HOME "" CACHE STRING "Gurobi directory (e.g. /path/to/gurobi501/linux64)")
-if (${GUROBI_HOME} EQUAL "")
-  message (FATAL_ERROR "You must set ${GUROBI_HOME} variable")
+if ("${GUROBI_HOME}" STREQUAL "")
+  message (FATAL_ERROR "You must set GUROBI_HOME variable")
 endif()
 
 add_subdirectory(lib)
