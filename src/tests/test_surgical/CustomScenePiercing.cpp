@@ -118,12 +118,9 @@ void CustomScene::cutCloth (bool fwd) {
 		return;
 	}
 
-	// Distance b/w needle tip and cut point
-	float cut_threshold = 0.03*GeneralConfig::scale;
-	std::cout<<"Cut threshold: "<<cut_threshold<<std::endl;
-
 	// Number of points/ point for piercing
 	int numPts = 0;
+	// Base pointer for nodes
 	const btSoftBody::Node*			nbase = &cloth->softBody->m_nodes[0];
 
 	btVector3 pointToPierce(0,0,0);
@@ -133,7 +130,7 @@ void CustomScene::cutCloth (bool fwd) {
 
 	for (int i = 0; i < numContacts; ++i) {
 		 currPt = rcnts[i].m_node->m_x;
-		if ((Tip-currPt).length() < cut_threshold) {
+		if ((Tip-currPt).length() < cut_threshold*GeneralConfig::scale) {
 			pointToPierce += currPt;
 			numPts ++;
 		}
@@ -163,6 +160,53 @@ void CustomScene::cutCloth (bool fwd) {
 
 	cloth->refine(&iSphere, 0.0001, true);
 }
+
+// Attempting to add piercing as callback
+void CustomScene::piercingCallBack () {
+
+	//std::cout<<std::endl<<"------NEW CALL BACK-----------"<<std::endl;
+	if (!piercing || !cloth->meanStress) return;
+
+	btSoftBody::tRContactArray rcnts;
+	getContactPointsWith(cloth->softBody.get(), needle->rigidBody.get(), rcnts);
+	int numContacts = rcnts.size();
+
+	// If no contact points, return.
+	//std::cout<<"Checking for contacts"<<std::endl;
+	if (!numContacts) return;
+
+	// Node indices for points to pierce
+	vector<int> pierceNodes;
+	// Base address for nodes to find index
+	const btSoftBody::Node*			nbase = &cloth->softBody->m_nodes[0];
+
+	btVector3 pointToPierce(0,0,0);
+	btVector3 Tip = getNeedleTip(false);
+	btVector3 currPt;
+	int idx;
+	float stressThreshold = 1;
+
+	for (int i = 0; i < numContacts; ++i) {
+		 currPt = rcnts[i].m_node->m_x;
+		 idx = int(rcnts[i].m_node - nbase);
+		if ((Tip-currPt).length() < cut_threshold*GeneralConfig::scale && cloth->nodeStress[idx]/cloth->meanStress >= stressThreshold) {
+			pointToPierce += currPt;
+			pierceNodes.push_back(idx);
+		}
+	}
+
+	//std::cout<<"Piercing node number: "<<pierceNodes.size()<<std::endl;
+	if (pierceNodes.size() >= 2)
+		pointToPierce /= pierceNodes.size();
+	else
+		return;
+
+	//std::cout<<"Going to pierce at: "<<pointToPierce[0]<<","<<pointToPierce[1]<<","<<pointToPierce[2]<<std::endl;
+	ImplicitSphere	iSphere(pointToPierce,0.02*GeneralConfig::scale);
+	cloth->refine(&iSphere, 0.0001, true);
+
+}
+
 
 btVector3 CustomScene::getNeedleTip (bool fwd) {
 	int dir = -1;
@@ -361,6 +405,26 @@ void CustomScene::run() {
     														GeneralConfig::scale *
     															btVector3(0.85, 0, table_height+table_thickness))));
 
+    static const char SNEEDLE_MODEL_FILE[] = EXPAND(BULLETSIM_DATA_DIR) "/needle/sneedle.dae";
+    KinBodyPtr needle_body = rave->env->ReadKinBodyURI(SNEEDLE_MODEL_FILE);
+    btTransform needle_tfm;
+    table->motionState->getWorldTransform(needle_tfm);
+	needle_tfm.setOrigin(needle_tfm.getOrigin() / GeneralConfig::scale);
+    needle_body->SetTransform(util::toRaveTransform(needle_tfm));
+    sneedle = RaveObject::Ptr(new RaveObject(rave,needle_body,RAW));
+
+    vector<BulletObject::Ptr> chldrn = sneedle->getChildren();
+    std::cout<<"Number of children in sneedle: "<<chldrn.size()<<std::endl;
+    std::cout<<"Mass of child: "<<1/chldrn[0]->rigidBody->getInvMass()<<std::endl;
+    btVector3 inertia(0,0,0);
+    chldrn[0]->rigidBody->getCollisionShape()->calculateLocalInertia(needle_mass,inertia);
+    chldrn[0]->rigidBody->setMassProps(needle_mass,inertia);
+    std::cout<<"Mass of child: "<<1/chldrn[0]->rigidBody->getInvMass()<<std::endl;
+
+
+    //std::cout<<"Bullet margin: "<<BulletConfig::margin<<" and METERS: "<<METERS<<std::endl;
+
+
     cloth = createCloth(GeneralConfig::scale * 0.5, 0, GeneralConfig::scale * btVector3(0.6, 0, table_height+0.01));
     btSoftBody * const psb = cloth->softBody.get();
     pr2m.pr2->ignoreCollisionWith(psb);
@@ -370,7 +434,11 @@ void CustomScene::run() {
     env->add(table);
     env->add(cloth);
     env->add(needle);
+    env->add(sneedle);
     env->add(plot_needle);
+
+    //boost::function<void(void)>
+    addPreStepCallback(boost::bind(&CustomScene::piercingCallBack, this));
 
     leftAction.reset(new PR2SoftBodyGripperAction(pr2m.pr2Left,
     		                                      "l_gripper_l_finger_tip_link",

@@ -35,8 +35,11 @@ public:
 
 	// the suturing needle
 	CapsuleObject::Ptr needle;
+	RaveObject::Ptr sneedle;
 	// is the needle allowed to pierce?
 	bool piercing;
+	// max distance between needle tip and point to cut at
+	float cut_threshold;
 
 	// the table in the scene
 	BoxObject::Ptr table;
@@ -55,7 +58,7 @@ public:
      *  left grippers are. **/
 	PlotAxes::Ptr cut_axes;
 
-	CustomScene() : pr2m(*this), isRaveViewer(false), piercing(false) { }
+	CustomScene() : pr2m(*this), isRaveViewer(false), piercing(false), cut_threshold(0.03) { }
 
 	void createFork();
 	void swapFork();
@@ -83,7 +86,7 @@ public:
 	void drawAxes();
 
 	// Get's needle tip. Which tip depends on fwd
-	btVector3 getNeedleTip (bool fwd);
+	btVector3 getNeedleTip (bool fwd=true);
 
 	// Plots needle tip
 	void plotNeedle();
@@ -102,6 +105,8 @@ public:
 
 	//Cuts cloth at mentioned needle tip
 	void cutCloth (bool fwd=false);
+	//PreStepCallback to pierce cloth if needed
+	void piercingCallBack ();
 
 	void run();
 };

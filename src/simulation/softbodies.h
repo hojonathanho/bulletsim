@@ -47,10 +47,16 @@ public:
     boost::shared_ptr<btSoftBody> softBody;
 
 
+    ///////////////////// Changes by Sibi:
+    // Basically adjacency list if nodes were a graph
     vector<vector<int> > 	edges;
+    // Measure of stress on nodes: mean absolute difference in distance between neighbors
     vector<float> 			nodeStress;
+    // Mean stress (as defined above) over all nodes
     float 					meanStress;
+    // Calculates edges by looking at all the links
     void 					calculateEdges ();
+    // Computes stres on all nodes
     void 					computeStress ();
 
     // constructors/destructors
