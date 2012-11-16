@@ -323,7 +323,7 @@ public:
             listtrajectories.push_back(planningutils::ReverseTrajectory(outputtraj));
 
             vector<dReal> data;
-            int num_waypoints = outputtraj->GetNumWaypoints();
+            /*int num_waypoints = outputtraj->GetNumWaypoints();
             RAVELOG_INFO(">>>>>>> There are %d points in the output trajectory.\n", num_waypoints);
             for (int i = 0; i < num_waypoints; i++ ){
             	// returns the i^th waypoint in the trajectory. configurationspace is mentioned to get the values for the appropriate transform;
@@ -340,23 +340,31 @@ public:
             	for (int i=0; i<data.size(); i++)
             		std::cout<<"   "<<data[i]<<std::endl;
             	std::cout<<"-------"<<std::endl;
-            }
+            }*/
 
             //extract the joint values from the output trajectory
             RAVELOG_INFO("Robot number of Active DOFs = %d\n ", probot->GetActiveDOF());
             vector<dReal> joints(probot->GetActiveDOF());
             vector<int> indices = probot->GetActiveDOFIndices();
             vector<dReal> sample;
-            outputtraj->Sample(sample, 0);//outputtraj->GetDuration());
+            outputtraj->Sample(sample, outputtraj->GetDuration());
             outputtraj->GetConfigurationSpecification().ExtractJointValues(joints.begin(),sample.begin(),probot,indices);
             for(int k=0; k<joints.size(); k++)
             	std::cout<<"        "<<joints[k]<<std::endl;
             std::cout<<"-------"<<std::endl;
 
-        	// validate against the current joint values
-        	//std::vector<int> ;
-        	//joint_dof.push_back(joint_dof_idx);
-        	std::vector<double> values;
+            RAVELOG_INFO("DURATION + 1\n ");
+            outputtraj->Sample(sample, outputtraj->GetDuration()+10);
+            outputtraj->GetConfigurationSpecification().ExtractJointValues(joints.begin(),sample.begin(),probot,indices);
+            for(int k=0; k<joints.size(); k++)
+            	std::cout<<"        "<<joints[k]<<std::endl;
+            std::cout<<"-------"<<std::endl;
+
+
+            // validate against the current joint values
+            //std::vector<int> ;
+            //joint_dof.push_back(joint_dof_idx);
+            std::vector<double> values;
         	probot->GetDOFValues(values, probot->GetActiveDOFIndices());
         	RAVELOG_INFO("Validating against current joint angles....\n");
         	assert(("Unknown number of DOF!!", values.size()==7));

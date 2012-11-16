@@ -72,3 +72,6 @@ target_link_libraries(test_suture_cloth simulation robots)
 
 add_executable(rave_cpp test_surgical/planning.cpp)
 target_link_libraries(rave_cpp simulation robots)
+
+add_executable(rave_plan test_surgical/pr2turnlever.cpp)
+target_link_libraries(rave_plan simulation robots)
