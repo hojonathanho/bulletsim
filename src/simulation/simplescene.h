@@ -64,6 +64,7 @@ struct Scene {
   vector<VoidCallback> predrawCallbacks;
   void addPreDrawCallback(VoidCallback cb);
 
+
   Scene();
 
   void showWindow(bool showWindow, bool realtime);

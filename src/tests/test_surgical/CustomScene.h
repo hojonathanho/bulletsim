@@ -22,7 +22,6 @@
 #include "simulation/softBodyHelpers.h"
 
 
-
 class CustomScene : public Scene {
 public:
 	PR2SoftBodyGripperAction::Ptr leftAction, rightAction;
@@ -93,6 +92,9 @@ public:
 
 	/** Returns ||(v1.x, v1.y) - (v2.x, v2.y)||. */
 	btScalar inline getXYDistance(btVector3 &v1, btVector3 &v2);
+
+	/** small test to test the controller. */
+	void testTrajectory();
 
 	void run();
 };

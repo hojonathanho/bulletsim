@@ -280,11 +280,25 @@ public:
             RAVELOG_INFO(str(boost::format("duration=%f, points=%d")%workspacetraj->GetDuration()%workspacetraj->GetNumWaypoints()));
         }
 
+
+        // see if trajectory can be extracted: Yes it can be!
+        TrajectoryBasePtr hand_traj;
+        hand_traj = RaveCreateTrajectory(penv,"");
         {
-            stringstream ssout, ssin; ssin << "MoveToHandPosition poses 1 " << Tgrasp0;
+            stringstream ssout, ssin; ssin << "MoveToHandPosition outputtraj execute 0 poses 1  " << Tgrasp0;
             basemodule->SendCommand(ssout,ssin);
+            hand_traj->deserialize(ssout);
         }
         WaitRobot(probot);
+        RAVELOG_INFO(str(boost::format("****************** MOVE HAND TRAJECTORY*********************\n duration=%f, points=%d")%hand_traj->GetDuration()%hand_traj->GetNumWaypoints()));
+
+
+        {
+        	stringstream ssout, ssin; ssin << "MoveToHandPosition poses 1 " << Tgrasp0;
+        	basemodule->SendCommand(ssout,ssin);
+        }
+        WaitRobot(probot);
+
 
         {
             stringstream ssin, ssout; ssin << "CloseFingers";
@@ -313,6 +327,7 @@ public:
                 throw OPENRAVE_EXCEPTION_FORMAT0("plan init failed",ORE_Assert);
             }
 
+
             // create a new output trajectory
             TrajectoryBasePtr outputtraj = RaveCreateTrajectory(penv,"");
             if( !planner->PlanPath(outputtraj) ) {
@@ -321,6 +336,9 @@ public:
             }
             listtrajectories.push_back(outputtraj);
             listtrajectories.push_back(planningutils::ReverseTrajectory(outputtraj));
+
+
+
 
             vector<dReal> data;
             /*int num_waypoints = outputtraj->GetNumWaypoints();

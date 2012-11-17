@@ -150,12 +150,41 @@ void CustomScene::swapFork() {
 }
 
 
+/** small test to test the controller. */
+void CustomScene::testTrajectory() {
+	pr2m.setArmPose("side", 'b');
+
+	pr2m.pr2->robot->SetActiveManipulator("rightarm");
+
+	ModuleBasePtr basemodule = RaveCreateModule(rave->env,"BaseManipulation");
+	rave->env->Add(basemodule,true,pr2m.pr2->robot->GetName());
+
+	Transform rightT = pr2m.pr2Right->manip->GetEndEffectorTransform();
+	rightT.trans += Vector(0.0,0,-0.35);
+
+	// see if trajectory can be extracted: Yes it can be!
+	TrajectoryBasePtr hand_traj;
+	hand_traj = RaveCreateTrajectory(rave->env,"");
+
+	stringstream ssout, ssin; ssin << "MoveToHandPosition outputtraj execute 0 poses 1  " << rightT;
+	basemodule->SendCommand(ssout,ssin);
+	hand_traj->deserialize(ssout);
+
+	printf("TRAJECTORY INFO : DURATION : %f\n",(float) hand_traj->GetDuration());
+
+	RaveTrajectory::Ptr traj(new RaveTrajectory(hand_traj, pr2m.pr2, pr2m.pr2Right->manip->GetArmIndices()));
+	pr2m.controller->appendTrajectory(traj);
+	pr2m.controller->run();
+}
+
+
 /* Sets up the scene and UI even handlers,
  * initializes various structures.*/
 void CustomScene::run() {
     viewer.addEventHandler(new CustomKeyHandler(*this));
 
     const float dt = BulletConfig::dt;
+    printf("-----DT : %f\n", dt);
     const float table_height = .5;
     const float table_thickness = .05;
     table = BoxObject::Ptr(new BoxObject(0, GeneralConfig::scale * btVector3(.75,.75,table_thickness/2),
@@ -168,6 +197,8 @@ void CustomScene::run() {
 
     btSoftBody * const psb = cloth->softBody.get();
     pr2m.pr2->ignoreCollisionWith(psb);
+    pr2m.setArmPose("side", 'b');
+    pr2m.setTorso(1);
 
     env->add(table);
     env->add(cloth);

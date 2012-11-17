@@ -56,6 +56,11 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,
         	}
         	scene.plot_points->setPoints(scene.plotpoints,scene.plotcolors);
         	break;
+
+        case 'o': // executes an openrave trajectory
+        	scene.testTrajectory();
+        	//scene.rave->env->Save("/home/ankush/sandbox/rave_suture/suture_env2.xml");
+        	break;
         }
         break;
     }
