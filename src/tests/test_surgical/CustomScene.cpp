@@ -152,7 +152,7 @@ void CustomScene::swapFork() {
 
 /** small test to test the controller. */
 void CustomScene::testTrajectory() {
-	pr2m.setArmPose("side", 'b');
+	//pr2m.setArmPose("side", 'b');
 
 	pr2m.pr2->robot->SetActiveManipulator("rightarm");
 
@@ -184,7 +184,6 @@ void CustomScene::run() {
     viewer.addEventHandler(new CustomKeyHandler(*this));
 
     const float dt = BulletConfig::dt;
-    printf("-----DT : %f\n", dt);
     const float table_height = .5;
     const float table_thickness = .05;
     table = BoxObject::Ptr(new BoxObject(0, GeneralConfig::scale * btVector3(.75,.75,table_thickness/2),
