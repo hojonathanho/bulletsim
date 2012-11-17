@@ -23,6 +23,8 @@ public:
 	
 	vector<GRBVar> m_vars;
 
+  vector<string> m_eqcntNames; // future names for constraints
+  vector<GRBLinExpr> m_eqexprs; // expressions that are == 0
   vector<GRBConstr> m_eqcnts;
 
 	vector<string> m_cntNames; // future names for constraints
@@ -31,7 +33,7 @@ public:
 
   vector<string> m_qcntNames; // future names for constraints
 	vector<GRBQuadExpr> m_qexprs; // expressions that are <= 0
-	vector<GRBConstr> m_qcnts; // expressions get turned into constraints
+	vector<GRBQConstr> m_qcnts; // expressions get turned into constraints
 
 };
 
@@ -92,6 +94,7 @@ public:
 
 	virtual void preOptimize() {} // do plots and stuff here
 	virtual void postOptimize() {} // ditto
+	virtual void fixVariables() {assert(0);}
 	OptStatus optimize();
   void addCost(CostPtr cost);
   void addConstraint(ConstraintPtr cnt);
@@ -110,6 +113,7 @@ protected:
 	void clearConvexProblem(const vector<ConvexObjectivePtr>&, const vector<ConvexConstraintPtr>&);
 
 };
-
+typedef vector<GRBLinExpr> ExprVector;
+void addNormCost(ConvexObjectivePtr& cost, double coeff, const ExprVector& err, GRBModel* model, const string& desc);
 void addHingeCost(ConvexObjectivePtr& cost, double coeff, const GRBLinExpr& err, GRBModel* model, const string& desc);
 void addAbsCost(ConvexObjectivePtr& cost, double coef, const GRBLinExpr& err, GRBModel* model, const string& desc);

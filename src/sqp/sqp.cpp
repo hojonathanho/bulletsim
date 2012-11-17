@@ -48,7 +48,7 @@ vector<double> evalApproxObjectives(const vector<ConvexObjectivePtr>& in) {
 void Optimizer::printObjectiveInfo(const vector<double>& oldExact,
     const vector<double>& newApprox, const vector<double>& newExact) {
 //  LOG_INFO("cost | exact | approx-improve | exact-improve | ratio");
-  LOG_INFO_FMT("%15s | %10s | %10s | %10s | %10s", "cost", "exact", "dapprox", "dexact", "ratio");
+  LOG_INFO_FMT("%15s | %10s | %10s | %10s | %10s", "cost", "oldexact", "dapprox", "dexact", "ratio");
   for (int i=0; i < m_costs.size(); ++i) {
     double approxImprove = oldExact[i] - newApprox[i];
     double exactImprove = oldExact[i] - newExact[i];
@@ -65,8 +65,11 @@ void ConvexPart::addToModel(GRBModel* model) {
   for (int i = 0; i < m_exprs.size(); ++i) {
     m_cnts.push_back(m_model->addConstr(m_exprs[i] <= 0, m_cntNames[i].c_str()));
   }
+  for (int i = 0; i < m_eqexprs.size(); ++i) {
+    m_eqcnts.push_back(m_model->addConstr(m_eqexprs[i] == 0, m_eqcntNames[i].c_str()));
+  }
   for (int i = 0; i < m_qexprs.size(); ++i) {
-    m_qcnts.push_back(m_model->addConstr(m_exprs[i] <= 0, m_qcntNames[i].c_str()));
+    m_qcnts.push_back(m_model->addQConstr(m_qexprs[i] <= 0, m_qcntNames[i].c_str()));
   }
   m_inModel = true;
 }
@@ -78,7 +81,7 @@ void ConvexPart::removeFromModel() {
   BOOST_FOREACH(GRBConstr& cnt, m_cnts) {
     m_model->remove(cnt);
   }
-  BOOST_FOREACH(GRBConstr& qcnt, m_qcnts) {
+  BOOST_FOREACH(GRBQConstr& qcnt, m_qcnts) {
     m_model->remove(qcnt);
   }
   BOOST_FOREACH(GRBVar& var, m_vars) {
@@ -188,7 +191,7 @@ Optimizer::OptStatus Optimizer::optimize() {
   /////////
 
 
-  for (int iter = 1;; ++iter) {
+  for (int iter = 1;;) {
 
     LOG_INFO_FMT("iteration: %i", iter);
 
@@ -204,6 +207,8 @@ Optimizer::OptStatus Optimizer::optimize() {
     ///////////////////////////////////
 
     while (m_tra->m_shrinkage >= SQPConfig::shrinkLimit) { // trust region adjustment
+      if (iter > SQPConfig::maxIter) break;
+      ++iter;
 
 
       ////// convex optimization /////////////////////
@@ -215,26 +220,27 @@ Optimizer::OptStatus Optimizer::optimize() {
 				grbFail = true;
 				break;
       }
+      vector<double> approxObjectiveVals = evalApproxObjectives(objectives);
+      double approxObjectiveVal = sum(approxObjectiveVals);
+
       storeValues();
       updateValues();
       postOptimize();
       //////////////////////////////////////////////
 
       ////////// calculate new objectives ////////////
-      vector<double> approxObjectiveVals = evalApproxObjectives(objectives);
-      double approxObjectiveVal = sum(approxObjectiveVals);
       newObjectiveVals = evaluateObjectives();
       double newObjectiveVal = sum(newObjectiveVals);
       printObjectiveInfo(objectiveVals, approxObjectiveVals, newObjectiveVals);
       trueImprove = objectiveVal - newObjectiveVal;
       approxImprove = objectiveVal - approxObjectiveVal;
       improveRatio = trueImprove / approxImprove;
-      LOG_INFO_FMT("%15s | %10.3e | %10.3e | %10.3e | %10.3e", "TOTAL", objectiveVal, trueImprove, approxImprove, improveRatio);
+      LOG_INFO_FMT("%15s | %10.3e | %10.3e | %10.3e | %10.3e", "TOTAL", objectiveVal, approxImprove, trueImprove, improveRatio);
       //////////////////////////////////////////////
 
       if (approxImprove < 1e-7) {
-        LOG_INFO("not much room to improve in this problem.");
-        rollbackValues();
+        LOG_INFO_FMT("not much room to improve in this problem. approxImprove: %.2e", approxImprove);
+        if (approxImprove < 0) rollbackValues();
         break;
       }
 
@@ -273,13 +279,17 @@ Optimizer::OptStatus Optimizer::optimize() {
       LOG_WARN("trust region shrunk too much. stopping");
       return SHRINKAGE_LIMIT;
     }
-    if (trueImprove < SQPConfig::doneIterThresh && improveRatio > SQPConfig::trThresh) {
-      LOG_INFO_FMT("cost improvement below convergence threshold (%.3e < %.3e). stopping", SQPConfig::doneIterThresh, SQPConfig::trThresh);
-      return CONVERGED; // xxx should probably check that it improved multiple times in a row
+    if (approxImprove < 0) {
+      LOG_ERROR("approxImprove < 0. something's probably wrong");
+      return CONVERGED;
     }
     if (approxImprove < 1e-7) {
       LOG_INFO("no room to improve, according to convexification");
       return CONVERGED;
+    }
+    if (trueImprove < SQPConfig::doneIterThresh && improveRatio > SQPConfig::trThresh) {
+      LOG_INFO_FMT("cost improvement below convergence threshold (%.3e < %.3e). stopping", SQPConfig::doneIterThresh, SQPConfig::trThresh);
+      return CONVERGED; // xxx should probably check that it improved multiple times in a row
     }
 
     ///////////////////////
@@ -287,13 +297,43 @@ Optimizer::OptStatus Optimizer::optimize() {
   }
 }
 
+#include "expr_ops.h"
+void addNormCost(ConvexObjectivePtr& cost, double coeff, const ExprVector& err, GRBModel* model, const string& desc) {
+    GRBVar errcost = model->addVar(0,GRB_INFINITY,0, GRB_CONTINUOUS, desc+"_cost");
+    cost->m_vars.push_back(errcost);
+    GRBQuadExpr qexpr;
+    VarVector erris(err.size());
+    for (int i=0; i < err.size(); ++i) {
+      GRBVar erri = erris[i] = model->addVar(-GRB_INFINITY,GRB_INFINITY,0,GRB_CONTINUOUS, (boost::format("%s_cone_%i")%desc%i).str());
+      cost->m_vars.push_back(erri);
+      cost->m_eqexprs.push_back(erri-err[i]);
+      cost->m_eqcntNames.push_back("cone_coord");
+    }
+    cost->m_qexprs.push_back(varNorm2(erris) - errcost*errcost);
+    cost->m_qcntNames.push_back(desc);
+    cost->m_objective += coeff * errcost;
+}
 void addHingeCost(ConvexObjectivePtr& cost, double coeff, const GRBLinExpr& err, GRBModel* model, const string& desc) {
-    GRBVar errcost = model->addVar(0,GRB_INFINITY,0, GRB_CONTINUOUS);
+    GRBVar errcost = model->addVar(0,GRB_INFINITY,0, GRB_CONTINUOUS, desc+"_cost");
     cost->m_vars.push_back(errcost);
     cost->m_exprs.push_back(err - errcost);
     cost->m_cntNames.push_back(desc);
     cost->m_objective += coeff * errcost;
 }
+void addAbsCost2(ConvexObjectivePtr& cost, double coeff, const GRBLinExpr& err, GRBModel* model, const string& desc) {
+    GRBVar errvar = model->addVar(-GRB_INFINITY,GRB_INFINITY,0, GRB_CONTINUOUS, desc);
+    cost->m_vars.push_back(errvar);
+    GRBVar errcost = model->addVar(0,GRB_INFINITY,0, GRB_CONTINUOUS, desc+"_cost");
+    cost->m_vars.push_back(errcost);
+    cost->m_eqexprs.push_back(err - errvar);
+    cost->m_eqcntNames.push_back(desc);
+    cost->m_exprs.push_back(errvar - errcost);
+    cost->m_cntNames.push_back(desc+"_cost");
+    cost->m_exprs.push_back(- errvar - errcost);
+    cost->m_cntNames.push_back(desc+"_cost");
+    cost->m_objective += coeff * errcost;
+}
+
 void addAbsCost(ConvexObjectivePtr& cost, double coeff, const GRBLinExpr& err, GRBModel* model, const string& desc) {
     GRBVar errcost = model->addVar(0,GRB_INFINITY,0, GRB_CONTINUOUS);
     cost->m_vars.push_back(errcost);
@@ -303,3 +343,5 @@ void addAbsCost(ConvexObjectivePtr& cost, double coeff, const GRBLinExpr& err, G
     cost->m_cntNames.push_back(desc); 
     cost->m_objective += coeff * errcost;
 }
+
+
