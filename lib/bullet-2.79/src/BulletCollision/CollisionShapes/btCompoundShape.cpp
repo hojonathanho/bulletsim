@@ -27,7 +27,7 @@ m_collisionMargin(btScalar(0.)),
 m_localScaling(btScalar(1.),btScalar(1.),btScalar(1.))
 {
 	m_shapeType = COMPOUND_SHAPE_PROXYTYPE;
-
+	enableDynamicAabbTree = false;
 	if (enableDynamicAabbTree)
 	{
 		void* mem = btAlignedAlloc(sizeof(btDbvt),16);
@@ -175,7 +175,7 @@ void btCompoundShape::getAabb(const btTransform& trans,btVector3& aabbMin,btVect
 		localHalfExtents.setValue(0,0,0);
 		localCenter.setValue(0,0,0);
 	}
-	localHalfExtents += btVector3(getMargin(),getMargin(),getMargin());
+	localHalfExtents += btVector3(getMargin(),getMargin(),getMargin()) + SHAPE_EXPANSION;
 		
 
 	btMatrix3x3 abs_b = trans.getBasis().absolute();  
@@ -187,7 +187,6 @@ void btCompoundShape::getAabb(const btTransform& trans,btVector3& aabbMin,btVect
 		abs_b[2].dot(localHalfExtents));
 	aabbMin = center-extent;
 	aabbMax = center+extent;
-	
 }
 
 void	btCompoundShape::calculateLocalInertia(btScalar mass,btVector3& inertia) const

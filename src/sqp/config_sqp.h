@@ -12,6 +12,7 @@ struct SQPConfig : Config {
   static double distPen;
   static double distDiscSafe;
   static double distContSafe;
+  static double shapeExpansion;
   static double maxSteps;
   static double maxCollCoef;
   static int maxIter;
@@ -31,6 +32,7 @@ struct SQPConfig : Config {
     params.push_back(new Parameter<double>("distPen", &distPen, "distance to start penalizing"));
     params.push_back(new Parameter<double>("distDiscSafe", &distDiscSafe, "safety distance for discrete collision checking"));
     params.push_back(new Parameter<double>("distContSafe", &distContSafe, "safety distance for continuous collision checking"));
+    params.push_back(new Parameter<double>("shapeExpansion", &shapeExpansion, "expand shapes"));
     params.push_back(new Parameter<double>("maxCollCoef", &maxCollCoef, "max collision coefficient"));
     params.push_back(new Parameter<double>("maxSteps", &maxSteps, "maximum number of steps in subdivided traj"));
     params.push_back(new Parameter<int>("maxIter", &maxIter, "max iterations for sqp procedure"));

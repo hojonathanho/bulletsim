@@ -20,8 +20,6 @@ subject to the following restrictions:
 #include "btMinMax.h"
 #include "btVector3.h"
 
-
-
 template <class T>
 void Swap(T &a,T &b)
 {

@@ -85,7 +85,7 @@ btCompoundCollisionAlgorithm::~btCompoundCollisionAlgorithm()
 }
 
 
-
+#include <cstdio>
 
 struct	btCompoundLeafCallback : btDbvt::ICollide
 {
@@ -129,10 +129,8 @@ public:
 		btVector3 aabbMin0,aabbMax0,aabbMin1,aabbMax1;
 		childShape->getAabb(newChildWorldTrans,aabbMin0,aabbMax0);
 		m_otherObj->getCollisionShape()->getAabb(m_otherObj->getWorldTransform(),aabbMin1,aabbMax1);
-
 		if (TestAabbAgainstAabb2(aabbMin0,aabbMax0,aabbMin1,aabbMax1))
 		{
-
 			m_compoundColObj->setWorldTransform( newChildWorldTrans);
 			m_compoundColObj->setInterpolationWorldTransform(newChildWorldTrans);
 
@@ -241,7 +239,6 @@ void btCompoundCollisionAlgorithm::processCollision (btCollisionObject* body0,bt
 
 	if (tree)
 	{
-
 		btVector3 localAabbMin,localAabbMax;
 		btTransform otherInCompoundSpace;
 		otherInCompoundSpace = colObj->getWorldTransform().inverse() * otherObj->getWorldTransform();
