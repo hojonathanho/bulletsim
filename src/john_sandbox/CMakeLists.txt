@@ -74,7 +74,7 @@ target_link_libraries(try_config_vectors simulation)
 
 find_package(PythonLibs REQUIRED)
 add_executable(test_box_overlap test_box_overlap.cpp)
-target_link_libraries(test_box_overlap simulation ${PYTHON_LIBRARIES} boost_python sqp)
+target_link_libraries(test_box_overlap simulation ${PYTHON_LIBRARIES} boost_python sqp2)
 
 add_executable(test_grab test_grab.cpp)
 target_link_libraries(test_grab simulation robots)

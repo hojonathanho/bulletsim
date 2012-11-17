@@ -49,6 +49,6 @@ def make_mesh_box(center, half_extents, name):
     
 
 box0 = make_box([0,0,1], [.1,.1,.1],'box0')
-box1 = make_box([.2,0,1], [.1,.1,.1],'box1')
+box1 = make_box([.25,0,1], [.1,.1,.1],'box1')
 
 #env.SetViewer('qtcoin')

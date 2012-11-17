@@ -11,7 +11,6 @@
 #include <json/json.h>
 #include <boost/filesystem.hpp>
 #include "utils/my_exceptions.h"
-#include "planning_problems.h"
 #include "kinematics_utils.h"
 #include "plotters.h"
 #include "traj_sqp.h"
@@ -87,6 +86,7 @@ int main(int argc, char *argv[]) {
   assert(robot);
   assert(arm);
 
+  setupBulletForSQP(scene.env->bullet->dynamicsWorld);
   removeBodiesFromBullet(robot->children, scene.env->bullet->dynamicsWorld);
   BOOST_FOREACH(EnvironmentObjectPtr obj, scene.env->objects) {
     BulletObjectPtr bobj = boost::dynamic_pointer_cast<BulletObject>(obj);

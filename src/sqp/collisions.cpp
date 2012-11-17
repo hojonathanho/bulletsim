@@ -17,15 +17,19 @@ using namespace Eigen;
 
 #define USE_CONTACTTEST
 
-struct CollisionCollector : public btCollisionWorld::ContactResultCallback {
-  std::vector<Collision> m_collisions;
-  btScalar addSingleResult(btManifoldPoint& pt, const btCollisionObject *colObj0, int, int,
-                           const btCollisionObject *colObj1, int, int) {
-    m_collisions.push_back(Collision(colObj0, colObj1, pt.m_positionWorldOnA, pt.m_positionWorldOnB,
-                                     pt.m_normalWorldOnB, pt.m_distance1));
-    return 0;
+
+void setupBulletForSQP(btCollisionWorld* world) {
+  gContactBreakingThreshold = SQPConfig::shapeExpansion*2*METERS;
+  extern btVector3 SHAPE_EXPANSION;
+  SHAPE_EXPANSION = btVector3(1,1,1)*SQPConfig::shapeExpansion*METERS;
+  cout << "SHAPE_EXPANSION " << SHAPE_EXPANSION << endl;;
+  btCollisionObjectArray& objs = world->getCollisionObjectArray();
+  for (int i=0; i < objs.size(); ++i) {
+    objs[i]->setContactProcessingThreshold(SQPConfig::shapeExpansion*METERS);
   }
-};
+  btCollisionDispatcher* dispatcher = static_cast<btCollisionDispatcher*>(world->getDispatcher());
+  dispatcher->setDispatcherFlags(dispatcher->getDispatcherFlags() & ~btCollisionDispatcher::CD_USE_RELATIVE_CONTACT_BREAKING_THRESHOLD);
+}
 
 #ifndef USE_CONTACTTEST
 
@@ -153,7 +157,7 @@ TrajCartCollInfo collectTrajCollisions(const Eigen::MatrixXd& traj, RaveRobotObj
         btVector3 point = ((collision.m_obj0 == body) ? collision.m_world0 : collision.m_world1) / METERS;
         btVector3 normal = (collision.m_obj0 == body) ? collision.m_normal : -collision.m_normal;
         double dist = collision.m_distance / METERS + SQPConfig::padMult * BulletConfig::linkPadding;
-        if (point.getZ() > .1) {
+        if (point.getZ() > .05*METERS) {
           out[iStep].push_back(LinkCollision(dist, linkInds[iBody], point, normal,1./nColl));
         }
       }

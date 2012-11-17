@@ -11,6 +11,7 @@
 #include "kinematics_utils.h"
 #include "utils/clock.h"
 #include "utils/interpolation.h"
+#include "expr_ops.h"
 using std::map;
 
 TrajOptimizer::TrajOptimizer() : m_initialized(false) {}
@@ -180,13 +181,6 @@ double CollisionCost::evaluate(const MatrixXd& traj) {
 			out += m_coeff * pospart(SQPConfig::distPen - lc.dist) * lc.frac;
 		}
 	}
-	return out;
-}
-
-GRBLinExpr varDot(const VectorXd& x, const VarVector& v) {
-  assert(x.size() == v.size());
-  GRBLinExpr out;
-  out.addTerms(x.data(), v.data(), x.size());
 	return out;
 }
 

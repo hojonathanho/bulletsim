@@ -6,6 +6,7 @@
 #include "simulation/openrave_fwd.h"
 #include <Eigen/Dense>
 
+void setupBulletForSQP(btCollisionWorld* world);
 
 struct Collision {
   const btCollisionObject* m_obj0;
@@ -46,6 +47,15 @@ struct JointCollInfo {
 typedef std::vector< JointCollInfo > TrajJointCollInfo;
 
 
+struct CollisionCollector : public btCollisionWorld::ContactResultCallback {
+  std::vector<Collision> m_collisions;
+  btScalar addSingleResult(btManifoldPoint& pt, const btCollisionObject *colObj0, int, int,
+                           const btCollisionObject *colObj1, int, int) {
+    m_collisions.push_back(Collision(colObj0, colObj1, pt.m_positionWorldOnA, pt.m_positionWorldOnB,
+                                     pt.m_normalWorldOnB, pt.m_distance1));
+    return 0;
+  }
+};
 
 TrajCartCollInfo collectTrajCollisions(const Eigen::MatrixXd& traj, RaveRobotObject* rro, const std::vector<int>& dofInds, bool useAffine);
 TrajCartCollInfo continuousTrajCollisions(const Eigen::MatrixXd& traj, RaveRobotObject* rro,  const std::vector<int>& dofInds, bool useAffine, float dSafeCont);
