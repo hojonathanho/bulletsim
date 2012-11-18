@@ -64,17 +64,19 @@ struct CostCoeffs {
   double initialVelocity;
   double contact;
   double forces;
+  double linkLen;
 };
 
 struct OptRope {
   const int m_N; // num particles
   const int m_T; // timesteps
-  static const int m_dim = 5; // state dim for 1 particle for 1 timestep
+  const double m_linkLen; // resting distance
+
   const MatrixX3d m_initPos; // initial positions of the points (row(n) is the position of point n)
   CostCoeffs m_coeffs;
   const double GROUND_HEIGHT;
 
-  OptRope(const MatrixX3d &initPos, int N, int T) : m_N(N), m_T(T), m_initPos(initPos), GROUND_HEIGHT(0.) {
+  OptRope(const MatrixX3d &initPos, int N, int T, double linkLen) : m_N(N), m_T(T), m_initPos(initPos), m_linkLen(linkLen), GROUND_HEIGHT(0.) {
     assert(m_N >= 1);
     assert(m_T >= 1);
     assert(initPos.rows() == m_N);
@@ -82,14 +84,13 @@ struct OptRope {
     setCoeffs1();    
   }
 
-  int getNumVariables() { return m_N * m_T * m_dim; }
-
   void setCoeffs1() {
     m_coeffs.groundPenetration = 1.;
     m_coeffs.velUpdate = 0.1;
     m_coeffs.initialVelocity = 1000.;
     m_coeffs.contact = 0.1;
     m_coeffs.forces = 1;
+    m_coeffs.linkLen = 0.1;
   }
 
   void setCoeffs2() {
@@ -98,21 +99,46 @@ struct OptRope {
     m_coeffs.initialVelocity = 1000.;
     m_coeffs.contact = 1;
     m_coeffs.forces = 1;
+    m_coeffs.linkLen = 1;
   }
 
+  static const int m_dim = 7; // state dim for 1 particle for 1 timestep
+  static const int m_manipDim = 3;
+  inline int getNumPointVariables() const { return m_T*m_N*m_dim; }
+  inline int getNumManipVariables() const { return m_T*m_manipDim; }
+  inline int getNumVariables() const { return getNumManipVariables() + getNumPointVariables(); }
   ///// Accessors for state vectors /////
+  inline int manip_idx(int t, int i) const {
+    assert(0 <= t && t < m_T);
+    assert(0 <= i && i < m_manipDim);
+    return i + t*m_manipDim;
+  }
+  // manipulator state (just position for now)
+  inline int idx_manipPos_x(int t) const { return manip_idx(t, 0); }
+  inline int idx_manipPos_y(int t) const { return manip_idx(t, 1); }
+  inline int idx_manipPos_z(int t) const { return manip_idx(t, 2); }
+
+  // accessor for point state values
   inline int idx(int t, int n, int i) const {
     assert(0 <= t && t < m_T);
     assert(0 <= n && n < m_N);
     assert(0 <= i && i < m_dim);
-    return i + n*m_dim + t*m_dim*m_N;
+    return getNumManipVariables() + i + n*m_dim + t*m_dim*m_N;
   }
-  inline int idx_vel_x(int t, int n) const __attribute__((always_inline)) { return idx(t, n, 0); }
+  // velocity of points
+  inline int idx_vel_x(int t, int n) const { return idx(t, n, 0); }
   inline int idx_vel_y(int t, int n) const { return idx(t, n, 1); }
   inline int idx_vel_z(int t, int n) const { return idx(t, n, 2); }
-
-  inline int idx_groundForce_z(int t, int n) const { return idx(t, n, 3); }
+  // ground force magnitude and contact variable
+  inline int idx_groundForce_f(int t, int n) const { return idx(t, n, 3); }
   inline int idx_groundForce_c(int t, int n) const { return idx(t, n, 4); }
+  // manipulator force magnitude and contact
+  inline int idx_manipForce_f(int t, int n) const { return idx(t, n, 5); }
+  inline int idx_manipForce_c(int t, int n) const { return idx(t, n, 6); }
+
+  //inline int idx_linkForce_mag(int t, int l) const { assert(0 <= l && l < m_N-1); return idx(t, n, 5 + 2*l); }
+  //inline int idx_linkForce_c(int t, int l) const { assert(0 <= l && l < m_N-1); return idx(t, n, 5 + 2*l + 1); }
+
 
   inline Vector3d get_vel(const VectorXd &state, int t, int n) {
     return Vector3d(state[idx_vel_x(t,n)], state[idx_vel_y(t,n)], state[idx_vel_z(t,n)]);
@@ -121,8 +147,8 @@ struct OptRope {
   void printState(const VectorXd &state, int t, int n) {
     cout << "t=" << t << " n=" << n << ": "
          << "v: " << get_vel(state,t,n).transpose() << " | "
-         << state[idx_groundForce_z(t,n)] << ' '
-         << state[idx_groundForce_c(t,n)] << '\n';
+         << "ground_z: " << state[idx_groundForce_f(t,n)] << " | "
+         << "ground_c: " << state[idx_groundForce_c(t,n)] << '\n';
   }
 
   ///////////////////////////////////////
@@ -169,7 +195,7 @@ struct OptRope {
     for (int t = 0; t < m_T - 1; ++t) {
       for (int n = 0; n < m_N; ++n) {
         // compute total force on particle n at time t
-        Vector3d groundForce(0, 0, state[idx_groundForce_z(t,n)]);
+        Vector3d groundForce(0, 0, state[idx_groundForce_f(t,n)]);
         Vector3d totalForce = OPhysConfig::gravity + groundForce;
         Vector3d vdiff = get_vel(state, t+1, n) - get_vel(state, t, n);
         cost += (vdiff - totalForce*OPhysConfig::dt).squaredNorm();
@@ -203,8 +229,20 @@ struct OptRope {
     // (force^2 / contact^2) + force^2
     for (int t = 0; t < m_T; ++t) {
       for (int n = 0; n < m_N; ++n) {
-        cost += square(state[idx_groundForce_z(t,n)]) / (1e-5 + square(state[idx_groundForce_c(t,n)]));
-        cost += 1e-3*square(state[idx_groundForce_z(t,n)]);
+        cost += square(state[idx_groundForce_f(t,n)]) / (1e-5 + square(state[idx_groundForce_c(t,n)]));
+        cost += 1e-3*square(state[idx_groundForce_f(t,n)]);
+      }
+    }
+    return cost;
+  }
+
+  // rope segment distance violation cost
+  double cost_linkLen(const PosVector &pos) {
+    double cost = 0;
+    for (int t = 0; t < m_T; ++t) {
+      for (int n = 0; n < m_N - 1; ++n) {
+        double dist = (pos[t].row(n) - pos[t].row(n+1)).norm();
+        cost += square(dist - m_linkLen);
       }
     }
     return cost;
@@ -222,6 +260,7 @@ struct OptRope {
     cost += m_coeffs.initialVelocity * cost_initialVelocity(state);
     cost += m_coeffs.contact * cost_contact(state, pos);
     cost += m_coeffs.forces * cost_forces(state);
+    cost += m_coeffs.linkLen * cost_linkLen(pos);
 
     return cost;
   }
@@ -325,16 +364,16 @@ static void runOpt(nlopt::opt &opt, vector<double> &x0, double &minf) {
 }
 
 int main() {
-  const int N = 2;
-  const int T = 20;
+  const int N = 3;
+  const int T = 10;
 
   MatrixX3d initPositions(N, 3);
   for (int i = 0; i < N; ++i) {
     initPositions.row(i) << (-1 + 2*i/(N-1.0)), 0, 0.05;
   }
+  double linklen = abs(initPositions(0, 0) - initPositions(1, 0));
 
-
-  OptRope optrope(initPositions, N, T);
+  OptRope optrope(initPositions, N, T, linklen);
   cout << "optimizing " << optrope.getNumVariables() << " variables" << endl;
   nlopt::opt opt(nlopt::LD_LBFGS, optrope.getNumVariables());
   //opt.set_lower_bounds(optrope.getLowerBounds());
