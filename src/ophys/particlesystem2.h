@@ -20,20 +20,6 @@ class Scene;
 namespace ophys {
 
 
-struct ConvexConstraintWrapper : public Constraint {
-  typedef boost::shared_ptr<ConvexConstraintWrapper> Ptr;
-
-  ConvexConstraintPtr m_cnt;
-  ConvexConstraintWrapper(ConvexConstraintPtr cnt) : m_cnt(cnt) { }
-  ConvexConstraintPtr convexify(GRBModel* model) { return m_cnt; }
-
-  static void AddToOpt(Optimizer &opt, ConvexConstraintPtr cnt) {
-    ConvexConstraintWrapper::Ptr wrapper(new ConvexConstraintWrapper(cnt));
-    opt.addConstraint(wrapper);
-  }
-};
-
-
 class ParticleSystemOptimizer2 : public Optimizer {
 public:
   typedef boost::shared_ptr<ParticleSystemOptimizer2> Ptr;
@@ -44,8 +30,9 @@ public:
 
   // variable layout:
   // we want to represent the states of m_numParticles over m_horizon time intervals
-  // each row is the (position, velocity, accel) of one particle
-  static const int PARTICLE_STATE_DIM = 9;
+  // each row is the (position, velocity, accel) of one particle, and c is the ground contact auxiliary variable
+  static const int PARTICLE_STATE_DIM = (3 + 3 + 3) + (1 + 3);
+  static bool isContactAuxVar(int j) { return j == 9; }
   typedef Matrix<double, Dynamic, PARTICLE_STATE_DIM> SysState;
   typedef vector<SysState> SysStatesOverTime;
   SysStatesOverTime m_sys;
@@ -73,6 +60,8 @@ public:
   typedef boost::function<double(const SysStatesOverTime*)> FuncOnStatesOverTime;
   GRBLinExpr linearize(const FuncOnStatesOverTime &fn, SysStatesOverTime &x0);
   GRBQuadExpr quadraticize(const FuncOnStatesOverTime &fn, SysStatesOverTime &x0);
+
+  MatrixXd hessian(const FuncOnStatesOverTime &fn, SysStatesOverTime &x0);
 
 
   friend class ParticleSystem2;
@@ -115,89 +104,22 @@ public:
     ConvexObjectivePtr convexify(GRBModel* model);
   };
 
-#if 0
-  struct PhysicsStepConstraint : public Constraint {
-    typedef boost::shared_ptr<PhysicsStepConstraint> Ptr;
+  struct PosUpdateConstraint : public Constraint {
+    typedef boost::shared_ptr<PosUpdateConstraint> Ptr;
     ParticleSystemOptimizer2 &m_opt;
-    PhysicsStepConstraint(ParticleSystemOptimizer2 &opt) : m_opt(opt) { }
-    ConvexConstraintPtr convexify(GRBModel* );
-  };
-#endif
-
-  struct SemiImplicitEulerConstraint : public Constraint {
-    typedef boost::shared_ptr<SemiImplicitEulerConstraint> Ptr;
-    ParticleSystemOptimizer2 &m_opt;
-    SemiImplicitEulerConstraint(ParticleSystemOptimizer2 &opt) : m_opt(opt) { }
-    ConvexConstraintPtr convexify(GRBModel* );
+    PosUpdateConstraint(ParticleSystemOptimizer2 &opt) : m_opt(opt) { }
+    ConvexConstraintPtr convexify(GRBModel *);
   };
 
-  struct ForceConstraint : public Constraint {
-    typedef boost::shared_ptr<ForceConstraint> Ptr;
+  struct PhysicsCost : public Cost {
+    typedef boost::shared_ptr<PhysicsCost> Ptr;
     ParticleSystemOptimizer2 &m_opt;
-    enum Mode {
-      UNCONSTRAINED = 0,
-      GRAVITY_ONLY
-    } m_mode;
-    ForceConstraint(ParticleSystemOptimizer2 &opt) : m_opt(opt), m_mode(UNCONSTRAINED) { }
-    void setMode(Mode m) { m_mode = m; }
-    ConvexConstraintPtr convexify(GRBModel* );
-  };
-
-#if 0
-  struct PhysicsStepCost : public Cost {
-    typedef boost::shared_ptr<PhysicsStepCost> Ptr;
-
-    ParticleSystemOptimizer2 &m_opt;
-    PhysicsStepCost(ParticleSystemOptimizer2 &opt) : m_opt(opt) { }
-
-    string getName() { return "physics_step"; }
-
+    PhysicsCost(ParticleSystemOptimizer2 &opt) : m_opt(opt) { }
+    string getName() { return "physics_cost"; }
+    double evaluateAt(const SysStatesOverTime *s0) const;
     double evaluate();
     ConvexObjectivePtr convexify(GRBModel* model);
   };
-#endif
-
-
-  struct ConstrainedPhysicsStepCost : public Cost {
-    typedef boost::shared_ptr<ConstrainedPhysicsStepCost> Ptr;
-
-    ParticleSystemOptimizer2 &m_opt;
-    ConstrainedPhysicsStepCost(ParticleSystemOptimizer2 &opt) : m_opt(opt) { }
-
-    string getName() { return "physics_step"; }
-
-    double evaluate();
-    double evaluateAt(const SysStatesOverTime *sys);
-    ConvexObjectivePtr convexify(GRBModel* model);
-  };
-
-
-  /////// position-based dynamics /////////
-  struct PDPosViolationCost : public Cost {
-    typedef boost::shared_ptr<PDPosViolationCost> Ptr;
-
-    ParticleSystemOptimizer2 &m_opt;
-    PDPosViolationCost(ParticleSystemOptimizer2 &opt) : m_opt(opt), m_penalizeViolation_ground(0) { }
-
-    string getName() { return "pos_violation_cost"; }
-
-    double evaluate();
-    double evaluateAt(const SysStatesOverTime *sys);
-    ConvexObjectivePtr convexify(GRBModel* model);
-
-    double m_penalizeViolation_ground;
-    void setGroundViolationPenalty(double v) { m_penalizeViolation_ground = v; }
-    double evaluateGroundViolationPenaltyAt(const SysStatesOverTime *s);
-  };
-
-  struct PDVelocityConstraint : public Constraint {
-    typedef boost::shared_ptr<PDVelocityConstraint> Ptr;
-    ParticleSystemOptimizer2 &m_opt;
-    PDVelocityConstraint(ParticleSystemOptimizer2 &opt) : m_opt(opt) { }
-    ConvexConstraintPtr convexify(GRBModel* );
-  };
-  ///////////////////////////////////////
-
 
 private:
 
@@ -208,6 +130,11 @@ private:
   static Eigen::Block<SysState, 1, 3> ptAcc(SysState &s, int i) { return s.block<1,3>(i,6); }
   static const Eigen::Block<const SysState, 1, 3> ptAcc(const SysState &s, int i) { return s.block<1,3>(i,6); }
 
+  static double &ptGroundCont(SysState &s, int i) { return s(i,9); }
+  static const double &ptGroundCont(const SysState &s, int i) { return s(i,9); }
+  static Eigen::Block<SysState, 1, 3> ptGroundContForce(SysState &s, int i) { return s.block<1,3>(i,10); }
+  static const Eigen::Block<const SysState, 1, 3> ptGroundContForce(const SysState &s, int i) { return s.block<1,3>(i,10); }
+
   Eigen::Block<SysState, 1, 3> ptPos(int t, int i) { return m_sys[t].block<1,3>(i,0); }
   const Eigen::Block<const SysState, 1, 3> ptPos(int t, int i) const { return m_sys[t].block<1,3>(i,0); }
   Eigen::Block<SysState, 1, 3> ptVel(int t, int i) { return m_sys[t].block<1,3>(i,3); }
@@ -215,11 +142,20 @@ private:
   Eigen::Block<SysState, 1, 3> ptAcc(int t, int i) { return m_sys[t].block<1,3>(i,6); }
   const Eigen::Block<const SysState, 1, 3> ptAcc(int t, int i) const { return m_sys[t].block<1,3>(i,6); }
 
+  double &ptGroundCont(int t, int i) { return m_sys[t](i,9); }
+  const double &ptGroundCont(int t, int i) const { return m_sys[t](i,9); }
+  Eigen::Block<SysState, 1, 3> ptGroundContForce(int t, int i) { return m_sys[t].block<1,3>(i,10); }
+  const Eigen::Block<const SysState, 1, 3> ptGroundContForce(int t, int i) const { return m_sys[t].block<1,3>(i,10); }
+
   typedef boost::multi_array_types::index_range range;
   typedef VarSysState::array_view<1>::type VarVec3View;
   VarVec3View varPtPos(int t, int i) { return m_varsys[ boost::indices[t][i][range(0,3)] ]; }
   VarVec3View varPtVel(int t, int i) { return m_varsys[ boost::indices[t][i][range(3,6)] ]; }
   VarVec3View varPtAcc(int t, int i) { return m_varsys[ boost::indices[t][i][range(6,9)] ]; }
+
+  GRBVar &varPtGroundCont(int t, int i) { return m_varsys[t][i][9]; }
+  const GRBVar &varPtGroundCont(int t, int i) const { return m_varsys[t][i][9]; }
+  VarVec3View varPtGroundContForce(int t, int i) { return m_varsys[ boost::indices[t][i][range(10,13)] ]; }
 };
 
 
@@ -265,14 +201,8 @@ protected:
   ParticleSystemOptimizer2::GroundCost::Ptr m_groundCost;
   ParticleSystemOptimizer2::AccelCost::Ptr m_accelCost;
 
-  ParticleSystemOptimizer2::PDPosViolationCost::Ptr m_pdPosViolationCost;
-  ParticleSystemOptimizer2::PDVelocityConstraint::Ptr m_pdVelCnt;
-
-  //ParticleSystemOptimizer2::PhysicsStepCost::Ptr m_physicsStepCost;
-  //ParticleSystemOptimizer2::ConstrainedPhysicsStepCost::Ptr m_constrainedPhysicsStepCost;
-  //ParticleSystemOptimizer2::PhysicsStepConstraint::Ptr m_physicsStepCnt;
-  //ParticleSystemOptimizer2::SemiImplicitEulerConstraint::Ptr m_physicsStepCnt;
-  ParticleSystemOptimizer2::ForceConstraint::Ptr m_forceConstraint;
+  ParticleSystemOptimizer2::PosUpdateConstraint::Ptr m_posUpdateCnt;
+  ParticleSystemOptimizer2::PhysicsCost::Ptr m_physicsCost;
 };
 
 

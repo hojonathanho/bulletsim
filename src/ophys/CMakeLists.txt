@@ -30,3 +30,6 @@ target_link_libraries(test_particlesystem2 ophys)
 
 add_executable(test_gurobi_constraints test_gurobi_constraints.cpp)
 target_link_libraries(test_gurobi_constraints ophys)
+
+add_executable(nlopt_rope nlopt_rope.cpp)
+target_link_libraries(nlopt_rope ophys nlopt)

@@ -17,7 +17,7 @@ struct LocalConfig : public Config {
     params.push_back(new Parameter<int>("horizon", &horizon, ""));
   }
 };
-int LocalConfig::numParticles = 10;
+int LocalConfig::numParticles = 2;
 int LocalConfig::horizon  = 2;
 
 int main(int argc, char *argv[]) {
@@ -38,7 +38,8 @@ int main(int argc, char *argv[]) {
     initState.row(i) <<
       (-1 + 2*i/(LocalConfig::numParticles-1.0))*METERS, 0, 0.5*METERS, // pos
       0, 0, 0, // vel
-      0, 0, 0; // acc
+      0, 0, 0, // acc
+      0.5, 0, 0, 0; // ground contact c, f_x, f_y, f_z
   }
 
   Scene scene;
@@ -65,10 +66,9 @@ int main(int argc, char *argv[]) {
   for (int i = 0; i < ps.getAllStates().size(); ++i) {
     ps.draw(ps.getAllStates()[i]);
     scene.step(0);
-    scene.idle(true);
     //scene.idleFor(0.2);
   }
-  cout << "particle 0: " << ps.m_currState.row(0) << endl;
+  cout << "particle 0 final: " << ps.getAllStates()[ps.getAllStates().size()-1].row(0) << endl;
 #endif
 
   scene.idle(true);
