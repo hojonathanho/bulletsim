@@ -82,7 +82,7 @@ class CustomScene : public Scene {
         btVector3 gripperdir = calcGraspDir(ctx, node);
         stringstream ss; ss << "grab " << node << ' ' << gripperdir.x() << ' ' << gripperdir.y() << ' ' << gripperdir.z();
         GraspingActionSpec spec(ss.str());
-        Action::Ptr a(spec.createAction(ctx));
+        TimedAction::Ptr a(spec.createAction(ctx));
         try { runAction(a, BulletConfig::dt); } catch (...) { }
         cout << "done." << endl;
     }

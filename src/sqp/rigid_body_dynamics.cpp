@@ -12,9 +12,9 @@ using namespace std;
 using namespace boost::assign;
 
 #define ZERO_FRICTION
-#define ZERO_ROTATION
+//#define ZERO_ROTATION
 
-Matrix3d leftCrossProdMat(const VectorXd& x) {
+Matrix3d leftCrossProdMat(const Vector3d& x) {
   Matrix3d out;
   out << 0,   -x[2],   x[1],
       x[2],   0,     -x[0],
@@ -22,7 +22,7 @@ Matrix3d leftCrossProdMat(const VectorXd& x) {
   return out;
 }
 Matrix3d rightCrossProdMat(const Vector3d& x) {
-  return -leftCrossProdMat(x);
+  return leftCrossProdMat(x).transpose();
 }
 
 ExprVector exprMatMult(const MatrixXd& A, const VarVector& x) {
@@ -57,10 +57,11 @@ ExprVector exprCross(const ExprVector& x, const VectorXd& y) {
 Matrix4d quatPropagatorMat(const VectorXd& w) {
   // see http://www.lce.hut.fi/~ssarkka/pub/quat.pdf
   Matrix4d out;
-  out << 0, -w[0], -w[1], -w[2],
-      w[0], 0, w[2], -w[1],
-      w[1], -w[2], 0, w[0],
-      w[2], w[1], -w[0], 0;
+  out <<
+         0, w[2], -w[1], w[0],
+       -w[2], 0,    w[0], w[1],
+       w[1], -w[0], 0,    w[2],
+      -w[0], -w[1], -w[2], 0;
   return .5*out;
 }
 
@@ -76,9 +77,9 @@ Vector4d propagatorQuat(const Vector3d& w, double dt) {
   // see http://www.lce.hut.fi/~ssarkka/pub/quat.pdf
   double normw = w.norm();
   Vector4d phiq;
-  phiq(0) = cos(normw * DT/2);
-  if (normw > SIMD_EPSILON) phiq.bottomRows(3) = w * (sin(normw*DT/2)/normw);
-  else phiq.bottomRows(3) = Vector3d::Zero();
+  if (normw > 0) phiq.topRows(3) = (w/normw) * sin(normw*dt/2);
+  else phiq.topRows(3) = Vector3d::Zero();
+  phiq(3) = cos(normw * dt/2);
   return phiq;
 }
 
@@ -176,12 +177,15 @@ void RigidBody::updateValues() {
   setValsToVars(m_x1_var, m_x1_val);
   setValsToVars(m_v1_var, m_v1_val);
   setValsToVars(m_w1_var, m_w1_val);
+  Vector3d r1;
+  setValsToVars(m_r1_var, r1);
   Vector4d phiq = propagatorQuat(m_w1_val, DT);
   m_q1_val = quatMult(m_q0, phiq);
   LOG_DEBUG(boost::format("%s x: %s->%s")%m_name%x1old.transpose()%m_x1_val.transpose());
   LOG_DEBUG(boost::format("%s v: %s->%s")%m_name%v1old.transpose()%m_v1_val.transpose());
   LOG_DEBUG(boost::format("%s w: %s->%s")%m_name%w1old.transpose()%m_w1_val.transpose());
   LOG_DEBUG(boost::format("%s q: %s->%s")%m_name%q1old.transpose()%m_q1_val.transpose());
+  LOG_DEBUG(boost::format("%s r: %s")%m_name%r1.transpose());
 }
 
 void RigidBody::advanceTime() {
@@ -251,9 +255,9 @@ void Contact::addToModel(GRBModel* model) {
 
 void Contact::calcDistExpr() {
   GRBLinExpr dDistOfA = makeDerivExpr(m_normalB2A, m_bodyA->m_x1_var, m_bodyA->m_x1_val)
-                      + makeDerivExpr((m_worldA - m_bodyA->m_x1_val).cross(m_normalB2A), m_bodyA->m_r1_var, Vector3d::Zero());
-  GRBLinExpr dDistOfB = makeDerivExpr(-m_normalB2A, m_bodyB->m_x1_var, m_bodyB->m_x1_val);
-                      + makeDerivExpr((m_worldB - m_bodyB->m_x1_val).cross(-m_normalB2A), m_bodyA->m_r1_var, Vector3d::Zero());
+                      + exprDot(m_normalB2A, exprCross(m_bodyA->m_r1_var, m_worldA - m_bodyA->m_x1_val));
+  GRBLinExpr dDistOfB = makeDerivExpr(-m_normalB2A, m_bodyB->m_x1_var, m_bodyB->m_x1_val)
+                      + exprDot(-m_normalB2A, exprCross(m_bodyB->m_r1_var, m_worldB - m_bodyB->m_x1_val));
   m_distExpr = (dDistOfA + dDistOfB + m_dist);
 //  cout << getName() << " " << m_distExpr << endl;
 }
@@ -355,11 +359,6 @@ void DynSolver::updateContacts() {
 //  set<> created, destroyed, preserved;
   vector<char> oldContactSurvival(m_contacts.size(), false), newContactWasCreated;
   typedef pair<btRigidBody*, btRigidBody*> RBPair;
-  map<RBPair, int> pair2oldInd;
-  for (int i=0; i < m_contacts.size(); ++i) {
-    ContactPtr& contact = m_contacts[i];
-    pair2oldInd[RBPair(contact->m_bodyA->m_rb, contact->m_bodyB->m_rb)] = i;
-  }
 
   m_world->performDiscreteCollisionDetection();
   btDispatcher* dispatcher = m_world->getDispatcher();
@@ -376,25 +375,32 @@ void DynSolver::updateContacts() {
       continue; // iterate over manifolds
     }
 
-    if (contactManifold->getNumContacts()==0) continue;
-    btManifoldPoint& pt = getDeepestPoint(contactManifold);
+    int numContacts = contactManifold->getNumContacts();
 
-    map<RBPair, int>::iterator it = pair2oldInd.find(RBPair(objA, objB));
-    if (it != pair2oldInd.end()) {
-      ContactPtr newContact = m_contacts[it->second];
-      newContact->setData(pt.m_positionWorldOnA, pt.m_positionWorldOnB,
-                       pt.m_normalWorldOnB, pt.m_distance1);
-      newContactWasCreated.push_back(false);
-      oldContactSurvival[it->second]=true;
-//      LOG_ERROR("set contact distance to " << pt.m_distance1);
-//      LOG_ERROR("trans " << objA->getCenterOfMassPosition() << "|" << objB->getCenterOfMassPosition());
-      newContacts.push_back(newContact);
-    }
-    else {
-      ContactPtr newContact(new Contact(rbA, rbB, pt.m_positionWorldOnA, pt.m_positionWorldOnB,
-                                        pt.m_normalWorldOnB, pt.m_distance1));
-      newContactWasCreated.push_back(true);
-      newContacts.push_back(newContact);
+    for (int i=0; i < numContacts; ++i) {
+
+      btManifoldPoint& pt = contactManifold->getContactPoint(i);
+
+
+      if (pt.m_userPersistentData != NULL) {
+        int ind = *static_cast<int*>(pt.m_userPersistentData);
+        ContactPtr newContact = m_contacts[ind];
+        newContact->setData(pt.m_positionWorldOnA, pt.m_positionWorldOnB,
+                         pt.m_normalWorldOnB, pt.m_distance1);
+        newContactWasCreated.push_back(false);
+        oldContactSurvival[ind]=true;
+  //      LOG_ERROR("set contact distance to " << pt.m_distance1);
+  //      LOG_ERROR("trans " << objA->getCenterOfMassPosition() << "|" << objB->getCenterOfMassPosition());
+        *static_cast<int*>(pt.m_userPersistentData) = newContacts.size();
+        newContacts.push_back(newContact);
+      }
+      else {
+        pt.m_userPersistentData = new int(newContacts.size());
+        ContactPtr newContact(new Contact(rbA, rbB, pt.m_positionWorldOnA, pt.m_positionWorldOnB,
+                                          pt.m_normalWorldOnB, pt.m_distance1));
+        newContactWasCreated.push_back(true);
+        newContacts.push_back(newContact);
+      }
     }
   }
 
@@ -403,17 +409,18 @@ void DynSolver::updateContacts() {
       LOG_DEBUG(boost::format("contact %s survived")%m_contacts[i]->getName());
     }
     else {
-      LOG_DEBUG(boost::format("contact %s destroyed")%m_contacts[i]->getName());
+      LOG_INFO(boost::format("contact %s destroyed")%m_contacts[i]->getName());
       m_contacts[i]->removeFromModel(m_model);
     }
   for (int i=0; i < newContactWasCreated.size(); ++i)
     if (newContactWasCreated[i]) {
       newContacts[i]->addToModel(m_model);
-      LOG_DEBUG(boost::format("contact %s created")%newContacts[i]->getName());
+      LOG_INFO(boost::format("contact %s created")%newContacts[i]->getName());
     }
 
   m_contacts = newContacts;
   m_model->update();
+  plotContacts(m_contacts);
 }
 
 void DynSolver::postOptimize() {
@@ -437,12 +444,12 @@ vector<SignedContact> DynSolver::getSignedContacts(RigidBody* body) {
 }
 
 void DynSolver::step() {
-  LOG_DEBUG("starting step");
+  LOG_INFO("starting step");
   double tStart = GetClock();
   updateContacts();
   optimize();
   finishStep();
-  LOG_DEBUG_FMT("finished step (%.2f ms)", GetClock()-tStart);
+  LOG_INFO_FMT("finished step (%.2f ms)", GetClock()-tStart);
 
 }
 
@@ -466,7 +473,7 @@ void DynSolver::fixVariables() {
 
 }
 
-Vector3d a_grav(0,0,-.98);
+Vector3d a_grav(0,0,-9.8);
 
 DynErrCost::DynErrCost(RigidBodyPtr body, DynSolver* solver) :
     m_body(body),
@@ -478,8 +485,8 @@ ConvexObjectivePtr DynErrCost::convexify(GRBModel* model) {
   ExprVector dp(3), dl(3); // change in momentum, angular momentum
   double mass = m_body->getMass();
   // todo: loop over contacts;
-  exprInc(dp, m_body->getMass()* a_grav * DT + m_body->m_externalImpulse);
-
+  exprInc(dp, a_grav * DT + m_body->m_externalImpulse);
+//  exprInc(dl, Vector3d(0,0,.1));
 //  LOG_ERROR(m_solver->getSignedContacts(m_body.get()).size() << " contacts");
 
   BOOST_FOREACH(const SignedContact& sc,m_solver->getSignedContacts(m_body.get())) {
@@ -488,7 +495,7 @@ ConvexObjectivePtr DynErrCost::convexify(GRBModel* model) {
     exprInc(dp, contactForce);
     // xxx using worldA
     // xxx missing term
-    exprInc(dl, exprCross(contactForce, sc.contact->m_worldA - m_body->m_x1_val));
+    exprInc(dl, exprCross(sc.contact->m_worldA - m_body->m_x1_val, contactForce));
   }
 
 //  cout << m_body->m_name << " dp" << dp << endl;
@@ -496,10 +503,16 @@ ConvexObjectivePtr DynErrCost::convexify(GRBModel* model) {
   ConvexObjectivePtr out(new ConvexObjective());
   ExprVector pErr = exprSub(dp,exprSub(m_body->m_v1_var, m_body->m_v0));
   ExprVector lErr = exprSub(dl,exprSub(m_body->m_w1_var, m_body->m_w0));
-//  for (int i=0; i < 3; ++i) addAbsCost(out, m_forceErrCoeff / mass, dynErr[i], model, (boost::format("%s_dyn_error_%i")%m_body->m_name%i).str());
 //  out->m_objective += m_forceErrCoeff * exprNorm2(dynErr);
+#ifdef CONE_ERROR
   addNormCost(out, m_forceErrCoeff, pErr, model, "momentum_error");
   addNormCost(out, m_forceErrCoeff, lErr, model, "ang_mom_error");
+#else
+  for (int i=0; i < 3; ++i) {
+    addAbsCost(out, m_forceErrCoeff, pErr[i], model, "momentum_error");
+    addAbsCost(out, m_forceErrCoeff, lErr[i], model, "ang_mom_error");
+  }
+#endif
 //  cout << m_body->m_name << " obj" << exprSub(dp,exprSub(m_body->m_v1_var, m_body->m_v0))[2] << endl;
 //  cout << m_body->m_name << " dv" << exprSub(dp,exprSub(m_body->m_v1_var, m_body->m_v0))[2] << endl;
   return out;
@@ -509,6 +522,7 @@ double DynErrCost::evaluate() {
   LOG_DEBUG("external impulse: " << m_body->m_externalImpulse.transpose());
   Vector3d dp = Vector3d::Zero();
   Vector3d dl = Vector3d::Zero();
+//  dl += Vector3d(.0,0,.1);
   double mass = m_body->getMass();
   dp += mass * a_grav * DT + m_body->m_externalImpulse;
 
@@ -516,13 +530,17 @@ double DynErrCost::evaluate() {
     Vector3d contactForce = sc.contact->m_fn_val * (sc.sign * sc.contact->m_normalB2A);
     contactForce += sc.sign* sc.contact->m_ffr_val;
     dp += contactForce;
-    dl += contactForce.cross(sc.contact->m_worldA - m_body->m_x1_val);
+    dl += (sc.contact->m_worldA - m_body->m_x1_val).cross(contactForce); // xxx WTF
   }
 
   double out = 0;
   Vector3d pErr = dp - (m_body->m_v1_val - m_body->m_v0);
-  Vector3d lErr = dl - (m_body->m_w1_var, m_body->m_w0);
+  Vector3d lErr = dl - (m_body->m_w1_val - m_body->m_w0);
+#ifdef CONE_ERROR
   out +=  m_forceErrCoeff * (pErr.norm() + lErr.norm());
+#else
+  out +=  m_forceErrCoeff * (pErr.lpNorm<1>() + lErr.lpNorm<1>());
+#endif
   return out;
 }
 
@@ -566,11 +584,13 @@ FrictionConstraint::FrictionConstraint(DynSolver* solver) : m_solver(solver), m_
 ConvexConstraintPtr FrictionConstraint::convexify(GRBModel* model) {
   ConvexConstraintPtr out(new ConvexConstraint());
   BOOST_FOREACH(ContactPtr& contact, m_solver->m_contacts) {
+#ifndef ZERO_FRICTION
     out->m_eqcnts.push_back(model->addConstr(varDot(contact->m_normalB2A, contact->m_ffr) == 0));
 //    out->m_qexprs.push_back(exprNorm2(contact->m_ffr) - m_mu2 * contact->m_fn * contact->m_fn);
     out->m_qexprs.push_back(varNorm2(contact->m_ffr) - m_mu2 * contact->m_fn * contact->m_fn);
 //    out->m_qcnts.push_back(model->addQConstr(varNorm2(contact->m_ffr) <= m_mu2 * contact->m_fn * contact->m_fn));
     out->m_qcntNames.push_back("fric_cone");
+#endif
   }
   return out;
 }
@@ -615,9 +635,11 @@ double TangentMotion::evaluate() {
   BOOST_FOREACH(ContactPtr& contact, m_solver->m_contacts) {
     Matrix3d tanProj = Matrix3d::Identity() - contact->m_normalB2A * contact->m_normalB2A.transpose();
     Vector3d vtan_val = tanProj*(
-        contact->m_bodyA->m_v1_val + contact->m_bodyA->m_w1_val.cross(contact->m_worldA - contact->m_bodyA->m_x1_val)
-      - contact->m_bodyB->m_v1_val - contact->m_bodyB->m_w1_val.cross(contact->m_worldB - contact->m_bodyB->m_x1_val));
-    out += m_coeff * vtan_val.squaredNorm();
+       contact->m_bodyA->m_v1_val
+      + contact->m_bodyA->m_w1_val.cross(contact->m_worldA - contact->m_bodyA->m_x1_val)
+      - contact->m_bodyB->m_v1_val
+      - contact->m_bodyB->m_w1_val.cross(contact->m_worldB - contact->m_bodyB->m_x1_val));
+    out += m_coeff * vtan_val.norm();
   }
   return out;
 }
@@ -627,21 +649,22 @@ ConvexObjectivePtr TangentMotion::convexify(GRBModel* model) {
   ConvexObjectivePtr out(new ConvexObjective());
   BOOST_FOREACH(ContactPtr& contact, m_solver->m_contacts) {
     Matrix3d tanProj = Matrix3d::Identity() - contact->m_normalB2A * contact->m_normalB2A.transpose();
-    Vector3d vtan_val = tanProj*(
-        contact->m_bodyA->m_v1_val + contact->m_bodyA->m_w1_val.cross(contact->m_worldA - contact->m_bodyA->m_x1_val)
-      - contact->m_bodyB->m_v1_val - contact->m_bodyB->m_w1_val.cross(contact->m_worldB - contact->m_bodyB->m_x1_val));
-    Matrix3d dvtan_dwA = tanProj * rightCrossProdMat(contact->m_worldA - contact->m_bodyA->m_x1_val);
-    Matrix3d dvtan_dwB = tanProj * rightCrossProdMat(contact->m_worldB - contact->m_bodyB->m_x1_val);
 
-    for (int i=0; i < 3; ++i) {
-      GRBLinExpr vtani = vtan_val[i]
-          + makeDerivExpr(tanProj.row(i), contact->m_bodyA->m_v1_var, contact->m_bodyA->m_v1_val)
-          - makeDerivExpr(tanProj.row(i), contact->m_bodyB->m_v1_var, contact->m_bodyB->m_v1_val);
+
+    ExprVector tanvel(3);
+    exprInc(tanvel, contact->m_bodyA->m_v1_var);
+    exprInc(tanvel, exprCross(contact->m_bodyA->m_w1_var, contact->m_worldA - contact->m_bodyA->m_x1_val));
+    exprDec(tanvel, contact->m_bodyB->m_v1_var);
+    exprDec(tanvel, exprCross(contact->m_bodyB->m_w1_var, contact->m_worldB - contact->m_bodyB->m_x1_val));
+//    for (int i=0; i < 3; ++i) {
+//      GRBLinExpr vtani = exprMatMult(tanProj, exprSub(contact->m_bodyA->m_v1_val, contact->m_bodyB->m_v1_val))
+//          + makeDerivExpr(tanProj.row(i), contact->m_bodyA->m_v1_var, contact->m_bodyA->m_v1_val)
+//          - makeDerivExpr(tanProj.row(i), contact->m_bodyB->m_v1_var, contact->m_bodyB->m_v1_val)
 //          + makeDerivExpr(dvtan_dwA.row(i), contact->m_bodyA->m_v1_var, Vector3d::Zero())
-//          - makeDerivExpr(dvtan_dwB.row(i), contact->m_bodyB->m_v1_var, Vector3d::Zero()); xxx NO ROT
-      LOG_ERROR("vtan " << i << " " << vtani);
-      out->m_objective += m_coeff * vtani*vtani;
-    }
+//          - makeDerivExpr(dvtan_dwB.row(i), contact->m_bodyB->m_v1_var, Vector3d::Zero());
+//      LOG_ERROR("vtan " << i << " " << vtani);
+    addNormCost(out, m_coeff, exprMatMult(tanProj, tanvel), model, "tangent_vel");
+//      out->m_objective += m_coeff * exprNorm2(exprMatMult(tanProj, tanvel));
   }
   return out;
 }
@@ -698,8 +721,8 @@ Optimizer::OptStatus DynSolver::optimize() {
       ////// convex optimization /////////////////////
       preOptimize();
       int grbStatus = convexOptimize();
-      m_model->write("/tmp/fuk.lp");
-      m_model->write("/tmp/fuk.sol");
+//      m_model->write("/tmp/fuk.lp");
+//      m_model->write("/tmp/fuk.sol");
       if (grbStatus != GRB_OPTIMAL) {
         LOG_ERROR_FMT("bad GRB status: %s. problem written to /tmp/sqp_fail.lp", getGRBStatusString(grbStatus));
         m_model->write("/tmp/sqp_fail.lp");
@@ -744,3 +767,54 @@ Optimizer::OptStatus DynSolver::optimize() {
 
   }
 }
+
+
+#include "simulation/plotting.h"
+#include "simulation/simulation_fwd.h"
+#include "simulation/util.h"
+using namespace util;
+PlotPointsPtr collisions;
+PlotLinesPtr escapes;
+
+btVector3 toBtVector(const Vector3d& x) {return btVector3(x[0], x[1], x[2]);}
+
+void plotContacts(const vector<ContactPtr>& contacts) {
+  if (!collisions) {
+    collisions.reset(new PlotPoints(10));
+    escapes.reset(new PlotLines(5));
+    getGlobalEnv()->add(collisions);
+    getGlobalEnv()->add(escapes);
+//    collisions->getOSGNode()->getOrCreateStateSet()->setMode(GL_DEPTH_TEST, osg::StateAttribute::OFF);
+    escapes->getOSGNode()->getOrCreateStateSet()->setMode(GL_DEPTH_TEST, osg::StateAttribute::OFF);
+  }
+
+  double safeDist = 0;
+  const osg::Vec4 GREEN(0, 1, 0, 1), YELLOW(1, 1, 0, 1), RED(1, 0, 0, 1);
+  osg::ref_ptr<osg::Vec4Array> colors = new osg::Vec4Array;
+  osg::ref_ptr<osg::Vec3Array> escPts = new osg::Vec3Array;
+  osg::ref_ptr<osg::Vec3Array> collPts = new osg::Vec3Array;
+	BOOST_FOREACH(const ContactPtr& contact, contacts)
+	{
+		collPts->push_back(toOSGVector(toBtVector(contact->m_worldA)));
+		escPts->push_back(toOSGVector(toBtVector(contact->m_worldA)));
+		escPts->push_back( toOSGVector(toBtVector(contact->m_worldA - contact->m_normalB2A )));
+		if (contact->m_dist < 0)
+			colors->push_back(RED);
+		else
+			colors->push_back(GREEN);
+	}
+
+  assert(collPts->size() == colors->size());
+  assert(escPts->size() == 2*colors->size());
+
+  if (collPts->size() == 1) {
+    collPts->push_back(osg::Vec3(0,0,0));
+    colors->push_back(osg::Vec4(0,0,0,0));
+    escPts->push_back(osg::Vec3(0,0,0));
+    escPts->push_back(osg::Vec3(1,0,0));
+  }
+  collisions->setPoints(collPts, colors);
+  escapes->setPoints(escPts, colors);
+  LOG_DEBUG_FMT("plotting %i proximities", collPts->size());
+}
+

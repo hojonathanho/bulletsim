@@ -52,13 +52,14 @@ public:
 	virtual ConvexObjectivePtr convexify(GRBModel* model)=0;
 	virtual double evaluate() = 0;
 	virtual string getName() {return "Unnamed";}
+	virtual ~Cost() {}
 
 };
 
 class Constraint {
 public:
 	virtual ConvexConstraintPtr convexify(GRBModel* model)=0;
-
+	virtual ~Constraint() {}
 };
 
 

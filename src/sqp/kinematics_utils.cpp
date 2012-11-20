@@ -19,6 +19,22 @@ OpenRAVE::Transform toRaveTransform(double x, double y, double a) {
   return toRaveTransform(btQuaternion(0,0,a), btVector3(x,y,0));
 }
 
+MatrixXd createInterpolatedTrajectory(RobotManipulatorPtr manip, const vector<OpenRAVE::Transform>& tfs) {
+	RobotBasePtr robot = manip->robot->robot;
+	vector<int> armInds = manip->manip->GetArmIndices();
+	robot->SetActiveDOFs(armInds);
+	LOG_WARN("createInterpolatedTrajectory: returning bullshit answer");
+	MatrixXd out(tfs.size(), armInds.size());
+	vector<double> lower,upper;
+	robot->GetActiveDOFLimits(lower, upper);
+	for (int i=0; i < armInds.size(); ++i) {
+		out.col(i).setConstant((lower[i] + upper[i])/2);
+	}
+	vector<double> dofVals;
+	robot->GetActiveDOFValues(dofVals);
+	out.row(0) = toVectorXd(dofVals);
+	return out;
+}
 
 Matrix3d rod2mat_cv(const Vector3d& rod0) {
   cv::Mat_<double> rot(3, 3);

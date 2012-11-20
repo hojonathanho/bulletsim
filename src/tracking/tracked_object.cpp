@@ -8,6 +8,8 @@ using namespace std;
 
 TrackedObject::TrackedObject(EnvironmentObject::Ptr sim, string type) : m_sim(sim), m_type(type) { }
 
+TrackedObject::~TrackedObject(){}
+
 void TrackedObject::init() {
 	initColors();
 }

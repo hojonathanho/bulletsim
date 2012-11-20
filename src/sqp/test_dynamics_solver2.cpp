@@ -12,7 +12,7 @@ using namespace std;
 //  out.setRotation(tf0.getRotation().slerp(tf1.getRotation(), frac));
 //}
 #define BOX0
-//#define BOX1
+#define BOX1
 #define FLOOR
 #ifdef BOX0
 RigidBodyPtr heldobj;
@@ -55,7 +55,7 @@ int main(int argc, char* argv[]) {
   Scene scene;
   setupBulletForSQP(scene.env->bullet->dynamicsWorld);
   scene.startViewer();
-
+  util::setGlobalEnv(scene.env);
   btAlignedObjectArray<btCollisionObject*> objs = scene.env->bullet->dynamicsWorld->getCollisionObjectArray();
   for (int i = 0; i < objs.size(); ++i) {
     scene.env->bullet->dynamicsWorld->removeRigidBody(dynamic_cast<btRigidBody*> (objs[i]));
@@ -80,10 +80,10 @@ int main(int argc, char* argv[]) {
 #endif
 
 #ifdef BOX0
-  scene.addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Left, boost::bind(moveObj, .05, 0));
-  scene.addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Right, boost::bind(moveObj, -.05, 0));
-  scene.addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Up, boost::bind(moveObj, 0, .05));
-  scene.addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Down, boost::bind(moveObj, 0, -.05));
+  scene.addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Left, boost::bind(moveObj, 0, -.05));
+  scene.addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Right, boost::bind(moveObj, 0, .05));
+  scene.addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Up, boost::bind(moveObj, -.05, 0));
+  scene.addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Down, boost::bind(moveObj, .05, 0));
 #endif
 
 
@@ -112,14 +112,14 @@ int main(int argc, char* argv[]) {
 //  solver.addConstraint(ctrlCnt);
 #endif
   //  solver.addCost()
-#define CATCH_GRB
+//#define CATCH_GRB
 #ifdef CATCH_GRB
   try {
 #endif
     while (true) {
       solver.step();
       scene.step(0);
-      scene.idle(true);
+//      scene.idle(true);
     }
 #ifdef CATCH_GRB
   }

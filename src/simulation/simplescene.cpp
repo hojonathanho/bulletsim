@@ -209,7 +209,7 @@ void Scene::toggleIdle() {
     idle(!loopState.paused);
 }
 
-void Scene::runAction(Action &a, float dt) {
+void Scene::runAction(TimedAction &a, float dt) {
     while (!a.done()) {
         a.step(dt);
         step(dt);

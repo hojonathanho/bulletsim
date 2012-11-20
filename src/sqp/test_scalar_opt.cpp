@@ -18,7 +18,7 @@ public:
 		m_shrinkage *= ratio;
 		LOG_INFO_FMT("new radius: %.3f", m_radius);
 	}
-	ConvexConstraintPtr convexify() {		
+	ConvexConstraintPtr convexify(GRBModel* model) {
 		m_xvar.set(GRB_DoubleAttr_LB, m_x - m_radius);
 		m_xvar.set(GRB_DoubleAttr_UB, m_x + m_radius);
 		return ConvexConstraintPtr(new ConvexConstraint());
@@ -45,7 +45,7 @@ public:
 		return evaluate(m_x);
 	}
 	
-	ConvexObjectivePtr convexify() {
+	ConvexObjectivePtr convexify(GRBModel* model) {
 		double eps = 1e-4;
 		double y = evaluate(m_x);
 		double yminus = evaluate(m_x-eps/2);
@@ -64,13 +64,13 @@ public:
 };
 
 
-class ScalarOptimization : public OptimizationProblem {
+class ScalarOptimization : public Optimizer {
 public:
 	GRBVar m_var;
 	double m_val;
 	double m_val_backup;
 	ScalarOptimization() :
-		OptimizationProblem(),
+		Optimizer(),
 		m_val(std::numeric_limits<double>::quiet_NaN()) {}
 	void updateValues() {
 		cout << boost::format("x: %.2f -> %.2f")%m_val%(m_var.get(GRB_DoubleAttr_X)) << endl;

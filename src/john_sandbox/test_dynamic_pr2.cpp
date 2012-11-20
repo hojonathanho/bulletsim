@@ -3,7 +3,7 @@
 
 int main(int argc, char* argv[]) {
   Scene scene;
-  Load(scene.env, scene.rave, "robots/pr2-beta-static.zae",true);
+  Load(scene.env, scene.rave, "robots/pr2-beta-static.zae");
   scene.startViewer();
   scene.startLoop();
 }

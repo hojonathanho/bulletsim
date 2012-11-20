@@ -17,7 +17,8 @@ void CollisionBoxes::construct(const std::vector<btVector3>& centers, const std:
   m_nodes.reserve(nBoxes);
   
   for (int i=0; i < nBoxes; ++i) {
-    CollisionShapePtr shapePtr(new btBoxShape(extents[i]));
+//    CollisionShapePtr shapePtr(new btBoxShape(extents[i]));
+  	CollisionShapePtr shapePtr(new btSphereShape(extents[0].x()));
     btTransform boxTrans(btQuaternion::getIdentity(), centers[i]);
     NodePtr nodePtr = osg::ref_ptr<osg::Node>(osgbCollision::osgNodeFromBtCollisionShape(shapePtr.get(), boxTrans));
     m_shapes.push_back(shapePtr);

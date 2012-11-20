@@ -280,7 +280,7 @@ void PR2Manager::loadRobot() {
       pr2.reset(new RaveRobotObject(scene.rave, maybeRaveRobot));
     }
     else { // pr2 not loaded into rave or scene
-      static const char ROBOT_MODEL_FILE[] = "robots/pr2-beta-static.zae";
+      static const char ROBOT_MODEL_FILE[] = "/tmp/pr2-beta-static.dae";
       LOG_INFO("loading pr2 from file. adding to env");
       pr2.reset(new RaveRobotObject(scene.rave, ROBOT_MODEL_FILE));
     }

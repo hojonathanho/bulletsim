@@ -129,6 +129,9 @@ void RaveObject::init() {
 void RaveObject::destroy() {
 	CompoundObject<BulletObject>::destroy();
 
+	rave->rave2bulletsim.erase(body);
+  rave->bulletsim2rave.erase(this);
+
 	typedef std::map<KinBody::JointPtr, BulletConstraint::Ptr> map_t;
 	map_t mmap;
 	BOOST_FOREACH( map_t::value_type &joint_cnt, mmap ) getEnvironment()->removeConstraint(joint_cnt.second);

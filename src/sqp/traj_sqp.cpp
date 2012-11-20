@@ -135,6 +135,7 @@ void TrajOptimizer::subdivide(const vector<double>& insertTimes) {
 
 TrajComponent::TrajComponent(TrajOptimizer* opt) : m_opt(opt) {}
 TrajCost::TrajCost(TrajOptimizer* opt) : TrajComponent(opt) {}
+TrajComponent::~TrajComponent() {}
 TrajConstraint::TrajConstraint(TrajOptimizer* opt) : TrajComponent(opt) {}
 
 ConvexObjectivePtr TrajConstraint::getViolExpr(GRBModel* model) {
@@ -224,77 +225,114 @@ CartPoseCost::CartPoseCost(TrajOptimizer* opt, RobotBasePtr robot, KinBody::Link
              m_link(link),
              m_dofInds(dofInds),
              m_useAffine(useAffine),
-             m_posTarg(toVector3d(goal.getOrigin())),
-             m_rotTarg(toVector4d(goal.getRotation())),
+             m_posTarg(toVector3d(goal.getOrigin()).transpose()),
+             m_rotTarg(toVector4d(goal.getRotation()).transpose()),
+             m_posCoeff(VectorXd::Ones(1)*posCoeff),
+             m_rotCoeff(VectorXd::Ones(1)*rotCoeff),
+             m_l1(l1),
+             m_justEnd(true)
+{}
+
+CartPoseCost::CartPoseCost(TrajOptimizer* opt, RobotBasePtr robot, KinBody::LinkPtr link, const vector<int>& dofInds,
+             bool useAffine, const vector<btTransform>& goal, const VectorXd& posCoeff, const VectorXd& rotCoeff, bool l1) :
+             TrajCost(opt),
+             m_robot(robot),
+             m_link(link),
+             m_dofInds(dofInds),
+             m_useAffine(useAffine),
+             m_posTarg(goal.size(), 3),
+             m_rotTarg(goal.size(), 4),
              m_posCoeff(posCoeff),
              m_rotCoeff(rotCoeff),
-             m_l1(l1)
+             m_l1(l1),
+             m_justEnd(false)
 {
+	assert (goal.size() == posCoeff.size());
+	assert(goal.size() == rotCoeff.size());
+  for (int i=0; i < goal.size(); ++i) {
+    m_posTarg.row(i) = toVector3d(goal[i].getOrigin()).transpose();
+    m_rotTarg.row(i) = toVector4d(goal[i].getRotation()).transpose();
+  }
 }
+
 
 
 double CartPoseCost::evaluate(const MatrixXd& traj) {
   ScopedRobotSave srs(m_robot);
-  VectorXd dofvals = traj.row(getLength()-1);
-  if (m_useAffine) setDofVals(m_robot, m_dofInds, dofvals.topRows(m_dofInds.size()), dofvals.bottomRows(3));
-  else setDofVals(m_robot, m_dofInds, dofvals);
-  OpenRAVE::Transform tfCur = m_link->GetTransform();
-  Vector3d posCur = toVector3d(tfCur.trans);
-  LOG_DEBUG("pos cur: " << posCur.transpose() << " pos targ: " << m_posTarg.transpose());
-  Vector4d rotCur = toQuatVector4d(tfCur.rot);
-  if (rotCur.dot(m_rotTarg) < 0) {
-    m_rotTarg *= -1;
+  m_robot->SetActiveDOFs(m_dofInds);
+  double out = 0;
+  
+  int tStart = m_justEnd ? getLength()-1 : 0;
+  int tEnd = getLength();
+  
+  for (int iStep=tStart; iStep < tEnd; ++iStep) {
+    int row = m_justEnd ? 0 : iStep;
+    VectorXd dofvals = traj.row(iStep);
+    if (m_useAffine) setDofVals(m_robot, m_dofInds, dofvals.topRows(m_dofInds.size()), dofvals.bottomRows(3));
+    else setDofVals(m_robot, m_dofInds, dofvals);
+    OpenRAVE::Transform tfCur = m_link->GetTransform();
+    VectorXd posCur = toVector3d(tfCur.trans);
+    LOG_DEBUG("pos cur: " << posCur.transpose() << " pos targ: " << m_posTarg.row(row).transpose());
+    VectorXd rotCur = toQuatVector4d(tfCur.rot);
+    if (rotCur.dot(m_rotTarg.row(row)) < 0) {
+      m_rotTarg.row(row) *= -1;
+    }
+    LOG_DEBUG("quat cur: " << rotCur.transpose() << " quat targ: " << m_rotTarg.row(row).transpose());
+    if (m_l1) {
+      out += m_rotCoeff(row) * (m_rotTarg.row(row).transpose() - rotCur).lpNorm<1>() + m_posCoeff(row) * (m_posTarg.row(row).transpose() - posCur).lpNorm<1>();
+    }
+    else {
+      out += m_rotCoeff(row) * (m_rotTarg.row(row).transpose() - rotCur).squaredNorm() + m_posCoeff(row) * (m_posTarg.row(row).transpose() - posCur).squaredNorm();
+    }
   }
-  LOG_DEBUG("quat cur: " << rotCur.transpose() << " quat targ: " << m_rotTarg.transpose());
-  if (m_l1) {
-    return m_rotCoeff * (m_rotTarg - rotCur).lpNorm<1>() + m_posCoeff * (m_posTarg - posCur).lpNorm<1>();
-  }
-  else {
-    return m_rotCoeff * (m_rotTarg - rotCur).squaredNorm() + m_posCoeff * (m_posTarg - posCur).squaredNorm();
-  }
+  return out;
 }
 
 
 
 ConvexObjectivePtr CartPoseCost::convexify(GRBModel* model) {
   ScopedRobotSave srs(m_robot);
-  VectorXd dofvals = getTraj().row(getLength()-1);
   m_robot->SetActiveDOFs(m_dofInds);
-  if (m_useAffine) setDofVals(m_robot, m_dofInds, dofvals.topRows(m_dofInds.size()), dofvals.bottomRows(3));
-  else setDofVals(m_robot, m_dofInds, dofvals);
-  MatrixXd posjac, rotjac;
-  calcActiveLinkJac(dofvals, m_link.get(), m_robot,  posjac, rotjac, m_useAffine);
-  OpenRAVE::Transform tfCur = m_link->GetTransform();
-  Vector3d posCur = toVector3d(tfCur.trans);
-  Vector4d rotCur = toQuatVector4d(tfCur.rot);
-  if (rotCur.dot(m_rotTarg) < 0) {
-    m_rotTarg *= -1;
-  }
-
-  VarVector vars = getVars().row(getLength()-1);
-
   ConvexObjectivePtr out(new ConvexObjective());
-  // TODO: use makeDerivExpr
-  // TODO: switch sign of all inequalities
 
-  if (m_posCoeff > 0) {
-    for (int i=0; i < 3; ++i) {
-      GRBLinExpr erri = posCur(i) - m_posTarg(i) + makeDerivExpr(posjac.row(i), vars, dofvals);
-      if (m_l1) addAbsCost(out, m_posCoeff, erri, model, "pos_l1");
-      else  out->m_objective += m_posCoeff * (erri * erri);
+  int tStart = m_justEnd ? getLength()-1 : 0;
+  int tEnd = getLength();
+  
+  for (int iStep=tStart; iStep < tEnd; ++iStep) {
+    int row = m_justEnd ? 0 : iStep;
+    VectorXd dofvals = getTraj().row(iStep);
+    if (m_useAffine) setDofVals(m_robot, m_dofInds, dofvals.topRows(m_dofInds.size()), dofvals.bottomRows(3));
+    else setDofVals(m_robot, m_dofInds, dofvals);
+    MatrixXd posjac, rotjac;
+    calcActiveLinkJac(dofvals, m_link.get(), m_robot,  posjac, rotjac, m_useAffine);
+    OpenRAVE::Transform tfCur = m_link->GetTransform();
+    Vector3d posCur = toVector3d(tfCur.trans);
+    Vector4d rotCur = toQuatVector4d(tfCur.rot);
+    if (rotCur.dot(m_rotTarg.row(row)) < 0) {
+      m_rotTarg.row(row) *= -1;
     }
-  }
 
-  if (m_rotCoeff > 0) {
-    for (int i=0; i < 4; ++i) {
-      GRBLinExpr erri = rotCur(i) - m_rotTarg(i) + makeDerivExpr(rotjac.row(i), vars, dofvals);
-      if (m_l1) addAbsCost(out, m_rotCoeff, erri, model, "rot_l1");
-      else  out->m_objective += m_rotCoeff * (erri * erri);
+    VarVector vars = getVars().row(iStep);
+
+
+    if (m_posCoeff(row) > 0) {
+      for (int i=0; i < 3; ++i) {
+        GRBLinExpr erri = posCur(i) - m_posTarg(row, i) + makeDerivExpr(posjac.row(i), vars, dofvals);
+        if (m_l1) addAbsCost(out, m_posCoeff(row), erri, model, "pos_l1");
+        else  out->m_objective += m_posCoeff(row) * (erri * erri);
+      }
     }
-  }
 
+    if (m_rotCoeff(row) > 0) {
+      for (int i=0; i < 4; ++i) {
+        GRBLinExpr erri = rotCur(i) - m_rotTarg(row, i) + makeDerivExpr(rotjac.row(i), vars, dofvals);
+        if (m_l1) addAbsCost(out, m_rotCoeff(row), erri, model, "rot_l1");
+        else  out->m_objective += m_rotCoeff(row) * (erri * erri);
+      }
+    }
+    
+  }
   return out;
-
 }
 
 

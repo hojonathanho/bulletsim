@@ -25,7 +25,7 @@ int main(int argc, char *argv[]) {
 
     box->rigidBody->setCenterOfMassTransform(btTransform(btQuaternion(0, 0, 0, 1), btVector3(1, 0.5, 1)));
 
-    Action::Ptr moveSphere = sphere->createMoveAction(
+    TimedAction::Ptr moveSphere = sphere->createMoveAction(
         btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0)),
         btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 1, 1)),
         5);

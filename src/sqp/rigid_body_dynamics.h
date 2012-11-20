@@ -86,6 +86,10 @@ struct SignedContact {
   SignedContact(Contact* contact_, int sign_) : contact(contact_), sign(sign_) {}
 };
 
+void plotContacts(const vector<ContactPtr>& contacts);
+
+
+
 struct DynSolver : public Optimizer {
 
   vector<RigidBodyPtr> m_bodies;

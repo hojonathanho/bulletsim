@@ -2,6 +2,7 @@
 #include "config_sqp.h"
 #include "utils/logging.h"
 #include <boost/format.hpp>
+#include <cmath>
 
 static const char* grb_statuses[] = { "XXX", //0
     "LOADED",//1
@@ -52,7 +53,8 @@ void Optimizer::printObjectiveInfo(const vector<double>& oldExact,
   for (int i=0; i < m_costs.size(); ++i) {
     double approxImprove = oldExact[i] - newApprox[i];
     double exactImprove = oldExact[i] - newExact[i];
-    LOG_INFO_FMT("%15s | %10.3e | %10.3e | %10.3e | %10.3e", m_costs[i]->getName().c_str(),
+    string fmtstr = fabs(approxImprove) < 1e-8 ? "%15s | %10.3e | %10.3e | %10.3e | (%8.3e)" : "%15s | %10.3e | %10.3e | %10.3e | %10.3e";
+    LOG_INFO_FMT(fmtstr.c_str(), m_costs[i]->getName().c_str(),
                  oldExact[i], approxImprove, exactImprove, exactImprove/approxImprove);
   }
 }

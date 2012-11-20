@@ -37,7 +37,7 @@ struct GraspingActionContext {
     void disableDrawing();
 
     GraspingActionContext fork() const;
-    void runAction(Action::Ptr a, bool debugDraw=false);
+    void runAction(TimedAction::Ptr a, bool debugDraw=false);
 
     GraspingActionContext() : scene(NULL) { }
     GraspingActionContext(
@@ -68,7 +68,7 @@ struct GraspingActionSpec {
 
     GraspingActionSpec() : specstr("none"), type(NONE) { }
     GraspingActionSpec(const string &s) : specstr(s) { readType(); }
-    Action::Ptr createAction(GraspingActionContext &ctx) const;
+    TimedAction::Ptr createAction(GraspingActionContext &ctx) const;
 
     void genSuccessors(const GraspingActionContext &ctx, vector<GraspingActionSpec> &out) const;
     vector<GraspingActionSpec> genSuccessors(const GraspingActionContext &ctx) const;

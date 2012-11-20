@@ -16,7 +16,7 @@ using namespace OpenRAVE;
 
 
 
-struct RaveInstance {
+struct RaveInstance : public boost::enable_shared_from_this<RaveInstance> {
   typedef boost::shared_ptr<RaveInstance> Ptr;
 
   bool isRoot;
@@ -28,6 +28,7 @@ struct RaveInstance {
   RaveInstance(OpenRAVE::EnvironmentBasePtr);
   RaveInstance(const RaveInstance &o, int cloneOpts);
   ~RaveInstance();
+  Ptr getRaveInstancePtr() {return shared_from_this();}
 };
 
 void LoadFromRave(Environment::Ptr env, RaveInstance::Ptr rave);

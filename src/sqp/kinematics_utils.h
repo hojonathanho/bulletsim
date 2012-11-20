@@ -28,6 +28,8 @@ OpenRAVE::Transform toRaveTransform(const btQuaternion& q, const btVector3& p);
 OpenRAVE::Transform toRaveTransform(double x, double y, double a);
 Eigen::MatrixXd makeTraj(const Eigen::VectorXd& startJoints, const Eigen::VectorXd& endJoints, int nSteps);
 
+MatrixXd createInterpolatedTrajectory(RobotManipulatorPtr manip, const vector<OpenRAVE::Transform>& tfs);
+
 void getJointLimits(const RobotBasePtr& robot, const vector<int>& dofInds, VectorXd& lower, VectorXd& upper);
 
 std::vector<KinBody::JointPtr> getArmJoints(OpenRAVE::RobotBase::ManipulatorPtr manip);

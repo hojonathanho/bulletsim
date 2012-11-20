@@ -14,7 +14,7 @@
 #define PR2_GRIPPER_CLOSED_VAL 0.03f
 
 // does nothing
-class EmptyAction : public Action {
+class EmptyAction : public TimedAction {
 public:
     typedef boost::shared_ptr<EmptyAction> Ptr;
     EmptyAction() : Action() { setDone(true); }
@@ -23,7 +23,7 @@ public:
     }
 };
 
-class WaitAction : public Action {
+class WaitAction : public TimedAction {
 public:
     typedef boost::shared_ptr<WaitAction> Ptr;
     WaitAction(float time) { execTime = time; }
@@ -34,7 +34,7 @@ public:
 };
 
 // an action that just runs a given function once
-class FunctionAction : public Action {
+class FunctionAction : public TimedAction {
 private:
     boost::function<void(void)> fn;
 
@@ -51,19 +51,19 @@ public:
 };
 
 // an action that runs a bunch of given actions in sequence
-class ActionChain : public Action {
+class ActionChain : public TimedAction {
 private:
-    vector<Action::Ptr> actions;
+    vector<TimedAction::Ptr> actions;
 
 public:
     typedef boost::shared_ptr<ActionChain> Ptr;
 
     ActionChain() { }
-    ActionChain(vector<Action::Ptr> &actions_) : actions(actions_) { }
+    ActionChain(vector<TimedAction::Ptr> &actions_) : actions(actions_) { }
 
-    ActionChain &append(Action::Ptr a) { actions.push_back(a); return *this; }
-    ActionChain &append(Action *a) { actions.push_back(Action::Ptr(a)); return *this; }
-    ActionChain &operator<<(Action::Ptr a) { return append(a); }
+    ActionChain &append(TimedAction::Ptr a) { actions.push_back(a); return *this; }
+    ActionChain &append(Action *a) { actions.push_back(TimedAction::Ptr(a)); return *this; }
+    ActionChain &operator<<(TimedAction::Ptr a) { return append(a); }
     ActionChain &operator<<(Action *a) { return append(a); }
     void clear() { actions.clear(); }
 
@@ -299,7 +299,7 @@ public:
     }
 };
 
-class GenPR2SoftGripperAction : public Action {
+class GenPR2SoftGripperAction : public TimedAction {
     RaveRobotObject::Ptr robot;
     OpenRAVE::RobotBase::ManipulatorPtr manip;
     GenPR2SoftGripper::Ptr sbgripper;
@@ -362,7 +362,7 @@ public:
     }
 };
 
-class GripperOpenCloseAction : public Action {
+class GripperOpenCloseAction : public TimedAction {
     RaveRobotObject::Ptr robot;
     OpenRAVE::RobotBase::ManipulatorPtr manip;
 
@@ -423,7 +423,7 @@ static const btVector3 SCOOP_OFFSET(0, 0, 0.02); // don't sink through table
 static const btQuaternion ANGLE_DOWN_ROT(btVector3(0, 1, 0), 45*M_PI/180);
 static const btScalar LOWER_INTO_TABLE = -0.01;
 static const btScalar LIFT_DIST = 0.05;
-class GraspClothNodeAction : public ActionChain {
+class GraspClothNodeAction : public TimedActionChain {
     RaveRobotObject::Ptr robot;
     GenManip::Ptr gmanip;
     BulletSoftObject::Ptr sb;
@@ -444,15 +444,15 @@ class GraspClothNodeAction : public ActionChain {
         return btTransform(q, pos);
     }
 
-    ManipMoveAction::Ptr createMoveAction() {
+    ManipMoveTimedAction::Ptr createMoveAction() {
         switch (gmanip->type) {
         case GenManip::TYPE_FAKE:
-            return FakeManipMoveAction::Ptr(new FakeManipMoveAction(gmanip->asFake()));
+            return FakeManipMoveTimedAction::Ptr(new FakeManipMoveAction(gmanip->asFake()));
         case GenManip::TYPE_IK:
-            return ManipIKInterpAction::Ptr(new ManipIKInterpAction(robot, gmanip->asIKManip()));
+            return ManipIKInterpTimedAction::Ptr(new ManipIKInterpAction(robot, gmanip->asIKManip()));
         }
         cout << "error: gen manip type " << gmanip->type << " not recognized by GraspClothNodeAction" << endl;
-        return ManipMoveAction::Ptr();
+        return ManipMoveTimedAction::Ptr();
     };
 
     void checkAnchorsSet() {
@@ -477,12 +477,12 @@ class GraspClothNodeAction : public ActionChain {
             scoop = true;
         }
 
-        GripperOpenCloseAction::Ptr openGripper(new GripperOpenCloseAction(robot, gmanip->baseManip()->manip, true));
+        GripperOpenCloseTimedAction::Ptr openGripper(new GripperOpenCloseAction(robot, gmanip->baseManip()->manip, true));
         openGripper->setExecTime(0.05);
-        GripperOpenCloseAction::Ptr closeGripper(new GripperOpenCloseAction(robot, gmanip->baseManip()->manip, false));
+        GripperOpenCloseTimedAction::Ptr closeGripper(new GripperOpenCloseAction(robot, gmanip->baseManip()->manip, false));
         closeGripper->setExecTime(0.3);
 
-        ManipMoveAction::Ptr positionGrasp(createMoveAction());
+        ManipMoveTimedAction::Ptr positionGrasp(createMoveAction());
         btVector3 v(sb->softBody->m_nodes[node].m_x);
         btTransform graspTrans = scoop ? transFromDir(dir, v + dir*0.03*METERS + SCOOP_OFFSET*METERS, true)
                                        : transFromDir(dir, v - dir*MOVE_BEHIND_DIST*METERS, false);
@@ -492,24 +492,24 @@ class GraspClothNodeAction : public ActionChain {
         else
             positionGrasp->setExecTime(0.5);
 
-        ManipMoveAction::Ptr moveAboveNode(createMoveAction());
+        ManipMoveTimedAction::Ptr moveAboveNode(createMoveAction());
         btTransform moveAboveTrans(GRIPPER_DOWN_ROT * PR2_GRIPPER_INIT_ROT,
                 graspTrans.getOrigin() + btVector3(0, 0, 2*LIFT_DIST*METERS));
         moveAboveNode->setPR2TipTargetTrans(moveAboveTrans);
         if (gmanip->type == GenManip::TYPE_FAKE)
             moveAboveNode->setExecTime(0.001);
 
-        ManipMoveAction::Ptr moveForward(createMoveAction());
+        ManipMoveTimedAction::Ptr moveForward(createMoveAction());
         moveForward->setRelativeTrans(btTransform(btQuaternion(0, 0, 0, 1),
                    dir * (MOVE_BEHIND_DIST+(scoop?0:MOVE_FORWARD_DIST)) * METERS));
         if (scoop) moveForward->setExecTime(0);
 
-        FunctionAction::Ptr releaseAnchors(new FunctionAction(boost::bind(&GenPR2SoftGripper::releaseAllAnchors, sbgripper)));
-        FunctionAction::Ptr setAnchors(new FunctionAction(boost::bind(&GenPR2SoftGripper::grab, sbgripper)));
-        FunctionAction::Ptr checkAnchors(new FunctionAction(boost::bind(&GraspClothNodeAction::checkAnchorsSet, this)));
+        FunctionTimedAction::Ptr releaseAnchors(new FunctionAction(boost::bind(&GenPR2SoftGripper::releaseAllAnchors, sbgripper)));
+        FunctionTimedAction::Ptr setAnchors(new FunctionAction(boost::bind(&GenPR2SoftGripper::grab, sbgripper)));
+        FunctionTimedAction::Ptr checkAnchors(new FunctionAction(boost::bind(&GraspClothNodeAction::checkAnchorsSet, this)));
 
         // make gripper face down, while keeping rotation
-        ManipMoveAction::Ptr orientGripperDown(createMoveAction());
+        ManipMoveTimedAction::Ptr orientGripperDown(createMoveAction());
         btVector3 facingDir = btTransform(graspTrans.getRotation() * PR2_GRIPPER_INIT_ROT.inverse(), btVector3(0, 0, 0)) * PR2_GRIPPER_INIT_ROT_DIR;
         btScalar angleFromVert = facingDir.angle(btVector3(0, 0, -1));
         btVector3 cross = facingDir.cross(btVector3(0, 0, -1));
@@ -517,12 +517,12 @@ class GraspClothNodeAction : public ActionChain {
         orientGripperDown->setRotOnly(btQuaternion(cross, angleFromVert) * graspTrans.getRotation());
         orientGripperDown->setExecTime(0.2);
 
-        ManipMoveAction::Ptr moveUp(createMoveAction());
+        ManipMoveTimedAction::Ptr moveUp(createMoveAction());
         moveUp->setRelativeTrans(btTransform(btQuaternion(0, 0, 0, 1),
                     btVector3(0, 0, 0.01*METERS)));
         moveUp->setExecTime(0.2);
 
-        ManipMoveAction::Ptr moveToNeutralHeight(createMoveAction());
+        ManipMoveTimedAction::Ptr moveToNeutralHeight(createMoveAction());
         moveToNeutralHeight->setRelativeTrans(btTransform(btQuaternion(0, 0, 0, 1),
                     btVector3(0, 0, LIFT_DIST * METERS)));
         moveToNeutralHeight->setExecTime(0.5);

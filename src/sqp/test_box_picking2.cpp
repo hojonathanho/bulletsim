@@ -13,7 +13,6 @@
 #include <osg/Depth>
 #include <opencv2/highgui/highgui.hpp>
 #include "utils/clock.h"
-#include "physics_planning_scene.h"
 #include <osgDB/ReadFile>
 
 using namespace OpenRAVE;
@@ -119,7 +118,7 @@ int main(int argc, char* argv[]) {
   EnvironmentBasePtr penv = OpenRAVE::RaveGetEnvironment(1);
   assert(penv);
 
-#define PPSCENE
+//#define PPSCENE
 #ifdef PPSCENE
   PhysicsPlanningScene ppscene(penv);
   Scene& scene = *ppscene.m_planScene;

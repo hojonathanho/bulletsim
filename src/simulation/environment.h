@@ -10,6 +10,7 @@
 #include <boost/shared_ptr.hpp>
 #include <iostream>
 #include <stdexcept>
+#include <boost/enable_shared_from_this.hpp>
 
 using namespace std;
 
@@ -46,7 +47,7 @@ struct BulletInstance {
 
 struct Environment;
 struct Fork;
-class EnvironmentObject {
+class EnvironmentObject : public boost::enable_shared_from_this<EnvironmentObject> {
 private:
     Environment *env;
 
@@ -80,20 +81,21 @@ public:
     virtual osg::Node *getOSGNode() const { return NULL; }
 
     virtual void setColor(float r, float g, float b, float a) {};
-		virtual void adjustTransparency(float increment) {};
+	virtual void adjustTransparency(float increment) {};
 
-		//gets the index of the closest part of the object (face, capsule, rigid_body, etc)
-		//for rigid bodies, there is only one index so this will always return 0
-		virtual int getIndex(const btTransform& transform) { throw std::runtime_error("getIndex() hasn't been defined yet"); return 0;}
-		virtual int getIndexSize() { std::runtime_error("getIndex() hasn't been defined yet"); return 0;}
-		//gets the transform of the indexed part
-		//for rigid bodies, this just returns the rigid body's transform
-		virtual btTransform getIndexTransform(int index) { std::runtime_error("getIndexTransform() hasn't been defined yet"); return btTransform();}
+	//gets the index of the closest part of the object (face, capsule, rigid_body, etc)
+	//for rigid bodies, there is only one index so this will always return 0
+	virtual int getIndex(const btTransform& transform) { return 0;}
+	virtual int getIndexSize() { return 0;}
+	//gets the transform of the indexed part
+	//for rigid bodies, this just returns the rigid body's transform
+	virtual btTransform getIndexTransform(int index) { return btTransform();}
+	Ptr getEnvironmentObjectPtr() { return shared_from_this(); }
 };
 
 class RaveInstance;
 typedef boost::shared_ptr<RaveInstance> RaveInstancePtr;
-struct Environment {
+struct Environment : public boost::enable_shared_from_this<Environment> {
     typedef boost::shared_ptr<Environment> Ptr;
 
     BulletInstance::Ptr bullet;
@@ -115,6 +117,7 @@ struct Environment {
     void removeConstraint(EnvironmentObject::Ptr cnt);
 
     void step(btScalar dt, int maxSubSteps, btScalar fixedTimeStep);
+    Ptr getEnvironmentPtr() {return shared_from_this();}
 };
 
 // An Environment Fork is a wrapper around an Environment with an operator
@@ -276,7 +279,7 @@ public:
 
 };
 
-class Action {
+class TimedAction {
 protected:
     float timeElapsed;
     float execTime;
@@ -289,9 +292,10 @@ protected:
     void setColor(float r, float g, float b, float a);
 
 public:
-    typedef boost::shared_ptr<Action> Ptr;
-    Action() : isDone(false), timeElapsed(0.), execTime(1.) { }
-    Action(float execTime_) : isDone(false), timeElapsed(0.), execTime(execTime_) { }
+    typedef boost::shared_ptr<TimedAction> Ptr;
+    TimedAction() : isDone(false), timeElapsed(0.), execTime(1.) { }
+    TimedAction(float execTime_) : isDone(false), timeElapsed(0.), execTime(execTime_) { }
+    virtual ~TimedAction() {}
 
     virtual bool done() const { return timeElapsed >= execTime || isDone; }
     virtual void step(float dt) = 0;

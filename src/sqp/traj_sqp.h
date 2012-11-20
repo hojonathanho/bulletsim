@@ -40,6 +40,7 @@ public:
   virtual void subdivide(const vector<double>& insertTimes, const VectorXd& oldTimes, const VectorXd& newTimes) {}
 	
 	TrajComponent(TrajOptimizer*);
+	virtual ~TrajComponent();
 
 	MatrixXd& getTraj() {return m_opt->m_traj;}
 	VarArray& getVars() {return m_opt->m_vars;}
@@ -91,13 +92,17 @@ public:
   KinBody::LinkPtr m_link;
   vector<int> m_dofInds;
   bool m_useAffine;
-  Vector3d m_posTarg;
-  Vector4d m_rotTarg;
-  double m_posCoeff, m_rotCoeff;
+  MatrixXd m_posTarg, m_rotTarg;
+  VectorXd m_posCoeff, m_rotCoeff;
   bool m_l1;
+  bool m_justEnd;
 
+  /* for single timestep */
   CartPoseCost(TrajOptimizer* opt, RobotBasePtr robot, KinBody::LinkPtr link, const vector<int>& dofInds,
                bool useAffine, const btTransform& goal, double posCoeff, double rotCoeff, bool l1);
+  /* for multiple timesteps */
+  CartPoseCost(TrajOptimizer* opt, RobotBasePtr robot, KinBody::LinkPtr link, const vector<int>& dofInds,
+               bool useAffine, const vector<btTransform>& goal, const VectorXd& posCoeff, const VectorXd& rotCoeff, bool l1);
   double evaluate(const MatrixXd&);
   ConvexObjectivePtr convexify(GRBModel* model);	
 	string getName() {return "CartPoseCost";}

@@ -30,7 +30,7 @@ GraspingActionContext GraspingActionContext::fork() const {
 void GraspingActionContext::enableDrawing(Scene *s) { scene = s; }
 void GraspingActionContext::disableDrawing() { scene = NULL; }
 
-void GraspingActionContext::runAction(Action::Ptr a, bool debugDraw) {
+void GraspingActionContext::runAction(TimedAction::Ptr a, bool debugDraw) {
     if (scene && debugDraw)
         scene->osg->root->addChild(env->osg->root.get());
 
@@ -51,20 +51,20 @@ void GraspingActionContext::runAction(Action::Ptr a, bool debugDraw) {
         scene->osg->root->removeChild(env->osg->root.get());
 }
 
-static Action::Ptr createGrabAction(GraspingActionContext &ctx, stringstream &ss) {
+static TimedAction::Ptr createGrabAction(GraspingActionContext &ctx, stringstream &ss) {
     // format: grab <node index> <approach vec x> <approach vec y> <approach vec z>
     int nodeidx; ss >> nodeidx;
     btScalar vx, vy, vz; ss >> vx >> vy >> vz;
-    return GraspClothNodeAction::Ptr(new GraspClothNodeAction(
+    return GraspClothNodeTimedAction::Ptr(new GraspClothNodeAction(
                 ctx.robot, ctx.gmanip, ctx.sbgripper, ctx.cloth,
                 nodeidx, btVector3(vx, vy, vz)));
 }
 
-static Action::Ptr createReleaseAction(GraspingActionContext &ctx, stringstream &ss) {
+static TimedAction::Ptr createReleaseAction(GraspingActionContext &ctx, stringstream &ss) {
     // format: release
-    FunctionAction::Ptr releaseAnchors(new FunctionAction(
+    FunctionTimedAction::Ptr releaseAnchors(new FunctionAction(
                 boost::bind(&GenPR2SoftGripper::releaseAllAnchors, ctx.sbgripper)));
-    GripperOpenCloseAction::Ptr openGripper(new GripperOpenCloseAction(
+    GripperOpenCloseTimedAction::Ptr openGripper(new GripperOpenCloseAction(
                 ctx.robot, ctx.gmanip->baseManip()->manip, true));
     openGripper->setExecTime(0.2);
     ActionChain::Ptr a(new ActionChain);
@@ -72,10 +72,10 @@ static Action::Ptr createReleaseAction(GraspingActionContext &ctx, stringstream 
     return a;
 }
 
-static Action::Ptr createMoveAction(GraspingActionContext &ctx, stringstream &ss) {
+static TimedAction::Ptr createMoveAction(GraspingActionContext &ctx, stringstream &ss) {
     // format: move dx dy dz
     btScalar dx, dy, dz; ss >> dx >> dy >> dz;
-    ManipMoveAction::Ptr a;
+    ManipMoveTimedAction::Ptr a;
     switch (ctx.gmanip->type) {
     case GenManip::TYPE_FAKE:
         a.reset(new FakeManipMoveAction(ctx.gmanip->asFake())); break;
@@ -90,23 +90,23 @@ static Action::Ptr createMoveAction(GraspingActionContext &ctx, stringstream &ss
     return a;
 }
 
-static Action::Ptr createGrabAndMoveAction(GraspingActionContext &ctx, stringstream &ss) {
+static TimedAction::Ptr createGrabAndMoveAction(GraspingActionContext &ctx, stringstream &ss) {
     // format: grab_and_move <grabstr> <movestr>
     string op;
     ss >> op; BOOST_ASSERT(op == "grab");
-    Action::Ptr grabaction = createGrabAction(ctx, ss);
+    TimedAction::Ptr grabaction = createGrabAction(ctx, ss);
     ss >> op; BOOST_ASSERT(op == "move");
-    Action::Ptr moveaction = createMoveAction(ctx, ss);
+    TimedAction::Ptr moveaction = createMoveAction(ctx, ss);
     ActionChain::Ptr chain(new ActionChain);
     *chain << grabaction << moveaction;
     return chain;
 }
 
-static Action::Ptr createNoneAction() {
-    return EmptyAction::Ptr(new EmptyAction);
+static TimedAction::Ptr createNoneAction() {
+    return EmptyTimedAction::Ptr(new EmptyAction);
 }
 
-Action::Ptr GraspingActionSpec::createAction(GraspingActionContext &ctx) const {
+TimedAction::Ptr GraspingActionSpec::createAction(GraspingActionContext &ctx) const {
     stringstream ss;
     ss << specstr;
     string op; ss >> op; // consume type
@@ -165,7 +165,7 @@ static int tryGrasp(const GraspingActionContext &ctx, int node, const btVector3 
     stringstream ss; ss << "grab " << node << ' ' << gripperdir.x() << ' ' << gripperdir.y() << ' ' << gripperdir.z();
 
     try {
-        Action::Ptr a = GraspingActionSpec(ss.str()).createAction(forkctx);
+        TimedAction::Ptr a = GraspingActionSpec(ss.str()).createAction(forkctx);
 
         while (!a->done()) {
             a->step(BulletConfig::dt);

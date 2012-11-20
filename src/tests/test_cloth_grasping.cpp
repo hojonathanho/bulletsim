@@ -7,7 +7,7 @@
 #include "robots/pr2.h"
 
 // I've only tested this on the PR2 model
-class PR2SoftBodyGripperAction : public Action {
+class PR2SoftBodyGripperAction : public TimedAction {
     RaveRobotObject::Manipulator::Ptr manip;
     dReal startVal, endVal;
     vector<int> indices;

@@ -7,7 +7,7 @@
 
 // an action that moves a node
 // completely specified by ActionDesc
-class NodeMoveAction : public Action {
+class NodeMoveAction : public TimedAction {
     Environment::Ptr env;
     BulletSoftObject::Ptr sb;
 

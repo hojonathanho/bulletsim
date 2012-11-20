@@ -16,3 +16,5 @@ class MonitorForGrabbing;
 typedef boost::shared_ptr<MonitorForGrabbing> MonitorForGrabbingPtr;
 class SoftMonitorForGrabbing;
 typedef boost::shared_ptr<SoftMonitorForGrabbing> SoftMonitorForGrabbingPtr;
+class JointSlider;
+typedef boost::shared_ptr<JointSlider> JointSliderPtr;

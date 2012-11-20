@@ -30,6 +30,7 @@ struct ParameterBase {
   std::string m_name;
   std::string m_desc;
   virtual void addToBoost(po::options_description&) = 0;
+  virtual ~ParameterBase() {}
 };
 
 template <typename T>

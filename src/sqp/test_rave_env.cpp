@@ -46,11 +46,14 @@ string LocalConfig::jsonOutputPath = "";
 
 int main(int argc, char *argv[]) {
 
-  BulletConfig::linkPadding = .02;
+  BulletConfig::linkPadding = 0;
   BulletConfig::margin = 0;
-  SQPConfig::padMult = 2;
   GeneralConfig::verbose=20000;
   GeneralConfig::scale = 10.;
+  SQPConfig::distDiscSafe = .01;
+  SQPConfig::distContSafe = 0;
+  SQPConfig::distPen = .02;
+  SQPConfig::shapeExpansion = .04;
 
   Parser parser;
   parser.addGroup(GeneralConfig());
@@ -91,37 +94,53 @@ int main(int argc, char *argv[]) {
   BOOST_FOREACH(EnvironmentObjectPtr obj, scene.env->objects) {
     BulletObjectPtr bobj = boost::dynamic_pointer_cast<BulletObject>(obj);
     obj->setColor(randf(),randf(),randf(),1);
-//    if (bobj) makeFullyTransparent(bobj);
   }
   robot->setColor(0,1,1, .4);
 
-  VectorXd goal(probInfo["goal"].size());
-  for (int i=0; i < goal.size(); ++i) goal(i) = probInfo["goal"][i].asDouble();
-
+  vector<EnvironmentObjectPtr> plots;
   arm->setGripperAngle(.5);
 
   TIC();
   TrajOptimizer opt;
   opt.m_plotters.push_back(ArmPlotterPtr(new ArmPlotter(arm, &scene,  SQPConfig::plotDecimation)));
 
+  if (probInfo["goal_type"] == "follow_cart") {
+    vector<btTransform> goalTransforms;
+    for (int i=0; i < probInfo["goal"].size(); ++i) {
+      VectorXd goal(7);
+      for (int j=0; j < 7; ++j) {
+        goal(j) = probInfo["goal"][i][j].asDouble();
+      }
+      btTransform goalTrans = btTransform(btQuaternion(goal[0], goal[1], goal[2], goal[3]),
+              btVector3(goal[4], goal[5], goal[6]));
+      goalTransforms.push_back(goalTrans);
+    }
+    BOOST_FOREACH(btTransform& tf, goalTransforms) plots.push_back(util::drawAxes(tf, .1, util::getGlobalEnv()));
+    bool success = setupArmToFollowCart(opt, goalTransforms, arm, KinBody::LinkPtr());
+  }
+  else {
+    VectorXd goal(probInfo["goal"].size());
+    for (int i=0; i < goal.size(); ++i) goal(i) = probInfo["goal"][i].asDouble();
 
-  if (probInfo["goal_type"] == "joint") {
-    VectorXd startJoints = toVectorXd(arm->getDOFValues());
-    bool success = setupArmToJointTarget(opt, goal, arm);
-    assert(success);
-  }
-  else if (probInfo["goal_type"] == "cart") {
-    btTransform goalTrans = btTransform(btQuaternion(goal[0], goal[1], goal[2], goal[3]),
-            btVector3(goal[4], goal[5], goal[6]));
-    bool success = setupArmToCartTarget(opt, goalTrans, arm);
-    assert(success);
-  }
-  else if (probInfo["goal_type"] == "grasp") {
-    btTransform goalTrans = btTransform(btQuaternion(goal[0], goal[1], goal[2], goal[3]),
-            btVector3(goal[4], goal[5], goal[6]));
-    util::drawAxes(goalTrans, .25*METERS, scene.env);
-    bool success = setupArmToCartTarget(opt, goalTrans, arm);
-    assert(success);
+    if (probInfo["goal_type"] == "joint") {
+      VectorXd startJoints = toVectorXd(arm->getDOFValues());
+      bool success = setupArmToJointTarget(opt, goal, arm);
+      assert(success);
+    }
+    else if (probInfo["goal_type"] == "cart") {
+      btTransform goalTrans = btTransform(btQuaternion(goal[0], goal[1], goal[2], goal[3]),
+              btVector3(goal[4], goal[5], goal[6]));
+      bool success = setupArmToCartTarget(opt, goalTrans, arm);
+      assert(success);
+    }
+    else if (probInfo["goal_type"] == "grasp") {
+      btTransform goalTrans = btTransform(btQuaternion(goal[0], goal[1], goal[2], goal[3]),
+              btVector3(goal[4], goal[5], goal[6]));
+      plots.push_back(util::drawAxes(goalTrans, .25*METERS, scene.env));
+      bool success = setupArmToCartTarget(opt, goalTrans, arm);
+      assert(success);
+    }
+
   }
 
 //  checkAllLinearizations(opt);

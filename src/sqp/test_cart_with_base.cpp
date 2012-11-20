@@ -14,7 +14,6 @@
 #include "sqp/kinematics_utils.h"
 #include "sqp/traj_sqp.h"
 #include "utils_sqp.h"
-#include "physics_planning_scene.h"
 using namespace std;
 using namespace Eigen;
 using namespace util;

@@ -46,9 +46,6 @@ target_link_libraries(save_cloud_node utils ${PCL_LIBRARIES} ${ROS_LIBRARIES} tf
 add_executable(viz_curves viz_curves.cpp)
 target_link_libraries(viz_curves ${PCL_LIBRARIES} clouds boost_program_options utils)
 
-add_executable(get_table_server get_table_server.cpp)
-target_link_libraries(get_table_server clouds ${PCL_LIBRARIES} ${ROS_LIBRARIES} utils boost_program_options)
-
 add_executable(cloud_adjuster_node sandbox/cloud_adjuster_node.cpp)
 target_link_libraries(cloud_adjuster_node clouds utils ${PCL_LIBRARIES} ${ROS_LIBRARIES})
 

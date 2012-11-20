@@ -5,7 +5,7 @@
 #include "robots/pr2.h"
 #include <openrave/kinbody.h>
 
-class PR2RigidBodyGripperAction : public Action {
+class PR2RigidBodyGripperAction : public TimedAction {
     RaveRobotObject::Manipulator::Ptr manip;
     dReal startVal, endVal;
     vector<int> indices;

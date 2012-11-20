@@ -4,6 +4,7 @@ include_directories(
     ${BULLETSIM_SOURCE_DIR}/src
     ${OpenRAVE_INCLUDE_DIRS}
     ${EIGEN3_INCLUDE_DIR}
+    ${BULLETSIM_MSGS_INCLUDE_DIRS}
 )
 
 SET(CMAKE_CXX_FLAGS "-Wall -Wno-sign-compare -Wno-reorder")
@@ -15,19 +16,6 @@ link_directories(${GUROBI_LIBRARY_DIR})
 
 
 include_directories(${PCL_INCLUDE_DIRS})
-include_directories("/opt/ros/fuerte/stacks/geometry/tf/include"
-					"/opt/ros/fuerte/stacks/geometry/tf/msg_gen/cpp/include"
-					"/opt/ros/fuerte/stacks/geometry/tf/srv_gen/cpp/include")
-
-include_directories("${BULLETSIM_SOURCE_DIR}/bulletsim_msgs/build/gen/cpp")
-
-link_directories("/opt/ros/fuerte/stacks/geometry/tf/lib")
-
-add_executable(interact_with_point_cloud interact_with_point_cloud.cpp)
-target_link_libraries(interact_with_point_cloud clouds sqp)
-
-add_executable(test_ros_ser test_ros_ser.cpp)
-target_link_libraries(test_ros_ser ${ROS_LIBRARIES})
 
 
 #########################################
@@ -37,7 +25,7 @@ target_link_libraries(test_grb_eigen1 gurobi_c++ gurobi50 utils)
 
 add_library(sqp2 expr_ops.cpp sqp.cpp config_sqp.cpp traj_sqp.cpp 
 collisions.cpp kinematics_utils.cpp plotters.cpp utils_sqp.cpp functions.cpp
-traj_safety_checks.cpp planning_problems2.cpp state_setter.cpp physics_planning_scene.cpp)
+traj_safety_checks.cpp planning_problems2.cpp state_setter.cpp)
 target_link_libraries(sqp2 utils gurobi_c++ gurobi50 simulation)
 
 add_executable(test_new_arm_table test_new_arm_table.cpp)
@@ -64,3 +52,20 @@ target_link_libraries(test_box_picking simulation robots sqp2 ${PYTHON_LIBRARIES
 
 add_executable(test_cart_with_base test_cart_with_base.cpp)
 target_link_libraries(test_cart_with_base sqp2 robots)
+
+
+#################
+
+add_library(sqp_ros sqp_ros.cpp collision_map_tools collision_boxes.cpp)
+target_link_libraries(sqp_ros sqp2 simulation robots clouds ${ROS_LIBRARIES})
+
+add_executable(planning_server planning_server.cpp)
+target_link_libraries(planning_server sqp_ros)
+
+add_executable(interact_with_point_cloud interact_with_point_cloud.cpp)
+target_link_libraries(interact_with_point_cloud clouds sqp_ros)
+
+add_executable(test_ros_ser test_ros_ser.cpp)
+target_link_libraries(test_ros_ser ${ROS_LIBRARIES})
+
+

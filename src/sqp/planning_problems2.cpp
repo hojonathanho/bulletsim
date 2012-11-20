@@ -5,6 +5,7 @@
 #include "kinematics_utils.h"
 #include "utils/logging.h"
 #include "simulation/bullet_io.h"
+#include "collisions.h"
 
 using namespace Eigen;
 using namespace std;
@@ -22,6 +23,41 @@ CollisionCostPtr getCollisionCost(TrajOptimizer& opt) {
     }
   }
   return CollisionCostPtr();
+}
+
+vector<int> getManipLinkInds(RobotBase::ManipulatorPtr manip) {
+	vector<KinBody::LinkPtr> vlinks;
+	manip->GetChildLinks(vlinks);
+	vector<int> out;
+	BOOST_FOREACH(KinBody::LinkPtr& link, vlinks) {
+		if (!link->GetGeometries().empty()) out.push_back(link->GetIndex());
+	}
+	return out;
+}
+
+vector<VectorXd> findCollisionFreeIK(const OpenRAVE::Transform& tf, RaveRobotObject* rro, RobotBase::ManipulatorPtr manip) {
+	vector<vector<double> > iksolns;
+	vector<int> armInds = manip->GetArmIndices();
+	manip->FindIKSolutions(IkParameterization(tf), iksolns, IKFO_IgnoreSelfCollisions | IKFO_IgnoreEndEffectorCollisions);
+	MatrixXd traj(iksolns.size(), armInds.size());
+	vector<VectorXd> out;
+	for (int i=0; i < iksolns.size(); ++i) traj.row(i) = toVectorXd(iksolns[i]);
+	TrajCartCollInfo tcci = collectTrajCollisions(traj, rro, armInds, false);
+	vector<int> manipLinkInds = getManipLinkInds(manip);
+	for (int i = 0; i < iksolns.size(); ++i) {
+		CartCollInfo& cci = tcci[i];
+		bool safe = true;
+		BOOST_FOREACH(LinkCollision& lc, cci) {
+			if ((lc.dist < 0) && (find(manipLinkInds.begin(), manipLinkInds.end(), lc.linkInd) == manipLinkInds.end())) {
+				LOG_DEBUG_FMT("discarding ik solution because link %i has collision", lc.linkInd);
+				safe = false;
+				break;
+			}
+		}
+		if (safe) out.push_back(traj.row(i));
+	}
+	LOG_DEBUG_FMT("found %i ik solns. %i were collision free", iksolns.size(), out.size());
+	return out;
 }
 
 OuterOptStatus trajOuterOpt(TrajOptimizer& opt, const AllowedCollisions& allowedCollisions) {
@@ -126,7 +162,49 @@ MatrixXd toNegPiPi(const MatrixXd& in) {
 }
 
 
-#include "plotters.h"
+bool setupArmToFollowCart(TrajOptimizer& opt, const vector<btTransform>& goals, RobotManipulatorPtr arm, KinBody::LinkPtr link) {
+  btTransform linkGoal;
+  OpenRAVE::Transform eeGoal;
+
+  vector<btTransform> linkGoals;
+  BOOST_FOREACH(const btTransform& goal, goals) {
+  	btTransform linkGoal;
+    if (link) {
+    	linkGoal = goal;
+      eeGoal = util::toRaveTransform(linkGoal) * link->GetTransform().inverse() * arm->manip->GetEndEffectorTransform();
+    }
+    else {
+      eeGoal = util::toRaveTransform(goal);
+      link = arm->manip->GetEndEffector();
+      linkGoal = util::toBtTransform(eeGoal * arm->manip->GetLocalToolTransform().inverse());
+    }
+    linkGoals.push_back(goal);
+  }
+
+  VectorXd startJoints = toVectorXd(arm->getDOFValues());
+
+  VectorXd lower, upper;
+  vector<int> armInds = arm->manip->GetArmIndices();
+  getJointLimits(arm->robot->robot, armInds, lower, upper);
+  VectorXd maxDiffPerIter = VectorXd::Constant(armInds.size(), .25);
+
+  VectorXd endJoints = (lower+upper)/2;
+
+  static double POS_COEFF = 100;
+  static double ROT_COEFF = 100;
+
+  opt.setTrustRegion(TrustRegionPtr(new JointBounds(&opt, maxDiffPerIter, lower, upper)));
+  opt.addCost(CostPtr(new CollisionCost(&opt, arm->robot, armInds, false, SQPConfig::collCoefInit)));
+  opt.addCost(CostPtr(new JntLenCost(&opt, SQPConfig::lengthCoef)));
+  opt.addCost(CostPtr(new CartPoseCost(&opt, arm->robot->robot, link, armInds, false, linkGoals,
+  		VectorXd::Ones(goals.size())*POS_COEFF, VectorXd::Ones(goals.size())*ROT_COEFF, false)));
+  opt.initialize(linearInterp(startJoints, endJoints, goals.size()), arange(goals.size()));
+  setStartFixed(opt);
+
+  return true;
+
+}
+
 bool setupArmToCartTarget(TrajOptimizer& opt, const btTransform& goal, RobotManipulatorPtr arm, KinBody::LinkPtr link) {
 
   btTransform linkGoal;
@@ -144,25 +222,24 @@ bool setupArmToCartTarget(TrajOptimizer& opt, const btTransform& goal, RobotMani
 
   VectorXd startJoints = toVectorXd(arm->getDOFValues());
 
-#if 0
-  vector<double> ikSoln;
-  bool ikSuccess = arm->solveIKUnscaled(eeGoal, ikSoln);
+#define STRAIGHT_LINE_INIT
+#ifdef STRAIGHT_LINE_INIT
+  vector<VectorXd> safeIkSolns = findCollisionFreeIK(eeGoal, arm->robot, arm->manip);
+  bool ikSuccess = safeIkSolns.size() > 0;
   if (!ikSuccess) {
-    LOG_ERROR("no ik solution for target!");
+    LOG_ERROR("no collision free ik solution for target! " << eeGoal);
     return false;
   }
-  VectorXd endJoints = toVectorXd(ikSoln);
+  LOG_INFO("using first collision free ik soln");
+  VectorXd endJoints = safeIkSolns[0];
 #else
   VectorXd endJoints = startJoints;
 #endif
 
-  LOG_DEBUG("start " << startJoints.transpose());
-  LOG_DEBUG("end " << endJoints.transpose());
-
   VectorXd lower, upper;
   vector<int> armInds = arm->manip->GetArmIndices();
   getJointLimits(arm->robot->robot, armInds, lower, upper);
-  VectorXd maxDiffPerIter = VectorXd::Constant(7, .25);
+  VectorXd maxDiffPerIter = VectorXd::Constant(armInds.size(), .25);
 
   static double POS_COEFF = 1000;
   static double ROT_COEFF = 1000;

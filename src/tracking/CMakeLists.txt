@@ -1,10 +1,11 @@
 include_directories(
     ${PCL_INCLUDE_DIRS}
     ${BULLETSIM_SOURCE_DIR}/src
+    ${BULLETSIM_MSGS_INCLUDE_DIRS}
 )
 
 include_directories( ${TETGEN_DIR}
-    ${PCL_INCLUDE_DIRS} )
+    ${PCL_INCLUDE_DIRS})
 
 link_directories( ${TETGEN_DIR} )
 
@@ -35,7 +36,7 @@ add_library(tracking
 	visibility.cpp
 	feature_extractor.cpp
 	tracked_compound.cpp
-  cam_sync.cpp
+  	cam_sync.cpp
 )
 	
 target_link_libraries(tracking

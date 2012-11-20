@@ -23,3 +23,4 @@ bool setupArmToJointTarget(TrajOptimizer& opt, const VectorXd& endJoints,  Robot
 bool setupArmToCartTarget(TrajOptimizer& opt, const btTransform& goal, RobotManipulatorPtr arm, KinBody::LinkPtr link=KinBody::LinkPtr());
 bool setupArmToGrasp(TrajOptimizer& opt, const btTransform& goal, RobotManipulatorPtr arm);
 bool setupArmToCartTargetWithBase(TrajOptimizer& opt, const btTransform& goalTrans, RobotManipulatorPtr arm);
+bool setupArmToFollowCart(TrajOptimizer& opt, const vector<btTransform>& goals, RobotManipulatorPtr arm, KinBody::LinkPtr link);

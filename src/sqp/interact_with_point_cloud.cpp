@@ -5,24 +5,26 @@
 #include "simulation/simulation_fwd.h"
 #include "simulation/bullet_io.h"
 #include "kinematics_utils.h"
+#include "robots/joint_slider.h"
+#include "robots/robots_fwd.h"
 
 struct LocalConfig : Config {
 
 //  static bool printJoint;
 //  static bool printCart;
-  static string loadCloud;
+  static string loudCloud;
   static string loadEnv;
 
   LocalConfig() : Config() {
 //    params.push_back(new Parameter<bool>("printJoint", &printJoint, "print joints"));
 //    params.push_back(new Parameter<bool>("printCart", &printCart, "print cart"));
-    params.push_back(new Parameter<string>("loadCLoud", &loadCloud, "load cloud"));
+    params.push_back(new Parameter<string>("loudCloud", &loudCloud, "load cloud"));
     params.push_back(new Parameter<string>("loadEnv", &loadEnv, "load env"));
   }
 };
 //bool LocalConfig::printJoint=0;
 //bool LocalConfig::printCart=0;
-string LocalConfig::loadCloud="";
+string LocalConfig::loudCloud="";
 string LocalConfig::loadEnv="";
 
 
@@ -33,7 +35,7 @@ int main(int argc, char* argv[]) {
     parser.addGroup(GeneralConfig());
     parser.addGroup(LocalConfig());
     parser.read(argc, argv);
-    assert((LocalConfig::loadCloud=="") || (LocalConfig::loadEnv == ""));
+    assert((LocalConfig::loudCloud=="") || (LocalConfig::loadEnv == ""));
 
     Scene scene;
 
@@ -42,8 +44,8 @@ int main(int argc, char* argv[]) {
     if (LocalConfig::loadEnv != "") {
       Load(scene.env, scene.rave, LocalConfig::loadEnv);
     }
-    else if (LocalConfig::loadCloud != "") {
-      ColorCloudPtr cloud = readPCD(LocalConfig::loadCloud);
+    else if (LocalConfig::loudCloud != "") {
+      ColorCloudPtr cloud = readPCD(LocalConfig::loudCloud);
       cloud = downsampleCloud(cloud, .02);
       CollisionBoxes::Ptr collisionBoxes = collisionBoxesFromPointCloud(cloud, .02);
       scene.env->add(collisionBoxes);
@@ -60,6 +62,15 @@ int main(int argc, char* argv[]) {
 
     RobotManager pr2m(scene);
     assert (pr2m.botRight);
+
+    JointSliderPtr rtSlider = createJointSlider("rightarm_torso", pr2m.bot);
+    JointSliderPtr lSlider = createJointSlider("leftarm", pr2m.bot);
+    JointSliderPtr hSlider = createJointSlider("head", pr2m.bot);
+    scene.addPreStepCallback(boost::bind(&JointSlider::updateIfNeeded, rtSlider));
+    scene.addPreStepCallback(boost::bind(&JointSlider::updateIfNeeded, lSlider));
+    scene.addPreStepCallback(boost::bind(&JointSlider::updateIfNeeded, hSlider));
+
+
 
     ArmPrinter ap(pr2m.botLeft, pr2m.botRight);
     scene.addVoidKeyCallback('c',boost::bind(&ArmPrinter::printCarts, &ap), "print cart");

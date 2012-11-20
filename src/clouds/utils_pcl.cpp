@@ -223,7 +223,7 @@ Point toPoint(const Eigen::Vector3f& vec) {
 ColorCloudPtr fromROSMsg1(const sensor_msgs::PointCloud2& msg) {
   bool colorFound = false;
   BOOST_FOREACH(const sensor_msgs::PointField& field, msg.fields) {
-    if (field.name == "r") colorFound = true;
+    if (field.name == "rgb") colorFound = true;
   }
   if (colorFound) {
     ColorCloudPtr cloud(new ColorCloud());

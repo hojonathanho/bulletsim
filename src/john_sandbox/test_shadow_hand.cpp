@@ -98,7 +98,7 @@ int main(int argc, char* argv[]) {
   
   
 //  Load(scene.env, scene.rave, "/home/joschu/bulletsim/src/john_sandbox/shadow_hand.env.xml",true);
-  Load(scene.env, scene.rave, "robots/pr2-beta-static.zae", true);
+  Load(scene.env, scene.rave, "robots/pr2-beta-static.zae");
   
   btCollisionObjectArray& rbs = scene.env->bullet->dynamicsWorld->getCollisionObjectArray();
   for (int i=0; i < rbs.size(); ++i) {

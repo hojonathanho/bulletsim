@@ -80,14 +80,14 @@ public:
     virtual osg::ref_ptr<osg::Node> createOSGNode();
 
     // actions (for the user)
-    class MoveAction : public Action {
+    class MoveAction : public TimedAction {
         BulletObject *obj;
         btTransform start, end;
 
     public:
         typedef boost::shared_ptr<MoveAction> Ptr;
         MoveAction(BulletObject *obj_) : obj(obj_) { }
-        MoveAction(BulletObject *obj_, const btTransform &start_, const btTransform &end_, float execTime) : obj(obj_), start(start_), end(end_), Action(execTime) { }
+        MoveAction(BulletObject *obj_, const btTransform &start_, const btTransform &end_, float execTime) : obj(obj_), start(start_), end(end_), TimedAction(execTime) { }
         void setEndpoints(const btTransform &start_, const btTransform &end_) {
             start = start_; end = end_;
         }
