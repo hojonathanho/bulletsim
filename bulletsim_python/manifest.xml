@@ -4,7 +4,6 @@
      python modules for bulletsim
 
   </description>
-  <depend package="bulletsim_python"/>
 </package>
 
 

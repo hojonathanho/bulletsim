@@ -6,7 +6,6 @@
   <copyright>Robotics Learning Lab</copyright>
 
   <depends>catkin</depends>
-  <depends>hydra_msgs</depends>
   <depends>sensor_msgs</depends>
   <depends>pcl</depends>
   <depends>bulletsim_msgs</depends>

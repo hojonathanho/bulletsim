@@ -28,13 +28,15 @@ find_package(OpenCV REQUIRED)
 find_package(PCL REQUIRED)
 
 
+set(BULLETSIM_MSGS_INCLUDE_DIRS ${BULLETSIM_SOURCE_DIR}/bulletsim_msgs/msg_gen/cpp/include
+								${BULLETSIM_SOURCE_DIR}/bulletsim_msgs/srv_gen/cpp/include)
+
 message("if cmake can't find anything, you need to put /opt/ros/fuerte/share:/opt/ros/fuerte/stacks on your ROS_PACKAGE_PATH")
 find_package(ROS REQUIRED COMPONENTS
  sensor_msgs geometry_msgs std_msgs
  roscpp rosconsole message_filters
  cpp_common rostime roscpp_traits
  roscpp_serialization
-# bulletsim_msgs
 )
 
 set(BUILD_SHARED_LIBS 0)
