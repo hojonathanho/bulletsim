@@ -44,7 +44,7 @@ struct EigVector {
 };
 
 template<typename VectorType>
-void addNoise(VectorType &x, double mean, double stddev) {
+static void addNoise(VectorType &x, double mean, double stddev) {
   static boost::mt19937 rng(static_cast<unsigned> (std::time(0)));
   boost::normal_distribution<double> norm_dist(mean, stddev);
   boost::variate_generator<boost::mt19937&, boost::normal_distribution<double> > gen(rng, norm_dist);
@@ -68,10 +68,11 @@ struct OptRope {
     double contact;
     double forces;
     double linkLen;
+    double goalPos;
   } m_coeffs;
   const double GROUND_HEIGHT;
 
-  OptRope(const MatrixX3d &initPos, int N, int T, double linkLen) : m_N(N), m_T(T), m_initPos(initPos), m_linkLen(linkLen), GROUND_HEIGHT(0.) {
+  OptRope(const MatrixX3d &initPos, int T, int N, double linkLen) : m_N(N), m_T(T), m_initPos(initPos), m_linkLen(linkLen), GROUND_HEIGHT(0.) {
     assert(m_N >= 1);
     assert(m_T >= 1);
     assert(initPos.rows() == m_N);
@@ -86,6 +87,7 @@ struct OptRope {
     m_coeffs.contact = 0.1;
     m_coeffs.forces = 1;
     m_coeffs.linkLen = 0.1;
+    m_coeffs.goalPos = 1;
   }
 
   void setCoeffs2() {
@@ -95,22 +97,21 @@ struct OptRope {
     m_coeffs.contact = 1;
     m_coeffs.forces = 1;
     m_coeffs.linkLen = 1;
+    m_coeffs.goalPos = 1;
   }
 
   struct State {
 
-    struct private_StateAtTime {
-      Vector3d manipPos;
+    struct StateAtTime {
+      Vector3d manipPos; // pos of manipulator 'gripper'
     
-      MatrixX3d vel;
-      VectorXd groundForce_f;
-      VectorXd groundForce_c;
-      VectorXd manipForce_f;
-      VectorXd manipForce_c;
+      MatrixX3d vel; // velocities of points (ith row is the velocity of the ith point)
+      VectorXd groundForce_f; // magnitudes of ground forces for each point
+      VectorXd groundForce_c; // contact vars for ground forces
+      VectorXd manipForce_f; // magnitudes of manipulator force for each point
+      VectorXd manipForce_c; // contact vars for manip forces
 
-      EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
-      explicit private_StateAtTime(int N)
+      explicit StateAtTime(int N)
         : manipPos(Vector3d::Zero()),
           vel(MatrixX3d::Zero(N, 3)),
           groundForce_f(VectorXd::Zero(N)),
@@ -127,13 +128,16 @@ struct OptRope {
               + manipForce_c.size();
       }
 
+      EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+      // Conversion/utility methods
+
       int m_dim; int m_N;
       int dim() const { return m_dim; }
 
       VectorXd toSubColumn() const {
         VectorXd col(dim());
         int pos = 0;
-
         col.segment<3>(pos) = manipPos; pos += 3;
         for (int i = 0; i < m_N; ++i) {
           col.segment<3>(pos) = vel.row(i).transpose(); pos += 3;
@@ -160,10 +164,16 @@ struct OptRope {
         assert(pos == dim());
       }
     };
-    EigVector<private_StateAtTime>::type atTime;
 
-    explicit State(int T, int N) : atTime(T, private_StateAtTime(N)) { }
+    // The whole state is just a bunch of StateAtTimes over time
+    EigVector<StateAtTime>::type atTime;
+
+    explicit State(int T, int N) : atTime(T, StateAtTime(N)) { }
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+    int dim() const { return atTime[0].dim() * atTime.size(); }
+
+    // Conversion/utility methods
 
     VectorXd toColumn() const {
       int subdim = atTime[0].dim();
@@ -177,7 +187,8 @@ struct OptRope {
       return col;
     }
 
-    void initFromColumn(const VectorXd &col) {
+    template<typename Derived>
+    void initFromColumn(const DenseBase<Derived> &col) {
       int subdim = atTime[0].dim();
       assert(col.size() == atTime.size() * subdim);
       int pos = 0;
@@ -188,22 +199,23 @@ struct OptRope {
       assert(pos == col.size());
     }
 
-    int dim() const { return atTime[0].dim() * atTime.size(); }
-
     string toString(int t, int n) const {
       return (
-        boost::format("t=%d n=%d: v=%s | ground_z: %s | ground_c: %s")
+        boost::format("t=%d n=%d: v=[%s] | ground_f,c=(%f,%f) | manip_f,c=(%f,%f)")
         % t
         % n
         % atTime[t].vel.row(n)
         % atTime[t].groundForce_f[n]
         % atTime[t].groundForce_c[n]
+        % atTime[t].manipForce_f[n]
+        % atTime[t].manipForce_c[n]
       ).str();
     }
   };
 
 
-  State toState(const VectorXd &col) const {
+  template<typename Derived>
+  State toState(const DenseBase<Derived> &col) const {
     State s(m_T, m_N);
     s.initFromColumn(col);
     return s;
@@ -247,7 +259,8 @@ struct OptRope {
       for (int n = 0; n < m_N; ++n) {
         // compute total force on particle n at time t
         Vector3d groundForce(0, 0, state.atTime[t].groundForce_f[n]);
-        Vector3d totalForce = OPhysConfig::gravity + groundForce;
+        Vector3d manipForce = (state.atTime[t].manipPos - pos[t].row(n).transpose()).normalized() * state.atTime[t].manipForce_f[n];
+        Vector3d totalForce = OPhysConfig::gravity + groundForce + manipForce;
         Vector3d vdiff = (state.atTime[t+1].vel.row(n) - state.atTime[t].vel.row(n)).transpose();
         cost += (vdiff - totalForce*OPhysConfig::dt).squaredNorm();
       }
@@ -269,7 +282,12 @@ struct OptRope {
     for (int t = 0; t < m_T; ++t) {
       for (int n = 0; n < m_N; ++n) {
         //cost += square(state[idx_groundForce_c(t,n)]) * (square(pos[t](n,2)) + square(state[idx_vel_z(t,n)]));
+
+        // ground contact
         cost += square(state.atTime[t].groundForce_c[n]) * square(max(0., pos[t](n,2) - GROUND_HEIGHT));
+
+        // manipulator contact
+        cost += square(state.atTime[t].manipForce_c[n]) * (state.atTime[t].manipPos - pos[t].row(n).transpose()).squaredNorm();
       }
     }
     return cost;
@@ -277,11 +295,15 @@ struct OptRope {
 
   double cost_forces(const State &state) const {
     double cost = 0;
-    // (force^2 / contact^2) + force^2
     for (int t = 0; t < m_T; ++t) {
       for (int n = 0; n < m_N; ++n) {
+        // ground force (force^2 / contact^2) + force^2
         cost += square(state.atTime[t].groundForce_f[n]) / (1e-5 + square(state.atTime[t].groundForce_c[n]));
         cost += 1e-3*square(state.atTime[t].groundForce_f[n]);
+
+        // manipulator force
+        cost += square(state.atTime[t].manipForce_f[n]) / (1e-5 + square(state.atTime[t].manipForce_c[n]));
+        cost += 1e-3*square(state.atTime[t].manipForce_f[n]);
       }
     }
     return cost;
@@ -299,6 +321,12 @@ struct OptRope {
     return cost;
   }
 
+  // goal cost: point 0 should be at ()
+  double cost_goalPos(const PosVector &pos) const {
+    static const Vector3d desiredPos0 = m_initPos.row(0).transpose() + Vector3d(1, 0, 0);
+    return (pos[m_T-1].row(0) - desiredPos0.transpose()).squaredNorm();
+  }
+
   double costfunc(const State &state) const {
     PosVector pos = integrateVelocities(state);
 
@@ -310,31 +338,34 @@ struct OptRope {
     cost += m_coeffs.contact * cost_contact(state, pos);
     cost += m_coeffs.forces * cost_forces(state);
     cost += m_coeffs.linkLen * cost_linkLen(pos);
+    cost += m_coeffs.goalPos * cost_goalPos(pos);
 
     return cost;
   }
 
-  VectorXd costGrad(VectorXd &x0) const {
-    static const double eps = 1e-3;
-    VectorXd grad(x0.size());
+  template<typename VecType, typename Derived>
+  VecType costGrad(DenseBase<Derived> &x0) const {
+    static const double eps = 1e-4;
+    VecType grad(x0.size());
     State tmpstate(m_T, m_N);
     for (int i = 0; i < x0.size(); ++i) {
       double xorig = x0(i);
-      x0(i) = xorig + eps;
+      x0[i] = xorig + eps;
       tmpstate.initFromColumn(x0); double b = costfunc(tmpstate);
-      x0(i) = xorig - eps;
+      x0[i] = xorig - eps;
       tmpstate.initFromColumn(x0); double a = costfunc(tmpstate);
-      x0(i) = xorig;
-      grad(i) = (b - a) / (2*eps);
+      x0[i] = xorig;
+      grad[i] = (b - a) / (2*eps);
     }
     return grad;
   }
 
   double nlopt_costWrapper(const vector<double> &x, vector<double> &grad) const {
-    VectorXd ex = toEigVec(x);
+    //VectorXd ex = toEigVec(x);
+    Eigen::Map<VectorXd> ex(const_cast<double*>(x.data()), x.size(), 1);
     State state(m_T, m_N); state.initFromColumn(ex);
     if (!grad.empty()) {
-      vector<double> g = toStlVec(costGrad(ex));
+      vector<double> g = costGrad<vector<double> >(ex);
       assert(g.size() == grad.size());
       grad = g;
     }
@@ -374,14 +405,22 @@ struct OptRope {
 struct OptRopePlot {
   Scene *m_scene;
   PlotSpheres::Ptr m_plotSpheres;
+  PlotLines::Ptr m_plotLines;
   const int m_N;
 
-  OptRopePlot(int N, Scene *scene, const MatrixX3d &initPos) : m_N(N), m_scene(scene), m_plotSpheres(new PlotSpheres) {
+  OptRopePlot(int N, Scene *scene, const MatrixX3d &initPos, const Vector3d &initManipPos)
+    : m_N(N),
+      m_scene(scene),
+      m_plotSpheres(new PlotSpheres),
+      m_plotLines(new PlotLines(2))
+  {
     m_scene->env->add(m_plotSpheres);
-    draw(initPos);
+    m_scene->env->add(m_plotLines);
+    draw(initPos, initManipPos);
   }
 
-  void draw(const MatrixX3d &pos) {
+  void draw(const MatrixX3d &pos, const Vector3d &manipPos) {
+    // rope control points
     osg::ref_ptr<osg::Vec3Array> centers(new osg::Vec3Array());
     osg::ref_ptr<osg::Vec4Array> rgba(new osg::Vec4Array());
     vector<float> radii;
@@ -390,20 +429,35 @@ struct OptRopePlot {
       rgba->push_back(osg::Vec4(1, 0, 0, 1));
       radii.push_back(0.05);
     }
+
+    // manipulator position
+    centers->push_back(osg::Vec3(manipPos(0), manipPos(1), manipPos(2)));
+    rgba->push_back(osg::Vec4(0, 1, 0, 0.7));
+    radii.push_back(0.05);
+
     m_plotSpheres->plot(centers, rgba, radii);
+
+
+    // imaginary lines connecting rope control points
+    osg::ref_ptr<osg::Vec3Array> linePts(new osg::Vec3Array());
+    for (int i = 0; i < pos.rows() - 1; ++i) {
+      linePts->push_back(osg::Vec3(pos(i, 0), pos(i, 1), pos(i, 2)));
+      linePts->push_back(osg::Vec3(pos(i+1, 0), pos(i+1, 1), pos(i+1, 2)));
+    }
+    m_plotLines->setPoints(linePts);
   }
 
-  void playTraj(const OptRope::PosVector &pv, bool idlePerStep=false, bool printProgress=false) {
+  void playTraj(const OptRope::PosVector &pv, const MatrixX3d &manipPositions, bool idlePerStep=false, bool printProgress=false) {
+    assert(pv.size() == manipPositions.rows());
     for (int t = 0; t < pv.size(); ++t) {
       if (printProgress) {
         cout << "showing step " << (t+1) << "/" << pv.size() << endl;
       }
-      draw(pv[t]);
+      draw(pv[t], manipPositions.row(t).transpose());
       m_scene->step(0);
       if (idlePerStep) m_scene->idle(true);
     }
   }
-
 };
 
 static double nlopt_costWrapper(const vector<double> &x, vector<double> &grad, void *data) {
@@ -429,7 +483,7 @@ int main() {
   }
   double linklen = abs(initPositions(0, 0) - initPositions(1, 0));
 
-  OptRope optrope(initPositions, N, T, linklen);
+  OptRope optrope(initPositions, T, N, linklen);
   cout << "optimizing " << optrope.getNumVariables() << " variables" << endl;
   nlopt::opt opt(nlopt::LD_LBFGS, optrope.getNumVariables());
   //opt.set_lower_bounds(optrope.getLowerBounds());
@@ -458,16 +512,22 @@ int main() {
 
   cout << COPY_A << ' ' << COPY_B << endl;
 
-  // for (int t = 0; t < optrope.m_T; ++t) {
-  //   optrope.printState(toEigVec(x0), t, 0);
-  // }
 
   OptRope::State finalState = optrope.toState(toEigVec(x0));
+  for (int t = 0; t < optrope.m_T; ++t) {
+    cout << finalState.toString(t, 0) << endl;
+  }
+
   OptRope::PosVector soln = optrope.integrateVelocities(finalState);
+  MatrixX3d manipPositions(T, 3);
+  for (int t = 0; t < T; ++t) {
+    manipPositions.row(t) = finalState.atTime[t].manipPos;
+  }
+
   Scene scene;
-  OptRopePlot plot(N, &scene, soln[0]);
+  OptRopePlot plot(N, &scene, soln[0], finalState.atTime[0].manipPos);
   scene.startViewer();
-  plot.playTraj(soln, true, true);
+  plot.playTraj(soln, manipPositions, true, true);
 
   scene.idle(true);
 
