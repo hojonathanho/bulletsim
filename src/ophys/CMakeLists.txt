@@ -7,8 +7,8 @@ include_directories(
   ${GUROBI_INCLUDE_DIR}
 )
 
-set(CMAKE_CXX_FLAGS "-Wall -Wno-sign-compare -Wno-reorder")
-link_directories(${GUROBI_LIBRARY_DIR})
+set(CMAKE_CXX_FLAGS "-Wall -Wno-sign-compare -Wno-reorder -fopenmp")
+link_directories(${GUROBI_LIBRARY_DIR} /home/jonathan/opt/pardiso)
 
 add_library(ophys
   particlesystem2.cpp
@@ -33,3 +33,6 @@ target_link_libraries(test_gurobi_constraints ophys)
 
 add_executable(nlopt_rope nlopt_rope.cpp)
 target_link_libraries(nlopt_rope ophys nlopt)
+
+add_executable(test_ipopt test_ipopt.cpp)
+target_link_libraries(test_ipopt ipopt gfortran pthread m pardiso lapack blas dl)
