@@ -34,8 +34,9 @@ public:
 	BulletSoftObject::Ptr cloth;
 
 	// the suturing needle
-	CapsuleObject::Ptr needle;
+	//CapsuleObject::Ptr needle;
 	RaveObject::Ptr sneedle;
+	float 			sneedle_radius;
 	// is the needle allowed to pierce?
 	bool piercing;
 	// max distance between needle tip and point to cut at
@@ -58,7 +59,7 @@ public:
      *  left grippers are. **/
 	PlotAxes::Ptr cut_axes;
 
-	CustomScene() : pr2m(*this), isRaveViewer(false), piercing(false), cut_threshold(0.03) { }
+	CustomScene() : pr2m(*this), isRaveViewer(false), piercing(false), cut_threshold(0.03), sneedle_radius(0.08) { }
 
 	void createFork();
 	void swapFork();

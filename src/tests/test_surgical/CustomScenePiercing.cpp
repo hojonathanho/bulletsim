@@ -109,7 +109,9 @@ void CustomScene::cutCloth (bool fwd) {
 
 	//Get contact points
 	btSoftBody::tRContactArray rcnts;
-	getContactPointsWith(cloth->softBody.get(), needle->rigidBody.get(), rcnts);
+	//assuming there is only one child
+	BulletObject::Ptr child = sneedle->getChildren()[0];
+	getContactPointsWith(cloth->softBody.get(), child->rigidBody.get(), rcnts);
 	int numContacts = rcnts.size();
 
 	// If no contact points, return.
@@ -168,7 +170,8 @@ void CustomScene::piercingCallBack () {
 	if (!piercing || !cloth->meanStress) return;
 
 	btSoftBody::tRContactArray rcnts;
-	getContactPointsWith(cloth->softBody.get(), needle->rigidBody.get(), rcnts);
+	BulletObject::Ptr child = sneedle->getChildren()[0];
+	getContactPointsWith(cloth->softBody.get(), child->rigidBody.get(), rcnts);
 	int numContacts = rcnts.size();
 
 	// If no contact points, return.
@@ -211,7 +214,7 @@ void CustomScene::piercingCallBack () {
 btVector3 CustomScene::getNeedleTip (bool fwd) {
 	int dir = -1;
 	if (fwd) dir = 1;
-	return needle->getIndexTransform(0)*btVector3(dir*(needle->getHeight()/2),0,0);
+	return sneedle->getIndexTransform(0)*btVector3(dir*sneedle_radius*GeneralConfig::scale,sneedle_radius*GeneralConfig::scale,0);
 }
 
 
@@ -219,7 +222,7 @@ btVector3 CustomScene::getNeedleTip (bool fwd) {
 void CustomScene::plotNeedle () {
 	plot_needle->setPoints(std::vector<btVector3> (), std::vector<btVector4> ());
 
-	btTransform tfm = needle->getIndexTransform(0);
+	btTransform tfm = sneedle->getIndexTransform(0);
 	std::vector<btVector3> plotpoints;
 	std::vector<btVector4> color;
 
@@ -230,9 +233,9 @@ void CustomScene::plotNeedle () {
     plotpoints.push_back(getNeedleTip(true));
     color.push_back(btVector4(3,0,0,1));
 
-    plotpoints.push_back(getNeedleTip(false));
-    color.push_back(btVector4(3,0,0,1));
+//    plotpoints.push_back(getNeedleTip(false));
 
+//    color.push_back(btVector4(3,0,0,1));
     plot_needle->setPoints(plotpoints,color);
 }
 
@@ -394,8 +397,8 @@ void CustomScene::run() {
 
     table->rigidBody->setFriction(10);
 
-    //Needle info
-    const float needle_mass = 50;
+    /*/Needle info
+
     const float needle_radius = 0.01;
     const float needle_height = 0.35;
     needle = CapsuleObject::Ptr(new CapsuleObject(	needle_mass,
@@ -403,23 +406,22 @@ void CustomScene::run() {
     												GeneralConfig::scale * needle_height,
     												btTransform(btQuaternion(0, 0, 0, 1),
     														GeneralConfig::scale *
-    															btVector3(0.85, 0, table_height+table_thickness))));
+    															btVector3(0.85, 0, table_height+table_thickness))));*/
 
+    // Adding the suturing needle to the scene
+    const float needle_mass = 50;
     static const char SNEEDLE_MODEL_FILE[] = EXPAND(BULLETSIM_DATA_DIR) "/needle/sneedle.dae";
     KinBodyPtr needle_body = rave->env->ReadKinBodyURI(SNEEDLE_MODEL_FILE);
     btTransform needle_tfm;
     table->motionState->getWorldTransform(needle_tfm);
-	needle_tfm.setOrigin(needle_tfm.getOrigin() / GeneralConfig::scale);
+	needle_tfm.setOrigin((needle_tfm.getOrigin() + btVector3(0.5*GeneralConfig::scale,0,0.2*GeneralConfig::scale))/ GeneralConfig::scale);
     needle_body->SetTransform(util::toRaveTransform(needle_tfm));
-    sneedle = RaveObject::Ptr(new RaveObject(rave,needle_body,RAW));
+    sneedle = RaveObject::Ptr(new RaveObject(rave,needle_body,CONVEX_DECOMP));
 
     vector<BulletObject::Ptr> chldrn = sneedle->getChildren();
-    std::cout<<"Number of children in sneedle: "<<chldrn.size()<<std::endl;
-    std::cout<<"Mass of child: "<<1/chldrn[0]->rigidBody->getInvMass()<<std::endl;
     btVector3 inertia(0,0,0);
     chldrn[0]->rigidBody->getCollisionShape()->calculateLocalInertia(needle_mass,inertia);
     chldrn[0]->rigidBody->setMassProps(needle_mass,inertia);
-    std::cout<<"Mass of child: "<<1/chldrn[0]->rigidBody->getInvMass()<<std::endl;
 
 
     //std::cout<<"Bullet margin: "<<BulletConfig::margin<<" and METERS: "<<METERS<<std::endl;
@@ -433,7 +435,7 @@ void CustomScene::run() {
 
     env->add(table);
     env->add(cloth);
-    env->add(needle);
+    //env->add(needle);
     env->add(sneedle);
     env->add(plot_needle);
 
