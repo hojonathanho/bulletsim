@@ -21,6 +21,7 @@
 #include "simulation/config_viewer.h"
 #include "simulation/softBodyHelpers.h"
 
+#include "RavePlanners.h"
 
 class CustomScene : public Scene {
 public:
@@ -93,8 +94,10 @@ public:
 	/** Returns ||(v1.x, v1.y) - (v2.x, v2.y)||. */
 	btScalar inline getXYDistance(btVector3 &v1, btVector3 &v2);
 
-	/** small test to test the controller. */
+	/** small tests to test the planners and the controller. */
 	void testTrajectory();
+	void testTrajectory2();
+
 
 	void run();
 };

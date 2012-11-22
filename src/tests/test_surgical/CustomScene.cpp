@@ -152,7 +152,6 @@ void CustomScene::swapFork() {
 
 /** small test to test the controller. */
 void CustomScene::testTrajectory() {
-	//pr2m.setArmPose("side", 'b');
 
 	pr2m.pr2->robot->SetActiveManipulator("rightarm");
 
@@ -176,6 +175,32 @@ void CustomScene::testTrajectory() {
 	pr2m.controller->appendTrajectory(traj);
 	pr2m.controller->run();
 }
+
+
+/** small test to test the planner and the controller. */
+void CustomScene::testTrajectory2() {
+	//WayPointsPlanner planner1(pr2m.pr2, rave, 'r');
+	IKInterpolationPlanner ikPlanner(pr2m, rave, 'r');
+
+
+	pr2m.pr2->robot->SetActiveManipulator("rightarm");
+	Transform rightT = pr2m.pr2Right->manip->GetEndEffectorTransform();
+	std::vector<Transform> t;
+	for(int i =0; i < 3; i+=1) {
+		Transform t1 = rightT;
+		t1.trans += Vector(0.0,0,-0.03*i);
+		t.push_back(t1);
+	}
+
+	std::pair<bool, RaveTrajectory::Ptr> res = ikPlanner.plan(t);
+	if (res.first) {
+		pr2m.controller->appendTrajectory(res.second);
+		pr2m.controller->run();
+	} else {
+		std::cout<<"Plan failed!"<<std::endl;
+	}
+}
+
 
 
 /* Sets up the scene and UI even handlers,

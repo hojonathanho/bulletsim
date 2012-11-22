@@ -58,8 +58,7 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,
         	break;
 
         case 'o': // executes an openrave trajectory
-        	scene.testTrajectory();
-        	//scene.rave->env->Save("/home/ankush/sandbox/rave_suture/suture_env2.xml");
+        	scene.testTrajectory2();
         	break;
         }
         break;
