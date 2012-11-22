@@ -1,22 +1,27 @@
+#pragma once
+
 #include <coin/IpTNLP.hpp>
 #include <coin/IpIpoptApplication.hpp>
 
-#include <iostream>
 #include <Eigen/Dense>
 #include <boost/function.hpp>
 
-#include "ipopt_interface.h"
-
 using namespace Ipopt;
-using namespace std;
 using namespace Eigen;
 
-//static const double INF = 2e20;
-
-#if 0
 class BoxConstrainedOptProblem : public TNLP {
 public:
+
+  static const double INF = 1e20;
+
   typedef boost::function<double(const Eigen::Map<const VectorXd> &)> ObjectiveFunc;
+
+  struct Solution {
+	SolverReturn status;
+    Index n; VectorXd x, z_L, z_U;
+    Index m; VectorXd g, lambda;
+    double obj_value;
+  };
 
   BoxConstrainedOptProblem(int dim, const VectorXd &lb, const VectorXd &ub, const VectorXd &start, const ObjectiveFunc &objFunc)
     : m_dim(dim), m_lb(lb), m_ub(ub), m_start(start), m_objFunc(objFunc)
@@ -127,66 +132,31 @@ public:
                                  Number obj_value,
          const IpoptData* ip_data,
          IpoptCalculatedQuantities* ip_cq) {
-    cout << "solution: ";
-    for (int i = 0; i < n; ++i) {
-      cout << x[i] << ' ';
-    }
-    cout << endl;
+
+  	m_soln.status = status;
+  	m_soln.n = n; m_soln.x = arrayToEigen(n, x); m_soln.z_L = arrayToEigen(n, z_L); m_soln.z_U = arrayToEigen(n, z_U);
+  	m_soln.m = m; m_soln.g = arrayToEigen(m, g); m_soln.lambda = arrayToEigen(m, lambda);
+  	m_soln.obj_value = obj_value;
   }
+
+  Solution &solution() { return m_soln; }
+
+
+protected:
+  const int m_dim;
+  VectorXd m_lb, m_ub, m_start;
+  ObjectiveFunc m_objFunc;
+  Solution m_soln;
+
+  static VectorXd arrayToEigen(int n, const double *a) {
+  	VectorXd v(n);
+  	memcpy(v.data(), a, n*sizeof(double));
+  	return v;
+  }
+
 
 private:
   BoxConstrainedOptProblem(const BoxConstrainedOptProblem&);
   BoxConstrainedOptProblem& operator=(const BoxConstrainedOptProblem&);
 
-  const int m_dim;
-  VectorXd m_lb, m_ub, m_start;
-  ObjectiveFunc m_objFunc;
 };
-#endif
-
-
-static double fn(const Eigen::Map<const VectorXd> &x) {
-  return (x - Vector3d(-.1, -.2, .6)).squaredNorm();
-}
-
-static int solve() {
-  int dim = 3;
-  Vector3d lb(-1, -1, -1);
-  Vector3d ub(1, 1, 1);
-  Vector3d start(.5, .5, .5);
-  SmartPtr<TNLP> prob = new BoxConstrainedOptProblem(dim, lb, ub, start, &fn);
-
-  SmartPtr<IpoptApplication> app = IpoptApplicationFactory();
-  app->Options()->SetNumericValue("tol", 1e-7);
-  app->Options()->SetStringValue("mu_strategy", "adaptive");
-  app->Options()->SetStringValue("hessian_approximation", "limited-memory");
-  //app->Options()->SetStringValue("output_file", "ipopt.out");
-  //app->Options()->SetStringValue("derivative_test", "first-order");
-
-  ApplicationReturnStatus status;
-  status = app->Initialize();
-  if (status != Solve_Succeeded) {
-    std::cout << std::endl << std::endl << "*** Error during initialization!" << std::endl;
-    return (int) status;
-  }
-
-  status = app->OptimizeTNLP(prob);
-
-  if (status == Solve_Succeeded) {
-    std::cout << std::endl << std::endl << "*** The problem solved!" << std::endl;
-  }
-  else {
-    std::cout << std::endl << std::endl << "*** The problem FAILED!" << std::endl;
-  }
-
-  cout << "solution: " << ((BoxConstrainedOptProblem*) GetRawPtr(prob))->solution().x.transpose() << endl;
-
-  return (int) status;
-}
-
-
-int main() {
-  int status = solve();
-  cout << "solver status: " << status << endl;
-  return 0;
-}

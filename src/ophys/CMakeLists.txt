@@ -31,8 +31,14 @@ target_link_libraries(test_particlesystem2 ophys)
 add_executable(test_gurobi_constraints test_gurobi_constraints.cpp)
 target_link_libraries(test_gurobi_constraints ophys)
 
+set(IPOPT_LIBS
+  #/home/jonathan/Downloads/Ipopt-3.10.3/build/Ipopt/src/Interfaces/.libs/libipopt.a
+  ipopt
+  gfortran pthread m pardiso lapack blas dl
+)
+
 add_executable(nlopt_rope nlopt_rope.cpp)
-target_link_libraries(nlopt_rope ophys nlopt)
+target_link_libraries(nlopt_rope ophys ${IPOPT_LIBS})
 
 add_executable(test_ipopt test_ipopt.cpp)
-target_link_libraries(test_ipopt ipopt gfortran pthread m pardiso lapack blas dl)
+target_link_libraries(test_ipopt ${IPOPT_LIBS})
