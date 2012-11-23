@@ -90,7 +90,10 @@ public:
 
 
 /** Plans a path through given points [transforms in 3d space].
- *  Uses IK (does not use openrave planner) */
+ *  Uses IK (does not use openrave planner).
+ *
+ *  This planner has a very high relative success rate compared
+ *  to the ones above. */
 class IKInterpolationPlanner {
 
 	/** Instance of openrave in which we want to plan.*/

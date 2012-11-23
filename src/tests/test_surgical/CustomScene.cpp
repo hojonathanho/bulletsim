@@ -186,11 +186,22 @@ void CustomScene::testTrajectory2() {
 	pr2m.pr2->robot->SetActiveManipulator("rightarm");
 	Transform rightT = pr2m.pr2Right->manip->GetEndEffectorTransform();
 	std::vector<Transform> t;
-	for(int i =0; i < 3; i+=1) {
+
+	//visualize
+	plotcolors.clear();
+	plotpoints.clear();
+
+	for(int i =0; i < 30; i+=1) {
 		Transform t1 = rightT;
-		t1.trans += Vector(0.0,0,-0.03*i);
+		t1.trans += Vector(0.0001*i*i,0,-0.005*i);
 		t.push_back(t1);
+
+		// visual aid
+		plotpoints.push_back(util::toBtVector(GeneralConfig::scale*t1.trans));
+		plotcolors.push_back(btVector4(2,0,0,1));
 	}
+	plot_points->setPoints(plotpoints,plotcolors);
+
 
 	std::pair<bool, RaveTrajectory::Ptr> res = ikPlanner.plan(t);
 	if (res.first) {
@@ -199,6 +210,10 @@ void CustomScene::testTrajectory2() {
 	} else {
 		std::cout<<"Plan failed!"<<std::endl;
 	}
+}
+
+SutureCloth::SutureCloth(CustomScene &scene, btScalar side_length, btScalar z, btVector3 center) {
+		cloth = scene.createCloth(side_length, z, center, cut_nodes1, cut_nodes2);
 }
 
 
@@ -216,16 +231,15 @@ void CustomScene::run() {
                         		                     GeneralConfig::scale * btVector3(0.85, 0, table_height-table_thickness/2))));
     table->rigidBody->setFriction(10);
 
-    cloth = createCloth(GeneralConfig::scale * 0.5, 0, GeneralConfig::scale * btVector3(0.6, 0, table_height+0.01),
-    					cut_nodes1, cut_nodes2);
+    sCloth.reset(new SutureCloth(*this,GeneralConfig::scale * 0.5, 0, GeneralConfig::scale * btVector3(0.6, 0, table_height+0.01)));
 
-    btSoftBody * const psb = cloth->softBody.get();
+    btSoftBody * const psb = sCloth->cloth->softBody.get();
     pr2m.pr2->ignoreCollisionWith(psb);
     pr2m.setArmPose("side", 'b');
     pr2m.setTorso(1);
 
     env->add(table);
-    env->add(cloth);
+    env->add(sCloth->cloth);
 
     // set up the points for plotting
     plot_points.reset(new PlotPoints(5));
@@ -235,11 +249,11 @@ void CustomScene::run() {
     leftAction.reset(new PR2SoftBodyGripperAction(pr2m.pr2Left,
     		                                      "l_gripper_l_finger_tip_link",
     		                                      "l_gripper_r_finger_tip_link", 1));
-    leftAction->setTarget(cloth);
+    leftAction->setTarget(sCloth->cloth);
     rightAction.reset(new PR2SoftBodyGripperAction(pr2m.pr2Right,
     		                                       "r_gripper_l_finger_tip_link",
     		                                       "r_gripper_r_finger_tip_link", 1));
-    rightAction->setTarget(cloth);
+    rightAction->setTarget(sCloth->cloth);
 
     //setSyncTime(true);
     startViewer();

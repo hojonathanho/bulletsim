@@ -23,6 +23,24 @@
 
 #include "RavePlanners.h"
 
+class CustomScene;
+
+/** A class to represent the cloth in the scene.
+ * Holds the cloth object and other supporting structures. */
+class SutureCloth {
+public:
+	typedef boost::shared_ptr<SutureCloth> Ptr;
+
+	// the cloth
+	BulletSoftObject::Ptr cloth;
+
+	// node indices of the nodes on the cut
+	std::vector<int> cut_nodes1, cut_nodes2;
+
+	SutureCloth(CustomScene &scene, btScalar side_length, btScalar z, btVector3 center);
+};
+
+
 class CustomScene : public Scene {
 public:
 	PR2SoftBodyGripperAction::Ptr leftAction, rightAction;
@@ -34,10 +52,7 @@ public:
 
 
 	// the cloth to be sutured
-	BulletSoftObject::Ptr cloth;
-
-	// node indices of the nodes on the cut
-	std::vector<int> cut_nodes1, cut_nodes2;
+	SutureCloth::Ptr sCloth;
 
 	// the table in the scene
 	BoxObject::Ptr table;
@@ -101,4 +116,7 @@ public:
 
 	void run();
 };
+
+
+
 #endif

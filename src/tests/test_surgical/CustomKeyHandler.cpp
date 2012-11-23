@@ -33,7 +33,7 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,
     		break;
 
         case 't': // generates a kinematic from the cloth and adds to the openrave environment
-        	createKinBodyFromBulletSoftObject(scene.cloth, scene.rave);
+        	createKinBodyFromBulletSoftObject(scene.sCloth->cloth, scene.rave);
         	createKinBodyFromBulletBoxObject(scene.table, scene.rave);
         	break;
 
@@ -45,13 +45,14 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,
         	scene.plotcolors.clear();
         	scene.plotpoints.clear();
 
-        	for (int i=0; i < scene.cut_nodes1.size(); i += 1) {
-        		scene.plotpoints.push_back(scene.cloth->softBody->m_nodes[scene.cut_nodes1[i]].m_x);
+
+        	for (int i=0; i < scene.sCloth->cut_nodes1.size(); i += 1) {
+        		scene.plotpoints.push_back(scene.sCloth->cloth->softBody->m_nodes[scene.sCloth->cut_nodes1[i]].m_x);
         		scene.plotcolors.push_back(btVector4(2,0,0,1));
         	}
 
-        	for (int i=0; i < scene.cut_nodes2.size(); i += 1) {
-        		scene.plotpoints.push_back(scene.cloth->softBody->m_nodes[scene.cut_nodes2[i]].m_x);
+        	for (int i=0; i < scene.sCloth->cut_nodes2.size(); i += 1) {
+        		scene.plotpoints.push_back(scene.sCloth->cloth->softBody->m_nodes[scene.sCloth->cut_nodes2[i]].m_x);
         		scene.plotcolors.push_back(btVector4(3,1,0,1));
         	}
         	scene.plot_points->setPoints(scene.plotpoints,scene.plotcolors);
