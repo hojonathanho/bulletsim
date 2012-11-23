@@ -83,7 +83,7 @@ public:
   /** Method to return the gradient of the objective */
   virtual bool eval_grad_f(Index n, const Number* x, bool new_x, Number* grad_f) {
     // finite differences
-    static const double eps = 1e-4;
+    static const double eps = 1e-3;
     VectorXd ex(n);
     memcpy(ex.data(), x, n*sizeof(double));
     Eigen::Map<const VectorXd> wrapper(ex.data(), n, 1);

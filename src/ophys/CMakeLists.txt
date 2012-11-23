@@ -38,7 +38,7 @@ set(IPOPT_LIBS
 )
 
 add_executable(nlopt_rope nlopt_rope.cpp)
-target_link_libraries(nlopt_rope ophys ${IPOPT_LIBS})
+target_link_libraries(nlopt_rope ophys nlopt ${IPOPT_LIBS})
 
 add_executable(test_ipopt test_ipopt.cpp)
 target_link_libraries(test_ipopt ${IPOPT_LIBS})
