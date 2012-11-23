@@ -87,7 +87,7 @@ public:
 	void drawAxes();
 
 	// Get's needle tip. Which tip depends on fwd
-	btVector3 getNeedleTip (bool fwd=true);
+	btVector3 getNeedleTip ();
 
 	// Plots needle tip
 	void plotNeedle();
@@ -105,7 +105,7 @@ public:
 	btScalar inline getXYDistance(btVector3 &v1, btVector3 &v2);
 
 	//Cuts cloth at mentioned needle tip
-	void cutCloth (bool fwd=false);
+	void cutCloth ();
 	//PreStepCallback to pierce cloth if needed
 	void piercingCallBack ();
 

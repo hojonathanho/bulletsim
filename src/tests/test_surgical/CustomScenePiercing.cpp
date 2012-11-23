@@ -105,7 +105,7 @@ struct	ImplicitSphere : btSoftBody::ImplicitFn
 
 /* 	Cuts cloth at on needle contact at tip mentioned (need to account for forces later)
  * 	If needle not piercing, print out info */
-void CustomScene::cutCloth (bool fwd) {
+void CustomScene::cutCloth () {
 
 	//Get contact points
 	btSoftBody::tRContactArray rcnts;
@@ -127,7 +127,7 @@ void CustomScene::cutCloth (bool fwd) {
 
 	btVector3 pointToPierce(0,0,0);
 
-	btVector3 Tip = getNeedleTip(fwd);
+	btVector3 Tip = getNeedleTip();
 	btVector3 currPt;
 
 	for (int i = 0; i < numContacts; ++i) {
@@ -158,7 +158,7 @@ void CustomScene::cutCloth (bool fwd) {
 
 	std::cout<<"Piercing at: "<<pointToPierce[0]<<","<<pointToPierce[1]<<","<<pointToPierce[2]<<std::endl;
 
-	ImplicitSphere	iSphere(pointToPierce,0.02*GeneralConfig::scale);
+	ImplicitSphere	iSphere(pointToPierce,0.01*GeneralConfig::scale);
 
 	cloth->refine(&iSphere, 0.0001, true);
 }
@@ -184,7 +184,7 @@ void CustomScene::piercingCallBack () {
 	const btSoftBody::Node*			nbase = &cloth->softBody->m_nodes[0];
 
 	btVector3 pointToPierce(0,0,0);
-	btVector3 Tip = getNeedleTip(false);
+	btVector3 Tip = getNeedleTip();
 	btVector3 currPt;
 	int idx;
 	float stressThreshold = 1;
@@ -205,16 +205,14 @@ void CustomScene::piercingCallBack () {
 		return;
 
 	//std::cout<<"Going to pierce at: "<<pointToPierce[0]<<","<<pointToPierce[1]<<","<<pointToPierce[2]<<std::endl;
-	ImplicitSphere	iSphere(pointToPierce,0.02*GeneralConfig::scale);
+	ImplicitSphere	iSphere(pointToPierce,0.005*GeneralConfig::scale);
 	cloth->refine(&iSphere, 0.0001, true);
 
 }
 
 
-btVector3 CustomScene::getNeedleTip (bool fwd) {
-	int dir = -1;
-	if (fwd) dir = 1;
-	return sneedle->getIndexTransform(0)*btVector3(dir*sneedle_radius*GeneralConfig::scale,sneedle_radius*GeneralConfig::scale,0);
+btVector3 CustomScene::getNeedleTip () {
+	return sneedle->getIndexTransform(0)*btVector3(sneedle_radius*GeneralConfig::scale,sneedle_radius*1.3*GeneralConfig::scale,0);
 }
 
 
@@ -230,7 +228,7 @@ void CustomScene::plotNeedle () {
 	plotpoints.push_back(tfm.getOrigin());
     color.push_back(btVector4(3,0,0,1));
 
-    plotpoints.push_back(getNeedleTip(true));
+    plotpoints.push_back(getNeedleTip());
     color.push_back(btVector4(3,0,0,1));
 
 //    plotpoints.push_back(getNeedleTip(false));
@@ -416,7 +414,7 @@ void CustomScene::run() {
     table->motionState->getWorldTransform(needle_tfm);
 	needle_tfm.setOrigin((needle_tfm.getOrigin() + btVector3(0.5*GeneralConfig::scale,0,0.2*GeneralConfig::scale))/ GeneralConfig::scale);
     needle_body->SetTransform(util::toRaveTransform(needle_tfm));
-    sneedle = RaveObject::Ptr(new RaveObject(rave,needle_body,CONVEX_DECOMP));
+    sneedle = RaveObject::Ptr(new RaveObject(rave,needle_body,CONVEX_DECOMP));//,CONVEX_DECOMP));
 
     vector<BulletObject::Ptr> chldrn = sneedle->getChildren();
     btVector3 inertia(0,0,0);
@@ -440,7 +438,7 @@ void CustomScene::run() {
     env->add(plot_needle);
 
     //boost::function<void(void)>
-    addPreStepCallback(boost::bind(&CustomScene::piercingCallBack, this));
+    //addPreStepCallback(boost::bind(&CustomScene::piercingCallBack, this));
 
     leftAction.reset(new PR2SoftBodyGripperAction(pr2m.pr2Left,
     		                                      "l_gripper_l_finger_tip_link",
