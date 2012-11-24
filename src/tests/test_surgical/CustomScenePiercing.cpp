@@ -414,7 +414,7 @@ void CustomScene::run() {
     table->motionState->getWorldTransform(needle_tfm);
 	needle_tfm.setOrigin((needle_tfm.getOrigin() + btVector3(0.5*GeneralConfig::scale,0,0.2*GeneralConfig::scale))/ GeneralConfig::scale);
     needle_body->SetTransform(util::toRaveTransform(needle_tfm));
-    sneedle = RaveObject::Ptr(new RaveObject(rave,needle_body,CONVEX_DECOMP));//,CONVEX_DECOMP));
+    sneedle = RaveObject::Ptr(new RaveObject(rave,needle_body,RAW));//,CONVEX_DECOMP));
 
     vector<BulletObject::Ptr> chldrn = sneedle->getChildren();
     btVector3 inertia(0,0,0);
