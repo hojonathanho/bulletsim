@@ -185,6 +185,7 @@ void CustomScene::testTrajectory2() {
 
 	pr2m.pr2->robot->SetActiveManipulator("rightarm");
 	Transform rightT = pr2m.pr2Right->manip->GetEndEffectorTransform();
+
 	std::vector<Transform> t;
 
 	//visualize
@@ -193,7 +194,8 @@ void CustomScene::testTrajectory2() {
 
 	for(int i =0; i < 30; i+=1) {
 		Transform t1 = rightT;
-		t1.trans += Vector(0.0001*i*i,0,-0.005*i);
+		t1.trans += Vector(0.0001*(i+1)*(i+1),0,-0.005*(i+1));
+
 		t.push_back(t1);
 
 		// visual aid
@@ -246,7 +248,6 @@ void CustomScene::run() {
     env->add(plot_axes1);
     plot_axes2.reset(new PlotAxes());
     env->add(plot_axes2);
-
 
     leftAction.reset(new PR2SoftBodyGripperAction(pr2m.pr2Left,
     		                                      "l_gripper_l_finger_tip_link",

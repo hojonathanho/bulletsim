@@ -48,7 +48,7 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,
         	scene.plotcolors.clear();
         	scene.plotpoints.clear();
 
-        	// gets the graps transform for the cuts and plots them
+        	// gets the grap-transforms for the cuts and plots them
         	cutT1 =  scene.sCloth->getCutGraspTransform(1, scene.pr2m.pr2, 0.3);
         	cutT2 =  scene.sCloth->getCutGraspTransform(2, scene.pr2m.pr2, 0.3);
         	scene.plot_axes1->setup(cutT1, 2);

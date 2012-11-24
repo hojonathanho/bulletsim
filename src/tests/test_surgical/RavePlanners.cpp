@@ -159,11 +159,27 @@ IKInterpolationPlanner::IKInterpolationPlanner(PR2Manager &_pr2m,
 /** Returns a plan passing through the way-points specified in TRANSFORMS. */
 std::pair<bool, RaveTrajectory::Ptr> IKInterpolationPlanner::plan(std::vector<OpenRAVE::Transform> &transforms) {
 
+	assert(("IKPlanner Error : Not enough target points given. Expecting at least 1.", transforms.size()>0));
+
     TrajectoryBasePtr traj = RaveCreateTrajectory(rave->env,"");
     traj->Init(pr2manip->origManip->GetArmConfigurationSpecification());
 
+
     /** Insert the way-points into a trajectory. */
     vector<dReal> values;
+
+    if (transforms.size()==1) { // if the user only passed one transform, add another
+    	std::vector<OpenRAVE::Transform> transformsN;
+    	OpenRAVE::Vector currTrans = pr2manip->origManip->GetEndEffectorTransform().trans;
+    	OpenRAVE::Transform interT= transforms[0];
+
+    	interT.trans = (interT.trans  + currTrans)*0.5;
+    	transformsN.push_back(interT);
+    	transformsN.push_back(transforms[0]);
+    	transforms = transformsN;
+    	assert(("There should be 2 transforms in the vector. Not Found!", transforms.size()==2));
+    }
+
     for(int i = 0; i < transforms.size(); ++i) {
     	if (pr2manip->solveIKUnscaled(transforms[i], values)) {
     		traj->Insert(traj->GetNumWaypoints(),values);
