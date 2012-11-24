@@ -3,8 +3,8 @@
 
 bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,
 		                      osgGA::GUIActionAdapter &) {
-	 std::pair<btVector3, btVector3> cutInfo;
-	 btTransform cutT;
+	 //std::pair<std::pair<btVector3, btVector3> , std::pair<int, int> > cutInfo;
+	 btTransform cutT1, cutT2;
     switch (ea.getEventType()) {
     case osgGA::GUIEventAdapter::KEYDOWN:
         switch (ea.getKey()) {
@@ -45,18 +45,14 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,
 
         case 'z': // plots the points on lying on the cut
 
-            cutInfo = scene.sCloth->fitLineAligned(1, scene.pr2m.pr2);
-            cutT = util::getOrthogonalTransform(cutInfo.second);
-            cutT.setOrigin( cutInfo.first);
-            scene.plot_axes->setup(cutT, 2);
-
-            // plot the default axis at the mean
-            //cutT.setRotation(btTransform::getIdentity().getRotation());
-            //scene.plot_axes1->setup(cutT, 2);
-
-
         	scene.plotcolors.clear();
         	scene.plotpoints.clear();
+
+        	// gets the graps transform for the cuts and plots them
+        	cutT1 =  scene.sCloth->getCutGraspTransform(1, scene.pr2m.pr2, 0.3);
+        	cutT2 =  scene.sCloth->getCutGraspTransform(2, scene.pr2m.pr2, 0.3);
+        	scene.plot_axes1->setup(cutT1, 2);
+        	scene.plot_axes2->setup(cutT2, 2);
 
 
         	for (int i=0; i < scene.sCloth->cut_nodes1.size(); i += 1) {

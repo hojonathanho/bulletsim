@@ -18,7 +18,7 @@ namespace util {
 /**  Return am orthonormal basis (rotation matrix + 0 translation)
  * in R3 with the x-axis aligned with the input vector. */
 btTransform getOrthogonalTransform(btVector3 x) {
-	 btVector3 y(x.getY(), -1*x.getX(), 0);
+	 btVector3 y(-x.getY(), x.getX(), 0);
 	 btVector3 z = x.cross(y);
 
 	 x.normalize();
@@ -134,6 +134,7 @@ static inline btVector3 toHapticBtVector(const Vector3d &v) {
     // note: the components are permuted
     return btVector3(v.z(), v.x(), v.y());
 }
+
 bool getHapticInput(btTransform &trans0, bool buttons0[2], btTransform &trans1, bool buttons1[2]) {
     Vector3d start_proxy_pos, end_proxy_pos;
     Matrix3d start_proxy_rot, end_proxy_rot;
@@ -150,12 +151,12 @@ bool getHapticInput(btTransform &trans0, bool buttons0[2], btTransform &trans1, 
 }
 
 
-  void sendRobotState(btVector3 pos0, btVector3 pos1) {
-    double out0[3] = {pos0[1], pos0[2], pos0[0]};
-    double out1[3] = {pos1[1], pos1[2], pos1[0]};
-    sendDeviceState(out0, true, out1, true);
-    cout << "send pos: " << out0[0] << " " << out0[1] << " " << out0[2] << ", " << 
-      out1[0] << " " << out1[1] << " " << out1[2] << endl;
-  }
+void sendRobotState(btVector3 pos0, btVector3 pos1) {
+	double out0[3] = {pos0[1], pos0[2], pos0[0]};
+	double out1[3] = {pos1[1], pos1[2], pos1[0]};
+	sendDeviceState(out0, true, out1, true);
+	cout << "send pos: " << out0[0] << " " << out0[1] << " " << out0[2] << ", " <<
+			out1[0] << " " << out1[1] << " " << out1[2] << endl;
+}
 
 }

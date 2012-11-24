@@ -242,9 +242,10 @@ void CustomScene::run() {
     env->add(plot_points);
 
 
-    plot_axes.reset(new PlotAxes());
-    env->add(plot_axes);
-	plot_axes->setup(btTransform(), 2);
+    plot_axes1.reset(new PlotAxes());
+    env->add(plot_axes1);
+    plot_axes2.reset(new PlotAxes());
+    env->add(plot_axes2);
 
 
     leftAction.reset(new PR2SoftBodyGripperAction(pr2m.pr2Left,
@@ -275,13 +276,13 @@ CustomScene::SutureCloth::SutureCloth(CustomScene &scene, btScalar side_length, 
 		cloth = scene.createCloth(side_length, z, center, cut_nodes1, cut_nodes2);
 }
 
-
 /** Returns the line of maximum variance of the cut-points
  * Performs a PCA on the points.
  * SIDE_NUM  \in {1, 2} : if 1 : cut-points on the left.
  *                        if 2 : cut-points on the right.
- * The return value is a point on the line found and the direction-cosine of the line. */
-std::pair<btVector3, btVector3> CustomScene::SutureCloth::fitLine(int side_num) {
+ * The return value is a point on the line found and the direction-cosine of the line.
+ * Further, it returns 2 ints which are the indices of the extremum points of the cut. */
+pair<pair<btVector3, btVector3> , pair<int, int> > CustomScene::SutureCloth::fitLine(int side_num) {
 
 	std::vector<int> &pt_vector = (side_num==1)? cut_nodes1 : cut_nodes2;
 	unsigned int N = pt_vector.size();
@@ -302,16 +303,91 @@ std::pair<btVector3, btVector3> CustomScene::SutureCloth::fitLine(int side_num) 
 	btVector3 pt_on_line(mean(0), mean(1), mean(2));
 	btVector3 direction_cosine(pca1(0), pca1(1), pca1(2));
 
-	return std::pair<btVector3, btVector3>(pt_on_line, direction_cosine);
+	/** Find the extremum nodes of the cut : node closest to the pr2,
+	 *     and the node farthest from the pr2. */
+	Eigen::VectorXf proj = X_centered * pca1;
+	Eigen::MatrixXf::Index maxIdx, minIdx;
+	proj.maxCoeff(&maxIdx);
+	proj.minCoeff(&minIdx);
+	//std::cout<<"Max Index: "<<(int) maxIdx<<" Min Index: "<< (int) minIdx<<std::endl;
+
+	// build the return structure
+	pair<btVector3, btVector3> lineInfo(pt_on_line, direction_cosine);
+	pair<int, int> extremaIndices((int) minIdx, (int) maxIdx);
+	return pair<pair<btVector3, btVector3> , pair<int, int> >(lineInfo, extremaIndices);
 }
 
-/** See the DOC for fitLine.
- *  In addition to fitting a line to the cut-points it aligns
- *  the direction of the cut with the x-axis of the robot's (PR2) transform. */
-std::pair<btVector3, btVector3> CustomScene::SutureCloth::fitLineAligned(int side_num, RaveRobotObject::Ptr robot) {
+
+/** See the doc for fitLine.
+ *  In addition to fitting a line to the cut-points this function aligns
+ *  the direction of the cut with the x-axis of the robot's (PR2's) transform. */
+pair<pair<btVector3, btVector3> , pair<int, int> >
+CustomScene::SutureCloth::fitLineAligned(int side_num, RaveRobotObject::Ptr robot) {
+
+	// get the robot transform
 	btTransform robotT = robot->getLinkTransform(robot->robot->GetLink("base_link"));
-	std::pair<btVector3, btVector3> res = fitLine(side_num);
 	btVector3 robotX = robotT.getBasis().getColumn(0);
-	btVector3 alignedDir = (res.second.dot(robotX) > 0)? res.second : -1*res.second;
-	return std::pair<btVector3, btVector3>(res.first, alignedDir);
+
+	// fit a line
+	pair<pair<btVector3, btVector3> , pair<int, int> > res = fitLine(side_num);
+
+	// flip?
+	btVector3 dirCosine = res.first.second;
+	btVector3 alignedIdx;
+	if (dirCosine.dot(robotX) > 0) {
+		return res;
+	} else {
+		// build the return structure
+		pair<btVector3, btVector3> lineInfo(res.first.first, -1*res.first.second);
+		pair<int, int> extremaIndices( res.second.second, res.second.first);
+		return pair<pair<btVector3, btVector3> , pair<int, int> >(lineInfo, extremaIndices);
+	}
+}
+
+
+/** Returns a transform for grasping.
+ *  @param SIDE_NUM  \in {1, 2} : if 1 : transform for left-cut
+ *                                if 2 : transform for right-cut
+ *
+ *  @param FRAC   : the fraction of the distance b/w the extreme points
+ *                  of the cut, where the grasp has to be found.
+ *
+ *
+ *  @param ROBOT  : Ptr to the robot for which the grasp has to be found.
+ *                  The robot information is only used to get the right
+ *                  sense of direction. So only the transform of the
+ *                  "base_link" of the robot is used. No other information
+ *                  about the robot is used.  */
+btTransform CustomScene::SutureCloth::getCutGraspTransform(int side_num, RaveRobotObject::Ptr robot, float frac) {
+
+	std::pair<std::pair<btVector3, btVector3> , std::pair<int, int> > cutInfo;
+	cutInfo = fitLineAligned(1, robot);
+
+	std::vector<int> &pt_vector = (side_num==1)? cut_nodes1 : cut_nodes2;
+
+	btVector3 minNode = cloth->softBody->m_nodes[pt_vector[cutInfo.second.first]].m_x;
+	btVector3 maxNode = cloth->softBody->m_nodes[pt_vector[cutInfo.second.second]].m_x;
+
+	btVector3 translationPt = minNode + ((frac * (maxNode - minNode).length())*cutInfo.first.second);
+	//find the node on the cut closest to the translation pt
+	int closestNodeIdx = -1;
+	float dist = numeric_limits<float>::infinity();
+	for (int i=0; i < pt_vector.size(); i+=1) {
+		btVector3 nodePos = cloth->softBody->m_nodes[pt_vector[i]].m_x;
+		if ((translationPt - nodePos).length() < dist) {
+			dist = (translationPt - nodePos).length();
+			closestNodeIdx = i;
+		}
+	}
+
+	btVector3 translation = cloth->softBody->m_nodes[pt_vector[closestNodeIdx]].m_x;
+	btTransform cutT = util::getOrthogonalTransform(cutInfo.first.second);
+	if (side_num != 1) { // then flip the y and the z axis
+		btMatrix3x3 rot = cutT.getBasis().transpose();
+		rot[1] *= -1;
+		rot[2] *= -1;
+		cutT.setBasis(rot.transpose());
+	}
+	cutT.setOrigin(translation);
+	return cutT;
 }

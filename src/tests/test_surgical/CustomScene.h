@@ -50,13 +50,18 @@ public:
 		 * SIDE_NUM  \in {1, 2} : if 1 : cut-points on the left.
 		 *                        if 2 : cut-points on the right.
 		 * The return value is a point on the line found and the direction-cosine of the line. */
-		std::pair<btVector3, btVector3> fitLine(int side_num);
+		pair<pair<btVector3, btVector3> , pair<int, int> > fitLine(int side_num);
 
 
 		/** See the DOC for fitLine.
 		 *  In addition to fitting a line to the cut-points it aligns
 		 *  the direction of the cut with the x-axis of the robot's (PR2) transform. */
-		std::pair<btVector3, btVector3> fitLineAligned(int side_num, RaveRobotObject::Ptr robot);
+		pair<pair<btVector3, btVector3> , pair<int, int> >fitLineAligned(int side_num, RaveRobotObject::Ptr robot);
+
+		/** Returns a transform for grasping.
+		 *  @param SIDE_NUM  \in {1, 2} : if 1 : transform for left-cut
+		 *                                if 2 : transform for right-cut */
+		btTransform getCutGraspTransform(int side_num, RaveRobotObject::Ptr robot, float frac=0.5);
 	};
 
 	PR2SoftBodyGripperAction::Ptr leftAction, rightAction;
@@ -85,8 +90,8 @@ public:
 
 	/** Axes corresponding to the location where the
      *  left grippers are. **/
-	PlotAxes::Ptr plot_axes;
 	PlotAxes::Ptr plot_axes1;
+	PlotAxes::Ptr plot_axes2;
 
 	CustomScene() : pr2m(*this), isRaveViewer(false) { }
 
