@@ -212,10 +212,6 @@ void CustomScene::testTrajectory2() {
 	}
 }
 
-SutureCloth::SutureCloth(CustomScene &scene, btScalar side_length, btScalar z, btVector3 center) {
-		cloth = scene.createCloth(side_length, z, center, cut_nodes1, cut_nodes2);
-}
-
 
 
 /* Sets up the scene and UI even handlers,
@@ -245,6 +241,19 @@ void CustomScene::run() {
     plot_points.reset(new PlotPoints(5));
     env->add(plot_points);
 
+    std::pair<btVector3, btVector3> cutInfo = sCloth->fitLine(1);
+    btTransform cutT = util::getOrthogonalTransform(cutInfo.second);
+    cutT.setOrigin( cutInfo.first);
+
+    plot_axes.reset(new PlotAxes());
+	plot_axes1.reset(new PlotAxes());
+	plot_axes->setup(btTransform(), 2);
+
+
+
+    plot_axes->setup(cutT, 2);
+    env->add(plot_axes);
+    env->add(plot_axes1);
 
     leftAction.reset(new PR2SoftBodyGripperAction(pr2m.pr2Left,
     		                                      "l_gripper_l_finger_tip_link",
@@ -266,4 +275,41 @@ void CustomScene::run() {
     runAction(rightAction, dt);
 
     startFixedTimestepLoop(dt);
+}
+
+
+
+/** Constructor for the cloth in the scene. */
+CustomScene::SutureCloth::SutureCloth(CustomScene &scene, btScalar side_length, btScalar z, btVector3 center) {
+		cloth = scene.createCloth(side_length, z, center, cut_nodes1, cut_nodes2);
+}
+
+
+/** Returns the line of maximum variance of the cut-points
+ * Performs a PCA on the points.
+ * SIDE_NUM  \in {1, 2} : if 1 : cut-points on the left.
+ *                        if 2 : cut-points on the right.
+ * The return value is a point on the line found and the direction-cosine of the line. */
+std::pair<btVector3, btVector3> CustomScene::SutureCloth::fitLine(int side_num) {
+
+	std::vector<int> &pt_vector = (side_num==1)? cut_nodes1 : cut_nodes2;
+	unsigned int N = pt_vector.size();
+	Eigen::MatrixXf X(N, 3);
+
+	for (int i=0; i< N; i+=1) {
+		btVector3 node = cloth->softBody->m_nodes[pt_vector.at(i)].m_x;
+		Eigen::Vector3f pt(node.getX(),node.getY(),node.getZ());
+		X.row(i) = pt;
+	}
+
+	Eigen::RowVector3f mean = X.colwise().sum()/N;
+	Eigen::MatrixXf X_centered = (X.rowwise() - mean);
+
+	Eigen::JacobiSVD<Eigen::MatrixXf> svd(X_centered / sqrt(N), Eigen::ComputeFullV);
+	Eigen::Vector3f pca1 = svd.matrixV().col(0);
+
+	btVector3 pt_on_line(mean(0), mean(1), mean(2));
+	btVector3 direction_cosine(pca1(0), pca1(1), pca1(2));
+
+	return std::pair<btVector3, btVector3>(pt_on_line, direction_cosine);
 }

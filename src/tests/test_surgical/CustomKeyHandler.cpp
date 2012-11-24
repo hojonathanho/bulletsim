@@ -3,6 +3,8 @@
 
 bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,
 		                      osgGA::GUIActionAdapter &) {
+	 std::pair<btVector3, btVector3> cutInfo;
+	 btTransform cutT;
     switch (ea.getEventType()) {
     case osgGA::GUIEventAdapter::KEYDOWN:
         switch (ea.getKey()) {
@@ -42,6 +44,17 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,
         	break;
 
         case 'z': // plots the points on lying on the cut
+
+            cutInfo = scene.sCloth->fitLine(1);
+            cutT = util::getOrthogonalTransform(cutInfo.second);
+            cutT.setOrigin( cutInfo.first);
+            scene.plot_axes->setup(cutT, 2);
+
+            // plot the default axis at the mean
+            //cutT.setRotation(btTransform::getIdentity().getRotation());
+            //scene.plot_axes1->setup(cutT, 2);
+
+
         	scene.plotcolors.clear();
         	scene.plotpoints.clear();
 

@@ -23,26 +23,37 @@
 
 #include "RavePlanners.h"
 
-class CustomScene;
 
-/** A class to represent the cloth in the scene.
- * Holds the cloth object and other supporting structures. */
-class SutureCloth {
-public:
-	typedef boost::shared_ptr<SutureCloth> Ptr;
 
-	// the cloth
-	BulletSoftObject::Ptr cloth;
-
-	// node indices of the nodes on the cut
-	std::vector<int> cut_nodes1, cut_nodes2;
-
-	SutureCloth(CustomScene &scene, btScalar side_length, btScalar z, btVector3 center);
-};
-
+//class CustomScene;
 
 class CustomScene : public Scene {
 public:
+
+	/** A class to represent the cloth in the scene.
+	 * Holds the cloth object and other supporting structures. */
+	class SutureCloth {
+	public:
+		typedef boost::shared_ptr<SutureCloth> Ptr;
+
+		// the cloth
+		BulletSoftObject::Ptr cloth;
+
+		// node indices of the nodes on the cut
+		std::vector<int> cut_nodes1, cut_nodes2;
+
+		SutureCloth(CustomScene &scene, btScalar side_length, btScalar z, btVector3 center);
+
+
+		/** Returns the line of maximum variance of the cut-points
+		 * Performs a PCA on the points.
+		 * SIDE_NUM  \in {1, 2} : if 1 : cut-points on the left.
+		 *                        if 2 : cut-points on the right.
+		 * The return value is a point on the line found and the direction-cosine of the line. */
+		std::pair<btVector3, btVector3> fitLine(int side_num);
+
+	};
+
 	PR2SoftBodyGripperAction::Ptr leftAction, rightAction;
 	BulletInstance::Ptr bullet2;
 	OSGInstance::Ptr osg2;
@@ -69,7 +80,8 @@ public:
 
 	/** Axes corresponding to the location where the
      *  left grippers are. **/
-	PlotAxes::Ptr cut_axes;
+	PlotAxes::Ptr plot_axes;
+	PlotAxes::Ptr plot_axes1;
 
 	CustomScene() : pr2m(*this), isRaveViewer(false) { }
 

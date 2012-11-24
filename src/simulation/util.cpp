@@ -15,6 +15,27 @@ void add(int* n, int increment) {
 
 namespace util {
 
+/**  Return am orthonormal basis (rotation matrix + 0 translation)
+ * in R3 with the x-axis aligned with the input vector. */
+btTransform getOrthogonalTransform(btVector3 x) {
+	 btVector3 y(x.getY(), -1*x.getX(), 0);
+	 btVector3 z = x.cross(y);
+
+	 x.normalize();
+	 y.normalize();
+	 z.normalize();
+
+	 btTransform trans;
+
+	 btMatrix3x3 rot;
+	 rot.setValue(x.getX(), x.getY(), x.getZ(),
+			 	  y.getX(), y.getY(), y.getZ(),
+			 	  z.getX(), z.getY(), z.getZ());
+
+	 trans.setBasis(rot);
+	 return trans;
+}
+
 osg::ref_ptr<osg::Vec3Array> toVec3Array(const std::vector<btVector3>& in) {
     osg::ref_ptr<osg::Vec3Array> out = new osg::Vec3Array();
     out->reserve(in.size());
