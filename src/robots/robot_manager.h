@@ -1,6 +1,8 @@
 #pragma once
-#include "simulation/simulation_fwd.h"
-#include "simulation/simplescene.h"
+
+#include "simulation/openravesupport.h"
+
+class Scene;
 
 class RobotManager {
 private:

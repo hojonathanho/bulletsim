@@ -1,5 +1,35 @@
 #include "multihyp_tracker.h"
 
+MultiHypTracker::MultiHypTracker(TrackedObjectFeatureExtractor::Ptr object_features, FeatureExtractor::Ptr observation_features,
+		VisibilityInterface::Ptr visibility_interface, vector<GrabManager::Ptr> grab_managers) :
+		PhysicsTracker(object_features, observation_features, visibility_interface),
+		m_grab_managers(grab_managers),
+		m_grabbing_last(vector<bool>(grab_managers.size(), false))
+{
+	PhysicsTracker::Ptr tracker(new PhysicsTracker(object_features, observation_features, visibility_interface));
+	m_trackers.push_back(tracker);
+}
+
+void MultiHypTracker::updateFeatures() {
+	//if (grab)
+
+	for (int i=0; i<m_trackers.size(); i++)
+		m_trackers[i]->updateFeatures();
+}
+
+void MultiHypTracker::expectationStep() {
+	for (int i=0; i<m_trackers.size(); i++)
+		m_trackers[i]->expectationStep();
+}
+
+void MultiHypTracker::maximizationStep(bool apply_evidence) {
+	for (int i=0; i<m_trackers.size(); i++)
+		m_trackers[i]->maximizationStep(apply_evidence);
+}
+
+
+
+/*
 void MultiHypTracker::doIteration() {
 BOOST_FOREACH(SimplePhysicsTracker::Ptr& tracker, m_trackers)
   tracker->doIteration();
@@ -47,3 +77,4 @@ SimplePhysicsTracker::Ptr makeTrackerWithNewObject(SimplePhysicsTracker::Ptr old
   fork->env->add(newTrackedObj->m_sim);
   return SimplePhysicsTracker::Ptr(new SimplePhysicsTracker(newTrackedObj, newVis, fork->env));
 }
+*/

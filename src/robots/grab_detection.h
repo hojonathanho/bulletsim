@@ -32,6 +32,7 @@ public:
 
 class GrabManager {
 public:
+  typedef boost::shared_ptr<GrabManager> Ptr;
   Environment::Ptr m_env;
   Monitor::Ptr m_monitor;
   GrabDetector::Ptr m_detector;

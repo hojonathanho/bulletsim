@@ -33,9 +33,9 @@ public:
   Eigen::VectorXf m_vis;
 
   PhysicsTracker(TrackedObjectFeatureExtractor::Ptr object_features, FeatureExtractor::Ptr observation_features, VisibilityInterface::Ptr visibility_interface);
-  void updateFeatures();
-  void expectationStep();
-  void maximizationStep(bool apply_evidence=true);
+  virtual void updateFeatures();
+  virtual void expectationStep();
+  virtual void maximizationStep(bool apply_evidence=true);
 };
 
 

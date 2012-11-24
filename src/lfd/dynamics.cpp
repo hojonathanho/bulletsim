@@ -17,9 +17,7 @@ RopeRobotSystem::Ptr RopeRobotSystem::InitFrom(const LFDRopeScene &s) {
 }
 
 RopeRobotSystem::Ptr RopeRobotSystem::fork() const {
-  BulletInstance::Ptr fork_bullet(new BulletInstance);
-  OSGInstance::Ptr fork_osg(new OSGInstance);
-  Fork::Ptr fork(new Fork(env, rave, fork_bullet, fork_osg));
+  Fork::Ptr fork(new Fork(env, rave));
 
   RaveRobotObject::Ptr fork_robot =
     boost::static_pointer_cast<RaveRobotObject>(fork->forkOf(robot));

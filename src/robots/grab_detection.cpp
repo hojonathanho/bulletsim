@@ -52,7 +52,7 @@ void GrabDetector::update(const sensor_msgs::JointState& joint) {
 
 bool GrabDetector::isGrabbing(float position, float velocity, float effort) {
 //	bool out= (fabs(velocity) < .001) && (fabs(effort) > 50) && (position > 0);
-	bool out = position < .04;
+	bool out = position < .01;
 	return out;
 }
 

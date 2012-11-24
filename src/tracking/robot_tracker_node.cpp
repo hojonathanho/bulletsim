@@ -15,7 +15,7 @@
 #include "robots/pr2.h"
 #include "robots/ros2rave.h"
 #include "robots/grabbing.h"
-#include "grab_detection.h"
+#include "robots/grab_detection.h"
 #include "simulation/bullet_io.h"
 #include "clouds/ros_robot.h"
 #include <std_srvs/Empty.h>

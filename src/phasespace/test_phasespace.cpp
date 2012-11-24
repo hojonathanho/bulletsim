@@ -1,4 +1,5 @@
 #include "simulation/simplescene.h"
+#include "simulation/util.h"
 #include "utils/config.h"
 #include "phasespace/phasespace.h"
 #include "tracking/utils_tracking.h"

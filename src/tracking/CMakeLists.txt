@@ -18,11 +18,11 @@ link_directories("/opt/ros/fuerte/stacks/geometry/tf/lib"
 add_library(tracking 
 	algorithm_common.cpp 
 	config_tracking.cpp
-	grab_detection.cpp
 	initialization.cpp
 	plotting_tracking.cpp
 	simple_physics_tracker.cpp 
 	physics_tracker.cpp 
+	multihyp_tracker.cpp
 	surface_sampling.cpp 
 	sparse_utils.cpp
 	tracked_object.cpp 

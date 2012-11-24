@@ -32,10 +32,8 @@ int main(int argc, char *argv[]) {
 
     // 0.5 second after, fork the environment and apply a force to the copied sphere
 
-    BulletInstance::Ptr bullet2(new BulletInstance);
-    OSGInstance::Ptr osg2(new OSGInstance);
-    scene.osg->root->addChild(osg2->root.get());
-    Fork::Ptr fork(new Fork(scene.env, bullet2, osg2));
+    Fork::Ptr fork(new Fork(scene.env));
+    scene.osg->root->addChild(fork->env->osg->root.get());
 
     SphereObject::Ptr sphere2 = boost::static_pointer_cast<SphereObject> (fork->forkOf(sphere));
     printf("did a fork\n");

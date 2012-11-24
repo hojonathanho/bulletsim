@@ -1,4 +1,5 @@
 #include "environment.h"
+#include "simplescene.h"
 #include "openravesupport.h"
 #include "config_bullet.h"
 
@@ -60,6 +61,39 @@ void BulletInstance::contactTest(btCollisionObject *obj,
     dynamicsWorld->contactTest(obj, cb);
 }
 
+Environment::Environment() : bullet(new BulletInstance()), osg(new OSGInstance()) {
+  dbgDraw.reset(new osgbCollision::GLDebugDrawer());
+  dbgDraw->setDebugMode(btIDebugDraw::DBG_MAX_DEBUG_DRAW_MODE /*btIDebugDraw::DBG_DrawWireframe*/);
+  dbgDraw->setEnabled(false);
+  bullet->dynamicsWorld->setDebugDrawer(dbgDraw.get());
+  osg->root->addChild(dbgDraw->getSceneGraph());
+  debugDraw = false;
+
+  {
+  osg::ref_ptr<osg::Light> light = new osg::Light;
+  light->setLightNum(0);
+  light->setPosition(osg::Vec4(-10*METERS,0,10*METERS,1));
+  osg::ref_ptr<osg::LightSource> lightSource = new osg::LightSource;
+  lightSource->setLight(light.get());
+  light->setDiffuse(osg::Vec4(1,.9,.9,1)*.5);
+  osg->root->addChild(lightSource.get());
+  osg->root->getOrCreateStateSet()->setMode(GL_LIGHT0, osg::StateAttribute::ON);
+  }
+
+  {
+  osg::ref_ptr<osg::Light> light = new osg::Light;
+  light->setLightNum(1);
+  light->setPosition(osg::Vec4(10*METERS,0,10*METERS,1));
+  osg::ref_ptr<osg::LightSource> lightSource = new osg::LightSource;
+  lightSource->setLight(light.get());
+  light->setDiffuse(osg::Vec4(.9,.9,1,1)*.5);
+  osg->root->addChild(lightSource.get());
+  osg->root->getOrCreateStateSet()->setMode(GL_LIGHT1, osg::StateAttribute::ON);
+  }
+
+  addVoidKeyCallback('d', boost::bind(&Environment::toggleDebugDraw, this), "toggle debug draw");
+}
+
 Environment::~Environment() {
     for (ConstraintList::iterator i = constraints.begin(); i != constraints.end(); ++i)
         (*i)->destroy();
@@ -116,18 +150,40 @@ void Environment::preDraw() {
     ObjectList::iterator i;
     for (i = objects.begin(); i != objects.end(); ++i)
         (*i)->preDraw();
+
+    if (debugDraw) {
+				dbgDraw->BeginDraw();
+				bullet->dynamicsWorld->debugDrawWorld();
+				dbgDraw->EndDraw();
+		}
 }
 
-Fork::Fork(const Environment *parentEnv_, BulletInstance::Ptr bullet, OSGInstance::Ptr osg) :
-    parentEnv(parentEnv_), env(new Environment(bullet, osg)) {
+void Environment::toggleDebugDraw() {
+    debugDraw = !debugDraw;
+    dbgDraw->setEnabled(debugDraw);
+}
+
+void Environment::addKeyCallback(int c, Callback cb, std::string desc) {
+	if (keyCallbacks.count(c) != 0)
+		 cout << "warning: key " << c << " is bound to multiple callbacks in the environment" << endl;
+	keyCallbacks.insert(make_pair(c, cb));
+	keyCallbackDescs.insert(make_pair(c, desc));
+}
+
+void Environment::addVoidKeyCallback(int c, VoidCallback cb, std::string desc) {
+	addKeyCallback(c, boost::bind<bool>(VoidCallbackWrapper(cb)), desc);
+}
+
+Fork::Fork(const Environment *parentEnv_) :
+    parentEnv(parentEnv_), env(new Environment()) {
   copyObjects();
 }
-Fork::Fork(const Environment::Ptr parentEnv_, BulletInstance::Ptr bullet, OSGInstance::Ptr osg) :
-    parentEnv(parentEnv_.get()), env(new Environment(bullet, osg)) {
+Fork::Fork(const Environment::Ptr parentEnv_) :
+    parentEnv(parentEnv_.get()), env(new Environment()) {
   copyObjects();
 }
-Fork::Fork(const Environment::Ptr parentEnv_, const RaveInstancePtr rave_, BulletInstance::Ptr bullet, OSGInstance::Ptr osg) :
-    parentEnv(parentEnv_.get()), env(new Environment(bullet, osg)),
+Fork::Fork(const Environment::Ptr parentEnv_, const RaveInstancePtr rave_) :
+    parentEnv(parentEnv_.get()), env(new Environment()),
     rave(rave_) {
   copyObjects();
 }

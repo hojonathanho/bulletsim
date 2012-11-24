@@ -26,6 +26,8 @@
 #include "simulation/simplescene.h"
 #include "config_tracking.h"
 #include "simulation/hand.h"
+#include "simulation/util.h"
+#include "simulation/config_bullet.h"
 #include "tracking/tracked_compound.h"
 #include "clouds/cloud_ops.h"
 #include "utils/conversions.h"

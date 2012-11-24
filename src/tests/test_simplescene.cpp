@@ -15,6 +15,8 @@ int main(int argc, char *argv[]) {
     Scene scene;
 
     // manipulate the scene or add more objects, if desired
+//    RaveRobotObject::Ptr pr2(new RaveRobotObject());
+//    scene.push_back(pr2);
     PR2Manager pr2m(scene);
 
     // start the simulation

@@ -7,6 +7,7 @@
 
 #include "simulation/simplescene.h"
 #include "simulation/softbodies.h"
+#include "simulation/util.h"
 #include "simulation/config_bullet.h"
 #include "simulation/config_viewer.h"
 #include <BulletSoftBody/btSoftBodyHelpers.h>

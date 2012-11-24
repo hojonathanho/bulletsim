@@ -142,6 +142,8 @@ public:
 		osg::Vec4f getColor() {return m_color;}
 };
 
+
+BulletSoftObject::Ptr makeCloth(float sx, float sy, btVector3 t, int resolution_x, int resolution_y, float mass);
 BulletSoftObject::Ptr makeCloth(const vector<btVector3>& corners, int resolution_x, int resolution_y, float mass);
 
 // Assumes top_corners are in a plane parallel to the xy-plane

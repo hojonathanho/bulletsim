@@ -1,4 +1,5 @@
 #include "simulation/simplescene.h"
+#include "simulation/util.h"
 #include <ros/ros.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <pcl/ros/conversions.h>

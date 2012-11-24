@@ -129,7 +129,7 @@ GrabbingScene::GrabbingScene(bool telekinesis)  {
   }
 
   float step = .01;
-  Scene::VoidCallback cb = boost::bind(&GrabbingScene::drive, this, step, 0);
+  VoidCallback cb = boost::bind(&GrabbingScene::drive, this, step, 0);
   addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Left, boost::bind(&GrabbingScene::drive, this, 0, step));
   addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Right, boost::bind(&GrabbingScene::drive, this, 0, -step));
   addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Up, boost::bind(&GrabbingScene::drive, this, -step, 0));

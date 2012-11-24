@@ -7,6 +7,7 @@
 #include <pcl/common/transforms.h>
 #include "clouds/utils_ros.h"
 #include "simulation/simplescene.h"
+#include "simulation/util.h"
 #include "utils/config.h"
 #include "phasespace/phasespace.h"
 #include "simulation/plotting.h"

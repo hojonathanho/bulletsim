@@ -80,10 +80,8 @@ void CustomScene::run() {
 
     stepFor(dt, 0.5);
 
-    BulletInstance::Ptr bullet2(new BulletInstance);
-    OSGInstance::Ptr osg2(new OSGInstance);
-    osg->root->addChild(osg2->root.get());
-    Fork::Ptr fork(new Fork(env, bullet2, osg2));
+    Fork::Ptr fork(new Fork(env));
+    osg->root->addChild(fork->env->osg->root.get());
     registerFork(fork);
     cout << "environment copied" << endl;
 

@@ -7,7 +7,7 @@
 #include "robots/pr2.h"
 
 // I've only tested this on the PR2 model
-class PR2SoftBodyGripperAction : public Action {
+class PR2SoftBodyGripperAction : public ObjectAction {
     RaveRobotObject::Manipulator::Ptr manip;
     dReal startVal, endVal;
     vector<int> indices;
@@ -173,7 +173,7 @@ public:
                   const string &leftFingerName,
                   const string &rightFingerName,
                   float time) :
-            Action(time), manip(manip_), vals(1, 0),
+            ObjectAction(time), manip(manip_), vals(1, 0),
             leftFinger(manip->robot->robot->GetLink(leftFingerName)),
             rightFinger(manip->robot->robot->GetLink(rightFingerName)),
             origLeftFingerInvTrans(manip->robot->getLinkTransform(leftFinger).inverse()),
@@ -218,7 +218,7 @@ public:
     }
 
     void reset() {
-        Action::reset();
+        ObjectAction::reset();
         releaseAllAnchors();
     }
 
@@ -240,8 +240,6 @@ public:
 
 struct CustomScene : public Scene {
     PR2SoftBodyGripperAction::Ptr leftAction, rightAction;
-    BulletInstance::Ptr bullet2;
-    OSGInstance::Ptr osg2;
     Fork::Ptr fork;
     RaveRobotObject::Ptr origRobot, tmpRobot;
     PR2Manager pr2m;
@@ -321,12 +319,8 @@ BulletSoftObject::Ptr CustomScene::createCloth(btScalar s, const btVector3 &cent
 }
 
 void CustomScene::createFork() {
-    bullet2.reset(new BulletInstance);
-    bullet2->setDefaultGravity();
-    osg2.reset(new OSGInstance);
-    osg->root->addChild(osg2->root.get());
-
-    fork.reset(new Fork(env, bullet2, osg2));
+    fork.reset(new Fork(env));
+    osg->root->addChild(fork->env->osg->root.get());
     registerFork(fork);
 
     cout << "forked!" << endl;

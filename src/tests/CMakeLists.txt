@@ -63,5 +63,5 @@ target_link_libraries(test_hand simulation)
 add_executable(test_softbody_mappings test_softbody_mappings.cpp)
 target_link_libraries(test_softbody_mappings simulation)
 
-add_executable(test_multihyp_tracker test_multihyp_tracker.cpp)
-target_link_libraries(test_multihyp_tracker simulation robots)
+add_executable(test_PR2Object test_PR2Object.cpp)
+target_link_libraries(test_PR2Object simulation robots ${ROS_LIBRARIES})

@@ -1,15 +1,19 @@
-#pragma once
+#ifndef _SIMPLESCENE_H_
+#define _SIMPLESCENE_H_
+
+#include <vector>
+#include <map>
 #include <osgViewer/Viewer>
-#include <osgbCollision/GLDebugDrawer.h>
 #include <osgGA/TrackballManipulator>
+#include <openrave/openrave.h>
 #include "environment.h"
 #include "basicobjects.h"
 #include "openravesupport.h"
-#include "plotting.h"
 #include "utils/config.h"
 
-class Scene;
+using namespace std;
 
+class Scene;
 class EventHandler : public osgGA::TrackballManipulator {
 private:
   Scene &scene;
@@ -21,42 +25,35 @@ public:
   void getTransformation(osg::Vec3d &eye, osg::Vec3d &center, osg::Vec3d &up) const;
 };
 
-struct Scene {
+class Scene {
+public:
+  OSGInstance::Ptr osg;
+  void setup(bool populate=true);
+	void setup(Environment::Ptr);
+
+public:
   typedef boost::shared_ptr<Scene> Ptr;
 
-  OSGInstance::Ptr osg;
-  BulletInstance::Ptr bullet;
   RaveInstance::Ptr rave;
 
   Environment::Ptr env;
   std::set<Fork::Ptr> forks;
 
-  boost::shared_ptr<osgbCollision::GLDebugDrawer> dbgDraw;
   osgViewer::Viewer viewer;
   osg::ref_ptr<EventHandler> manip;
-
+  osg::ref_ptr<osgGA::GUIEventHandler> picking_mouse_handler;
 
   BoxObject::Ptr ground;
 
   // callbacks should return true if the default TrackballManipulator::handle behavior
   // should be suppressed. if all callbacks return false, then it won't be suppressed
-  typedef boost::function<bool(const osgGA::GUIEventAdapter &)> Callback;
-  typedef multimap<osgGA::GUIEventAdapter::EventType, Callback> CallbackMap;
   CallbackMap callbacks;
   void addCallback(osgGA::GUIEventAdapter::EventType t, Callback cb) { callbacks.insert(make_pair(t, cb)); }
-  typedef multimap<int, Callback> KeyCallbackMap;
   KeyCallbackMap keyCallbacks;
   multimap<int, std::string> keyCallbackDescs;
   void addKeyCallback(int c, Callback cb, std::string desc="");
-
-  typedef boost::function<void(void)> VoidCallback;
   void addVoidCallback(osgGA::GUIEventAdapter::EventType t, VoidCallback cb);
   void addVoidKeyCallback(int c, VoidCallback cb, std::string desc="");
-    struct VoidCallbackWrapper {
-        VoidCallback fn;
-        VoidCallbackWrapper(VoidCallback fn_) : fn(fn_) { }
-        bool operator()() { fn(); return false; }
-    };
 
   vector<VoidCallback> prestepCallbacks;
   void addPreStepCallback(VoidCallback cb);
@@ -68,9 +65,7 @@ struct Scene {
   Scene(OpenRAVE::EnvironmentBasePtr);
   Scene(Environment::Ptr);
   Scene(Environment::Ptr, RaveInstance::Ptr);
-  void setup(bool populate=true);
-  void setup(Environment::Ptr);
-
+  void swapEnvironment(Environment::Ptr&);
 
   void showWindow(bool showWindow, bool realtime);
 
@@ -87,7 +82,6 @@ struct Scene {
   // and after adding objects to the environment
   void startViewer();
 
-  void toggleDebugDraw();
   void help();
 
   // TODO: remove all dt params and use CFG.bullet.dt instead
@@ -104,7 +98,7 @@ struct Scene {
 
   struct {
       float currTime, prevTime;
-      bool looping, paused, debugDraw;
+      bool looping, paused;
   } loopState;
   // Starts a viewer loop and blocks the caller.
   void startLoop(); // runs with a variable-rate dt that depends on the system speed
@@ -144,3 +138,5 @@ struct SceneConfig : Config {
     params.push_back(new Parameter<float>("mouseDragScale", &mouseDragScale, "scaling factor for mouse control for IK"));
   }
 };
+
+#endif // _SIMPLESCENE_H_

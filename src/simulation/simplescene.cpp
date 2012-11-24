@@ -29,17 +29,15 @@ Scene::Scene(Environment::Ptr env_, RaveInstance::Ptr rave_) {
 }
 
 void Scene::setup(Environment::Ptr env_) {
-  osg = env_->osg;
-  bullet = env_->bullet;
   env = env_;
   setup(false);
 }
 
 void Scene::setup(bool populate) {
-    if (!osg) osg.reset(new OSGInstance());
-    if (!bullet) bullet.reset(new BulletInstance());
     if (!rave) rave.reset(new RaveInstance());
-    if (!env) env.reset(new Environment(bullet, osg));
+    if (!env) env.reset(new Environment());
+    osg.reset(new OSGInstance());
+    osg->root->addChild(env->osg->root.get());
 
     // populate the scene with some basic objects
     if (populate) {
@@ -66,47 +64,29 @@ void Scene::setup(bool populate) {
 
     // default callbacks
     addVoidKeyCallback('p', boost::bind(&Scene::toggleIdle, this), "pause simulation");
-    addVoidKeyCallback('d', boost::bind(&Scene::toggleDebugDraw, this), "toggle debug draw");
     addVoidKeyCallback('h', boost::bind(&Scene::help, this), "display help info");
-
     addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Escape, boost::bind(exit, 0), "(escape) exit");
-    viewer.addEventHandler(new PickingMouseHandler(*this));
 
     drawingOn = false; // no drawing until startViewer()
 }
 
+void Scene::swapEnvironment(Environment::Ptr& new_env) {
+	assert(env && new_env);
+	// remove and add again the picking_mouse_handler because it depends on the old environment's dynamic world
+	if (picking_mouse_handler) viewer.removeEventHandler(picking_mouse_handler.get());
+	osg->root->removeChild(env->osg->root.get());
+	env.swap(new_env);
+	picking_mouse_handler = new PickingMouseHandler(*this);
+  viewer.addEventHandler(picking_mouse_handler.get());
+  osg->root->addChild(env->osg->root.get());
+}
+
 void Scene::startViewer() {
     drawingOn = syncTime = true;
-    loopState.looping = loopState.paused = loopState.debugDraw = false;
+    loopState.looping = loopState.paused = false;
 
-    dbgDraw.reset(new osgbCollision::GLDebugDrawer());
-    dbgDraw->setDebugMode(btIDebugDraw::DBG_MAX_DEBUG_DRAW_MODE /*btIDebugDraw::DBG_DrawWireframe*/);
-    dbgDraw->setEnabled(false);
-    bullet->dynamicsWorld->setDebugDrawer(dbgDraw.get());
-    osg->root->addChild(dbgDraw->getSceneGraph());
-
-    {
-    osg::ref_ptr<osg::Light> light = new osg::Light;
-    light->setLightNum(0);
-    light->setPosition(osg::Vec4(-10*METERS,0,10*METERS,1));
-    osg::ref_ptr<osg::LightSource> lightSource = new osg::LightSource;
-    lightSource->setLight(light.get());
-    light->setDiffuse(osg::Vec4(1,.9,.9,1)*.5);
-    osg->root->addChild(lightSource.get());
-    osg->root->getOrCreateStateSet()->setMode(GL_LIGHT0, osg::StateAttribute::ON);
-    }
-
-    {
-    osg::ref_ptr<osg::Light> light = new osg::Light;
-    light->setLightNum(1);
-    light->setPosition(osg::Vec4(10*METERS,0,10*METERS,1));
-    osg::ref_ptr<osg::LightSource> lightSource = new osg::LightSource;
-    lightSource->setLight(light.get());
-    light->setDiffuse(osg::Vec4(.9,.9,1,1)*.5);
-    osg->root->addChild(lightSource.get());
-    osg->root->getOrCreateStateSet()->setMode(GL_LIGHT1, osg::StateAttribute::ON);
-    }
-
+    picking_mouse_handler = new PickingMouseHandler(*this);
+    viewer.addEventHandler(picking_mouse_handler.get());
     viewer.setUpViewInWindow(0, 0, ViewerConfig::windowWidth, ViewerConfig::windowHeight);
     manip = new EventHandler(*this);
     manip->setHomePosition(util::toOSGVector(ViewerConfig::cameraHomePosition)*METERS, util::toOSGVector(ViewerConfig::cameraHomeCenter)*METERS, util::toOSGVector(ViewerConfig::cameraHomeUp)*METERS);
@@ -117,17 +97,18 @@ void Scene::startViewer() {
     step(0);
 }
 
-void Scene::toggleDebugDraw() {
-    loopState.debugDraw = !loopState.debugDraw;
-    dbgDraw->setEnabled(loopState.debugDraw);
-}
-
 void Scene::help() {
-  printf("key bindings:\n");
+  printf("Scene key bindings:\n");
   for (multimap<int,string>::iterator it = keyCallbackDescs.begin(); it != keyCallbackDescs.end(); ++it) {
     printf("%c: %s\n", (char)it->first, it->second.c_str());
   }
 
+  if (env) {
+		printf("Scene's Environment key bindings:\n");
+		for (multimap<int,string>::iterator it = env->keyCallbackDescs.begin(); it != env->keyCallbackDescs.end(); ++it) {
+			printf("%c: %s\n", (char)it->first, it->second.c_str());
+		}
+  }
 }
 
 void Scene::step(float dt, int maxsteps, float internaldt) {
@@ -175,11 +156,6 @@ void Scene::draw() {
     for (int i = 0; i < predrawCallbacks.size(); ++i)
         predrawCallbacks[i]();
 
-    if (loopState.debugDraw) {
-        dbgDraw->BeginDraw();
-        bullet->dynamicsWorld->debugDrawWorld();
-        dbgDraw->EndDraw();
-    }
     viewer.frame();
 }
 
@@ -257,16 +233,23 @@ bool EventHandler::handle(const osgGA::GUIEventAdapter &ea, osgGA::GUIActionAdap
 
     // keypress handlers (for convenience)
     if (t == osgGA::GUIEventAdapter::KEYDOWN) {
-        pair<Scene::KeyCallbackMap::const_iterator, Scene::KeyCallbackMap::const_iterator> range =
+        pair<KeyCallbackMap::const_iterator, KeyCallbackMap::const_iterator> range =
             scene.keyCallbacks.equal_range(ea.getKey());
-        for (Scene::KeyCallbackMap::const_iterator i = range.first; i != range.second; ++i)
+        for (KeyCallbackMap::const_iterator i = range.first; i != range.second; ++i)
             suppressDefault |= i->second(ea);
+
+        // Go through the key callbacks belonging to the Environment owned by this Scene
+        if (scene.env) {
+        	range = scene.env->keyCallbacks.equal_range(ea.getKey());
+					for (KeyCallbackMap::const_iterator i = range.first; i != range.second; ++i)
+							suppressDefault |= i->second(ea);
+        }
     }
 
     // general handlers
-    pair<Scene::CallbackMap::const_iterator, Scene::CallbackMap::const_iterator> range =
+    pair<CallbackMap::const_iterator, CallbackMap::const_iterator> range =
         scene.callbacks.equal_range(t);
-    for (Scene::CallbackMap::const_iterator i = range.first; i != range.second; ++i)
+    for (CallbackMap::const_iterator i = range.first; i != range.second; ++i)
         suppressDefault |= i->second(ea);
 
     if (!suppressDefault)

@@ -1,4 +1,5 @@
 #include "softbodies.h"
+#include "simplescene.h"
 #include "util.h"
 #include "bullet_io.h"
 #include <fstream>
@@ -477,28 +478,30 @@ void BulletSoftObject::preDraw() {
 		trigeom->removePrimitiveSet(0); // there should only be one
 	trivertices->clear();
 	trinormals->clear();
-	// for 2D deformable objects
-	const btSoftBody::tFaceArray &faces = softBody->m_faces;
-	for (int i = 0; i < faces.size(); ++i) {
-		trivertices->push_back(util::toOSGVector(faces[i].m_n[0]->m_x));
-		trivertices->push_back(util::toOSGVector(faces[i].m_n[1]->m_x));
-		trivertices->push_back(util::toOSGVector(faces[i].m_n[2]->m_x));
+	if (!env->debugDraw) { // don't draw faces if scene is in debug mode
+		// for 2D deformable objects
+		const btSoftBody::tFaceArray &faces = softBody->m_faces;
+		for (int i = 0; i < faces.size(); ++i) {
+			trivertices->push_back(util::toOSGVector(faces[i].m_n[0]->m_x));
+			trivertices->push_back(util::toOSGVector(faces[i].m_n[1]->m_x));
+			trivertices->push_back(util::toOSGVector(faces[i].m_n[2]->m_x));
 
-		trinormals->push_back(util::toOSGVector(faces[i].m_n[0]->m_n));
-		trinormals->push_back(util::toOSGVector(faces[i].m_n[1]->m_n));
-		trinormals->push_back(util::toOSGVector(faces[i].m_n[2]->m_n));
-	}
-	// for 3D deformable objects (don't use tetra to set quadgeom because rendering looks bad)
-	for (int j = 0; j < faces_internal.size(); ++j) {
-		if (face_boundaries[j]) {
-			trivertices->push_back(util::toOSGVector(faces_internal[j].m_n[0]->m_x));
-			trivertices->push_back(util::toOSGVector(faces_internal[j].m_n[1]->m_x));
-			trivertices->push_back(util::toOSGVector(faces_internal[j].m_n[2]->m_x));
+			trinormals->push_back(util::toOSGVector(faces[i].m_n[0]->m_n));
+			trinormals->push_back(util::toOSGVector(faces[i].m_n[1]->m_n));
+			trinormals->push_back(util::toOSGVector(faces[i].m_n[2]->m_n));
+		}
+		// for 3D deformable objects (don't use tetra to set quadgeom because rendering looks bad)
+		for (int j = 0; j < faces_internal.size(); ++j) {
+			if (face_boundaries[j]) {
+				trivertices->push_back(util::toOSGVector(faces_internal[j].m_n[0]->m_x));
+				trivertices->push_back(util::toOSGVector(faces_internal[j].m_n[1]->m_x));
+				trivertices->push_back(util::toOSGVector(faces_internal[j].m_n[2]->m_x));
 
-			btVector3 normal = (faces_internal[j].m_n[1]->m_x - faces_internal[j].m_n[0]->m_x).cross(faces_internal[j].m_n[2]->m_x - faces_internal[j].m_n[0]->m_x).normalized();
-			trinormals->push_back(util::toOSGVector(normal));
-			trinormals->push_back(util::toOSGVector(normal));
-			trinormals->push_back(util::toOSGVector(normal));
+				btVector3 normal = (faces_internal[j].m_n[1]->m_x - faces_internal[j].m_n[0]->m_x).cross(faces_internal[j].m_n[2]->m_x - faces_internal[j].m_n[0]->m_x).normalized();
+				trinormals->push_back(util::toOSGVector(normal));
+				trinormals->push_back(util::toOSGVector(normal));
+				trinormals->push_back(util::toOSGVector(normal));
+			}
 		}
 	}
 	trivertices->dirty();
@@ -1339,6 +1342,18 @@ bool BulletSoftObject::validCheck(bool nodesOnly) const {
 
 #undef CHECKARR
 #undef CHECK
+}
+
+// makes cloth with half extents of sx,sy and translation t
+// TODO generalize by providing transform instead of t
+BulletSoftObject::Ptr makeCloth(float sx, float sy, btVector3 t, int resolution_x, int resolution_y, float mass) {
+	vector<btVector3> corners;
+	corners.push_back(btVector3(t.x()+sx, t.y()+sy, t.z()));
+	corners.push_back(btVector3(t.x()+sx, t.y()-sy, t.z()));
+	corners.push_back(btVector3(t.x()-sx, t.y()-sy, t.z()));
+	corners.push_back(btVector3(t.x()-sx, t.y()+sy, t.z()));
+	BulletSoftObject::Ptr cloth = makeCloth(corners, resolution_x, resolution_y, mass);
+	return cloth;
 }
 
 //assumes all the corners are in a plane

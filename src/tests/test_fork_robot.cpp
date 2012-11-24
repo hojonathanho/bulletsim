@@ -8,10 +8,8 @@ int main(int argc, char* argv[]) {
   Scene scene;
   PR2Manager pr2m(scene);
 
-  BulletInstance::Ptr bullet2(new BulletInstance);
-  OSGInstance::Ptr osg2(new OSGInstance);
-  scene.osg->root->addChild(osg2->root.get());
-  Fork::Ptr fork(new Fork(scene.env, bullet2, osg2));
+  Fork::Ptr fork(new Fork(scene.env));
+  scene.osg->root->addChild(fork->env->osg->root.get());
 
   Scene scene2(fork->env);
 

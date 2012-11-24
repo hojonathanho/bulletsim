@@ -5,7 +5,7 @@
 #include "robots/pr2.h"
 #include <openrave/kinbody.h>
 
-class PR2RigidBodyGripperAction : public Action {
+class PR2RigidBodyGripperAction : public ObjectAction {
     RaveRobotObject::Manipulator::Ptr manip;
     dReal startVal, endVal;
     vector<int> indices;
@@ -89,7 +89,7 @@ public:
                   const string &leftFingerName,
                   const string &rightFingerName,
                   float time) :
-            Action(time), manip(manip_), vals(1, 0),
+            ObjectAction(time), manip(manip_), vals(1, 0),
             leftFinger(manip->robot->robot->GetLink(leftFingerName)),
             rightFinger(manip->robot->robot->GetLink(rightFingerName)),
             indices(manip->manip->GetGripperIndices()),
@@ -123,7 +123,7 @@ public:
     void setTarget(btRigidBody *target_) { target = target_; }
 
     void reset() {
-        Action::reset();
+        ObjectAction::reset();
         releaseConstraint();
     }
 

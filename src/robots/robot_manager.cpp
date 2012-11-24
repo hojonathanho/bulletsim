@@ -1,4 +1,5 @@
 #include "robot_manager.h"
+#include "simulation/simplescene.h"
 #include "utils/logging.h"
 
 RobotManager::RobotManager(Scene &s) : scene(s), inputState() {
@@ -21,12 +22,12 @@ static void adjustGrip(RaveRobotObject::Manipulator* manip, float dx) {
 
 
 void RobotManager::registerSceneCallbacks() {
-    Scene::Callback mousecb = boost::bind(&RobotManager::processMouseInput, this, _1);
+    Callback mousecb = boost::bind(&RobotManager::processMouseInput, this, _1);
     scene.addCallback(osgGA::GUIEventAdapter::PUSH, mousecb);
     scene.addCallback(osgGA::GUIEventAdapter::DRAG, mousecb);
     scene.addCallback(osgGA::GUIEventAdapter::SCROLL, mousecb);
 
-    Scene::Callback keycb = boost::bind(&RobotManager::processKeyInput, this, _1);
+    Callback keycb = boost::bind(&RobotManager::processKeyInput, this, _1);
     scene.addCallback(osgGA::GUIEventAdapter::KEYDOWN, keycb);
     scene.addCallback(osgGA::GUIEventAdapter::KEYUP, keycb);
 

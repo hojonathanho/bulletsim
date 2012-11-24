@@ -1,6 +1,7 @@
 #include <iostream>
 #include <ros/ros.h>
 #include "simulation/simplescene.h"
+#include "simulation/util.h"
 #include "utils/config.h"
 #include "tracking/utils_tracking.h"
 #include "phasespace/phasespace.h"

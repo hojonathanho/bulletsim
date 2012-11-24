@@ -99,10 +99,8 @@ int main(int argc, char *argv[]) {
   Grab* g;
   Grab* g2;
 
-  BulletInstance::Ptr bullet2(new BulletInstance);
-  OSGInstance::Ptr osg2(new OSGInstance);
-  s.osg->root->addChild(osg2->root.get());
-  Fork::Ptr fork(new Fork(s.env, bullet2, osg2));
+  Fork::Ptr fork(new Fork(s.env));
+  s.osg->root->addChild(fork->env->osg->root.get());
   s.registerFork(fork);
   Grab* fork_g, *fork_g2;
   RaveRobotObject::Ptr fork_pr2 =
@@ -129,7 +127,7 @@ int main(int argc, char *argv[]) {
   // play one world at full speed, and play the second at half speed
   for (int i=0; i < joints.size() && !s.viewer.done(); i++) {
     singleStep(i, joints, inds, pr2m.pr2, rarm, larm, nLinks, ropePtr, g, g2, s.env->bullet->dynamicsWorld);
-    singleStep(i, joints, inds, fork_pr2, fork_rarm, fork_larm, nLinks, fork_rope, fork_g, fork_g2, bullet2->dynamicsWorld);
+    singleStep(i, joints, inds, fork_pr2, fork_rarm, fork_larm, nLinks, fork_rope, fork_g, fork_g2, fork->env->bullet->dynamicsWorld);
     s.step(1/30.,300,.001);
     usleep(10*1000);
   }

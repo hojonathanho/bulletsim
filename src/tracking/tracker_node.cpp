@@ -26,6 +26,7 @@
 #include "utils/conversions.h"
 #include "clouds/cloud_ops.h"
 #include "simulation/util.h"
+#include "simulation/config_bullet.h"
 #include "clouds/utils_cv.h"
 #include "simulation/recording.h"
 #include "cam_sync.h"

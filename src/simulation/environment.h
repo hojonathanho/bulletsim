@@ -1,17 +1,32 @@
 #ifndef _ENVIRONMENT_H_
 #define _ENVIRONMENT_H_
 
+#include <iostream>
+#include <stdexcept>
+#include <vector>
+#include <map>
 #include <btBulletDynamicsCommon.h>
 #include <BulletSoftBody/btSoftRigidDynamicsWorld.h>
 #include <BulletSoftBody/btSoftBodyRigidBodyCollisionConfiguration.h>
 #include <opencv2/core/core.hpp>
 #include <osgbCollision/GLDebugDrawer.h>
-#include <vector>
+#include <osgViewer/Viewer>
+#include <osgGA/TrackballManipulator>
 #include <boost/shared_ptr.hpp>
-#include <iostream>
-#include <stdexcept>
+#include <boost/function.hpp>
 
 using namespace std;
+
+// callback typedefs
+typedef boost::function<bool(const osgGA::GUIEventAdapter &)> Callback;
+typedef multimap<osgGA::GUIEventAdapter::EventType, Callback> CallbackMap;
+typedef multimap<int, Callback> KeyCallbackMap;
+typedef boost::function<void(void)> VoidCallback;
+struct VoidCallbackWrapper {
+		VoidCallback fn;
+		VoidCallbackWrapper(VoidCallback fn_) : fn(fn_) { }
+		bool operator()() { fn(); return false; }
+};
 
 struct OSGInstance {
     typedef boost::shared_ptr<OSGInstance> Ptr;
@@ -47,7 +62,7 @@ struct BulletInstance {
 struct Environment;
 struct Fork;
 class EnvironmentObject {
-private:
+protected:
     Environment *env;
 
 public:
@@ -98,6 +113,8 @@ struct Environment {
 
     BulletInstance::Ptr bullet;
     OSGInstance::Ptr osg;
+    boost::shared_ptr<osgbCollision::GLDebugDrawer> dbgDraw;
+    bool debugDraw;
 
     typedef std::vector<EnvironmentObject::Ptr> ObjectList;
     ObjectList objects;
@@ -105,7 +122,7 @@ struct Environment {
     typedef std::vector<EnvironmentObject::Ptr> ConstraintList;
     ConstraintList constraints;
 
-    Environment(BulletInstance::Ptr bullet_, OSGInstance::Ptr osg_) : bullet(bullet_), osg(osg_) { }
+    Environment();
     ~Environment();
 
     void add(EnvironmentObject::Ptr obj);
@@ -116,6 +133,13 @@ struct Environment {
 
     void step(btScalar dt, int maxSubSteps, btScalar fixedTimeStep);
     void preDraw(); // for drawing without running physics
+    void toggleDebugDraw();
+
+    // An Environment can have key callbacks. These will be called if an active Scene contains this Environment.
+    KeyCallbackMap keyCallbacks;
+    multimap<int, std::string> keyCallbackDescs;
+    void addKeyCallback(int c, Callback cb, std::string desc="");
+    void addVoidKeyCallback(int c, VoidCallback cb, std::string desc="");
 };
 
 // An Environment Fork is a wrapper around an Environment with an operator
@@ -140,9 +164,9 @@ public:
         dataMap.insert(std::make_pair(orig, copy));
     }
 
-    Fork(const Environment *parentEnv_, BulletInstance::Ptr bullet, OSGInstance::Ptr osg);
-    Fork(const Environment::Ptr parentEnv_, BulletInstance::Ptr bullet, OSGInstance::Ptr osg);
-    Fork(const Environment::Ptr parentEnv_, const RaveInstancePtr rave_, BulletInstance::Ptr bullet, OSGInstance::Ptr osg);
+    Fork(const Environment *parentEnv_);
+    Fork(const Environment::Ptr parentEnv_);
+    Fork(const Environment::Ptr parentEnv_, const RaveInstancePtr rave_);
 
     void *copyOf(const void *orig) const {
         DataMap::const_iterator i = dataMap.find(orig);

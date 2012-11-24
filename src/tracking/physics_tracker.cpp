@@ -8,6 +8,7 @@
 #include "utils/testing.h"
 #include "feature_extractor.h"
 #include "utils/logging.h"
+#include "simulation/util.h"
 #include <cv.h>
 
 using namespace Eigen;
@@ -83,7 +84,6 @@ void PhysicsTracker::maximizationStep(bool apply_evidence) {
   boost::posix_time::ptime m_time = boost::posix_time::microsec_clock::local_time();
   m_stdev = calculateStdev(m_estPts, m_obsPts, m_pZgivenC, m_priorDist, TrackingConfig::pointPriorCount);
   LOG_DEBUG("M time " << (boost::posix_time::microsec_clock::local_time() - m_time).total_milliseconds());
-
 
 #if 0
   //boost::posix_time::ptime evidence_time = boost::posix_time::microsec_clock::local_time();

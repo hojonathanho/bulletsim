@@ -29,6 +29,11 @@ PickingMouseHandler::PickingMouseHandler(Scene &scene) :
 	m_dynamicsWorld->setInternalTickCallback(pickingPreTickCallback, this, true);
 }
 
+PickingMouseHandler::~PickingMouseHandler() {
+	// deregister the setInternalTickCallback callback
+	m_dynamicsWorld->setInternalTickCallback(0, this, true);
+}
+
 void PickingMouseHandler::shootBox(const btVector3& destination)
 {
 	if (m_scene.env->bullet->dynamicsWorld)
@@ -84,7 +89,7 @@ btVector3	PickingMouseHandler::getRayTo(int x, int y) {
 	inverse.invert(matrix);
 
 	// Transform ray from window to model coordinates
-	osg::Vec3d startRay = osg::Vec3d(x,y,0) * inverse;
+	//osg::Vec3d startRay = osg::Vec3d(x,y,0) * inverse;
 	osg::Vec3d endRay = osg::Vec3d(x,y,1) * inverse;
 
 	return toBulletVector(endRay);
@@ -206,7 +211,7 @@ bool PickingMouseHandler::processMouseInput(const osgGA::GUIEventAdapter &ea) {
 				osg::Vec3f eye, center, up;	m_scene.viewer.getCamera()->getViewMatrixAsLookAt(eye, center, up);
 				const btVector3			rayFrom=toBulletVector(eye);
 				const btVector3			rayTo=getRayTo(x,y);
-				const btVector3			rayDir=(rayTo-rayFrom).normalized();
+				// const btVector3			rayDir=(rayTo-rayFrom).normalized();
 				btSoftBodyArray&		sbs= ((btSoftRigidDynamicsWorld*) m_dynamicsWorld)->getSoftBodyArray();
 				for(int ib=0;ib<sbs.size();++ib)
 				{
@@ -252,7 +257,10 @@ bool PickingMouseHandler::processMouseInput(const osgGA::GUIEventAdapter &ea) {
 									m_node=f.m_n[i];
 								}
 							}
+							break;
 						}
+					default:
+						// do nothing
 						break;
 					}
 					if(m_node) m_goal=m_node->m_x;
@@ -309,7 +317,7 @@ bool PickingMouseHandler::processMouseMotionInput(const osgGA::GUIEventAdapter &
 
 				btVector3 newRayTo = getRayTo(x,y);
 				btVector3 rayFrom;
-				btVector3 oldPivotInB = pickCon->getFrameOffsetA().getOrigin();
+				//btVector3 oldPivotInB = pickCon->getFrameOffsetA().getOrigin();
 
 				osg::Vec3f eye, center, up;	m_scene.viewer.getCamera()->getViewMatrixAsLookAt(eye, center, up);
 				rayFrom = toBulletVector(eye);
@@ -330,7 +338,7 @@ bool PickingMouseHandler::processMouseMotionInput(const osgGA::GUIEventAdapter &
 
 				btVector3 newRayTo = getRayTo(x,y);
 				btVector3 rayFrom;
-				btVector3 oldPivotInB = pickCon->getPivotInB();
+				//btVector3 oldPivotInB = pickCon->getPivotInB();
 
 				osg::Vec3f eye, center, up;	m_scene.viewer.getCamera()->getViewMatrixAsLookAt(eye, center, up);
 				rayFrom = toBulletVector(eye);
@@ -345,9 +353,9 @@ bool PickingMouseHandler::processMouseMotionInput(const osgGA::GUIEventAdapter &
 		return true;
 	}
 
-	float dx, dy;
-    dx = btScalar(x) - m_mouseOldX;
-    dy = btScalar(y) - m_mouseOldY;
+//	float dx, dy;
+//    dx = btScalar(x) - m_mouseOldX;
+//    dy = btScalar(y) - m_mouseOldY;
 
 	m_mouseOldX = x;
   m_mouseOldY = y;

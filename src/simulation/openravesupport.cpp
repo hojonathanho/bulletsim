@@ -359,11 +359,11 @@ void RaveObject::initRaveObject(RaveInstance::Ptr rave_, KinBodyPtr body_,
 	// iterate through each link in the robot (to be stored in the children vector)
 	BOOST_FOREACH(KinBody::LinkPtr link, links) {
 		BulletObject::Ptr child = createFromLink(link, subshapes, meshes, trimeshMode, isKinematic);
-		if (child) getChildren().push_back(child);
-
 		linkMap[link] = child;
-		childPosMap[child] = getChildren().size() - 1;
 		if (child) {
+			getChildren().push_back(child);
+
+			childPosMap[child] = getChildren().size() - 1;
 			collisionObjMap[child->rigidBody.get()] = link;
 		// since the joints are always in contact, we should ignore their collisions
 		// when setting joint positions (OpenRAVE should take care of them anyway)
@@ -465,21 +465,21 @@ void RaveObject::internalCopy(RaveObject::Ptr o, Fork &f) const {
 	// now we need to set up mappings in the copied robot
 	for (std::map<KinBody::LinkPtr, BulletObject::Ptr>::const_iterator i =
 			linkMap.begin(); i != linkMap.end(); ++i) {
-		const KinBody::LinkPtr raveObj = o->rave->env->GetKinBody(
+		const KinBody::LinkPtr o_link = o->rave->env->GetKinBody(
 				i->first->GetParent()->GetName())->GetLink(i->first->GetName());
 
-		const int j = childPosMap.find(i->second)->second;
-		const BulletObject::Ptr bulletObj = o->getChildren()[j];
+		BulletObject::Ptr o_child;
+		std::map<BulletObject::Ptr, int>::const_iterator childPosPair = childPosMap.find(i->second);
+    if (childPosPair == childPosMap.end())
+    	o_child = BulletObject::Ptr();
+    else
+    	o_child = o->getChildren()[childPosPair->second];
 
-		o->linkMap.insert(std::make_pair(raveObj, bulletObj));
-		o->collisionObjMap.insert(std::make_pair(bulletObj->rigidBody.get(),
-				raveObj));
-	}
-
-	for (std::map<BulletObject::Ptr, int>::const_iterator i =
-			childPosMap.begin(); i != childPosMap.end(); ++i) {
-		const int j = childPosMap.find(i->first)->second;
-		o->childPosMap.insert(std::make_pair(o->getChildren()[j], i->second));
+		o->linkMap[o_link] = o_child;
+		if (o_child) {
+			o->collisionObjMap[o_child->rigidBody.get()] = o_link;
+			o->childPosMap[o_child] = childPosPair->second;
+		}
 	}
 
 	o->body = o->rave->env->GetKinBody(body->GetName());
@@ -492,9 +492,8 @@ EnvironmentObject::Ptr RaveObject::copy(Fork &f) const {
 	return o;
 }
 
-EnvironmentObject::Ptr RaveRobotObject::copy(Fork &f) const {
-	Ptr o(new RaveRobotObject());
-  RaveObject::internalCopy(o, f);
+void RaveRobotObject::internalCopy(RaveRobotObject::Ptr o, Fork &f) const {
+	RaveObject::internalCopy(o, f);
 
 	o->robot = o->rave->env->GetRobot(robot->GetName());
 	o->createdManips.reserve(createdManips.size());
@@ -502,6 +501,11 @@ EnvironmentObject::Ptr RaveRobotObject::copy(Fork &f) const {
 		o->createdManips.push_back(createdManips[i]->copy(o, f));
 		o->createdManips[i]->index = i;
 	}
+}
+
+EnvironmentObject::Ptr RaveRobotObject::copy(Fork &f) const {
+	Ptr o(new RaveRobotObject());
+	RaveRobotObject::internalCopy(o, f);
 	return o;
 }
 

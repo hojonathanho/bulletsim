@@ -34,6 +34,7 @@ public:
 	bool								m_drag;
 
 	PickingMouseHandler(Scene &scene);
+	~PickingMouseHandler();
 	void shootBox(const btVector3& destination);
 	btVector3	getRayTo(int x, int y);
 	void removePickingConstraint();

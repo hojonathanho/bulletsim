@@ -30,6 +30,7 @@ enum HapticEvent {
 #define PR2_GRIPPER_OPEN_VAL 0.54f
 #define PR2_GRIPPER_CLOSED_VAL 0.03f
 
+class PR2Object;
 class PR2SoftBodyGripper {
     RaveRobotObject::Ptr robot;
     OpenRAVE::RobotBase::ManipulatorPtr manip;
@@ -94,6 +95,8 @@ public:
 
     void grab();
     void releaseAllAnchors();
+
+    friend class PR2Object;
 };
 
 class Scene;

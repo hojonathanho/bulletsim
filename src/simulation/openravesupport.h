@@ -51,9 +51,9 @@ public:
   // This constructor assumes the robot is already in openrave. Use this if you're loading a bunch of stuff from an
   // xml file, and you want to put everything in bullet
 
-  void init();
-  void destroy();
-  void prePhysics();
+  virtual void init();
+  virtual void destroy();
+  virtual void prePhysics();
 
   // forking
   EnvironmentObject::Ptr copy(Fork &f) const;
@@ -131,6 +131,11 @@ public:
   RaveRobotObject(RaveInstance::Ptr rave_, RobotBasePtr robot, TrimeshMode trimeshMode = CONVEX_HULL, bool isStatic=true);
   RaveRobotObject(RaveInstance::Ptr rave_, const std::string &uri, TrimeshMode trimeshMode = CONVEX_HULL, bool isStatic=true);
 
+  virtual void init() { RaveObject::init(); }
+  virtual void destroy() { RaveObject::destroy(); }
+  virtual void prePhysics() { RaveObject::prePhysics(); }
+
+  void internalCopy(RaveRobotObject::Ptr o, Fork &f) const;
   EnvironmentObject::Ptr copy(Fork &f) const;
 
   void setDOFValues(const vector<int> &indices, const vector<dReal> &vals);

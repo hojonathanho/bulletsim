@@ -103,6 +103,7 @@ PR2SoftBodyGripper::PR2SoftBodyGripper(RaveRobotObject::Ptr robot_, OpenRAVE::Ro
 }
 
 void PR2SoftBodyGripper::releaseAllAnchors() {
+		if (!sb) return;
     for (int i = 0; i < anchors.size(); ++i)
         sb->removeAnchor(anchors[i]);
     anchors.clear();
@@ -202,6 +203,7 @@ void PR2SoftBodyGripper::attach(bool left) {
 }
 
 void PR2SoftBodyGripper::grab() {
+		if (!sb) return;
     if (grabOnlyOnContact) {
         //attach(false);
         attach(true);
@@ -243,11 +245,11 @@ static void drive(RaveRobotObject* robot, float dx, float dy, float da) {
 }
 
 void PR2Manager::registerSceneCallbacks() {
-    Scene::Callback mousecb = boost::bind(&PR2Manager::processMouseInput, this, _1);
+    Callback mousecb = boost::bind(&PR2Manager::processMouseInput, this, _1);
     scene.addCallback(osgGA::GUIEventAdapter::PUSH, mousecb);
     scene.addCallback(osgGA::GUIEventAdapter::DRAG, mousecb);
 
-    Scene::Callback keycb = boost::bind(&PR2Manager::processKeyInput, this, _1);
+    Callback keycb = boost::bind(&PR2Manager::processKeyInput, this, _1);
     scene.addCallback(osgGA::GUIEventAdapter::KEYDOWN, keycb);
     scene.addCallback(osgGA::GUIEventAdapter::KEYUP, keycb);
 

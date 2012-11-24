@@ -12,11 +12,9 @@ inline float sq(float x) {return x*x;}
 
 double PushObject::simulateTraj(const Eigen::MatrixXd& traj) {
 
-  BulletInstance::Ptr newBullet(new BulletInstance());
-  OSGInstance::Ptr newOSG(new OSGInstance());
-  m_env->osg->root->addChild(newOSG->root.get());
   static RaveInstancePtr copyRave(new RaveInstance(*util::getGlobalScene()->rave, OpenRAVE::Clone_Bodies));
-  Fork::Ptr fork(new Fork(m_env, copyRave, newBullet, newOSG));
+  Fork::Ptr fork(new Fork(m_env, copyRave));
+  m_env->osg->root->addChild(fork->env->osg->root.get());
 
 #if 0
   static bool firstTime=true;
@@ -46,7 +44,7 @@ double PushObject::simulateTraj(const Eigen::MatrixXd& traj) {
 
   btTransform objTransform = objCopy->rigidBody->getCenterOfMassTransform();
 
-  m_env->osg->root->removeChild(newOSG->root);
+  m_env->osg->root->removeChild(fork->env->osg->root);
 
 
   return m_posCoeff*(m_target.getOrigin()-objTransform.getOrigin()).length2()/sq(METERS) +
