@@ -52,6 +52,11 @@ public:
 		 * The return value is a point on the line found and the direction-cosine of the line. */
 		std::pair<btVector3, btVector3> fitLine(int side_num);
 
+
+		/** See the DOC for fitLine.
+		 *  In addition to fitting a line to the cut-points it aligns
+		 *  the direction of the cut with the x-axis of the robot's (PR2) transform. */
+		std::pair<btVector3, btVector3> fitLineAligned(int side_num, RaveRobotObject::Ptr robot);
 	};
 
 	PR2SoftBodyGripperAction::Ptr leftAction, rightAction;

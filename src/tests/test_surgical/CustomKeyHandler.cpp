@@ -45,7 +45,7 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,
 
         case 'z': // plots the points on lying on the cut
 
-            cutInfo = scene.sCloth->fitLine(1);
+            cutInfo = scene.sCloth->fitLineAligned(1, scene.pr2m.pr2);
             cutT = util::getOrthogonalTransform(cutInfo.second);
             cutT.setOrigin( cutInfo.first);
             scene.plot_axes->setup(cutT, 2);

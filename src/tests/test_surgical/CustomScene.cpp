@@ -241,19 +241,11 @@ void CustomScene::run() {
     plot_points.reset(new PlotPoints(5));
     env->add(plot_points);
 
-    std::pair<btVector3, btVector3> cutInfo = sCloth->fitLine(1);
-    btTransform cutT = util::getOrthogonalTransform(cutInfo.second);
-    cutT.setOrigin( cutInfo.first);
 
     plot_axes.reset(new PlotAxes());
-	plot_axes1.reset(new PlotAxes());
+    env->add(plot_axes);
 	plot_axes->setup(btTransform(), 2);
 
-
-
-    plot_axes->setup(cutT, 2);
-    env->add(plot_axes);
-    env->add(plot_axes1);
 
     leftAction.reset(new PR2SoftBodyGripperAction(pr2m.pr2Left,
     		                                      "l_gripper_l_finger_tip_link",
@@ -276,7 +268,6 @@ void CustomScene::run() {
 
     startFixedTimestepLoop(dt);
 }
-
 
 
 /** Constructor for the cloth in the scene. */
@@ -312,4 +303,15 @@ std::pair<btVector3, btVector3> CustomScene::SutureCloth::fitLine(int side_num) 
 	btVector3 direction_cosine(pca1(0), pca1(1), pca1(2));
 
 	return std::pair<btVector3, btVector3>(pt_on_line, direction_cosine);
+}
+
+/** See the DOC for fitLine.
+ *  In addition to fitting a line to the cut-points it aligns
+ *  the direction of the cut with the x-axis of the robot's (PR2) transform. */
+std::pair<btVector3, btVector3> CustomScene::SutureCloth::fitLineAligned(int side_num, RaveRobotObject::Ptr robot) {
+	btTransform robotT = robot->getLinkTransform(robot->robot->GetLink("base_link"));
+	std::pair<btVector3, btVector3> res = fitLine(side_num);
+	btVector3 robotX = robotT.getBasis().getColumn(0);
+	btVector3 alignedDir = (res.second.dot(robotX) > 0)? res.second : -1*res.second;
+	return std::pair<btVector3, btVector3>(res.first, alignedDir);
 }
