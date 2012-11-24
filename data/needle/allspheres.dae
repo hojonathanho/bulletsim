@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<COLLADA xmlns="http://www.collada.org/2005/11/COLLADASchema" version="1.5.0">
+  <asset>
+    <contributor>
+      <author></author>
+      <authoring_tool>FBX COLLADA exporter</authoring_tool>
+      <comments></comments>
+    </contributor>
+    <created>2012-11-06T22:41:45Z</created>
+    <modified>2012-11-06T22:41:45Z</modified>
+    <revision></revision>
+    <title></title>
+    <subject></subject>
+    <keywords></keywords>
+    <unit meter="0.010000"/>
+    <up_axis>Y_UP</up_axis>
+  </asset>
+  <library_visual_scenes>
+    <visual_scene id="RootNode" name="RootNode">
+      <node id="nurbsSphere1" name="nurbsSphere1">
+        <matrix sid="matrix">1.000000 0.000000 0.000000 -28.943306 0.000000 1.000000 0.000000 0.000000 0.000000 0.000000 1.000000 -14.691878 0.000000 0.000000 0.000000 1.000000</matrix>
+      </node>
+    </visual_scene>
+  </library_visual_scenes>
+  <scene>
+    <instance_visual_scene url="#RootNode"/>
+  </scene>
+</COLLADA>
+

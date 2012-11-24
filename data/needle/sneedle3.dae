@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<COLLADA xmlns="http://www.collada.org/2008/03/COLLADASchema" version="1.5.0"> 
+  <asset><contributor><author></author><authoring_tool>FBX COLLADA exporter</authoring_tool><comments></comments></contributor><created>2012-11-23T04:18:27Z</created><keywords></keywords><modified>2012-11-23T04:18:27Z</modified><revision></revision><subject></subject><title></title><unit meter="0.010000" name="centimeter"></unit><up_axis>Y_UP</up_axis></asset>
+  <library_visual_scenes>
+    <visual_scene id="" name="">
+      <node name="nurbsCylinder1" id="nurbsCylinder1" sid="nurbsCylinder1"><matrix sid="matrix">1.000000 0.000000 0.000000 0.094148 0.000000 1.000000 0.000000 19.730890 0.000000 0.000000 1.000000 -1.833815 0.000000 0.000000 0.000000 1.000000</matrix><extra><technique profile="FCOLLADA"><visibility>1.000000</visibility></technique></extra></node>
+      <node name="bend1Handle" id="bend1Handle" sid="bend1Handle"><matrix sid="matrix">19.730890 0.000000 0.000000 0.094148 0.000000 19.730890 0.000000 19.730890 0.000000 0.000000 19.730890 -1.833815 0.000000 0.000000 0.000000 1.000000</matrix><extra><technique profile="FCOLLADA"><visibility>1.000000</visibility></technique></extra></node>
+      <extra><technique profile="MAX3D"><frame_rate>24.000000</frame_rate></technique><technique profile="FCOLLADA"><start_time>0.041667</start_time><end_time>2.000000</end_time></technique></extra>
+    </visual_scene>
+  </library_visual_scenes>
+  <scene>
+    <instance_visual_scene url="#"></instance_visual_scene>
+  </scene>
+</COLLADA>
