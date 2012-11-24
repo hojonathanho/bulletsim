@@ -12,9 +12,12 @@
 #include "simulation/softbodies.h"
 #include "robots/PR2Object.h"
 
-void forkSceneEnvironment(Scene* scene, PR2Object::Ptr pr2, Fork::Ptr& fork, PR2Object::Ptr& forked_pr2, ros::Subscriber& forked_jointSub) {
-  fork.reset(new Fork(scene->env));
-  forked_pr2 = boost::static_pointer_cast<PR2Object>(fork->forkOf(pr2));
+Fork::Ptr forked;
+PR2Object::Ptr forked_pr2;
+ros::Subscriber forked_jointSub;
+void forkSceneEnvironment(Scene* scene, PR2Object::Ptr pr2) {
+  forked.reset(new Fork(scene->env));
+  forked_pr2 = boost::static_pointer_cast<PR2Object>(forked->forkOf(pr2));
 
   ros::NodeHandle nh;
   forked_jointSub = nh.subscribe("/joint_states", 5, &PR2Object::setJointState, forked_pr2.get());
@@ -23,7 +26,7 @@ void forkSceneEnvironment(Scene* scene, PR2Object::Ptr pr2, Fork::Ptr& fork, PR2
 	scene->addVoidKeyCallback('n', boost::bind(&PR2Object::drive, forked_pr2.get(), 0,.05, 0));
 	scene->addVoidKeyCallback('m', boost::bind(&PR2Object::drive, forked_pr2.get(), 0,-.05, 0));
 
-	scene->addVoidKeyCallback('s', boost::bind(&Scene::swapEnvironment, scene, fork->env), "swap the active environment");
+	scene->addVoidKeyCallback('s', boost::bind(&Scene::swapEnvironment, scene, forked->env), "swap the active environment");
 }
 
 int main(int argc, char *argv[]) {
@@ -60,7 +63,6 @@ int main(int argc, char *argv[]) {
   	PR2Object::Ptr pr2 = PR2Object::Ptr(new PR2Object(scene.rave)); // it seems to also be ok to pass in empty RaveInstance::Ptr()
 		pr2->setColor(1,0,0,0.5);
   	scene.env->add(pr2);
-  	pr2->setTarget(cloth);
 
 //  	// Wait for first joint state message and set the PR2's initial pose
 //  	sensor_msgs::JointStateConstPtr init_joint_state_msg = ros::topic::waitForMessage<sensor_msgs::JointState>("/joint_states");
@@ -77,10 +79,7 @@ int main(int argc, char *argv[]) {
     ros::Subscriber jointSub = nh.subscribe("/joint_states", 5, &PR2Object::setJointState, pr2.get());
 
     // Forking callback
-    Fork::Ptr fork;
-    PR2Object::Ptr forked_pr2;
-    ros::Subscriber forked_jointSub;
-    scene.addVoidKeyCallback('f', boost::bind(forkSceneEnvironment, &scene, pr2, fork, forked_pr2, forked_jointSub), "fork the Scene's Environment");
+    scene.addVoidKeyCallback('f', boost::bind(forkSceneEnvironment, &scene, pr2), "fork the Scene's Environment");
 
   	// start the simulation
     scene.startViewer();
@@ -89,7 +88,8 @@ int main(int argc, char *argv[]) {
       scene.env->step(.03,2,.015);
       scene.draw();
 
-      if (fork) fork->env->step(.03,2,.015);
+      if (forked)
+      	forked->env->step(.03,2,.015);
 
       ros::spinOnce();
     }

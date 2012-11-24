@@ -103,9 +103,8 @@ PR2SoftBodyGripper::PR2SoftBodyGripper(RaveRobotObject::Ptr robot_, OpenRAVE::Ro
 }
 
 void PR2SoftBodyGripper::releaseAllAnchors() {
-		if (!sb) return;
     for (int i = 0; i < anchors.size(); ++i)
-        sb->removeAnchor(anchors[i]);
+    	anchors[i].m_bso->removeAnchor(anchors[i].m_idx);
     anchors.clear();
 }
 
@@ -130,103 +129,112 @@ bool PR2SoftBodyGripper::inGraspRegion(const btVector3 &pt) const {
 }
 
 void PR2SoftBodyGripper::attach(bool left) {
-    btRigidBody *rigidBody =
-        robot->associatedObj(left ? leftFinger : rightFinger)->rigidBody.get();
+	btRigidBody *rigidBody =
+			robot->associatedObj(left ? leftFinger : rightFinger)->rigidBody.get();
+
+	for (Environment::ObjectList::iterator obj_it = robot->getEnvironment()->objects.begin(); obj_it!= robot->getEnvironment()->objects.end(); ++obj_it) {
+		BulletSoftObject::Ptr sb = boost::dynamic_pointer_cast<BulletSoftObject>(*obj_it);
+		if (!sb) continue;
+
 #if 0
-    btSoftBody::tRContactArray rcontacts;
-    getContactPointsWith(sb->softBody.get(), rigidBody, rcontacts);
-    cout << "got " << rcontacts.size() << " contacts\n";
-    int nAppended = 0;
+		btSoftBody::tRContactArray rcontacts;
+		getContactPointsWith(sb->softBody.get(), rigidBody, rcontacts);
+		cout << "got " << rcontacts.size() << " contacts\n";
+		int nAppended = 0;
 
-    for (int i = 0; i < rcontacts.size(); ++i) {
-        const btSoftBody::RContact &c = rcontacts[i];
-        KinBody::LinkPtr colLink = robot->associatedObj(c.m_cti.m_colObj);
-        if (!colLink) continue;
-        const btVector3 &contactPt = c.m_node->m_x;
-        //if (onInnerSide(contactPt, left)) {
-        if (inGraspRegion(contactPt)) {
-            anchors.push_back(sb->addAnchor(c.m_node, rigidBody));
-            ++nAppended;
-        }
-    }
-    cout << "appended " << nAppended << " anchors to " << (left ? "left" : "right") << endl;
+		for (int i = 0; i < rcontacts.size(); ++i) {
+			const btSoftBody::RContact &c = rcontacts[i];
+			KinBody::LinkPtr colLink = robot->associatedObj(c.m_cti.m_colObj);
+			if (!colLink) continue;
+			const btVector3 &contactPt = c.m_node->m_x;
+			//if (onInnerSide(contactPt, left)) {
+			if (inGraspRegion(contactPt)) {
+				anchors.push_back(sb->addAnchor(c.m_node, rigidBody));
+				++nAppended;
+			}
+		}
+		cout << "appended " << nAppended << " anchors to " << (left ? "left" : "right") << endl;
 #endif
-    set<const btSoftBody::Node*> attached;
+		set<const btSoftBody::Node*> attached;
 
-    // look for nodes in gripper region
-    const btSoftBody::tNodeArray &nodes = sb->softBody->m_nodes;
-    for (int i = 0; i < nodes.size(); ++i) {
-        if (inGraspRegion(nodes[i].m_x) && !sb->hasAnchorAttached(i)) {
-            anchors.push_back(sb->addAnchor(i, rigidBody));
-            attached.insert(&nodes[i]);
-        }
-    }
+		// look for nodes in gripper region
+		const btSoftBody::tNodeArray &nodes = sb->softBody->m_nodes;
+		for (int i = 0; i < nodes.size(); ++i) {
+			if (inGraspRegion(nodes[i].m_x) && !sb->hasAnchorAttached(i)) {
+				anchors.push_back(Anchor(sb, sb->addAnchor(i, rigidBody)));
+				attached.insert(&nodes[i]);
+			}
+		}
 
-    // look for faces with center in gripper region
-    const btSoftBody::tFaceArray &faces = sb->softBody->m_faces;
-    for (int i = 0; i < faces.size(); ++i) {
-        btVector3 ctr = (1./3.) * (faces[i].m_n[0]->m_x
-                + faces[i].m_n[1]->m_x + faces[i].m_n[2]->m_x);
-        if (inGraspRegion(ctr)) {
-            for (int z = 0; z < 3; ++z) {
-                int idx = faces[i].m_n[z] - &nodes[0];
-                if (!sb->hasAnchorAttached(idx)) {
-                    anchors.push_back(sb->addAnchor(idx, rigidBody));
-                    attached.insert(&nodes[idx]);
-                }
-            }
-        }
-    }
+		// look for faces with center in gripper region
+		const btSoftBody::tFaceArray &faces = sb->softBody->m_faces;
+		for (int i = 0; i < faces.size(); ++i) {
+			btVector3 ctr = (1. / 3.) * (faces[i].m_n[0]->m_x + faces[i].m_n[1]->m_x + faces[i].m_n[2]->m_x);
+			if (inGraspRegion(ctr)) {
+				for (int z = 0; z < 3; ++z) {
+					int idx = faces[i].m_n[z] - &nodes[0];
+					if (!sb->hasAnchorAttached(idx)) {
+						anchors.push_back(Anchor(sb, sb->addAnchor(idx, rigidBody)));
+						attached.insert(&nodes[idx]);
+					}
+				}
+			}
+		}
 
-    // now for each added anchor, add anchors to neighboring nodes for stability
-    const int MAX_EXTRA_ANCHORS = 3;
-    const btSoftBody::tLinkArray &links = sb->softBody->m_links;
-    const int origNumAnchors = anchors.size();
-    for (int i = 0; i < links.size(); ++i) {
-        if (anchors.size() >= origNumAnchors + MAX_EXTRA_ANCHORS)
-            break;
-        if (attached.find(links[i].m_n[0]) != attached.end()) {
-            int idx = links[i].m_n[1] - &nodes[0];
-            if (!sb->hasAnchorAttached(idx)) {
-                anchors.push_back(sb->addAnchor(idx, rigidBody));
-            }
-        }
-        else if (attached.find(links[i].m_n[1]) != attached.end()) {
-            int idx = links[i].m_n[0] - &nodes[0];
-            if (!sb->hasAnchorAttached(idx)) {
-                anchors.push_back(sb->addAnchor(idx, rigidBody));
-            }
-        }
-    }
+		// now for each added anchor, add anchors to neighboring nodes for stability
+		const int MAX_EXTRA_ANCHORS = 3;
+		const btSoftBody::tLinkArray &links = sb->softBody->m_links;
+		const int origNumAnchors = anchors.size();
+		for (int i = 0; i < links.size(); ++i) {
+			if (anchors.size() >= origNumAnchors + MAX_EXTRA_ANCHORS)
+				break;
+			if (attached.find(links[i].m_n[0]) != attached.end()) {
+				int idx = links[i].m_n[1] - &nodes[0];
+				if (!sb->hasAnchorAttached(idx)) {
+					anchors.push_back(Anchor(sb, sb->addAnchor(idx, rigidBody)));
+				}
+			} else if (attached.find(links[i].m_n[1]) != attached.end()) {
+				int idx = links[i].m_n[0] - &nodes[0];
+				if (!sb->hasAnchorAttached(idx)) {
+					anchors.push_back(Anchor(sb, sb->addAnchor(idx, rigidBody)));
+				}
+			}
+		}
 
-    cout << "appended " << attached.size() << " anchors to " << (left ? "left" : "right") << endl;
+		cout << "appended " << attached.size() << " anchors to " << (left ? "left" : "right") << endl;
+	}
 }
 
 void PR2SoftBodyGripper::grab() {
-		if (!sb) return;
-    if (grabOnlyOnContact) {
-        //attach(false);
-        attach(true);
-    } else {
-        // the gripper should be closed
-        const btVector3 midpt = 0.5 * (getInnerPt(false) + getInnerPt(true));
-        // get point on cloth closest to midpt, and attach an anchor there
-        // (brute-force iteration through every cloth node)
-        btSoftBody::tNodeArray &nodes = sb->softBody->m_nodes;
-        btSoftBody::Node *closestNode = NULL;
-        btScalar closestDist;
-        for (int i = 0; i < nodes.size(); ++i) {
-            btSoftBody::Node &n = nodes[i];
-            btScalar d2 = midpt.distance2(n.m_x);
-            if (closestNode == NULL || d2 < closestDist) {
-                closestNode = &n;
-                closestDist = d2;
-            }
-        }
-        // attach to left finger (arbitrary choice)
-        if (closestNode)
-            anchors.push_back(sb->addAnchor(closestNode, robot->associatedObj(leftFinger)->rigidBody.get()));
-    }
+	if (grabOnlyOnContact) {
+			//attach(false);
+			attach(true);
+	} else {
+		// the gripper should be closed
+		const btVector3 midpt = 0.5 * (getInnerPt(false) + getInnerPt(true));
+		// get point on cloth closest to midpt, and attach an anchor there
+		// (brute-force iteration through every cloth node)
+		btSoftBody::Node *closestNode = NULL;
+		btScalar closestDist;
+		BulletSoftObject::Ptr closestSb;
+		for (Environment::ObjectList::iterator obj_it = robot->getEnvironment()->objects.begin(); obj_it!= robot->getEnvironment()->objects.end(); ++obj_it) {
+			BulletSoftObject::Ptr sb = boost::dynamic_pointer_cast<BulletSoftObject>(*obj_it);
+			if (!sb) continue;
+			btSoftBody::tNodeArray &nodes = sb->softBody->m_nodes;
+			for (int i = 0; i < nodes.size(); ++i) {
+					btSoftBody::Node &n = nodes[i];
+					btScalar d2 = midpt.distance2(n.m_x);
+					if (closestNode == NULL || d2 < closestDist) {
+							closestNode = &n;
+							closestDist = d2;
+							closestSb = sb;
+					}
+			}
+		}
+		// attach to left finger (arbitrary choice)
+		if (closestNode)
+			anchors.push_back(Anchor(closestSb, closestSb->addAnchor(closestNode, robot->associatedObj(leftFinger)->rigidBody.get())));
+	}
 }
 
 

@@ -43,7 +43,6 @@ public:
 
   void drive(float dx, float dy, float da) { setTransform(getTransform() * btTransform(btQuaternion(0,0,da), btVector3(dx*METERS, dy*METERS, 0))); }
 
-  void setTarget(BulletSoftObject::Ptr sb); // Need to specify softbody that the pr2 is about to grab. TODO the pr2 should consider all the softbodies in the environment
   void grab(ManipId manip_id = ALL);
   void release(ManipId manip_id = ALL);
 

@@ -39,6 +39,6 @@ public:
   RobotSync* m_sync;
   GrabManager();
   GrabManager(Environment::Ptr env, RaveRobotObject::Manipulator::Ptr arm, GrabDetector::Side, RobotSync* robotSync);
-  GrabManager(Environment::Ptr env, RaveRobotObject::Ptr robot, RaveRobotObject::Manipulator::Ptr arm, GrabDetector::Side, RobotSync* robotSync, BulletSoftObject::Ptr target);
+  GrabManager(Environment::Ptr env, RaveRobotObject::Ptr robot, RaveRobotObject::Manipulator::Ptr arm, GrabDetector::Side, RobotSync* robotSync);
   void update();
 };

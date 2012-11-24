@@ -71,14 +71,11 @@ void PR2Object::postCopy(EnvironmentObject::Ptr copy, Fork &f) const {
 		PR2SoftBodyGripper::Ptr o_gripper = boost::shared_dynamic_cast<SoftMonitorForGrabbing>(o->m_monitors[manip_id])->gripper;
 
 		o_gripper->grabOnlyOnContact = gripper->grabOnlyOnContact;
-		o_gripper->sb = boost::static_pointer_cast<BulletSoftObject>(f.forkOf(gripper->sb));
-    o_gripper->anchors = gripper->anchors;
+		for (int i=0; i<gripper->anchors.size(); i++) {
+			BulletSoftObject::Ptr o_bso = boost::static_pointer_cast<BulletSoftObject>(f.forkOf(gripper->anchors[i].m_bso));
+			o_gripper->anchors.push_back(PR2SoftBodyGripper::Anchor(o_bso, gripper->anchors[i].m_idx));
+		}
 	}
-}
-
-void PR2Object::setTarget(BulletSoftObject::Ptr sb) {
-	BOOST_FOREACH(Monitor::Ptr& monitor, m_monitors)
-		boost::shared_dynamic_cast<SoftMonitorForGrabbing>(monitor)->setTarget(sb);
 }
 
 void PR2Object::grab(ManipId manip_id) {

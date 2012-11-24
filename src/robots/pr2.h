@@ -46,9 +46,6 @@ class PR2SoftBodyGripper {
     // points straight down in the PR2 initial position (manipulator frame)
     const btVector3 toolDirection;
 
-    // the target softbody
-    BulletSoftObject::Ptr sb;
-
     btTransform getManipRot() const {
         btTransform trans(util::toBtTransform(manip->GetTransform(), GeneralConfig::scale));
         trans.setOrigin(btVector3(0, 0, 0));
@@ -81,7 +78,13 @@ class PR2SoftBodyGripper {
     // If so, attaches anchors to every contact point
     void attach(bool left);
 
-    vector<BulletSoftObject::AnchorHandle> anchors;
+    class Anchor {
+    public:
+    	BulletSoftObject::Ptr m_bso;
+    	BulletSoftObject::AnchorHandle m_idx;
+    	Anchor(BulletSoftObject::Ptr bso, BulletSoftObject::AnchorHandle idx) : m_bso(bso), m_idx(idx) {}
+    };
+    vector<Anchor> anchors;
 
 public:
     typedef boost::shared_ptr<PR2SoftBodyGripper> Ptr;
@@ -89,9 +92,6 @@ public:
     PR2SoftBodyGripper(RaveRobotObject::Ptr robot_, OpenRAVE::RobotBase::ManipulatorPtr manip_, bool leftGripper);
 
     void setGrabOnlyOnContact(bool b) { grabOnlyOnContact = b; }
-
-    // Must be called before the action is run!
-    void setTarget(BulletSoftObject::Ptr sb_) { sb = sb_; }
 
     void grab();
     void releaseAllAnchors();

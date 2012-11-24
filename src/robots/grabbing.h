@@ -73,7 +73,6 @@ public:
         Monitor(manip),
         gripper(new PR2SoftBodyGripper(robot, manip->manip, leftGripper)) { }
 
-    void setTarget(BulletSoftObject::Ptr sb) { gripper->setTarget(sb); }
     void grab() { gripper->grab(); }
     void release() { gripper->releaseAllAnchors(); }
     void updateGrabPose() { }
