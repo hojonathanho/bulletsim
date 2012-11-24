@@ -47,8 +47,8 @@ std::pair<bool, RaveTrajectory::Ptr> EndTransformPlanner::precisePlan(OpenRAVE::
  *  If no plan is found, it returns failure and an uninitialized trajectory.*/
 std::pair<bool, RaveTrajectory::Ptr> EndTransformPlanner::forcePlan(OpenRAVE::Transform goal) {
 	const float pi = OpenRAVE::PI;
-	float _yaws[] = {0, -pi/8, pi/8, -pi/6, pi/6, -pi/4, pi/4};
-	float _pitches[] = {0, -pi/8, pi/8, -pi/6, pi/6, -pi/4, pi/4};
+	float _yaws[] = {0, -pi/8, pi/8, -pi/6, pi/6, -pi/4, pi/4, pi/2, -pi/2};
+	float _pitches[] = {0, -pi/8, pi/8, -pi/6, pi/6, -pi/4, pi/4, pi/2, -pi/2};
 
 	vector<float> yaws;
 	vector<float> pitches;

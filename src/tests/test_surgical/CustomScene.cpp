@@ -222,7 +222,7 @@ void CustomScene::run() {
     viewer.addEventHandler(new CustomKeyHandler(*this));
 
     const float dt = BulletConfig::dt;
-    const float table_height = .5;
+    const float table_height = .75;
     const float table_thickness = .05;
     table = BoxObject::Ptr(new BoxObject(0, GeneralConfig::scale * btVector3(.75,.75,table_thickness/2),
                                          btTransform(btQuaternion(0, 0, 0, 1),
@@ -270,6 +270,41 @@ void CustomScene::run() {
 
     startFixedTimestepLoop(dt);
 }
+
+
+/** Small test to see if the robot can grasp the cloth.*/
+void CustomScene::testGrasping() {
+	btTransform cutT1, cutT2;
+
+	// get the grap-transforms for the cuts and plot them
+	btTransform gripper = pr2m.pr2Right->getTransform();
+
+	cutT1 =  sCloth->getCutGraspTransform(1, pr2m.pr2, 0.3);
+	cutT2 =  sCloth->getCutGraspTransform(2, pr2m.pr2, 0.3);
+
+	btMatrix3x3 corrRot;
+	corrRot.setValue(-1, 0, 0, 0, 0, 1, 0, 1, 0);
+	corrRot = corrRot * cutT1.getBasis();
+	cutT1.setBasis(corrRot);
+
+	plot_axes1->setup(cutT1, 2);
+	plot_axes2->setup(gripper, 2);
+
+	IKInterpolationPlanner planner(pr2m, rave, 'r');
+	//EndTransformPlanner planner(pr2m.pr2, rave, 'r');
+	std::vector<Transform> t;
+	t.push_back(util::toRaveTransform(cutT1, 1/GeneralConfig::scale));
+
+	std::pair<bool, RaveTrajectory::Ptr> res = planner.plan(t);//util::toRaveTransform(cutT1));
+	if (res.first) {
+		pr2m.controller->appendTrajectory(res.second);
+		pr2m.controller->run();
+	} else {
+		std::cout<<"Plan failed!"<<std::endl;
+	}
+}
+
+
 
 
 /** Constructor for the cloth in the scene. */

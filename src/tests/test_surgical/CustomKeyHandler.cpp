@@ -4,7 +4,7 @@
 bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,
 		                      osgGA::GUIActionAdapter &) {
 	 //std::pair<std::pair<btVector3, btVector3> , std::pair<int, int> > cutInfo;
-	 btTransform cutT1, cutT2;
+
     switch (ea.getEventType()) {
     case osgGA::GUIEventAdapter::KEYDOWN:
         switch (ea.getKey()) {
@@ -43,17 +43,14 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,
         	scene.rave->env->Save("/home/ankush/sandbox/rave_suture/suture_env2.xml");
         	break;
 
+        case 'l': // saves the openrave environment to a file
+        	scene.testGrasping();
+        	break;
+
         case 'z': // plots the points on lying on the cut
 
         	scene.plotcolors.clear();
         	scene.plotpoints.clear();
-
-        	// gets the grap-transforms for the cuts and plots them
-        	cutT1 =  scene.sCloth->getCutGraspTransform(1, scene.pr2m.pr2, 0.3);
-        	cutT2 =  scene.sCloth->getCutGraspTransform(2, scene.pr2m.pr2, 0.3);
-        	scene.plot_axes1->setup(cutT1, 2);
-        	scene.plot_axes2->setup(cutT2, 2);
-
 
         	for (int i=0; i < scene.sCloth->cut_nodes1.size(); i += 1) {
         		scene.plotpoints.push_back(scene.sCloth->cloth->softBody->m_nodes[scene.sCloth->cut_nodes1[i]].m_x);
