@@ -222,7 +222,7 @@ void CustomScene::run() {
     viewer.addEventHandler(new CustomKeyHandler(*this));
 
     const float dt = BulletConfig::dt;
-    const float table_height = .75;
+    const float table_height = .60;
     const float table_thickness = .05;
     table = BoxObject::Ptr(new BoxObject(0, GeneralConfig::scale * btVector3(.75,.75,table_thickness/2),
                                          btTransform(btQuaternion(0, 0, 0, 1),
@@ -295,7 +295,8 @@ void CustomScene::testGrasping() {
 	std::vector<Transform> t;
 	t.push_back(util::toRaveTransform(cutT1, 1/GeneralConfig::scale));
 
-	std::pair<bool, RaveTrajectory::Ptr> res = planner.plan(t);//util::toRaveTransform(cutT1));
+	std::pair<bool, RaveTrajectory::Ptr> res = planner.plan(t);
+	//std::pair<bool, RaveTrajectory::Ptr> res = planner.precisePlan(util::toRaveTransform(cutT1,1/GeneralConfig::scale));
 	if (res.first) {
 		pr2m.controller->appendTrajectory(res.second);
 		pr2m.controller->run();
