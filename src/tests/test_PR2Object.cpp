@@ -85,8 +85,6 @@ int main(int argc, char *argv[]) {
   	// start the simulation
     scene.startViewer();
 
-    cout << EXPAND(BULLETSIM_DATA_DIR)"/clothing""/yeah" << endl;
-
     while (ros::ok()) {
       scene.env->step(.03,2,.015);
       scene.draw();
