@@ -91,6 +91,7 @@ void getContactPointsWith(btSoftBody *psb, btCollisionObject *pco, btSoftBody::t
 
 }
 
+// Implicit function for cutting cloth
 struct	ImplicitSphere : btSoftBody::ImplicitFn
 {
 	btVector3	center;
@@ -132,7 +133,7 @@ void CustomScene::cutCloth () {
 
 	for (int i = 0; i < numContacts; ++i) {
 		 currPt = rcnts[i].m_node->m_x;
-		if ((Tip-currPt).length() < cut_threshold*GeneralConfig::scale) {
+		if ((Tip-currPt).length() < pierce_threshold*GeneralConfig::scale) {
 			pointToPierce += currPt;
 			numPts ++;
 		}
@@ -163,6 +164,91 @@ void CustomScene::cutCloth () {
 	cloth->refine(&iSphere, 0.0001, true);
 }
 
+// Calculates center of hole.
+void CustomScene::Hole::calculateCenter() {
+	int nnodes = h_nodes.size(),j;
+	h_center = btVector3(0,0,0);
+	for (j = 0; j < nnodes; ++j)
+		h_center += h_nodes[j]->m_x;
+	h_center /= nnodes;
+}
+
+// Calculates centers of all the holes only when necessary
+void CustomScene::computeHoleCentersCallBack () {
+	if (!piercing) return;
+
+	int hole_size = holes.size(),n_nodes,i;
+
+	if (!hole_size) return;
+
+	for (i = 0; i < hole_size; ++i) {
+		if (!holes[i]->h_currently_piercing) continue;
+		holes[i]->calculateCenter();
+	}
+}
+
+// Callback of the hole to cut when the suturing needle is close
+void CustomScene::Hole::holeCutCallback() {
+	if (!h_scene->piercing || !h_currently_piercing) return;
+
+	btSoftBody::tRContactArray rcnts;
+	BulletObject::Ptr child = h_scene->sneedle->getChildren()[0];
+	getContactPointsWith(h_scene->cloth->softBody.get(), child->rigidBody.get(), rcnts);
+	int numContacts = rcnts.size(),nnodes = h_nodes.size(), i,j;
+
+	if (!numContacts) return;
+
+	btVector3 Tip = h_scene->getNeedleTip();
+	// This definitely works (the simple approach of cutting on contact
+#if 0
+	for (i = 0; i < nnodes; ++i) {
+		for (j = 0; j < numContacts; ++j) {
+			if (rcnts[j].m_node == h_nodes[i] &&
+					(Tip-rcnts[j].m_node->m_x).length() < h_scene->pierce_threshold*GeneralConfig::scale) {
+				ImplicitSphere	iSphere(h_center,0.015*GeneralConfig::scale);
+				std::cout<<"Piercing hole at: "<<h_center.x()<<","<<h_center.y()<<","<<h_center.z()<<std::endl;
+				h_scene->cloth->refine(&iSphere, 0.0001, true);
+				h_scene->piercing = false;
+				h_currently_piercing = false;
+				h_pierced = true;
+				return;
+			}
+		}
+	}
+
+	// Code for some realism
+#else
+	if (!h_started_piercing) {
+		for (i = 0; i < nnodes; ++i) {
+			for (j = 0; j < numContacts; ++j) {
+				if (rcnts[j].m_node == h_nodes[i] &&
+						(Tip-rcnts[j].m_node->m_x).length() < h_scene->pierce_threshold*GeneralConfig::scale) {
+					h_started_piercing = true;
+					h_prev_center = h_center;
+					std::cout<<"Started piercing!"<<std::endl;
+					return;
+				}
+			}
+		}
+		return;
+	}
+
+	float STRETCH_THRESHOLD = 0.015*GeneralConfig::scale;
+	if ((h_center - h_prev_center).length() >= STRETCH_THRESHOLD &&
+			(Tip-h_center).length() < h_scene->pierce_threshold*GeneralConfig::scale) {
+		ImplicitSphere	iSphere(h_center,0.015*GeneralConfig::scale);
+		std::cout<<"Piercing hole at: "<<h_center.x()<<","<<h_center.y()<<","<<h_center.z()<<std::endl;
+		h_scene->cloth->refine(&iSphere, 0.0001, true);
+		h_scene->piercing = false;
+		h_currently_piercing = false;
+		h_started_piercing = false;
+		h_pierced = true;
+	}
+#endif
+}
+
+
+
 // Attempting to add piercing as callback
 void CustomScene::piercingCallBack () {
 
@@ -192,7 +278,7 @@ void CustomScene::piercingCallBack () {
 	for (int i = 0; i < numContacts; ++i) {
 		 currPt = rcnts[i].m_node->m_x;
 		 idx = int(rcnts[i].m_node - nbase);
-		if ((Tip-currPt).length() < cut_threshold*GeneralConfig::scale && cloth->nodeStress[idx]/cloth->meanStress >= stressThreshold) {
+		if ((Tip-currPt).length() < pierce_threshold*GeneralConfig::scale && cloth->nodeStress[idx]/cloth->meanStress >= stressThreshold) {
 			pointToPierce += currPt;
 			pierceNodes.push_back(idx);
 		}
@@ -217,24 +303,68 @@ btVector3 CustomScene::getNeedleTip () {
 
 
 //Plot needle tip (transform point for now)
-void CustomScene::plotNeedle () {
+void CustomScene::plotNeedle (bool remove) {
 	plot_needle->setPoints(std::vector<btVector3> (), std::vector<btVector4> ());
+
 
 	btTransform tfm = sneedle->getIndexTransform(0);
 	std::vector<btVector3> plotpoints;
 	std::vector<btVector4> color;
 
-	// COM of needle
-	plotpoints.push_back(tfm.getOrigin());
-    color.push_back(btVector4(3,0,0,1));
+	if (!remove) {
+		// COM of needle
+		plotpoints.push_back(tfm.getOrigin());
+		color.push_back(btVector4(3,0,0,1));
 
-    plotpoints.push_back(getNeedleTip());
-    color.push_back(btVector4(3,0,0,1));
+		// Needle tip
+		plotpoints.push_back(getNeedleTip());
+		color.push_back(btVector4(3,0,0,1));
+	}
+	else {
+		plotpoints.push_back(btVector3(0,0,0));
+		color.push_back(btVector4(0,0,0,0));
+	}
 
-//    plotpoints.push_back(getNeedleTip(false));
+	plot_needle->setPoints(plotpoints,color);
+}
 
-//    color.push_back(btVector4(3,0,0,1));
-    plot_needle->setPoints(plotpoints,color);
+// Plot the holes
+void CustomScene::plotHoles (bool remove) {
+	plot_holes->setPoints(std::vector<btVector3> (), std::vector<btVector4> ());
+
+	std::vector<btVector3> plotpoints;
+	std::vector<btVector4> color;
+
+	if (!remove) {
+		int holes_size = holes.size();
+		for (int i = 0; i < holes_size; ++i) {
+			for (int j = 0; j < holes[i]->h_nodes.size(); ++j) {
+				plotpoints.push_back(holes[i]->h_nodes[j]->m_x);
+				color.push_back(btVector4(1,1,0,1));
+			}
+			if (holes[i]->h_center != btVector3(0,0,0)) {
+				plotpoints.push_back(holes[i]->h_center);
+				color.push_back(btVector4(0,1,0,1));
+			}
+		}
+	}
+
+	plotpoints.push_back(btVector3(0,0,0));
+	color.push_back(btVector4(0,0,0,0));
+
+	plot_holes->setPoints(plotpoints,color);
+}
+
+// Adds nodes near point to hole
+void CustomScene::findNearbyNodes(Hole * hole, btVector3 holePt) {
+	float DIST_THRESHOLD = 0.03*GeneralConfig::scale;
+	int i, nnodes = cloth->softBody->m_nodes.size();
+
+	for (i = 0; i < nnodes; ++i)
+		if ((cloth->softBody->m_nodes[i].m_x - holePt).length() < DIST_THRESHOLD)
+			hole->h_nodes.push_back(&cloth->softBody->m_nodes[i]);
+
+	std::cout<<"Added "<<hole->h_nodes.size()<<" nodes to the hole."<<std::endl;
 }
 
 /** Returns the coordinates of the last point below (-z) SOURCE_PT
@@ -242,7 +372,7 @@ void CustomScene::plotNeedle () {
 btVector3 CustomScene::getDownPoint(btVector3 & source_pt,
 		                            boost::shared_ptr<btSoftBody> psb,
 				                    btScalar radius) {
-  int node_idx= -1;
+  int node_idx = -1;
   int min_z = 9999;
 
   for(int i = 0; i < psb->m_nodes.size(); i += 1) {
@@ -395,18 +525,6 @@ void CustomScene::run() {
 
     table->rigidBody->setFriction(10);
 
-    /*/Needle info
-
-    const float needle_radius = 0.01;
-    const float needle_height = 0.35;
-    needle = CapsuleObject::Ptr(new CapsuleObject(	needle_mass,
-    												GeneralConfig::scale * needle_radius,
-    												GeneralConfig::scale * needle_height,
-    												btTransform(btQuaternion(0, 0, 0, 1),
-    														GeneralConfig::scale *
-    															btVector3(0.85, 0, table_height+table_thickness))));*/
-
-    // Adding the suturing needle to the scene
     const float needle_mass = 50;
     static const char SNEEDLE_MODEL_FILE[] = EXPAND(BULLETSIM_DATA_DIR) "/needle/sneedle.dae";
     KinBodyPtr needle_body = rave->env->ReadKinBodyURI(SNEEDLE_MODEL_FILE);
@@ -415,29 +533,35 @@ void CustomScene::run() {
 	needle_tfm.setOrigin((needle_tfm.getOrigin() + btVector3(0.5*GeneralConfig::scale,0,0.2*GeneralConfig::scale))/ GeneralConfig::scale);
     needle_body->SetTransform(util::toRaveTransform(needle_tfm));
     sneedle = RaveObject::Ptr(new RaveObject(rave,needle_body,RAW));//,CONVEX_DECOMP));
-
     vector<BulletObject::Ptr> chldrn = sneedle->getChildren();
     btVector3 inertia(0,0,0);
     chldrn[0]->rigidBody->getCollisionShape()->calculateLocalInertia(needle_mass,inertia);
     chldrn[0]->rigidBody->setMassProps(needle_mass,inertia);
-
-
-    //std::cout<<"Bullet margin: "<<BulletConfig::margin<<" and METERS: "<<METERS<<std::endl;
-
 
     cloth = createCloth(GeneralConfig::scale * 0.5, 0, GeneralConfig::scale * btVector3(0.6, 0, table_height+0.01));
     btSoftBody * const psb = cloth->softBody.get();
     pr2m.pr2->ignoreCollisionWith(psb);
 
     plot_needle.reset(new PlotPoints(10));
+    plot_holes.reset(new PlotPoints(5));
 
     env->add(table);
     env->add(cloth);
-    //env->add(needle);
     env->add(sneedle);
     env->add(plot_needle);
+    env->add(plot_holes);
 
-    //boost::function<void(void)>
+
+    // WHen needed:
+    addPreStepCallback(boost::bind(&CustomScene::computeHoleCentersCallBack, this));
+    btTransform table_tfm;
+    table->motionState->getWorldTransform(table_tfm);
+    btVector3 hole1Pt = table_tfm.getOrigin() + btVector3(-0.2,0.1,0.05)*GeneralConfig::scale;
+
+    Hole h1(this);
+    findNearbyNodes (&h1,hole1Pt);
+    addPreStepCallback(boost::bind(&CustomScene::Hole::holeCutCallback, &h1));
+    holes.push_back(&h1);
     //addPreStepCallback(boost::bind(&CustomScene::piercingCallBack, this));
 
     leftAction.reset(new PR2SoftBodyGripperAction(pr2m.pr2Left,

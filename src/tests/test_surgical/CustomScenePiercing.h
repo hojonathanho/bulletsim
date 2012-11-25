@@ -33,6 +33,23 @@ public:
 	// the cloth to be sutured
 	BulletSoftObject::Ptr cloth;
 
+	// Structure to represent the hole
+	struct Hole {
+		CustomScene * h_scene;
+		vector <btSoftBody::Node *> h_nodes;
+		btVector3 h_center, h_prev_center;
+		bool h_currently_piercing, h_started_piercing, h_pierced;
+		Hole (CustomScene *scene): h_scene(scene), h_pierced (false), h_center(0,0,0),
+				h_currently_piercing(false), h_started_piercing(false){};
+		void togglePiercing () {
+			h_currently_piercing = h_pierced ? false : !h_currently_piercing;
+			h_started_piercing = h_currently_piercing ? h_started_piercing : false;
+			std::cout<<"Hole piercing: "<<h_currently_piercing<<std::endl;
+		}
+		void calculateCenter ();
+		void holeCutCallback ();
+	};
+
 	// the suturing needle
 	//CapsuleObject::Ptr needle;
 	RaveObject::Ptr sneedle;
@@ -40,7 +57,10 @@ public:
 	// is the needle allowed to pierce?
 	bool piercing;
 	// max distance between needle tip and point to cut at
-	float cut_threshold;
+	float pierce_threshold;
+
+	// vector representing holes
+	vector <Hole *> holes;
 
 	// the table in the scene
 	BoxObject::Ptr table;
@@ -54,12 +74,14 @@ public:
 
 	// Plotting needle
 	PlotPoints::Ptr plot_needle;
+	// Plotting holes
+	PlotPoints::Ptr plot_holes;
 
 	/** Axes corresponding to the location where the
      *  left grippers are. **/
 	PlotAxes::Ptr cut_axes;
 
-	CustomScene() : pr2m(*this), isRaveViewer(false), piercing(false), cut_threshold(0.03), sneedle_radius(0.08) { }
+	CustomScene() : pr2m(*this), isRaveViewer(false), piercing(false), pierce_threshold(0.03), sneedle_radius(0.08) { }
 
 	void createFork();
 	void swapFork();
@@ -89,8 +111,10 @@ public:
 	// Get's needle tip. Which tip depends on fwd
 	btVector3 getNeedleTip ();
 
-	// Plots needle tip
-	void plotNeedle();
+	// Plots needle tip, flag for removing plots
+	void plotNeedle(bool remove = false);
+	// Plot holes, flag for removing plots
+	void plotHoles(bool remove = false);
 
 	/* Creates a square cloth with side length 2s.
 	     The four coordinates of the cloth are:
@@ -106,8 +130,13 @@ public:
 
 	//Cuts cloth at mentioned needle tip
 	void cutCloth ();
-	//PreStepCallback to pierce cloth if needed
+	//PreStepCallbacks
+	// to pierce cloth if needed
 	void piercingCallBack ();
+	// to compute centers of holes
+	void computeHoleCentersCallBack();
+	// to compute nodes near a point and add it to hole
+	void findNearbyNodes (Hole * hole, btVector3 holePt);
 
 	void run();
 };
