@@ -134,6 +134,7 @@ public:
 	/** small tests to test the planners and the controller. */
 	void testTrajectory();
 	void testTrajectory2();
+	void testTrajectory3();
 
 	/** Small test to see if the robot can grasp the cloth.*/
 	void testGrasping();

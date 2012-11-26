@@ -9,6 +9,7 @@
 
 #include "simulation/openravesupport.h"
 #include "robots/pr2.h"
+#include "simulation/simplescene.h"
 #include <openrave/plannerparameters.h>
 #include <openrave/planningutils.h>
 
@@ -120,6 +121,16 @@ public:
 
 	/** Returns a plan passing through the way-points specified in TRANSFORMS. */
 	std::pair<bool, RaveTrajectory::Ptr> plan(std::vector<OpenRAVE::Transform> &transforms);
+
+	/** Returns a plan passing through the way-points specified in TRANSFORMS.
+	 *  Picks the IK values which are close to each other.
+	 *
+	 *	May take a long time, as very large number of IK solutions
+	 *	could be generated for each way-point. */
+	std::pair<bool, RaveTrajectory::Ptr> smoothPlan(std::vector<OpenRAVE::Transform> &transforms);
+
+	/** Goes in the direction specified by dir and distance specified by dist */
+	std::pair<bool, RaveTrajectory::Ptr> goInDirection (char dir, double dist, Scene &scene, int steps=10);
 };
 
 #endif

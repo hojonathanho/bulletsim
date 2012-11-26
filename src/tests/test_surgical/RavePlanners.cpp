@@ -47,8 +47,8 @@ std::pair<bool, RaveTrajectory::Ptr> EndTransformPlanner::precisePlan(OpenRAVE::
  *  If no plan is found, it returns failure and an uninitialized trajectory.*/
 std::pair<bool, RaveTrajectory::Ptr> EndTransformPlanner::forcePlan(OpenRAVE::Transform goal) {
 	const float pi = OpenRAVE::PI;
-	float _yaws[] = {0, -pi/8, pi/8, -pi/6, pi/6, -pi/4, pi/4, pi/2, -pi/2};
-	float _pitches[] = {0, -pi/8, pi/8, -pi/6, pi/6, -pi/4, pi/4, pi/2, -pi/2};
+	float _yaws[] = {0, -pi/8, pi/8, -pi/6, pi/6, -pi/4, pi/4};
+	float _pitches[] = {0, -pi/8, pi/8, -pi/6, pi/6, -pi/4, pi/4};
 
 	vector<float> yaws;
 	vector<float> pitches;
@@ -194,3 +194,122 @@ std::pair<bool, RaveTrajectory::Ptr> IKInterpolationPlanner::plan(std::vector<Op
 	return std::make_pair(true, raveTraj);
 }
 
+
+/** Returns a plan passing through the way-points specified in TRANSFORMS.
+	 *  Picks the IK values which are close to each other.
+	 *
+	 *	May take a long time, as very large number of IK solutions
+	 *	could be generated for each way-point. */
+std::pair<bool, RaveTrajectory::Ptr> IKInterpolationPlanner::smoothPlan(std::vector<OpenRAVE::Transform> &transforms) {
+
+	assert(("IKPlanner Error : Not enough target points given. Expecting at least 1.", transforms.size()>0));
+
+    TrajectoryBasePtr traj = RaveCreateTrajectory(rave->env,"");
+    traj->Init(pr2manip->origManip->GetArmConfigurationSpecification());
+
+
+    /** Insert the way-points into a trajectory. */
+
+    vector <vector<dReal> > values;
+
+    if (transforms.size()==1) { // if the user only passed one transform, add another
+    	std::vector<OpenRAVE::Transform> transformsN;
+    	OpenRAVE::Vector currTrans = pr2manip->origManip->GetEndEffectorTransform().trans;
+    	OpenRAVE::Transform interT= transforms[0];
+
+    	interT.trans = (interT.trans  + currTrans)*0.5;
+    	transformsN.push_back(interT);
+    	transformsN.push_back(transforms[0]);
+    	transforms = transformsN;
+    	assert(("There should be 2 transforms in the vector. Not Found!", transforms.size()==2));
+    }
+
+     vector<dReal> currentDOFs = this->pr2manip->getDOFValues();
+
+    for(int i = 0; i < transforms.size(); ++i) {
+    	if (pr2manip->solveAllIKUnscaled(transforms[i], values)) {
+
+    		int solSize = values.size();
+    		std::cout<<"Size of IK solutions in iteration "<< i+1<<": "<<solSize<<std::endl;
+
+    		vector<double> bestDOFs = values[0];
+    		double bestL2 = util::wrapAroundL2(bestDOFs, currentDOFs);
+
+    		for (int j = 1; j < solSize; ++j) {
+    			double newL2 = util::wrapAroundL2(values[j],currentDOFs);
+    			if (newL2 < bestL2) {
+    				bestDOFs = values[j];
+    				bestL2 = newL2;
+    			}
+    		}
+    		traj->Insert(traj->GetNumWaypoints(),bestDOFs);
+    		currentDOFs = bestDOFs;
+    	} else {//failure
+    		RAVELOG_INFO("No plan through waypoints found : IK Failure.\n");
+    		return std::make_pair(false, RaveTrajectory::Ptr());
+    	}
+    }
+    planningutils::RetimeAffineTrajectory(traj,maxVelocities,maxAccelerations);
+
+	RaveTrajectory::Ptr raveTraj(new RaveTrajectory(traj, pr2, pr2manip->origManip->GetArmIndices()));
+	return std::make_pair(true, raveTraj);
+}
+
+/** Goes in the direction specified by dir and distance specified by dist
+ *  u -> Up
+ *  d -> Down
+ *  f -> Forward
+ *  b -> Backward
+ *  r -> Right
+ *  l -> Left
+ * */
+std::pair<bool, RaveTrajectory::Ptr> IKInterpolationPlanner::goInDirection (char dir, double dist, Scene &scene, int steps) {
+
+	OpenRAVE::Transform initTrans = pr2manip->origManip->GetEndEffectorTransform();
+
+	btVector3 dirVec;
+	btTransform btT = util::toBtTransform(initTrans);
+	btMatrix3x3 tfm = btT.getBasis();
+
+	switch (dir) {
+		case 'f':
+			dirVec = tfm.getColumn(2);
+			break;
+		case 'b':
+			dirVec = -1*tfm.getColumn(2);
+			break;
+		case 'u':
+			dirVec = tfm.getColumn(1);
+			break;
+		case 'd':
+			dirVec = -1*tfm.getColumn(1);
+			break;
+		case 'l':
+			dirVec = tfm.getColumn(0);
+			break;
+		case 'r':
+			dirVec = -1*tfm.getColumn(0);
+			break;
+		default:
+			RAVELOG_ERROR("Unknown direction: %c", dir);
+			break;
+	}
+
+	btVector3 endOffset = dirVec*dist;
+	vector< OpenRAVE::Transform > wayPoints;
+
+	for (int currStep = 0; currStep <= steps; ++currStep) {
+		std::cout<<"Iter: "<<currStep<<std::endl;
+		btVector3 currVec = btT.getOrigin() + (currStep/(double)steps)*endOffset;
+
+		btTransform T;
+		T.setBasis(btT.getBasis());
+		T.setOrigin(currVec);
+
+		OpenRAVE::Transform raveT = util::toRaveTransform(T);
+		wayPoints.push_back(raveT);
+		util::drawAxes(util::toBtTransform(raveT,GeneralConfig::scale),2,scene.env);
+	}
+
+	return smoothPlan(wayPoints);
+}

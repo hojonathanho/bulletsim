@@ -1,3 +1,4 @@
+#include <math.h>
 #include "util.h"
 #include "thread_socket_interface.h"
 #include <boost/foreach.hpp>
@@ -34,6 +35,40 @@ btTransform getOrthogonalTransform(btVector3 x) {
 
 	 trans.setBasis(rot);
 	 return trans;
+}
+
+/** L2 Norm squared. */
+double L2 (vector<double> v1, vector<double> v2) {
+
+	assert(("Vectors not of the same size for L2.", v1.size() == v2.size()));
+
+	double PI = 3.14159265359;
+
+	int i, n = v1.size();
+	double diff, l2 = 0.0;
+
+	for (i = 0; i < n; ++i)
+		l2 += pow(fmod(v1[i],2*PI)-fmod(v2[i],2*PI),2);
+
+	return l2;
+}
+
+/** Specialized L2 Norm equivalent to incorporate wrap-around of DOF values around 2pi. */
+double wrapAroundL2 (vector<double> v1, vector<double> v2) {
+
+	assert(("Vectors not of the same size for L2.", v1.size() == v2.size()));
+
+	double PI = 3.14159265359;
+
+	int i, n = v1.size();
+	double diff, l2 = 0.0;
+
+	for (i = 0; i < n; ++i) {
+		double diff = fabs(fmod(v1[i],2*PI)-fmod(v2[i],2*PI));
+		l2 += (diff < 2*PI-diff) ? pow(diff,2) : pow(2*PI-diff,2);
+	}
+
+	return l2;
 }
 
 osg::ref_ptr<osg::Vec3Array> toVec3Array(const std::vector<btVector3>& in) {

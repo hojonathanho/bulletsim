@@ -205,13 +205,28 @@ void CustomScene::testTrajectory2() {
 	plot_points->setPoints(plotpoints,plotcolors);
 
 
-	std::pair<bool, RaveTrajectory::Ptr> res = ikPlanner.plan(t);
+	std::pair<bool, RaveTrajectory::Ptr> res = ikPlanner.smoothPlan(t);
 	if (res.first) {
 		pr2m.controller->appendTrajectory(res.second);
 		pr2m.controller->run();
 	} else {
 		std::cout<<"Plan failed!"<<std::endl;
 	}
+}
+
+/** small test to test the smooth planning of IK planner. */
+void CustomScene::testTrajectory3() {
+	//WayPointsPlanner planner1(pr2m.pr2, rave, 'r');
+	IKInterpolationPlanner ikPlanner(pr2m, rave, 'r');
+
+	std::pair<bool, RaveTrajectory::Ptr> res = ikPlanner.goInDirection('r',0.25,*this);
+	if (res.first) {
+		pr2m.controller->appendTrajectory(res.second);
+		pr2m.controller->run();
+	} else {
+		std::cout<<"Plan failed!"<<std::endl;
+	}
+
 }
 
 
@@ -237,6 +252,7 @@ void CustomScene::run() {
     pr2m.setTorso(1);
 
     env->add(table);
+	createKinBodyFromBulletBoxObject(table, rave); // add the table to the rave environment
     env->add(sCloth->cloth);
 
     // set up the points for plotting
@@ -286,6 +302,10 @@ void CustomScene::testGrasping() {
 	corrRot.setValue(-1, 0, 0, 0, 0, 1, 0, 1, 0);
 	corrRot = corrRot * cutT1.getBasis();
 	cutT1.setBasis(corrRot);
+	btVector3 orig = cutT1.getOrigin();
+	btVector3 offset(0,0,0.1);
+	orig = orig + offset*GeneralConfig::scale;
+	cutT1.setOrigin(orig);
 
 	plot_axes1->setup(cutT1, 2);
 	plot_axes2->setup(gripper, 2);
@@ -295,7 +315,7 @@ void CustomScene::testGrasping() {
 	std::vector<Transform> t;
 	t.push_back(util::toRaveTransform(cutT1, 1/GeneralConfig::scale));
 
-	std::pair<bool, RaveTrajectory::Ptr> res = planner.plan(t);
+	std::pair<bool, RaveTrajectory::Ptr> res = planner.smoothPlan(t);
 	//std::pair<bool, RaveTrajectory::Ptr> res = planner.precisePlan(util::toRaveTransform(cutT1,1/GeneralConfig::scale));
 	if (res.first) {
 		pr2m.controller->appendTrajectory(res.second);
