@@ -10,6 +10,11 @@ include_directories(
 set(CMAKE_CXX_FLAGS "-Wall -Wno-sign-compare -Wno-reorder -fopenmp")
 link_directories(${GUROBI_LIBRARY_DIR} /home/jonathan/opt/pardiso)
 
+add_library(splines
+  hermite_cubic.cpp
+  splines.cpp
+)
+
 add_library(ophys
   particlesystem2.cpp
   ophys_config.cpp

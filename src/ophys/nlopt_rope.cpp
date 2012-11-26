@@ -62,6 +62,8 @@ struct OptRope {
   const double m_linkLen; // resting distance
 
   const MatrixX3d m_initPos; // initial positions of the points (row(n) is the position of point n)
+  const Vector3d m_initManipPos;
+
   struct CostCoeffs {
     double groundPenetration;
     double velUpdate;
@@ -71,14 +73,16 @@ struct OptRope {
     double linkLen;
     double goalPos;
     double manipSpeed;
+    double initManipPos;
   } m_coeffs;
   const double GROUND_HEIGHT;
 
-  OptRope(const MatrixX3d &initPos, int T, int N, double linkLen) : m_N(N), m_T(T), m_initPos(initPos), m_linkLen(linkLen), GROUND_HEIGHT(0.) {
+  OptRope(const MatrixX3d &initPos, const Vector3d &initManipPos, int T, int N, double linkLen)
+    : m_N(N), m_T(T), m_initPos(initPos), m_initManipPos(initManipPos), m_linkLen(linkLen), GROUND_HEIGHT(0.)
+  {
     assert(m_N >= 1);
     assert(m_T >= 1);
     assert(initPos.rows() == m_N);
-
     setCoeffs1();    
   }
 
@@ -91,6 +95,7 @@ struct OptRope {
     m_coeffs.linkLen = 0.1;
     m_coeffs.goalPos = 1;
     m_coeffs.manipSpeed = 0.1;
+    m_coeffs.initManipPos = 1;
   }
 
   void setCoeffs2() {
@@ -102,6 +107,7 @@ struct OptRope {
     m_coeffs.linkLen = 1;
     m_coeffs.goalPos = 1;
     m_coeffs.manipSpeed = 0.1;
+    m_coeffs.initManipPos = 1;
   }
 
   struct State {
@@ -193,7 +199,7 @@ struct OptRope {
 
       string toString() const {
         return (
-          boost::format("> manipPos:\t%s\n> vel:\n%s\n> groundForce_f:\t%f\n> groundForce_c:\t%f\n> manipForce:\t%s\n> manipForce_c:\t%f\n")
+          boost::format("> manipPos: %s\n> vel:\n%s\n> groundForce_f:%f\n> groundForce_c:%f\n> manipForce:\n%s\n> manipForce_c:%f\n")
             % manipPos.transpose()
             % vel
             % groundForce_f.transpose()
@@ -293,7 +299,8 @@ struct OptRope {
   }
 
   State genInitState() const {
-    static const State s(m_T, m_N);
+    static State s(m_T, m_N);
+    s.atTime[0].manipPos = m_initManipPos.transpose();
     return s;
   }
 
@@ -351,6 +358,10 @@ struct OptRope {
     return cost;
   }
 
+  double cost_initManipPos(const State &state) const {
+    return (state.atTime[0].manipPos - m_initManipPos).squaredNorm();
+  }
+
   double cost_contact(const State &state, const PosVector &pos) const {
     double cost = 0;
     // ground force: groundContact^2 * (ground non-violation)^2
@@ -377,9 +388,9 @@ struct OptRope {
         cost += 1e-3*square(state.atTime[t].groundForce_f[n]);
 
         // manipulator force
-        double fsqnorm = state.atTime[t].manipForce.row(n).squaredNorm();
-        cost += fsqnorm / (1e-5 + square(state.atTime[t].manipForce_c[n]));
-        cost += 1e-3*fsqnorm;
+        double manip_fsqnorm = state.atTime[t].manipForce.row(n).squaredNorm();
+        cost += manip_fsqnorm / (1e-5 + square(state.atTime[t].manipForce_c[n]));
+        cost += 1e-6*manip_fsqnorm;
       }
     }
     return cost;
@@ -423,7 +434,8 @@ struct OptRope {
     cost += m_coeffs.forces * cost_forces(state);
     //cost += m_coeffs.linkLen * cost_linkLen(pos);
     //cost += m_coeffs.goalPos * cost_goalPos(pos);
-    cost += m_coeffs.manipSpeed * cost_manipSpeed(state);
+    //cost += m_coeffs.manipSpeed * cost_manipSpeed(state);
+    //cost += m_coeffs.initManipPos * cost_initManipPos(state);
 
     return cost;
   }
@@ -559,8 +571,9 @@ struct OptRopePlot {
     vector<float> radii;
     for (int i = 0; i < pos.rows(); ++i) {
       centers->push_back(osg::Vec3(pos(i, 0), pos(i, 1), pos(i, 2)));
-      rgba->push_back(osg::Vec4(1, 0, 0, 1));
-      radii.push_back(0.05);
+      double a = (double)i/(double)pos.rows();
+      rgba->push_back(osg::Vec4(a, 0, 1.-a, 1));
+      radii.push_back(0.03);
     }
 
     // manipulator position
@@ -620,8 +633,9 @@ int main() {
     initPositions.row(i) << (-1 + 2*i/(N-1.0)), 0, 0.05;
   }
   double linklen = abs(initPositions(0, 0) - initPositions(1, 0));
+  Vector3d initManipPos(0, 0, 2);
 
-  OptRope optrope(initPositions, T, N, linklen);
+  OptRope optrope(initPositions, initManipPos, T, N, linklen);
 
 
 
@@ -643,6 +657,7 @@ int main() {
   nlopt::opt opt(nlopt::LD_LBFGS, optrope.getNumVariables());
   //opt.set_lower_bounds(optrope.getLowerBounds());
   //opt.set_upper_bounds(optrope.getUpperBounds());
+  opt.set_vector_storage(100000);
   opt.set_min_objective(nlopt_costWrapper, &optrope);
 
 
@@ -654,7 +669,8 @@ int main() {
 
   optrope.setCoeffs1();
   addNoise(x0, 0, 0.01);
-  nlopt::result result = opt.optimize(x0, minf);
+  //nlopt::result result = opt.optimize(x0, minf);
+  runOpt(opt, x0, minf);
   //cout << "solution: " << toEigVec(x0).transpose() << '\n';
   cout << "function value: " << minf << endl;
   cout << "time elapsed: " << timer.elapsed() << endl;
