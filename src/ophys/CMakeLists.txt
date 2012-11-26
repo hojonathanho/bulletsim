@@ -16,10 +16,10 @@ add_library(splines
 )
 
 add_library(ophys
-  particlesystem2.cpp
+  #particlesystem2.cpp
   ophys_config.cpp
 )
-target_link_libraries(ophys sqp2 simulation)
+target_link_libraries(ophys simulation)
 
 #add_executable(test_particlesystem test_particlesystem.cpp)
 #target_link_libraries(test_particlesystem ophys)
@@ -44,6 +44,9 @@ set(IPOPT_LIBS
 
 add_executable(nlopt_rope nlopt_rope.cpp)
 target_link_libraries(nlopt_rope ophys nlopt ${IPOPT_LIBS})
+
+add_executable(nlopt_spline_rope nlopt_spline_rope.cpp)
+target_link_libraries(nlopt_spline_rope ophys nlopt splines ${IPOPT_LIBS})
 
 add_executable(test_ipopt test_ipopt.cpp)
 target_link_libraries(test_ipopt ${IPOPT_LIBS})
