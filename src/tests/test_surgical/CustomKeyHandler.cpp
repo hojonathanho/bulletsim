@@ -71,6 +71,9 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,
         case 'O': // executes an openrave trajectory
         	scene.testTrajectory3();
         	break;
+        case 'T':
+        	scene.testCircular();
+        	break;
         }
         break;
     }

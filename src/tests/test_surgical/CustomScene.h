@@ -135,6 +135,7 @@ public:
 	void testTrajectory();
 	void testTrajectory2();
 	void testTrajectory3();
+	void testCircular();
 
 	/** Small test to see if the robot can grasp the cloth.*/
 	void testGrasping();

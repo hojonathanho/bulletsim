@@ -5,7 +5,7 @@
 
 
 #include "RavePlanners.h"
-
+#include <math.h>
 
 /** _PR2 :  is the PR2 [robot] for which we want to plan.
  *  RAVE :  The rave instance in which we wish to plan.
@@ -162,8 +162,9 @@ std::pair<bool, RaveTrajectory::Ptr> IKInterpolationPlanner::plan(std::vector<Op
 	assert(("IKPlanner Error : Not enough target points given. Expecting at least 1.", transforms.size()>0));
 
     TrajectoryBasePtr traj = RaveCreateTrajectory(rave->env,"");
-    traj->Init(pr2manip->origManip->GetArmConfigurationSpecification());
-
+    //traj->Init(pr2manip->origManip->GetArmConfigurationSpecification());
+    ConfigurationSpecification spec = IkParameterization::GetConfigurationSpecification(IKP_Transform6D, "quintic");
+    traj->Init(spec);
 
     /** Insert the way-points into a trajectory. */
     vector<dReal> values;
@@ -204,6 +205,8 @@ std::pair<bool, RaveTrajectory::Ptr> IKInterpolationPlanner::smoothPlan(std::vec
 
 	assert(("IKPlanner Error : Not enough target points given. Expecting at least 1.", transforms.size()>0));
 
+	double pi = 3.14159265;
+
     TrajectoryBasePtr traj = RaveCreateTrajectory(rave->env,"");
     traj->Init(pr2manip->origManip->GetArmConfigurationSpecification());
 
@@ -230,7 +233,7 @@ std::pair<bool, RaveTrajectory::Ptr> IKInterpolationPlanner::smoothPlan(std::vec
     	if (pr2manip->solveAllIKUnscaled(transforms[i], values)) {
 
     		int solSize = values.size();
-    		std::cout<<"Size of IK solutions in iteration "<< i+1<<": "<<solSize<<std::endl;
+    		//std::cout<<"Size of IK solutions in iteration "<< i+1<<": "<<solSize<<std::endl;
 
     		vector<double> bestDOFs = values[0];
     		double bestL2 = util::wrapAroundL2(bestDOFs, currentDOFs);
@@ -242,6 +245,24 @@ std::pair<bool, RaveTrajectory::Ptr> IKInterpolationPlanner::smoothPlan(std::vec
     				bestL2 = newL2;
     			}
     		}
+    		std::cout<<"Iter "<<i+1<<": ";
+    		for (int k = 0; k < bestDOFs.size(); ++k) std::cout<<bestDOFs[k]<<" ";
+    		std::cout<<std::endl;
+
+
+    		std::cout<<"Iter "<<i+1<<": ";
+    		for (int k = 0; k < bestDOFs.size(); ++k) {
+    			double bdofshift = fmod(bestDOFs[k]+pi,2*pi),cdofshift = fmod(currentDOFs[k]+pi,2*pi);
+    			int div = (int)((currentDOFs[k]+pi)/(2*pi));
+    			if (cdofshift - bdofshift > pi)
+    				bestDOFs[k] = (div*2+1)*pi + bdofshift;
+    			else
+    				bestDOFs[k] = (div*2-1)*pi + bdofshift;
+    			std::cout<<bestDOFs[k]<<" ";
+    		}
+    		std::cout<<std::endl;
+
+
     		traj->Insert(traj->GetNumWaypoints(),bestDOFs);
     		currentDOFs = bestDOFs;
     	} else {//failure
@@ -249,21 +270,14 @@ std::pair<bool, RaveTrajectory::Ptr> IKInterpolationPlanner::smoothPlan(std::vec
     		return std::make_pair(false, RaveTrajectory::Ptr());
     	}
     }
+
     planningutils::RetimeAffineTrajectory(traj,maxVelocities,maxAccelerations);
 
 	RaveTrajectory::Ptr raveTraj(new RaveTrajectory(traj, pr2, pr2manip->origManip->GetArmIndices()));
 	return std::make_pair(true, raveTraj);
 }
 
-/** Goes in the direction specified by dir and distance specified by dist
- *  u -> Up
- *  d -> Down
- *  f -> Forward
- *  b -> Backward
- *  r -> Right
- *  l -> Left
- * */
-std::pair<bool, RaveTrajectory::Ptr> IKInterpolationPlanner::goInDirection (char dir, double dist, Scene &scene, int steps) {
+std::pair<bool, RaveTrajectory::Ptr> IKInterpolationPlanner::goInDirection (char dir, double dist, int steps) {
 
 	OpenRAVE::Transform initTrans = pr2manip->origManip->GetEndEffectorTransform();
 
@@ -299,7 +313,6 @@ std::pair<bool, RaveTrajectory::Ptr> IKInterpolationPlanner::goInDirection (char
 	vector< OpenRAVE::Transform > wayPoints;
 
 	for (int currStep = 0; currStep <= steps; ++currStep) {
-		std::cout<<"Iter: "<<currStep<<std::endl;
 		btVector3 currVec = btT.getOrigin() + (currStep/(double)steps)*endOffset;
 
 		btTransform T;
@@ -308,7 +321,57 @@ std::pair<bool, RaveTrajectory::Ptr> IKInterpolationPlanner::goInDirection (char
 
 		OpenRAVE::Transform raveT = util::toRaveTransform(T);
 		wayPoints.push_back(raveT);
-		util::drawAxes(util::toBtTransform(raveT,GeneralConfig::scale),2,scene.env);
+		//util::drawAxes(util::toBtTransform(raveT,GeneralConfig::scale),2,scene.env);
+	}
+
+	return smoothPlan(wayPoints);
+}
+
+std::pair<bool, RaveTrajectory::Ptr> IKInterpolationPlanner::goInWorldDirection (char dir, double dist, int steps) {
+
+	OpenRAVE::Transform initTrans = pr2manip->origManip->GetEndEffectorTransform();
+
+	btVector3 dirVec;
+	btTransform btT = util::toBtTransform(initTrans);
+	btMatrix3x3 tfm = 	pr2->getLinkTransform(pr2->robot->GetLink("base_link")).getBasis();
+
+	switch (dir) {
+		case 'u':
+			dirVec = tfm.getColumn(2);
+			break;
+		case 'd':
+			dirVec = -1*tfm.getColumn(2);
+			break;
+		case 'l':
+			dirVec = tfm.getColumn(1);
+			break;
+		case 'r':
+			dirVec = -1*tfm.getColumn(1);
+			break;
+		case 'f':
+			dirVec = tfm.getColumn(0);
+			break;
+		case 'b':
+			dirVec = -1*tfm.getColumn(0);
+			break;
+		default:
+			RAVELOG_ERROR("Unknown direction: %c", dir);
+			break;
+	}
+
+	btVector3 endOffset = dirVec*dist;
+	vector< OpenRAVE::Transform > wayPoints;
+
+	for (int currStep = 0; currStep <= steps; ++currStep) {
+		btVector3 currVec = btT.getOrigin() + (currStep/(double)steps)*endOffset;
+
+		btTransform T;
+		T.setBasis(btT.getBasis());
+		T.setOrigin(currVec);
+
+		OpenRAVE::Transform raveT = util::toRaveTransform(T);
+		wayPoints.push_back(raveT);
+		//util::drawAxes(util::toBtTransform(raveT,GeneralConfig::scale),2,scene.env);
 	}
 
 	return smoothPlan(wayPoints);

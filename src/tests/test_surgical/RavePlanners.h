@@ -129,8 +129,11 @@ public:
 	 *	could be generated for each way-point. */
 	std::pair<bool, RaveTrajectory::Ptr> smoothPlan(std::vector<OpenRAVE::Transform> &transforms);
 
-	/** Goes in the direction specified by dir and distance specified by dist */
-	std::pair<bool, RaveTrajectory::Ptr> goInDirection (char dir, double dist, Scene &scene, int steps=10);
+	/** Goes in the direction specified by dir and distance specified by dist in gripper frame*/
+	std::pair<bool, RaveTrajectory::Ptr> goInDirection (char dir, double dist, int steps=10);
+
+	/** Goes in the direction specified by dir and distance specified by dist in world frame */
+	std::pair<bool, RaveTrajectory::Ptr> goInWorldDirection (char dir, double dist, int steps=10);
 };
 
 #endif

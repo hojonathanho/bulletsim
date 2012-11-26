@@ -214,12 +214,44 @@ void CustomScene::testTrajectory2() {
 	}
 }
 
+/** small test to test circular trajectory. */
+void CustomScene::testCircular() {
+
+	float pi = 3.14159265, r = 0.1*GeneralConfig::scale;
+	float thetas[] = {0,pi/6,pi/3,pi/2,2*pi/3,5*pi/6,pi};
+
+	btTransform WorldToEndEffectorTransform = util::toBtTransform(pr2m.pr2Right->manip->GetEndEffectorTransform(),GeneralConfig::scale);
+
+	btTransform initT;
+	initT.setIdentity();
+	initT.setOrigin(r*btVector3(0,1,0));
+
+	std::vector<Transform> wayPoints;
+	for (int i = 0; i < 7; ++i) {
+		OpenRAVE::Transform T = OpenRAVE::geometry::matrixFromAxisAngle(OpenRAVE::Vector(0,0,thetas[i]));
+		btTransform bT = util::toBtTransform(T);
+		bT.setOrigin(-r*btVector3(0,1,0));
+
+		wayPoints.push_back(util::toRaveTransform(WorldToEndEffectorTransform*bT*initT,1/GeneralConfig::scale));
+		util::drawAxes(WorldToEndEffectorTransform*bT*initT,2,env);
+	}
+
+	IKInterpolationPlanner ikPlanner(pr2m,rave,'r');
+	std::pair<bool, RaveTrajectory::Ptr> res = ikPlanner.smoothPlan(wayPoints);
+	if (res.first) {
+		pr2m.controller->appendTrajectory(res.second);
+		pr2m.controller->run();
+	} else {
+		std::cout<<"Plan failed!"<<std::endl;
+	}
+}
+
 /** small test to test the smooth planning of IK planner. */
 void CustomScene::testTrajectory3() {
 	//WayPointsPlanner planner1(pr2m.pr2, rave, 'r');
 	IKInterpolationPlanner ikPlanner(pr2m, rave, 'r');
 
-	std::pair<bool, RaveTrajectory::Ptr> res = ikPlanner.goInDirection('r',0.25,*this);
+	std::pair<bool, RaveTrajectory::Ptr> res = ikPlanner.goInWorldDirection('f',0.25);
 	if (res.first) {
 		pr2m.controller->appendTrajectory(res.second);
 		pr2m.controller->run();
@@ -228,8 +260,6 @@ void CustomScene::testTrajectory3() {
 	}
 
 }
-
-
 
 /* Sets up the scene and UI even handlers,
  * initializes various structures.*/
