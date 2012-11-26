@@ -50,3 +50,9 @@ target_link_libraries(nlopt_spline_rope ophys nlopt splines ${IPOPT_LIBS})
 
 add_executable(test_ipopt test_ipopt.cpp)
 target_link_libraries(test_ipopt ${IPOPT_LIBS})
+
+add_executable(test_nlopt_boxconstrained test_nlopt_boxconstrained.cpp)
+target_link_libraries(test_nlopt_boxconstrained nlopt)
+
+add_executable(test_splines test_splines.cpp)
+target_link_libraries(test_splines splines)

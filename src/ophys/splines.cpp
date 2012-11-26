@@ -43,8 +43,8 @@ void multi_hermite_cubic_spline_value(
   out_sample_d2f.resize(samples, dim);
   out_sample_d3f.resize(samples, dim);
 
+  VectorXd col_sample_f, col_sample_df, col_sample_d2f, col_sample_d3f;
   for (int i = 0; i < dim; ++i) {
-    VectorXd col_sample_f, col_sample_df, col_sample_d2f, col_sample_d3f;
     hermite_cubic_spline_value(
       x, f.col(i).transpose(), df.col(i).transpose(),
       sample_x, col_sample_f, col_sample_df, col_sample_d2f, col_sample_d3f

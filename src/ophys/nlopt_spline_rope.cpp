@@ -46,9 +46,9 @@ struct EigVector {
 };
 
 template<typename VectorType>
-static void addNoise(VectorType &x, double mean, double stddev) {
+static void addNoise(VectorType &x, double mean, double stdev) {
   static boost::mt19937 rng(static_cast<unsigned> (std::time(0)));
-  boost::normal_distribution<double> norm_dist(mean, stddev);
+  boost::normal_distribution<double> norm_dist(mean, stdev);
   boost::variate_generator<boost::mt19937&, boost::normal_distribution<double> > gen(rng, norm_dist);
   for (int i = 0; i < x.size(); ++i) {
     x[i] += gen();
@@ -68,47 +68,43 @@ struct OptRope {
   struct CostCoeffs {
     double groundPenetration;
     double velUpdate;
-    double initialVelocity;
     double contact;
     double forces;
     double linkLen;
     double goalPos;
     double manipSpeed;
-    double initManipPos;
   } m_coeffs;
   const double GROUND_HEIGHT;
 
   OptRope(const MatrixX3d &initPos, const Vector3d &initManipPos, int T, int N, double linkLen)
-    : m_N(N), m_T(T), m_initPos(initPos), m_initManipPos(initManipPos), m_linkLen(linkLen), GROUND_HEIGHT(0.)
+    : m_N(N), m_T(T), m_initPos(initPos), m_initManipPos(initManipPos), m_linkLen(linkLen), GROUND_HEIGHT(0.),
+      m_lb(createLowerBound()), m_ub(createUpperBound()),
+      m_lbvec(createLowerBound().toColumn()), m_ubvec(createUpperBound().toColumn())
   {
     assert(m_N >= 1);
     assert(m_T >= 1);
     assert(initPos.rows() == m_N);
-    setCoeffs1();    
+    setCoeffs1();
   }
 
   void setCoeffs1() {
     m_coeffs.groundPenetration = 1.;
     m_coeffs.velUpdate = 0.1;
-    m_coeffs.initialVelocity = 1000.;
     m_coeffs.contact = 0.1;
     m_coeffs.forces = 1;
     m_coeffs.linkLen = 0.1;
     m_coeffs.goalPos = 1;
     m_coeffs.manipSpeed = 0.1;
-    m_coeffs.initManipPos = 1;
   }
 
   void setCoeffs2() {
     m_coeffs.groundPenetration = 1.;
     m_coeffs.velUpdate = 10.;
-    m_coeffs.initialVelocity = 1000.;
     m_coeffs.contact = 1;
     m_coeffs.forces = 1;
     m_coeffs.linkLen = 1;
     m_coeffs.goalPos = 1;
     m_coeffs.manipSpeed = 0.1;
-    m_coeffs.initManipPos = 1;
   }
 
   struct State {
@@ -124,6 +120,8 @@ struct OptRope {
 
       MatrixX3d manipForce; // manipulator forces for each point
       VectorXd manipForce_c; // contact vars for manip forces
+
+      MatrixX3d derived_accel; // not actually part of the state. set from cubic spline evaluation (only when expanded==true)
 
       explicit StateAtTime(int N)
         : manipPos(Vector3d::Zero()),
@@ -150,26 +148,6 @@ struct OptRope {
 
       int m_dim; int m_N;
       int dim() const { return m_dim; }
-
-      void setAsLowerBound(int t) {
-        manipPos.setConstant(-BoxConstrainedOptProblem::INF);
-        x.setConstant(-BoxConstrainedOptProblem::INF);
-        vel.setConstant(t == 0 ? 0 : -BoxConstrainedOptProblem::INF);
-        groundForce_f.setZero();
-        groundForce_c.setConstant(-BoxConstrainedOptProblem::INF);
-        manipForce.setConstant(-BoxConstrainedOptProblem::INF);
-        manipForce_c.setConstant(-BoxConstrainedOptProblem::INF);
-      }
-
-      void setAsUpperBound(int t) {
-        manipPos.setConstant(BoxConstrainedOptProblem::INF);
-        x.setConstant(BoxConstrainedOptProblem::INF);
-        vel.setConstant(t == 0 ? 0 : BoxConstrainedOptProblem::INF);
-        groundForce_f.setConstant(BoxConstrainedOptProblem::INF);
-        groundForce_c.setConstant(BoxConstrainedOptProblem::INF);
-        manipForce.setConstant(BoxConstrainedOptProblem::INF);
-        manipForce_c.setConstant(BoxConstrainedOptProblem::INF);
-      }
 
       VectorXd toSubColumn() const {
         VectorXd col(dim());
@@ -227,7 +205,10 @@ struct OptRope {
     // The whole state is just a bunch of StateAtTimes over time
     EigVector<StateAtTime>::type atTime;
 
-    explicit State(int T, int N) : atTime(T, StateAtTime(N)), expanded(false) { }
+    explicit State(int T, int N)
+      : atTime(T, StateAtTime(N)),
+        expanded(false)
+    { }
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
     int dim() const { return atTime[0].dim() * atTime.size(); }
@@ -240,8 +221,8 @@ struct OptRope {
     State expandByInterp(int interpPerTimestep) const {
       const int origT = atTime.size(); const int N = atTime[0].m_N;
       const int newT = (origT - 1)*interpPerTimestep + 1;
-      const VectorXd tv(VectorXd::LinSpaced(origT, 0, origT));
-      const VectorXd fine_tv(VectorXd::LinSpaced(newT, 0, newT));
+      const VectorXd tv(VectorXd::LinSpaced(origT, 0, origT-1));
+      const VectorXd fine_tv(VectorXd::LinSpaced(newT, 0, origT-1));
 
       // manipPos: cubic splines
       // TODO: use linear interpolation instead?
@@ -267,17 +248,17 @@ struct OptRope {
 
       // x, vel: cubic splines for x
       // (use vel as spline tangents for x. then fine_vel will be the interpolated tangents of fine_x)
-      vector<MatrixXd> fine_x(N), fine_vel(N);
+      vector<MatrixXd> fine_x(N), fine_vel(N), fine_accel(N);
+      MatrixXd fine_x_n_d3; // unused
       for (int n = 0; n < N; ++n) {
         MatrixX3d coarse_x_n(origT, 3), coarse_vel_n(origT, 3);
         for (int t = 0; t < origT; ++t) {
           coarse_x_n.row(t) = atTime[t].x.row(n);
           coarse_vel_n.row(t) = atTime[t].vel.row(n);
         }
-        MatrixXd fine_x_n_d2, fine_x_n_d3; // unused
         splines::multi_hermite_cubic_spline_value(
           tv, coarse_x_n, coarse_vel_n,
-          fine_tv, fine_x[n], fine_vel[n], fine_x_n_d2, fine_x_n_d3
+          fine_tv, fine_x[n], fine_vel[n], fine_accel[n], fine_x_n_d3
         );
       }
 
@@ -290,9 +271,11 @@ struct OptRope {
         for (int s = tA; s < tB || (tB == newT - 1 && s <= tB); ++s) {
           out.atTime[s].manipPos = fine_manipPos.row(s).transpose();
 
+          out.atTime[s].derived_accel.resize(N, 3);
           for (int n = 0; n < N; ++n) {
             out.atTime[s].x.row(n) = fine_x[n].row(s);
             out.atTime[s].vel.row(n) = fine_vel[n].row(s);
+            out.atTime[s].derived_accel.row(n) = fine_accel[n].row(s);
           }
 
           const double a = (s - tA) / (double) interpPerTimestep;
@@ -302,6 +285,20 @@ struct OptRope {
 
           out.atTime[s].manipForce = (1.-a)*atTime[t].manipForce + a*atTime[t+1].manipForce;
           out.atTime[s].manipForce_c = atTime[t].manipForce_c;
+
+
+                    // sanity check at knots
+          // if (s == tA) {
+          //   cout << "======================\n";
+          //   cout << "sanity: manipPos" << out.atTime[s].manipPos.transpose() << " | " << atTime[t].manipPos.transpose() << endl;
+          //   cout << "sanity: x" << out.atTime[s].x << " | " << atTime[t].x << endl;
+          //   cout << "sanity: v" << out.atTime[s].vel << " | " << atTime[t].vel << endl;
+          // }
+          //  assert(out.atTime[s].manipPos == atTime[t].manipPos);
+
+            //assert(out.atTime[s].x == atTime[t].x);
+            //assert(out.atTime[s].vel == atTime[t].vel);
+         // }
         }
       }
       out.expanded = true;
@@ -332,22 +329,10 @@ struct OptRope {
       assert(pos == col.size());
     }
 
-    void setAsLowerBound() {
-      for (int t = 0; t < atTime.size(); ++t) {
-        atTime[t].setAsLowerBound(t);
-      }
-    }
-
-    void setAsUpperBound() {
-      for (int t = 0; t < atTime.size(); ++t) {
-        atTime[t].setAsUpperBound(t);
-      }
-    }
-
     string toString() const {
       stringstream ss;
       for (int t = 0; t < atTime.size(); ++t) {
-        ss << "t=" << t << ":\n";
+        ss << "t=" << t << (t % OPhysConfig::interpPerTimestep == 0 ? ": (*)" : ":") << "\n";
         ss << atTime[t].toString() << '\n';
       }
       return ss.str();
@@ -362,22 +347,71 @@ struct OptRope {
     return s;
   }
 
+  static inline double infty() { return HUGE_VAL; }
 
-  State genLowerBound() const {
-    static State lb(m_T, m_N);
-    lb.setAsLowerBound();
+  State m_lb, m_ub;
+  VectorXd m_lbvec, m_ubvec;
+  const State &getLowerBound() const { return m_lb; }
+  const State &getUpperBound() const { return m_ub; }
+  const VectorXd &getLowerBoundVec() const { return m_lbvec; }
+  const VectorXd &getUpperBoundVec() const { return m_ubvec; }
+
+  State createLowerBound() const {
+    State lb(m_T, m_N);
+    for (int t = 0; t < m_T; ++t) {
+      if (t == 0) lb.atTime[t].manipPos = m_initManipPos; else lb.atTime[t].manipPos.setConstant(-infty());
+      if (t == 0) lb.atTime[t].x = m_initPos; else lb.atTime[t].x.setConstant(-infty());
+      lb.atTime[t].vel.setConstant(t == 0 ? 0 : -infty());
+      lb.atTime[t].groundForce_f.setZero();
+      lb.atTime[t].groundForce_c.setConstant(0);
+      lb.atTime[t].manipForce.setConstant(-infty());
+      lb.atTime[t].manipForce_c.setConstant(0);
+    }
     return lb;
   }
 
-  State genUpperBound() const {
-    static State ub(m_T, m_N);
-    ub.setAsUpperBound();
+  State createUpperBound() const {
+    State ub(m_T, m_N);
+    for (int t = 0; t < m_T; ++t) {
+      if (t == 0) ub.atTime[t].manipPos = m_initManipPos; else ub.atTime[t].manipPos.setConstant(infty());
+      if (t == 0) ub.atTime[t].x = m_initPos; else ub.atTime[t].x.setConstant(infty());
+      ub.atTime[t].vel.setConstant(t == 0 ? 0 : infty());
+      ub.atTime[t].groundForce_f.setConstant(infty());
+      ub.atTime[t].groundForce_c.setConstant(1);
+      ub.atTime[t].manipForce.setConstant(infty());
+      ub.atTime[t].manipForce_c.setConstant(1);
+    }
     return ub;
   }
 
-  State genInitState() const {
-    static State s(m_T, m_N);
-    s.atTime[0].manipPos = m_initManipPos.transpose();
+  template<typename VectorType>
+  VectorType &clamp(VectorType &v) const {
+    for (int i = 0; i < v.size(); ++i) {
+      if (v[i] < m_lbvec[i]) {
+        v[i] = m_lbvec[i];
+      } else if (v[i] > m_ubvec[i]) {
+        v[i] = m_ubvec[i];
+      }
+    }
+    return v;
+  }
+
+  template<typename VectorType>
+  VectorType &addNoiseClamped(VectorType &v, double mean, double stdev) const {
+    addNoise(v, mean, stdev);
+    clamp(v);
+    return v;
+  }
+
+  State createInitState() const {
+    State s(m_T, m_N);
+    for (int t = 0; t < m_T; ++t) {
+      s.atTime[t].manipPos = m_initManipPos;
+      s.atTime[t].x = m_initPos;
+      s.atTime[t].groundForce_c.setConstant(0.5);
+      s.atTime[t].manipForce_c.setConstant(0.5);
+      // everything else should be zero.
+    }
     return s;
   }
 
@@ -399,45 +433,43 @@ struct OptRope {
   }
 
   double cost_velUpdate(const State &es) const {
+    assert(es.expanded);
     double cost = 0;
     for (int t = 0; t < es.atTime.size() - 1; ++t) {
       for (int n = 0; n < m_N; ++n) {
         // compute total force on particle n at time t
-        Vector3d groundForce(0, 0, es.atTime[t].groundForce_f[n]);
-        Vector3d manipForce = es.atTime[t].manipForce.row(n).transpose(); //(state.atTime[t].manipPos - pos[t].row(n).transpose()).normalized() * state.atTime[t].manipForce_f[n];
+        Vector3d groundForce(0, 0, es.atTime[t].groundForce_c[n] * es.atTime[t].groundForce_f[n]);
+        Vector3d manipForce(0, 0, 0);//es.atTime[t].manipForce_c[n] * es.atTime[t].manipForce.row(n).transpose(); //(state.atTime[t].manipPos - pos[t].row(n).transpose()).normalized() * state.atTime[t].manipForce_f[n];
         Vector3d totalForce = OPhysConfig::gravity + groundForce + manipForce;
-        // TODO: use derivatives from spline calculations
-        Vector3d vdiff = (es.atTime[t+1].vel.row(n) - es.atTime[t].vel.row(n)).transpose();
-        cost += (vdiff - totalForce*OPhysConfig::largeDt/OPhysConfig::interpPerTimestep).squaredNorm();
+        Vector3d accel = es.atTime[t].derived_accel.row(n).transpose();
+        cost += (accel - totalForce /* / mass */).squaredNorm();
       }
     }
     return cost;
   }
 
-  double cost_initialVelocity(const State &state) const {
-    double cost = 0;
-    for (int n = 0; n < m_N; ++n) {
-      cost += state.atTime[0].vel.row(n).squaredNorm();
-    }
-    return cost;
-  }
+  // double cost_initialVelocity(const State &state) const {
+  //   double cost = 0;
+  //   for (int n = 0; n < m_N; ++n) {
+  //     cost += state.atTime[0].vel.row(n).squaredNorm();
+  //   }
+  //   return cost;
+  // }
 
-  double cost_initManipPos(const State &state) const {
-    return (state.atTime[0].manipPos - m_initManipPos).squaredNorm();
-  }
+  // double cost_initManipPos(const State &state) const {
+  //   return (state.atTime[0].manipPos - m_initManipPos).squaredNorm();
+  // }
 
   double cost_contact(const State &es) const {
     double cost = 0;
     // ground force: groundContact^2 * (ground non-violation)^2
     for (int t = 0; t < es.atTime.size(); ++t) {
       for (int n = 0; n < m_N; ++n) {
-        //cost += square(state[idx_groundForce_c(t,n)]) * (square(pos[t](n,2)) + square(state[idx_vel_z(t,n)]));
-
         // ground contact
-        cost += square(es.atTime[t].groundForce_c[n]) * square(max(0., es.atTime[t].x(n,2) - GROUND_HEIGHT));
+        cost += es.atTime[t].groundForce_c[n] * square(max(0., es.atTime[t].x(n,2) - GROUND_HEIGHT));
 
         // manipulator contact
-        cost += square(es.atTime[t].manipForce_c[n]) * (es.atTime[t].manipPos - es.atTime[t].x.row(n).transpose()).squaredNorm();
+        cost += es.atTime[t].manipForce_c[n] * (es.atTime[t].manipPos - es.atTime[t].x.row(n).transpose()).squaredNorm();
       }
     }
     return cost;
@@ -449,12 +481,12 @@ struct OptRope {
     for (int t = 0; t < es.atTime.size(); ++t) {
       for (int n = 0; n < m_N; ++n) {
         // ground force (force^2 / contact^2) + force^2
-        cost += square(es.atTime[t].groundForce_f[n]) / (1e-5 + square(es.atTime[t].groundForce_c[n]));
+        //cost += square(es.atTime[t].groundForce_f[n]) / (1e-5 + square(es.atTime[t].groundForce_c[n]));
         cost += 1e-3*square(es.atTime[t].groundForce_f[n]);
 
         // manipulator force
         double manip_fsqnorm = es.atTime[t].manipForce.row(n).squaredNorm();
-        cost += manip_fsqnorm / (1e-5 + square(es.atTime[t].manipForce_c[n]));
+        //cost += manip_fsqnorm / (1e-5 + square(es.atTime[t].manipForce_c[n]));
         cost += 1e-6*manip_fsqnorm;
       }
     }
@@ -493,7 +525,7 @@ struct OptRope {
     double cost = 0;
     cost += m_coeffs.groundPenetration * cost_groundPenetration(expandedState);
     cost += m_coeffs.velUpdate * cost_velUpdate(expandedState);
-    cost += m_coeffs.initialVelocity * cost_initialVelocity(expandedState);
+    //cost += m_coeffs.initialVelocity * cost_initialVelocity(expandedState);
     cost += m_coeffs.contact * cost_contact(expandedState);
     cost += m_coeffs.forces * cost_forces(expandedState);
     //cost += m_coeffs.linkLen * cost_linkLen(expandedState);
@@ -509,51 +541,51 @@ struct OptRope {
     return costfunc(state);
   }
 
-  State solve() {
-    return solve(genInitState());
-  }
+  // State solve() {
+  //   return solve(genInitState());
+  // }
 
-  State solve(const State &init) {
-    return solve(init.toColumn());
-  }
+  // State solve(const State &init) {
+  //   return solve(init.toColumn());
+  // }
 
-  State solve(const VectorXd &init) {
-    cout << "initial vals: " << init.transpose() << endl;
-    cout << "lb: " << genLowerBound().toColumn().transpose() << endl;
-    cout << "ub: " << genUpperBound().toColumn().transpose() << endl;
-    SmartPtr<TNLP> prob = new BoxConstrainedOptProblem(
-      getNumVariables(),
-      genLowerBound().toColumn(),
-      genUpperBound().toColumn(),
-      init,
-      boost::bind(&OptRope::costfunc_wrapper, this, _1)
-    );
+  // State solve(const VectorXd &init) {
+  //   cout << "initial vals: " << init.transpose() << endl;
+  //   cout << "lb: " << genLowerBound().toColumn().transpose() << endl;
+  //   cout << "ub: " << genUpperBound().toColumn().transpose() << endl;
+  //   SmartPtr<TNLP> prob = new BoxConstrainedOptProblem(
+  //     getNumVariables(),
+  //     genLowerBound().toColumn(),
+  //     genUpperBound().toColumn(),
+  //     init,
+  //     boost::bind(&OptRope::costfunc_wrapper, this, _1)
+  //   );
 
-    SmartPtr<IpoptApplication> app = IpoptApplicationFactory();
-    app->Options()->SetNumericValue("tol", 1e-3);
-    app->Options()->SetStringValue("mu_strategy", "adaptive");
-    app->Options()->SetStringValue("hessian_approximation", "limited-memory");
-    app->Options()->SetIntegerValue("print_level", 5);
-    app->Options()->SetIntegerValue("max_iter", 10000);
+  //   SmartPtr<IpoptApplication> app = IpoptApplicationFactory();
+  //   app->Options()->SetNumericValue("tol", 1e-3);
+  //   app->Options()->SetStringValue("mu_strategy", "adaptive");
+  //   app->Options()->SetStringValue("hessian_approximation", "limited-memory");
+  //   app->Options()->SetIntegerValue("print_level", 5);
+  //   app->Options()->SetIntegerValue("max_iter", 10000);
 
-    ApplicationReturnStatus status;
-    status = app->Initialize();
-    if (status != Solve_Succeeded) {
-      std::cout << std::endl << std::endl << "*** Error during initialization!" << std::endl;
-      throw std::runtime_error((boost::format("ipopt initialization error: %d") % status).str());
-    }
-    status = app->OptimizeTNLP(prob);
-    if (status == Solve_Succeeded) {
-      std::cout << std::endl << std::endl << "*** The problem solved!" << std::endl;
-    } else {
-      std::cout << std::endl << std::endl << "*** The problem FAILED!" << std::endl;
-    }
+  //   ApplicationReturnStatus status;
+  //   status = app->Initialize();
+  //   if (status != Solve_Succeeded) {
+  //     std::cout << std::endl << std::endl << "*** Error during initialization!" << std::endl;
+  //     throw std::runtime_error((boost::format("ipopt initialization error: %d") % status).str());
+  //   }
+  //   status = app->OptimizeTNLP(prob);
+  //   if (status == Solve_Succeeded) {
+  //     std::cout << std::endl << std::endl << "*** The problem solved!" << std::endl;
+  //   } else {
+  //     std::cout << std::endl << std::endl << "*** The problem FAILED!" << std::endl;
+  //   }
 
-    const BoxConstrainedOptProblem::Solution &soln = ((BoxConstrainedOptProblem*) GetRawPtr(prob))->solution();
-    State s(m_T, m_N);
-    s.initFromColumn(soln.x);
-    return s;
-  }
+  //   const BoxConstrainedOptProblem::Solution &soln = ((BoxConstrainedOptProblem*) GetRawPtr(prob))->solution();
+  //   State s(m_T, m_N);
+  //   s.initFromColumn(soln.x);
+  //   return s;
+  // }
 
   template<typename VecType, typename Derived>
   VecType costGrad(DenseBase<Derived> &x0) const {
@@ -648,10 +680,12 @@ struct OptRopePlot {
 static double nlopt_costWrapper(const vector<double> &x, vector<double> &grad, void *data) {
   static int calls = 0;
   ++calls;
-  if (calls % 1000 == 0) cout << "nlopt cost calls: " << calls << endl;
+  if (calls % 1000 == 0)
+    cout << "nlopt cost calls: " << calls;
   OptRope *optrope = static_cast<OptRope *> (data);
   double val = optrope->nlopt_costWrapper(x, grad);
-  if (calls % 1000 == 0)  cout << "val: " << val << endl;
+  if (calls % 1000 == 0)
+    cout << " | val: " << val << endl;
   return val;
 }
 
@@ -664,12 +698,23 @@ static void runOpt(nlopt::opt &opt, vector<double> &x0, double &minf) {
 }
 
 int main() {
+  // testing
+  OptRope::State testingState(100, 200);
+  VectorXd testingCol = VectorXd::Random(testingState.dim());
+  testingState.initFromColumn(testingCol);
+  assert(testingCol == testingState.toColumn());
+  if (testingCol == testingState.toColumn()) {
+    cout << "state/column conversion testing passed" << endl;
+  }
+  // end testing
+
+
   const int N = 2;
   const int T = 3;
 
   MatrixX3d initPositions(N, 3);
   for (int i = 0; i < N; ++i) {
-    initPositions.row(i) << (-1 + 2*i/(N-1.0)), 0, 0.05;
+    initPositions.row(i) << (-1 + 2*i/(N-1.0)), 0, 0.5;
   }
   double linklen = abs(initPositions(0, 0) - initPositions(1, 0));
   Vector3d initManipPos(0, 0, 2);
@@ -694,20 +739,20 @@ int main() {
 
   cout << "optimizing " << optrope.getNumVariables() << " variables" << endl;
   nlopt::opt opt(nlopt::LD_LBFGS, optrope.getNumVariables());
-  //opt.set_lower_bounds(optrope.getLowerBounds());
-  //opt.set_upper_bounds(optrope.getUpperBounds());
+  opt.set_lower_bounds(toStlVec(optrope.getLowerBoundVec()));
+  opt.set_upper_bounds(toStlVec(optrope.getUpperBoundVec()));
   opt.set_vector_storage(100000);
   opt.set_min_objective(nlopt_costWrapper, &optrope);
 
 
-  VectorXd initState = optrope.genInitState().toColumn();
+  VectorXd initState = optrope.createInitState().toColumn();
 
   boost::timer timer;
   vector<double> x0 = toStlVec(initState);
   double minf;
 
   optrope.setCoeffs1();
-  addNoise(x0, 0, 0.01);
+  optrope.addNoiseClamped(x0, 0, 0.01);
   //nlopt::result result = opt.optimize(x0, minf);
   runOpt(opt, x0, minf);
   //cout << "solution: " << toEigVec(x0).transpose() << '\n';
@@ -715,7 +760,7 @@ int main() {
   cout << "time elapsed: " << timer.elapsed() << endl;
 
   optrope.setCoeffs2();
-  addNoise(x0, 0, 0.01);
+  optrope.addNoiseClamped(x0, 0, 0.01);
   runOpt(opt, x0, minf);
   cout << "function value: " << minf << endl;
   cout << "time elapsed: " << timer.elapsed() << endl;
