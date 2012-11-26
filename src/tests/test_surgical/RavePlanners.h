@@ -136,4 +136,9 @@ public:
 	std::pair<bool, RaveTrajectory::Ptr> goInWorldDirection (char dir, double dist, int steps=10);
 };
 
+/** Unwraps vector of way points with DOF values wrapped around from pi to -pi.
+ *  Returns a vector with no DOF wrap-around.
+ */
+void unwrapWayPointDOFs (vector< vector <dReal> *> &WayPointDOFs);
+
 #endif

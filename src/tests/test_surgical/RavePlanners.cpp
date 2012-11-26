@@ -108,13 +108,19 @@ std::pair<bool, RaveTrajectory::Ptr> WayPointsPlanner::plan(std::vector<OpenRAVE
 	workspacetraj->Init(spec);
 
 	/** Insert the way-points into a trajectory. */
-	vector<dReal> values;
+    vector<vector <dReal> *> DOFs;
 	for(int i = 0; i < transforms.size(); ++i) {
 		IkParameterization ikparam(transforms[i], IKP_Transform6D);
-		values.resize(ikparam.GetNumberOfValues());
-		ikparam.GetValues(values.begin());
-		workspacetraj->Insert(workspacetraj->GetNumWaypoints(),values);
+		vector<dReal> * values (new vector<dReal>);
+		values->resize(ikparam.GetNumberOfValues());
+		ikparam.GetValues(values->begin());
+		DOFs.push_back(values);
 	}
+
+    unwrapWayPointDOFs(DOFs);
+    	for (int i = 0; i < DOFs.size(); ++i)
+    		workspacetraj->Insert(workspacetraj->GetNumWaypoints(),*DOFs[i]);
+
 	//RAVELOG_INFO("BEFORE : Retimed Trajectory: %f, Num waypoints: %d\n", workspacetraj->GetDuration(), workspacetraj->GetNumWaypoints());
 	planningutils::RetimeAffineTrajectory(workspacetraj,maxVelocities,maxAccelerations);
 	//RAVELOG_INFO("AFTER : Retimed Trajectory: %f, Num waypoints: %d\n", workspacetraj->GetDuration(), workspacetraj->GetNumWaypoints());
@@ -227,48 +233,45 @@ std::pair<bool, RaveTrajectory::Ptr> IKInterpolationPlanner::smoothPlan(std::vec
     	assert(("There should be 2 transforms in the vector. Not Found!", transforms.size()==2));
     }
 
-     vector<dReal> currentDOFs = this->pr2manip->getDOFValues();
+    vector<vector <dReal> *> DOFs;
+    vector<dReal> currentDOFs = this->pr2manip->getDOFValues();
 
     for(int i = 0; i < transforms.size(); ++i) {
     	if (pr2manip->solveAllIKUnscaled(transforms[i], values)) {
 
     		int solSize = values.size();
-    		//std::cout<<"Size of IK solutions in iteration "<< i+1<<": "<<solSize<<std::endl;
 
-    		vector<double> bestDOFs = values[0];
-    		double bestL2 = util::wrapAroundL2(bestDOFs, currentDOFs);
+    		vector<double> * bestDOFs (new vector<double>());
+    		*bestDOFs = values[0];
+    		double bestL2 = util::wrapAroundL2(*bestDOFs, currentDOFs);
 
     		for (int j = 1; j < solSize; ++j) {
     			double newL2 = util::wrapAroundL2(values[j],currentDOFs);
     			if (newL2 < bestL2) {
-    				bestDOFs = values[j];
+    				*bestDOFs = values[j];
     				bestL2 = newL2;
     			}
     		}
-    		std::cout<<"Iter "<<i+1<<": ";
-    		for (int k = 0; k < bestDOFs.size(); ++k) std::cout<<bestDOFs[k]<<" ";
-    		std::cout<<std::endl;
-
+    		DOFs.push_back(bestDOFs);
 
     		std::cout<<"Iter "<<i+1<<": ";
-    		for (int k = 0; k < bestDOFs.size(); ++k) {
-    			double bdofshift = fmod(bestDOFs[k]+pi,2*pi),cdofshift = fmod(currentDOFs[k]+pi,2*pi);
-    			int div = (int)((currentDOFs[k]+pi)/(2*pi));
-    			if (cdofshift - bdofshift > pi)
-    				bestDOFs[k] = (div*2+1)*pi + bdofshift;
-    			else
-    				bestDOFs[k] = (div*2-1)*pi + bdofshift;
-    			std::cout<<bestDOFs[k]<<" ";
-    		}
+    		for (int k = 0; k < bestDOFs->size(); ++k) std::cout<<bestDOFs->at(k)<<" ";
     		std::cout<<std::endl;
+    		currentDOFs = *bestDOFs;
 
 
-    		traj->Insert(traj->GetNumWaypoints(),bestDOFs);
-    		currentDOFs = bestDOFs;
     	} else {//failure
     		RAVELOG_INFO("No plan through waypoints found : IK Failure.\n");
     		return std::make_pair(false, RaveTrajectory::Ptr());
     	}
+    }
+
+    unwrapWayPointDOFs(DOFs);
+    for (int i = 0; i < DOFs.size(); ++i) {
+    	std::cout<<"Iter "<<i+1<<": ";
+    	for (int k = 0; k < DOFs[i]->size(); ++k) std::cout<<DOFs[i]->at(k)<<" ";
+    	std::cout<<std::endl;
+    	traj->Insert(traj->GetNumWaypoints(),*DOFs[i]);
     }
 
     planningutils::RetimeAffineTrajectory(traj,maxVelocities,maxAccelerations);
@@ -375,4 +378,28 @@ std::pair<bool, RaveTrajectory::Ptr> IKInterpolationPlanner::goInWorldDirection 
 	}
 
 	return smoothPlan(wayPoints);
+}
+
+/** Unwraps vector of way points with DOF values wrapped around from pi to -pi.
+ *  Returns a vector with no DOF wrap-around.
+ */
+void unwrapWayPointDOFs (vector< vector <dReal> *> &WayPointDOFs){//, vector< vector <dReal> *> &unwrappedWayPointDOFs) {
+
+	dReal pi = 3.14159265;
+	int numWayPoints = WayPointDOFs.size();
+
+	for (int i = 1; i < numWayPoints; ++i) {
+		for (int k = 0; k < WayPointDOFs[i]->size(); ++k) {
+
+			int div = floor((WayPointDOFs[i-1]->at(k)+pi)/(2*pi));
+			double multOfPi = 2*pi*div - pi;
+			double bdofshift = fmod(WayPointDOFs[i]->at(k)+pi,2*pi);
+			if (fabs(WayPointDOFs[i-1]->at(k) - (multOfPi-2*pi+bdofshift)) < fabs(WayPointDOFs[i-1]->at(k) - (multOfPi+bdofshift)))
+				WayPointDOFs[i]->at(k) = multOfPi-2*pi+bdofshift;
+			else if (fabs(WayPointDOFs[i-1]->at(k) - (multOfPi+bdofshift)) < fabs(WayPointDOFs[i-1]->at(k) - (multOfPi+2*pi+bdofshift)))
+				WayPointDOFs[i]->at(k) = multOfPi+bdofshift;
+			else
+				WayPointDOFs[i]->at(k) = multOfPi+2*pi+bdofshift;
+		}
+	}
 }
