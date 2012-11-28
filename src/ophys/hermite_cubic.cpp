@@ -1,3 +1,5 @@
+// From http://people.sc.fsu.edu/~jburkardt/cpp_src/hermite_cubic/hermite_cubic.html
+
 # include <cstdlib>
 # include <iostream>
 # include <iomanip>

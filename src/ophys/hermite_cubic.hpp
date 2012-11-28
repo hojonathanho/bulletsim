@@ -1,5 +1,7 @@
 #pragma once
 
+// From http://people.sc.fsu.edu/~jburkardt/cpp_src/hermite_cubic/hermite_cubic.html
+
 double hermite_cubic_integral ( double x1, double f1, double d1, double x2,
   double f2, double d2 );
 double hermite_cubic_integrate ( double x1, double f1, double d1, double x2,

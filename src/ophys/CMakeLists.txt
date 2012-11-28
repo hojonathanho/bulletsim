@@ -27,8 +27,8 @@ target_link_libraries(ophys simulation)
 #add_executable(test_ropesystem test_ropesystem.cpp)
 #target_link_libraries(test_ropesystem ophys)
 
-add_executable(test_particlesystem2 test_particlesystem2.cpp)
-target_link_libraries(test_particlesystem2 ophys)
+#add_executable(test_particlesystem2 test_particlesystem2.cpp)
+#target_link_libraries(test_particlesystem2 ophys)
 
 #add_executable(test_ropesystem2 test_ropesystem2.cpp)
 #target_link_libraries(test_ropesystem2 ophys)
@@ -41,9 +41,6 @@ set(IPOPT_LIBS
   ipopt
   gfortran pthread m pardiso lapack blas dl
 )
-
-add_executable(nlopt_rope nlopt_rope.cpp)
-target_link_libraries(nlopt_rope ophys nlopt ${IPOPT_LIBS})
 
 add_executable(nlopt_spline_rope nlopt_spline_rope.cpp)
 target_link_libraries(nlopt_spline_rope ophys nlopt splines ${IPOPT_LIBS})
