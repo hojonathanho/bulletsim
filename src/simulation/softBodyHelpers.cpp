@@ -346,8 +346,26 @@ static btScalar		ImplicitSolve(	cutPlane* inf,
 
 
 /** Function for cutting a planar soft-body, using an implicit function.
- * Uses btSoftBody::refine.*/
-void cutPlaneSoftBody(btSoftBody* psb, cutPlane* info, btScalar accuracy) {
+ *  Based on btSoftBody::refine.
+ *
+ *  @param
+ *   - psb            : pointer to the soft-body to be cut.
+ *   - info           : pointer to cut-plane information
+ *   - accuracy       : the length of the region around the cut which belongs to both the sides
+ *   - fill_cut_nodes : if true, the vectors cut_nodes1 and cut_nodes2
+ *   	                 are populated with the indices of the nodes on the two sides of the cut.
+ *  */
+void CutPlaneSoftBody(btSoftBody* psb, cutPlane* info, btScalar accuracy,
+					  std::vector<int> &cut_nodes1,
+					  std::vector<int> &cut_nodes2, bool fill_cut_nodes) {
+
+
+	// if have to fill information about cut nodes => clear the indices arrays
+	if (fill_cut_nodes) {
+		cut_nodes1.clear();
+		cut_nodes2.clear();
+	}
+
 	// First node address
 	const btSoftBody::Node*	nbase = &(psb->m_nodes[0]);
 
@@ -524,30 +542,22 @@ void cutPlaneSoftBody(btSoftBody* psb, cutPlane* info, btScalar accuracy) {
 	cnodes.resize(ncount,0);
 
 	nbase=&psb->m_nodes[0];
-	//printf("Found nbase \n");
-	/* Links		*/
-	//printf("\tNumber of nodes: %d\n", psb->m_nodes.size());
-	//printf("\tNumber of links: %d\n", psb->m_links.size());
 
-	//std::cout<<psb->m_links.size()<<std::endl;
+
+
 	for(i=0,ni=psb->m_links.size();i<ni;++i)  {
 		const int		id[]={	int(psb->m_links[i].m_n[0]-nbase),
-				int(psb->m_links[i].m_n[1]-nbase) };
+				                int(psb->m_links[i].m_n[1]-nbase) };
 
-		//printf("\tlink#: %d, n1: %d, n2: %d\n", i, id[0], id[1]);
-
-		//std::cout<<i<<std::endl;
-
-		//printf("Finding position of node 1\n");
 		btVector3 n1 = psb->m_nodes[id[0]].m_x;
-		//printf("Finding position of node 2\n");
+
 		btVector3 n2 = psb->m_nodes[id[1]].m_x;
 
-		//printf ("Finding eval of nodes \n");
+
 		btScalar eval1 = info->Eval(n1);
 		btScalar eval2 = info->Eval(n2);
 
-		//printf ("Finding shouldConsider of nodes \n");
+
 		bool   should1 = info->shouldConsider(n1);
 		bool   should2 = info->shouldConsider(n2);
 
@@ -568,6 +578,12 @@ void cutPlaneSoftBody(btSoftBody* psb, cutPlane* info, btScalar accuracy) {
 						psb->appendNode(n1,m);
 						cnodes[id[0]]=psb->m_nodes.size()-1;
 						psb->m_nodes[cnodes[id[0]]].m_v=v;
+
+						// store the indices of the nodes on either side of the cut
+						if (fill_cut_nodes) {
+							cut_nodes1.push_back(id[0]);
+							cut_nodes2.push_back(psb->m_nodes.size()-1);
+						}
 					}
 					psb->m_links[i].m_n[0] = &psb->m_nodes[cnodes[id[0]]];
 				}
@@ -581,6 +597,12 @@ void cutPlaneSoftBody(btSoftBody* psb, cutPlane* info, btScalar accuracy) {
 						psb->appendNode(n2,m);
 						cnodes[id[1]]=psb->m_nodes.size()-1;
 						psb->m_nodes[cnodes[id[1]]].m_v=v;
+
+						// store the indices of the nodes on either side of the cut
+						if (fill_cut_nodes) {
+							cut_nodes1.push_back(id[1]);
+							cut_nodes2.push_back(psb->m_nodes.size()-1);
+						}
 					}
 					psb->m_links[i].m_n[1] = &psb->m_nodes[cnodes[id[1]]];
 
@@ -594,8 +616,8 @@ void cutPlaneSoftBody(btSoftBody* psb, cutPlane* info, btScalar accuracy) {
 	for(i=0,ni=psb->m_faces.size();i<ni;++i) {
 		btSoftBody::Node**	n  = psb->m_faces[i].m_n;
 		const int	id[]={	int(n[0]-nbase),
-				int(n[1]-nbase),
-				int(n[2]-nbase) };
+				            int(n[1]-nbase),
+				            int(n[2]-nbase) };
 
 
 		btVector3 n0 = n[0]->m_x;
@@ -625,6 +647,13 @@ void cutPlaneSoftBody(btSoftBody* psb, cutPlane* info, btScalar accuracy) {
 					psb->appendNode(n0,m);
 					cnodes[id[0]]=psb->m_nodes.size()-1;
 					psb->m_nodes[cnodes[id[0]]].m_v=v;
+
+					// store the indices of the nodes on either side of the cut
+					if (fill_cut_nodes) {
+						cut_nodes1.push_back(id[0]);
+						cut_nodes2.push_back(psb->m_nodes.size()-1);
+					}
+
 				}
 				n[0] = &psb->m_nodes[cnodes[id[0]]];
 				iden += 1;
@@ -639,6 +668,12 @@ void cutPlaneSoftBody(btSoftBody* psb, cutPlane* info, btScalar accuracy) {
 					psb->appendNode(n1,m);
 					cnodes[id[1]]=psb->m_nodes.size()-1;
 					psb->m_nodes[cnodes[id[1]]].m_v=v;
+
+					// store the indices of the nodes on either side of the cut
+					if (fill_cut_nodes) {
+						cut_nodes1.push_back(id[1]);
+						cut_nodes2.push_back(psb->m_nodes.size()-1);
+					}
 				}
 				n[1] = &psb->m_nodes[cnodes[id[1]]];
 				iden += 10;
@@ -653,6 +688,12 @@ void cutPlaneSoftBody(btSoftBody* psb, cutPlane* info, btScalar accuracy) {
 					psb->appendNode(n2,m);
 					cnodes[id[2]]=psb->m_nodes.size()-1;
 					psb->m_nodes[cnodes[id[2]]].m_v=v;
+
+					// store the indices of the nodes on either side of the cut
+					if (fill_cut_nodes) {
+						cut_nodes1.push_back(id[2]);
+						cut_nodes2.push_back(psb->m_nodes.size()-1);
+					}
 				}
 				n[2] = &psb->m_nodes[cnodes[id[2]]];
 				iden += 100;

@@ -227,11 +227,19 @@ void PR2SoftBodyGripper::grab() {
 }
 
 
-PR2Manager::PR2Manager(Scene &s) : scene(s), inputState() {
-    loadRobot();
-    initIK();
-    initHaptics();
-    registerSceneCallbacks();
+PR2Manager::PR2Manager(Scene &s) : scene(s), inputState(),
+		_up({0.33, -0.35, 2.59, -0.15, 0.59, -1.41, -0.27}),
+		_side({1.832, -0.332, 1.011, -1.437, 1.1 , -2.106, 3.074}) {
+
+	arm_up.assign(_up, _up+7);
+	arm_side.assign(_side, _side+7);
+
+	loadRobot();
+	initIK();
+	initHaptics();
+
+	controller.reset(new PR2Controller(scene, pr2));
+	registerSceneCallbacks();
 }
 
 void PR2Manager::registerSceneCallbacks() {
@@ -489,3 +497,100 @@ bool PR2Manager::processMouseInput(const osgGA::GUIEventAdapter &ea) {
     }
     return false;
 }
+
+
+
+/** Set the joint values of the L('l' : left) or R('r' : right)
+ * of the robot PROBOT to the JOINT_VALUES. */
+void PR2Manager::setArmJointAngles(const vector<dReal> &joint_values, char lr) {
+	assert(("Set Joint Angles: Expecting 7 values. Not found.",
+			joint_values.size()==7));
+
+	RaveRobotObject::Manipulator::Ptr armManip = (lr=='l') ? pr2Left : pr2Right;
+	pr2->setDOFValues(armManip->manip->GetArmIndices(), joint_values);
+}
+
+
+/** Set the joint values of both the arms to
+ *  left joints to JOINTS_LEFT and right to JOINTS_RIGHT.  */
+void PR2Manager::setBothArmsJointAngles(const vector<dReal> &joint_left,
+			const vector<dReal> &joint_right) {
+	setArmJointAngles(joint_left, 'l');
+	setArmJointAngles(joint_right, 'r');
+}
+
+/* Set the arm pose. pose \in {"side", "up"}*/
+void PR2Manager::setArmPose(std::string pose, char lrb) {
+	vector<dReal> * joints;
+	joints = (pose=="side")? &arm_side: &arm_up;
+
+	if (lrb == 'l') {
+		setArmJointAngles(*joints, 'l');
+	} else if (lrb == 'r') {
+		vector<dReal> right_joints = mirror_arm_joints(*joints);
+		setArmJointAngles(right_joints, 'r');
+	} else {
+		vector<dReal> right_joints = mirror_arm_joints(*joints);
+		setBothArmsJointAngles(*joints, right_joints);
+	}
+}
+
+
+/** Sets the torso link VALUE.
+ *  Up is value == 1 | Down is value == 0 */
+void PR2Manager::setTorso(dReal value) {
+
+	RobotBase::JointPtr torso_joint = pr2->robot->GetJoint("torso_lift_joint");
+	int joint_dof_idx = torso_joint->GetDOFIndex();
+
+	std::vector<int> joint_dof;
+	joint_dof.push_back(joint_dof_idx);
+	std::vector<double> values;
+	values.push_back(value);
+
+	pr2->setDOFValues(joint_dof, values);
+	// TO GET THE DOF VALUES : pr2->robot->GetDOFValues(values, indices);
+}
+
+//mirror image of joints (r->l or l->r)
+std::vector<dReal> mirror_arm_joints(const std::vector<dReal> &x) {
+
+	assert(("Mirror Joints: Expecting 7 values. Not found.", x.size()==7));
+	dReal vec[] = {-1*x[0],x[1],-1*x[2],x[3],-1*x[4],x[5],-1*x[6]};
+	std::vector<dReal> mirrored;
+	mirrored.assign(vec,vec+7);
+    return mirrored;
+}
+
+
+void PR2Controller::execute() {
+
+	if (!enabled) return;
+
+	if (trajectories.empty()) {
+		enabled = false;
+		return;
+	}
+
+	vector<dReal> jointVals;
+
+	if (currentTime >= trajectories.front()->duration()) {
+		trajectories.front()->sampleJoints(jointVals, trajectories.front()->duration());
+		pr2->setDOFValues(trajectories.front()->dofIndices, jointVals);
+		trajectories.pop();
+		currentTime = 0;
+	} else {
+		trajectories.front()->sampleJoints(jointVals, currentTime);
+		pr2->setDOFValues(trajectories.front()->dofIndices, jointVals);
+		currentTime += dt;
+	}
+}
+
+
+
+
+
+
+
+
+

@@ -75,7 +75,6 @@ int main(int argc, char *argv[]) {
     vector<double> joint = joints[i];
     pr2m.pr2->setDOFValues(inds,joint);
 
-    
 
     if (i == 160) {
       btVector3 rhpos = util::toBtTransform(rarm->GetEndEffectorTransform()).getOrigin();

@@ -27,6 +27,16 @@ void add(int* n, int increment);
 
 namespace util {
 
+
+  /**  Return am orthonormal basis (rotation matrix + 0 translation)
+   * in R3 with the x-axis aligned with the input vector. */
+ btTransform getOrthogonalTransform(btVector3 x);
+
+ /* L2 normal squared*/
+ double L2 (vector<double> v1, vector<double> v2);
+  /** Specialized L2 Norm equivalent to incorporate wrap-around of DOF values around 2pi. */
+ double wrapAroundL2 (vector<double> v1, vector<double> v2);
+
   // reads input from haptic devices (using getDeviceState),
   // and then transforms the rotations/coordinates to our coordinate system
   bool getHapticInput(btTransform &trans0, bool buttons0[2], btTransform &trans1, bool buttons1[2]);
