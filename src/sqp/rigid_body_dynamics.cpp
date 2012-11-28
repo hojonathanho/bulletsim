@@ -7,50 +7,18 @@
 #include "utils/logging.h"
 #include "utils/clock.h"
 #include "simulation/bullet_io.h"
+#include "functions.h"
 
 using namespace std;
 using namespace boost::assign;
 
-#define ZERO_FRICTION
+//#define ZERO_FRICTION
 //#define ZERO_ROTATION
 
-Matrix3d leftCrossProdMat(const Vector3d& x) {
-  Matrix3d out;
-  out << 0,   -x[2],   x[1],
-      x[2],   0,     -x[0],
-      -x[1],  x[0],    0;
-  return out;
-}
-Matrix3d rightCrossProdMat(const Vector3d& x) {
-  return leftCrossProdMat(x).transpose();
-}
+btVector3 toBtVector(const Vector3d& x) {return btVector3(x[0], x[1], x[2]);}
 
-ExprVector exprMatMult(const MatrixXd& A, const VarVector& x) {
-  ExprVector y(x.size());
-  for (int i=0; i < y.size(); ++i) {
-    y[i] = varDot(A.row(i), x);
-  }
-  return y;
-}
-ExprVector exprCross(const VectorXd& x, const VarVector& y) {
-  return exprMatMult(leftCrossProdMat(x), y);
-}
-ExprVector exprCross(const VarVector& x, const VectorXd& y) {
-  return exprMatMult(rightCrossProdMat(y), x);
-}
-ExprVector exprMatMult(const MatrixXd& A, const ExprVector& x) {
-  ExprVector y(x.size());
-  for (int i=0; i < y.size(); ++i) {
-    y[i] = exprDot(A.row(i), x);
-  }
-  return y;
-}
-ExprVector exprCross(const VectorXd& x, const ExprVector& y) {
-  return exprMatMult(leftCrossProdMat(x), y);
-}
-ExprVector exprCross(const ExprVector& x, const VectorXd& y) {
-  return exprMatMult(rightCrossProdMat(y), x);
-}
+
+
 
 
 
@@ -268,6 +236,16 @@ void Contact::removeFromModel(GRBModel* model) {
   m_inModel = false;
 }
 
+void Contact::backup() {
+  m_fn_backup = m_fn_val;
+  m_ffr_backup = m_ffr_val;
+}
+
+void Contact::restore() {
+  m_fn_val = m_fn_backup;
+  m_ffr_val = m_ffr_backup;
+}
+
 Contact::~Contact() {
   if (m_inModel) LOG_WARN_FMT("warning: contact %s deleted but still in model!", getName().c_str());
 }
@@ -287,11 +265,15 @@ void DynSolver::updateValues() {
 void DynSolver::storeValues() {
   BOOST_FOREACH(RigidBodyPtr& body, m_bodies)
     body->backup();
+  BOOST_FOREACH(ContactPtr& contact, m_contacts)
+    contact->backup();
 }
 
 void DynSolver::rollbackValues() {
   BOOST_FOREACH(RigidBodyPtr& body, m_bodies)
     body->restore();
+  BOOST_FOREACH(ContactPtr& contact, m_contacts)
+    contact->restore();
 }
 
 void DynSolver::addObject(RigidBodyPtr body) {
@@ -304,13 +286,19 @@ void DynSolver::addObject(RigidBodyPtr body) {
   }
 }
 
+GRBQuadExpr varSq(const GRBLinExpr& x) {
+	return x*x;
+}
+
 Contact::Contact(RigidBody* bodyA, RigidBody* bodyB, const btVector3& worldA, const btVector3& worldB,
-                 const btVector3& normalB2A, double dist) :
+                 const btVector3& localA, const btVector3& localB, const btVector3& normalB2A, double dist) :
   m_inModel(false),
   m_bodyA(bodyA),
   m_bodyB(bodyB),
   m_worldA(toVector3d(worldA)),
   m_worldB(toVector3d(worldB)),
+  m_localA(toVector3d(localA)),
+  m_localB(toVector3d(localB)),
   m_normalB2A(toVector3d(normalB2A)),
   m_dist(dist),
   m_fn_val(0),
@@ -319,9 +307,12 @@ Contact::Contact(RigidBody* bodyA, RigidBody* bodyB, const btVector3& worldA, co
   calcDistExpr();
 }
 
-void Contact::setData(const btVector3& worldA, const btVector3& worldB, const btVector3& normalB2A, double dist) {
+void Contact::setData(const btVector3& worldA, const btVector3& worldB,
+		const btVector3& localA, const btVector3& localB, const btVector3& normalB2A, double dist) {
   m_worldA = toVector3d(worldA);
   m_worldB = toVector3d(worldB);
+  m_localA = toVector3d(localA);
+  m_localB = toVector3d(localB);
   m_normalB2A = toVector3d(normalB2A);
   m_dist = dist;
   calcDistExpr();
@@ -353,10 +344,17 @@ btManifoldPoint& getDeepestPoint(btPersistentManifold* contactManifold) {
 
 void DynSolver::updateContacts() {
   BOOST_FOREACH(RigidBodyPtr& body, m_bodies) body->updateBullet1();
+	BOOST_FOREACH(ContactPtr& contact, m_contacts) {
+		contact->m_worldA = toVector3d(contact->m_bodyA->m_rb->getCenterOfMassTransform()(toBtVector(contact->m_localA)));
+		contact->m_worldB = toVector3d(contact->m_bodyB->m_rb->getCenterOfMassTransform()(toBtVector(contact->m_localB)));
+		contact->m_dist =  (contact->m_worldA - contact->m_worldB).dot(contact->m_normalB2A);
+	}
+}
+
+void DynSolver::updateContactsFull() {
+  BOOST_FOREACH(RigidBodyPtr& body, m_bodies) body->updateBullet1();
   vector<ContactPtr> newContacts;
 
-
-//  set<> created, destroyed, preserved;
   vector<char> oldContactSurvival(m_contacts.size(), false), newContactWasCreated;
   typedef pair<btRigidBody*, btRigidBody*> RBPair;
 
@@ -386,6 +384,7 @@ void DynSolver::updateContacts() {
         int ind = *static_cast<int*>(pt.m_userPersistentData);
         ContactPtr newContact = m_contacts[ind];
         newContact->setData(pt.m_positionWorldOnA, pt.m_positionWorldOnB,
+        									pt.m_localPointA, pt.m_localPointB,
                          pt.m_normalWorldOnB, pt.m_distance1);
         newContactWasCreated.push_back(false);
         oldContactSurvival[ind]=true;
@@ -397,6 +396,7 @@ void DynSolver::updateContacts() {
       else {
         pt.m_userPersistentData = new int(newContacts.size());
         ContactPtr newContact(new Contact(rbA, rbB, pt.m_positionWorldOnA, pt.m_positionWorldOnB,
+        																	pt.m_localPointA, pt.m_localPointB,
                                           pt.m_normalWorldOnB, pt.m_distance1));
         newContactWasCreated.push_back(true);
         newContacts.push_back(newContact);
@@ -404,7 +404,7 @@ void DynSolver::updateContacts() {
     }
   }
 
-  for (int i=0; i < oldContactSurvival.size(); ++i)
+  for (int i=0; i < oldContactSurvival.size(); ++i) {
     if (oldContactSurvival[i]) {
       LOG_DEBUG(boost::format("contact %s survived")%m_contacts[i]->getName());
     }
@@ -412,11 +412,13 @@ void DynSolver::updateContacts() {
       LOG_INFO(boost::format("contact %s destroyed")%m_contacts[i]->getName());
       m_contacts[i]->removeFromModel(m_model);
     }
-  for (int i=0; i < newContactWasCreated.size(); ++i)
+  }
+  for (int i=0; i < newContactWasCreated.size(); ++i) {
     if (newContactWasCreated[i]) {
       newContacts[i]->addToModel(m_model);
       LOG_INFO(boost::format("contact %s created")%newContacts[i]->getName());
     }
+  }
 
   m_contacts = newContacts;
   m_model->update();
@@ -446,7 +448,8 @@ vector<SignedContact> DynSolver::getSignedContacts(RigidBody* body) {
 void DynSolver::step() {
   LOG_INFO("starting step");
   double tStart = GetClock();
-  updateContacts();
+  updateContactsFull();
+  m_tra->resetTrustRegion();
   optimize();
   finishStep();
   LOG_INFO_FMT("finished step (%.2f ms)", GetClock()-tStart);
@@ -473,7 +476,7 @@ void DynSolver::fixVariables() {
 
 }
 
-Vector3d a_grav(0,0,-9.8);
+Vector3d a_grav(0,0,-.001);
 
 DynErrCost::DynErrCost(RigidBodyPtr body, DynSolver* solver) :
     m_body(body),
@@ -561,11 +564,11 @@ ConvexObjectivePtr ForcePenalty::convexify(GRBModel* model) {
   return out;
 }
 
-ComplementarityCost::ComplementarityCost(DynSolver* solver) : m_solver(solver) {}
+ComplementarityCost::ComplementarityCost(DynSolver* solver) : m_solver(solver), m_coeff(1e3) {}
 double ComplementarityCost::evaluate() {
   double out = 0;
   BOOST_FOREACH(ContactPtr& contact, m_solver->m_contacts) {
-    out += pospart(contact->m_dist * contact->m_fn_val);
+    out += m_coeff * pospart(contact->m_dist * contact->m_fn_val);
   }
   return out;
 }
@@ -578,16 +581,36 @@ ConvexObjectivePtr ComplementarityCost::convexify(GRBModel* model) {
   return out;
 }
 
+ComplementarityCost2::ComplementarityCost2(DynSolver* solver) : m_solver(solver), m_coeff(1) {}
+double ComplementarityCost2::evaluate() {
+  double out = 0;
+  BOOST_FOREACH(ContactPtr& contact, m_solver->m_contacts) {
+    out += m_coeff * (contact->m_dist + contact->m_fn_val - sqrtf(sq(contact->m_dist) + sq(contact->m_fn_val)));
+  }
+  return out;
+}
+ConvexObjectivePtr ComplementarityCost2::convexify(GRBModel* model) {
+  ConvexObjectivePtr out(new ConvexObjective());
+  BOOST_FOREACH(ContactPtr& contact, m_solver->m_contacts) {
+  	double mag = sqrtf(sq(contact->m_dist) + sq(contact->m_fn_val))+1e-11;
+  	double curval = contact->m_dist + contact->m_fn_val - mag;
+  	GRBLinExpr compExpr = curval + (contact->m_fn - contact->m_fn_val)*(1 - contact->m_fn_val/mag) + (contact->m_distExpr - contact->m_dist)*(1 - contact->m_dist/mag);
+    addHingeCost(out, m_coeff, compExpr, model, "compl");
+  }
+  return out;
+}
 
 
-FrictionConstraint::FrictionConstraint(DynSolver* solver) : m_solver(solver), m_mu2(1) {}
+static const double FRIC_COEFF = .1;
+
+FrictionConstraint::FrictionConstraint(DynSolver* solver) : m_solver(solver) {}
 ConvexConstraintPtr FrictionConstraint::convexify(GRBModel* model) {
   ConvexConstraintPtr out(new ConvexConstraint());
   BOOST_FOREACH(ContactPtr& contact, m_solver->m_contacts) {
 #ifndef ZERO_FRICTION
     out->m_eqcnts.push_back(model->addConstr(varDot(contact->m_normalB2A, contact->m_ffr) == 0));
 //    out->m_qexprs.push_back(exprNorm2(contact->m_ffr) - m_mu2 * contact->m_fn * contact->m_fn);
-    out->m_qexprs.push_back(varNorm2(contact->m_ffr) - m_mu2 * contact->m_fn * contact->m_fn);
+    out->m_qexprs.push_back(varNorm2(contact->m_ffr) - sq(FRIC_COEFF) * contact->m_fn * contact->m_fn);
 //    out->m_qcnts.push_back(model->addQConstr(varNorm2(contact->m_ffr) <= m_mu2 * contact->m_fn * contact->m_fn));
     out->m_qcntNames.push_back("fric_cone");
 #endif
@@ -595,6 +618,99 @@ ConvexConstraintPtr FrictionConstraint::convexify(GRBModel* model) {
   return out;
 }
 
+//      struct F : public fVectorOfVector {
+//        KinBody::LinkPtr m_heldLink, m_link2;
+//        F(KinBody::LinkPtr heldLink, KinBody::LinkPtr link2)
+//          : m_heldLink(heldLink), m_link2(link2)
+//        {}
+//        VectorXd operator()(const VectorXd& dofvals) const {
+//          OpenRAVE::Transform worldFromHeld = m_heldLink->GetTransform();
+//          OpenRAVE::Transform worldFromL2 = m_link2->GetTransform();
+//          OpenRAVE::Transform err2 = worldFromHeld * worldFromHeld.inverse();
+//          VectorXd out(6);
+//          out.topRows(3) = toVector3d(err2.trans);
+//          out.bottomRows(3) = toQuatVector4d(err2.rot).topRows(3);
+//          return out;
+//        }
+//      };
+//
+//      F f(m_heldLink, m_link2);
+//      MatrixXd errjac = calcJacobian(f, dofvals, 1e-5);
+//      VectorXd err = f(dofvals);
+
+
+
+FricCost::FricCost(DynSolver* solver) : m_solver(solver), m_coeff(1e10) {}
+ConvexObjectivePtr FricCost::convexify(GRBModel* model) {
+	ConvexObjectivePtr out(new ConvexObjective());
+	struct F : public fVectorOfVector {
+		ContactPtr m_contact;
+		F(ContactPtr contact) : m_contact(contact) {}
+		VectorXd operator()(const VectorXd& vals) const {
+	    Matrix3d tanProj = Matrix3d::Identity() - m_contact->m_normalB2A * m_contact->m_normalB2A.transpose();
+	    Vector3d v1A(vals.topRows(3)), w1A(vals.middleRows(3,3)), v1B(vals.middleRows(6,3)), w1B(vals.middleRows(9,3)), ffr(vals.middleRows(12,3));
+	    Vector3d vtan_val = tanProj*(
+	       v1A
+	      + w1A.cross(m_contact->m_worldA - m_contact->m_bodyA->m_x1_val)
+	      - v1B
+	      - w1B.cross(m_contact->m_worldB - m_contact->m_bodyB->m_x1_val));
+	    Vector3d err = vals.middleRows(12,3) * vtan_val.norm() + vals(15) * vtan_val * FRIC_COEFF;
+	    return err;
+		}
+	};
+
+	BOOST_FOREACH(ContactPtr contact, m_solver->m_contacts) {
+		VectorXd cur(16);
+		cur.topRows(3) = contact->m_bodyA->m_v1_val;
+		cur.middleRows(3,3) = contact->m_bodyA->m_w1_val;
+		cur.middleRows(6,3) = contact->m_bodyB->m_v1_val;
+		cur.middleRows(9,3) = contact->m_bodyB->m_w1_val;
+		cur.middleRows(12,3) = contact->m_ffr_val;
+		cur(15) = contact->m_fn_val;
+		F f(contact);
+		MatrixXd jac = calcJacobian(f, cur, 1e-6);
+		ExprVector vars(16);
+		vars[0] = contact->m_bodyA->m_v1_var[0];
+		vars[1] = contact->m_bodyA->m_v1_var[1];
+		vars[2] = contact->m_bodyA->m_v1_var[2];
+		vars[3] = contact->m_bodyA->m_w1_var[0];
+		vars[4] = contact->m_bodyA->m_w1_var[1];
+		vars[5] = contact->m_bodyA->m_w1_var[2];
+		vars[6] = contact->m_bodyB->m_v1_var[0];
+		vars[7] = contact->m_bodyB->m_v1_var[1];
+		vars[8] = contact->m_bodyB->m_v1_var[2];
+		vars[9] = contact->m_bodyB->m_w1_var[0];
+		vars[10] = contact->m_bodyB->m_w1_var[1];
+		vars[11] = contact->m_bodyB->m_w1_var[2];
+		vars[12] = contact->m_ffr[0];
+		vars[13] = contact->m_ffr[1];
+		vars[14] = contact->m_ffr[2];
+		vars[15] = contact->m_fn;
+		ExprVector err(3);
+		exprInc(err, f(cur));
+		exprInc(err, exprMatMult(jac, vars));
+		exprDec(err, jac*cur);
+		out->m_objective += m_coeff*exprNorm2(err);
+	}
+	return out;
+}
+
+
+
+double FricCost::evaluate() {
+	double out=0;
+	BOOST_FOREACH(ContactPtr& contact, m_solver->m_contacts) {
+    Matrix3d tanProj = Matrix3d::Identity() - contact->m_normalB2A * contact->m_normalB2A.transpose();
+    Vector3d vtan_val = tanProj*(
+       contact->m_bodyA->m_v1_val
+      + contact->m_bodyA->m_w1_val.cross(contact->m_worldA - contact->m_bodyA->m_x1_val)
+      - contact->m_bodyB->m_v1_val
+      - contact->m_bodyB->m_w1_val.cross(contact->m_worldB - contact->m_bodyB->m_x1_val));
+//    LOG_INFO(contact->m_ffr_val.transpose() << " / " << vtan_val.transpose() << " / " << contact->m_fn_val);
+    out += m_coeff*(contact->m_ffr_val * vtan_val.norm() + contact->m_fn_val * vtan_val * FRIC_COEFF).squaredNorm();
+	}
+	return out;
+}
 
 
 OverlapPenalty::OverlapPenalty(DynSolver* solver) : m_solver(solver), m_coeff(999) {}
@@ -627,8 +743,17 @@ ConvexConstraintPtr OverlapConstraint::convexify(GRBModel* model) {
   return out;
 }
 
+double OverlapConstraint::evaluate() {
+  double out = 0;
+  BOOST_FOREACH(ContactPtr& contact, m_solver->m_contacts) {
+  	out += 1000*pospart(-contact->m_dist);
+  }
+  return out;
+}
 
-TangentMotion::TangentMotion(DynSolver* solver) : m_coeff(.01), m_solver(solver) {}
+
+
+TangentMotion::TangentMotion(DynSolver* solver) : m_coeff(.1), m_solver(solver) {}
 
 double TangentMotion::evaluate() {
   double out = 0;
@@ -669,10 +794,26 @@ ConvexObjectivePtr TangentMotion::convexify(GRBModel* model) {
   return out;
 }
 
-DynTrustRegion::DynTrustRegion(DynSolver* solver) : m_solver(solver) {}
-void DynTrustRegion::adjustTrustRegion(double ratio) {}
+DynTrustRegion::DynTrustRegion(DynSolver* solver) : m_solver(solver), m_coeff(1000) {}
+void DynTrustRegion::adjustTrustRegion(double ratio) {
+	m_shrinkage *= ratio;
+	m_coeff /= ratio;
+}
 
-ConvexConstraintPtr DynTrustRegion::convexify(GRBModel* model) {
+ConvexObjectivePtr DynTrustRegion::convexObjective(GRBModel* model) {
+	ConvexObjectivePtr out(new ConvexObjective());
+	BOOST_FOREACH(RigidBodyPtr& body, m_solver->m_bodies) {
+		out->m_objective += m_coeff*exprNorm2(exprSub(body->m_v1_var, body->m_v1_val));
+		out->m_objective += m_coeff*exprNorm2(exprSub(body->m_w1_var, body->m_w1_val));
+	}
+
+	BOOST_FOREACH(ContactPtr& contact, m_solver->m_contacts) {
+		out->m_objective += m_coeff*varSq(contact->m_fn - contact->m_fn_val);
+		out->m_objective += m_coeff*exprNorm2(exprSub(contact->m_ffr, contact->m_ffr_val));
+	}
+	return out;
+}
+ConvexConstraintPtr DynTrustRegion::convexConstraint(GRBModel* model) {
   return ConvexConstraintPtr(new ConvexConstraint());
 }
 
@@ -687,7 +828,7 @@ inline double sum(const vector<double>& x) {
 }
 extern vector<double> evalApproxObjectives(const vector<ConvexObjectivePtr>& in);
 
-
+#if 0
 
 Optimizer::OptStatus DynSolver::optimize() {
 
@@ -768,6 +909,8 @@ Optimizer::OptStatus DynSolver::optimize() {
   }
 }
 
+#endif
+
 
 #include "simulation/plotting.h"
 #include "simulation/simulation_fwd.h"
@@ -775,8 +918,6 @@ Optimizer::OptStatus DynSolver::optimize() {
 using namespace util;
 PlotPointsPtr collisions;
 PlotLinesPtr escapes;
-
-btVector3 toBtVector(const Vector3d& x) {return btVector3(x[0], x[1], x[2]);}
 
 void plotContacts(const vector<ContactPtr>& contacts) {
   if (!collisions) {

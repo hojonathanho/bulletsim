@@ -31,7 +31,7 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr toPointCloud(const std::vector< std::vector<
 pcl::PointCloud<pcl::PointXYZ>::Ptr toPointCloud(const Eigen::MatrixXf&);
 
 ColorCloudPtr addColor(CloudPtr in, uint8_t r, uint8_t g, uint8_t b);
-
+CloudPtr removeColor(ColorCloudPtr in);
 
 MatrixXu toBGR(ColorCloudPtr);
 cv::Mat toCVMat(Eigen::MatrixXf);

@@ -10,6 +10,7 @@ struct SQPROSConfig : Config {
   static string robotFile;
   static bool showFinalRun;
   static float voxelSize;
+  static string collisionShape;
 
   SQPROSConfig();
 };

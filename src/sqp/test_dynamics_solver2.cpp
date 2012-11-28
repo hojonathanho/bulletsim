@@ -4,6 +4,8 @@
 #include "config_sqp.h"
 #include "simulation/config_bullet.h"
 #include "sqp_fwd.h"
+#include <osgDB/ReadFile>
+
 using namespace std;
 //
 //btTransform transformInterp(const btTransform& tf0, const btTransform& tf1, float frac) {
@@ -18,7 +20,7 @@ using namespace std;
 RigidBodyPtr heldobj;
 //boost::shared_ptr<PoseConstraint> ctrlCnt;
 void moveObj(float dx, float dy) {
-  heldobj->m_externalImpulse += Vector3d(dx, dy,0)*10;
+  heldobj->m_externalImpulse += Vector3d(dx, dy,0);
 }
 #endif
 extern void setupBulletForSQP(btCollisionWorld* world);
@@ -38,6 +40,7 @@ int main(int argc, char* argv[]) {
   parser.read(argc, argv);
 
   GeneralConfig::scale=1;
+  BulletConfig::dt=1;
   initializeGRB();
 
   btVector3 halfExtents(.5, .5, .5);
@@ -52,6 +55,9 @@ int main(int argc, char* argv[]) {
   BulletObject::Ptr floor(new BoxObject(mass, btVector3(5, 5, .5), btTransform(btQuaternion::getIdentity(),
                                                                                btVector3(0, 0, -.5))));
 #endif
+  BulletObject::Ptr sphere(new SphereObject(mass, .5,btTransform(btQuaternion::getIdentity(), btVector3(2,0,.5))));
+  osg::ref_ptr<osg::Image> image = osgDB::readImageFile("/home/joschu/Dropbox/Proj/ipi/smiley1.jpg");
+  sphere->setTexture(image);
   Scene scene;
   setupBulletForSQP(scene.env->bullet->dynamicsWorld);
   scene.startViewer();
@@ -78,12 +84,13 @@ int main(int argc, char* argv[]) {
 #ifdef BOX1
   box1->setColor(0,1,0,.5);
 #endif
+  scene.env->add(sphere);
 
 #ifdef BOX0
-  scene.addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Left, boost::bind(moveObj, 0, -.05));
-  scene.addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Right, boost::bind(moveObj, 0, .05));
-  scene.addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Up, boost::bind(moveObj, -.05, 0));
-  scene.addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Down, boost::bind(moveObj, .05, 0));
+  scene.addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Left, boost::bind(moveObj, 0, -.01));
+  scene.addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Right, boost::bind(moveObj, 0, .01));
+  scene.addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Up, boost::bind(moveObj, -.01, 0));
+  scene.addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Down, boost::bind(moveObj, .01, 0));
 #endif
 
 
@@ -92,9 +99,11 @@ int main(int argc, char* argv[]) {
   solver.setTrustRegion(tr);
 //  solver.addCost(CostPtr(new OverlapPenalty(&solver)));
   solver.addConstraint(ConstraintPtr(new OverlapConstraint(&solver)));
-  solver.addCost(CostPtr(new ForcePenalty(&solver)));
+//  solver.addCost(CostPtr(new ForcePenalty(&solver)));
   solver.addConstraint(ConstraintPtr(new FrictionConstraint(&solver)));
-  solver.addCost(CostPtr(new TangentMotion(&solver)));
+//  solver.addCost(CostPtr(new TangentMotion(&solver)));
+  solver.addCost(CostPtr(new ComplementarityCost(&solver)));
+  solver.addCost(CostPtr(new FricCost(&solver)));
 #ifdef BOX0
   solver.addObject(RigidBodyPtr(new RigidBody(box0->rigidBody.get(), "box0")));
   heldobj = solver.m_bodies.back();
@@ -107,12 +116,13 @@ int main(int argc, char* argv[]) {
 
   solver.addConstraint(ConstraintPtr(new PoseConstraint(solver.m_bodies.back())));
 #endif
+  solver.addObject(RigidBodyPtr(new RigidBody(sphere->rigidBody.get(), "sphere")));
 #ifdef BOX0
 //  ctrlCnt.reset(new PoseConstraint(solver.m_bodies[0]));
 //  solver.addConstraint(ctrlCnt);
 #endif
   //  solver.addCost()
-//#define CATCH_GRB
+#define CATCH_GRB
 #ifdef CATCH_GRB
   try {
 #endif

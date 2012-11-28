@@ -35,6 +35,18 @@ vector<int> getManipLinkInds(RobotBase::ManipulatorPtr manip) {
 	return out;
 }
 
+double calcCollisionScore(const MatrixXd& traj, RaveRobotObject* rro, RobotBase::ManipulatorPtr manip) {
+	vector<int> armInds = manip->GetArmIndices();
+	TrajCartCollInfo tcci = collectTrajCollisions(traj, rro, armInds, false);
+	double out=0;
+	BOOST_FOREACH(CartCollInfo& cci, tcci) {
+		BOOST_FOREACH(LinkCollision& lc, cci) {
+			out += pospart(-lc.dist);
+		}
+	}
+	return out;
+}
+
 vector<VectorXd> findCollisionFreeIK(const OpenRAVE::Transform& tf, RaveRobotObject* rro, RobotBase::ManipulatorPtr manip) {
 	vector<vector<double> > iksolns;
 	vector<int> armInds = manip->GetArmIndices();
@@ -49,7 +61,8 @@ vector<VectorXd> findCollisionFreeIK(const OpenRAVE::Transform& tf, RaveRobotObj
 		bool safe = true;
 		BOOST_FOREACH(LinkCollision& lc, cci) {
 			if ((lc.dist < 0) && (find(manipLinkInds.begin(), manipLinkInds.end(), lc.linkInd) == manipLinkInds.end())) {
-				LOG_DEBUG_FMT("discarding ik solution because link %i has collision", lc.linkInd);
+				string linkName = rro->robot->GetLinks()[lc.linkInd]->GetName();
+				LOG_DEBUG("discarding ik solution because link has collision" << linkName);
 				safe = false;
 				break;
 			}
@@ -230,8 +243,18 @@ bool setupArmToCartTarget(TrajOptimizer& opt, const btTransform& goal, RobotMani
     LOG_ERROR("no collision free ik solution for target! " << eeGoal);
     return false;
   }
-  LOG_INFO("using first collision free ik soln");
-  VectorXd endJoints = safeIkSolns[0];
+  double bestVal=INFINITY;
+  int bestInd=-1;
+  for (int i=0; i < safeIkSolns.size(); ++i) {
+  	MatrixXd traj = linearInterp(startJoints, safeIkSolns[i], 10);
+  	double score = calcCollisionScore(traj, arm->robot, arm->manip);
+  	LOG_DEBUG_FMT("safe soln %i: score: %.2e", i, score);
+  	if (score < bestVal) {
+  		bestVal = score;
+  		bestInd = i;
+  	}
+  }
+  VectorXd endJoints = safeIkSolns[bestInd];
 #else
   VectorXd endJoints = startJoints;
 #endif

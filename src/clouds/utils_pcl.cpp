@@ -179,6 +179,22 @@ ColorCloudPtr addColor(CloudPtr in, uint8_t r, uint8_t g, uint8_t b) {
   return out;
 }
 
+CloudPtr removeColor(ColorCloudPtr in) {
+	CloudPtr out(new Cloud());
+	BOOST_FOREACH(ColorPoint& pt, in->points) {
+		Point newpt;
+		newpt.x = pt.x;
+		newpt.y = pt.y;
+		newpt.z = pt.z;
+		out->points.push_back(newpt);
+	}
+  out->width = in->width;
+  out->height = in->height;
+  out->is_dense = in->is_dense;
+  out->header = in->header;
+	return out;
+}
+
 
 geometry_msgs::Point32 toROSPoint32(const ColorPoint& pt) {
 	geometry_msgs::Point32 g_pt;

@@ -32,12 +32,14 @@ SQPROSConfig::SQPROSConfig() : Config() {
   params.push_back(new Parameter<string>("robotFile", &robotFile, "robot file"));
   params.push_back(new Parameter<bool>("showFinalRun", &showFinalRun, "interactively show final trajectory"));
   params.push_back(new Parameter<float>("voxelSize", &voxelSize, "voxel size"));
+  params.push_back(new Parameter<string>("collisionShape", &collisionShape, "shape: box, sphere, mesh"));
 }
 string SQPROSConfig::saveRoot = "/home/joschu/Data/planning";
 string SQPROSConfig::loadProblem = "";
 string SQPROSConfig::robotFile = "robots/pr2-beta-static.zae";
 bool SQPROSConfig::showFinalRun;
 float SQPROSConfig::voxelSize=.03;
+string SQPROSConfig::collisionShape = "mesh";
 
 bool validateRequest(const PlanTrajRequest& req) {
   bool valid = true;
@@ -69,12 +71,18 @@ bool validateRequest(const PlanTrajRequest& req) {
   return valid;
 }
 
-CollisionBoxesPtr loadCloud(const sensor_msgs::PointCloud2& msg, Environment& env) {
+EnvironmentObjectPtr loadCloud(const sensor_msgs::PointCloud2& msg, Environment& env) {
   ColorCloudPtr fullCloud = fromROSMsg1(msg);
   ColorCloudPtr dsCloud = downsampleCloud(fullCloud, SQPROSConfig::voxelSize);
-  CollisionBoxesPtr boxes = collisionBoxesFromPointCloud(dsCloud, SQPROSConfig::voxelSize);
-  env.add(boxes);
-  return boxes;
+  EnvironmentObjectPtr collisionGeom;
+  if (SQPROSConfig::collisionShape == "box") {
+    collisionGeom = collisionBoxesFromPointCloud(dsCloud, SQPROSConfig::voxelSize);
+  }
+  else if (SQPROSConfig::collisionShape == "mesh") {
+    collisionGeom = collisionMeshFromPointCloud(dsCloud, SQPROSConfig::voxelSize);
+  }
+  env.add(collisionGeom);
+  return collisionGeom;
 }
 
 
@@ -140,13 +148,13 @@ bool setupProblem(const PlanTraj::Request& req, TrajOptimizer& opt, RaveRobotObj
     vector<double> v = req.robot_transform;
     robot.robot->SetTransform(util::toRaveTransform(btTransform(btQuaternion(v[0], v[1], v[2], v[3]), btVector3(v[4], v[5], v[6]))));
   }
+  robot.updateBullet();
 
   RobotManipulatorPtr manip = robot.createManipulator(req.manip);
   if (!manip) {
     LOG_ERROR("failed to load manipulator named "  << req.manip);
     return false;
   }
-  cout << "created manipulator " << manip->manip->GetName() << endl;
 
   if (SQPConfig::enablePlot) {
   	opt.m_plotters.push_back(ArmPlotterPtr(new ArmPlotter(manip, util::getGlobalScene(), SQPConfig::plotDecimation)));
@@ -238,8 +246,8 @@ bool handlePlanningRequest(const PlanTraj::Request& req, PlanTrajResponse& resp,
   vector<EnvironmentObjectPtr> addedObjs;
   setupEnvironment(req, robot, addedObjs);
   TrajOptimizer opt;
-
   bool setupSuccess = setupProblem(req, opt, robot);
+  pauseScene();
   if (!setupSuccess) {
   	cleanup(robot, addedObjs);
   	return false;

@@ -51,7 +51,7 @@ class Cost {
 public:
 	virtual ConvexObjectivePtr convexify(GRBModel* model)=0;
 	virtual double evaluate() = 0;
-	virtual string getName() {return "Unnamed";}
+	virtual string getName() {return "Unnamed cost";}
 	virtual ~Cost() {}
 
 };
@@ -62,13 +62,21 @@ public:
 	virtual ~Constraint() {}
 };
 
+class NonlinearConstraint : public Constraint {
+public:
+	virtual double evaluate() {return 0;}
+	virtual string getName() {return "Unnamed constraint";}
+};
 
-class TrustRegion : public Constraint {
+class TrustRegion {
 public:
 	double m_shrinkage;
 	TrustRegion();
 	virtual void adjustTrustRegion(double ratio) = 0;
 	void resetTrustRegion();
+  virtual ConvexConstraintPtr convexConstraint(GRBModel*) = 0;
+  virtual ConvexObjectivePtr convexObjective(GRBModel*) = 0;
+  virtual ~TrustRegion() {}
 };
 
 class Optimizer {
@@ -76,9 +84,10 @@ public:
 
 	enum OptStatus {
 		CONVERGED,
-		ITERATION_LIMIT,
-		SHRINKAGE_LIMIT,
-		GRB_FAIL
+  	SHRINKAGE_LIMIT, // trust region shrunk too much, but convergence might not have happened
+		ITERATION_LIMIT, // hit iteration limit before convergence
+		GRB_FAIL, // gurobi failed
+    PROGRAMMER_ERROR // your gradients/convexification are wrong
 	};
 	
 	vector<CostPtr> m_costs;
@@ -107,9 +116,8 @@ protected:
 	double getApproxObjective();
 	vector<ConvexObjectivePtr> convexifyObjectives();
 	vector<ConvexConstraintPtr> convexifyConstraints();
-	vector<double> evaluateObjectives();
-	void printObjectiveInfo(const vector<double>& oldExact,
-	     const vector<double>& newApprox, const vector<double>& newExact);
+	void printObjectiveInfo(const vector<double>& oldExact, const vector<double>& newApprox, const vector<double>& newExact);
+	void printConstraintInfo(const vector<double>& oldExact, const vector<double>& newExact);
 	void setupConvexProblem(const vector<ConvexObjectivePtr>&, const vector<ConvexConstraintPtr>&);
 	void clearConvexProblem(const vector<ConvexObjectivePtr>&, const vector<ConvexConstraintPtr>&);
 

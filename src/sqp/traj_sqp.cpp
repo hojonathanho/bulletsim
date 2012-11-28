@@ -477,7 +477,7 @@ void JointBounds::adjustTrustRegion(double ratio) {
   LOG_INFO("new trust region: " << m_maxDiffPerIter.transpose());
 }
 
-ConvexConstraintPtr JointBounds::convexify(GRBModel* model) {
+ConvexConstraintPtr JointBounds::convexConstraint(GRBModel* model) {
 	VarArray& vars = getVars();
 	MatrixXd& traj = getTraj();
 	
@@ -493,6 +493,37 @@ ConvexConstraintPtr JointBounds::convexify(GRBModel* model) {
 	ConvexConstraintPtr out(new ConvexConstraint());
 	return out;
 }
+
+ConvexObjectivePtr JointBounds::convexObjective(GRBModel* model) {
+  ConvexObjectivePtr out(new ConvexObjective());
+  return out;
+}
+
+SoftTrustRegion::SoftTrustRegion(TrajOptimizer* opt, double coeff) :
+  TrajComponent(opt), m_coeff(coeff)
+{}
+  
+ConvexConstraintPtr SoftTrustRegion::convexConstraint(GRBModel* model) {
+  return ConvexConstraintPtr(new ConvexConstraint());
+}
+ConvexObjectivePtr SoftTrustRegion::convexObjective(GRBModel* model) {
+  MatrixXd& traj = getTraj();
+  VarArray& vars = getVars();
+  ConvexObjectivePtr out(new ConvexObjective());
+  for (int i=0; i < traj.rows(); ++i) {
+    for (int j=0; j < traj.cols(); ++j) {
+      GRBLinExpr diff = vars(i,j) - traj(i,j);
+      out->m_objective += m_coeff * diff * diff;
+    }
+  }
+  return out;
+}
+
+void SoftTrustRegion::adjustTrustRegion(double ratio) {
+  m_coeff /= ratio;
+  m_shrinkage  *= ratio;
+}
+
 
 void getTrajPositionJacobians(RobotBasePtr robot, KinBody::LinkPtr link, const MatrixXd& traj, const vector<int>& dofInds, bool useAffine, 
 	vector<MatrixXd>& jacs, vector<VectorXd>& positions) {

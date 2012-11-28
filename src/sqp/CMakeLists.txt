@@ -69,3 +69,10 @@ add_executable(test_ros_ser test_ros_ser.cpp)
 target_link_libraries(test_ros_ser ${ROS_LIBRARIES})
 
 
+#############
+
+add_library(drc drc_costs.cpp drc_info.cpp drc_dynamics.cpp)
+target_link_libraries(drc sqp2)
+
+add_executable(test_drc test_drc.cpp)
+target_link_libraries(test_drc simulation sqp2 drc)

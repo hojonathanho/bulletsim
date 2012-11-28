@@ -62,20 +62,25 @@ struct Contact {
   // set in addToModel
   GRBVar m_fn;
   double m_fn_val;
+  double m_fn_backup;
   VarVector m_ffr;
   Vector3d m_ffr_val;
+  Vector3d m_ffr_backup;
 
   // set later
   GRBLinExpr m_distExpr;
 
   Contact(RigidBody* bodyA, RigidBody* bodyB, const btVector3& worldA, const btVector3& worldB,
-                   const btVector3& normalB2A, double dist);
+  		const btVector3& localA, const btVector3& localB, const btVector3& normalB2A, double dist);
   ~Contact();
-  void setData(const btVector3& worldA, const btVector3& worldB, const btVector3& normalB2A, double dist);
+  void setData(const btVector3& worldA, const btVector3& worldB, const btVector3& normalB2A,
+  		const btVector3& localA, const btVector3& localB, double dist);
   void addToModel(GRBModel* model);
   void removeFromModel(GRBModel* model);
   string getName();
   void updateValues();
+  void backup();
+  void restore();
   void calcDistExpr();
 
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
@@ -111,11 +116,11 @@ struct DynSolver : public Optimizer {
   void fixVariables();
 
   void updateContacts();
+  void updateContactsFull();
   void finishStep();
   
   vector<SignedContact> getSignedContacts(RigidBody*);
 
-  OptStatus optimize();
 };
 
 struct IntegrationConstraint : public Constraint {
@@ -153,6 +158,25 @@ struct ComplementarityCost : public Cost {
   string getName() {return "Complementarity";}
 };
 
+struct ComplementarityCost2 : public Cost {
+  DynSolver* m_solver;
+  double m_coeff;
+  ComplementarityCost2(DynSolver*);
+  double evaluate();
+  ConvexObjectivePtr convexify(GRBModel* model);
+  string getName() {return "Complementarity2";}
+};
+
+struct FricCost : public Cost {
+  DynSolver* m_solver;
+  double m_coeff;
+  FricCost(DynSolver*);
+  double evaluate();
+  ConvexObjectivePtr convexify(GRBModel* model);
+  string getName() {return "Friction";}
+};
+
+
 struct FrictionConstraint : public Constraint {
   DynSolver* m_solver;
   double m_mu2;
@@ -169,10 +193,11 @@ struct OverlapPenalty : public Cost {
   string getName() {return "Overlap";}
 };
 
-struct OverlapConstraint : public Constraint {
+struct OverlapConstraint : public NonlinearConstraint {
   DynSolver* m_solver;
   OverlapConstraint(DynSolver*);
   ConvexConstraintPtr convexify(GRBModel* model);
+  double evaluate();
 };
 
 
@@ -199,12 +224,11 @@ struct DynErrCost : public Cost {
 class DynTrustRegion : public TrustRegion {
 public:
   DynSolver* m_solver;
-  Vector3d m_x1_var, m_r1_var, m_v1_var, m_w1_var;
+  double m_coeff;
   DynTrustRegion(DynSolver* solver);
-  ConvexConstraintPtr convexify(GRBModel* model);
+  ConvexObjectivePtr convexObjective(GRBModel* model);
+  ConvexConstraintPtr convexConstraint(GRBModel* model);
   void adjustTrustRegion(double ratio);
-
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
 };
 
 typedef boost::shared_ptr<RigidBody> RigidBodyPtr;

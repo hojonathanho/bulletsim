@@ -16,6 +16,7 @@ using namespace Eigen;
 void pauseScene() {
 	Scene* scene = util::getGlobalScene();
 	assert(scene != NULL);
+	scene->step(0);
 	printf("press p to resume\n");
 	scene->idle(true);
 }

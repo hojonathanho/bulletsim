@@ -43,6 +43,23 @@ struct BasicArray {
   int cols() const {
     return m_nCol;
   }
+  BasicArray block(int startRow, int startCol, int nRow, int nCol) const {
+    BasicArray out;
+    out.resize(nRow, nCol);
+    for (int iRow = 0; iRow < nRow; ++iRow) {
+      for (int iCol = 0; iCol < nCol; ++iCol) {
+        out(iRow, iCol) = at(iRow+startRow, iCol + startCol);
+      }
+    }
+    return out;
+  }
+  vector<T> rblock(int startRow, int startCol, int nCol) const {
+    vector<T> out(nCol);
+		for (int iCol = 0; iCol < nCol; ++iCol) {
+			out[iCol] = at(startRow, iCol + startCol);
+    }
+    return out;
+  }
   BasicArray middleRows(int start, int n) {
     BasicArray out;
     out.resize(n, m_nCol);

@@ -134,6 +134,7 @@ public:
   ConvexObjectivePtr convexify(GRBModel* model);	
 	string getName() {return "JntLenCost";}
 };
+
 class JointBounds : public TrustRegion, public TrajComponent {
 public:
   VectorXd m_maxDiffPerIter;
@@ -141,7 +142,17 @@ public:
   VectorXd m_jointUpperLimit;
 
   JointBounds(TrajOptimizer* opt, const VectorXd& maxDiffPerIter, const VectorXd& jointLowerLimit, const VectorXd& jointUpperLimit);
-  ConvexConstraintPtr convexify(GRBModel* model);
+  ConvexConstraintPtr convexConstraint(GRBModel* model);
+  ConvexObjectivePtr convexObjective(GRBModel* model);
+	void adjustTrustRegion(double ratio);
+};
+
+class SoftTrustRegion : public TrustRegion, public TrajComponent {
+public:
+  double m_coeff;
+  SoftTrustRegion(TrajOptimizer* opt, double coeff);
+  ConvexConstraintPtr convexConstraint(GRBModel* model);
+  ConvexObjectivePtr convexObjective(GRBModel* model);
 	void adjustTrustRegion(double ratio);
 };
 

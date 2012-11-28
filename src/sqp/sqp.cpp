@@ -31,6 +31,7 @@ boost::shared_ptr<GRBEnv> getGRBEnv() {
 
 const char* getGRBStatusString(int status) {
   assert(status >= 1 && status <= 13);
+  printf("Grb status; %i\n",status);
   return grb_statuses[status];
 }
 
@@ -59,7 +60,17 @@ void Optimizer::printObjectiveInfo(const vector<double>& oldExact,
   }
 }
 
-ConvexPart::ConvexPart() : m_inModel(false) {}
+void Optimizer::printConstraintInfo(const vector<double>& oldExact, const vector<double>& newExact) {
+  LOG_INFO_FMT("%15s | %10s | %10s", "constraint", "oldexact", "newexact");
+  for (int i=0; i < m_cnts.size(); ++i) {
+  	NonlinearConstraint* maybeNLC = dynamic_cast<NonlinearConstraint*>(m_cnts[i].get());
+    if (maybeNLC) {
+      LOG_INFO_FMT("%15s | %10.3e | %10.3e", maybeNLC->getName().c_str(), oldExact[i], newExact[i]);
+    }
+  }
+}
+
+ConvexPart::ConvexPart() : m_inModel(false), m_model(NULL) {}
 
 void ConvexPart::addToModel(GRBModel* model) {
   m_model = model;
@@ -145,8 +156,6 @@ void Optimizer::addConstraint(ConstraintPtr cnt) {
 }
 void Optimizer::setTrustRegion(TrustRegionPtr tra) {
   m_tra = tra;
-  assert(m_cnts.size()==0); //trust region must be first constraint
-  addConstraint(tra);
 }
 
 int Optimizer::convexOptimize() {
@@ -154,10 +163,19 @@ int Optimizer::convexOptimize() {
   return m_model->get(GRB_IntAttr_Status);
 }
 
-vector<double> Optimizer::evaluateObjectives() {
-  vector<double> out(m_costs.size());
-  for (int i=0; i < m_costs.size(); ++i) {
-    out[i] = m_costs[i]->evaluate();
+vector<double> evaluateObjectives(vector<CostPtr>& costs) {
+  vector<double> out(costs.size());
+  for (int i=0; i < costs.size(); ++i) {
+    out[i] = costs[i]->evaluate();
+  }
+  return out;
+}
+
+vector<double> evaluateConstraints(vector<ConstraintPtr>& cnts) {
+  vector<double> out(cnts.size());
+  for (int i=0; i < cnts.size(); ++i) {
+  	NonlinearConstraint* maybeNLC = dynamic_cast<NonlinearConstraint*>(cnts[i].get());
+    out[i] = maybeNLC ? maybeNLC->evaluate() : 0;
   }
   return out;
 }
@@ -188,30 +206,59 @@ Optimizer::OptStatus Optimizer::optimize() {
 
   ////////////
   double trueImprove, approxImprove, improveRatio; // will be used to check for convergence
-  vector<double> newObjectiveVals, objectiveVals;
+  vector<double> newObjectiveVals, objectiveVals, newConstraintVals, constraintVals;
 	bool grbFail=false;
   /////////
 
 
-  for (int iter = 1;;) {
+  for (int iter = 1;;++iter) {
 
     LOG_INFO_FMT("iteration: %i", iter);
 
     ////// convexification /////////
+    vector<ConvexObjectivePtr> objectives = convexifyObjectives();
+    vector<ConvexConstraintPtr> constraints = convexifyConstraints();
+
+    // get objective/constraint values
     // slight optimization: don't evaluate objectives
     // if you just did so while checking for improvement
-    vector<ConvexObjectivePtr> objectives = convexifyObjectives();
-    if (newObjectiveVals.size() == 0) objectiveVals = evaluateObjectives();
+    if (newObjectiveVals.empty()) objectiveVals = evaluateObjectives(m_costs);
     else objectiveVals = newObjectiveVals;
-    double objectiveVal = sum(objectiveVals);
-    vector<ConvexConstraintPtr> constraints = convexifyConstraints();
-    setupConvexProblem(objectives, constraints);
+    if (newConstraintVals.empty()) constraintVals = evaluateConstraints(m_cnts);
+    else constraintVals = newConstraintVals;
+    double meritVal = sum(objectiveVals) + sum(constraintVals);
+        
+    // update model with new variables
+    m_model->update();
+    
+    // add non-trust-region stuff to model
+    BOOST_FOREACH(const ConvexConstraintPtr& part, constraints)
+      part->addToModel(m_model);
+    BOOST_FOREACH(const ConvexObjectivePtr& part, objectives) {
+      part->addToModel(m_model);
+    }
+
+    m_model->update();
+        
     ///////////////////////////////////
 
+    int trIter=0;
     while (m_tra->m_shrinkage >= SQPConfig::shrinkLimit) { // trust region adjustment
-      if (iter > SQPConfig::maxIter) break;
-      ++iter;
+    	++trIter;
+    	LOG_DEBUG_FMT("convex optimization %i", trIter);
+      // add trust region stuff
+      ConvexObjectivePtr trObjective = m_tra->convexObjective(m_model);
+      ConvexConstraintPtr trConstraint = m_tra->convexConstraint(m_model);
+      trObjective->addToModel(m_model);
+      trConstraint->addToModel(m_model);
 
+      // build objective
+      GRBQuadExpr objective(0);
+      BOOST_FOREACH(const ConvexObjectivePtr& part, objectives) {
+        objective += part->m_objective;
+      }      
+      objective += trObjective->m_objective;
+      m_model->setObjective(objective);
 
       ////// convex optimization /////////////////////
       preOptimize();
@@ -222,8 +269,9 @@ Optimizer::OptStatus Optimizer::optimize() {
 				grbFail = true;
 				break;
       }
+      // updateValues might add/delete variables so we get the approx stuff now
       vector<double> approxObjectiveVals = evalApproxObjectives(objectives);
-      double approxObjectiveVal = sum(approxObjectiveVals);
+      double approxMeritVal = sum(approxObjectiveVals);
 
       storeValues();
       updateValues();
@@ -231,14 +279,19 @@ Optimizer::OptStatus Optimizer::optimize() {
       //////////////////////////////////////////////
 
       ////////// calculate new objectives ////////////
-      newObjectiveVals = evaluateObjectives();
-      double newObjectiveVal = sum(newObjectiveVals);
+      newObjectiveVals = evaluateObjectives(m_costs);
+      newConstraintVals = evaluateConstraints(m_cnts);
+      double newMeritVal = sum(newObjectiveVals) + sum(newConstraintVals);
       printObjectiveInfo(objectiveVals, approxObjectiveVals, newObjectiveVals);
-      trueImprove = objectiveVal - newObjectiveVal;
-      approxImprove = objectiveVal - approxObjectiveVal;
+      printConstraintInfo(constraintVals, newConstraintVals);
+      trueImprove = meritVal - newMeritVal;
+      approxImprove = meritVal - approxMeritVal;
       improveRatio = trueImprove / approxImprove;
-      LOG_INFO_FMT("%15s | %10.3e | %10.3e | %10.3e | %10.3e", "TOTAL", objectiveVal, approxImprove, trueImprove, improveRatio);
+      LOG_INFO_FMT("%15s | %10.3e | %10.3e | %10.3e | %10.3e", "TOTAL", meritVal, approxImprove, trueImprove, improveRatio);
       //////////////////////////////////////////////
+
+      trObjective->removeFromModel();
+      trConstraint->removeFromModel();
 
       if (approxImprove < 1e-7) {
         LOG_INFO_FMT("not much room to improve in this problem. approxImprove: %.2e", approxImprove);
@@ -247,14 +300,10 @@ Optimizer::OptStatus Optimizer::optimize() {
       }
 
 
-      if (newObjectiveVal > objectiveVal) {
+      if (newMeritVal > meritVal) {
         LOG_INFO("objective got worse! rolling back and shrinking trust region");
         rollbackValues();//
         m_tra->adjustTrustRegion(SQPConfig::trShrink);
-        // just change trust region constraint, keep everything else the same
-        constraints[0]->removeFromModel(); // first constraint = trust region!
-        constraints[0] = m_tra->convexify(m_model);
-        constraints[0]->addToModel(m_model);
       }
       else {
         if (improveRatio < SQPConfig::trThresh)
@@ -269,27 +318,27 @@ Optimizer::OptStatus Optimizer::optimize() {
 		clearConvexProblem(objectives, constraints);
 
     //// exit conditions ///
+    // todo: think through these more carefully
 		if (grbFail) {
 			return GRB_FAIL;
 		}		
-    if (iter >= SQPConfig::maxIter) {
+    else if (iter >= SQPConfig::maxIter) {
       LOG_WARN("reached iteration limit");
       return ITERATION_LIMIT;
     }
-
-    if (m_tra->m_shrinkage < SQPConfig::shrinkLimit) {
+    else if (m_tra->m_shrinkage < SQPConfig::shrinkLimit) {
       LOG_WARN("trust region shrunk too much. stopping");
       return SHRINKAGE_LIMIT;
     }
-    if (approxImprove < 0) {
+    else if (approxImprove < 0) {
       LOG_ERROR("approxImprove < 0. something's probably wrong");
       return CONVERGED;
     }
-    if (approxImprove < 1e-7) {
+    else if (approxImprove < 1e-7) {
       LOG_INFO("no room to improve, according to convexification");
       return CONVERGED;
     }
-    if (trueImprove < SQPConfig::doneIterThresh && improveRatio > SQPConfig::trThresh) {
+    else if (trueImprove < SQPConfig::doneIterThresh && improveRatio > SQPConfig::trThresh) {
       LOG_INFO_FMT("cost improvement below convergence threshold (%.3e < %.3e). stopping", SQPConfig::doneIterThresh, SQPConfig::trThresh);
       return CONVERGED; // xxx should probably check that it improved multiple times in a row
     }
