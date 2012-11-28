@@ -258,7 +258,6 @@ void CustomScene::testTrajectory3() {
 	} else {
 		std::cout<<"Plan failed!"<<std::endl;
 	}
-
 }
 
 /* Sets up the scene and UI even handlers,

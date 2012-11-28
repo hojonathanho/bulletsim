@@ -144,6 +144,4 @@ public:
 	void run();
 };
 
-
-
 #endif

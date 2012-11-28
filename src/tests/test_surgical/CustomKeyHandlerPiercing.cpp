@@ -25,8 +25,8 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,
         	scene.rave_viewer->main(true);
     		break;
         case 'm':
-        	scene.togglePiercing();
-        	std::cout<<"Is needle piercing? "<<scene.piercing<<std::endl;
+        	scene.sNeedle->togglePiercing();
+        	std::cout<<"Is needle piercing? "<<scene.sNeedle->s_piercing<<std::endl;
         	break;
         case 'M':
         	scene.holes[0]->togglePiercing();
@@ -47,7 +47,7 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,
         	scene.plotHoles(true);
         	break;
         case 't': // generates a kinematic from the cloth and adds to the openrave environment
-        	createKinBodyFromBulletSoftObject(scene.cloth, scene.rave);
+        	createKinBodyFromBulletSoftObject(scene.sCloth->cloth, scene.rave);
         	createKinBodyFromBulletBoxObject(scene.table, scene.rave);
         	break;
         }

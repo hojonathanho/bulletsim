@@ -72,7 +72,8 @@ target_link_libraries(test_suture_cloth simulation robots)
 
 add_executable(test_piercing test_piercing.cpp
                             	 test_surgical/CustomScenePiercing.cpp
-                            	 test_surgical/CustomKeyHandlerPiercing.cpp)
+                            	 test_surgical/CustomKeyHandlerPiercing.cpp
+                            	 test_surgical/RavePlanners.cpp)
 target_link_libraries(test_piercing simulation robots)
 
 add_executable(rave_cpp test_surgical/planning.cpp)
