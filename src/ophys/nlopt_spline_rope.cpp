@@ -90,21 +90,21 @@ struct OptRope {
   void setCoeffs1() {
     m_coeffs.groundPenetration = 1.;
     m_coeffs.velUpdate = 0.1;
-    m_coeffs.contact = 0.1;
+    m_coeffs.contact = 0.01;
     m_coeffs.forces = 1;
     m_coeffs.linkLen = 0.1;
     m_coeffs.goalPos = 1;
-    m_coeffs.manipSpeed = 0.1;
+    m_coeffs.manipSpeed = 0.001;
   }
 
   void setCoeffs2() {
     m_coeffs.groundPenetration = 1.;
     m_coeffs.velUpdate = 10.;
-    m_coeffs.contact = 1;
+    m_coeffs.contact = 10;
     m_coeffs.forces = 1;
     m_coeffs.linkLen = 1;
     m_coeffs.goalPos = 1;
-    m_coeffs.manipSpeed = 0.1;
+    m_coeffs.manipSpeed = 0.001;
   }
 
   struct State {
@@ -420,7 +420,7 @@ struct OptRope {
     return s.dim();
   }
 
-  ///////// Cost function components /////////////
+  ///////////// Cost function terms /////////////
   double cost_groundPenetration(const State &es) const { // es is an expanded state (interpolated)
     // sum of squares of positive parts
     double cost = 0;
@@ -438,9 +438,10 @@ struct OptRope {
     for (int t = 0; t < es.atTime.size() - 1; ++t) {
       for (int n = 0; n < m_N; ++n) {
         // compute total force on particle n at time t
+        Vector3d gravity(0, 0, OPhysConfig::gravity);
         Vector3d groundForce(0, 0, es.atTime[t].groundForce_c[n] * es.atTime[t].groundForce_f[n]);
-        Vector3d manipForce(0, 0, 0);//es.atTime[t].manipForce_c[n] * es.atTime[t].manipForce.row(n).transpose(); //(state.atTime[t].manipPos - pos[t].row(n).transpose()).normalized() * state.atTime[t].manipForce_f[n];
-        Vector3d totalForce = OPhysConfig::gravity + groundForce + manipForce;
+        Vector3d manipForce = es.atTime[t].manipForce_c[n] * es.atTime[t].manipForce.row(n).transpose(); //(state.atTime[t].manipPos - pos[t].row(n).transpose()).normalized() * state.atTime[t].manipForce_f[n];
+        Vector3d totalForce = gravity + groundForce + manipForce;
         Vector3d accel = es.atTime[t].derived_accel.row(n).transpose();
         cost += (accel - totalForce /* / mass */).squaredNorm();
       }
@@ -493,10 +494,10 @@ struct OptRope {
     return cost;
   }
 
-  // goal cost: point 0 should be at ()
+  // goal cost: point 0 should be at (0, 0, 1)
   double cost_goalPos(const State &es) const {
-    static const Vector3d desiredPos0 = Vector3d(0, 0, 1); //m_initPos.row(0).transpose() + Vector3d(1);
-    return (es.atTime[es.atTime.size()-1].x.row(0) - desiredPos0.transpose()).squaredNorm();
+    static const Vector3d desiredPos0(0, 0, 1);
+    return (es.atTime.back().x.row(0).transpose() - desiredPos0).squaredNorm();
   }
 
   double cost_manipSpeed(const State &es) const {
@@ -513,13 +514,11 @@ struct OptRope {
     double cost = 0;
     cost += m_coeffs.groundPenetration * cost_groundPenetration(expandedState);
     cost += m_coeffs.velUpdate * cost_velUpdate(expandedState);
-    //cost += m_coeffs.initialVelocity * cost_initialVelocity(expandedState);
     cost += m_coeffs.contact * cost_contact(expandedState);
     cost += m_coeffs.forces * cost_forces(expandedState);
     //cost += m_coeffs.linkLen * cost_linkLen(expandedState);
-    //cost += m_coeffs.goalPos * cost_goalPos(expandedState);
-    //cost += m_coeffs.manipSpeed * cost_manipSpeed(expandedState);
-    //cost += m_coeffs.initManipPos * cost_initManipPos(expandedState);
+    cost += m_coeffs.goalPos * cost_goalPos(expandedState);
+    cost += m_coeffs.manipSpeed * cost_manipSpeed(expandedState);
     return cost;
   }
 
@@ -685,8 +684,7 @@ static void runOpt(nlopt::opt &opt, vector<double> &x0, double &minf) {
   }
 }
 
-int main() {
-  // testing
+void runTests() {
   OptRope::State testingState(100, 200);
   VectorXd testingCol = VectorXd::Random(testingState.dim());
   testingState.initFromColumn(testingCol);
@@ -694,20 +692,25 @@ int main() {
   if (testingCol == testingState.toColumn()) {
     cout << "state/column conversion testing passed" << endl;
   }
-  // end testing
+}
 
+int main(int argc, char *argv[]) {
+  Parser parser;
+  parser.addGroup(OPhysConfig());
+  parser.read(argc, argv);
 
-  const int N = 2;
-  const int T = 5;
+  if (OPhysConfig::runTests) {
+    runTests();
+  }
 
-  MatrixX3d initPositions(N, 3);
-  for (int i = 0; i < N; ++i) {
-    initPositions.row(i) << (-1 + 2*i/(N-1.0)), 0, 0.05;
+  MatrixX3d initPositions(OPhysConfig::N, 3);
+  for (int i = 0; i < OPhysConfig::N; ++i) {
+    initPositions.row(i) << (-1 + 2*i/(OPhysConfig::N-1.0)), 0, 0.05;
   }
   double linklen = abs(initPositions(0, 0) - initPositions(1, 0));
   Vector3d initManipPos(0, 0, 2);
 
-  OptRope optrope(initPositions, initManipPos, T, N, linklen);
+  OptRope optrope(initPositions, initManipPos, OPhysConfig::T, OPhysConfig::N, linklen);
 
 
 
@@ -716,13 +719,6 @@ int main() {
   // optrope.setCoeffs2();
   // addNoise(x, 0, 0.01);
   // OptRope::State finalState = optrope.solve(x);
-
-
-
-
-
-
-
 
 
   cout << "optimizing " << optrope.getNumVariables() << " variables" << endl;
@@ -760,7 +756,7 @@ int main() {
   cout << finalState.toString() << endl;
 
   Scene scene;
-  OptRopePlot plot(N, &scene, finalState.atTime[0].x, finalState.atTime[0].manipPos);
+  OptRopePlot plot(OPhysConfig::N, &scene, finalState.atTime[0].x, finalState.atTime[0].manipPos);
   scene.startViewer();
   plot.playTraj(finalState, true, true);
 
