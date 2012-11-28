@@ -448,18 +448,6 @@ struct OptRope {
     return cost;
   }
 
-  // double cost_initialVelocity(const State &state) const {
-  //   double cost = 0;
-  //   for (int n = 0; n < m_N; ++n) {
-  //     cost += state.atTime[0].vel.row(n).squaredNorm();
-  //   }
-  //   return cost;
-  // }
-
-  // double cost_initManipPos(const State &state) const {
-  //   return (state.atTime[0].manipPos - m_initManipPos).squaredNorm();
-  // }
-
   double cost_contact(const State &es) const {
     double cost = 0;
     // ground force: groundContact^2 * (ground non-violation)^2
@@ -482,7 +470,7 @@ struct OptRope {
       for (int n = 0; n < m_N; ++n) {
         // ground force (force^2 / contact^2) + force^2
         //cost += square(es.atTime[t].groundForce_f[n]) / (1e-5 + square(es.atTime[t].groundForce_c[n]));
-        cost += 1e-3*square(es.atTime[t].groundForce_f[n]);
+        cost += 1e-6*square(es.atTime[t].groundForce_f[n]);
 
         // manipulator force
         double manip_fsqnorm = es.atTime[t].manipForce.row(n).squaredNorm();
@@ -710,11 +698,11 @@ int main() {
 
 
   const int N = 2;
-  const int T = 3;
+  const int T = 5;
 
   MatrixX3d initPositions(N, 3);
   for (int i = 0; i < N; ++i) {
-    initPositions.row(i) << (-1 + 2*i/(N-1.0)), 0, 0.5;
+    initPositions.row(i) << (-1 + 2*i/(N-1.0)), 0, 0.05;
   }
   double linklen = abs(initPositions(0, 0) - initPositions(1, 0));
   Vector3d initManipPos(0, 0, 2);
