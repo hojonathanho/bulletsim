@@ -43,7 +43,7 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,
         	scene.rave->env->Save("/home/ankush/sandbox/rave_suture/suture_env2.xml");
         	break;
 
-        case 'l': // saves the openrave environment to a file
+        case 'l': // tests Grasping
         	scene.testGrasping();
         	break;
 

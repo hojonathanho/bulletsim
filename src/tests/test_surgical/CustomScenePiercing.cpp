@@ -74,11 +74,11 @@ struct	ImplicitSphere : btSoftBody::ImplicitFn
 	}
 };
 
-/* Creates a square cloth with side length 2s.
-   The four coordinates of the cloth are:
-   {(s,s,z) (-s,s,z) (-s,-s,z) (s,-s,z)}
-   Then, the center of the cloth (initially at (0,0,0)
-   is translated to CENTER.*/
+/** Creates a square cloth with side length 2s.
+    The four coordinates of the cloth are:
+    {(s,s,z) (-s,s,z) (-s,-s,z) (s,-s,z)}
+    Then, the center of the cloth (initially at (0,0,0)
+    is translated to CENTER.*/
 BulletSoftObject::Ptr CustomScene::createCloth(btScalar s, btScalar z, btVector3 center,
 								  std::vector<int> &cut_nodes1, std::vector<int> &cut_nodes2,
 								  bool getCutIndices,
@@ -362,7 +362,7 @@ void CustomScene::Hole::calculateCenter() {
 	h_center /= nnodes;
 }
 
-// Callback of the hole to cut when the suturing needle is close
+/** Callback of the hole to cut when the suturing needle is close.*/
 void CustomScene::Hole::holeCutCallback() {
 	if (!h_scene->sNeedle->s_piercing || !h_currently_piercing) return;
 
@@ -394,8 +394,8 @@ void CustomScene::Hole::holeCutCallback() {
 		}
 	}
 
-	// Code for some realism
-#else
+
+#else // Code for some realism
 	if (!h_started_piercing) {
 		for (i = 0; i < nnodes; ++i) {
 			for (j = 0; j < numContacts; ++j) {
@@ -637,6 +637,20 @@ void CustomScene::testTrajectory2() {
 	}
 }
 
+/** small test to test the smooth planning of IK planner. */
+void CustomScene::testTrajectory3() {
+	//WayPointsPlanner planner1(pr2m.pr2, rave, 'r');
+	IKInterpolationPlanner ikPlanner(pr2m, rave, 'r');
+
+	std::pair<bool, RaveTrajectory::Ptr> res = ikPlanner.goInWorldDirection('f',0.25);
+	if (res.first) {
+		pr2m.controller->appendTrajectory(res.second);
+		pr2m.controller->run();
+	} else {
+		std::cout<<"Plan failed!"<<std::endl;
+	}
+}
+
 /** small test to test circular trajectory. */
 void CustomScene::testCircular() {
 
@@ -661,20 +675,6 @@ void CustomScene::testCircular() {
 
 	IKInterpolationPlanner ikPlanner(pr2m,rave,'r');
 	std::pair<bool, RaveTrajectory::Ptr> res = ikPlanner.smoothPlan(wayPoints);
-	if (res.first) {
-		pr2m.controller->appendTrajectory(res.second);
-		pr2m.controller->run();
-	} else {
-		std::cout<<"Plan failed!"<<std::endl;
-	}
-}
-
-/** small test to test the smooth planning of IK planner. */
-void CustomScene::testTrajectory3() {
-	//WayPointsPlanner planner1(pr2m.pr2, rave, 'r');
-	IKInterpolationPlanner ikPlanner(pr2m, rave, 'r');
-
-	std::pair<bool, RaveTrajectory::Ptr> res = ikPlanner.goInWorldDirection('f',0.25);
 	if (res.first) {
 		pr2m.controller->appendTrajectory(res.second);
 		pr2m.controller->run();
