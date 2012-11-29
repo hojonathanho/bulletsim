@@ -37,7 +37,7 @@ class PR2SoftBodyGripper {
 
     bool grabOnlyOnContact;
 
-    KinBody::LinkPtr leftFinger, rightFinger;
+    KinBody::LinkPtr leftFinger, rightFinger, palm;
 
     // vector normal to the direction that the gripper fingers move in the manipulator frame
     // (on the PR2 this points back into the arm)
@@ -72,11 +72,11 @@ class PR2SoftBodyGripper {
         return (getManipRot() * getClosingDirection(left)).dot(pt - getInnerPt(left)) > 0;
     }
 
-    bool inGraspRegion(const btVector3 &pt) const;
+    bool inGraspRegion(const btVector3 &pt, float inner_side_slack=0.0) const;
 
     // Checks if psb is touching the inside of the gripper fingers
     // If so, attaches anchors to every contact point
-    void attach(bool left);
+    void attach();
 
     class Anchor {
     public:

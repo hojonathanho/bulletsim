@@ -143,8 +143,8 @@ public:
 };
 
 
-BulletSoftObject::Ptr makeCloth(float sx, float sy, btVector3 t, int resolution_x, int resolution_y, float mass);
-BulletSoftObject::Ptr makeCloth(const vector<btVector3>& corners, int resolution_x, int resolution_y, float mass);
+BulletSoftObject::Ptr makeCloth(float sx, float sy, btVector3 t, float node_density, float surface_density);
+BulletSoftObject::Ptr makeCloth(const vector<btVector3>& corners, float node_density, float surface_density);
 
 // Assumes top_corners are in a plane parallel to the xy-plane
 // The bottom corners are the top_corners shifted by thickness in the negative z direction

@@ -248,38 +248,6 @@ BulletSoftObject::Ptr makeTowel(const vector<btVector3>& points, int resolution_
 	return bso;
 }
 
-cv::Mat TrackedTowel::makeTexture(const vector<btVector3>& corners, cv::Mat image, CoordinateTransformer* transformer) {
-	vector<Vector3f> points = toEigenVectors(corners);
-	BOOST_FOREACH(Vector3f& point, points) point = transformer->camFromWorldEigen * point;
-
-  MatrixXi src_pixels = xyz2uv(toEigenMatrix(points));
-  MatrixXi dst_pixels(4,2);
-
-	int resolution_x = m_sx/(TrackingConfig::node_distance*METERS) + 1;
-	int resolution_y = m_sy/(TrackingConfig::node_distance*METERS) + 1;
-  int tex_sx = TrackingConfig::node_pixel * resolution_x;
-  int tex_sy = TrackingConfig::node_pixel * resolution_y;
-
-  dst_pixels <<   0,   0,
-									0,  tex_sx,
-									tex_sy,  tex_sx,
-									tex_sy,   0;
-  cv::Mat src_mat(4, 2, CV_32FC1);
-	cv::Mat dst_mat(4, 2, CV_32FC1);
-	for(int i=0; i<src_mat.rows; i++) {
-		for(int j=0; j<src_mat.cols; j++) {
-			src_mat.at<float>(i,j) = (float) src_pixels(i,(j+1)%2);
-			dst_mat.at<float>(i,j) = (float) dst_pixels(i,(j+1)%2);
-		}
-	}
-	cv::Mat H = cv::findHomography(src_mat, dst_mat);
-	cv::Mat tex_image(tex_sy, tex_sx, CV_8UC3);
-	cv::warpPerspective(image, tex_image, H, cv::Size(tex_sx, tex_sy));
-	cv::Mat tex_image_lab(tex_sy, tex_sx, CV_8UC3);
-
-	return tex_image;
-}
-
 void TrackedTowel::initColors() {
 	m_colors.resize(m_nNodes, 3);
 	cv::Mat tex_image = getSim()->getTexture();

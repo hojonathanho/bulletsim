@@ -1,12 +1,12 @@
 #include "multihyp_tracker.h"
 
 MultiHypTracker::MultiHypTracker(TrackedObjectFeatureExtractor::Ptr object_features, FeatureExtractor::Ptr observation_features,
-		VisibilityInterface::Ptr visibility_interface, vector<GrabManager::Ptr> grab_managers) :
+		VisibilityInterface::Ptr visibility_interface, StochasticPhysicsTracker::Distribution dist, float param) :
 		PhysicsTracker(object_features, observation_features, visibility_interface),
-		m_grab_managers(grab_managers),
-		m_grabbing_last(vector<bool>(grab_managers.size(), false))
+		m_dist(dist),
+		m_param(param)
 {
-	PhysicsTracker::Ptr tracker(new PhysicsTracker(object_features, observation_features, visibility_interface));
+	StochasticPhysicsTracker::Ptr tracker(new StochasticPhysicsTracker(object_features, observation_features, visibility_interface, dist, param));
 	m_trackers.push_back(tracker);
 }
 

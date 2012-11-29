@@ -112,6 +112,9 @@ public:
   void runAction(ObjectAction &a, float dt);
   void runAction(ObjectAction::Ptr a, float dt) { runAction(*a.get(), dt); }
 
+  vector<PlotObject::Ptr> draw_once_objects;
+  void addDrawOnce(PlotObject::Ptr obj) { draw_once_objects.push_back(obj); }
+
   virtual void draw();
 
 protected:

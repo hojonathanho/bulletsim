@@ -5,12 +5,10 @@
 #include <string>
 
 GrabDetector::GrabDetector(Side side, VoidCallback grabCB, VoidCallback releaseCB) :
+	GrabDetectorBase(grabCB, releaseCB),
 	m_side(side),
 	m_grabCount(0),
 	m_emptyCount(0),
-	m_grabbing(false),
-	m_grabCB(grabCB),
-	m_releaseCB(releaseCB),
 	m_jointIdx(-1) {}
 
 
@@ -49,11 +47,30 @@ void GrabDetector::update(const sensor_msgs::JointState& joint) {
 	}
 }
 
-
 bool GrabDetector::isGrabbing(float position, float velocity, float effort) {
 //	bool out= (fabs(velocity) < .001) && (fabs(effort) > 50) && (position > 0);
 	bool out = position < .01;
 	return out;
+}
+
+HysterisGrabDetector::HysterisGrabDetector(float gripper_angle_low_thresh, float gripper_angle_high_thresh, VoidCallback grabCB, VoidCallback releaseCB) :
+	GrabDetectorBase(grabCB, releaseCB),
+	m_high_thresh(gripper_angle_high_thresh),
+	m_low_thresh(gripper_angle_low_thresh)
+{
+	if (m_low_thresh > m_high_thresh) runtime_error("The high threshold for the gripper angle should be greater than the low threshold");
+}
+
+void HysterisGrabDetector::update(float gripper_angle) {
+	if (!m_grabbing && (gripper_angle<m_low_thresh)) {
+		m_grabbing = true;
+		printf("no grab -> grab\n");
+		m_grabCB();
+	} else if (m_grabbing && (gripper_angle>m_high_thresh)) {
+		m_grabbing = false;
+		printf("grab -> no grab\n");
+		m_releaseCB();
+	}
 }
 
 GrabManager::GrabManager() {}

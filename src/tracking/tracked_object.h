@@ -87,7 +87,6 @@ public:
   std::vector<btVector3> getNormals();
   void applyEvidence(const Eigen::MatrixXf& corr, const Eigen::MatrixXf& obsPts); // add forces
   BulletSoftObject* getSim() {return dynamic_cast<BulletSoftObject*>(m_sim.get());};
-  cv::Mat makeTexture(const vector<btVector3>& corners, cv::Mat image, CoordinateTransformer* transformer);
   cv::Point2f textureCoordinate (int node_id);
   void initColors();
   float m_sx, m_sy; //towel dimensions

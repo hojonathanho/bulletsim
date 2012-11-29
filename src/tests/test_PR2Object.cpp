@@ -29,6 +29,17 @@ void forkSceneEnvironment(Scene* scene, PR2Object::Ptr pr2) {
 	scene->addVoidKeyCallback('s', boost::bind(&Scene::swapEnvironment, scene, forked->env), "swap the active environment");
 }
 
+struct LocalConfig: Config {
+  static float node_density;
+  static float surface_density;
+  LocalConfig() : Config() {
+    params.push_back(new Parameter<float>("node_density", &node_density, "# nodes per unit distance. (resolution-1)/length"));
+    params.push_back(new Parameter<float>("surface_density", &surface_density, "surface density for towel. (total mass)/(total area)"));
+  }
+};
+float LocalConfig::node_density = 1/0.02; // 1 node per 2 cm
+float LocalConfig::surface_density = 0.4; // 0.4 kg per m2 (100 grams for a 0.5m x 0.5m towel
+
 int main(int argc, char *argv[]) {
     SceneConfig::enableIK = true;
     SceneConfig::enableRobot = true;
@@ -41,6 +52,7 @@ int main(int argc, char *argv[]) {
     parser.addGroup(GeneralConfig());
     parser.addGroup(SceneConfig());
     parser.addGroup(BulletConfig());
+    parser.addGroup(LocalConfig());
     parser.read(argc, argv);
 
     ros::init(argc, argv,"multihyp_tracker");
@@ -50,14 +62,16 @@ int main(int argc, char *argv[]) {
     Scene scene;
 
 		BoxObject::Ptr table(new BoxObject(0, btVector3(1.3,1.1,0.07)*METERS, btTransform(btQuaternion(0, 0, 0, 1), btVector3(1.4, 0, 0.7)*METERS)));
-		table->rigidBody->setFriction(10);
+//		table->rigidBody->setFriction(LocalConfig::friction);
 		table->setColor(0,.8,0,.5);
 		scene.env->add(table);
 //		Load(scene.env, scene.rave, EXPAND(BULLETSIM_DATA_DIR)"/xml/table.xml");
 //		RaveObject::Ptr table = getObjectByName(scene.env, scene.rave, "table");
 //		table->setColor(0,.8,0,.5);
+		float table_height = 0.7+0.07;
 
-		BulletSoftObject::Ptr cloth = makeCloth(0.25*METERS, 0.25*METERS, btVector3(0.38,0,0.7+0.07+0.01)*METERS, 30, 30, 0.1);
+		BulletSoftObject::Ptr cloth = makeCloth(0.25*METERS, 0.25*METERS, btVector3(0.38,0,table_height+0.01)*METERS, LocalConfig::node_density/METERS, LocalConfig::surface_density/(METERS*METERS));
+		cloth->setColor(1,1,1,1);
 		scene.env->add(cloth);
 
   	PR2Object::Ptr pr2 = PR2Object::Ptr(new PR2Object(scene.rave)); // it seems to also be ok to pass in empty RaveInstance::Ptr()
@@ -85,6 +99,10 @@ int main(int argc, char *argv[]) {
     scene.startViewer();
 
     while (ros::ok()) {
+    	// Draw the gripper palm transform at every iteration
+      scene.addDrawOnce(PlotAxes::Ptr(new PlotAxes(pr2->getLinkTransform(pr2->robot->GetLink("l_gripper_palm_link")), 0.1*METERS)));
+      scene.addDrawOnce(PlotAxes::Ptr(new PlotAxes(pr2->getLinkTransform(pr2->robot->GetLink("r_gripper_palm_link")), 0.1*METERS)));
+
       scene.env->step(.03,2,.015);
       scene.draw();
 

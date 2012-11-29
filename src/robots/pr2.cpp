@@ -5,9 +5,11 @@
 
 static const char LEFT_GRIPPER_LEFT_FINGER_NAME[] = "l_gripper_l_finger_tip_link";
 static const char LEFT_GRIPPER_RIGHT_FINGER_NAME[] = "l_gripper_r_finger_tip_link";
+static const char LEFT_PALM_NAME[] = "l_gripper_palm_link";
 
 static const char RIGHT_GRIPPER_LEFT_FINGER_NAME[] = "r_gripper_l_finger_tip_link";
 static const char RIGHT_GRIPPER_RIGHT_FINGER_NAME[] = "r_gripper_r_finger_tip_link";
+static const char RIGHT_PALM_NAME[] = "r_gripper_palm_link";
 
 // Fills in the rcontacts array with contact information between psb and pco
 static void getContactPointsWith(btSoftBody *psb, btCollisionObject *pco, btSoftBody::tRContactArray &rcontacts) {
@@ -94,6 +96,7 @@ PR2SoftBodyGripper::PR2SoftBodyGripper(RaveRobotObject::Ptr robot_, OpenRAVE::Ro
         robot(robot_), manip(manip_),
         leftFinger(robot->robot->GetLink(leftGripper ? LEFT_GRIPPER_LEFT_FINGER_NAME : RIGHT_GRIPPER_LEFT_FINGER_NAME)),
         rightFinger(robot->robot->GetLink(leftGripper ? LEFT_GRIPPER_RIGHT_FINGER_NAME : RIGHT_GRIPPER_RIGHT_FINGER_NAME)),
+        palm(robot->robot->GetLink(leftGripper ? LEFT_PALM_NAME : RIGHT_PALM_NAME)),
         closingNormal(manip->GetClosingDirection()[0],
                       manip->GetClosingDirection()[1],
                       manip->GetClosingDirection()[2]),
@@ -108,29 +111,35 @@ void PR2SoftBodyGripper::releaseAllAnchors() {
     anchors.clear();
 }
 
-bool PR2SoftBodyGripper::inGraspRegion(const btVector3 &pt) const {
+bool PR2SoftBodyGripper::inGraspRegion(const btVector3 &pt, float inner_side_slack) const {
     // extra padding for more anchors (for stability)
     static const float TOLERANCE = 0.00;
 
     // check that pt is between the fingers
-    if (!onInnerSide(pt, true) || !onInnerSide(pt, false)) return false;
+    if (inner_side_slack==0.0)
+    	if (!onInnerSide(pt, true) || !onInnerSide(pt, false)) return false;
 
     // check that pt is behind the gripper tip
     btTransform manipTrans(util::toBtTransform(manip->GetTransform(), GeneralConfig::scale));
     btVector3 x = manipTrans.inverse() * pt;
+
+    // check that pt is between the fingers with some slack
+    if (inner_side_slack != 0.0)
+    	if (abs(x.y()) > GeneralConfig::scale*(inner_side_slack + TOLERANCE)) return false;
+
     if (x.z() > GeneralConfig::scale*(0.02 + TOLERANCE)) return false;
 
     // check that pt is within the finger width
     if (abs(x.x()) > GeneralConfig::scale*(0.01 + TOLERANCE)) return false;
 
-    cout << "ATTACHING: " << x.x() << ' ' << x.y() << ' ' << x.z() << endl;
+//    cout << "ATTACHING: " << x.x() << ' ' << x.y() << ' ' << x.z() << endl;
 
     return true;
 }
 
-void PR2SoftBodyGripper::attach(bool left) {
-	btRigidBody *rigidBody =
-			robot->associatedObj(left ? leftFinger : rightFinger)->rigidBody.get();
+void PR2SoftBodyGripper::attach() {
+	btRigidBody *rigidBody = robot->associatedObj(palm)->rigidBody.get();
+//	btRigidBody *rigidBody = robot->associatedObj(left ? leftFinger : rightFinger)->rigidBody.get();
 
 	for (Environment::ObjectList::iterator obj_it = robot->getEnvironment()->objects.begin(); obj_it!= robot->getEnvironment()->objects.end(); ++obj_it) {
 		BulletSoftObject::Ptr sb = boost::dynamic_pointer_cast<BulletSoftObject>(*obj_it);
@@ -157,10 +166,13 @@ void PR2SoftBodyGripper::attach(bool left) {
 #endif
 		set<const btSoftBody::Node*> attached;
 
+		btTransform manipTrans(util::toBtTransform(manip->GetTransform(), GeneralConfig::scale));
+
 		// look for nodes in gripper region
-		const btSoftBody::tNodeArray &nodes = sb->softBody->m_nodes;
+		btSoftBody::tNodeArray &nodes = sb->softBody->m_nodes;
 		for (int i = 0; i < nodes.size(); ++i) {
-			if (inGraspRegion(nodes[i].m_x) && !sb->hasAnchorAttached(i)) {
+			if (inGraspRegion(nodes[i].m_x, 0.02) && !sb->hasAnchorAttached(i)) {
+				nodes[i].m_x = manipTrans*(manipTrans.inverse() * nodes[i].m_x - btVector3(0,(manipTrans.inverse() * nodes[i].m_x).y(),0));
 				anchors.push_back(Anchor(sb, sb->addAnchor(i, rigidBody)));
 				attached.insert(&nodes[i]);
 			}
@@ -170,10 +182,11 @@ void PR2SoftBodyGripper::attach(bool left) {
 		const btSoftBody::tFaceArray &faces = sb->softBody->m_faces;
 		for (int i = 0; i < faces.size(); ++i) {
 			btVector3 ctr = (1. / 3.) * (faces[i].m_n[0]->m_x + faces[i].m_n[1]->m_x + faces[i].m_n[2]->m_x);
-			if (inGraspRegion(ctr)) {
+			if (inGraspRegion(ctr, 0.02)) {
 				for (int z = 0; z < 3; ++z) {
 					int idx = faces[i].m_n[z] - &nodes[0];
 					if (!sb->hasAnchorAttached(idx)) {
+						nodes[idx].m_x = manipTrans*(manipTrans.inverse() * nodes[idx].m_x - btVector3(0,(manipTrans.inverse() * nodes[idx].m_x).y(),0));
 						anchors.push_back(Anchor(sb, sb->addAnchor(idx, rigidBody)));
 						attached.insert(&nodes[idx]);
 					}
@@ -191,24 +204,26 @@ void PR2SoftBodyGripper::attach(bool left) {
 			if (attached.find(links[i].m_n[0]) != attached.end()) {
 				int idx = links[i].m_n[1] - &nodes[0];
 				if (!sb->hasAnchorAttached(idx)) {
+					nodes[idx].m_x = manipTrans*(manipTrans.inverse() * nodes[idx].m_x - btVector3(0,(manipTrans.inverse() * nodes[idx].m_x).y(),0));
 					anchors.push_back(Anchor(sb, sb->addAnchor(idx, rigidBody)));
 				}
 			} else if (attached.find(links[i].m_n[1]) != attached.end()) {
 				int idx = links[i].m_n[0] - &nodes[0];
 				if (!sb->hasAnchorAttached(idx)) {
+					nodes[idx].m_x = manipTrans*(manipTrans.inverse() * nodes[idx].m_x - btVector3(0,(manipTrans.inverse() * nodes[idx].m_x).y(),0));
 					anchors.push_back(Anchor(sb, sb->addAnchor(idx, rigidBody)));
 				}
 			}
 		}
 
-		cout << "appended " << attached.size() << " anchors to " << (left ? "left" : "right") << endl;
+		cout << "appended " << attached.size() << " anchors" << endl;
 	}
 }
 
 void PR2SoftBodyGripper::grab() {
 	if (grabOnlyOnContact) {
 			//attach(false);
-			attach(true);
+			attach();
 	} else {
 		// the gripper should be closed
 		const btVector3 midpt = 0.5 * (getInnerPt(false) + getInnerPt(true));

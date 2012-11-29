@@ -6,7 +6,24 @@
 
 typedef boost::function<void(void)> VoidCallback;
 
-class GrabDetector {
+class GrabDetectorBase {
+public:
+  typedef boost::shared_ptr<GrabDetectorBase> Ptr;
+
+protected:
+	VoidCallback m_grabCB;
+	VoidCallback m_releaseCB;
+	bool m_grabbing;
+
+public:
+	GrabDetectorBase(VoidCallback grabCB, VoidCallback releaseCB) :
+		m_grabCB(grabCB),
+		m_releaseCB(releaseCB),
+		m_grabbing(false)
+	{}
+};
+
+class GrabDetector : public GrabDetectorBase {
 public:
   typedef boost::shared_ptr<GrabDetector> Ptr;
 	enum Side {LEFT, RIGHT};
@@ -17,17 +34,23 @@ public:
 	int m_grabCount;
 	int m_emptyCount;
 	static const int toggleCount = 10; // 10 messages / 100 hz = .1 sec
-	bool m_grabbing;
-	VoidCallback m_grabCB;
-	VoidCallback m_releaseCB;
 	int m_jointIdx;
-
 
 	GrabDetector(Side side, VoidCallback grabCB, VoidCallback releaseCB);
 
 	void update(const sensor_msgs::JointState& joint);
 	bool isGrabbing(float position, float velocity, float effort);
+};
 
+class HysterisGrabDetector : public GrabDetectorBase {
+private:
+	float m_high_thresh;
+	float m_low_thresh;
+
+public:
+  typedef boost::shared_ptr<HysterisGrabDetector> Ptr;
+	HysterisGrabDetector(float gripper_angle_low_thresh, float gripper_angle_high_thresh, VoidCallback grabCB, VoidCallback releaseCB);
+	void update(float gripper_angle);
 };
 
 class GrabManager {

@@ -44,25 +44,12 @@ TrackedObject::Ptr toTrackedObject(const bulletsim_msgs::ObjectInit& initMsg, Co
 	  return tracked_rope;
   }
   else if (initMsg.type == "towel_corners") {
-	  const vector<geometry_msgs::Point32>& points = initMsg.towel_corners.polygon.points;
-	  vector<btVector3> corners = scaleVecs(toBulletVectors(points),METERS);
-
-	  float sx = (corners[0] - corners[1]).length();
-		float sy = (corners[0] - corners[3]).length();
-		int resolution_x = sx/(TrackingConfig::node_distance*METERS) + 1;
-		int resolution_y = sy/(TrackingConfig::node_distance*METERS) + 1;
-		float mass = (TrackingConfig::surface_density/(METERS*METERS)) * (sx * sy);
-
-	  printf("Created towel with following properties:\n");
-	  printf("Surface density (Mass per area): %f\n", TrackingConfig::surface_density);
-	  printf("Mass: %f\n", mass);
-	  printf("Dimensions and area: %f x %f = %f\n", sx/METERS, sy/METERS, sx*sy/(METERS*METERS));
-	  printf("Node distance (distance between nodes): %f\n", TrackingConfig::node_distance);
-	  printf("Resolution: %d %d\n", resolution_x, resolution_y);
+//	  const vector<geometry_msgs::Point32>& points = initMsg.towel_corners.polygon.points;
+//	  vector<btVector3> corners = scaleVecs(toBulletVectors(points),METERS);
 
 	  vector<btVector3> poly_corners = polyCorners(cloud);
 //	  BOOST_FOREACH(btVector3& poly_corner, poly_corners) util::drawSpheres(poly_corner, Vector3f(1,0,0), 0.5, 2, util::getGlobalEnv());
-  	BulletSoftObject::Ptr sim = makeCloth(poly_corners, resolution_x, resolution_y, mass);
+  	BulletSoftObject::Ptr sim = makeCloth(poly_corners, TrackingConfig::node_density/METERS, TrackingConfig::surface_density/(METERS*METERS));
   	if (!image.empty())
   	  sim->setTexture(image, toBulletTransform(transformer->camFromWorldEigen));
 

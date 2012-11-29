@@ -250,7 +250,7 @@ btMatrix3x3 calcAlignRot(btVector3 v0, btVector3 v1) {
 
 //assumes all the corners are in a plane
 //the corners are specified in a clockwise order
-btSoftBody* CreatePolygonPatch(btSoftBodyWorldInfo& worldInfo, std::vector<btVector3> corners, int resx, int resy, bool gendiags) {
+btSoftBody* CreatePolygonPatch(btSoftBodyWorldInfo& worldInfo, std::vector<btVector3> corners, float node_density, bool gendiags) {
 
 	//DEBUG
 //	float factor = 1/((float)corners.size()-1);
@@ -284,7 +284,7 @@ btSoftBody* CreatePolygonPatch(btSoftBodyWorldInfo& worldInfo, std::vector<btVec
 	for (int i=0; i<xy_rect_corners.size(); i++)
 		xy_rect_corners[i] = btVector3(rect_corners_2d[i].x, rect_corners_2d[i].y, 0);
 
-	btSoftBody* psb = btSoftBodyHelpers::CreatePatch(worldInfo, xy_rect_corners[0], xy_rect_corners[1], xy_rect_corners[3], xy_rect_corners[2], resx, resy, 0, gendiags);
+	btSoftBody* psb = btSoftBodyHelpers::CreatePatch(worldInfo, xy_rect_corners[0], xy_rect_corners[1], xy_rect_corners[3], xy_rect_corners[2], node_density * rect.size.height + 1, node_density * rect.size.width + 1, 0, gendiags);
 
 	// Refine the patch around the polygon contour
 	ImplicitPolygon ipolygon(xy_corners);

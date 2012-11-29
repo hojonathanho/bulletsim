@@ -478,7 +478,7 @@ void BulletSoftObject::preDraw() {
 		trigeom->removePrimitiveSet(0); // there should only be one
 	trivertices->clear();
 	trinormals->clear();
-	if (!env->debugDraw) { // don't draw faces if scene is in debug mode
+	if (!getEnvironment()->debugDraw) { // don't draw faces if scene is in debug mode
 		// for 2D deformable objects
 		const btSoftBody::tFaceArray &faces = softBody->m_faces;
 		for (int i = 0; i < faces.size(); ++i) {
@@ -1346,21 +1346,21 @@ bool BulletSoftObject::validCheck(bool nodesOnly) const {
 
 // makes cloth with half extents of sx,sy and translation t
 // TODO generalize by providing transform instead of t
-BulletSoftObject::Ptr makeCloth(float sx, float sy, btVector3 t, int resolution_x, int resolution_y, float mass) {
+BulletSoftObject::Ptr makeCloth(float sx, float sy, btVector3 t,  float node_density, float surface_density) {
 	vector<btVector3> corners;
 	corners.push_back(btVector3(t.x()+sx, t.y()+sy, t.z()));
 	corners.push_back(btVector3(t.x()+sx, t.y()-sy, t.z()));
 	corners.push_back(btVector3(t.x()-sx, t.y()-sy, t.z()));
 	corners.push_back(btVector3(t.x()-sx, t.y()+sy, t.z()));
-	BulletSoftObject::Ptr cloth = makeCloth(corners, resolution_x, resolution_y, mass);
+	BulletSoftObject::Ptr cloth = makeCloth(corners, node_density, surface_density);
 	return cloth;
 }
 
 //assumes all the corners are in a plane
 //the corners are specified in a clockwise order
-BulletSoftObject::Ptr makeCloth(const vector<btVector3>& corners, int resolution_x, int resolution_y, float mass) {
+BulletSoftObject::Ptr makeCloth(const vector<btVector3>& corners, float node_density, float surface_density) {
   btSoftBodyWorldInfo unusedWorldInfo;
-  btSoftBody* psb = CreatePolygonPatch(unusedWorldInfo, corners, resolution_x, resolution_y, true);
+  btSoftBody* psb = CreatePolygonPatch(unusedWorldInfo, corners, node_density, true);
 
   btSoftBody::Material* pm=psb->appendMaterial();
   pm->m_kLST = 0.01;
@@ -1369,7 +1369,7 @@ BulletSoftObject::Ptr makeCloth(const vector<btVector3>& corners, int resolution
 
   psb->generateBendingConstraints(2,pm);
 
-  psb->setTotalMass(mass);
+	psb->setTotalMass(psb->getArea()*surface_density, true);
 
   psb->generateClusters(512);
 	psb->getCollisionShape()->setMargin(0.002*METERS);

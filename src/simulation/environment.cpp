@@ -102,7 +102,7 @@ Environment::~Environment() {
 }
 
 void Environment::add(EnvironmentObject::Ptr obj) {
-    obj->setEnvironment(this);
+    obj->setEnvironment(shared_from_this());
     obj->init();
     objects.push_back(obj);
     // objects are reponsible for adding themselves
@@ -120,7 +120,7 @@ void Environment::remove(EnvironmentObject::Ptr obj) {
 }
 
 void Environment::addConstraint(EnvironmentObject::Ptr cnt) {
-    cnt->setEnvironment(this);
+    cnt->setEnvironment(shared_from_this());
     cnt->init();
     constraints.push_back(cnt);
 }
@@ -174,17 +174,12 @@ void Environment::addVoidKeyCallback(int c, VoidCallback cb, std::string desc) {
 	addKeyCallback(c, boost::bind<bool>(VoidCallbackWrapper(cb)), desc);
 }
 
-Fork::Fork(const Environment *parentEnv_) :
+Fork::Fork(const Environment::Ptr parentEnv_) :
     parentEnv(parentEnv_), env(new Environment()) {
   copyObjects();
 }
-Fork::Fork(const Environment::Ptr parentEnv_) :
-    parentEnv(parentEnv_.get()), env(new Environment()) {
-  copyObjects();
-}
 Fork::Fork(const Environment::Ptr parentEnv_, const RaveInstancePtr rave_) :
-    parentEnv(parentEnv_.get()), env(new Environment()),
-    rave(rave_) {
+    parentEnv(parentEnv_), env(new Environment()), rave(rave_) {
   copyObjects();
 }
 

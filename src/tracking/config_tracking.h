@@ -30,8 +30,8 @@ struct TrackingConfig : Config {
   static float kp_box;
   static float kd_box;
 
-  static float tracked_node_distance;
   static float node_distance;
+  static float node_density;
   static float surface_density;
   static int node_pixel;
 
@@ -63,8 +63,7 @@ struct TrackingConfig : Config {
         params.push_back(new Parameter<float>("kp_box", &kp_box, "proportional gain for box"));
         params.push_back(new Parameter<float>("kd_box", &kd_box, "damping for box"));
 
-        params.push_back(new Parameter<float>("tracked_node_distance", &tracked_node_distance, "distance between tracked nodes. (length)/(# nodes - 1) = (side_length)/(resolution-1)"));
-        params.push_back(new Parameter<float>("node_distance", &node_distance, "distance between nodes. (length)/(# nodes - 1) = (side_length)/(resolution-1)"));
+        params.push_back(new Parameter<float>("node_density", &node_density, "# nodes per unit distance. (resolution-1)/length"));
         params.push_back(new Parameter<float>("surface_density", &surface_density, "surface density for towel. (total mass)/(total area)"));
         params.push_back(new Parameter<int>("node_pixel", &node_pixel, "pixels between nodes. nodes are the original nodes, not the decimated ones."));
 

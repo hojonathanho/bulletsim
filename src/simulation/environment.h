@@ -13,6 +13,7 @@
 #include <osgViewer/Viewer>
 #include <osgGA/TrackballManipulator>
 #include <boost/shared_ptr.hpp>
+#include <boost/enable_shared_from_this.hpp>
 #include <boost/function.hpp>
 
 using namespace std;
@@ -59,20 +60,21 @@ struct BulletInstance {
     void contactTest(btCollisionObject *obj, CollisionObjectSet &out, const CollisionObjectSet *ignore=NULL);
 };
 
-struct Environment;
+class Environment;
+typedef boost::shared_ptr<Environment> EnvironmentPtr;
 struct Fork;
 class EnvironmentObject {
 protected:
-    Environment *env;
+    EnvironmentPtr env;
 
 public:
     typedef boost::shared_ptr<EnvironmentObject> Ptr;
 
     EnvironmentObject() { }
-    EnvironmentObject(Environment *env_) : env(env_) { }
+    EnvironmentObject(EnvironmentPtr env_) : env(env_) { }
     virtual ~EnvironmentObject() { }
 
-    Environment *getEnvironment() { return env; }
+    EnvironmentPtr getEnvironment() { return env; }
 
     // These are for environment forking.
     // copy() should return a copy of the object suitable for addition
@@ -86,7 +88,7 @@ public:
     virtual void postCopy(EnvironmentObject::Ptr copy, Fork &f) const { }
 
     // methods only to be called by the Environment
-    void setEnvironment(Environment *env_) { env = env_; }
+    void setEnvironment(EnvironmentPtr env_) { env = env_; }
     virtual void init() { }
     virtual void prePhysics() { }
     virtual void preDraw() { }
@@ -108,7 +110,8 @@ public:
 
 class RaveInstance;
 typedef boost::shared_ptr<RaveInstance> RaveInstancePtr;
-struct Environment {
+class Environment : public boost::enable_shared_from_this<Environment>  {
+public:
     typedef boost::shared_ptr<Environment> Ptr;
 
     BulletInstance::Ptr bullet;
@@ -150,7 +153,7 @@ class Fork {
 public:
     typedef boost::shared_ptr<Fork> Ptr;
 
-    const Environment *parentEnv;
+    Environment::Ptr parentEnv;
     Environment::Ptr env;
     RaveInstancePtr rave;
 
@@ -164,7 +167,6 @@ public:
         dataMap.insert(std::make_pair(orig, copy));
     }
 
-    Fork(const Environment *parentEnv_);
     Fork(const Environment::Ptr parentEnv_);
     Fork(const Environment::Ptr parentEnv_, const RaveInstancePtr rave_);
 

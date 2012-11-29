@@ -18,7 +18,7 @@ float TrackingConfig::pointPriorDist = 0.02;
 float TrackingConfig::colorLPriorDist = 0.4;
 float TrackingConfig::colorABPriorDist = 0.08;
 float TrackingConfig::epsilon = 0.001;
-int TrackingConfig::normalizeIter = 2;
+int TrackingConfig::normalizeIter = 0;
 float TrackingConfig::kp_rope = 1;
 float TrackingConfig::kd_rope = 0;
 float TrackingConfig::kp_cloth = 1500;
@@ -26,9 +26,8 @@ float TrackingConfig::kd_cloth = 15;
 float TrackingConfig::kp_box = 100;
 float TrackingConfig::kd_box = 10;
 
-float TrackingConfig::tracked_node_distance = 0.05;
-float TrackingConfig::node_distance = 0.01; // 1 cm between nodes
-float TrackingConfig::surface_density = 0.01/(0.1*0.1); // 10 grams per 100 cm2
+float TrackingConfig::node_density = 1/0.02; // 1 node per 2 cm
+float TrackingConfig::surface_density = 0.4; // 0.4 kg per m2 (100 grams for a 0.5m x 0.5m towel
 int TrackingConfig::node_pixel = 10;
 
 float TrackingConfig::sponge_res = 0.03;

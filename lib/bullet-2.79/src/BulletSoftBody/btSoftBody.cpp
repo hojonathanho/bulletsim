@@ -544,6 +544,19 @@ void			btSoftBody::setTotalMass(btScalar mass,bool fromfaces)
 	m_bUpdateRtCst=true;
 }
 
+btScalar			btSoftBody::getArea() const
+{
+	btScalar twicearea = 0;
+	for(int i=0;i<m_faces.size();++i)
+	{
+		const Face&		f=m_faces[i];
+		twicearea += AreaOf(	f.m_n[0]->m_x,
+			f.m_n[1]->m_x,
+			f.m_n[2]->m_x);
+	}
+	return twicearea/2.0;
+}
+
 //
 void			btSoftBody::setTotalDensity(btScalar density)
 {

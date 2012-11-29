@@ -794,6 +794,8 @@ public:
 	/* Set total mass (weighted by previous masses)							*/ 
 	void				setTotalMass(	btScalar mass,
 		bool fromfaces=false);
+	/* Return the surface area	(for trimeshes only)												*/
+	btScalar			getArea() const;
 	/* Set total density													*/ 
 	void				setTotalDensity(btScalar density);
 	/* Set volume mass (using tetrahedrons)									*/

@@ -156,7 +156,16 @@ void Scene::draw() {
     for (int i = 0; i < predrawCallbacks.size(); ++i)
         predrawCallbacks[i]();
 
+    // add the objects that should be drawn once
+    for (int i=0; i<draw_once_objects.size(); i++)
+    	env->add(draw_once_objects[i]);
+
     viewer.frame();
+
+    // remove the objects that should have been drawn once
+    for (int i=0; i<draw_once_objects.size(); i++)
+    	env->remove(draw_once_objects[i]);
+    draw_once_objects.clear();
 }
 
 void Scene::startLoop() {
