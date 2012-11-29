@@ -29,7 +29,7 @@ struct OptRopePlot {
     : m_N(N),
       m_scene(scene),
       m_plotSpheres(new PlotSpheres),
-      m_plotLines(new PlotLines(2))
+      m_plotLines(new PlotLines(5))
   {
     m_scene->env->add(m_plotSpheres);
     m_scene->env->add(m_plotLines);
@@ -77,16 +77,8 @@ struct OptRopePlot {
   }
 };
 
-static double nlopt_costWrapper(const vector<double> &x, vector<double> &grad, void *data) {
-  static int calls = 0;
-  ++calls;
-  if (calls % 1000 == 0)
-    cout << "nlopt cost calls: " << calls;
-  OptRope *optrope = static_cast<OptRope *> (data);
-  double val = optrope->nlopt_costWrapper(x, grad);
-  if (calls % 1000 == 0)
-    cout << " | val: " << val << endl;
-  return val;
+static inline double nlopt_costWrapper(const vector<double> &x, vector<double> &grad, void *data) {
+  return (static_cast<OptRope *> (data))->nlopt_costWrapper(x, grad);
 }
 
 static void runOpt(nlopt::opt &opt, vector<double> &x0, double &minf) {

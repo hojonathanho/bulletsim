@@ -7,7 +7,7 @@ include_directories(
   ${GUROBI_INCLUDE_DIR}
 )
 
-set(CMAKE_CXX_FLAGS "-Wall -Wno-sign-compare -Wno-reorder -fopenmp")
+set(CMAKE_CXX_FLAGS "-Wall -Wno-sign-compare -Wno-reorder -fopenmp -march=native")
 link_directories(${GUROBI_LIBRARY_DIR} /home/jonathan/opt/pardiso)
 
 add_library(splines
@@ -42,7 +42,8 @@ set(IPOPT_LIBS
   gfortran pthread m pardiso lapack blas dl
 )
 
-add_executable(nlopt_spline_rope nlopt_spline_rope.cpp)
+set(CMAKE_CXX_FLAGS "-Wl,--no-as-needed -lprofiler -Wl,--as-needed")
+add_executable(nlopt_spline_rope nlopt_spline_rope.cpp optrope.cpp optrope_state.cpp)
 target_link_libraries(nlopt_spline_rope ophys nlopt splines ${IPOPT_LIBS})
 
 add_executable(test_ipopt test_ipopt.cpp)
