@@ -1,15 +1,14 @@
-string manip                    # manipulator description (which dofs to use)
-string task                     # task description
+string manip                    # manipulator description (e.g. leftarm, rightarm)
+string link						# which link (e.g. r_gripper_tool_frame)
+string task                     # task description: (cart, joint, follow_cart)
 string xmlstring                  # openrave format xml file
 sensor_msgs/PointCloud2 cloud   # point cloud collision map
 
-float64[] robot_joints          # openrave order
+float64[] robot_joints          # openrave order.
 float64[] robot_transform		# qx, qy, qz, qw, x, y, z
-float64[] goal
-# cart goal: qx, qy, qz, qw, x, y, z
-# joint goal: ...
-# cart_follow: n x 7 list
-
+float64[] goal					# cart: qx, qy, qz, qw, x, y, z
+								# joint: (dofs)
+								# follow_cart: flattened n x 7 array of cart
 ---
 
 float64[] trajectory            # num timesteps x num dofs (row major)
