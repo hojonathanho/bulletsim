@@ -93,14 +93,35 @@ double OptRope::nlopt_costWrapper(const vector<double> &x, vector<double> &grad)
 
   Eigen::Map<VectorXd> ex(const_cast<double*>(x.data()), x.size(), 1);
   OptRopeState state(m_T, m_N); state.initFromColumn(ex);
-  if (!grad.empty()) {
-    grad = costGrad<vector<double> >(ex);
-    //grad = costGrad_openmp<vector<double> >(ex);
-  }
 
-  double val = costfunc(state);
+  OptRopeState expansion(state.getExpandedT(OPhysConfig::interpPerTimestep), m_N);
+  expansion.expanded = true;
+  state.fillExpansion(OPhysConfig::interpPerTimestep, expansion);
+
+  double val = costfunc_on_expanded(expansion);
   if (calls % 1000 == 0)
     cout << " | val: " << val << endl;
+
+  if (!grad.empty()) {
+    static const double eps = 1e-3;
+
+    for (int i = 0; i < ex.size(); ++i) {
+      double xorig = ex[i];
+
+      ex[i] = xorig + eps;
+      state.initFromColumn(ex);
+      state.fillExpansion(OPhysConfig::interpPerTimestep, expansion);
+      double b = costfunc_on_expanded(expansion);
+
+      ex[i] = xorig - eps;
+      state.initFromColumn(ex);
+      state.fillExpansion(OPhysConfig::interpPerTimestep, expansion);
+      double a = costfunc_on_expanded(expansion);
+
+      ex[i] = xorig;
+      grad[i] = (b - a) / (2*eps);
+    }
+  }
 
   return val;
 }
@@ -183,7 +204,7 @@ static inline double cost_linkLen(const OptRopeState &es, double linkLen) {
 
 // goal cost: point 0 should be at (0, 0, 1)
 static inline double cost_goalPos(const OptRopeState &es) {
-  static const Vector3d desiredPos0(0, 1, 0);
+  static const Vector3d desiredPos0(0, 0, 1);
   return (es.atTime.back().x.row(0).transpose() - desiredPos0).squaredNorm();
 }
 
@@ -213,36 +234,3 @@ double OptRope::costfunc(const OptRopeState &state) const {
   // expansion is very expensive!
   return costfunc_on_expanded(state.expandByInterp(OPhysConfig::interpPerTimestep));
 }
-
-/*
-double OptRope::costFiniteDiff(OptRopeState &baseState, const int idx, double baseVal, bool useBaseVal) {
-  if (!useBaseVal) {
-    baseVal = costfunc(baseState);
-  }
-
-  static const double eps = 1e-3;
-  double diff = 0;
-
-  OptRopeState expandedState = baseState.expandByInterp(OPhysConfig::interpPerTimestep);
-
-  for (int i = 0; i < dim; ++i) {
-    baseState.setExpansionByPerturbation(i, eps, expandedState);
-    double b = costfunc_expanded(expandedState);
-
-    baseState.setExpansionByPerturbation(i, -eps, expandedState);
-    double a = costfunc_expanded(expandedState);
-
-    out_grad[i] = (b - a) / (2*eps);
-  }
-}
-*/
-
-// double OptRope::costfunc_grad(const OptRopeState &state) const {
-//   // finite differences
-//   static const double eps = 1e-3;
-
-//   OptRopeState tmpstate = state;
-//   double grad = 0;
-
-//   return grad;
-// }

@@ -109,6 +109,7 @@ static bool runTests() {
   }
 
   
+#if 0
   MatrixX3d initPositions(OPhysConfig::N, 3);
   for (int i = 0; i < OPhysConfig::N; ++i) {
     initPositions.row(i) << (-1 + 2*i/(OPhysConfig::N-1.0)), 0, 0.05;
@@ -123,6 +124,7 @@ static bool runTests() {
   if (b) {
     cout << "gradient test passed" << endl;
   }
+#endif
 
   return true;
 }

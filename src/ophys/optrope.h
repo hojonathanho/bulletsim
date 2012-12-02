@@ -72,17 +72,18 @@ struct OptRope {
     return s.dim();
   }
 
-  double costfunc_on_expanded(const OptRopeState &expandedState) const; // private
+  double costfunc_on_expanded(const OptRopeState &expandedState) const;
   double costfunc(const OptRopeState &state) const;
 
   int m_costCalls;
   double costfunc_wrapper(const Eigen::Map<const VectorXd> &x);
   double nlopt_costWrapper(const vector<double> &x, vector<double> &grad) const;
 
+#if 0
   template<typename VecType, typename Derived>
-  VecType costGrad(DenseBase<Derived> &x0) const {
+  void costGrad(DenseBase<Derived> &x0, VecType &out_grad) const {
     static const double eps = 1e-3;
-    VecType grad(x0.size());
+    assert(out_grad.size() == x0.size());
     OptRopeState tmpstate(m_T, m_N);
     OptRopeState expansion(tmpstate.getExpandedT(OPhysConfig::interpPerTimestep), m_N);
     expansion.expanded = true;
@@ -93,9 +94,8 @@ struct OptRope {
       x0[i] = xorig - eps;
       tmpstate.initFromColumn(x0); tmpstate.fillExpansion(OPhysConfig::interpPerTimestep, expansion); double a = costfunc_on_expanded(expansion);
       x0[i] = xorig;
-      grad[i] = (b - a) / (2*eps);
+      out_grad[i] = (b - a) / (2*eps);
     }
-    return grad;
   }
 
   template<typename VecType, typename Derived>
@@ -114,26 +114,5 @@ struct OptRope {
     }
     return grad;
   }
-
-#if 0
-  template<typename VecType, typename Derived>
-  VecType costGrad_openmp(const DenseBase<Derived> &x0) const {
-    static const double eps = 1e-3;
-    VecType grad(x0.size());
-
-    #pragma openmp parallel for
-    for (int i = 0; i < x0.size(); ++i) {
-      VectorXd x(x0);
-      OptRopeState tmpstate(m_T, m_N);
-      double xorig = x[i];
-      x[i] = xorig + eps;
-      tmpstate.initFromColumn(x); double b = costfunc(tmpstate);
-      x[i] = xorig - eps;
-      tmpstate.initFromColumn(x); double a = costfunc(tmpstate);
-      grad[i] = (b - a) / (2*eps);
-    }
-    return grad;
-  }
 #endif
-
 };

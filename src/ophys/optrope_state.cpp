@@ -39,32 +39,6 @@ string OptRopeState::StateAtTime::toString() const {
   ).str();
 }
 
-/*
-void OptRopeState::setExpansionBySinglePerturbation(const OptRopeState &delta, double eps, OptRopeState &expandedState) {
-  assert(!expanded && es.expanded);
-
-  // Given the index of a perturbed variable in the current (original) *unexpanded* state,
-  // set the expandedState (which should've been created by this->expandByInterp())
-
-  blah += delta;
-
-  assert(delta.atTime.size() == atTime.size());
-  for (int t = 0; t < delta.atTime.size(); ++t) {
-    if (!delta.atTime[t].manipPos.isZero()) {
-      interpManipPos(*this, delta, t, eps, expandedState);
-      break;
-    }
-
-    for (int n = 0; n < m_N; ++n) {
-      if (!delta.atTime[t].x.row(n).isZero() || !delta.atTime[t].vel.row(n).isZero()) {
-
-      }
-    }
-  }
-
-}
-*/
-
 OptRopeState OptRopeState::expandByInterp(int interpPerTimestep) const {
   const int origT = atTime.size(); const int N = atTime[0].m_N;
   const int newT = getExpandedT(interpPerTimestep);
