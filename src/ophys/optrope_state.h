@@ -3,7 +3,6 @@
 #include <Eigen/Dense>
 using namespace Eigen;
 
-
 #include "ophys_config.h"
 #include "ophys_common.h"
 using namespace ophys;
@@ -31,6 +30,8 @@ struct OptRopeState {
 
     int m_dim; int m_N;
     int dim() const { return m_dim; }
+
+    bool isApprox(const StateAtTime &other) const;
 
     VectorXd toSubColumn() const {
       VectorXd col(dim());
@@ -80,7 +81,7 @@ struct OptRopeState {
   // The whole state is just a bunch of StateAtTimes over time
   EigVector<StateAtTime>::type atTime;
 
-  int m_T, m_N;
+  const int m_T, m_N;
   explicit OptRopeState(int T, int N)
     : atTime(T, StateAtTime(N)),
       expanded(false),
@@ -93,9 +94,11 @@ struct OptRopeState {
   // Conversion/utility methods
 
   bool expanded;
+  int getExpandedT(int interpPerTimestep) const { return (m_T - 1)*interpPerTimestep + 1; }
   // Gives a new OptRopeState with (m_T - 1)*interpPerTimestep + 1 points
   // using various interpolation schemes for the data
   OptRopeState expandByInterp(int interpPerTimestep) const;
+  void fillExpansion(int interpPerTimestep, OptRopeState &out) const;
 
   VectorXd toColumn() const {
     int subdim = atTime[0].dim();
@@ -129,4 +132,6 @@ struct OptRopeState {
     }
     return ss.str();
   }
+
+  bool isApprox(const OptRopeState &other) const;
 };

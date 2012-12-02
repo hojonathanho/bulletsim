@@ -94,8 +94,8 @@ double OptRope::nlopt_costWrapper(const vector<double> &x, vector<double> &grad)
   Eigen::Map<VectorXd> ex(const_cast<double*>(x.data()), x.size(), 1);
   OptRopeState state(m_T, m_N); state.initFromColumn(ex);
   if (!grad.empty()) {
-    //grad = costGrad<vector<double> >(ex);
-    grad = costGrad_openmp<vector<double> >(ex);
+    grad = costGrad<vector<double> >(ex);
+    //grad = costGrad_openmp<vector<double> >(ex);
   }
 
   double val = costfunc(state);
@@ -195,9 +195,8 @@ static inline double cost_manipSpeed(const OptRopeState &es) {
   return cost;
 }
 
-double OptRope::costfunc(const OptRopeState &state) const {
-  OptRopeState expandedState = state.expandByInterp(OPhysConfig::interpPerTimestep);
-
+double OptRope::costfunc_on_expanded(const OptRopeState &expandedState) const {
+  assert(expandedState.expanded);
   double cost = 0;
   cost += m_coeffs.groundPenetration * cost_groundPenetration(expandedState);
   cost += m_coeffs.velUpdate * cost_velUpdate(expandedState);
@@ -208,6 +207,35 @@ double OptRope::costfunc(const OptRopeState &state) const {
   cost += m_coeffs.manipSpeed * cost_manipSpeed(expandedState);
   return cost;
 }
+
+double OptRope::costfunc(const OptRopeState &state) const {
+  assert(!state.expanded);
+  // expansion is very expensive!
+  return costfunc_on_expanded(state.expandByInterp(OPhysConfig::interpPerTimestep));
+}
+
+/*
+double OptRope::costFiniteDiff(OptRopeState &baseState, const int idx, double baseVal, bool useBaseVal) {
+  if (!useBaseVal) {
+    baseVal = costfunc(baseState);
+  }
+
+  static const double eps = 1e-3;
+  double diff = 0;
+
+  OptRopeState expandedState = baseState.expandByInterp(OPhysConfig::interpPerTimestep);
+
+  for (int i = 0; i < dim; ++i) {
+    baseState.setExpansionByPerturbation(i, eps, expandedState);
+    double b = costfunc_expanded(expandedState);
+
+    baseState.setExpansionByPerturbation(i, -eps, expandedState);
+    double a = costfunc_expanded(expandedState);
+
+    out_grad[i] = (b - a) / (2*eps);
+  }
+}
+*/
 
 // double OptRope::costfunc_grad(const OptRopeState &state) const {
 //   // finite differences

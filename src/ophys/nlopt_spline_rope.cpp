@@ -89,14 +89,42 @@ static void runOpt(nlopt::opt &opt, vector<double> &x0, double &minf) {
   }
 }
 
-void runTests() {
+static bool runTests() {
   OptRopeState testingState(100, 200);
   VectorXd testingCol = VectorXd::Random(testingState.dim());
   testingState.initFromColumn(testingCol);
-  assert(testingCol == testingState.toColumn());
-  if (testingCol == testingState.toColumn()) {
+  bool b;
+  assert(b = testingCol == testingState.toColumn());
+  if (b) {
     cout << "state/column conversion testing passed" << endl;
   }
+
+
+  OptRopeState exp1 = testingState.expandByInterp(10);
+  OptRopeState exp2 = testingState.expandByInterp(10);
+  testingState.fillExpansion(10, exp2);
+  assert(b = exp1.isApprox(exp2));
+  if (b) {
+    cout << "expansion test passed" << endl;
+  }
+
+  
+  MatrixX3d initPositions(OPhysConfig::N, 3);
+  for (int i = 0; i < OPhysConfig::N; ++i) {
+    initPositions.row(i) << (-1 + 2*i/(OPhysConfig::N-1.0)), 0, 0.05;
+  }
+  double linklen = abs(initPositions(0, 0) - initPositions(1, 0));
+  Vector3d initManipPos(0, 0, 2);
+  OptRope optrope(initPositions, initManipPos, OPhysConfig::T, OPhysConfig::N, linklen);
+  VectorXd initState = optrope.createInitState().toColumn();
+  VectorXd grad_orig = optrope.costGrad_orig<VectorXd>(initState);
+  VectorXd grad_new = optrope.costGrad<VectorXd>(initState);
+  assert(b = grad_orig.isApprox(grad_new));
+  if (b) {
+    cout << "gradient test passed" << endl;
+  }
+
+  return true;
 }
 
 int main(int argc, char *argv[]) {
@@ -104,8 +132,8 @@ int main(int argc, char *argv[]) {
   parser.addGroup(OPhysConfig());
   parser.read(argc, argv);
 
-  if (OPhysConfig::runTests) {
-    runTests();
+  if (OPhysConfig::runTests && !runTests()) {
+    return 1;
   }
 
   MatrixX3d initPositions(OPhysConfig::N, 3);
