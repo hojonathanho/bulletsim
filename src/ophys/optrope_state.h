@@ -104,7 +104,7 @@ struct OptRopeState {
   // Gives a new OptRopeState with (m_T - 1)*interpPerTimestep + 1 points
   // using various interpolation schemes for the data
   OptRopeState expandByInterp(int interpPerTimestep) const;
-  void fillExpansion(int interpPerTimestep, OptRopeState &out) const;
+  void fillExpansion(int interpPerTimestep, OptRopeState &out, const OptRopeState *mask=NULL, bool assumeOneMaskEntry=false) const;
 
   VectorXd toColumn() const {
     int subdim = atTime[0].dim();

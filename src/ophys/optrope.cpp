@@ -52,7 +52,7 @@ void OptRope::setRobot(RaveRobotObject::Ptr robot, RobotManipulator::Ptr manip) 
   init();
 }
 
-Vector3d OptRope::toManipPos(const Vector7d &dofs) {
+Vector3d OptRope::calcManipPos(const Vector7d &dofs) {
   Vector3d p;
   if (m_useRobot) {
     //cout << "settign dof values to " << dofs.transpose() << endl;
@@ -162,6 +162,8 @@ double OptRope::nlopt_costWrapper(const vector<double> &x, vector<double> &grad)
 
   Eigen::Map<VectorXd> ex(const_cast<double*>(x.data()), x.size(), 1);
   OptRopeState state(*this, m_T, m_N); state.initFromColumn(ex);
+  OptRopeState mask(*this, m_T, m_N);
+  VectorXd maskVal(VectorXd::Zero(x.size()));
 
   OptRopeState expansion(*this, state.getExpandedT(OPhysConfig::interpPerTimestep), m_N);
   expansion.expanded = true;
@@ -175,6 +177,23 @@ double OptRope::nlopt_costWrapper(const vector<double> &x, vector<double> &grad)
     static const double eps = 1e-3;
 
     for (int i = 0; i < ex.size(); ++i) {
+#if 1
+      double xorig = ex[i];
+      maskVal[i] = 1; mask.initFromColumn(maskVal);
+
+      double xb = ex[i] = min(m_ubvec[i], xorig + eps);
+      state.initFromColumn(ex);
+      state.fillExpansion(OPhysConfig::interpPerTimestep, expansion, &mask);
+      double b = costfunc_on_expanded(expansion);
+
+      double xa = ex[i] = max(m_lbvec[i], xorig - eps);
+      state.initFromColumn(ex);
+      state.fillExpansion(OPhysConfig::interpPerTimestep, expansion, &mask);
+      double a = costfunc_on_expanded(expansion);
+
+      ex[i] = xorig;
+      maskVal[i] = 0;
+#else
       double xorig = ex[i];
 
       double xb = ex[i] = min(m_ubvec[i], xorig + eps);
@@ -188,7 +207,7 @@ double OptRope::nlopt_costWrapper(const vector<double> &x, vector<double> &grad)
       double a = costfunc_on_expanded(expansion);
 
       ex[i] = xorig;
-
+#endif
       double xdiff = xb - xa;
       if (xdiff < eps/2.) {
         grad[i] = 0;
@@ -236,7 +255,7 @@ inline double OptRope::cost_contact(const OptRopeState &es) {
   double cost = 0;
   // ground force: groundContact^2 * (ground non-violation)^2
   for (int t = 0; t < es.atTime.size(); ++t) {
-    Vector3d manipPos = toManipPos(es.atTime[t].manipDofs);
+    Vector3d manipPos = calcManipPos(es.atTime[t].manipDofs);
     for (int n = 0; n < es.m_N; ++n) {
       // ground contact
       cost += es.atTime[t].groundForce_c[n] * square(max(0., es.atTime[t].x(n,2) - OPhysConfig::tableHeight));
@@ -299,7 +318,7 @@ double OptRope::costfunc_on_expanded(const OptRopeState &expandedState) {
   cost += m_coeffs.contact * cost_contact(expandedState);
   cost += m_coeffs.forces * cost_forces(expandedState);
   cost += m_coeffs.linkLen * cost_linkLen(expandedState);
-  cost += m_coeffs.goalPos * cost_goalPos(expandedState, centroid(m_initPos) + Vector3d(0, 0, 0.2));
+  cost += m_coeffs.goalPos * cost_goalPos(expandedState, m_initPos.row(0).transpose() + Vector3d(0, 0, 0.5));
   cost += m_coeffs.manipSpeed * cost_manipSpeed(expandedState);
   return cost;
 }

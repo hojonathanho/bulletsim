@@ -97,7 +97,7 @@ OptRopeState OptRopeState::expandByInterp(int interpPerTimestep) const {
 
       // out.atTime[s].manipDofs = fine_manipDofs.row(s).transpose();
       out.atTime[s].manipDofs = (1.-a)*atTime[t].manipDofs + a*atTime[t+1].manipDofs;
-      out.atTime[s].derived_manipPos = m_opt.toManipPos(out.atTime[s].manipDofs);
+      out.atTime[s].derived_manipPos = m_opt.calcManipPos(out.atTime[s].manipDofs); // really slow
 
       out.atTime[s].derived_accel.resize(N, 3);
       for (int n = 0; n < N; ++n) {
@@ -132,31 +132,34 @@ OptRopeState OptRopeState::expandByInterp(int interpPerTimestep) const {
   return out;
 }
 
-
-void OptRopeState::fillExpansion(int interpPerTimestep, OptRopeState &out) const {
+void OptRopeState::fillExpansion(int interpPerTimestep, OptRopeState &out, const OptRopeState *mask, bool assumeOneMaskEntry) const {
   const int origT = atTime.size(); const int N = atTime[0].m_N;
   const int newT = getExpandedT(interpPerTimestep);
-  // const ArrayXd tv(ArrayXd::LinSpaced(origT, 0, origT-1));
-  // const ArrayXd fine_tv(ArrayXd::LinSpaced(newT, 0, origT-1));
 
   // fill in the result
-  //assert(mask.m_T == origT && mask.m_N == N && !mask.expanded);
+  if (mask) {
+    assert(mask->m_T == origT && mask->m_N == N && !mask->expanded);
+  } else {
+    assumeOneMaskEntry = false;
+  }
   assert(out.m_T == newT && out.m_N == N && out.expanded);
+
+  out.expanded = true;
   for (int t = 0; t < origT - 1; ++t) {
 
-#if 0
-    if (!mask.atTime[t-1].manipDofs.isZero()
-      || !mask.atTime[t].manipDofs.isZero()
-      || !mask.atTime[t+1].manipDofs.isZero()
-      || !mask.atTime[t+2].manipDofs.isZero()) {
-    }
-
-    if (!mask.atTime[t].
-
-#endif
+    bool calc_manipDofs = !mask || !mask->atTime[t].manipDofs.isZero() || !mask->atTime[t+1].manipDofs.isZero();
+    bool calc_pos = !mask || !mask->atTime[t].x.isZero() || !mask->atTime[t+1].x.isZero() || !mask->atTime[t].vel.isZero() || !mask->atTime[t+1].vel.isZero();
+    bool calc_groundForce = !mask || !mask->atTime[t].groundForce_f.isZero() || !mask->atTime[t+1].groundForce_f.isZero();
+    bool calc_manipForce = !mask || !mask->atTime[t].manipForce.isZero() || !mask->atTime[t+1].manipForce.isZero();
 
     int tA = t*interpPerTimestep;
     int tB = (t + 1)*interpPerTimestep;
+
+    Vector3d p1, p2;
+    if (calc_manipDofs) {
+      p1 = m_opt.calcManipPos(out.atTime[t].manipDofs);
+      p2 = m_opt.calcManipPos(out.atTime[t+1].manipDofs);
+    }
 
     for (int s = tA; s < tB || (tB == newT - 1 && s <= tB); ++s) {
       const double frac_s = s*(origT-1.)/(newT-1.);
@@ -183,28 +186,43 @@ void OptRopeState::fillExpansion(int interpPerTimestep, OptRopeState &out) const
       //   manipDofs_d1, manipDofs_d2,
       //   frac_s, out.atTime[s].manipDofs
       // );
-
-      out.atTime[s].manipDofs = (1.-a)*atTime[t].manipDofs + a*atTime[t+1].manipDofs;
-
-      // pos, vel, accel
-      out.atTime[s].derived_accel.resize(N, 3);
-      Vector3d x, vel, accel;
-      for (int n = 0; n < N; ++n) {
-        splines::hermite_cubic_spline_value_single2(
-          (double) t, (double) t+1,
-          atTime[t].x.row(n), atTime[t+1].x.row(n),
-          atTime[t].vel.row(n), atTime[t+1].vel.row(n),
-          frac_s, x, vel, accel
-        );
-        out.atTime[s].x.row(n) = x.transpose();
-        out.atTime[s].vel.row(n) = vel.transpose();
-        out.atTime[s].derived_accel.row(n) = accel.transpose();
+      if (calc_manipDofs) {
+        out.atTime[s].manipDofs = (1.-a)*atTime[t].manipDofs + a*atTime[t+1].manipDofs;
+        // cheating...
+        //out.atTime[s].derived_manipPos = m_opt.calcManipPos(out.atTime[s].manipDofs);
+        out.atTime[s].derived_manipPos = (1.-a)*p1 + a*p2;
+        if (assumeOneMaskEntry) return;
       }
 
-      out.atTime[s].groundForce_f = (1.-a)*atTime[t].groundForce_f + a*atTime[t+1].groundForce_f;
+      // pos, vel, accel
+      if (calc_pos) {
+        out.atTime[s].derived_accel.resize(N, 3);
+        Vector3d x, vel, accel;
+        for (int n = 0; n < N; ++n) {
+          splines::hermite_cubic_spline_value_single2(
+            (double) t, (double) t+1,
+            atTime[t].x.row(n), atTime[t+1].x.row(n),
+            atTime[t].vel.row(n), atTime[t+1].vel.row(n),
+            frac_s, x, vel, accel
+          );
+          out.atTime[s].x.row(n) = x.transpose();
+          out.atTime[s].vel.row(n) = vel.transpose();
+          out.atTime[s].derived_accel.row(n) = accel.transpose();
+        }
+
+        if (assumeOneMaskEntry) return;
+      }
+
+      if (calc_groundForce) {
+        out.atTime[s].groundForce_f = (1.-a)*atTime[t].groundForce_f + a*atTime[t+1].groundForce_f;
+        if (assumeOneMaskEntry) return;
+      }
       out.atTime[s].groundForce_c = atTime[t].groundForce_c;
 
-      out.atTime[s].manipForce = (1.-a)*atTime[t].manipForce + a*atTime[t+1].manipForce;
+      if (calc_manipForce) {
+        out.atTime[s].manipForce = (1.-a)*atTime[t].manipForce + a*atTime[t+1].manipForce;
+        if (assumeOneMaskEntry) return;
+      }
       out.atTime[s].manipForce_c = atTime[t].manipForce_c;
 
 
@@ -222,7 +240,6 @@ void OptRopeState::fillExpansion(int interpPerTimestep, OptRopeState &out) const
      // }
     }
   }
-  out.expanded = true;
 }
 
 bool OptRopeState::StateAtTime::isApprox(const OptRopeState::StateAtTime &other) const {

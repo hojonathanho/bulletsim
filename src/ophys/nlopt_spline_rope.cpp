@@ -120,13 +120,23 @@ static bool runTests() {
     cout << "state/column conversion testing passed" << endl;
   }
 
-
   OptRopeState exp1 = testingState.expandByInterp(10);
   OptRopeState exp2 = testingState.expandByInterp(10);
-  testingState.fillExpansion(10, exp2);
+  OptRopeState fullMask(optrope, 100, 200); fullMask.initFromColumn(VectorXd::Ones(fullMask.dim()));
+  testingState.fillExpansion(10, exp2, &fullMask);
   assert(b = exp1.isApprox(exp2));
   if (b) {
     cout << "expansion test passed" << endl;
+  }
+
+  fullMask.initFromColumn(VectorXd::Zero(fullMask.dim()));
+  testingState.atTime[0].manipDofs[0] = 0.5;
+  fullMask.atTime[0].manipDofs[0] = 1;
+  testingState.fillExpansion(10, exp1);
+  testingState.fillExpansion(10, exp2, &fullMask);
+  assert(b = exp1.isApprox(exp2));
+  if (b) {
+    cout << "expansion+mask test passed" << endl;
   }
 
   
@@ -197,7 +207,7 @@ int main(int argc, char *argv[]) {
   for (int i = 0; i < OPhysConfig::N; ++i) {
     initPositions.row(i) <<
       OPhysConfig::tableDistFromRobot+0.1,
-      (-1 + 2*i/(OPhysConfig::N-1.0)),
+      (-0.5 + 1.*i/(OPhysConfig::N-1.0)),
       OPhysConfig::tableHeight+0.05;
     center += initPositions.row(i);
   }

@@ -35,7 +35,7 @@ struct OptRope {
   RobotManipulator::Ptr m_manip;
   void setRobot(RaveRobotObject::Ptr robot, RobotManipulator::Ptr manip);
 
-  Vector3d toManipPos(const Vector7d &dofs);
+  Vector3d calcManipPos(const Vector7d &dofs);
 
   template<typename Derived>
   OptRopeState toState(const DenseBase<Derived> &col) const {
