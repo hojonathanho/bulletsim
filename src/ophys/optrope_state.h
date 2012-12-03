@@ -7,10 +7,12 @@ using namespace Eigen;
 #include "ophys_common.h"
 using namespace ophys;
 
+struct OptRope;
+
 struct OptRopeState {
 
   struct StateAtTime {
-    Vector3d manipPos; // pos of manipulator 'gripper'
+    Vector7d manipDofs; // pos of manipulator 'gripper'
   
     MatrixX3d x; // positions of points (ith row is the position of the ith point)
     MatrixX3d vel; // velocities of points (ith row is the velocity of the ith point)
@@ -22,8 +24,10 @@ struct OptRopeState {
     VectorXd manipForce_c; // contact vars for manip forces
 
     MatrixX3d derived_accel; // not actually part of the state. filled in from cubic spline evaluation (only when expanded==true)
+    Vector3d derived_manipPos;
 
-    explicit StateAtTime(int N);
+    OptRope &m_opt;
+    explicit StateAtTime(OptRope &opt, int N);
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
     // Conversion/utility methods
@@ -36,7 +40,7 @@ struct OptRopeState {
     VectorXd toSubColumn() const {
       VectorXd col(dim());
       int pos = 0;
-      col.segment<3>(pos) = manipPos; pos += 3;
+      col.segment<7>(pos) = manipDofs; pos += 7;
       for (int i = 0; i < m_N; ++i) {
         col.segment<3>(pos) = x.row(i).transpose(); pos += 3;
       }
@@ -57,7 +61,7 @@ struct OptRopeState {
     void initFromSubColumn(const DenseBase<Derived> &col) {
       assert(col.size() == dim());
       int pos = 0;
-      manipPos = col.template segment<3>(pos); pos += 3;
+      manipDofs = col.template segment<7>(pos); pos += 7;
       for (int i = 0; i < m_N; ++i) {
         x.row(i) = (col.template segment<3>(pos)).transpose(); pos += 3;
       }
@@ -81,11 +85,13 @@ struct OptRopeState {
   // The whole state is just a bunch of StateAtTimes over time
   EigVector<StateAtTime>::type atTime;
 
-  const int m_T, m_N;
-  explicit OptRopeState(int T, int N)
-    : atTime(T, StateAtTime(N)),
+  int m_T, m_N;
+  OptRope &m_opt;
+  explicit OptRopeState(OptRope &opt, int T, int N)
+    : atTime(T, StateAtTime(opt, N)),
       expanded(false),
-      m_T(T), m_N(N)
+      m_T(T), m_N(N),
+      m_opt(opt)
   { }
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 

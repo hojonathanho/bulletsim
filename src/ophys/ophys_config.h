@@ -12,5 +12,12 @@ struct OPhysConfig : public Config {
   static int T;
   static bool runTests;
 
+  static double tableHeight;
+  static double tableWidth;
+  static double tableLength;
+  static double tableDistFromRobot;
+
+  static bool useRobot;
+
   OPhysConfig();
 };

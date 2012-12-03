@@ -19,7 +19,7 @@ add_library(ophys
   #particlesystem2.cpp
   ophys_config.cpp
 )
-target_link_libraries(ophys simulation)
+target_link_libraries(ophys simulation robots)
 
 #add_executable(test_particlesystem test_particlesystem.cpp)
 #target_link_libraries(test_particlesystem ophys)

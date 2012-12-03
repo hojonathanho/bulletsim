@@ -4,6 +4,7 @@
 using namespace Eigen;
 
 #include "optrope_state.h"
+#include "simulation/openravesupport.h"
 
 struct OptRope {
   const int m_N; // num particles
@@ -11,7 +12,7 @@ struct OptRope {
   const double m_linkLen; // resting distance
 
   const MatrixX3d m_initPos; // initial positions of the points (row(n) is the position of point n)
-  const Vector3d m_initManipPos;
+  const Vector7d m_initManipDofs;
 
   struct CostCoeffs {
     double groundPenetration;
@@ -23,30 +24,38 @@ struct OptRope {
     double manipSpeed;
   } m_coeffs;
 
-  OptRope(const MatrixX3d &initPos, const Vector3d &initManipPos, int T, int N, double linkLen);
+  OptRope(const MatrixX3d &initPos, const Vector7d &initManipDofs, int T, int N, double linkLen);
+  void init();
 
   void setCoeffs1();
   void setCoeffs2();
 
+  bool m_useRobot;
+  RaveRobotObject::Ptr m_robot;
+  RobotManipulator::Ptr m_manip;
+  void setRobot(RaveRobotObject::Ptr robot, RobotManipulator::Ptr manip);
+
+  Vector3d toManipPos(const Vector7d &dofs);
+
   template<typename Derived>
   OptRopeState toState(const DenseBase<Derived> &col) const {
-    OptRopeState s(m_T, m_N);
+    OptRopeState s(const_cast<OptRope&>(*this), m_T, m_N);
     s.initFromColumn(col);
     return s;
   }
 
   static inline double infty() { return HUGE_VAL; }
 
-  OptRopeState m_lb, m_ub;
+  boost::shared_ptr<OptRopeState> m_lb, m_ub;
   VectorXd m_lbvec, m_ubvec;
-  const OptRopeState &getLowerBound() const { return m_lb; }
-  const OptRopeState &getUpperBound() const { return m_ub; }
+  const OptRopeState &getLowerBound() const { return *m_lb; }
+  const OptRopeState &getUpperBound() const { return *m_ub; }
   const VectorXd &getLowerBoundVec() const { return m_lbvec; }
   const VectorXd &getUpperBoundVec() const { return m_ubvec; }
 
-  OptRopeState createLowerBound() const;
-  OptRopeState createUpperBound() const;
-  OptRopeState createInitState() const;
+  OptRopeState *createLowerBound();
+  OptRopeState *createUpperBound();
+  OptRopeState createInitState();
 
   template<typename VectorType>
   VectorType &clamp(VectorType &v) const {
@@ -67,17 +76,26 @@ struct OptRope {
     return v;
   }
 
+  OptRopeState m_dummyState;
   int getNumVariables() const {
-    static const OptRopeState s(m_T, m_N);
-    return s.dim();
+    return m_dummyState.dim();
   }
 
-  double costfunc_on_expanded(const OptRopeState &expandedState) const;
-  double costfunc(const OptRopeState &state) const;
+
+  double cost_groundPenetration(const OptRopeState &es);
+  double cost_velUpdate(const OptRopeState &es);
+  double cost_contact(const OptRopeState &es);
+  double cost_forces(const OptRopeState &es);
+  double cost_linkLen(const OptRopeState &es);
+  double cost_goalPos(const OptRopeState &es, const Vector3d &goal);
+  double cost_manipSpeed(const OptRopeState &es);
+
+  double costfunc_on_expanded(const OptRopeState &expandedState);
+  double costfunc(const OptRopeState &state);
 
   int m_costCalls;
   double costfunc_wrapper(const Eigen::Map<const VectorXd> &x);
-  double nlopt_costWrapper(const vector<double> &x, vector<double> &grad) const;
+  double nlopt_costWrapper(const vector<double> &x, vector<double> &grad);
 
 #if 0
   template<typename VecType, typename Derived>
