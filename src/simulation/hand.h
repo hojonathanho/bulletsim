@@ -11,6 +11,7 @@ public:
   typedef boost::shared_ptr<HumanHandObject> Ptr;
 	HumanHandObject(RaveInstance::Ptr rave);
 
+	void MyNearCallback(btBroadphasePair& collisionPair, btCollisionDispatcher& dispatcher, const btDispatcherInfo& dispatchInfo);
 	void init();
 	vector<float> getJointAngles();
 };

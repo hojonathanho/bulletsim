@@ -5,25 +5,22 @@
 #include "utils/config.h"
 using namespace std;
 
-RaveObject::Ptr hand;
-void MyNearCallback(btBroadphasePair& collisionPair,
+void HumanHandObject::MyNearCallback(btBroadphasePair& collisionPair,
 	btCollisionDispatcher& dispatcher, const btDispatcherInfo& dispatchInfo) {
 
 	// Do your collision logic here
-	if (hand) {
-		void* other_client = NULL;
-		if (hand->children[0]->rigidBody.get() == collisionPair.m_pProxy0->m_clientObject)
-			other_client = collisionPair.m_pProxy1->m_clientObject;
-		else if (hand->children[0]->rigidBody.get() == collisionPair.m_pProxy1->m_clientObject)
-			other_client = collisionPair.m_pProxy0->m_clientObject;
-		if (other_client)
-			if ((hand->children[2]->rigidBody.get() == other_client) ||
-					(hand->children[6]->rigidBody.get() == other_client) ||
-					(hand->children[10]->rigidBody.get() == other_client) ||
-					(hand->children[14]->rigidBody.get() == other_client) ||
-					(hand->children[18]->rigidBody.get() == other_client))
-				return;
-	}
+	void* other_client = NULL;
+	if (children[0]->rigidBody.get() == collisionPair.m_pProxy0->m_clientObject)
+		other_client = collisionPair.m_pProxy1->m_clientObject;
+	else if (children[0]->rigidBody.get() == collisionPair.m_pProxy1->m_clientObject)
+		other_client = collisionPair.m_pProxy0->m_clientObject;
+	if (other_client)
+		if ((children[2]->rigidBody.get() == other_client) ||
+				(children[6]->rigidBody.get() == other_client) ||
+				(children[10]->rigidBody.get() == other_client) ||
+				(children[14]->rigidBody.get() == other_client) ||
+				(children[18]->rigidBody.get() == other_client))
+			return;
 
 	// Only dispatch the Bullet collision information if you want the physics to continue
 	dispatcher.defaultNearCallback(collisionPair, dispatcher, dispatchInfo);
@@ -37,9 +34,10 @@ HumanHandObject::HumanHandObject(RaveInstance::Ptr rave) :
 void HumanHandObject::init() {
 	RaveObject::init();
 
-	// set ballback for ignoring collisions between the proximal phalanges and the palm
-	hand = shared_from_this();
-	getEnvironment()->bullet->dispatcher->setNearCallback(&MyNearCallback);
+	// set callback for ignoring collisions between the proximal phalanges and the palm
+	boost::function<void(btBroadphasePair& collisionPair, btCollisionDispatcher& dispatcher, const btDispatcherInfo& dispatchInfo)>
+		near_cb = boost::bind(&HumanHandObject::MyNearCallback, this, _1, _2, _3);
+	getEnvironment()->bullet->dispatcher->setNearCallback(*near_cb.target<btNearCallback>());
 
 	vector<KinBody::JointPtr> vbodyjoints; vbodyjoints.reserve(body->GetJoints().size()+body->GetPassiveJoints().size());
 	vbodyjoints.insert(vbodyjoints.end(),body->GetJoints().begin(),body->GetJoints().end());
