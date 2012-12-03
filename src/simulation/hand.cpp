@@ -5,6 +5,59 @@
 #include "utils/config.h"
 using namespace std;
 
+RaveObject::Ptr hand;
+void MyNearCallback(btBroadphasePair& collisionPair,
+	btCollisionDispatcher& dispatcher, const btDispatcherInfo& dispatchInfo) {
+
+	// Do your collision logic here
+	if (hand) {
+		void* other_client = NULL;
+		if (hand->children[0]->rigidBody.get() == collisionPair.m_pProxy0->m_clientObject)
+			other_client = collisionPair.m_pProxy1->m_clientObject;
+		else if (hand->children[0]->rigidBody.get() == collisionPair.m_pProxy1->m_clientObject)
+			other_client = collisionPair.m_pProxy0->m_clientObject;
+		if (other_client)
+			if ((hand->children[2]->rigidBody.get() == other_client) ||
+					(hand->children[6]->rigidBody.get() == other_client) ||
+					(hand->children[10]->rigidBody.get() == other_client) ||
+					(hand->children[14]->rigidBody.get() == other_client) ||
+					(hand->children[18]->rigidBody.get() == other_client))
+				return;
+	}
+
+	// Only dispatch the Bullet collision information if you want the physics to continue
+	dispatcher.defaultNearCallback(collisionPair, dispatcher, dispatchInfo);
+}
+
+HumanHandObject::HumanHandObject(RaveInstance::Ptr rave) :
+	RaveObject(rave, EXPAND(BULLETSIM_DATA_DIR)"/robot_model/HumanHand/HumanHand20DOF.robot.xml", CONVEX_HULL, false, true) {
+	setColor(239.0/255.0, 208.0/255.0, 207.0/255.0, 0.6);
+}
+
+void HumanHandObject::init() {
+	RaveObject::init();
+
+	// set ballback for ignoring collisions between the proximal phalanges and the palm
+	hand = shared_from_this();
+	getEnvironment()->bullet->dispatcher->setNearCallback(&MyNearCallback);
+
+	vector<KinBody::JointPtr> vbodyjoints; vbodyjoints.reserve(body->GetJoints().size()+body->GetPassiveJoints().size());
+	vbodyjoints.insert(vbodyjoints.end(),body->GetJoints().begin(),body->GetJoints().end());
+	vbodyjoints.insert(vbodyjoints.end(),body->GetPassiveJoints().begin(),body->GetPassiveJoints().end());
+	BOOST_FOREACH(KinBody::JointPtr joint, vbodyjoints) {
+		m_constraints.push_back(jointMap[joint]);
+	}
+}
+
+vector<float> HumanHandObject::getJointAngles() {
+	vector<float> angles;
+	for (int i=0; i<m_constraints.size(); i++)
+		angles.push_back(boost::dynamic_pointer_cast<btHingeConstraint>(m_constraints[i]->cnt)->getHingeAngle());
+	return angles;
+}
+
+
+
 Finger::Finger (btScalar mass, vector<float> radii, vector<float> heights, const btTransform &initTrans, float linDamping, float angDamping)
 	: m_linDamping(linDamping),
 	  m_angDamping(angDamping)

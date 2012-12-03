@@ -107,6 +107,18 @@ public:
 		void setKinematic(bool);
 		bool isKinematic;
 
+		float getMass() {
+			btScalar inv_mass = rigidBody->getInvMass();
+			return inv_mass != 0.0 ? 1/inv_mass : 0.0;
+		}
+		void setMass(float mass) {
+			btVector3 inv_inertia = rigidBody->getInvInertiaDiagLocal();
+			btVector3 inertia (inv_inertia.x() != btScalar(0.0) ? btScalar(1.0) / inv_inertia.x(): btScalar(0.0),
+				inv_inertia.y() != btScalar(0.0) ? btScalar(1.0) / inv_inertia.y(): btScalar(0.0),
+				inv_inertia.z() != btScalar(0.0) ? btScalar(1.0) / inv_inertia.z(): btScalar(0.0));
+			rigidBody->setMassProps(mass, inertia);
+		}
+
 private:
 		bool enable_texture;
 		osg::Vec4f m_color;
@@ -116,6 +128,8 @@ private:
 		void setTextureAfterInit();
     void setFlagsAndActivation();
     void construct(btScalar mass, boost::shared_ptr<btCollisionShape> cs, const btTransform& initTrans, bool isKinematic_);
+
+    btVector3 com; // Center of mass. Currently, this variable is not maintained. It's used for message passing between createFromLink and createFromJoint
 public:
 		cv::Mat& getTexture() { return *m_cvimage; }
 };

@@ -2,7 +2,19 @@
 #include "environment.h"
 #include "basicobjects.h"
 #include "btBulletDynamicsCommon.h"
+#include "openravesupport.h"
 #include <vector>
+
+class HumanHandObject : public RaveObject, public boost::enable_shared_from_this<HumanHandObject> {
+	vector<BulletConstraint::Ptr> m_constraints;
+public:
+  typedef boost::shared_ptr<HumanHandObject> Ptr;
+	HumanHandObject(RaveInstance::Ptr rave);
+
+	void init();
+	vector<float> getJointAngles();
+};
+
 
 class Finger : public CompoundObject<BulletObject> {
 public:

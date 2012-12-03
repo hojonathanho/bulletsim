@@ -113,8 +113,13 @@ RaveRobotObject::Ptr getRobotByName(Environment::Ptr env, RaveInstance::Ptr rave
   return boost::dynamic_pointer_cast<RaveRobotObject>(getObjectByName(env, rave, name));
 }
 
-RaveObject::RaveObject(RaveInstance::Ptr rave_, KinBodyPtr body_, TrimeshMode trimeshMode, bool isKinematic_) {
-	initRaveObject(rave_, body_, trimeshMode, isKinematic_);
+RaveObject::RaveObject(RaveInstance::Ptr rave_, KinBodyPtr body_, TrimeshMode trimeshMode, bool isKinematic_, bool offset_com) {
+	initRaveObject(rave_, body_, trimeshMode, isKinematic_, offset_com);
+}
+
+RaveObject::RaveObject(RaveInstance::Ptr rave_, const std::string &uri, TrimeshMode trimeshMode, bool isKinematic_, bool offset_com) {
+	KinBodyPtr robot = rave_->env->ReadRobotURI(uri);
+	initRaveObject(rave_, robot, trimeshMode, isKinematic_, offset_com);
 }
 
 void RaveObject::init() {
@@ -135,12 +140,13 @@ void RaveObject::destroy() {
 
 }
 
-
+// if offset_com true, an offset is added to the meshes so that its origin lies at the center of mass
+// (this effectively allows you to specify the center of mass and thus get the right physics behavior)
 static BulletObject::Ptr createFromLink(KinBody::LinkPtr link,
         std::vector<boost::shared_ptr<btCollisionShape> >& subshapes,
+        std::vector<boost::shared_ptr<btCollisionShape> >& graphics_subshapes,
         std::vector<boost::shared_ptr<btStridingMeshInterface> >& meshes,
-         TrimeshMode trimeshMode,
-        bool isKinematic) {
+         TrimeshMode trimeshMode, bool isKinematic, bool offset_com) {
 
   LOG_DEBUG("creating link from " << link->GetName());
 
@@ -156,17 +162,13 @@ static BulletObject::Ptr createFromLink(KinBody::LinkPtr link,
 		return BulletObject::Ptr();
 	}
 
-//	bool useCompound = geometries.size() > 1;
-	bool useCompound = true;
-  bool useGraphicsMesh = false;
+	btCompoundShape* compound = new btCompoundShape();
+	btCompoundShape* graphics_compound = new btCompoundShape();
+  compound->setMargin(1e-5*METERS); //margin: compound. seems to have no effect when positive but has an effect when negative
 
-	btCompoundShape* compound;
-	if (useCompound) {
-    compound = new btCompoundShape();
-    compound->setMargin(1e-5*METERS); //margin: compound. seems to have no effect when positive but has an effect when negative
-	}
-
-
+	// com and volume of each subshape
+	vector<btVector3> center_of_masses;
+	vector<float> volumes;
 
 #if OPENRAVE_VERSION_MINOR>6
 	BOOST_FOREACH(const boost::shared_ptr<OpenRAVE::KinBody::Link::GEOMPROPERTIES>& geom, geometries) {
@@ -176,29 +178,65 @@ static BulletObject::Ptr createFromLink(KinBody::LinkPtr link,
 
 	  const KinBody::Link::TRIMESH &mesh = geom->GetCollisionMesh();
 		boost::shared_ptr<btCollisionShape> subshape;
+		boost::shared_ptr<btCollisionShape> graphics_subshape; // has the graphics subshape if graphicsMesh is true and if it is different from subshape
+		btVector3 local_center_of_mass;
+		btScalar volume;
 
 		switch (geom->GetType()) {
-		case KinBody::Link::GEOMPROPERTIES::GeomBox:
-			subshape.reset(new btBoxShape(util::toBtVector(GeneralConfig::scale
-					* geom->GetBoxExtents()) + btVector3(1,1,1)*BulletConfig::linkPadding*METERS));
+		case KinBody::Link::GEOMPROPERTIES::GeomBox: {
+			btVector3 half_extents = util::toBtVector(GeneralConfig::scale
+					* geom->GetBoxExtents()) + btVector3(1,1,1)*BulletConfig::linkPadding*METERS;
+			subshape.reset(new btBoxShape(half_extents));
+			local_center_of_mass = btVector3(0,0,0);
+			volume = half_extents.x()*half_extents.y()*half_extents.z()*8;
 			break;
+		}
 
-		case KinBody::Link::GEOMPROPERTIES::GeomSphere:
-			subshape.reset(new btSphereShape(GeneralConfig::scale
-					* geom->GetSphereRadius() + BulletConfig::linkPadding*METERS));
+		case KinBody::Link::GEOMPROPERTIES::GeomSphere: {
+			btScalar radius = GeneralConfig::scale
+				* geom->GetSphereRadius() + BulletConfig::linkPadding*METERS;
+			subshape.reset(new btSphereShape(radius));
+			local_center_of_mass = btVector3(0,0,0);
+			volume = (4.0/3.0)*M_PI*pow(radius,3);
 			break;
+		}
 
-		case KinBody::Link::GEOMPROPERTIES::GeomCylinder:
+		case KinBody::Link::GEOMPROPERTIES::GeomCylinder: {
 			// cylinder axis aligned to Y
-			subshape.reset(new btCylinderShapeZ(btVector3(GeneralConfig::scale
-					* geom->GetCylinderRadius(), GeneralConfig::scale
-					* geom->GetCylinderRadius(), GeneralConfig::scale
-					* geom->GetCylinderHeight() / 2.)));
+			btScalar radius = GeneralConfig::scale * geom->GetCylinderRadius();
+			btScalar height = GeneralConfig::scale * geom->GetCylinderHeight();
+			subshape.reset(new btCylinderShapeZ(btVector3(radius, radius, height/2.0)));
+			local_center_of_mass = btVector3(0,0,0);
+			volume = M_PI*pow(radius,2)*height;
 			break;
+		}
 
-		case KinBody::Link::GEOMPROPERTIES::GeomTrimesh:
-			if (mesh.indices.size() < 3)
-				break;
+		case KinBody::Link::GEOMPROPERTIES::GeomTrimesh: {
+			if (mesh.indices.size() < 3) break;
+
+			// build a btConvexTriangleMeshShape to approximate the center of mass and volume
+			btTriangleMesh* ptrimesh = new btTriangleMesh();
+			// for some reason adding indices makes everything crash
+			/*
+			 printf("-----------\n");
+			 for (int z = 0; z < mesh.indices.size(); ++z)
+			 printf("%d\n", mesh.indices[z]);
+			 printf("-----------\n");*/
+
+			for (size_t i = 0; i < mesh.indices.size(); i += 3)
+				ptrimesh->addTriangle(util::toBtVector(mesh.vertices[i])*METERS,
+					util::toBtVector(mesh.vertices[i+1])*METERS,
+					util::toBtVector(mesh.vertices[i+2])*METERS);
+			// store the trimesh somewhere so it doesn't get deallocated by the smart pointer
+			meshes.push_back(boost::shared_ptr<btStridingMeshInterface>(ptrimesh));
+
+			boost::shared_ptr<btConvexShape> pconvexbuilder(new btConvexTriangleMeshShape(ptrimesh));
+			pconvexbuilder->setMargin(BulletConfig::linkPadding*METERS); // margin: hull padding
+
+			btTransform principal; btVector3 inertia;
+			boost::dynamic_pointer_cast<btConvexTriangleMeshShape>(pconvexbuilder)->calculatePrincipalAxisTransform(principal, inertia, volume);
+			local_center_of_mass = principal.getOrigin();
+
 			if (trimeshMode == CONVEX_DECOMP) {
 				printf("running convex decomposition\n");
 				ConvexDecomp decomp(BulletConfig::margin*METERS);
@@ -207,47 +245,24 @@ static BulletObject::Ptr createFromLink(KinBody::LinkPtr link,
 				for (size_t i = 0; i < mesh.indices.size(); i += 3)
 					decomp.addTriangle(mesh.indices[i], mesh.indices[i + 1], mesh.indices[i + 2]);
 				subshape = decomp.run(subshapes); // use subshapes to just store smart pointer
+				if (BulletConfig::graphicsMesh) graphics_subshape.reset(new btBvhTriangleMeshShape(ptrimesh, true));
+			} else if (trimeshMode == CONVEX_HULL) {
+				//Create a hull shape to approximate Trimesh
+				boost::shared_ptr<btShapeHull> hull(new btShapeHull(pconvexbuilder.get()));
+				hull->buildHull(-666); // note: margin argument not used
 
+				btConvexHullShape *convexShape = new btConvexHullShape();
+				for (int i = 0; i < hull->numVertices(); ++i)
+					convexShape->addPoint(hull->getVertexPointer()[i]);
+
+				subshape.reset(convexShape);
+				if (BulletConfig::graphicsMesh) graphics_subshape.reset(new btBvhTriangleMeshShape(ptrimesh, true));
+			} else { // RAW
+				subshape.reset(new btBvhTriangleMeshShape(ptrimesh, true));
 			}
-			else {
-				btTriangleMesh* ptrimesh = new btTriangleMesh();
-				// for some reason adding indices makes everything crash
-				/*
-				 printf("-----------\n");
-				 for (int z = 0; z < mesh.indices.size(); ++z)
-				 printf("%d\n", mesh.indices[z]);
-				 printf("-----------\n");*/
 
-
-				for (size_t i = 0; i < mesh.indices.size(); i += 3)
-					ptrimesh->addTriangle(util::toBtVector(mesh.vertices[i])*METERS,
-										  util::toBtVector(mesh.vertices[i+1])*METERS,
-										  util::toBtVector(mesh.vertices[i+2])*METERS);
-				// store the trimesh somewhere so it doesn't get deallocated by the smart pointer
-				meshes.push_back(boost::shared_ptr<btStridingMeshInterface>(ptrimesh));
-
-				if (BulletConfig::graphicsMesh) useGraphicsMesh = true;
-
-				if (trimeshMode == CONVEX_HULL) {
-					boost::shared_ptr<btConvexShape> pconvexbuilder(new btConvexTriangleMeshShape(ptrimesh));
-					pconvexbuilder->setMargin(BulletConfig::linkPadding*METERS); // margin: hull padding
-
-					//Create a hull shape to approximate Trimesh
-					boost::shared_ptr<btShapeHull> hull(new btShapeHull(pconvexbuilder.get()));
-					hull->buildHull(-666); // note: margin argument not used
-
-					btConvexHullShape *convexShape = new btConvexHullShape();
-					for (int i = 0; i < hull->numVertices(); ++i)
-						convexShape->addPoint(hull->getVertexPointer()[i]);
-
-					subshape.reset(convexShape);
-
-				}
-				else { // RAW
-					subshape.reset(new btBvhTriangleMeshShape(ptrimesh, true));
-				}
-			}
 			break;
+		}
 
 		default:
 			break;
@@ -260,24 +275,63 @@ static BulletObject::Ptr createFromLink(KinBody::LinkPtr link,
 
 		// store the subshape somewhere so it doesn't get deallocated by the smart pointer
 		subshapes.push_back(subshape);
-//		if (geom->GetType() == KinBody::Link::GEOMPROPERTIES::GeomTrimesh) subshape->setMargin(0);
+		if (graphics_subshape) graphics_subshapes.push_back(graphics_subshape);
 		subshape->setMargin(BulletConfig::margin*METERS);  //margin: subshape. seems to result in padding convex shape AND increases collision dist on top of that
 		btTransform geomTrans = util::toBtTransform(geom->GetTransform(),GeneralConfig::scale);
-		if (useCompound) compound->addChildShape(geomTrans, subshape.get());
-	}
 
+		compound->addChildShape(geomTrans, subshape.get());
+		if (BulletConfig::graphicsMesh) {
+			if (graphics_subshape) graphics_compound->addChildShape(geomTrans, graphics_subshape.get());
+			else graphics_compound->addChildShape(geomTrans, subshape.get());
+		}
+
+		center_of_masses.push_back(geomTrans*local_center_of_mass);
+		volumes.push_back(volume);
+	}
 
 	float mass = link->GetMass();
-	if (mass==0 && !isKinematic) LOG_WARN_FMT("warning: link %s is non-kinematic but mass is zero", link->GetName().c_str());
-	BulletObject::Ptr child;
-	if (useCompound) {
-    btTransform childTrans = util::toBtTransform(link->GetTransform(),GeneralConfig::scale);
-	  child.reset(new BulletObject(mass, compound,childTrans,isKinematic));
+	if (mass < 0) {
+		float density = -mass; // in kg/m^3
+		btScalar compound_volume = 0;
+		BOOST_FOREACH(btScalar vol, volumes) compound_volume += vol;
+		mass = (density/pow(METERS,3))*compound_volume;
 	}
-	else {
-	  btTransform geomTrans = util::toBtTransform(link->GetTransform() * link->GetGeometry(0)->GetTransform(),METERS);
-    child.reset(new BulletObject(mass, subshapes.back(), geomTrans, isKinematic));
-    if (useGraphicsMesh) child->graphicsShape.reset(new btBvhTriangleMeshShape(meshes.back().get(), true));
+
+	if (mass==0 && !isKinematic) LOG_WARN_FMT("warning: link %s is non-kinematic but mass is zero", link->GetName().c_str());
+	btTransform bodyTrans = util::toBtTransform(link->GetTransform(),GeneralConfig::scale);
+	BulletObject::Ptr child;
+	if (offset_com) { // offset the compound shape so that the center of mass lies at the origin
+		btVector3 compound_com(0,0,0);
+		btScalar compound_volume = 0;
+		assert(center_of_masses.size() == volumes.size());
+		for (int i=0; i<center_of_masses.size(); i++) {
+			compound_com += center_of_masses[i]*volumes[i];
+			compound_volume += volumes[i];
+		}
+		compound_com /= compound_volume;
+
+		btCompoundShape* outer_compound = new btCompoundShape();
+		outer_compound->setMargin(1e-5*METERS);
+		btTransform comTrans;
+		comTrans.setIdentity();
+		comTrans.setOrigin(-compound_com);
+		outer_compound->addChildShape(comTrans, compound);
+		child.reset(new BulletObject(mass, outer_compound, bodyTrans*comTrans.inverse(), isKinematic));
+		if (BulletConfig::graphicsMesh) {
+			boost::shared_ptr<btCompoundShape>graphics_outer_compound(new btCompoundShape());
+			graphics_outer_compound->setMargin(1e-5*METERS);
+			btTransform comTrans;
+			comTrans.setIdentity();
+			comTrans.setOrigin(-compound_com);
+			graphics_outer_compound->addChildShape(comTrans, graphics_compound);
+			child->graphicsShape = graphics_outer_compound;
+		}
+		child->com = compound_com;
+	} else {
+		child.reset(new BulletObject(mass, compound, bodyTrans, isKinematic));
+		if (BulletConfig::graphicsMesh)
+			child->graphicsShape.reset(graphics_compound);
+		child->com = btVector3(0,0,0);
 	}
 
 	return child;
@@ -295,8 +349,12 @@ BulletConstraint::Ptr createFromJoint(KinBody::JointPtr joint, std::map<KinBody:
 	btRigidBody* body0 = linkMap[joint->GetFirstAttached()]->rigidBody.get();
 	btRigidBody* body1 = linkMap[joint->GetSecondAttached()]->rigidBody.get();
 
+	BulletObject::Ptr obj0 = linkMap[joint->GetFirstAttached()];
+	BulletObject::Ptr obj1 = linkMap[joint->GetSecondAttached()];
+
 	Transform t0inv = (joint)->GetFirstAttached()->GetTransform().inverse();
 	Transform t1inv = (joint)->GetSecondAttached()->GetTransform().inverse();
+
 	btTypedConstraint* cnt;
 
 	switch ((joint)->GetType()) {
@@ -305,8 +363,16 @@ BulletConstraint::Ptr createFromJoint(KinBody::JointPtr joint, std::map<KinBody:
 		btVector3 pivotInB = util::toBtVector(t1inv * (joint)->GetAnchor())*METERS;
 		btVector3 axisInA = util::toBtVector(t0inv.rotate((joint)->GetAxis(0)));
 		btVector3 axisInB = util::toBtVector(t1inv.rotate((joint)->GetAxis(0)));
+
 		btHingeConstraint* hinge = new btHingeConstraint(*body0, *body1,
 				pivotInA, pivotInB, axisInA, axisInB);
+		if (obj0->com != btVector3(0,0,0) || obj1->com != btVector3(0,0,0)) {
+			hinge->setUseFrameOffset(true);
+			hinge->getFrameOffsetA().getOrigin() += -obj0->com;
+			hinge->getFrameOffsetB().getOrigin() += -obj1->com;
+		}
+
+		hinge->setDbgDrawSize(btScalar(0.1)*METERS);
 		if (!(joint)->IsCircular(0)) {
 			vector<dReal> vlower, vupper;
 			(joint)->GetLimits(vlower, vupper);
@@ -345,7 +411,7 @@ BulletConstraint::Ptr createFromJoint(KinBody::JointPtr joint, std::map<KinBody:
 }
 
 void RaveObject::initRaveObject(RaveInstance::Ptr rave_, KinBodyPtr body_,
-		TrimeshMode trimeshMode, bool isKinematic_) {
+		TrimeshMode trimeshMode, bool isKinematic_, bool offset_com) {
 	rave = rave_;
 	body = body_;
 	rave->rave2bulletsim[body] = this;
@@ -357,8 +423,10 @@ void RaveObject::initRaveObject(RaveInstance::Ptr rave_, KinBodyPtr body_,
 
 	getChildren().reserve(links.size());
 	// iterate through each link in the robot (to be stored in the children vector)
+	bool first = true;
 	BOOST_FOREACH(KinBody::LinkPtr link, links) {
-		BulletObject::Ptr child = createFromLink(link, subshapes, meshes, trimeshMode, isKinematic);
+		BulletObject::Ptr child = createFromLink(link, subshapes, graphics_subshapes, meshes, trimeshMode, isKinematic, offset_com);
+		first = false;
 		linkMap[link] = child;
 		if (child) {
 			getChildren().push_back(child);
@@ -517,14 +585,14 @@ void RaveObject::postCopy(EnvironmentObject::Ptr copy, Fork &f) const {
 		o->ignoreCollisionObjs.insert((btCollisionObject *) f.copyOf(*i));
 }
 
-RaveRobotObject::RaveRobotObject(RaveInstance::Ptr rave_, RobotBasePtr robot_, TrimeshMode trimeshMode, bool isKinematic_) {
+RaveRobotObject::RaveRobotObject(RaveInstance::Ptr rave_, RobotBasePtr robot_, TrimeshMode trimeshMode, bool isKinematic_, bool offset_com) {
 	robot = robot_;
-	initRaveObject(rave_, robot_, trimeshMode, isKinematic_);
+	initRaveObject(rave_, robot_, trimeshMode, isKinematic_, offset_com);
 }
 
-RaveRobotObject::RaveRobotObject(RaveInstance::Ptr rave_, const std::string &uri, TrimeshMode trimeshMode, bool isKinematic_) {
+RaveRobotObject::RaveRobotObject(RaveInstance::Ptr rave_, const std::string &uri, TrimeshMode trimeshMode, bool isKinematic_, bool offset_com) {
 	robot = rave_->env->ReadRobotURI(uri);
-	initRaveObject(rave_, robot, trimeshMode, isKinematic_);
+	initRaveObject(rave_, robot, trimeshMode, isKinematic_, offset_com);
 	rave->env->AddRobot(robot);
 }
 

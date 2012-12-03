@@ -47,7 +47,8 @@ public:
   RaveInstance::Ptr rave;
   KinBodyPtr body;
 
-  RaveObject(RaveInstance::Ptr rave_, KinBodyPtr body, TrimeshMode trimeshMode = CONVEX_HULL, bool isKinematic=true);
+  RaveObject(RaveInstance::Ptr rave_, KinBodyPtr body, TrimeshMode trimeshMode = CONVEX_HULL, bool isKinematic=true, bool offset_com = false);
+  RaveObject(RaveInstance::Ptr rave_, const std::string &uri, TrimeshMode trimeshMode = CONVEX_HULL, bool isKinematic=true, bool offset_com = false);
   // This constructor assumes the robot is already in openrave. Use this if you're loading a bunch of stuff from an
   // xml file, and you want to put everything in bullet
 
@@ -89,10 +90,11 @@ public:
   void updateRave();
 
 protected:
-  // these two containers just keep track of the smart pointers
+  // these three containers just keep track of the smart pointers
   // so that the objects get deallocated on destruction
   std::vector<boost::shared_ptr<btStridingMeshInterface> > meshes;
   std::vector<boost::shared_ptr<btCollisionShape> > subshapes;
+  std::vector<boost::shared_ptr<btCollisionShape> > graphics_subshapes;
 
   // for looking up the associated Bullet object for an OpenRAVE link
   std::map<KinBody::LinkPtr, BulletObject::Ptr> linkMap;
@@ -110,7 +112,7 @@ protected:
 
   // for the loaded robot, this will create BulletObjects
   // and place them into the children vector
-  void initRaveObject(RaveInstance::Ptr rave_, KinBodyPtr body_, TrimeshMode trimeshMode, bool isKinematic);
+  void initRaveObject(RaveInstance::Ptr rave_, KinBodyPtr body_, TrimeshMode trimeshMode, bool isKinematic, bool offset_com);
   RaveObject() {} // for manual copying
   void internalCopy(RaveObject::Ptr o, Fork &f) const;
   bool isKinematic;
@@ -128,8 +130,8 @@ public:
   map<KinBody::LinkPtr, RaveObject::Ptr> m_grabber2targ;
 
 
-  RaveRobotObject(RaveInstance::Ptr rave_, RobotBasePtr robot, TrimeshMode trimeshMode = CONVEX_HULL, bool isStatic=true);
-  RaveRobotObject(RaveInstance::Ptr rave_, const std::string &uri, TrimeshMode trimeshMode = CONVEX_HULL, bool isStatic=true);
+  RaveRobotObject(RaveInstance::Ptr rave_, RobotBasePtr robot, TrimeshMode trimeshMode = CONVEX_HULL, bool isStatic=true, bool offset_com=false);
+  RaveRobotObject(RaveInstance::Ptr rave_, const std::string &uri, TrimeshMode trimeshMode = CONVEX_HULL, bool isStatic=true, bool offset_com=false);
 
   virtual void init() { RaveObject::init(); }
   virtual void destroy() { RaveObject::destroy(); }

@@ -332,8 +332,8 @@ void CustomScene::createFork() {
         return;
     }
     tmpRobot = boost::static_pointer_cast<RaveRobotObject>(p);
-    cout << (tmpRobot->getEnvironment() == env.get()) << endl;
-    cout << (tmpRobot->getEnvironment() == fork->env.get()) << endl;
+    cout << (tmpRobot->getEnvironment() == env) << endl;
+    cout << (tmpRobot->getEnvironment() == fork->env) << endl;
 }
 
 void CustomScene::swapFork() {

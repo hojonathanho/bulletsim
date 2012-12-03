@@ -40,6 +40,7 @@ struct LocalConfig: Config {
 float LocalConfig::node_density = 1/0.02; // 1 node per 2 cm
 float LocalConfig::surface_density = 0.4; // 0.4 kg per m2 (100 grams for a 0.5m x 0.5m towel
 
+#include "simulation/bullet_io.h"
 int main(int argc, char *argv[]) {
     SceneConfig::enableIK = true;
     SceneConfig::enableRobot = true;
@@ -65,6 +66,7 @@ int main(int argc, char *argv[]) {
 //		table->rigidBody->setFriction(LocalConfig::friction);
 		table->setColor(0,.8,0,.5);
 		scene.env->add(table);
+
 //		Load(scene.env, scene.rave, EXPAND(BULLETSIM_DATA_DIR)"/xml/table.xml");
 //		RaveObject::Ptr table = getObjectByName(scene.env, scene.rave, "table");
 //		table->setColor(0,.8,0,.5);

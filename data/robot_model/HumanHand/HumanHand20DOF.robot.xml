@@ -1,0 +1,469 @@
+<!-- kinematic model of a human hand, modeled as triangle mesh bodies and hinge joints. -->
+<!-- original model was created by the GraspIt! project, http://www.cs.columbia.edu/~cmatei/graspit/ -->
+<!-- kinematic model modified and converted to openrave format by Alex Lee -->
+
+<!-- sphere bodies is just a workaround for having universal joints that work in openrave and bulletsim. -->
+<!-- interpret negative total masses as densities (workaround for reading densities from within bulletsim -->
+
+<Robot name="HumanHand20DOF">
+
+	<Kinbody name="HumanHand20DOF">
+
+		<Body name="palm" type="dynamic">
+		  <Translation>0 0 0.1 </Translation>
+		  <Geom type="trimesh">
+		    <render>iv/palm.wrl 0.001</render>
+		    <collision>iv/palm.wrl 0.001</collision>
+		  </Geom>
+		  <Mass type="custom">
+		  	<total>-1062</total>
+			</Mass>
+		</Body>
+
+
+		<!-- index -->
+		<Body name="index1-pre" type="dynamic">
+			<offsetfrom>palm</offsetfrom>
+			<Translation>-0.1400599 0.0112048 0.0364156</Translation>
+			<Rotationaxis>1 0 0 -90</Rotationaxis> 
+		  <Geom type="sphere">
+				<Rotationaxis>1 0 0 90</Rotationaxis> 
+		    <Radius>0.005 0.005 0.005</Radius>
+		  </Geom>
+		  <Mass type="sphere">
+		  	<total>1</total>
+			</Mass>
+		</Body>
+		
+		<Joint name="index1-pre" type="hinge">
+		  <Body>palm</Body>
+		  <Body>index1-pre</Body>
+		  <offsetfrom>index1-pre</offsetfrom>
+		  <limitsdeg>-20 20</limitsdeg>
+		  <axis>0 0 1</axis>
+		</Joint>
+		
+		<Body name="index1" type="dynamic">
+			<offsetfrom>index1-pre</offsetfrom>
+			<Rotationaxis>1 0 0 90</Rotationaxis> 
+			<Geom type="trimesh">
+			  <Translation>-0.04319 0 0</Translation>
+		    <render>iv/index1.wrl 0.001</render>
+		    <collision>iv/index1.wrl 0.001</collision>
+		  </Geom>
+		  <Mass type="custom">
+		  	<total>-1062</total>
+			</Mass>
+		</Body>
+		
+		<Joint name="index1" type="hinge">
+		  <Body>index1-pre</Body>
+		  <Body>index1</Body>
+		  <offsetfrom>index1</offsetfrom>
+		  <limitsdeg>-10 90</limitsdeg>
+		  <axis>0 0 1</axis>
+		</Joint>
+		
+		<Body name="index2" type="dynamic">
+			<offsetfrom>index1</offsetfrom> 
+		  <Translation>-0.04319 0 0</Translation>
+		  <Geom type="trimesh">
+			  <Translation>-0.02956 0 0 </Translation>
+		    <render>iv/index2.wrl 0.001</render>
+		    <collision>iv/index2.wrl 0.001</collision>
+		  </Geom>
+		  <Mass type="custom">
+		  	<total>-1062</total>
+			</Mass>
+		</Body>
+		  
+		<Joint name="index2" type="hinge">
+		  <Body>index1</Body>
+		  <Body>index2</Body>
+		  <offsetfrom>index2</offsetfrom>
+		  <limitsdeg>-10 90</limitsdeg>
+		  <axis>0 0 1</axis>
+		</Joint>
+		
+		<Body name="index3" type="dynamic">
+		  <offsetfrom>index2</offsetfrom>
+		  <Translation>-0.02956 0 0 </Translation>
+		  <Geom type="trimesh">
+		  	<Translation>-0.02535 0 0 </Translation>
+		    <render>iv/index3.wrl 0.001</render>
+		    <collision>iv/index3.wrl 0.001</collision>
+		  </Geom>
+		  <Mass type="custom">
+		  	<total>-1062</total>
+			</Mass>
+		</Body>
+		
+		<Joint name="index3" type="hinge">
+		  <Body>index2</Body>
+		  <Body>index3</Body>
+		  <offsetfrom>index3</offsetfrom>
+		  <limitsdeg>-10 90</limitsdeg>
+		  <axis>0 0 1</axis>
+		</Joint>
+		
+		
+		<!-- mid -->
+		<Body name="mid1-pre" type="dynamic">
+			<offsetfrom>palm</offsetfrom>
+			<Translation>-0.1456623 0.0112048 0.0084036</Translation>
+			<Rotationaxis>1 0 0 -90</Rotationaxis> 
+		  <Geom type="sphere">
+				<Rotationaxis>1 0 0 90</Rotationaxis> 
+		    <Radius>0.005 0.005 0.005</Radius>
+		  </Geom>
+		  <Mass type="sphere">
+		  	<total>1</total>
+			</Mass>
+		</Body>
+		
+		<Joint name="mid1-pre" type="hinge">
+		  <Body>palm</Body>
+		  <Body>mid1-pre</Body>
+		  <offsetfrom>mid1-pre</offsetfrom>
+		  <limitsdeg>-10 10</limitsdeg>
+		  <axis>0 0 1</axis>
+		</Joint>
+		
+		<Body name="mid1" type="dynamic">
+			<offsetfrom>mid1-pre</offsetfrom>
+			<Rotationaxis>1 0 0 90</Rotationaxis> 
+			<Geom type="trimesh">
+			  <Translation>-0.04620 0 0</Translation>
+		    <render>iv/mid1.wrl 0.001</render>
+		    <collision>iv/mid1.wrl 0.001</collision>
+		  </Geom>
+		  <Mass type="custom">
+		  	<total>-1062</total>
+			</Mass>
+		</Body>
+		
+		<Joint name="mid1" type="hinge">
+		  <Body>mid1-pre</Body>
+		  <Body>mid1</Body>
+		  <offsetfrom>mid1</offsetfrom>
+		  <limitsdeg>-10 90</limitsdeg>
+		  <axis>0 0 1</axis>
+		</Joint>
+		
+		<Body name="mid2" type="dynamic">
+			<offsetfrom>mid1</offsetfrom> 
+		  <Translation>-0.04620 0 0</Translation>
+		  <Geom type="trimesh">
+			  <Translation>-0.03099 0 0 </Translation>
+		    <render>iv/mid2.wrl 0.001</render>
+		    <collision>iv/mid2.wrl 0.001</collision>
+		  </Geom>
+		  <Mass type="custom">
+		  	<total>-1062</total>
+			</Mass>
+		</Body>
+		  
+		<Joint name="mid2" type="hinge">
+		  <Body>mid1</Body>
+		  <Body>mid2</Body>
+		  <offsetfrom>mid2</offsetfrom>
+		  <limitsdeg>-10 90</limitsdeg>
+		  <axis>0 0 1</axis>
+		</Joint>
+		
+		<Body name="mid3" type="dynamic">
+		  <offsetfrom>mid2</offsetfrom>
+		  <Translation>-0.03099 0 0 </Translation>
+		  <Geom type="trimesh">
+		  	<Translation>-0.02920 0 0 </Translation>
+		    <render>iv/mid3.wrl 0.001</render>
+		    <collision>iv/mid3.wrl 0.001</collision>
+		  </Geom>
+		  <Mass type="custom">
+		  	<total>-1062</total>
+			</Mass>
+		</Body>
+		
+		<Joint name="mid3" type="hinge">
+		  <Body>mid2</Body>
+		  <Body>mid3</Body>
+		  <offsetfrom>mid3</offsetfrom>
+		  <limitsdeg>-10 90</limitsdeg>
+		  <axis>0 0 1</axis>
+		</Joint>
+		
+		
+		<!-- ring -->
+		<Body name="ring1-pre" type="dynamic">
+			<offsetfrom>palm</offsetfrom>
+			<Translation>-0.1456623 0.0056025 -0.0196084</Translation>
+			<Rotationaxis>1 0 0 -90</Rotationaxis> 
+		  <Geom type="sphere">
+				<Rotationaxis>1 0 0 90</Rotationaxis> 
+		    <Radius>0.005 0.005 0.005</Radius>
+		  </Geom>
+		  <Mass type="sphere">
+		  	<total>1</total>
+			</Mass>
+		</Body>
+		
+		<Joint name="ring1-pre" type="hinge">
+		  <Body>palm</Body>
+		  <Body>ring1-pre</Body>
+		  <offsetfrom>ring1-pre</offsetfrom>
+		  <limitsdeg>-20 20</limitsdeg>
+		  <axis>0 0 1</axis>
+		</Joint>
+		
+		<Body name="ring1" type="dynamic">
+			<offsetfrom>ring1-pre</offsetfrom>
+			<Rotationaxis>1 0 0 90</Rotationaxis> 
+			<Geom type="trimesh">
+			  <Translation>-0.03912 0 0</Translation>
+		    <render>iv/ring1.wrl 0.001</render>
+		    <collision>iv/ring1.wrl 0.001</collision>
+		  </Geom>
+		  <Mass type="custom">
+		  	<total>-1062</total>
+			</Mass>
+		</Body>
+		
+		<Joint name="ring1" type="hinge">
+		  <Body>ring1-pre</Body>
+		  <Body>ring1</Body>
+		  <offsetfrom>ring1</offsetfrom>
+		  <limitsdeg>-10 90</limitsdeg>
+		  <axis>0 0 1</axis>
+		</Joint>
+		
+		<Body name="ring2" type="dynamic">
+			<offsetfrom>ring1</offsetfrom> 
+		  <Translation>-0.03912 0 0</Translation>
+		  <Geom type="trimesh">
+			  <Translation>-0.02831 0 0 </Translation>
+		    <render>iv/ring2.wrl 0.001</render>
+		    <collision>iv/ring2.wrl 0.001</collision>
+		  </Geom>
+		  <Mass type="custom">
+		  	<total>-1062</total>
+			</Mass>
+		</Body>
+		  
+		<Joint name="ring2" type="hinge">
+		  <Body>ring1</Body>
+		  <Body>ring2</Body>
+		  <offsetfrom>ring2</offsetfrom>
+		  <limitsdeg>-10 90</limitsdeg>
+		  <axis>0 0 1</axis>
+		</Joint>
+		
+		<Body name="ring3" type="dynamic">
+		  <offsetfrom>ring2</offsetfrom>
+		  <Translation>-0.02831 0 0 </Translation>
+		  <Geom type="trimesh">
+		  	<Translation>-0.02448 0 0 </Translation>
+		    <render>iv/ring3.wrl 0.001</render>
+		    <collision>iv/ring3.wrl 0.001</collision>
+		  </Geom>
+		  <Mass type="custom">
+		  	<total>-1062</total>
+			</Mass>
+		</Body>
+		
+		<Joint name="ring3" type="hinge">
+		  <Body>ring2</Body>
+		  <Body>ring3</Body>
+		  <offsetfrom>ring3</offsetfrom>
+		  <limitsdeg>-10 90</limitsdeg>
+		  <axis>0 0 1</axis>
+		</Joint>
+		
+		
+		<!-- pinky -->
+		<Body name="pinky1-pre" type="dynamic">
+			<offsetfrom>palm</offsetfrom>
+			<Translation>-0.1344575 -0.0084035 -0.0420180</Translation>
+			<Rotationaxis>1 0 0 -90</Rotationaxis> 
+		  <Geom type="sphere">
+				<Rotationaxis>1 0 0 90</Rotationaxis> 
+		    <Radius>0.005 0.005 0.005</Radius>
+		  </Geom>
+		  <Mass type="sphere">
+		  	<total>1</total>
+			</Mass>
+		</Body>
+		
+		<Joint name="pinky1-pre" type="hinge">
+		  <Body>palm</Body>
+		  <Body>pinky1-pre</Body>
+		  <offsetfrom>pinky1-pre</offsetfrom>
+		  <limitsdeg>-30 30</limitsdeg>
+		  <axis>0 0 1</axis>
+		</Joint>
+		
+		<Body name="pinky1" type="dynamic">
+			<offsetfrom>pinky1-pre</offsetfrom>
+			<Rotationaxis>1 0 0 90</Rotationaxis> 
+			<Geom type="trimesh">
+			  <Translation>-0.02991 0 0</Translation>
+		    <render>iv/pinky1.wrl 0.001</render>
+		    <collision>iv/pinky1.wrl 0.001</collision>
+		  </Geom>
+		  <Mass type="custom">
+		  	<total>-1062</total>
+			</Mass>
+		</Body>
+		
+		<Joint name="pinky1" type="hinge">
+		  <Body>pinky1-pre</Body>
+		  <Body>pinky1</Body>
+		  <offsetfrom>pinky1</offsetfrom>
+		  <limitsdeg>-10 90</limitsdeg>
+		  <axis>0 0 1</axis>
+		</Joint>
+		
+		<Body name="pinky2" type="dynamic">
+			<offsetfrom>pinky1</offsetfrom> 
+		  <Translation>-0.02991 0 0</Translation>
+		  <Geom type="trimesh">
+			  <Translation>-0.02110 0 0 </Translation>
+		    <render>iv/pinky2.wrl 0.001</render>
+		    <collision>iv/pinky2.wrl 0.001</collision>
+		  </Geom>
+		  <Mass type="custom">
+		  	<total>-1062</total>
+			</Mass>
+		</Body>
+		  
+		<Joint name="pinky2" type="hinge">
+		  <Body>pinky1</Body>
+		  <Body>pinky2</Body>
+		  <offsetfrom>pinky2</offsetfrom>
+		  <limitsdeg>-10 90</limitsdeg>
+		  <axis>0 0 1</axis>
+		</Joint>
+		
+		<Body name="pinky3" type="dynamic">
+		  <offsetfrom>pinky2</offsetfrom>
+		  <Translation>-0.02110 0 0 </Translation>
+		  <Geom type="trimesh">
+		  	<Translation>-0.02316 0 0 </Translation>
+		    <render>iv/pinky3.wrl 0.001</render>
+		    <collision>iv/pinky3.wrl 0.001</collision>
+		  </Geom>
+		  <Mass type="custom">
+		  	<total>-1062</total>
+			</Mass>
+		</Body>
+		
+		<Joint name="pinky3" type="hinge">
+		  <Body>pinky2</Body>
+		  <Body>pinky3</Body>
+		  <offsetfrom>pinky3</offsetfrom>
+		  <limitsdeg>-10 90</limitsdeg>
+		  <axis>0 0 1</axis>
+		</Joint>
+		
+		
+		<!-- thumb -->
+		<Body name="thumb1-pre" type="dynamic">
+			<offsetfrom>palm</offsetfrom>
+		  <Translation>-0.0506241 -0.0115082 0.0189317</Translation>
+		  <Rotationmat>-0.1486 0.2665 -0.9522 -0.9003 0.3618 0.2418 0.4089 0.8933 0.1862</Rotationmat>
+		  <Geom type="sphere">
+				<Rotationaxis>1 0 0 90</Rotationaxis> 
+		    <Radius>0.005 0.005 0.005</Radius>
+		  </Geom>
+		  <Mass type="sphere">
+		  	<total>1</total>
+			</Mass>
+		</Body>
+		
+		<Joint name="thumb1-pre" type="hinge">
+		  <Body>palm</Body>
+		  <Body>thumb1-pre</Body>
+		  <offsetfrom>thumb1-pre</offsetfrom>
+		  <limitsdeg>-10 70</limitsdeg>
+		  <axis>0 0 1</axis>
+		</Joint>
+		
+		<Body name="thumb1" type="dynamic">
+			<offsetfrom>thumb1-pre</offsetfrom>
+			<Rotationaxis>1 0 0 90</Rotationaxis> 
+		  <Geom type="trimesh">
+			  <Translation>0.0521193 0 0</Translation>
+		  	<Rotationaxis>1 0 0 44</Rotationaxis>
+		    <render>iv/thumb1.wrl 0.001</render>
+		    <collision>iv/thumb1.wrl 0.001</collision>
+		  </Geom>
+		  <Mass type="custom">
+		  	<total>-1062</total>
+			</Mass>
+		</Body>
+		
+		<Joint name="thumb1" type="hinge">
+		  <Body>thumb1-pre</Body>
+		  <Body>thumb1</Body>
+		  <offsetfrom>thumb1</offsetfrom>
+		  <initial>-0.86393798</initial> <!-- -49.5deg -->
+		  <limitsdeg>-0.050 0.025</limitsdeg>
+		  <axis>0 0 1</axis>
+		</Joint>
+		
+		<Body name="thumb2" type="dynamic">
+			<offsetfrom>thumb1</offsetfrom> 
+		  <Translation>0.0521193 0 0</Translation>
+			<Rotationaxis>1 0 0 44</Rotationaxis>
+		  <Geom type="trimesh">
+			  <Translation>0.0407638 0 0 </Translation>
+		    <render>iv/thumb2.wrl 0.001</render>
+		    <collision>iv/thumb2.wrl 0.001</collision>
+		  </Geom>
+		  <Mass type="custom">
+		  	<total>-1062</total>
+			</Mass>
+		</Body>
+		  
+		<Joint name="thumb2" type="hinge">
+		  <Body>thumb1</Body>
+		  <Body>thumb2</Body>
+		  <offsetfrom>thumb2</offsetfrom>
+		  <initial>-0.08726646268</initial> <!-- -5deg -->
+		  <limitsdeg>0 90</limitsdeg>
+		  <axis>0 0 1</axis>
+		</Joint>
+		
+		<Body name="thumb3" type="dynamic">
+		  <offsetfrom>thumb2</offsetfrom>
+		  <Translation>0.0407638 0 0 </Translation>
+		  <Geom type="trimesh">
+		  	<Rotationaxis>1 0 0 90</Rotationaxis>
+		    <render>iv/thumb3.wrl 0.001</render>
+		    <collision>iv/thumb3.wrl 0.001</collision>
+		  </Geom>
+		  <Mass type="custom">
+		  	<total>-1062</total>
+			</Mass>
+		</Body>
+		
+		<Joint name="thumb3" type="hinge">
+		  <Body>thumb2</Body>
+		  <Body>thumb3</Body>
+		  <offsetfrom>thumb3</offsetfrom>
+		  <initial>-1.48352986</initial> <!-- -85deg -->
+		  <limitsdeg>0 100</limitsdeg>
+		  <axis>0 0 1</axis>
+		</Joint>
+		
+		<!-- add adjacent links, necessary in order to prevent bogus collisions -->
+		<adjacent>Palm index1</adjacent>
+		<adjacent>Palm mid1</adjacent>
+		<adjacent>Palm ring1</adjacent>
+		<adjacent>Palm pinky1</adjacent>
+		<adjacent>Palm thumb1</adjacent>
+	
+	</Kinbody>
+	
+	<jointvalues>0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0</jointvalues>
+
+</Robot>
