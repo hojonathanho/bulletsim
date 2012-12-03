@@ -134,7 +134,7 @@ public:
 	PR2Controller (Scene &_scene, RaveRobotObject::Ptr _pr2, float _dt = -1) : scene(_scene),trajectories(), enabled(false),
 		currentTime(0), dt(_dt), pr2(_pr2) {
 
-		scene.addPreStepCallback(boost::bind(&PR2Controller::execute, this));
+		//scene.addPreStepCallback(boost::bind(&PR2Controller::execute, this));
 
 		if (dt == -1)
 			dt = BulletConfig::dt;
@@ -152,6 +152,11 @@ public:
 	void run(){
 		if (!trajectories.empty())
 			enabled = true;
+
+		while (enabled) {
+			scene.step(dt);
+			execute();
+		}
 	}
 
 	/* Halt the controller.

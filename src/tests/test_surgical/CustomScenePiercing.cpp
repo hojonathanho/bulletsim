@@ -2,6 +2,24 @@
 #include "CustomKeyHandlerPiercing.h"
 
 
+btTransform rotateByAngle (btTransform &tfm, const float ang, const float rad) {
+
+	float pi = 3.14159265, r = rad*GeneralConfig::scale;
+
+	btTransform WorldToEndEffectorTransform = tfm; //util::toBtTransform(pr2m.pr2Right->manip->GetEndEffectorTransform(),GeneralConfig::scale);
+
+	btTransform initT;
+	initT.setIdentity();
+	initT.setOrigin(r*btVector3(-1,0,0));
+
+	OpenRAVE::Transform T = OpenRAVE::geometry::matrixFromAxisAngle(OpenRAVE::Vector(0,0,ang));
+	btTransform bT = util::toBtTransform(T);
+	bT.setOrigin(r*btVector3(1,0,0));
+
+	return WorldToEndEffectorTransform*bT*initT;
+}
+
+
 /** Fills in the rcontacts array with contact information between psb and pco */
 void getContactPointsWith(	btSoftBody *psb, btCollisionObject *pco,
 							btSoftBody::tRContactArray &rcontacts) {
@@ -140,7 +158,7 @@ void CustomScene::cutCloth () {
 
 	btVector3 pointToPierce(0,0,0);
 
-	btVector3 Tip = sNeedle->getNeedleTip();
+	btVector3 Tip = sNeedle->getNeedleTipTransform().getOrigin();
 	btVector3 currPt;
 
 	for (int i = 0; i < numContacts; ++i) {
@@ -299,30 +317,82 @@ btTransform CustomScene::SutureCloth::getCutGraspTransform(int side_num, RaveRob
 
 //////////////////////////////////////////////// Suturing needle ////////////////////////////////////////
 /** Constructor for suturing needle. Creates needle from file.*/
-CustomScene::SuturingNeedle::SuturingNeedle(CustomScene * scene, float rad, float mass, float thresh) :
-												s_needle_radius(rad),
+CustomScene::SuturingNeedle::SuturingNeedle(CustomScene * _scene, float rad, float mass, float thresh) :
+												s_needle_radius(rad), scene(*_scene),
 												s_needle_mass(mass), s_piercing(false),
-												s_pierce_threshold(thresh) {
+												s_pierce_threshold(thresh), grasped(false) {
 
-	   static const char sNeedle_MODEL_FILE[] = EXPAND(BULLETSIM_DATA_DIR) "/needle/sneedle.dae";
-	   KinBodyPtr needle_body = scene->rave->env->ReadKinBodyURI(sNeedle_MODEL_FILE);
-	   btTransform needle_tfm;
-	   scene->table->motionState->getWorldTransform(needle_tfm);
-	   needle_tfm.setOrigin((needle_tfm.getOrigin() + btVector3(0.5*GeneralConfig::scale,0,0.2*GeneralConfig::scale))/ GeneralConfig::scale);
-	   needle_body->SetTransform(util::toRaveTransform(needle_tfm));
 
-	   s_needle = RaveObject::Ptr(new RaveObject(scene->rave,needle_body,RAW));
-	   vector<BulletObject::Ptr> children = s_needle->getChildren();
-	   btVector3 inertia(0,0,0);
-	   children[0]->rigidBody->getCollisionShape()->calculateLocalInertia(s_needle_mass,inertia);
-	   children[0]->rigidBody->setMassProps(s_needle_mass,inertia);
+
+
+	static const char sNeedle_MODEL_FILE[] = EXPAND(BULLETSIM_DATA_DIR) "/needle/sneedle.dae";
+	KinBodyPtr needle_body = scene.rave->env->ReadKinBodyURI(sNeedle_MODEL_FILE);
+	btTransform needle_tfm;
+	scene.table->motionState->getWorldTransform(needle_tfm);
+
+	///
+	//btMatrix3x3 corrRot;
+	//corrRot.setValue(-1, 0, 0, 0, 0, 1, 0, 1, 0);
+	//corrRot = corrRot * needle_tfm.getBasis();
+	//needle_tfm.setBasis(corrRot);
+	///
+
+	needle_tfm.setOrigin((needle_tfm.getOrigin() + btVector3(-0.25*GeneralConfig::scale,-0.45*GeneralConfig::scale,0.05*GeneralConfig::scale))/ GeneralConfig::scale);
+	needle_body->SetTransform(util::toRaveTransform(needle_tfm));
+
+	s_needle = RaveObject::Ptr(new RaveObject(scene.rave,needle_body,RAW,false));
+	vector<BulletObject::Ptr> children = s_needle->getChildren();
+	btVector3 inertia(0,0,0);
+	children[0]->rigidBody->getCollisionShape()->calculateLocalInertia(s_needle_mass,inertia);
+	children[0]->rigidBody->setMassProps(s_needle_mass,inertia);
+
+    scene.addPreStepCallback(boost::bind(&CustomScene::SuturingNeedle::setGraspingTransformCallback, this));
 }
 
-/** Returns position of needle's tip.*/
+/** Returns position of needle's tip.
 btVector3 CustomScene::SuturingNeedle::getNeedleTip () {
+
 	return s_needle->getIndexTransform(0)*
-			btVector3(s_needle_radius*GeneralConfig::scale,
-					  s_needle_radius*1.3*GeneralConfig::scale,0);
+			btVector3(s_needle_radius*0.725*GeneralConfig::scale,
+					  s_needle_radius*0.932*GeneralConfig::scale,0);
+}*/
+
+/** Returns transform of needle's tip.*/
+btTransform CustomScene::SuturingNeedle::getNeedleTipTransform () {
+
+	float angle =  -3.14159265/2.5;
+	btTransform tfm = s_needle->getIndexTransform(0);
+	return rotateByAngle(tfm, angle, s_needle_radius);
+	//		btVector3(s_needle_radius*0.7*GeneralConfig::scale,
+	//				  s_needle_radius*0.9*GeneralConfig::scale,0);
+}
+
+/** Returns transform of needle's handle.*/
+btTransform CustomScene::SuturingNeedle::getNeedleHandleTransform () {
+
+	float angle =  3.14159265/2.5;
+	btTransform tfm = s_needle->getIndexTransform(0);
+	return rotateByAngle(tfm, angle, s_needle_radius);
+	//		btVector3(s_needle_radius*0.7*GeneralConfig::scale,
+	//				  s_needle_radius*0.9*GeneralConfig::scale,0);
+}
+
+void CustomScene::SuturingNeedle::setGraspingTransformCallback() {
+	if (!grasped || !gripperManip) return;
+
+	btTransform nTfm = gripperManip->getTransform();
+	btMatrix3x3 corrRot;
+	corrRot.setValue(0, -1, 0, -1, 0, 0, 0, 0, -1);
+	corrRot = nTfm.getBasis() * corrRot;
+	nTfm.setBasis(corrRot);
+
+	//util::drawAxes(nTfm, 2, scene.env);
+
+	nTfm = rotateByAngle(nTfm, -3.14159265/2.3, s_needle_radius);
+
+	//util::drawAxes(nTfm, 2, scene.env);
+
+	s_needle->getChildren()[0]->motionState->setKinematicPos(nTfm);
 }
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -338,11 +408,18 @@ void CustomScene::plotNeedle (bool remove) {
 	if (!remove) {
 		// COM of needle
 		plotpoints.push_back(tfm.getOrigin());
-		color.push_back(btVector4(3,0,0,1));
+		color.push_back(btVector4(1,0,0,1));
 
 		// Needle tip
-		plotpoints.push_back(sNeedle->getNeedleTip());
-		color.push_back(btVector4(3,0,0,1));
+		plotpoints.push_back(sNeedle->getNeedleTipTransform().getOrigin());
+		color.push_back(btVector4(0,0,1,1));
+
+		// Needle handle
+		plotpoints.push_back(sNeedle->getNeedleHandleTransform().getOrigin());
+		color.push_back(btVector4(1,1,0,1));
+
+		util::drawAxes(sNeedle->getNeedleTipTransform(),2,env);
+		util::drawAxes(sNeedle->getNeedleHandleTransform(),2,env);
 	}
 	else {
 		plotpoints.push_back(btVector3(0,0,0));
@@ -374,7 +451,7 @@ void CustomScene::Hole::holeCutCallback() {
 
 	if (!numContacts) return;
 
-	btVector3 Tip = h_scene->sNeedle->getNeedleTip();
+	btVector3 Tip = h_scene->sNeedle->getNeedleTipTransform().getOrigin();
 	// This definitely works (the simple approach of cutting on contact
 #if 0
 	for (i = 0; i < nnodes; ++i) {
@@ -488,6 +565,67 @@ void CustomScene::plotHoles (bool remove) {
 	plot_holes->setPoints(plotpoints,color);
 }
 
+/** Plans path for PR2's gripper to the needle.
+ * 	If no plan possible, moves needle to gripper.*/
+void CustomScene::grabNeedle (char rl) {
+
+	btTransform needleT;
+	needleT = sNeedle->s_needle->getIndexTransform(0);
+	// get the grap-transforms for the cuts and plot them
+	RaveRobotObject::Manipulator::Ptr currManip = rl=='r' ? pr2m.pr2Right : pr2m.pr2Left;
+	btTransform gripper = currManip->getTransform();
+
+	needleT.setBasis(gripper.getBasis());
+	//plot_axes1->setup(needleT, 2);
+	//plot_axes2->setup(gripper, 2);
+
+	/*
+	//Without planning
+	vector<dReal> values;
+	bool found = currManip->solveIKUnscaled(util::toRaveTransform(needleT,1/GeneralConfig::scale), values);
+	if (found) {
+		pr2m.pr2->setDOFValues(currManip->origManip->GetArmIndices(), values);
+	}
+	else {
+		std::cout<<"IK failed!"<<std::endl;
+		moveNeedleToGripper(rl);
+	}*/
+	//IKplanner:
+	IKInterpolationPlanner planner(pr2m, rave, 'r');
+	//EndTransformPlanner planner(pr2m.pr2, rave, 'r');
+	std::vector<Transform> t;
+	t.push_back(util::toRaveTransform(needleT, 1/GeneralConfig::scale));
+
+	std::pair<bool, RaveTrajectory::Ptr> res = planner.smoothPlan(t);
+	//std::pair<bool, RaveTrajectory::Ptr> res = planner.precisePlan(util::toRaveTransform(cutT1,1/GeneralConfig::scale));
+	if (res.first) {
+		pr2m.controller->appendTrajectory(res.second);
+		pr2m.controller->run();
+	} else {
+		std::cout<<"Plan failed!"<<std::endl;
+		moveNeedleToGripper(rl);
+	}
+
+	sNeedle->gripperManip = currManip;
+	sNeedle->grasped = true;
+}
+
+/** Moves needle to gripper specified by rl. */
+void CustomScene::moveNeedleToGripper(char rl) {
+
+	//Check if needle is kinematic
+	if (!sNeedle->s_needle->getChildren()[0]->isKinematic) return;
+
+	RaveRobotObject::Manipulator::Ptr gripManip = rl=='r' ? pr2m.pr2Right : pr2m.pr2Left;
+	btTransform gripperTfm = gripManip->getTransform();
+	sNeedle->s_needle->getChildren()[0]->motionState->setKinematicPos(gripperTfm);
+}
+
+/** Release needle and possible set transform to somewhere. */
+void CustomScene::releaseNeedle() {
+	sNeedle->grasped = false;
+	sNeedle->gripperManip.reset();
+}
 
 /** Sets up the scene and UI even handlers,
  *  initializes various structures.*/
@@ -497,7 +635,7 @@ void CustomScene::run() {
     const float dt = BulletConfig::dt;
 
     // Setting up the table
-    const float table_height = .6;
+    const float table_height = .8;
     const float table_thickness = .05;
     table = BoxObject::Ptr(new BoxObject(0, GeneralConfig::scale * btVector3(.75,.75,table_thickness/2),
     									 btTransform(btQuaternion(0, 0, 0, 1),
@@ -505,12 +643,18 @@ void CustomScene::run() {
     table->rigidBody->setFriction(10);
 
     // Setting up the needle - Make this into constructor
-    sNeedle.reset(new SuturingNeedle(this, 0.08, 50, 0.03));
+    const float needle_radius = 0.08*1.4;
+    const float needle_mass = 50;
+    const float pierce_threshold = 0.03;
+    sNeedle.reset(new SuturingNeedle(this, needle_radius, needle_mass, pierce_threshold));
+    pr2m.pr2->ignoreCollisionWith(sNeedle->s_needle->getChildren()[0]->rigidBody.get());
 
     // Setting up the cloth
     sCloth.reset(new SutureCloth(*this,GeneralConfig::scale * 0.5, 0, GeneralConfig::scale * btVector3(0.6, 0, table_height+0.01)));
     btSoftBody * const psb = sCloth->cloth->softBody.get();
-    pr2m.pr2->ignoreCollisionWith(psb); //-> questionable
+    pr2m.pr2->ignoreCollisionWith(psb);
+
+    sNeedle->s_needle->ignoreCollisionWith(psb);
 
     // Setting up PR2's starting pose
     pr2m.setArmPose("side", 'b');
@@ -525,7 +669,7 @@ void CustomScene::run() {
 
     // Adding objects to the environment
     env->add(table);
-	createKinBodyFromBulletBoxObject(table, rave); // add the table to the rave environment
+	//createKinBodyFromBulletBoxObject(table, rave); // add the table to the rave environment
     env->add(sCloth->cloth);
     env->add(sNeedle->s_needle);
     env->add(plot_points);
@@ -533,7 +677,6 @@ void CustomScene::run() {
     env->add(plot_holes);
     env->add(plot_axes1);
     env->add(plot_axes2);
-
 
     // Adding prestep callbacks and setting up holes
     addPreStepCallback(boost::bind(&CustomScene::computeHoleCentersCallBack, this));
@@ -548,24 +691,33 @@ void CustomScene::run() {
 
 
     // Reset right and left actions.
-    leftAction.reset(new PR2SoftBodyGripperAction(pr2m.pr2Left,
+    leftSBAction.reset(new PR2SoftBodyGripperAction(pr2m.pr2Left,
     		                                      "l_gripper_l_finger_tip_link",
     		                                      "l_gripper_r_finger_tip_link", 1));
-    leftAction->setTarget(sCloth->cloth);
-    rightAction.reset(new PR2SoftBodyGripperAction(pr2m.pr2Right,
+    leftSBAction->setTarget(sCloth->cloth);
+    rightSBAction.reset(new PR2SoftBodyGripperAction(pr2m.pr2Right,
     		                                       "r_gripper_l_finger_tip_link",
     		                                       "r_gripper_r_finger_tip_link", 1));
-    rightAction->setTarget(sCloth->cloth);
+    rightSBAction->setTarget(sCloth->cloth);
+
+    //leftRBAction.reset(new PR2RigidBodyGripperAction(pr2m.pr2Left,
+    //												"l_gripper_l_finger_tip_link",
+    //												"l_gripper_r_finger_tip_link", 1));
+    //leftRBAction->setTarget(sNeedle->s_needle->getChildren()[0]->rigidBody.get());
+    //rightRBAction.reset(new PR2RigidBodyGripperAction(pr2m.pr2Right,
+    //												"r_gripper_l_finger_tip_link",
+    //												"r_gripper_r_finger_tip_link", 1));
+    //rightRBAction->setTarget(sNeedle->s_needle->getChildren()[0]->rigidBody.get());
 
     //setSyncTime(true);
     startViewer();
     stepFor(dt, 2);
 
     // Open grippers
-    leftAction->setOpenAction();
-    runAction(leftAction, dt);
-    rightAction->setOpenAction();
-    runAction(rightAction, dt);
+    leftSBAction->setOpenAction();
+    runAction(leftSBAction, dt);
+    rightSBAction->setOpenAction();
+    runAction(rightSBAction, dt);
 
     // Start loop
     startFixedTimestepLoop(dt);
@@ -718,6 +870,61 @@ void CustomScene::testGrasping() {
 	} else {
 		std::cout<<"Plan failed!"<<std::endl;
 	}
+}
+
+/** Small test to see if the robot can grasp the cloth.*/
+void CustomScene::testGraspingNeedle() {
+	grabNeedle();
+	/*
+	btTransform needleT;
+
+	needleT = sNeedle->s_needle->getIndexTransform(0);
+	// get the grap-transforms for the cuts and plot them
+	btTransform gripper = pr2m.pr2Right->getTransform();
+
+	//btMatrix3x3 corrRot;
+	//corrRot.setValue(0, 0, 1, 0, 1, 0, -1, 0, 0);
+	//corrRot = needleT.getBasis()*corrRot;
+	needleT.setBasis(gripper.getBasis());
+	//needleT.setOrigin(needleT.getOrigin()+btVector3(-0.3,-0.2,0.2)*GeneralConfig::scale);
+	*/
+	/*
+	btVector3 orig = cutT1.getOrigin();
+	btVector3 offset(0,0,0.1);
+	orig = orig + offset*GeneralConfig::scale;
+	cutT1.setOrigin(orig);
+	 */
+	/*
+	plot_axes1->setup(needleT, 2);
+	plot_axes2->setup(gripper, 2);
+	 */
+	/*//Without planning
+	vector<dReal> values;
+	bool found = pr2m.pr2Right->solveIKUnscaled(util::toRaveTransform(needleT,1/GeneralConfig::scale), values);
+	if (found) {
+		pr2m.pr2->setDOFValues(pr2m.pr2Right->origManip->GetArmIndices(), values);
+	    rightRBAction->reset();
+	    rightRBAction->toggleAction();
+	    runAction(rightRBAction, BulletConfig::dt);
+	}
+	else
+		std::cout<<"IK failed!"<<std::endl;
+	 */
+	/*
+	IKInterpolationPlanner planner(pr2m, rave, 'r');
+	//EndTransformPlanner planner(pr2m.pr2, rave, 'r');
+	std::vector<Transform> t;
+	t.push_back(util::toRaveTransform(needleT, 1/GeneralConfig::scale));
+
+	std::pair<bool, RaveTrajectory::Ptr> res = planner.smoothPlan(t);
+	//std::pair<bool, RaveTrajectory::Ptr> res = planner.forcePlan(util::toRaveTransform(needleT,1/GeneralConfig::scale));
+	if (res.first) {
+		pr2m.controller->appendTrajectory(res.second);
+		pr2m.controller->run();
+	} else {
+		std::cout<<"Plan failed!"<<std::endl;
+	}
+	*/
 }
 ////////////////////////////////////////////////////////////////////////////////////
 

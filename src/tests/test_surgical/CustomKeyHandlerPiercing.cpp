@@ -7,14 +7,15 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,
     case osgGA::GUIEventAdapter::KEYDOWN:
         switch (ea.getKey()) {
         case 'a':
-            scene.leftAction->reset();
-            scene.leftAction->toggleAction();
-            scene.runAction(scene.leftAction, BulletConfig::dt);
+            scene.leftSBAction->reset();
+            scene.leftSBAction->toggleAction();
+            scene.runAction(scene.leftSBAction, BulletConfig::dt);
+
             break;
         case 's':
-            scene.rightAction->reset();
-            scene.rightAction->toggleAction();
-            scene.runAction(scene.rightAction, BulletConfig::dt);
+            scene.rightSBAction->reset();
+            scene.rightSBAction->toggleAction();
+            scene.runAction(scene.rightSBAction, BulletConfig::dt);
             break;
         case 'v':
         	if (!scene.isRaveViewer) {
@@ -73,17 +74,23 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,
         	break;
 
         // Tests:
-        case 'q': // tests Grasping
+        case '3': // tests Grasping
         	scene.testGrasping();
         	break;
-        case 'w': // executes an openrave trajectory
+        case '4': // executes an openrave trajectory
         	scene.testTrajectory2();
         	break;
-        case 'e': // executes an openrave trajectory
+        case '5': // executes an openrave trajectory
         	scene.testTrajectory3();
         	break;
-        case 'r': // tests circular
+        case '6': // tests circular
         	scene.testCircular();
+        	break;
+        case '7': // tests Grasping
+        	scene.testGraspingNeedle();
+        	break;
+        case '&': // releases Grasping
+        	scene.releaseNeedle();
         	break;
         }
         break;

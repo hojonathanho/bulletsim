@@ -584,6 +584,7 @@ void PR2Controller::execute() {
 		pr2->setDOFValues(trajectories.front()->dofIndices, jointVals);
 		currentTime += dt;
 	}
+
 }
 
 

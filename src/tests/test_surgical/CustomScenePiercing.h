@@ -2,6 +2,7 @@
 #define _CUSTOM_SCENE_PIERCING_
 
 #include "PR2SoftBodyGripperAction.h"
+//#include "PR2RigidBodyGripperAction.h"
 
 #include "simulation/simplescene.h"
 #include <BulletSoftBody/btSoftBodyHelpers.h>
@@ -35,6 +36,8 @@ public:
 		typedef boost::shared_ptr<Hole> Ptr;
 
 		CustomScene::Ptr h_scene;
+		// h_center: Center of the hole
+		// h_prev_center: Center where needle first touched hole when piercing
 		btVector3 h_center, h_prev_center;
 		vector <btSoftBody::Node *> h_nodes;
 		bool h_currently_piercing, h_started_piercing, h_pierced;
@@ -48,7 +51,7 @@ public:
 		 *  to false. */
 		void togglePiercing () {
 			h_currently_piercing = h_pierced ? false : !h_currently_piercing;
-			h_started_piercing = h_currently_piercing?h_started_piercing:false;
+			h_started_piercing = h_currently_piercing ? h_started_piercing:false;
 			std::cout<<"Hole piercing: "<<h_currently_piercing<<std::endl;
 		}
 
@@ -65,17 +68,27 @@ public:
 		typedef boost::shared_ptr<SuturingNeedle> Ptr;
 
 		RaveObject::Ptr s_needle;
+		// Manipulator currently grasping the gripper.
+		RaveRobotObject::Manipulator::Ptr gripperManip;
 		float 			s_needle_radius, s_needle_mass;
+		// Is the needle currently piercing?
 		bool s_piercing;
 		// max distance between needle tip and point to cut at
 		float s_pierce_threshold;
+		// Is the needle being grasped?
+		bool grasped;
+
+		CustomScene &scene;
 
 		SuturingNeedle (CustomScene * scene, float rad, float mass, float thresh);
 
 		/** Toggle's needle piercing state. */
 		void togglePiercing () {s_piercing = !s_piercing;}
-		/** Gets needle tip.*/
-		btVector3 getNeedleTip ();
+
+		btTransform getNeedleTipTransform ();
+		btTransform getNeedleHandleTransform ();
+
+		void setGraspingTransformCallback ();
 	};
 
 	/** A class to represent the cloth in the scene.
@@ -111,7 +124,9 @@ public:
 		btTransform getCutGraspTransform(int side_num, RaveRobotObject::Ptr robot, float frac=0.5);
 	};
 
-	PR2SoftBodyGripperAction::Ptr leftAction, rightAction;
+	PR2SoftBodyGripperAction::Ptr leftSBAction, rightSBAction;
+	//PR2RigidBodyGripperAction::Ptr leftRBAction, rightRBAction;
+
 	BulletInstance::Ptr bullet2;
 	OSGInstance::Ptr osg2;
 	Fork::Ptr fork;
@@ -192,6 +207,13 @@ public:
 	/** to compute nodes near a point and add it to hole. */
 	void findNearbyNodes (Hole::Ptr hole, btVector3 holePt);
 
+	/** PR2 goes to needle and grabs it. */
+	void grabNeedle (char rl='r');
+	/** Makes needle come to hand. */
+	void moveNeedleToGripper(char rl='r');
+	/** PR2 releases the needle */
+	void releaseNeedle ();
+
 	void run();
 
 
@@ -206,8 +228,9 @@ public:
 	void testTrajectory2();
 	void testTrajectory3();
 	void testCircular();
-	/** Small test to see if the robot can grasp the cloth.*/
+	/** Small test to see if the robot can grasp.*/
 	void testGrasping();
+	void testGraspingNeedle();
 };
 
 #endif
