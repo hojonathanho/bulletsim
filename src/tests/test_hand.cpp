@@ -7,24 +7,24 @@
 #include "utils/config.h"
 
 int main(int argc, char *argv[]) {
-    GeneralConfig::scale = 100.;
-    BulletConfig::maxSubSteps = 0;
+  GeneralConfig::scale = 10;
 
-    Parser parser;
-		parser.addGroup(GeneralConfig());
-		parser.addGroup(BulletConfig());
-		parser.addGroup(SceneConfig());
-		parser.read(argc, argv);
+	Parser parser;
+	parser.addGroup(GeneralConfig());
+	parser.addGroup(BulletConfig());
+	parser.addGroup(SceneConfig());
+	parser.read(argc, argv);
 
-    Scene scene;
+	Scene scene;
 
-		Hand::Ptr hand = makeHand(19, btTransform(btQuaternion::getIdentity(), btVector3(0,0,0.1*METERS)));
-		scene.env->add(hand);
+	HumanHandObject::Ptr hand(new HumanHandObject(scene.rave));
+	scene.env->add(hand);
+	cout << "joint angles " << hand->getJointAngles() << endl;
 
-	  scene.addVoidKeyCallback('q',boost::bind(exit, 0));
+	scene.addVoidKeyCallback('q',boost::bind(exit, 0));
 
-  	scene.startViewer();
-    scene.startLoop();
+	scene.startViewer();
+	scene.startLoop();
 
-    return 0;
+	return 0;
 }

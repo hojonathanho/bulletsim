@@ -129,8 +129,9 @@ private:
     void setFlagsAndActivation();
     void construct(btScalar mass, boost::shared_ptr<btCollisionShape> cs, const btTransform& initTrans, bool isKinematic_);
 
-    btVector3 com; // Center of mass. Currently, this variable is not maintained. It's used for message passing between createFromLink and createFromJoint
 public:
+    btVector3 com; // Center of mass. Currently, this variable is not maintained. It's used for message passing between createFromLink and createFromJoint
+
 		cv::Mat& getTexture() { return *m_cvimage; }
 };
 
