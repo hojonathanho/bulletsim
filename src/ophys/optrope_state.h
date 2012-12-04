@@ -17,6 +17,9 @@ struct OptRopeState {
     MatrixX3d x; // positions of points (ith row is the position of the ith point)
     MatrixX3d vel; // velocities of points (ith row is the velocity of the ith point)
 
+    //MatrixX3d ropeCntForce;
+    VectorXd ropeCntForce_f;
+
     VectorXd groundForce_f; // magnitudes of ground forces for each point
     VectorXd groundForce_c; // contact vars for ground forces
 
@@ -47,6 +50,10 @@ struct OptRopeState {
       for (int i = 0; i < m_N; ++i) {
         col.segment<3>(pos) = vel.row(i).transpose(); pos += 3;
       }
+      // for (int i = 0; i < m_N; ++i) {
+      //   col.segment<3>(pos) = ropeCntForce.row(i).transpose(); pos += 3;
+      // }
+      col.segment(pos, m_N-1) = ropeCntForce_f; pos += m_N-1;
       col.segment(pos, m_N) = groundForce_f; pos += m_N;
       col.segment(pos, m_N) = groundForce_c; pos += m_N;
       for (int i = 0; i < m_N; ++i) {
@@ -68,6 +75,10 @@ struct OptRopeState {
       for (int i = 0; i < m_N; ++i) {
         vel.row(i) = (col.template segment<3>(pos)).transpose(); pos += 3;
       }
+      // for (int i = 0; i < m_N; ++i) {
+      //   ropeCntForce.row(i) = (col.template segment<3>(pos)).transpose(); pos += 3;
+      // }
+      ropeCntForce_f = col.segment(pos, m_N-1); pos += m_N-1;
       groundForce_f = col.segment(pos, m_N); pos += m_N;
       groundForce_c = col.segment(pos, m_N); pos += m_N;
       for (int i = 0; i < m_N; ++i) {

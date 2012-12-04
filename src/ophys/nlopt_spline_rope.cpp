@@ -108,10 +108,11 @@ static bool runTests() {
   for (int i = 0; i < OPhysConfig::N; ++i) {
     initPositions.row(i) << (-1 + 2*i/(OPhysConfig::N-1.0)), 0, 0.05;
   }
+  const int test_T = 3, test_N = 4;
   double linklen = abs(initPositions(0, 0) - initPositions(1, 0));
   Vector7d initManipPos(Vector7d::Zero());
   OptRope optrope(initPositions, initManipPos, OPhysConfig::T, OPhysConfig::N, linklen);
-  OptRopeState testingState(optrope, 100, 200);
+  OptRopeState testingState(optrope, test_T, test_N);
   VectorXd testingCol = VectorXd::Random(testingState.dim());
   testingState.initFromColumn(testingCol);
   bool b;
@@ -122,19 +123,35 @@ static bool runTests() {
 
   OptRopeState exp1 = testingState.expandByInterp(10);
   OptRopeState exp2 = testingState.expandByInterp(10);
-  OptRopeState fullMask(optrope, 100, 200); fullMask.initFromColumn(VectorXd::Ones(fullMask.dim()));
+  OptRopeState fullMask(optrope, test_T, test_N); fullMask.initFromColumn(VectorXd::Ones(fullMask.dim()));
   testingState.fillExpansion(10, exp2, &fullMask);
   assert(b = exp1.isApprox(exp2));
   if (b) {
     cout << "expansion test passed" << endl;
   }
 
-  fullMask.initFromColumn(VectorXd::Zero(fullMask.dim()));
-  testingState.atTime[0].manipDofs[0] = 0.5;
-  fullMask.atTime[0].manipDofs[0] = 1;
-  testingState.fillExpansion(10, exp1);
-  testingState.fillExpansion(10, exp2, &fullMask);
-  assert(b = exp1.isApprox(exp2));
+  for (int i = 0; i < fullMask.dim(); ++i) {
+    VectorXd col(VectorXd::Zero(fullMask.dim()));
+    col[i] = 1;
+    fullMask.initFromColumn(col);
+    testingState.initFromColumn(testingCol);
+    OptRopeState exp4 = testingState.expandByInterp(10);
+    testingState.initFromColumn(testingCol + col*rand());
+    OptRopeState exp3 = testingState.expandByInterp(10);
+    //testingState.fillExpansion(10, exp1);
+    testingState.fillExpansion(10, exp4, &fullMask);
+    // cout << "MASKMASKMASKMASKMASKMASK\n" << fullMask.toString()<< "\nMASKMASKMASKMASKMASKMASKMASKMASK" << endl;
+    if (!exp3.isApprox(exp4)) {
+      cout << i << endl;
+
+      MatrixXd m(exp1.dim(), 3);
+      m.col(0) = exp1.toColumn(); m.col(1) = exp1.toColumn();
+      m.col(2) = m.col(0) - m.col(1);
+      cout << m << "\n\n" << endl;
+    }
+    // cout << exp3.toString() << "\n==============\n" << exp4.toString() << endl;
+    assert(b = b && exp3.isApprox(exp4));
+  }
   if (b) {
     cout << "expansion+mask test passed" << endl;
   }
@@ -262,6 +279,8 @@ int main(int argc, char *argv[]) {
 
   OptRopeState finalState = optrope.toState(toEigVec(x0)).expandByInterp(OPhysConfig::interpPerTimestep);
   cout << finalState.toString() << endl;
+
+  //finalState.toColumn();
 
   OptRopePlot plot(OPhysConfig::N, &scene, finalState.atTime[0].x, finalState.atTime[0].manipDofs);
   if (OPhysConfig::useRobot) {

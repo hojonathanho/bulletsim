@@ -11,6 +11,8 @@ OptRopeState::StateAtTime::StateAtTime(OptRope &opt, int N)
   : manipDofs(Vector7d::Zero()),
     x(MatrixX3d::Zero(N, 3)),
     vel(MatrixX3d::Zero(N, 3)),
+    // ropeCntForce(MatrixX3d::Zero(N, 3)),
+    ropeCntForce_f(VectorXd::Zero(N-1)),
     groundForce_f(VectorXd::Zero(N)),
     groundForce_c(VectorXd::Zero(N)),
     manipForce(MatrixX3d::Zero(N, 3)),
@@ -21,6 +23,8 @@ OptRopeState::StateAtTime::StateAtTime(OptRope &opt, int N)
   m_dim = manipDofs.size()
         + x.size()
         + vel.size()
+        // + ropeCntForce.size()
+        + ropeCntForce_f.size()
         + groundForce_f.size()
         + groundForce_c.size()
         + manipForce.size()
@@ -29,10 +33,11 @@ OptRopeState::StateAtTime::StateAtTime(OptRope &opt, int N)
 
 string OptRopeState::StateAtTime::toString() const {
   return (
-    boost::format("> manipDofs: %s\n> pos:\n%s\n> vel:\n%s\n> groundForce_f:%f\n> groundForce_c:%f\n> manipForce:\n%s\n> manipForce_c:%f\n")
+    boost::format("> manipDofs: %s\n> pos:\n%s\n> vel:\n%s\n> ropeCntForce_f:\n%s\n> groundForce_f:%f\n> groundForce_c:%f\n> manipForce:\n%s\n> manipForce_c:%f\n")
       % manipDofs.transpose()
       % x
       % vel
+      % ropeCntForce_f.transpose()
       % groundForce_f.transpose()
       % groundForce_c.transpose()
       % manipForce
@@ -107,6 +112,9 @@ OptRopeState OptRopeState::expandByInterp(int interpPerTimestep) const {
       }
 
 
+      // out.atTime[s].ropeCntForce = (1.-a)*atTime[t].ropeCntForce + a*atTime[t+1].ropeCntForce;
+      out.atTime[s].ropeCntForce_f = (1.-a)*atTime[t].ropeCntForce_f + a*atTime[t+1].ropeCntForce_f;
+
       out.atTime[s].groundForce_f = (1.-a)*atTime[t].groundForce_f + a*atTime[t+1].groundForce_f;
       out.atTime[s].groundForce_c = atTime[t].groundForce_c;
 
@@ -144,13 +152,14 @@ void OptRopeState::fillExpansion(int interpPerTimestep, OptRopeState &out, const
   }
   assert(out.m_T == newT && out.m_N == N && out.expanded);
 
-  out.expanded = true;
   for (int t = 0; t < origT - 1; ++t) {
 
     bool calc_manipDofs = !mask || !mask->atTime[t].manipDofs.isZero() || !mask->atTime[t+1].manipDofs.isZero();
     bool calc_pos = !mask || !mask->atTime[t].x.isZero() || !mask->atTime[t+1].x.isZero() || !mask->atTime[t].vel.isZero() || !mask->atTime[t+1].vel.isZero();
     bool calc_groundForce = !mask || !mask->atTime[t].groundForce_f.isZero() || !mask->atTime[t+1].groundForce_f.isZero();
+    bool calc_ropeCntForce_f = !mask || !mask->atTime[t].ropeCntForce_f.isZero() || !mask->atTime[t+1].ropeCntForce_f.isZero();
     bool calc_manipForce = !mask || !mask->atTime[t].manipForce.isZero() || !mask->atTime[t+1].manipForce.isZero();
+
 
     int tA = t*interpPerTimestep;
     int tB = (t + 1)*interpPerTimestep;
@@ -187,6 +196,8 @@ void OptRopeState::fillExpansion(int interpPerTimestep, OptRopeState &out, const
       //   frac_s, out.atTime[s].manipDofs
       // );
       if (calc_manipDofs) {
+        // cout << "==================INTERPOLATING MANIP DOFS===========";
+        // cout << a << " | " << atTime[t].manipDofs.transpose() << " | " << atTime[t+1].manipDofs.transpose() << endl;
         out.atTime[s].manipDofs = (1.-a)*atTime[t].manipDofs + a*atTime[t+1].manipDofs;
         // cheating...
         //out.atTime[s].derived_manipPos = m_opt.calcManipPos(out.atTime[s].manipDofs);
@@ -210,6 +221,11 @@ void OptRopeState::fillExpansion(int interpPerTimestep, OptRopeState &out, const
           out.atTime[s].derived_accel.row(n) = accel.transpose();
         }
 
+        if (assumeOneMaskEntry) return;
+      }
+
+      if (calc_ropeCntForce_f) {
+        out.atTime[s].ropeCntForce_f = (1.-a)*atTime[t].ropeCntForce_f + a*atTime[t+1].ropeCntForce_f;
         if (assumeOneMaskEntry) return;
       }
 
@@ -247,6 +263,7 @@ bool OptRopeState::StateAtTime::isApprox(const OptRopeState::StateAtTime &other)
       && manipDofs.isApprox(other.manipDofs)
       && x.isApprox(other.x)
       && vel.isApprox(other.vel)
+      && ropeCntForce_f.isApprox(other.ropeCntForce_f)
       && groundForce_f.isApprox(other.groundForce_f)
       && groundForce_c.isApprox(other.groundForce_c)
       && manipForce.isApprox(other.manipForce)

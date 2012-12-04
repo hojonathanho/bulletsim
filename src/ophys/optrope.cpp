@@ -30,9 +30,10 @@ void OptRope::setCoeffs1() {
   m_coeffs.velUpdate = 0.1;
   m_coeffs.contact = 0.1;
   m_coeffs.forces = 1;
-  m_coeffs.linkLen = 0.1;
+  m_coeffs.linkLen = 1;
   m_coeffs.goalPos = 1;
   m_coeffs.manipSpeed = 0.001;
+  m_coeffs.damping = 0.01;
 }
 
 void OptRope::setCoeffs2() {
@@ -40,9 +41,10 @@ void OptRope::setCoeffs2() {
   m_coeffs.velUpdate = 10.;
   m_coeffs.contact = 10;
   m_coeffs.forces = 1;
-  m_coeffs.linkLen = 1;
+  m_coeffs.linkLen = 10;
   m_coeffs.goalPos = 1;
   m_coeffs.manipSpeed = 0.001;
+  m_coeffs.damping = 0.1;
 }
 
 void OptRope::setRobot(RaveRobotObject::Ptr robot, RobotManipulator::Ptr manip) {
@@ -98,6 +100,7 @@ OptRopeState *OptRope::createLowerBound() {
     }
     if (t == 0) lb.atTime[t].x = m_initPos; else lb.atTime[t].x.setConstant(-infty());
     lb.atTime[t].vel.setConstant(t == 0 ? 0 : -infty());
+    lb.atTime[t].ropeCntForce_f.setConstant(-infty());
     lb.atTime[t].groundForce_f.setZero();
     lb.atTime[t].groundForce_c.setConstant(0);
     lb.atTime[t].manipForce.setConstant(-infty());
@@ -127,6 +130,7 @@ OptRopeState *OptRope::createUpperBound() {
     }
     if (t == 0) ub.atTime[t].x = m_initPos; else ub.atTime[t].x.setConstant(infty());
     ub.atTime[t].vel.setConstant(t == 0 ? 0 : infty());
+    ub.atTime[t].ropeCntForce_f.setConstant(infty());
     ub.atTime[t].groundForce_f.setConstant(infty());
     ub.atTime[t].groundForce_c.setConstant(1);
     ub.atTime[t].manipForce.setConstant(infty());
@@ -243,7 +247,19 @@ inline double OptRope::cost_velUpdate(const OptRopeState &es) {
       Vector3d gravity(0, 0, OPhysConfig::gravity);
       Vector3d groundForce(0, 0, es.atTime[t].groundForce_c[n] * es.atTime[t].groundForce_f[n]);
       Vector3d manipForce = es.atTime[t].manipForce_c[n] * es.atTime[t].manipForce.row(n).transpose(); //(state.atTime[t].manipDofs - pos[t].row(n).transpose()).normalized() * state.atTime[t].manipForce_f[n];
-      Vector3d totalForce = gravity + groundForce + manipForce;
+
+      Vector3d ropeCntForce(0, 0, 0);
+      if (n == 0) {
+        ropeCntForce = es.atTime[t].ropeCntForce_f[n] * (es.atTime[t].x.row(n+1) - es.atTime[t].x.row(n)).normalized().transpose();
+      } else if (n == es.m_N - 1) {
+        ropeCntForce = es.atTime[t].ropeCntForce_f[n-1] * (es.atTime[t].x.row(n-1) - es.atTime[t].x.row(n)).normalized().transpose();
+      } else {
+        ropeCntForce =
+          es.atTime[t].ropeCntForce_f[n] * (es.atTime[t].x.row(n+1) - es.atTime[t].x.row(n)).normalized().transpose() +
+          es.atTime[t].ropeCntForce_f[n-1] * (es.atTime[t].x.row(n-1) - es.atTime[t].x.row(n)).normalized().transpose();
+      }
+
+      Vector3d totalForce = gravity + groundForce + manipForce + ropeCntForce;
       Vector3d accel = es.atTime[t].derived_accel.row(n).transpose();
       cost += (accel - totalForce /* / mass */).squaredNorm();
     }
@@ -262,7 +278,16 @@ inline double OptRope::cost_contact(const OptRopeState &es) {
 
       // manipulator contact
       cost += es.atTime[t].manipForce_c[n] * (manipPos - es.atTime[t].x.row(n).transpose()).squaredNorm();
+
+      // not really a contact, but you get the idea
+      // if (n < es.m_N - 1) {
+      //   double linkLenViolation = square((es.atTime[t].x.row(n) - es.atTime[t].x.row(n+1)).squaredNorm() - square(m_linkLen));
+      //   cost += square(es.atTime[t].ropeCntForce_f[n]) / (1e-6 + linkLenViolation);
+      // }
     }
+
+    cost += 1e-3*es.atTime[t].manipForce_c.sum(); // sparse
+    cost += square(max(0., es.atTime[t].manipForce_c.sum() - 1.)); // total manip contact should be <= 1
   }
   return cost;
 }
@@ -280,6 +305,10 @@ inline double OptRope::cost_forces(const OptRopeState &es) {
       double manip_fsqnorm = es.atTime[t].manipForce.row(n).squaredNorm();
       //cost += manip_fsqnorm / (1e-5 + square(es.atTime[t].manipForce_c[n]));
       cost += 1e-6*manip_fsqnorm;
+
+      if (n < es.m_N - 1) {
+        cost += square(es.atTime[t].ropeCntForce_f[n]);
+      }
     }
   }
   return cost;
@@ -310,6 +339,14 @@ inline double OptRope::cost_manipSpeed(const OptRopeState &es) {
   return cost;
 }
 
+inline double OptRope::cost_damping(const OptRopeState &es) {
+  double cost = 0;
+  for (int t = 0; t < es.atTime.size(); ++t) {
+    cost += es.atTime[t].vel.squaredNorm() + es.atTime[t].derived_accel.squaredNorm();
+  }
+  return cost;
+}
+
 double OptRope::costfunc_on_expanded(const OptRopeState &expandedState) {
   assert(expandedState.expanded);
   double cost = 0;
@@ -318,8 +355,9 @@ double OptRope::costfunc_on_expanded(const OptRopeState &expandedState) {
   cost += m_coeffs.contact * cost_contact(expandedState);
   cost += m_coeffs.forces * cost_forces(expandedState);
   cost += m_coeffs.linkLen * cost_linkLen(expandedState);
-  cost += m_coeffs.goalPos * cost_goalPos(expandedState, m_initPos.row(0).transpose() + Vector3d(0, 0, 0.5));
+  cost += m_coeffs.goalPos * cost_goalPos(expandedState, m_initPos.row(0).transpose() + Vector3d(0, 0, 1));
   cost += m_coeffs.manipSpeed * cost_manipSpeed(expandedState);
+  cost += m_coeffs.damping * cost_damping(expandedState);
   return cost;
 }
 

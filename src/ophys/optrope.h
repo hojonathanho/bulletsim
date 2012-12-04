@@ -22,6 +22,7 @@ struct OptRope {
     double linkLen;
     double goalPos;
     double manipSpeed;
+    double damping;
   } m_coeffs;
 
   OptRope(const MatrixX3d &initPos, const Vector7d &initManipDofs, int T, int N, double linkLen);
@@ -89,6 +90,7 @@ struct OptRope {
   double cost_linkLen(const OptRopeState &es);
   double cost_goalPos(const OptRopeState &es, const Vector3d &goal);
   double cost_manipSpeed(const OptRopeState &es);
+  double cost_damping(const OptRopeState &es);
 
   double costfunc_on_expanded(const OptRopeState &expandedState);
   double costfunc(const OptRopeState &state);
