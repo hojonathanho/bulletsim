@@ -12,7 +12,8 @@ OptRope::OptRope(int T, int N, double linkLen)
     m_useRobot(false),
     m_dummyState(this, m_T, m_N),
     m_initPos(MatrixX3d::Zero(N, 3)),
-    m_initManipDofs(Vector7d::Zero())
+    m_initManipDofs(Vector7d::Zero()),
+    m_fkCalls(0)
 {
   assert(m_N >= 1);
   assert(m_T >= 1);
@@ -72,6 +73,10 @@ Vector3d OptRope::calcManipPos(const Vector7d &dofs) {
     //m_manip->setDOFValues(toStlVec(dofs));
     m_robot->robot->SetActiveDOFs(m_manip->manip->GetArmIndices());
     m_robot->robot->SetActiveDOFValues(toStlVec(dofs));
+    if (m_fkCalls % 100000 == 0) {
+      cout << "forward kinematics calls: " << m_fkCalls << endl;
+    }
+    ++m_fkCalls;
     //cout << "done." << endl;
     p = toEigVec(m_manip->getTransform().getOrigin());
   } else {
@@ -282,7 +287,8 @@ inline double OptRope::cost_contact(const OptRopeState &es) {
   double cost = 0;
   // ground force: groundContact^2 * (ground non-violation)^2
   for (int t = 0; t < es.atTime.size(); ++t) {
-    Vector3d manipPos = calcManipPos(es.atTime[t].manipDofs);
+    //Vector3d manipPos = calcManipPos(es.atTime[t].manipDofs);
+    Vector3d manipPos = es.atTime[t].derived_manipPos;
     for (int n = 0; n < es.m_N; ++n) {
       // ground contact
       cost += es.atTime[t].groundForce_c[n] * square(max(0., es.atTime[t].x(n,2) - OPhysConfig::tableHeight));

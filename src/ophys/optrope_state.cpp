@@ -97,12 +97,16 @@ OptRopeState OptRopeState::expandByInterp(int interpPerTimestep) const {
     int tA = t*interpPerTimestep;
     int tB = (t + 1)*interpPerTimestep;
 
+    Vector3d p1 = m_opt->calcManipPos(atTime[t].manipDofs);
+    Vector3d p2 = m_opt->calcManipPos(atTime[t+1].manipDofs);
+
     for (int s = tA; s < tB || (tB == newT - 1 && s <= tB); ++s) {
       const double a = (s - tA) / (double) interpPerTimestep;
 
       // out.atTime[s].manipDofs = fine_manipDofs.row(s).transpose();
       out.atTime[s].manipDofs = (1.-a)*atTime[t].manipDofs + a*atTime[t+1].manipDofs;
-      out.atTime[s].derived_manipPos = m_opt->calcManipPos(out.atTime[s].manipDofs); // really slow
+      //out.atTime[s].derived_manipPos = m_opt->calcManipPos(out.atTime[s].manipDofs); // really slow
+      out.atTime[s].derived_manipPos = (1.-a)*p1 + a*p2; // HACK
 
       out.atTime[s].derived_accel.resize(N, 3);
       for (int n = 0; n < N; ++n) {
@@ -166,8 +170,8 @@ void OptRopeState::fillExpansion(int interpPerTimestep, OptRopeState &out, const
 
     Vector3d p1, p2;
     if (calc_manipDofs) {
-      p1 = m_opt->calcManipPos(out.atTime[t].manipDofs);
-      p2 = m_opt->calcManipPos(out.atTime[t+1].manipDofs);
+      p1 = m_opt->calcManipPos(atTime[t].manipDofs);
+      p2 = m_opt->calcManipPos(atTime[t+1].manipDofs);
     }
 
     for (int s = tA; s < tB || (tB == newT - 1 && s <= tB); ++s) {
@@ -201,7 +205,7 @@ void OptRopeState::fillExpansion(int interpPerTimestep, OptRopeState &out, const
         out.atTime[s].manipDofs = (1.-a)*atTime[t].manipDofs + a*atTime[t+1].manipDofs;
         // cheating...
         //out.atTime[s].derived_manipPos = m_opt->calcManipPos(out.atTime[s].manipDofs);
-        out.atTime[s].derived_manipPos = (1.-a)*p1 + a*p2;
+        out.atTime[s].derived_manipPos = (1.-a)*p1 + a*p2; // HACK
         if (assumeOneMaskEntry) return;
       }
 

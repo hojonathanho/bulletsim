@@ -58,3 +58,6 @@ target_link_libraries(test_nlopt_boxconstrained nlopt)
 
 add_executable(test_splines test_splines.cpp)
 target_link_libraries(test_splines splines)
+
+add_executable(test_pr2_fk test_pr2_fk.cpp)
+target_link_libraries(test_pr2_fk simulation robots)

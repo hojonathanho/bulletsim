@@ -39,6 +39,7 @@ struct OptRope {
   RobotManipulator::Ptr m_manip;
   void setRobot(RaveRobotObject::Ptr robot, RobotManipulator::Ptr manip);
 
+  int m_fkCalls;
   Vector3d calcManipPos(const Vector7d &dofs);
 
   template<typename Derived>

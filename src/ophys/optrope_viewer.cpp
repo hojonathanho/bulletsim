@@ -116,6 +116,7 @@ string LocalConfig::in = "";
 int main(int argc, char *argv[]) {
   Parser parser;
   parser.addGroup(LocalConfig());
+  parser.addGroup(OPhysConfig());
   parser.read(argc, argv);
 
   // set up scene
