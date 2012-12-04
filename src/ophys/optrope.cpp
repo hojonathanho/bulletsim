@@ -6,21 +6,32 @@ using namespace ophys;
 #include <iostream>
 using namespace std;
 
-OptRope::OptRope(const MatrixX3d &initPos, const Vector7d &initManipDofs, int T, int N, double linkLen)
-  : m_N(N), m_T(T), m_initPos(initPos), m_initManipDofs(initManipDofs), m_linkLen(linkLen),
-    //m_lb(createLowerBound()), m_ub(createUpperBound()),
+OptRope::OptRope(int T, int N, double linkLen)
+  : m_N(N), m_T(T), m_linkLen(linkLen),
     m_costCalls(0),
     m_useRobot(false),
-    m_dummyState(*this, m_T, m_N)
+    m_dummyState(this, m_T, m_N),
+    m_initPos(MatrixX3d::Zero(N, 3)),
+    m_initManipDofs(Vector7d::Zero())
 {
   assert(m_N >= 1);
   assert(m_T >= 1);
-  assert(initPos.rows() == m_N);
-  init();
+  calcBounds();
   setCoeffs1();
 }
 
-void OptRope::init() {
+void OptRope::setInitPositions(const MatrixX3d &initPos) {
+  assert(initPos.rows() == m_N);
+  m_initPos = initPos;
+  calcBounds();
+}
+
+void OptRope::setInitManipDofs(const Vector7d &initManipDofs) {
+  m_initManipDofs = initManipDofs;
+  calcBounds();
+}
+
+void OptRope::calcBounds() {
   m_lb.reset(createLowerBound()); m_ub.reset(createUpperBound());
   m_lbvec = m_lb->toColumn(); m_ubvec = m_ub->toColumn();
 }
@@ -51,7 +62,7 @@ void OptRope::setRobot(RaveRobotObject::Ptr robot, RobotManipulator::Ptr manip) 
   m_robot = robot;
   m_manip = manip;
   m_useRobot = true;
-  init();
+  calcBounds();
 }
 
 Vector3d OptRope::calcManipPos(const Vector7d &dofs) {
@@ -80,7 +91,7 @@ static void getDOFLimits(RaveRobotObject::Ptr robot, const vector<int> &indices,
 }
 
 OptRopeState *OptRope::createLowerBound() {
-  OptRopeState *out = new OptRopeState(*this, m_T, m_N);
+  OptRopeState *out = new OptRopeState(this, m_T, m_N);
   OptRopeState &lb = *out;
 
   Vector7d lbDof, ubDof;
@@ -110,7 +121,7 @@ OptRopeState *OptRope::createLowerBound() {
 }
 
 OptRopeState *OptRope::createUpperBound() {
-  OptRopeState *out = new OptRopeState(*this, m_T, m_N);
+  OptRopeState *out = new OptRopeState(this, m_T, m_N);
   OptRopeState &ub = *out;
 
   Vector7d lbDof, ubDof;
@@ -140,7 +151,7 @@ OptRopeState *OptRope::createUpperBound() {
 }
 
 OptRopeState OptRope::createInitState() {
-  OptRopeState s(*this, m_T, m_N);
+  OptRopeState s(this, m_T, m_N);
   for (int t = 0; t < m_T; ++t) {
     s.atTime[t].manipDofs = m_initManipDofs;
     s.atTime[t].x = m_initPos;
@@ -153,7 +164,7 @@ OptRopeState OptRope::createInitState() {
 
 
 double OptRope::costfunc_wrapper(const Eigen::Map<const VectorXd> &x) {
-  OptRopeState state(*this, m_T, m_N);
+  OptRopeState state(this, m_T, m_N);
   state.initFromColumn(x);
   return costfunc(state);
 }
@@ -165,11 +176,11 @@ double OptRope::nlopt_costWrapper(const vector<double> &x, vector<double> &grad)
     cout << "cost evaluations: " << calls;
 
   Eigen::Map<VectorXd> ex(const_cast<double*>(x.data()), x.size(), 1);
-  OptRopeState state(*this, m_T, m_N); state.initFromColumn(ex);
-  OptRopeState mask(*this, m_T, m_N);
+  OptRopeState state(this, m_T, m_N); state.initFromColumn(ex);
+  OptRopeState mask(this, m_T, m_N);
   VectorXd maskVal(VectorXd::Zero(x.size()));
 
-  OptRopeState expansion(*this, state.getExpandedT(OPhysConfig::interpPerTimestep), m_N);
+  OptRopeState expansion(this, state.getExpandedT(OPhysConfig::interpPerTimestep), m_N);
   expansion.expanded = true;
   state.fillExpansion(OPhysConfig::interpPerTimestep, expansion);
 

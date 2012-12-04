@@ -11,8 +11,8 @@ struct OptRope {
   const int m_T; // timesteps
   const double m_linkLen; // resting distance
 
-  const MatrixX3d m_initPos; // initial positions of the points (row(n) is the position of point n)
-  const Vector7d m_initManipDofs;
+  MatrixX3d m_initPos; // initial positions of the points (row(n) is the position of point n)
+  Vector7d m_initManipDofs;
 
   struct CostCoeffs {
     double groundPenetration;
@@ -25,8 +25,11 @@ struct OptRope {
     double damping;
   } m_coeffs;
 
-  OptRope(const MatrixX3d &initPos, const Vector7d &initManipDofs, int T, int N, double linkLen);
-  void init();
+  OptRope(int T, int N, double linkLen);
+
+  void setInitPositions(const MatrixX3d &initPos);
+  void setInitManipDofs(const Vector7d &initManipDofs);
+  void calcBounds();
 
   void setCoeffs1();
   void setCoeffs2();
@@ -40,7 +43,7 @@ struct OptRope {
 
   template<typename Derived>
   OptRopeState toState(const DenseBase<Derived> &col) const {
-    OptRopeState s(const_cast<OptRope&>(*this), m_T, m_N);
+    OptRopeState s(const_cast<OptRope *>(this), m_T, m_N);
     s.initFromColumn(col);
     return s;
   }
@@ -98,6 +101,10 @@ struct OptRope {
   int m_costCalls;
   double costfunc_wrapper(const Eigen::Map<const VectorXd> &x);
   double nlopt_costWrapper(const vector<double> &x, vector<double> &grad);
+
+
+  void writeState(const OptRopeState &state, const string &filename) const;
+  OptRopeState readState(const string &filename) const;
 
 #if 0
   template<typename VecType, typename Derived>

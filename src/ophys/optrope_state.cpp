@@ -7,7 +7,7 @@
 #include <sstream>
 using namespace std;
 
-OptRopeState::StateAtTime::StateAtTime(OptRope &opt, int N)
+OptRopeState::StateAtTime::StateAtTime(OptRope *opt, int N)
   : manipDofs(Vector7d::Zero()),
     x(MatrixX3d::Zero(N, 3)),
     vel(MatrixX3d::Zero(N, 3)),
@@ -102,7 +102,7 @@ OptRopeState OptRopeState::expandByInterp(int interpPerTimestep) const {
 
       // out.atTime[s].manipDofs = fine_manipDofs.row(s).transpose();
       out.atTime[s].manipDofs = (1.-a)*atTime[t].manipDofs + a*atTime[t+1].manipDofs;
-      out.atTime[s].derived_manipPos = m_opt.calcManipPos(out.atTime[s].manipDofs); // really slow
+      out.atTime[s].derived_manipPos = m_opt->calcManipPos(out.atTime[s].manipDofs); // really slow
 
       out.atTime[s].derived_accel.resize(N, 3);
       for (int n = 0; n < N; ++n) {
@@ -166,8 +166,8 @@ void OptRopeState::fillExpansion(int interpPerTimestep, OptRopeState &out, const
 
     Vector3d p1, p2;
     if (calc_manipDofs) {
-      p1 = m_opt.calcManipPos(out.atTime[t].manipDofs);
-      p2 = m_opt.calcManipPos(out.atTime[t+1].manipDofs);
+      p1 = m_opt->calcManipPos(out.atTime[t].manipDofs);
+      p2 = m_opt->calcManipPos(out.atTime[t+1].manipDofs);
     }
 
     for (int s = tA; s < tB || (tB == newT - 1 && s <= tB); ++s) {
@@ -200,7 +200,7 @@ void OptRopeState::fillExpansion(int interpPerTimestep, OptRopeState &out, const
         // cout << a << " | " << atTime[t].manipDofs.transpose() << " | " << atTime[t+1].manipDofs.transpose() << endl;
         out.atTime[s].manipDofs = (1.-a)*atTime[t].manipDofs + a*atTime[t+1].manipDofs;
         // cheating...
-        //out.atTime[s].derived_manipPos = m_opt.calcManipPos(out.atTime[s].manipDofs);
+        //out.atTime[s].derived_manipPos = m_opt->calcManipPos(out.atTime[s].manipDofs);
         out.atTime[s].derived_manipPos = (1.-a)*p1 + a*p2;
         if (assumeOneMaskEntry) return;
       }
@@ -279,4 +279,29 @@ bool OptRopeState::isApprox(const OptRopeState &other) const {
       return false;
     }
   }
+}
+
+
+void OptRopeState::writeToFile(const string &filename) const {
+  fstream f(filename.c_str(), ios::out);
+  f << m_T << ' ' << m_N << '\n';
+  VectorXd col = toColumn();
+  for (int i = 0; i < col.size(); ++i) {
+    f << col[i] << '\n';
+  }
+  f.close();
+}
+
+OptRopeState OptRopeState::ReadFromFile(const string &filename) {
+  int T, N;
+  fstream f(filename.c_str(), ios::in);
+  f >> T >> N;
+  OptRopeState s(NULL, T, N);
+  VectorXd col(s.dim());
+  for (int i = 0; i < col.size(); ++i) {
+    f >> col[i];
+  }
+  f.close();
+  s.initFromColumn(col);
+  return s;
 }

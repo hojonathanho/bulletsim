@@ -29,8 +29,8 @@ struct OptRopeState {
     MatrixX3d derived_accel; // not actually part of the state. filled in from cubic spline evaluation (only when expanded==true)
     Vector3d derived_manipPos;
 
-    OptRope &m_opt;
-    explicit StateAtTime(OptRope &opt, int N);
+    OptRope *m_opt;
+    explicit StateAtTime(OptRope *opt, int N);
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
     // Conversion/utility methods
@@ -92,13 +92,12 @@ struct OptRopeState {
   };
 
 
-
   // The whole state is just a bunch of StateAtTimes over time
   EigVector<StateAtTime>::type atTime;
 
   int m_T, m_N;
-  OptRope &m_opt;
-  explicit OptRopeState(OptRope &opt, int T, int N)
+  OptRope *m_opt;
+  explicit OptRopeState(OptRope *opt, int T, int N)
     : atTime(T, StateAtTime(opt, N)),
       expanded(false),
       m_T(T), m_N(N),
@@ -149,6 +148,9 @@ struct OptRopeState {
     }
     return ss.str();
   }
+
+  void writeToFile(const string &filename) const;
+  static OptRopeState ReadFromFile(const string &filename);
 
   bool isApprox(const OptRopeState &other) const;
 };

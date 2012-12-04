@@ -15,11 +15,19 @@ add_library(splines
   splines.cpp
 )
 
+set(IPOPT_LIBS
+  #/home/jonathan/Downloads/Ipopt-3.10.3/build/Ipopt/src/Interfaces/.libs/libipopt.a
+  ipopt
+  gfortran pthread m pardiso lapack blas dl
+)
+set(CMAKE_CXX_FLAGS "-Wl,--no-as-needed -lprofiler -Wl,--as-needed")
 add_library(ophys
   #particlesystem2.cpp
   ophys_config.cpp
+  optrope.cpp
+  optrope_state.cpp
 )
-target_link_libraries(ophys simulation robots)
+target_link_libraries(ophys simulation robots nlopt splines ${IPOPT_LIBS})
 
 #add_executable(test_particlesystem test_particlesystem.cpp)
 #target_link_libraries(test_particlesystem ophys)
@@ -36,15 +44,11 @@ target_link_libraries(ophys simulation robots)
 add_executable(test_gurobi_constraints test_gurobi_constraints.cpp)
 target_link_libraries(test_gurobi_constraints ophys)
 
-set(IPOPT_LIBS
-  #/home/jonathan/Downloads/Ipopt-3.10.3/build/Ipopt/src/Interfaces/.libs/libipopt.a
-  ipopt
-  gfortran pthread m pardiso lapack blas dl
-)
+add_executable(nlopt_spline_rope nlopt_spline_rope.cpp)
+target_link_libraries(nlopt_spline_rope ophys)
 
-set(CMAKE_CXX_FLAGS "-Wl,--no-as-needed -lprofiler -Wl,--as-needed")
-add_executable(nlopt_spline_rope nlopt_spline_rope.cpp optrope.cpp optrope_state.cpp)
-target_link_libraries(nlopt_spline_rope ophys nlopt splines ${IPOPT_LIBS})
+add_executable(optrope_viewer optrope_viewer.cpp)
+target_link_libraries(optrope_viewer ophys)
 
 add_executable(test_ipopt test_ipopt.cpp)
 target_link_libraries(test_ipopt ${IPOPT_LIBS})
