@@ -238,7 +238,7 @@ PR2Manager::PR2Manager(Scene &s) : scene(s), inputState(),
 	initIK();
 	initHaptics();
 
-	controller.reset(new PR2Controller(scene, pr2));
+	controller.reset(new PR2Controller(scene, pr2,0.006));
 	registerSceneCallbacks();
 }
 

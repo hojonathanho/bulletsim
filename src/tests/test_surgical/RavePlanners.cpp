@@ -177,11 +177,12 @@ std::pair<bool, RaveTrajectory::Ptr> IKInterpolationPlanner::plan(std::vector<Op
 
     if (transforms.size()==1) { // if the user only passed one transform, add another
     	std::vector<OpenRAVE::Transform> transformsN;
-    	OpenRAVE::Vector currTrans = pr2manip->origManip->GetEndEffectorTransform().trans;
-    	OpenRAVE::Transform interT= transforms[0];
+    	OpenRAVE::Transform currTrans = pr2manip->origManip->GetEndEffectorTransform();
+    	//OpenRAVE::Transform interT= transforms[0];
 
-    	interT.trans = (interT.trans  + currTrans)*0.5;
-    	transformsN.push_back(interT);
+    	//interT.trans = (interT.trans  + currTrans.trans)*0.5;
+    	transformsN.push_back(currTrans);
+    	//transformsN.push_back(interT);
     	transformsN.push_back(transforms[0]);
     	transforms = transformsN;
     	assert(("There should be 2 transforms in the vector. Not Found!", transforms.size()==2));
@@ -223,11 +224,12 @@ std::pair<bool, RaveTrajectory::Ptr> IKInterpolationPlanner::smoothPlan(std::vec
 
     if (transforms.size()==1) { // if the user only passed one transform, add another
     	std::vector<OpenRAVE::Transform> transformsN;
-    	OpenRAVE::Vector currTrans = pr2manip->origManip->GetEndEffectorTransform().trans;
-    	OpenRAVE::Transform interT= transforms[0];
+    	OpenRAVE::Transform currTrans = pr2manip->origManip->GetEndEffectorTransform();
+    	//OpenRAVE::Transform interT= transforms[0];
 
-    	interT.trans = (interT.trans  + currTrans)*0.5;
-    	transformsN.push_back(interT);
+    	transformsN.push_back(currTrans);
+    	//interT.trans = (interT.trans  + currTrans)*0.5;
+    	//transformsN.push_back(interT);
     	transformsN.push_back(transforms[0]);
     	transforms = transformsN;
     	assert(("There should be 2 transforms in the vector. Not Found!", transforms.size()==2));
@@ -280,6 +282,7 @@ std::pair<bool, RaveTrajectory::Ptr> IKInterpolationPlanner::smoothPlan(std::vec
 	return std::make_pair(true, raveTraj);
 }
 
+/** Goes in the direction specified by dir and distance specified by dist in gripper frame*/
 std::pair<bool, RaveTrajectory::Ptr> IKInterpolationPlanner::goInDirection (char dir, double dist, int steps) {
 
 	OpenRAVE::Transform initTrans = pr2manip->origManip->GetEndEffectorTransform();
@@ -330,6 +333,7 @@ std::pair<bool, RaveTrajectory::Ptr> IKInterpolationPlanner::goInDirection (char
 	return smoothPlan(wayPoints);
 }
 
+/** Goes in the direction specified by dir and distance specified by dist in world frame */
 std::pair<bool, RaveTrajectory::Ptr> IKInterpolationPlanner::goInWorldDirection (char dir, double dist, int steps) {
 
 	OpenRAVE::Transform initTrans = pr2manip->origManip->GetEndEffectorTransform();
@@ -375,6 +379,29 @@ std::pair<bool, RaveTrajectory::Ptr> IKInterpolationPlanner::goInWorldDirection 
 		OpenRAVE::Transform raveT = util::toRaveTransform(T);
 		wayPoints.push_back(raveT);
 		//util::drawAxes(util::toBtTransform(raveT,GeneralConfig::scale),2,scene.env);
+	}
+
+	return smoothPlan(wayPoints);
+}
+
+/** Circles around radius, either inner circle or outer circle */
+std::pair<bool, RaveTrajectory::Ptr> IKInterpolationPlanner::circleAroundRadius (Scene * scene, int dir, float rad, float finAng, int steps) {
+
+	btTransform WorldToEndEffectorTransform = util::toBtTransform(pr2manip->manip->GetEndEffectorTransform());//,GeneralConfig::scale);
+
+	btTransform initT;
+	initT.setIdentity();
+	initT.setOrigin(dir*rad*btVector3(0,1,0));
+
+	std::vector<Transform> wayPoints;
+	for (int i = 0; i <= steps; ++i) {
+		float ang = finAng/steps*i;
+		OpenRAVE::Transform T = OpenRAVE::geometry::matrixFromAxisAngle(OpenRAVE::Vector(0,0,dir*ang));
+		btTransform bT = util::toBtTransform(T);
+		bT.setOrigin(-dir*rad*btVector3(0,1,0));
+
+		wayPoints.push_back(util::toRaveTransform(WorldToEndEffectorTransform*bT*initT));//,1/GeneralConfig::scale));
+		util::drawAxes(WorldToEndEffectorTransform*bT*initT,2,scene->env);
 	}
 
 	return smoothPlan(wayPoints);

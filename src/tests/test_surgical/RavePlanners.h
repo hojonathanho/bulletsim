@@ -134,6 +134,9 @@ public:
 
 	/** Goes in the direction specified by dir and distance specified by dist in world frame */
 	std::pair<bool, RaveTrajectory::Ptr> goInWorldDirection (char dir, double dist, int steps=10);
+
+	/** Circles around radius, either inner circle or outer circle */
+	std::pair<bool, RaveTrajectory::Ptr> circleAroundRadius (Scene * scene, int dir, float rad, float finAng, int steps=10);
 };
 
 /** Unwraps vector of way points with DOF values wrapped around from pi to -pi.

@@ -25,6 +25,56 @@ void getContactPointsWith(btSoftBody *psb, btCollisionObject *pco,
 							btSoftBody::tRContactArray &rcontacts);
 struct ImplicitSphere;
 
+class PR2OpenCloseGripperAction : public Action {
+    RaveRobotObject::Manipulator::Ptr manip;
+    // min/max gripper dof vals
+    static const float CLOSED_VAL = 0.03f, OPEN_VAL = 0.54f;
+
+    dReal startVal, endVal;
+    vector<int> indices;
+    vector<dReal> vals;
+
+public:
+    typedef boost::shared_ptr<PR2OpenCloseGripperAction> Ptr;
+
+    PR2OpenCloseGripperAction(RaveRobotObject::Manipulator::Ptr manip_, float time) :
+            								Action(time), manip(manip_), vals(1, 0),
+            								indices(manip->manip->GetGripperIndices()) {
+        if (indices.size() != 1)
+            cout << "WARNING: more than one gripper DOF; just choosing first one" << endl;
+        setCloseAction();
+    }
+
+    void setEndpoints(dReal start, dReal end) { startVal = start; endVal = end; }
+    dReal getCurrDOFVal() const {
+        vector<dReal> v;
+        manip->robot->robot->GetDOFValues(v);
+        return v[indices[0]];
+    }
+    void setOpenAction() { setEndpoints(getCurrDOFVal(), OPEN_VAL); } // 0.54 is the max joint value for the pr2
+    void setCloseAction() { setEndpoints(getCurrDOFVal(), CLOSED_VAL); }
+    void toggleAction() {
+        if (endVal == CLOSED_VAL)
+            setOpenAction();
+        else if (endVal == OPEN_VAL)
+            setCloseAction();
+    }
+
+
+    void reset() {
+        Action::reset();
+    }
+
+    void step(float dt) {
+        if (done()) return;
+        stepTime(dt);
+        float frac = fracElapsed();
+        vals[0] = (1.f - frac)*startVal + frac*endVal;
+        manip->robot->setDOFValues(indices, vals);
+    }
+};
+
+
 class CustomScene : public Scene {
 public:
 
@@ -67,20 +117,25 @@ public:
 	public:
 		typedef boost::shared_ptr<SuturingNeedle> Ptr;
 
+		CustomScene &scene;
+
 		RaveObject::Ptr s_needle;
-		// Manipulator currently grasping the gripper.
-		RaveRobotObject::Manipulator::Ptr gripperManip;
-		float 			s_needle_radius, s_needle_mass;
+		const float 			s_needle_radius, s_needle_mass;
+		const float 			s_end_angle;
+
 		// Is the needle currently piercing?
 		bool s_piercing;
 		// max distance between needle tip and point to cut at
 		float s_pierce_threshold;
+
+		// Manipulator currently grasping the gripper.
+		RaveRobotObject::Manipulator::Ptr gripperManip;
 		// Is the needle being grasped?
 		bool grasped;
+		// Correction matrix of the needle
+		btMatrix3x3 corrRot;
 
-		CustomScene &scene;
-
-		SuturingNeedle (CustomScene * scene, float rad, float mass, float thresh);
+		SuturingNeedle (CustomScene * scene);
 
 		/** Toggle's needle piercing state. */
 		void togglePiercing () {s_piercing = !s_piercing;}
@@ -122,17 +177,18 @@ public:
 		 *  @param SIDE_NUM  \in {1, 2} : if 1 : transform for left-cut
 		 *                                if 2 : transform for right-cut */
 		btTransform getCutGraspTransform(int side_num, RaveRobotObject::Ptr robot, float frac=0.5);
+		btTransform getCutGraspTransform(int side_num, RaveRobotObject::Ptr robot, btVector3 point);
 	};
 
 	PR2SoftBodyGripperAction::Ptr leftSBAction, rightSBAction;
 	//PR2RigidBodyGripperAction::Ptr leftRBAction, rightRBAction;
+	PR2OpenCloseGripperAction::Ptr leftOCAction, rightOCAction;
 
 	BulletInstance::Ptr bullet2;
 	OSGInstance::Ptr osg2;
 	Fork::Ptr fork;
 	RaveRobotObject::Ptr origRobot, tmpRobot;
 	PR2Manager pr2m;
-
 
 	// the cloth to be sutured
 	SutureCloth::Ptr sCloth;
@@ -208,11 +264,14 @@ public:
 	void findNearbyNodes (Hole::Ptr hole, btVector3 holePt);
 
 	/** PR2 goes to needle and grabs it. */
-	void grabNeedle (char rl='r');
+	void grabNeedle (char rl='l');
 	/** Makes needle come to hand. */
-	void moveNeedleToGripper(char rl='r');
+	void moveNeedleToGripper(char rl='l');
 	/** PR2 releases the needle */
 	void releaseNeedle ();
+	/** Move to point on cloth to grasp. */
+	bool moveArmToGraspPoint(float frac, char rl = 'r');
+	bool moveArmToGraspPoint(btVector3 holePt, char rl = 'r');
 
 	void run();
 
@@ -227,10 +286,13 @@ public:
 	void testTrajectory();
 	void testTrajectory2();
 	void testTrajectory3();
-	void testCircular();
+	void testCircular(char rl='l');
 	/** Small test to see if the robot can grasp.*/
-	void testGrasping();
-	void testGraspingNeedle();
+	void testGrasping(char rl='r');
+	void testGraspingNeedle(char rl='l');
+
+	/** Test a bunch of things in sequence. */
+	void testRun ();
 };
 
 #endif

@@ -77,6 +77,9 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,
         case '3': // tests Grasping
         	scene.testGrasping();
         	break;
+        case '#': // tests Grasping
+        	scene.testGrasping('l');
+        	break;
         case '4': // executes an openrave trajectory
         	scene.testTrajectory2();
         	break;
@@ -86,11 +89,20 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,
         case '6': // tests circular
         	scene.testCircular();
         	break;
+        case '^': // tests circular
+        	scene.testCircular('l');
+        	break;
         case '7': // tests Grasping
         	scene.testGraspingNeedle();
         	break;
+        case '8': // tests Grasping
+        	scene.testGraspingNeedle('l');
+        	break;
         case '&': // releases Grasping
         	scene.releaseNeedle();
+        	break;
+        case '9': // test bunch of things
+        	scene.testRun();
         	break;
         }
         break;
