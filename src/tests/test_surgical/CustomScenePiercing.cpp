@@ -536,6 +536,15 @@ void CustomScene::Hole::holeCutCallback() {
 #endif
 }
 
+btVector3 CustomScene::Hole::normal() {
+	btVector3 normal(0,0,0);
+	int nh=h_nodes.size();
+	for (int i=0; i<nh; ++i)
+		normal += h_nodes[0]->m_n;
+	normal /= nh;
+	return normal.normalized();
+}
+
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /** Adds nodes near point to hole. */
@@ -557,10 +566,8 @@ void CustomScene::computeHoleCentersCallBack () {
 
 	if (!hole_size) return;
 
-	for (i = 0; i < hole_size; ++i) {
-		if (!holes[i]->h_currently_piercing) continue;
+	for (i = 0; i < hole_size; ++i)
 		holes[i]->calculateCenter();
-	}
 }
 
 /** Plot the holes. */
@@ -581,6 +588,10 @@ void CustomScene::plotHoles (bool remove) {
 				plotpoints.push_back(holes[i]->h_center);
 				color.push_back(btVector4(0,1,0,1));
 
+				for (float k = 0; k<= 0.1; k+=0.01) {
+					plotpoints.push_back(holes[i]->h_center+holes[i]->normal()*GeneralConfig::scale*k);
+					color.push_back(btVector4(0,1,0,1));
+				}
 			}
 		}
 	}
@@ -684,7 +695,7 @@ bool CustomScene::moveArmToGraspPoint(float frac, char rl) {
 	corrRot = corrRot * cutT.getBasis();
 	cutT.setBasis(corrRot);
 	btVector3 orig = cutT.getOrigin();
-	btVector3 offset(0.5,0,0.1);
+	btVector3 offset(0.07,0,0.1);
 	orig = orig + offset*GeneralConfig::scale;
 	cutT.setOrigin(orig);
 
@@ -727,7 +738,7 @@ bool CustomScene::moveArmToGraspPoint(btVector3 holePt, char rl) {
 	corrRot = corrRot * cutT.getBasis();
 	cutT.setBasis(corrRot);
 	btVector3 orig = cutT.getOrigin();
-	btVector3 offset(0.05,0,0.1);
+	btVector3 offset(0.1,0,0.1);
 	orig = orig + offset*GeneralConfig::scale;
 	cutT.setOrigin(orig);
 	plot_axes1->setup(cutT, 2);
@@ -758,7 +769,7 @@ void CustomScene::run() {
     const float dt = BulletConfig::dt;
 
     // Setting up the table
-    const float table_height = .6;
+    const float table_height = .8;
     const float table_thickness = .05;
     table = BoxObject::Ptr(new BoxObject(0, GeneralConfig::scale * btVector3(.75,.75,table_thickness/2),
     									 btTransform(btQuaternion(0, 0, 0, 1),
@@ -952,7 +963,7 @@ void CustomScene::testCircular(char rl) {
 
 /** Small test to see if the robot can grasp the cloth.*/
 void CustomScene::testGrasping(char rl) {
-	moveArmToGraspPoint(rl,0.3);
+	moveArmToGraspPoint(0.3,rl);
 }
 
 /** Small test to see if the robot can grasp the cloth.*/
@@ -962,48 +973,19 @@ void CustomScene::testGraspingNeedle(char rl) {
 
 /** Test a bunch of things. */
 void CustomScene::testRun () {
-	/*btTransform cutT1, cutT2;
 
-	// get the grap-transforms for the cuts and plot them
-	btTransform gripper = pr2m.pr2Right->getTransform();
-
-	cutT1 =  sCloth->getCutGraspTransform(1, pr2m.pr2, 0.3);
-	cutT2 =  sCloth->getCutGraspTransform(2, pr2m.pr2, 0.3);
-
-	btMatrix3x3 corrRot;
-	corrRot.setValue(-1, 0, 0, 0, 0, 1, 0, 1, 0);
-	corrRot = corrRot * cutT1.getBasis();
-	cutT1.setBasis(corrRot);
-	btVector3 orig = cutT1.getOrigin();
-	btVector3 offset(0,0,0.1);
-	orig = orig + offset*GeneralConfig::scale;
-	cutT1.setOrigin(orig);
-
-	plot_axes1->setup(cutT1, 2);
-	plot_axes2->setup(gripper, 2);
-
-	IKInterpolationPlanner planner(pr2m, rave, 'r');
-	//EndTransformPlanner planner(pr2m.pr2, rave, 'r');
-	std::vector<Transform> t;
-	t.push_back(util::toRaveTransform(cutT1, 1/GeneralConfig::scale));
-
-	std::pair<bool, RaveTrajectory::Ptr> res = planner.smoothPlan(t);
-	//std::pair<bool, RaveTrajectory::Ptr> res = planner.precisePlan(util::toRaveTransform(cutT1,1/GeneralConfig::scale));
-	if (res.first) {
-		pr2m.controller->appendTrajectory(res.second);
-		pr2m.controller->run();
-	} else {
-		std::cout<<"Grasping plan failed!"<<std::endl;
-		return;
-	}*/
+	// Go to point near hole to grasp.
 	btVector3 holePt = holes[0]->h_center;
 	if (!moveArmToGraspPoint(holePt)) {
 		std::cout<<"Grasping plan failed!"<<std::endl;
 		return;
 	}
 
+	// Set up planner for right hand
 	IKInterpolationPlanner planner(pr2m, rave, 'r');
 
+	// Move down into cloth in order to pick up flap
+	//TODO: Change the dist travelling down to something depending on the height diff
 	std::pair<bool, RaveTrajectory::Ptr> res = planner.goInWorldDirection('d',0.10,10);
 	if (res.first) {
 		pr2m.controller->appendTrajectory(res.second);
@@ -1013,7 +995,8 @@ void CustomScene::testRun () {
 		return;
 	}
 
-	res = planner.goInDirection('f',0.10,10);
+	// Move forward into flap by 5cm
+	res = planner.goInDirection('f',0.05,10);
 	if (res.first) {
 		pr2m.controller->appendTrajectory(res.second);
 		pr2m.controller->run();
@@ -1022,9 +1005,11 @@ void CustomScene::testRun () {
 		return;
 	}
 
+	// Grip the flap
 	rightSBAction->setCloseAction();
 	runAction(rightSBAction, BulletConfig::dt);
 
+	// Transform the hand in order to lift the flap
 	float pi = 3.14159265;
 	Transform tfm = pr2m.pr2Right->manip->GetEndEffectorTransform();
 	OpenRAVE::Transform T = OpenRAVE::geometry::matrixFromAxisAngle(OpenRAVE::Vector(pi/2,0,0));
@@ -1045,6 +1030,17 @@ void CustomScene::testRun () {
 		return;
 	}
 
+	// Move hand up to make hole easily accessible for piercing
+	res = planner.goInWorldDirection('u',0.15,10);
+	if (res.first) {
+		pr2m.controller->appendTrajectory(res.second);
+		pr2m.controller->run();
+	} else {
+		std::cout<<"Move up plan failed!"<<std::endl;
+		return;
+	}
+
+	// Grap needle with left hand
 	grabNeedle('l');
 }
 ////////////////////////////////////////////////////////////////////////////////////

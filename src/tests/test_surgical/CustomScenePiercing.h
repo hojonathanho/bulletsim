@@ -110,6 +110,9 @@ public:
 
 		/** Callback to cut the hole. */
 		void holeCutCallback ();
+
+		/** Returns normal at the hole. */
+		btVector3 normal();
 	};
 
 	/* Class to represent the suturing needle. */
