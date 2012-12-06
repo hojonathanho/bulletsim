@@ -5,11 +5,15 @@ using namespace Eigen;
 
 #include "optrope_state.h"
 #include "simulation/openravesupport.h"
+#include "scenario.h"
+#include "pr2_fk.h"
 
 struct OptRope {
-  const int m_N; // num particles
-  const int m_T; // timesteps
-  const double m_linkLen; // resting distance
+  boost::shared_ptr<Scenario> m_scenario;
+  int m_N; // num particles
+  int m_T; // timesteps
+  double m_linkLen; // resting distance
+  PR2FastFK m_fk;
 
   MatrixX3d m_initPos; // initial positions of the points (row(n) is the position of point n)
   Vector7d m_initManipDofs;
@@ -17,18 +21,20 @@ struct OptRope {
   struct CostCoeffs {
     double groundPenetration;
     double velUpdate;
-    double contact;
+    double groundContact;
+    double manipContact;
     double forces;
     double linkLen;
     double goalPos;
-    double manipSpeed;
+    double manipJointVel;
+    double manipCartVel;
     double damping;
   } m_coeffs;
 
-  OptRope(int T, int N, double linkLen);
+  OptRope(int T, boost::shared_ptr<Scenario> scenario);
 
-  void setInitPositions(const MatrixX3d &initPos);
-  void setInitManipDofs(const Vector7d &initManipDofs);
+  /*void setInitPositions(const MatrixX3d &initPos);
+  void setInitManipDofs(const Vector7d &initManipDofs);*/
   void calcBounds();
 
   void setCoeffs1();
@@ -81,19 +87,21 @@ struct OptRope {
     return v;
   }
 
-  OptRopeState m_dummyState;
+  boost::shared_ptr<OptRopeState> m_dummyState;
   int getNumVariables() const {
-    return m_dummyState.dim();
+    return m_dummyState->dim();
   }
 
 
   double cost_groundPenetration(const OptRopeState &es);
   double cost_velUpdate(const OptRopeState &es);
-  double cost_contact(const OptRopeState &es);
+  double cost_groundContact(const OptRopeState &es);
+  double cost_manipContact(const OptRopeState &es);
   double cost_forces(const OptRopeState &es);
   double cost_linkLen(const OptRopeState &es);
   double cost_goalPos(const OptRopeState &es, const Vector3d &goal);
-  double cost_manipSpeed(const OptRopeState &es);
+  double cost_manipJointVel(const OptRopeState &es);
+  double cost_manipCartVel(const OptRopeState &es);
   double cost_damping(const OptRopeState &es);
 
   double costfunc_on_expanded(const OptRopeState &expandedState);

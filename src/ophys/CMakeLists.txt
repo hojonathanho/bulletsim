@@ -26,6 +26,7 @@ add_library(ophys
   ophys_config.cpp
   optrope.cpp
   optrope_state.cpp
+  pr2_fk.cpp
 )
 target_link_libraries(ophys simulation robots nlopt splines ${IPOPT_LIBS})
 
@@ -60,4 +61,4 @@ add_executable(test_splines test_splines.cpp)
 target_link_libraries(test_splines splines)
 
 add_executable(test_pr2_fk test_pr2_fk.cpp)
-target_link_libraries(test_pr2_fk simulation robots)
+target_link_libraries(test_pr2_fk simulation robots ophys)

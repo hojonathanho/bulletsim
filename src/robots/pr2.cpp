@@ -448,8 +448,9 @@ void PR2Manager::cycleIKSolution(int manipNum) {
     vector<vector<dReal> > solns;
     if (!manip->solveAllIK(manip->getTransform(), solns)) return;
     if (ikSolnNum >= solns.size()) ikSolnNum = 0;
-    cout << "arm " << manipNum << ": setting ik solution number " << ikSolnNum << endl;
+    cout << "arm " << manipNum << ": setting ik solution number " << ikSolnNum;
     pr2->setDOFValues(manip->manip->GetArmIndices(), solns[ikSolnNum]);
+    cout << ". indices: " << manip->manip->GetArmIndices() << " vals: " << solns[ikSolnNum] << endl;
     ++ikSolnNum;
 }
 

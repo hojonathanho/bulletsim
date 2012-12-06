@@ -20,13 +20,16 @@ struct OptRopePlot {
   const int m_N;
   bool m_useRobot;
   RobotManipulator::Ptr m_manip;
+  MatrixX3d m_initPos;
+  Vector7d m_initManipDofs;
 
   OptRopePlot(int N, Scene *scene, const MatrixX3d &initPos, const Vector7d &initManipDofs)
     : m_N(N),
       m_scene(scene),
       m_plotSpheres(new PlotSpheres),
       m_plotLines(new PlotLines(5)),
-      m_useRobot(false)
+      m_useRobot(false),
+      m_initPos(initPos), m_initManipDofs(initManipDofs)
   {
     m_scene->env->add(m_plotSpheres);
     m_scene->env->add(m_plotLines);
@@ -47,14 +50,21 @@ struct OptRopePlot {
       centers->push_back(osg::Vec3(pos(i, 0), pos(i, 1), pos(i, 2)));
       double a = (double)i/(double)pos.rows();
       rgba->push_back(osg::Vec4(a, 0, 1.-a, 1));
-      radii.push_back(0.03);
+      radii.push_back(0.01);
     }
+
+    // special point
+    //Vector3d p = centroid(m_initPos) + Vector3d(0.1, 0, 0.1);
+    Vector3d p = m_initPos.row(0).transpose() + Vector3d(0.2, -.2, 0.2);//   m_initPos.row(0).transpose() + Vector3d(0.2, 0, 0.2);
+    centers->push_back(osg::Vec3(p[0], p[1], p[2]));
+    rgba->push_back(osg::Vec4(1, 0, 0, 1));
+    radii.push_back(0.02);
 
     // manipulator position
     if (!m_useRobot) {
       centers->push_back(osg::Vec3(manipDofs(0), manipDofs(1), manipDofs(2)));
       rgba->push_back(osg::Vec4(0, 1, 0, 0.7));
-      radii.push_back(0.05);
+      radii.push_back(0.03);
     }
 
     m_plotSpheres->plot(centers, rgba, radii);
@@ -69,6 +79,8 @@ struct OptRopePlot {
 
     if (m_useRobot) {
       m_manip->setDOFValues(toStlVec(manipDofs));
+      btVector3 p = m_manip->getTransform().getOrigin();
+      cout << "current end effector pos: " << p.x() << ' ' << p.y() << ' ' << p.z() << endl;
     }
   }
 
@@ -124,9 +136,13 @@ int main(int argc, char *argv[]) {
   boost::shared_ptr<PR2Manager> pr2m;
   if (OPhysConfig::useRobot) {
     pr2m.reset(new PR2Manager(scene));
+
+    // put the robot in a nice initial pose
     vector<int> indices(1, pr2m->pr2->robot->GetJointIndex("torso_lift_joint"));
     vector<double> values(1, .31);
     pr2m->pr2->setDOFValues(indices, values);
+    pr2m->pr2Left->setDOFValues(pr2LeftNeutralPos());
+    pr2m->pr2Right->setDOFValues(pr2RightNeutralPos());
   }
   BulletObject::Ptr table = makeTable(initTableCornersWorld(), 0.01);
   scene.env->add(table);
@@ -142,7 +158,9 @@ int main(int argc, char *argv[]) {
   scene.startViewer();
   plot.playTraj(state, true, true);
 
-  scene.idle(true);
+  while (true) {
+    scene.idle(true);
+  }
 
   return 0;
 }

@@ -18,7 +18,7 @@ include_directories(
     ${PHASESPACE_INCLUDE_DIR}
 )
 link_directories(${BULLETSIM_BINARY_DIR}/src)
-option(BUILD_TEST OFF)
+option(BUILD_TESTS OFF)
 option(JOHNS_ADVENTURES OFF)
 option(JONATHANS_ADVENTURES OFF)
 option(ALEXS_ADVENTURES ON)

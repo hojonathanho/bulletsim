@@ -11,6 +11,8 @@
 
 namespace ophys {
 
+using namespace Eigen;
+
 typedef std::vector<GRBVar *> VarPVec;
 typedef std::vector<GRBVar> VarVec;
 typedef std::vector<GRBTempConstr> ConstrVec;
@@ -61,6 +63,26 @@ static void addNoise(VectorType &x, double mean, double stdev) {
 
 inline Vector3d centroid(const MatrixX3d &points) {
   return points.colwise().sum() / (double)points.rows();
+}
+
+
+// left indices: [ 15, 16, 17, 18, 19, 20, 21 ] vals: [ 0.870844, 0.163559, 0.6, -1.28408, 2.25124, -0.827074, 3.09148 ]
+// right indices: [ 27, 28, 29, 30, 31, 32, 33 ] vals: [ -0.793454, 0.221086, -0.6, -1.54165, -2.4981, -0.989481, -2.842 ]
+inline vector<double> pr2LeftNeutralPos() {
+  static const double vals[] = { .870844, 0.163559, 0.6, -1.28408, 2.25124, -0.827074, 3.09148 };
+  vector<double> v(7);
+  for (int i = 0; i < 7; ++i) {
+    v[i] = vals[i];
+  }
+  return v;
+}
+inline vector<double> pr2RightNeutralPos() {
+  static const double vals[] = { -0.793454, 0.221086, -0.6, -1.54165, -2.4981, -0.989481, -2.842 };
+  vector<double> v(7);
+  for (int i = 0; i < 7; ++i) {
+    v[i] = vals[i];
+  }
+  return v;
 }
 
 

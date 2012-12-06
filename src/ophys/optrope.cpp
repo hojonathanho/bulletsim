@@ -6,30 +6,28 @@ using namespace ophys;
 #include <iostream>
 using namespace std;
 
-OptRope::OptRope(int T, int N, double linkLen)
-  : m_N(N), m_T(T), m_linkLen(linkLen),
+OptRope::OptRope(int T, boost::shared_ptr<Scenario> scenario)
+  // : m_N(N), m_T(T)
+  : m_T(T),
     m_costCalls(0),
     m_useRobot(false),
-    m_dummyState(this, m_T, m_N),
-    m_initPos(MatrixX3d::Zero(N, 3)),
-    m_initManipDofs(Vector7d::Zero()),
-    m_fkCalls(0)
+    m_scenario(scenario),
+    // m_dummyState(this, m_T, m_N),
+    // m_initPos(MatrixX3d::Zero(N, 3)),
+    // m_initManipDofs(Vector7d::Zero()),
+    m_fkCalls(0),
+    m_fk(false)
 {
+  m_initPos = m_scenario->getInitialRopePoints();
+  m_N = m_initPos.rows();
+  m_initManipDofs = m_scenario->getInitManipDofs();
+  m_linkLen = m_scenario->getRopeLinkLen();
+  // m_goalCostFunc = boost::bind(Scenario::goalCost, m_scenario, _1);
+  calcBounds();
   assert(m_N >= 1);
   assert(m_T >= 1);
-  calcBounds();
   setCoeffs1();
-}
-
-void OptRope::setInitPositions(const MatrixX3d &initPos) {
-  assert(initPos.rows() == m_N);
-  m_initPos = initPos;
-  calcBounds();
-}
-
-void OptRope::setInitManipDofs(const Vector7d &initManipDofs) {
-  m_initManipDofs = initManipDofs;
-  calcBounds();
+  m_dummyState.reset(new OptRopeState(this, m_T, m_N));
 }
 
 void OptRope::calcBounds() {
@@ -39,46 +37,49 @@ void OptRope::calcBounds() {
 
 void OptRope::setCoeffs1() {
   m_coeffs.groundPenetration = 1.;
-  m_coeffs.velUpdate = 0.1;
-  m_coeffs.contact = 0.1;
+  m_coeffs.velUpdate = 1;
+  m_coeffs.groundContact = 0.1;
+  m_coeffs.manipContact = 1;
   m_coeffs.forces = 1;
   m_coeffs.linkLen = 1;
   m_coeffs.goalPos = 1;
-  m_coeffs.manipSpeed = 0.001;
+  m_coeffs.manipJointVel = 0.001;
+  m_coeffs.manipCartVel = 0.01;
   m_coeffs.damping = 0.01;
 }
 
 void OptRope::setCoeffs2() {
   m_coeffs.groundPenetration = 1.;
-  m_coeffs.velUpdate = 10.;
-  m_coeffs.contact = 10;
+  m_coeffs.velUpdate = 100.;
+  m_coeffs.groundContact = 1;
+  m_coeffs.manipContact = 10;
   m_coeffs.forces = 1;
   m_coeffs.linkLen = 10;
   m_coeffs.goalPos = 1;
-  m_coeffs.manipSpeed = 0.001;
-  m_coeffs.damping = 0.1;
+  m_coeffs.manipJointVel = 0.01;
+  m_coeffs.manipCartVel = 0.01;
+  m_coeffs.damping = 0.01;
 }
 
 void OptRope::setRobot(RaveRobotObject::Ptr robot, RobotManipulator::Ptr manip) {
   m_robot = robot;
   m_manip = manip;
   m_useRobot = true;
+  m_fk.calibrate(manip);
   calcBounds();
 }
 
 Vector3d OptRope::calcManipPos(const Vector7d &dofs) {
   Vector3d p;
   if (m_useRobot) {
-    //cout << "settign dof values to " << dofs.transpose() << endl;
-    //m_manip->setDOFValues(toStlVec(dofs));
-    m_robot->robot->SetActiveDOFs(m_manip->manip->GetArmIndices());
-    m_robot->robot->SetActiveDOFValues(toStlVec(dofs));
+    // m_robot->robot->SetActiveDOFs(m_manip->manip->GetArmIndices());
+    // m_robot->robot->SetActiveDOFValues(toStlVec(dofs));
     if (m_fkCalls % 100000 == 0) {
       cout << "forward kinematics calls: " << m_fkCalls << endl;
     }
     ++m_fkCalls;
-    //cout << "done." << endl;
-    p = toEigVec(m_manip->getTransform().getOrigin());
+    // p = toEigVec(m_manip->getTransform().getOrigin());
+    p = m_fk.jointToPos(dofs);
   } else {
     p = dofs.head<3>();
   }
@@ -265,14 +266,16 @@ inline double OptRope::cost_velUpdate(const OptRopeState &es) {
       Vector3d manipForce = es.atTime[t].manipForce_c[n] * es.atTime[t].manipForce.row(n).transpose(); //(state.atTime[t].manipDofs - pos[t].row(n).transpose()).normalized() * state.atTime[t].manipForce_f[n];
 
       Vector3d ropeCntForce(0, 0, 0);
-      if (n == 0) {
-        ropeCntForce = es.atTime[t].ropeCntForce_f[n] * (es.atTime[t].x.row(n+1) - es.atTime[t].x.row(n)).normalized().transpose();
-      } else if (n == es.m_N - 1) {
-        ropeCntForce = es.atTime[t].ropeCntForce_f[n-1] * (es.atTime[t].x.row(n-1) - es.atTime[t].x.row(n)).normalized().transpose();
-      } else {
-        ropeCntForce =
-          es.atTime[t].ropeCntForce_f[n] * (es.atTime[t].x.row(n+1) - es.atTime[t].x.row(n)).normalized().transpose() +
-          es.atTime[t].ropeCntForce_f[n-1] * (es.atTime[t].x.row(n-1) - es.atTime[t].x.row(n)).normalized().transpose();
+      if (!m_scenario->disableRopeCnt()) {
+        if (n == 0) {
+          ropeCntForce = es.atTime[t].ropeCntForce_f[n] * (es.atTime[t].x.row(n+1) - es.atTime[t].x.row(n)).normalized().transpose();
+        } else if (n == es.m_N - 1) {
+          ropeCntForce = es.atTime[t].ropeCntForce_f[n-1] * (es.atTime[t].x.row(n-1) - es.atTime[t].x.row(n)).normalized().transpose();
+        } else {
+          ropeCntForce =
+            es.atTime[t].ropeCntForce_f[n] * (es.atTime[t].x.row(n+1) - es.atTime[t].x.row(n)).normalized().transpose() +
+            es.atTime[t].ropeCntForce_f[n-1] * (es.atTime[t].x.row(n-1) - es.atTime[t].x.row(n)).normalized().transpose();
+        }
       }
 
       Vector3d totalForce = gravity + groundForce + manipForce + ropeCntForce;
@@ -283,16 +286,22 @@ inline double OptRope::cost_velUpdate(const OptRopeState &es) {
   return cost;
 }
 
-inline double OptRope::cost_contact(const OptRopeState &es) {
+inline double OptRope::cost_groundContact(const OptRopeState &es) {
   double cost = 0;
-  // ground force: groundContact^2 * (ground non-violation)^2
   for (int t = 0; t < es.atTime.size(); ++t) {
-    //Vector3d manipPos = calcManipPos(es.atTime[t].manipDofs);
-    Vector3d manipPos = es.atTime[t].derived_manipPos;
     for (int n = 0; n < es.m_N; ++n) {
       // ground contact
       cost += es.atTime[t].groundForce_c[n] * square(max(0., es.atTime[t].x(n,2) - OPhysConfig::tableHeight));
+    }
+  }
+  return cost;
+}
 
+inline double OptRope::cost_manipContact(const OptRopeState &es) {
+  double cost = 0;
+  for (int t = 0; t < es.atTime.size(); ++t) {
+    Vector3d manipPos = es.atTime[t].derived_manipPos;
+    for (int n = 0; n < es.m_N; ++n) {
       // manipulator contact
       cost += es.atTime[t].manipForce_c[n] * (manipPos - es.atTime[t].x.row(n).transpose()).squaredNorm();
 
@@ -303,8 +312,9 @@ inline double OptRope::cost_contact(const OptRopeState &es) {
       // }
     }
 
-    cost += 1e-3*es.atTime[t].manipForce_c.sum(); // sparse
+    cost += 1e-2*es.atTime[t].manipForce_c.sum(); // sparse
     cost += square(max(0., es.atTime[t].manipForce_c.sum() - 1.)); // total manip contact should be <= 1
+    cost += es.atTime[t].manipForce_c.prod();
   }
   return cost;
 }
@@ -320,7 +330,6 @@ inline double OptRope::cost_forces(const OptRopeState &es) {
 
       // manipulator force
       double manip_fsqnorm = es.atTime[t].manipForce.row(n).squaredNorm();
-      //cost += manip_fsqnorm / (1e-5 + square(es.atTime[t].manipForce_c[n]));
       cost += 1e-6*manip_fsqnorm;
 
       if (n < es.m_N - 1) {
@@ -328,11 +337,23 @@ inline double OptRope::cost_forces(const OptRopeState &es) {
       }
     }
   }
+
+  // double manipForceCost = 0;
+  // for (int n = 0; n < es.m_N; ++n) {
+  //   double inner = 0;
+  //   for (int t = 0; t < es.atTime.size(); ++t) {
+  //     inner += es.atTime[t].manipForce.row(n).squaredNorm();
+  //   }
+  //   manipForceCost += sqrt(inner);
+  // }
+  // cost += manipForceCost;
+
   return cost;
 }
 
 // rope segment distance violation cost
 inline double OptRope::cost_linkLen(const OptRopeState &es) {
+  if (m_scenario->disableRopeCnt()) return 0;
   double cost = 0;
   for (int t = 0; t < es.atTime.size(); ++t) {
     for (int n = 0; n < es.m_N - 1; ++n) {
@@ -348,10 +369,18 @@ inline double OptRope::cost_goalPos(const OptRopeState &es, const Vector3d &goal
   return (es.atTime.back().x.row(0).transpose() - goal).squaredNorm();
 }
 
-inline double OptRope::cost_manipSpeed(const OptRopeState &es) {
+inline double OptRope::cost_manipJointVel(const OptRopeState &es) {
   double cost = 0;
   for (int t = 0; t < es.atTime.size() - 1; ++t) {
     cost += (es.atTime[t+1].manipDofs - es.atTime[t].manipDofs).squaredNorm();
+  }
+  return cost;
+}
+
+inline double OptRope::cost_manipCartVel(const OptRopeState &es) {
+  double cost = 0;
+  for (int t = 0; t < es.atTime.size() - 1; ++t) {
+    cost += (es.atTime[t+1].derived_manipPos - es.atTime[t].derived_manipPos).squaredNorm();
   }
   return cost;
 }
@@ -369,11 +398,13 @@ double OptRope::costfunc_on_expanded(const OptRopeState &expandedState) {
   double cost = 0;
   cost += m_coeffs.groundPenetration * cost_groundPenetration(expandedState);
   cost += m_coeffs.velUpdate * cost_velUpdate(expandedState);
-  cost += m_coeffs.contact * cost_contact(expandedState);
+  cost += m_coeffs.groundContact * cost_groundContact(expandedState);
+  cost += m_coeffs.manipContact * cost_manipContact(expandedState);
   cost += m_coeffs.forces * cost_forces(expandedState);
   cost += m_coeffs.linkLen * cost_linkLen(expandedState);
-  cost += m_coeffs.goalPos * cost_goalPos(expandedState, m_initPos.row(0).transpose() + Vector3d(0, 0, 1));
-  cost += m_coeffs.manipSpeed * cost_manipSpeed(expandedState);
+  cost += m_coeffs.goalPos * m_scenario->goalCost(expandedState); //  cost_goalPos(expandedState, m_initPos.row(0).transpose() + Vector3d(1, 0, 1));
+  cost += m_coeffs.manipJointVel * cost_manipJointVel(expandedState);
+  cost += m_coeffs.manipCartVel * cost_manipCartVel(expandedState);
   cost += m_coeffs.damping * cost_damping(expandedState);
   return cost;
 }

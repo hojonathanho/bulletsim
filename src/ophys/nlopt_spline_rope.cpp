@@ -9,6 +9,7 @@
 
 #include "ophys_config.h"
 #include "ophys_common.h"
+#include "scenario_impl.h"
 
 #include "simulation/simplescene.h"
 #include "robots/pr2.h"
@@ -32,16 +33,19 @@ static void runOpt(nlopt::opt &opt, vector<double> &x0, double &minf) {
 }
 
 static bool runTests() {
-  MatrixX3d initPositions(OPhysConfig::N, 3);
-  for (int i = 0; i < OPhysConfig::N; ++i) {
-    initPositions.row(i) << (-1 + 2*i/(OPhysConfig::N-1.0)), 0, 0.05;
-  }
-  const int test_T = 3, test_N = 4;
-  double linklen = abs(initPositions(0, 0) - initPositions(1, 0));
-  Vector7d initManipPos(Vector7d::Zero());
-  OptRope optrope(OPhysConfig::T, OPhysConfig::N, linklen);
-  optrope.setInitPositions(initPositions);
-  optrope.setInitManipDofs(initManipPos);
+  // MatrixX3d initPositions(OPhysConfig::N, 3);
+  // for (int i = 0; i < OPhysConfig::N; ++i) {
+  //   initPositions.row(i) << (-1 + 2*i/(OPhysConfig::N-1.0)), 0, 0.05;
+  // }
+  // const int test_T = 3, test_N = 4;
+  // double linklen = abs(initPositions(0, 0) - initPositions(1, 0));
+  // Vector7d initManipPos(Vector7d::Zero());
+  boost::shared_ptr<RopeLiftScenario> scenario(new RopeLiftScenario);
+  //OptRope optrope(scenario);
+  OptRope optrope(OPhysConfig::T, scenario);
+  int test_T = OPhysConfig::T, test_N = scenario->getInitialRopePoints().rows();
+  // optrope.setInitPositions(initPositions);
+  // optrope.setInitManipDofs(initManipPos);
   OptRopeState testingState(&optrope, test_T, test_N);
   VectorXd testingCol = VectorXd::Random(testingState.dim());
   testingState.initFromColumn(testingCol);
@@ -153,43 +157,25 @@ int main(int argc, char *argv[]) {
     vector<int> indices(1, pr2m->pr2->robot->GetJointIndex("torso_lift_joint"));
     vector<double> values(1, .31);
     pr2m->pr2->setDOFValues(indices, values);
+
+    pr2m->pr2Left->setDOFValues(pr2LeftNeutralPos());
+    pr2m->pr2Right->setDOFValues(pr2RightNeutralPos());
   }
   BulletObject::Ptr table = makeTable(initTableCornersWorld(), 0.01);
   scene.env->add(table);
   table->setColor(0, 1, 0, 0.2);
 
-  // set up optimization
-  MatrixX3d initPositions(OPhysConfig::N, 3);
-  Vector3d center(0, 0, 0);
-  for (int i = 0; i < OPhysConfig::N; ++i) {
-    initPositions.row(i) <<
-      OPhysConfig::tableDistFromRobot+0.1,
-      (-0.5 + 1.*i/(OPhysConfig::N-1.0)),
-      OPhysConfig::tableHeight+0.05;
-    center += initPositions.row(i);
-  }
-  center /= OPhysConfig::N;
-  double linklen = (initPositions.row(0) - initPositions.row(1)).norm();
-  //Vector3d initManipPos = center + Vector3d(0, 0, 2);
-  Vector7d initManipPos(Vector7d::Zero());
-  if (!OPhysConfig::useRobot) {
-    initManipPos.head<3>() = center + Vector3d(0, 0, 2);
-  }
+  // set up scenario for optimization
+  // boost::shared_ptr<RopeLiftScenario> scenario(new RopeLiftScenario);
+  // scenario->setDestPos0(centroid(scenario->getInitialRopePoints()) + Vector3d(0.2, 0, 0.1));
+  //scenario->setDestPos0(scenario->getInitialRopePoints().row(0).transpose() + Vector3d(0.2, -.3, 0.2));
+  //boost::shared_ptr<Scenario> scenario(new RopeDragScenario);
+  boost::shared_ptr<Scenario> scenario(new PointManipScenario2);
 
-  OptRope optrope(OPhysConfig::T, OPhysConfig::N, linklen);
-  optrope.setInitPositions(initPositions);
-  optrope.setInitManipDofs(initManipPos);
+  OptRope optrope(OPhysConfig::T, scenario);
   if (OPhysConfig::useRobot) {
     optrope.setRobot(pr2m->pr2, pr2m->pr2Right);
   }
-
-
-  // VectorXd x = optrope.genInitState().toColumn();
-
-  // optrope.setCoeffs2();
-  // addNoise(x, 0, 0.01);
-  // OptRope::State finalState = optrope.solve(x);
-
 
   cout << "optimizing " << optrope.getNumVariables() << " variables" << endl;
   nlopt::opt opt(nlopt::LD_LBFGS, optrope.getNumVariables());

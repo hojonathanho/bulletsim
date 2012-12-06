@@ -263,15 +263,16 @@ void OptRopeState::fillExpansion(int interpPerTimestep, OptRopeState &out, const
 }
 
 bool OptRopeState::StateAtTime::isApprox(const OptRopeState::StateAtTime &other) const {
+  static const double precision = 1e-4;
   return dim() == other.dim()
-      && manipDofs.isApprox(other.manipDofs)
-      && x.isApprox(other.x)
-      && vel.isApprox(other.vel)
-      && ropeCntForce_f.isApprox(other.ropeCntForce_f)
-      && groundForce_f.isApprox(other.groundForce_f)
-      && groundForce_c.isApprox(other.groundForce_c)
-      && manipForce.isApprox(other.manipForce)
-      && manipForce_c.isApprox(other.manipForce_c);
+      && manipDofs.isApprox(other.manipDofs, precision)
+      && x.isApprox(other.x, precision)
+      && vel.isApprox(other.vel, precision)
+      && ropeCntForce_f.isApprox(other.ropeCntForce_f, precision)
+      && groundForce_f.isApprox(other.groundForce_f, precision)
+      && groundForce_c.isApprox(other.groundForce_c, precision)
+      && manipForce.isApprox(other.manipForce, precision)
+      && manipForce_c.isApprox(other.manipForce_c, precision);
 }
 
 bool OptRopeState::isApprox(const OptRopeState &other) const {
