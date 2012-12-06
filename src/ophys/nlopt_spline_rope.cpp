@@ -169,8 +169,8 @@ int main(int argc, char *argv[]) {
   // boost::shared_ptr<RopeLiftScenario> scenario(new RopeLiftScenario);
   // scenario->setDestPos0(centroid(scenario->getInitialRopePoints()) + Vector3d(0.2, 0, 0.1));
   //scenario->setDestPos0(scenario->getInitialRopePoints().row(0).transpose() + Vector3d(0.2, -.3, 0.2));
-  //boost::shared_ptr<Scenario> scenario(new RopeDragScenario);
-  boost::shared_ptr<Scenario> scenario(new PointManipScenario2);
+  boost::shared_ptr<Scenario> scenario(new RopeDragScenario);
+  // boost::shared_ptr<Scenario> scenario(new PointManipScenario2);
 
   OptRope optrope(OPhysConfig::T, scenario);
   if (OPhysConfig::useRobot) {
@@ -181,7 +181,7 @@ int main(int argc, char *argv[]) {
   nlopt::opt opt(nlopt::LD_LBFGS, optrope.getNumVariables());
   opt.set_lower_bounds(toStlVec(optrope.getLowerBoundVec()));
   opt.set_upper_bounds(toStlVec(optrope.getUpperBoundVec()));
-  opt.set_vector_storage(100000);
+  opt.set_vector_storage(10000);
   opt.set_min_objective(nlopt_costWrapper, &optrope);
 
 

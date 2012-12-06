@@ -77,7 +77,8 @@ inline vector<double> pr2LeftNeutralPos() {
   return v;
 }
 inline vector<double> pr2RightNeutralPos() {
-  static const double vals[] = { -0.793454, 0.221086, -0.6, -1.54165, -2.4981, -0.989481, -2.842 };
+  //static const double vals[] = { -0.793454, 0.221086, -0.6, -1.54165, -2.4981, -0.989481, -2.842 };
+  static const double vals[] = { 0.151873, 1.06237, 0, -1.39138, 2.92417, -0.770895, -2.917 };
   vector<double> v(7);
   for (int i = 0; i < 7; ++i) {
     v[i] = vals[i];

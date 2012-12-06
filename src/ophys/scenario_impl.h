@@ -52,7 +52,7 @@ public:
   {
     for (int i = 0; i < OPhysConfig::N; ++i) {
       m_initPositions.row(i) <<
-        OPhysConfig::tableDistFromRobot+0.2,
+        OPhysConfig::tableDistFromRobot+0.35,
         0.25 + (-0.25 + 0.5*i/(OPhysConfig::N-1.0)),
         OPhysConfig::tableHeight;
     }
@@ -63,7 +63,7 @@ public:
       m_initManipPos = toEigVec(pr2RightNeutralPos());
     }
 
-    m_destPos0 = m_initPositions.row(0).transpose() + Vector3d(0.2, -.2, 0.2);
+    m_destPos0 = m_initPositions.row(0).transpose() + Vector3d(0, -.5, 0.2);
   }
 
 

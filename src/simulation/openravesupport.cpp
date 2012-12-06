@@ -639,6 +639,7 @@ bool RobotManipulator::moveByIKUnscaled(
 
 	// move the arm
 	robot->setDOFValues(manip->GetArmIndices(), vsolution);
+	cout << "dof values: " << vsolution << endl;
 	if (checkCollisions && robot->detectCollisions()) {
 		if (revertOnCollision)
 			robot->setDOFValues(manip->GetArmIndices(), oldVals);

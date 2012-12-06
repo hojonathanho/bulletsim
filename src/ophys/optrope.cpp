@@ -43,21 +43,21 @@ void OptRope::setCoeffs1() {
   m_coeffs.forces = 1;
   m_coeffs.linkLen = 1;
   m_coeffs.goalPos = 1;
-  m_coeffs.manipJointVel = 0.001;
+  m_coeffs.manipJointVel = 0.01;
   m_coeffs.manipCartVel = 0.01;
   m_coeffs.damping = 0.01;
 }
 
 void OptRope::setCoeffs2() {
   m_coeffs.groundPenetration = 1.;
-  m_coeffs.velUpdate = 100.;
+  m_coeffs.velUpdate = 10.;
   m_coeffs.groundContact = 1;
   m_coeffs.manipContact = 10;
   m_coeffs.forces = 1;
   m_coeffs.linkLen = 10;
   m_coeffs.goalPos = 1;
-  m_coeffs.manipJointVel = 0.01;
-  m_coeffs.manipCartVel = 0.01;
+  m_coeffs.manipJointVel = 0.1;
+  m_coeffs.manipCartVel = 0.1;
   m_coeffs.damping = 0.01;
 }
 
@@ -315,6 +315,9 @@ inline double OptRope::cost_manipContact(const OptRopeState &es) {
     cost += 1e-2*es.atTime[t].manipForce_c.sum(); // sparse
     cost += square(max(0., es.atTime[t].manipForce_c.sum() - 1.)); // total manip contact should be <= 1
     cost += es.atTime[t].manipForce_c.prod();
+
+    // hack cost
+    cost += es.atTime[t].manipForce_c.segment(1, m_N-1).sum();
   }
   return cost;
 }
