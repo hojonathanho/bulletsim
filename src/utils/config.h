@@ -6,6 +6,8 @@
 #include <iostream>
 #include <boost/foreach.hpp>
 #include <boost/program_options.hpp>
+#include <boost/bind.hpp>
+#include <boost/lexical_cast.hpp>
 #include "utils_vector.h"
 
 namespace po = boost::program_options;
@@ -32,6 +34,7 @@ struct ParameterBase {
   virtual void addToBoost(po::options_description&) = 0;
 };
 
+// Deprecated, use the specialized templated class
 template <typename T>
 struct ParameterVec : ParameterBase {
   std::vector<T>* m_value;
@@ -43,9 +46,7 @@ struct ParameterVec : ParameterBase {
   void addToBoost(po::options_description& od) {
     od.add_options()(m_name.c_str(), po::value(m_value)->default_value(*m_value, toString(*m_value))->multitoken(), m_desc.c_str());
   }
-
 };
-
 
 template <typename T>
 struct Parameter : ParameterBase {
@@ -58,7 +59,61 @@ struct Parameter : ParameterBase {
   void addToBoost(po::options_description& od) {
     od.add_options()(m_name.c_str(), po::value(m_value)->default_value(*m_value, toString(*m_value)), m_desc.c_str());
   }
+};
 
+template <typename T>
+struct Parameter<std::vector<T> > : ParameterBase {
+  std::vector<T>* m_value;
+  Parameter(std::string name, std::vector<T>* value, std::string desc) {
+    m_name = name;
+    m_value = value;
+    m_desc = desc;
+  }
+  void addToBoost(po::options_description& od) {
+  	cout << "especial" << endl;
+  	od.add_options()(m_name.c_str(), po::value(m_value)->default_value(*m_value, toString(*m_value))->multitoken(), m_desc.c_str());
+  }
+};
+
+template <typename T, typename U>
+struct Parameter<std::map<T,U> > : ParameterBase {
+  std::map<T,U>* m_value;
+  vector<string> m_value_vector;
+
+  void toVector(std::map<T,U> m, std::vector<std::string>& v) {
+		typename map<T,U>::iterator it;
+		for ( it=m.begin() ; it != m.end(); it++ ) {
+			v.push_back(boost::lexical_cast<std::string>(it->first));
+			v.push_back(boost::lexical_cast<std::string>(it->second));
+		}
+	}
+
+	void toMap(std::vector<std::string> v, std::map<T,U>& m) {
+		vector<string>::iterator it;
+		for ( it=v.begin(); it<v.end(); it+=2)
+			m[boost::lexical_cast<T>(*it)] = boost::lexical_cast<U>(*(it+1));
+	}
+
+	void updateValue(std::vector<std::string> v) {
+		if ((v.size()%2) != 0) {
+			stringstream ss;
+			ss << "The option " << m_name << " should have an even number of parameters but it has " << v.size() << " parameters";
+			throw std::runtime_error(ss.str());
+		}
+		toMap(v, *m_value);
+	}
+
+  Parameter(std::string name, std::map<T,U>* value, std::string desc) {
+    m_name = name;
+    m_value = value;
+    toVector(*m_value, m_value_vector);
+    m_desc = desc;
+  }
+
+  void addToBoost(po::options_description& od) {
+  	od.add_options()(m_name.c_str(), po::value(&m_value_vector)->default_value(m_value_vector, toString(*m_value))->multitoken()
+  		->notifier(boost::bind(&Parameter::updateValue, this, _1)), m_desc.c_str());
+  }
 };
 
 
