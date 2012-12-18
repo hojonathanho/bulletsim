@@ -52,7 +52,7 @@ vector<VectorXd> makeTraj(const Eigen::VectorXd& startJoints, const Eigen::Vecto
   return traj;
 
 }
-const static Vector4d c_yellow(1.0,1.0,0.1,0.4);
+const static Vector4d c_yellow(1.0,1.0,0.1,0.8);
 const static Vector4d c_red(1.0, 0.0, 0.0, 0.8);
 const static Vector4d c_green(0.2, 1.0, 0.2, 0.8);
 const static Vector4d c_blue(0.2, 0.2, 1.0, 0.8);
@@ -167,7 +167,7 @@ int main(int argc, char* argv[]) {
 	BoxObject::Ptr table(
 			new BoxObject(0,
 					GeneralConfig::scale
-							* btVector3(0.85, 0.85, table_thickness / 2),
+							* btVector3(0.85, 0.4, table_thickness / 2),
 					btTransform(btQuaternion(0, 0, 0, 1),
 							GeneralConfig::scale
 									* btVector3(1.4, 0.0,
@@ -180,7 +180,7 @@ int main(int argc, char* argv[]) {
  							* btVector3(0.1, 0.1, 0.2),
  					btTransform(btQuaternion(0, 0, 0, 1),
  							GeneralConfig::scale
- 									* btVector3(0.65, 0.2,
+ 									* btVector3(0.65, 0.2, //was y = 0.2
  											table_height+ 0.1))));
   middle_block->setColor(0.3,0.3,0.3,1);
 
@@ -190,8 +190,28 @@ int main(int argc, char* argv[]) {
  							* btVector3(0.025, 0.025, 0.025),
  					btTransform(btQuaternion(0, 0, 0, 1),
  							GeneralConfig::scale
- 									* btVector3(0.65, 0.1,
- 											table_height+ 0.15))));
+ 									* btVector3(0.65, 0.1, //was y = 0.1
+											table_height+ 0.15))));
+//
+//  BoxObject::Ptr middle_block(
+//  			new BoxObject(0,
+//  					GeneralConfig::scale
+//  							* btVector3(0.1, 0.1, 0.2),
+//  					btTransform(btQuaternion(0, 0, 0, 1),
+//  							GeneralConfig::scale
+//  									* btVector3(0.65, -0.2, //was y = 0.2
+//  											table_height+ 0.1))));
+//   middle_block->setColor(0.3,0.3,0.3,1);
+//
+//   BoxObject::Ptr button_block(
+//  			new BoxObject(0,
+//  					GeneralConfig::scale
+//  							* btVector3(0.025, 0.025, 0.025),
+//  					btTransform(btQuaternion(0, 0, 0, 1),
+//  							GeneralConfig::scale
+//  									* btVector3(0.65, -0.3, //was y = 0.1
+//  											table_height+ 0.15))));
+
 
   button_block->setColor(1.0,0.0,0.0,1.0);
 
@@ -199,10 +219,11 @@ int main(int argc, char* argv[]) {
   scene.env->add(middle_block);
   scene.env->add(button_block);
 
-  Vector3d object_pos(0.65,0.1-0.025,table_height+0.15);
+  Vector3d object_pos(0.65,0.1-0.025,table_height+0.15); // was y = 0.1
+  //Vector3d object_pos(0.65,-0.3-0.025,table_height+0.15); // was y = 0.1
 
   // initialize robot
-  int T = 30;
+  int T = 40;
   int NL = 1;
   int NX = 7 + NL*3;
   int NU = 7;
@@ -234,9 +255,10 @@ int main(int argc, char* argv[]) {
   Localizer pr2_scp(&pr2_scp_l, NL);
 
 
-  //VectorXd startJoints = Map<const VectorXd>(postures[1], 7);
-  VectorXd startJoints = Map<const VectorXd>(postures[3], 7); //works!
-  VectorXd endJoints = Map<const VectorXd>(postures[4], 7);
+  VectorXd startJoints = Map<const VectorXd>(postures[1], 7);
+  VectorXd endJoints = Map<const VectorXd>(postures[3],7);
+//  VectorXd startJoints = Map<const VectorXd>(postures[3], 7); //works!
+//  VectorXd endJoints = Map<const VectorXd>(postures[4], 7); // works!
   vector<VectorXd> X_bar = makeTraj(startJoints, endJoints, T+1);
   vector<VectorXd> U_bar(T);
   for (int i = 0; i < T; i++) {
@@ -245,7 +267,7 @@ int main(int argc, char* argv[]) {
   pr2->setDOFValues(active_dof_indices, toVec(startJoints));
 
   //hack for now
-  MatrixXd W_cov = MatrixXd::Zero(NB,NB);
+  MatrixXd W_cov = MatrixXd::Identity(NB,NB);
   EigenMultivariateNormal<double> sampler(VectorXd::Zero(NB), W_cov);
 
   //initialize the sensors
@@ -276,7 +298,7 @@ int main(int argc, char* argv[]) {
   Matrix4d attached_cam_fixed_offset = Matrix4d::Identity();
   //attached_cam_fixed_offset(2,3) = -0.05;
   attached_cam_fixed_offset.block(0,0,3,3) = AngleAxisd(M_PI, Vector3d(0.0,1.0,0.0)).toRotationMatrix();
-  CameraSensor s4 = CameraSensor(1, KK, 640, 480, attached_cam_fixed_offset, 0.2);//, camera_fixed_offset);
+  CameraSensor s4 = CameraSensor(1, KK, 640, 480, attached_cam_fixed_offset, 0.2, M_PI/3);//, camera_fixed_offset);
   Robot::SensorFunc s4_f = &LocalizerPR2AttachedCameraFunc;
   Robot::SensorFuncJacobian s4_fj = &LocalizerPR2AttachedCameraFuncJac;
   pr2_scp.attach_sensor(&s4, s4_f, s4_fj);
@@ -285,12 +307,12 @@ int main(int argc, char* argv[]) {
   fixed_cam_position(0,3) = 0.8;
   fixed_cam_position(2,3) = 3.0;
   transform2vec(fixed_cam_position, fixed_camera_trans); // for setting observations
-  CameraSensor s5 = CameraSensor(1, KK, 640, 480, Matrix4d::Identity(), 0.1);
-  s5.draw(fixed_camera_trans, c_blue, traj_group);
-  //Robot::SensorFunc s5_f = &FixedCameraObjectFunc;
-  Robot::SensorFunc s5_f = &FixedCameraPR2Func;
-  Robot::SensorFuncJacobian s5_fj = &FixedCameraPR2FuncJac;
-  //pr2_scp.attach_sensor(&s5, s5_f, s5_fj);
+  CameraSensor s5 = CameraSensor(1, KK, 640, 480, Matrix4d::Identity(), 0.1, M_PI/3);
+//  s5.draw(fixed_camera_trans, c_blue, traj_group);
+//  //Robot::SensorFunc s5_f = &FixedCameraObjectFunc;
+//  Robot::SensorFunc s5_f = &FixedCameraPR2Func;
+//  Robot::SensorFuncJacobian s5_fj = &FixedCameraPR2FuncJac;
+//  //pr2_scp.attach_sensor(&s5, s5_f, s5_fj);
 
   ProximitySensor s6 = ProximitySensor(0.1, &scene);
   Robot::SensorFunc s6_f = &PR2BeaconFunc;
@@ -314,16 +336,18 @@ int main(int argc, char* argv[]) {
   LLT<MatrixXd> lltR_t(R_t);
   MatrixXd N_t = lltR_t.matrixL();
 
+  //set sensor noise models
+  s6.setN(N_t(2,2));
+
 
   //Set pr2 noise models
   pr2_scp.set_M(M_t);
-  pr2_scp.set_N(N_t);
-
 
   VectorXd b_0;
   VectorXd x0(NX);
   x0.segment(0,7) = startJoints;
   x0.segment(7,3) = object_pos;
+  x0(8) -= 0.01;
   build_belief_state(x0, rt_Sigma_0, b_0);
   vector<VectorXd> B_bar(T+1);
   vector<MatrixXd> W_bar(T);
@@ -339,7 +363,7 @@ int main(int argc, char* argv[]) {
 
     MatrixXd rt_W_t;
     pr2_scp.belief_noise(B_bar[t], U_bar[t], rt_W_t);
-    sampler.setCovar(rt_W_t * rt_W_t.transpose());
+    //sampler.setCovar(rt_W_t * rt_W_t.transpose());
     sampler.generateSamples(W_bar[t], NS);
   }
   vector<VectorXd> B_bar_r(T+1);
@@ -347,10 +371,10 @@ int main(int argc, char* argv[]) {
 	  pr2_scp.parse_localizer_belief_state(B_bar[t], B_bar_r[t]);
   }
   PR2_SCP_Plotter plotter(&pr2_scp_l, &scene, T+1);
-  //plotter.draw_belief_trajectory(B_bar_r, c_red, c_red, traj_group);
+  plotter.draw_belief_trajectory(B_bar_r, c_yellow, c_yellow, traj_group);
   //pr2_scp.draw_sensor_belief_trajectory(B_bar, c_blue, traj_group);
   //pr2_scp.draw_object_uncertainty(B_bar[0], c_red, traj_group);
-  //pr2_scp.draw_object_uncertainty(B_bar[T], c_blue, traj_group);
+  pr2_scp.draw_object_uncertainty(B_bar[T], c_yellow, traj_group);
 
 //    vector<vector<VectorXd> > W_s_t;
 //    index_by_sample(W_bar, W_s_t);
@@ -368,37 +392,37 @@ int main(int argc, char* argv[]) {
 //    }
 
 
-
-  // setup for SCP
-  // Define a goal state
-  VectorXd b_goal = B_bar[T];
-  b_goal.segment(NX, NB-NX) = VectorXd::Zero(NB-NX); // trace
-  _goal_offset = b_goal;
-
-  // Output variables
-  vector<VectorXd> opt_B, opt_U; // noiseless trajectory
-  MatrixXd Q; VectorXd r;  // control policy
 //
- // cout << "calling scp" << endl;
-  scp_solver(pr2_scp, B_bar, U_bar, W_bar, rho_x, rho_u, &TouchingGoalFn, NULL, N_iter,
-      opt_B, opt_U, Q, r);
-
-  TrajectoryInfo opt_traj(b_0, &GoalFn, NULL);
-  for (int t = 0; t < T; t++) {
-	  opt_traj.add_and_integrate(opt_U[t], VectorXd::Zero(NB), pr2_scp);
-	  //VectorXd feedback = opt_traj.Q_feedback(pr2_scp);
-	  //VectorXd u_policy = Q.block(t*NU, t*NB, NU, NB) * feedback + r.segment(t*NU, NU);
-	  //opt_traj.add_and_integrate(u_policy, VectorXd::Zero(NB), pr2_scp);
-  }
-  vector<VectorXd> opt_traj_r(T+1);
-  for (int t = 0; t < T+1; t++) {
-	  pr2_scp.parse_localizer_belief_state(opt_traj._X[t], opt_traj_r[t]);
-  }
-  PR2_SCP_Plotter plotter2(&pr2_scp_l, &scene, T + 1);
-  plotter2.draw_belief_trajectory(opt_traj_r, c_blue, c_orange, traj_group);
-  pr2_scp.draw_object_uncertainty(opt_traj._X[T], c_green, traj_group);
-  //pr2_scp.draw_sensor_belief_trajectory(opt_traj._X, c_blue, traj_group);
-  cout << opt_traj._X[T].transpose() << endl;
+//  // setup for SCP
+//  // Define a goal state
+//  VectorXd b_goal = B_bar[T];
+//  b_goal.segment(NX, NB-NX) = VectorXd::Zero(NB-NX); // trace
+//  _goal_offset = b_goal;
+//
+//  // Output variables
+//  vector<VectorXd> opt_B, opt_U; // noiseless trajectory
+//  MatrixXd Q; VectorXd r;  // control policy
+////
+// // cout << "calling scp" << endl;
+//  scp_solver(pr2_scp, B_bar, U_bar, W_bar, rho_x, rho_u, &TouchingGoalFn, NULL, N_iter,
+//      opt_B, opt_U, Q, r);
+//
+//  TrajectoryInfo opt_traj(b_0, &GoalFn, NULL);
+//  for (int t = 0; t < T; t++) {
+//	  opt_traj.add_and_integrate(opt_U[t], VectorXd::Zero(NB), pr2_scp);
+//	  //VectorXd feedback = opt_traj.Q_feedback(pr2_scp);
+//	  //VectorXd u_policy = Q.block(t*NU, t*NB, NU, NB) * feedback + r.segment(t*NU, NU);
+//	  //opt_traj.add_and_integrate(u_policy, VectorXd::Zero(NB), pr2_scp);
+//  }
+//  vector<VectorXd> opt_traj_r(T+1);
+//  for (int t = 0; t < T+1; t++) {
+//	  pr2_scp.parse_localizer_belief_state(opt_traj._X[t], opt_traj_r[t]);
+//  }
+//  PR2_SCP_Plotter plotter2(&pr2_scp_l, &scene, T + 1);
+//  plotter2.draw_belief_trajectory(opt_traj_r, c_blue, c_orange, traj_group);
+//  pr2_scp.draw_object_uncertainty(opt_traj._X[T], c_green, traj_group);
+//  //pr2_scp.draw_sensor_belief_trajectory(opt_traj._X, c_blue, traj_group);
+//  cout << opt_traj._X[T].transpose() << endl;
 
 //  vector<vector<VectorXd> > W_s_t;
 //  index_by_sample(W_bar, W_s_t);

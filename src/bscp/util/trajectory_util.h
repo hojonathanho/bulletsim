@@ -179,6 +179,24 @@ struct TrajectoryInfo {
 		r.forward_integrate(x0, _U, _W, _X);
 	}
 
+	void update_sample(Robot& r) {
+		int _T, _NU, _NX;
+
+		assert(_g != NULL);
+
+		_T = _U.size();
+		_NX = _X[0].rows();
+		_NU = _U[0].rows();
+
+		if (r._NB == _NX) {
+			r.dbp_trajectory(_X, _P, _p_offset);
+		} else {
+			r.dp_trajectory(_X, _P, _p_offset);
+		}
+		 r.dgoal(_X[_T], _g, _dg, _Goal, _goal_offset);
+
+	}
+
 	void update(Robot &r) {
 		int _T, _NU, _NX;
 

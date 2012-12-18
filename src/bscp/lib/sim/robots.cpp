@@ -48,7 +48,7 @@ void Robot::N(const VectorXd& x, const MatrixXd& Gamma, MatrixXd& N) {
 	dgdx(x, C);
 	for (int i = 0; i < sensors.size(); i++) {
 		MatrixXd N_i;
-		MatrixXd C_i = C.block(num_recv, 0, num_recv + sensors[i]->_NZ, x.rows());
+		MatrixXd C_i = C.block(num_recv, 0, sensors[i]->_NZ, x.rows());
 		sensors[i]->rt_noise(sensor_fns[i](*this, x), C_i, Gamma, N_i);
 		N.block(num_recv, num_recv, N_i.rows(), N_i.cols()) = N_i;
 		num_recv += N_i.rows();
@@ -496,6 +496,33 @@ void Robot::db_trajectory(const vector<VectorXd>& B_bar, const vector<VectorXd>&
     db(B_bar[t], U_bar[t], A, B, C); 
     As[t] = A; Bs[t] = B; Cs[t] = C; 
   }
+}
+
+void Robot::dbndb(const VectorXd& b, const VectorXd& u, int col_i, MatrixXd& A_i) {
+	A_i = MatrixXd::Zero(_NB, _NB);
+	for (int i = 0; i < _NB; i++) {
+		VectorXd eps_vec = VectorXd::Zero(_NB);
+		eps_vec(i) = _eps;
+		VectorXd b_pos = b + eps_vec;
+		VectorXd b_neg = b - eps_vec;
+		MatrixXd bn_pos, bn_neg;
+		belief_noise(b_pos,u,bn_pos);
+		belief_noise(b_neg,u,bn_neg);
+		A_i.col(i) = (bn_pos.col(col_i) - bn_neg.col(col_i)) / (2*_eps);
+	}
+}
+void Robot::dbndu(const VectorXd& b, const VectorXd& u, int col_i, MatrixXd& B_i) {
+	B_i = MatrixXd::Zero(_NB, _NU);
+	for (int i = 0; i < _NU; i++) {
+		VectorXd eps_vec = VectorXd::Zero(_NU);
+		eps_vec(i) = _eps;
+		VectorXd u_pos = u + eps_vec;
+		VectorXd u_neg = u - eps_vec;
+		MatrixXd bn_pos, bn_neg;
+		belief_noise(b,u_pos,bn_pos);
+		belief_noise(b,u_neg,bn_neg);
+		B_i.col(i) = (bn_pos.col(col_i) - bn_neg.col(col_i)) / (2*_eps);
+	}
 }
 
 void Robot::transform(const VectorXd& x, VectorXd& transform) {

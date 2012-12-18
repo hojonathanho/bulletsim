@@ -25,7 +25,7 @@ void ilqr_solver(Robot &r, const vector<VectorXd>& B_bar,
 		const vector<VectorXd>& U_bar, const vector<MatrixXd>& W_bar,
 		const double rho_x, const double rho_u, const VectorXd goal_mu,
 		const int N_iter, vector<VectorXd>& opt_X, vector<VectorXd>& opt_U,
-		MatrixXd& K, VectorXd& u0);
+		vector<MatrixXd>& K, vector<VectorXd>& u0);
 
 double computeExpectedCost(Robot &r, const vector<VectorXd>& B_ilqr,
 		const vector<VectorXd>& U_ilqr, const vector<MatrixXd>& L, const VectorXd& goal_mu);

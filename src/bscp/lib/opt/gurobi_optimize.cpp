@@ -26,6 +26,10 @@ dense_optimize(GRBEnv* env,
   assert(c.rows() == NUM_VARIABLES); 
   int NUM_CONSTRAINTS = rhs.rows();
   //model.getEnv().set(GRB_IntParam_OutputFlag, 0);
+  //model.getEnv().set(GRB_IntParam_CrossoverBasis,1);
+  //model.getEnv().set(GRB_DoubleParam_MarkowitzTol, 0.75);
+  //model.getEnv().set(GRB_IntParam_Method, 1);
+  //model.getEnv().set(GRB_IntParam_Presolve, 0);
 
   /* Add variables to the model */
 

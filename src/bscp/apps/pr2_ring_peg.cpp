@@ -201,7 +201,7 @@ int main(int argc, char* argv[]) {
   pr2->setDOFValues(active_dof_indices, toVec(startJoints));
 
   //hack for now
-  MatrixXd W_cov = MatrixXd::Zero(NB,NB);
+  MatrixXd W_cov = MatrixXd::Identity(NB,NB);
   EigenMultivariateNormal<double> sampler(VectorXd::Zero(NB), W_cov);
 
   //initialize the sensors
@@ -232,7 +232,7 @@ int main(int argc, char* argv[]) {
   Matrix4d attached_cam_fixed_offset = Matrix4d::Identity();
   //attached_cam_fixed_offset(2,3) = -0.05;
   attached_cam_fixed_offset.block(0,0,3,3) = AngleAxisd(-M_PI/2, Vector3d(0.0,1.0,0.0)).toRotationMatrix();
-  CameraSensor s4 = CameraSensor(1, KK, 640, 480, attached_cam_fixed_offset, 0.2);//, camera_fixed_offset);
+  CameraSensor s4 = CameraSensor(1, KK, 640, 480, attached_cam_fixed_offset, 0.2, M_PI/3);//, camera_fixed_offset);
   Robot::SensorFunc s4_f = &LocalizerPR2AttachedCameraFunc;
   Robot::SensorFuncJacobian s4_fj = &LocalizerPR2AttachedCameraFuncJac;
   pr2_scp.attach_sensor(&s4, s4_f, s4_fj);
@@ -271,9 +271,11 @@ int main(int argc, char* argv[]) {
   MatrixXd N_t = lltR_t.matrixL();
 
 
+  s6.setN(N_t(2,2));
+
   //Set pr2 noise models
   pr2_scp.set_M(M_t);
-  pr2_scp.set_N(N_t);
+  //pr2_scp.set_N(N_t);
 
 
   VectorXd b_0;
@@ -299,7 +301,6 @@ int main(int argc, char* argv[]) {
 
     MatrixXd rt_W_t;
     pr2_scp.belief_noise(B_bar[t], U_bar[t], rt_W_t);
-    sampler.setCovar(rt_W_t * rt_W_t.transpose());
     sampler.generateSamples(W_bar[t], NS);
   }
   vector<VectorXd> B_bar_r(T+1);
@@ -312,10 +313,11 @@ int main(int argc, char* argv[]) {
 	  Matrix4d tor_trans;
 	  vec2transform(vec_transform, tor_trans);
 	  Matrix4d rel_trans = Matrix4d::Identity();
-	  rel_trans.block(0,0,3,3) = AngleAxisd(M_PI/2, Vector3d(1.0,0.0,0.0)).toRotationMatrix();
-	  rel_trans(2,3) = 0.1;
+	  //rel_trans.block(0,0,3,3) = AngleAxisd(M_PI/2, Vector3d(1.0,0.0,0.0)).toRotationMatrix();
+	  rel_trans(2,3) = 0.02;
 	  tor_trans = tor_trans * rel_trans;
-	  traj_group->addChild(drawTorus(0.13, 0.14, tor_trans, c_gold));
+	  traj_group->addChild(drawBox(Vector3d(0.03,0.03,0.03), tor_trans, c_brown));
+	  //traj_group->addChild(drawTorus(0.13, 0.14, tor_trans, c_gold));
 
   }
 

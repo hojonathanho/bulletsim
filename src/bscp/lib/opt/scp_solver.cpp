@@ -83,7 +83,7 @@ void scp_solver(Robot &r, const vector<VectorXd>& X_bar,
 	nominal.update(r); // updates jacobians and bounds
 	for (int s = 0; s < NS; s++) {
 		samples[s].set(samples[s]._X, samples[s]._U, W_s_bar[s]);
-		samples[s].update(r);
+		samples[s].update_sample(r);
 	}
 
     // Setup variables for sending to convex solver

@@ -20,11 +20,15 @@
 #include <osg/MatrixTransform>
 #include <osgGA/CameraManipulator>
 #include <osgGA/TrackballManipulator>
+#include <osgDB/Export>
+#include <osgDB/Registry>
+#include <osgDB/WriteFile>
 #include <time.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include "kalman_filter.h"
 #include "scp_solver.h"
+#include "ilqr_solver.h"
 #include "timer.h"
 #include "eigen_multivariate_normal.h"
 #include "trajectory_util.h"
@@ -84,9 +88,9 @@ inline double WrapPI(double fAng)
 //typedef VectorXd (*SensorFunc2)(const VectorXd&);
 
 static VectorXd _goal_offset;
-//VectorXd GoalFn(Robot &r, const VectorXd& x) {
-//	return 100*(x - _goal_offset);
-//}
+VectorXd GoalFn(Robot &r, const VectorXd& x) {
+	return 10*(x - _goal_offset);
+}
 //VectorXd GoalFn(Robot &r, const VectorXd& x) {
 //	VectorXd ret(x.rows()-5);
 //	ret.segment(0,2) = (x.segment(0,2) - _goal_offset.segment(0,2));
@@ -94,13 +98,13 @@ static VectorXd _goal_offset;
 //	return  100*ret;
 //}
 
-VectorXd GoalFn(Robot &r, const VectorXd& x) {
-	VectorXd ret(x.rows()-4);
-	ret.segment(0,3) = (x.segment(0,3) - _goal_offset.segment(0,3));
-	ret(2) = WrapPI(ret(2));
-	ret.segment(3,ret.rows()-3) = x.segment(7,x.rows()-7);
-	return  100*ret;
-}
+//VectorXd GoalFn(Robot &r, const VectorXd& x) {
+//	VectorXd ret(x.rows()-4);
+//	ret.segment(0,3) = (x.segment(0,3) - _goal_offset.segment(0,3));
+//	ret(2) = WrapPI(ret(2));
+//	ret.segment(3,ret.rows()-3) = x.segment(7,x.rows()-7);
+//	return  100*ret;
+//}
 
 //VectorXd TouchingGoalFn(Robot &r, const VectorXd& x) {
 //	VectorXd mu_x; MatrixXd rt_Sigma_x;
@@ -126,21 +130,22 @@ int main()
   vector<osg::Node*> render;
   double z_offset = 0.01;
 
-  Vector4d yellow(1.0,1.0,0.1,0.4);  
+  Vector4d yellow(1.0,1.0,0.1,0.8);
   Vector4d red(1.0, 0.0, 0.0, 0.8); 
   Vector4d blue(0.2, 0.2, 1.0, 0.8);
+  Vector4d green(0.2,1.0,0.2,0.8);
   Vector4d orange(1.0, 0.55, 0.0, 0.8);
-  Vector4d white(1.0, 1.0, 1.0, 0.1); 
+  Vector4d purple(0.6, 0.1, 0.6, 0.8);
+  Vector4d white(1.0, 1.0, 1.0, 0.5);
   Vector4d brown(139/255.0,69/255.0,19/255.0,0.8);
   Vector4d transparent(0.0,0.0,0.0,0.0);
-
 
   // intialize the robot
   int T = 20;
   int NX = 4 + 1*3;
   int NU = 2;
   int NB = NX*(NX+3)/2;
-  int NS = 0;
+  int NS = 10;
   int NUM_TEST = 0;
   double rho_x = 0.1;
   double rho_u = 0.1;
@@ -154,7 +159,7 @@ int main()
   x0 << -0.1, 0.0, 0.0, 0.1;
   Vector3d pos_test = Vector3d(-0.2,-0.0,0.0);
   Car car(x0);
-  car.setUConstraints(Vector2d(0.2,0.2), Vector2d(-0.2,-0.2));
+  car.setUConstraints(Vector2d(0.3,0.3), Vector2d(-0.3,-0.3));
 
 
   VectorXd l_x0 = VectorXd::Zero(NX);
@@ -210,8 +215,8 @@ int main()
 
   //initilaize the initial distributions and noise models
   MatrixXd Sigma_0 = 0.001*MatrixXd::Identity(NX,NX);
-  Sigma_0(0,0) = 0.00001;
-  Sigma_0(1,1) = 0.00001;
+  Sigma_0(0,0) = 0.0001;
+  Sigma_0(1,1) = 0.0001;
   Sigma_0(2,2) = 0.00001;
   Sigma_0(3,3) = 0.00001;
   Sigma_0(6,6) = 0;
@@ -284,18 +289,18 @@ int main()
   vector<vector<VectorXd> > W_s_t;
   index_by_sample(W_bar, W_s_t);
   vector<VectorXd> test;
-  for (int s = 0; s < NS; s++) {
-	  c.forward_integrate(b_0, U_bar, W_s_t[s], test);
-	  render = c.draw_belief_trajectory(test, red, transparent, traj_group, 1e-4);
-  }
+//  for (int s = 0; s < NS; s++) {
+//	  c.forward_integrate(b_0, U_bar, W_s_t[s], test);
+//	  render = c.draw_belief_trajectory(test, red, transparent, traj_group, 1e-4);
+//  }
 
-  render = c.draw_belief_trajectory(B_bar, red, yellow, traj_group, 1e-4);
+  //render = c.draw_belief_trajectory(B_bar, red, purple, traj_group, z_offset/2 + 1e-4);
   //c.draw_object_uncertainty(B_bar[0], yellow, traj_group, 1e-4);
-  c.draw_object_uncertainty(B_bar[T], red, traj_group, 1e-4);
+  //c.draw_object_uncertainty(B_bar[T], purple, traj_group, z_offset/2 + 1e-4);
   VectorXd test_x; MatrixXd test_rt_Sigma;
   parse_belief_state(B_bar[T], test_x, test_rt_Sigma);
   cout << test_rt_Sigma * test_rt_Sigma.transpose();
-  c.draw_sensor_belief_trajectory(B_bar, brown, traj_group, z_offset/2);
+  //c.draw_sensor_belief_trajectory(B_bar, brown, traj_group, z_offset/2 + 1e-4);
 
 
 
@@ -311,6 +316,9 @@ int main()
   cout << "calling scp" << endl;
   scp_solver(c, B_bar, U_bar, W_bar, rho_x, rho_u, &GoalFn, NULL, N_iter,
       opt_B, opt_U, Q, r);
+//
+//  cout << "calling ilqr" << endl;
+//  ilqr_solver(c, B_bar, U_bar, W_bar, rho_x, rho_u, _goal_offset.segment(0,NX), 10, opt_B, opt_U, Q, r);
 
   TrajectoryInfo opt_traj(b_0, &GoalFn, NULL);
     for (int t = 0; t < T; t++) {
@@ -321,18 +329,18 @@ int main()
     }
     c.draw_belief_trajectory(opt_traj._X, blue, orange, traj_group, z_offset/2+1e-4);
     c.draw_object_uncertainty(opt_traj._X[T], orange, traj_group, z_offset/2 + 1e-4);
-    c.draw_sensor_belief_trajectory(opt_traj._X, brown, traj_group, z_offset/2);
+    c.draw_sensor_belief_trajectory(opt_traj._X, orange, traj_group, z_offset/2 + 1e-4);
 
-    for (int s = 0; s < NUM_TEST; s++) {
-  	  TrajectoryInfo test_traj(b_0, &GoalFn, NULL);
-  	  for (int t = 0; t < T; t++) {
-  		  VectorXd feedback = test_traj.Q_feedback(c);
-  	  	  VectorXd u_policy = Q.block(t*NU, t*NB, NU, NB) * feedback + r.segment(t*NU, NU);
-  		  test_traj.add_and_integrate(u_policy, W_bar[t].col(s), c);
-  		  //test_traj.add_and_integrate(u_policy, sampler.nextSample(), c);
-  	  }
-  	  c.draw_belief_trajectory(test_traj._X, blue, transparent, traj_group, z_offset/2+1e-4);
-    }
+//    for (int s = 0; s < NUM_TEST; s++) {
+//  	  TrajectoryInfo test_traj(b_0, &GoalFn, NULL);
+//  	  for (int t = 0; t < T; t++) {
+//  		  VectorXd feedback = test_traj.Q_feedback(c);
+//  	  	  VectorXd u_policy = Q.block(t*NU, t*NB, NU, NB) * feedback + r.segment(t*NU, NU);
+//  		  test_traj.add_and_integrate(u_policy, W_bar[t].col(s), c);
+//  		  //test_traj.add_and_integrate(u_policy, sampler.nextSample(), c);
+//  	  }
+//  	  c.draw_belief_trajectory(test_traj._X, blue, transparent, traj_group, z_offset/2+1e-4);
+//    }
 
 
   // visualize
@@ -353,15 +361,36 @@ int main()
   v0->setUpViewInWindow(0,0,width,height);
   osgGA::TrackballManipulator * tman = new osgGA::TrackballManipulator;
   v0->setCameraManipulator(tman);
-  compositeViewer->addView(v0);
+  //compositeViewer->addView(v0);
 
 
 
   //second screen
-  osgViewer::View* v1 = s4.renderCameraView(camera_transform_vec);
+  Matrix4d c_t = Matrix4d::Identity();
+  c_t(0,3) = -0.05;
+  c_t(2,3) = 0.4;
+  VectorXd c_t_vec;
+  transform2vec(c_t, c_t_vec);
+  Matrix3d KK_s = Matrix3d::Identity();
+  KK_s(0,0) = -800.0; // fx (-1 * fx to fix an issue with rendering)
+  KK_s(0,1) = 0.0;   // skew
+  KK_s(0,2) = 400.0; // u0
+  KK_s(1,1) = 800.0; // fy
+  KK_s(1,2) = 400.0; // v0
+  CameraSensor view2 = CameraSensor(1,KK_s, 800,800);
+  osgViewer::View* v1 = view2.renderCameraView(c_t_vec,0);
   v1->setSceneData(root);
   compositeViewer->addView(v1);
+
   compositeViewer->realize();
+  compositeViewer->frame();
+  sleep(1);
+  glReadBuffer(GL_FRONT);
+  osg::Image *image = new osg::Image();
+  image->readPixels(0,0,800,800, GL_RGB, GL_UNSIGNED_BYTE);
+  string filename = "car_camera_scp.png";
+
+  osgDB::writeImageFile(*image,filename);
 
 
 

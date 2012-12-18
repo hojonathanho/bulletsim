@@ -9,6 +9,8 @@ find_package(osgViewer REQUIRED)
 find_package(OpenThreads REQUIRED) 
 find_package(Gurobi REQUIRED)
 find_package(Boost REQUIRED)
+find_package(GLUT REQUIRED) 
+find_package(OpenGL REQUIRED)
 
 MACRO(LIB_HEADERS return_list)
   FILE(GLOB_RECURSE new_list lib/*.h)

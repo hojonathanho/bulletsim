@@ -16,6 +16,8 @@ class ProximitySensor : public Sensor
 	double _radius;
 	SphereObject::Ptr _sphere;
 	Scene* _scene;
+    MatrixXd _N;
+    bool N_set;
 	ProximitySensor(double radius, Scene* scene) : Sensor(1) {
 		_radius = radius;
 		_scene = scene;
@@ -51,6 +53,16 @@ class ProximitySensor : public Sensor
     	z(0) = max(_radius - max_dist, 0.0);
     }
 
+    void rt_noise(const VectorXd& x, const MatrixXd& C, const MatrixXd& Gamma, MatrixXd& N) {
+    	assert(N_set == true);
+    	N = _N;
+    }
+
+    void setN(const double n) {
+    	_N = MatrixXd::Zero(1,1);
+    	_N(0) = n;
+    	N_set = true;
+    }
 
    osg::Node* draw(const MatrixXd& sensor_state, const Vector4d& color, osg::Group* parent, double z_offset=0) {
 

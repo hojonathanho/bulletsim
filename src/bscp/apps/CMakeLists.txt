@@ -15,14 +15,17 @@ include_directories(${EIGEN3_INCLUDE_DIR}
 #add_executable(car_ekf car_ekf.cpp)
 #target_link_libraries(car_ekf scp_robots opt ${OSG_LIBS} ${GUROBI_LIBRARIES})
 
-#add_executable(car_bsp car_bsp.cpp)
-#target_link_libraries(car_bsp scp_robots opt ${OSG_LIBS} ${GUROBI_LIBRARIES})
+add_executable(car_bsp car_bsp.cpp)
+target_link_libraries(car_bsp scp_robots opt ${OSG_LIBS} ${GUROBI_LIBRARIES} ${OPENGL_gl_LIBRARY})
 
 #add_executable(car_localizer car_localizer.cpp)
 #target_link_libraries(car_localizer scp_robots opt ${OSG_LIBS} ${GUROBI_LIBRARIES})
 
 add_executable(car_camera_test car_camera_test.cpp)
-target_link_libraries(car_camera_test scp_robots opt ${OSG_LIBS} ${GUROBI_LIBRARIES})
+target_link_libraries(car_camera_test scp_robots opt ${OSG_LIBS} ${GUROBI_LIBRARIES} ${OPENGL_gl_LIBRARY})
+
+#add_executable(car_bsp_ilqr car_bsp_ilqr.cpp)
+#target_link_libraries(car_bsp_ilqr scp_robots opt ${OSG_LIBS} ${GUROBI_LIBRARIES})
 
 #add_executable(gurobi_demo gurobi_demo.cpp)
 #target_link_libraries(gurobi_demo ${GUROBI_LIBRARIES})
@@ -38,15 +41,15 @@ find_package(Boost REQUIRED COMPONENTS program_options system prg_exec_monitor f
 #add_executable(pr2_beacons pr2_beacons.cpp)
 #target_link_libraries(pr2_beacons opt scp_robots simulation robots ${BULLET_LIBS} ${OpenRAVE_LIBRARIES} ${Boost_LIBRARIES})
 
-#add_executable(pr2_bsp_collision pr2_bsp_collision.cpp)
-#target_link_libraries(pr2_bsp_collision opt scp_robots simulation robots ${BULLET_LIBS} ${OpenRAVE_LIBRARIES} ${Boost_LIBRARIES})
+add_executable(pr2_bsp_collision pr2_bsp_collision.cpp)
+target_link_libraries(pr2_bsp_collision opt scp_robots simulation robots ${BULLET_LIBS} ${OpenRAVE_LIBRARIES} ${Boost_LIBRARIES})
 
 
 #add_executable(pr2_localizer pr2_localizer.cpp)
 #target_link_libraries(pr2_localizer opt scp_robots simulation robots ${BULLET_LIBS} ${OpenRAVE_LIBRARIES} ${Boost_LIBRARIES})
 
-#add_executable(pr2_push_button pr2_push_button.cpp)
-#target_link_libraries(pr2_push_button opt scp_robots simulation robots ${BULLET_LIBS} ${OpenRAVE_LIBRARIES} ${Boost_LIBRARIES})
+add_executable(pr2_push_button pr2_push_button.cpp)
+target_link_libraries(pr2_push_button opt scp_robots simulation robots ${BULLET_LIBS} ${OpenRAVE_LIBRARIES} ${Boost_LIBRARIES})
 
-#add_executable(pr2_ring_peg pr2_ring_peg.cpp)
-#target_link_libraries(pr2_ring_peg opt scp_robots simulation robots ${BULLET_LIBS} ${OpenRAVE_LIBRARIES} ${Boost_LIBRARIES})
+add_executable(pr2_ring_peg pr2_ring_peg.cpp)
+target_link_libraries(pr2_ring_peg opt scp_robots simulation robots ${BULLET_LIBS} ${OpenRAVE_LIBRARIES} ${Boost_LIBRARIES})

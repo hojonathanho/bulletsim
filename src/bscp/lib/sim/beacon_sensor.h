@@ -32,7 +32,7 @@ class BeaconSensor : public Sensor
       z(0) = 1.0 / (denom);
     }
 
-    void rt_noise(const VectorXd& x, MatrixXd& N) {
+    void rt_noise(const VectorXd& x, const MatrixXd& C, const MatrixXd& Gamma, MatrixXd& N) {
     	assert(N_set == true);
     	N = _N;
     }
@@ -56,7 +56,7 @@ class BeaconSensor : public Sensor
        zp = sensor_pos(2);
      }
       osg::Vec4 osg_color(color(0), color(1), color(2), color(3));
-      osg::Cylinder *beacon_shape = new osg::Cylinder(osg::Vec3(xp, yp, zp+0.125), 0.01,0.25);
+      osg::Cylinder *beacon_shape = new osg::Cylinder(osg::Vec3(xp, yp, zp+0.001), 0.01,0.002);
 
       osg::ShapeDrawable *beacon = new osg::ShapeDrawable(beacon_shape);
       beacon->setColor(osg_color);

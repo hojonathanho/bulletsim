@@ -39,6 +39,26 @@ inline void init_transparency_group(osg::Group *group) {
 
 }
 
+inline osg::MatrixTransform *drawBox(const Vector3d& dimensions, const Matrix4d& transform, const Vector4d color) {
+	  osg::Matrix osg_t;
+	  for (int i = 0; i < 4; i++) {
+	    for (int j = 0; j < 4; j++) {
+	      osg_t(j,i) = transform(i,j); // for some stupid reason
+	    }
+	  }
+	  osg::MatrixTransform *mt = new osg::MatrixTransform(osg_t);
+	  osg::Vec4 osg_color(color(0), color(1), color(2), color(3));
+
+	  osg::Geode *geode = new osg::Geode;
+	  osg::Box *box = new osg::Box(osg::Vec3f(0.0,0.0,0.0), dimensions(0), dimensions(1), dimensions(2));
+	  osg::ShapeDrawable *sphere_drawable = new osg::ShapeDrawable(box);
+	  sphere_drawable->setColor(osg_color);
+	  geode->addDrawable(sphere_drawable);
+	  mt->addChild(geode);
+
+	  return mt;
+}
+
 inline osg::MatrixTransform *drawEllipsoid(const Vector3d &mean, const Matrix3d &cov, const Vector4d & color) {
 
   LLT<Matrix3d> lltofCov(cov);

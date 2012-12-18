@@ -27,6 +27,13 @@ const static double postures[][7] = {
 		{-1.832,  -0.332,   -1.011,  -1.437,   -1.1  ,  -2.106,  3.074}, //3=side
 		{0, 0, 0, 0, 0, 0, 0}}; //4=outstretched
 
+const static double left_postures[][7] = {
+		{-0.4,  1.0,   0.0,  -2.05,  0.0,  -0.1,  0.0}, // 0=untucked
+		{0.062, 	1.287, 		0.1 , -1.554, -3.011, 		-0.268, 2.988}, //1=tucked
+		{-0.33, -0.35,  -2.59, -0.15,  -0.59, -1.41, 0.27}, //2=up
+		{1.832,  0.332,   1.011,  1.437,   1.1  ,  2.106,  3.074}, //3=side
+		{0, 0, 0, 0, 0, 0, 0}}; //4=outstretched
+
 vector<VectorXd> makeTraj(const Eigen::VectorXd& startJoints, const Eigen::VectorXd& endJoints, int nSteps) {
   assert(startJoints.rows() == endJoints.rows());
   Eigen::MatrixXd startEndJoints(2, startJoints.rows());
@@ -40,7 +47,7 @@ vector<VectorXd> makeTraj(const Eigen::VectorXd& startJoints, const Eigen::Vecto
   return traj;
 
 }
-const static Vector4d c_yellow(1.0,1.0,0.1,0.4);
+const static Vector4d c_yellow(1.0,1.0,0.1,0.8);
 const static Vector4d c_red(1.0, 0.0, 0.0, 0.8);
 const static Vector4d c_green(0.2, 1.0, 0.2, 0.8);
 const static Vector4d c_blue(0.2, 0.2, 1.0, 0.8);
@@ -63,10 +70,10 @@ VectorXd GoalFn(Robot& r, const VectorXd& b) {
 	VectorXd ret(7);
 	ret.segment(0,3) = tx.segment(0,3) - _goal_offset.segment(0,3);
 	ret.segment(3,4) = tx.segment(3,4) - _goal_offset.segment(3,4);
-	ret *= 0.1;
+	//ret *= 0.1;
 	//ret(3) = cur_q.angularDistance(goal_q);
 	//ret.segment(4,b.rows()-7) = b.segment(7, b.rows()-7);
-	return ret;
+	return 100*ret;
 }
 
 
@@ -100,19 +107,24 @@ int main(int argc, char* argv[]) {
   table->setColor(0,0,1,1);
   scene.env->add(table);
 
+  srand(2929);
+
   // initialize robot
   int T = 40;
   int NL = 0;
   int NX = 7 + NL*3;
   int NU = 7;
   int NB = NX*(NX+3)/2;
-  int NS = 0;
+  int NS = 10;
   int N_iter = 20;
   double rho_x = 0.1;
   double rho_u = 0.1;
 
   PR2Manager pr2m(scene);
   RaveRobotObject::Ptr pr2 = pr2m.pr2;
+  vector<int> left_active_dof = pr2m.pr2Left->manip->GetArmIndices();
+  VectorXd left_out = Map<const VectorXd>(left_postures[3], 7);
+  pr2->setDOFValues(left_active_dof, toVec(left_out));
   RaveRobotObject::Manipulator::Ptr rarm = pr2m.pr2Right;
   vector<int> active_dof_indices = rarm->manip->GetArmIndices();
 
@@ -137,7 +149,7 @@ int main(int argc, char* argv[]) {
   pr2->setDOFValues(active_dof_indices, toVec(startJoints));
 
   //hack for now
-  MatrixXd W_cov = MatrixXd::Zero(NB,NB);
+  MatrixXd W_cov = MatrixXd::Identity(NB,NB);
   EigenMultivariateNormal<double> sampler(VectorXd::Zero(NB), W_cov);
 
   //initialize the sensors
@@ -164,7 +176,7 @@ int main(int argc, char* argv[]) {
 //  pr2_scp.attach_sensor(&s2, s2_f);
 
   //initilaize the initial distributions and noise models
-  MatrixXd Sigma_0 = 0.01*MatrixXd::Identity(NX,NX);
+  MatrixXd Sigma_0 = 0.0075*MatrixXd::Identity(NX,NX);
   LLT<MatrixXd> lltSigma_0(Sigma_0);
   MatrixXd rt_Sigma_0 = lltSigma_0.matrixL();
 
@@ -180,7 +192,7 @@ int main(int argc, char* argv[]) {
 
   //Set pr2 noise models
   pr2_scp.set_M(M_t);
-  pr2_scp.set_N(N_t);
+  //pr2_scp.set_N(N_t);
 
   VectorXd b_0;
   VectorXd x0(NX);
@@ -194,52 +206,56 @@ int main(int argc, char* argv[]) {
     pr2_scp.belief_dynamics(B_bar[t], U_bar[t], B_bar[t+1]);
     MatrixXd rt_W_t;
     pr2_scp.belief_noise(B_bar[t], U_bar[t], rt_W_t);
-    sampler.setCovar(rt_W_t * rt_W_t.transpose());
+    //sampler.setCovar(rt_W_t * rt_W_t.transpose());
     sampler.generateSamples(W_bar[t], NS);
   }
   vector<VectorXd> B_bar_r(T+1);
   for (int t = 0; t < T+1; t++) {
 	  pr2_scp.parse_localizer_belief_state(B_bar[t], B_bar_r[t]);
   }
-//  PR2_SCP_Plotter plotter(&pr2_scp_l, &scene, T+1);
-//  plotter.draw_belief_trajectory(B_bar_r, c_red, c_red, traj_group);
+  PR2_SCP_Plotter plotter(&pr2_scp_l, &scene, T+1);
+  plotter.draw_belief_trajectory(B_bar_r, c_yellow, c_yellow, traj_group);
+  pr2->setDOFValues(active_dof_indices, toVec(B_bar_r[T]));
 
 
-  // setup for SCP
-  // Define a goal state
-  VectorXd b_goal = B_bar[T];
-  b_goal.segment(NX, NB-NX) = VectorXd::Zero(NB-NX); // trace
-  VectorXd x_goal; MatrixXd rt_Sigma_goal;
-  parse_belief_state(b_goal, x_goal, rt_Sigma_goal);
-
-  _goal_offset = VectorXd::Zero(7);
-  VectorXd tx_goal;
-  pr2_scp.transform(x_goal, tx_goal);
-  _goal_offset.segment(0,7) = tx_goal;
-
-  // Output variables
-  vector<VectorXd> opt_B, opt_U; // noiseless trajectory
-  MatrixXd Q; VectorXd r;  // control policy
 //
- // cout << "calling scp" << endl;
-  scp_solver(pr2_scp, B_bar, U_bar, W_bar, rho_x, rho_u, &GoalFn, NULL, N_iter,
-      opt_B, opt_U, Q, r);
-
-  TrajectoryInfo opt_traj(b_0, &GoalFn, NULL);
-  for (int t = 0; t < T; t++) {
-	  opt_traj.add_and_integrate(opt_U[t], VectorXd::Zero(NB), pr2_scp);
-	  //VectorXd feedback = opt_traj.Q_feedback(pr2_scp);
-	  //VectorXd u_policy = Q.block(t*NU, t*NB, NU, NB) * feedback + r.segment(t*NU, NU);
-	  //opt_traj.add_and_integrate(u_policy, VectorXd::Zero(NB), pr2_scp);
-  }
-  vector<VectorXd> opt_traj_r(T+1);
-  for (int t = 0; t < T+1; t++) {
-	  pr2_scp.parse_localizer_belief_state(opt_traj._X[t], opt_traj_r[t]);
-  }
-  cout << _goal_offset.transpose() << endl;
-  cout << (GoalFn(pr2_scp, opt_traj._X[T])).transpose() << endl;
-  PR2_SCP_Plotter plotter2(&pr2_scp_l, &scene, T + 1);
-  plotter2.draw_belief_trajectory(opt_traj_r, c_blue, c_orange, traj_group);
+//  // setup for SCP
+//  // Define a goal state
+//  VectorXd b_goal = B_bar[T];
+//  b_goal.segment(NX, NB-NX) = VectorXd::Zero(NB-NX); // trace
+//  VectorXd x_goal; MatrixXd rt_Sigma_goal;
+//  parse_belief_state(b_goal, x_goal, rt_Sigma_goal);
+//
+//  _goal_offset = VectorXd::Zero(7);
+//  VectorXd tx_goal;
+//  pr2_scp.transform(x_goal, tx_goal);
+//  _goal_offset.segment(0,7) = tx_goal;
+//
+//  // Output variables
+//  vector<VectorXd> opt_B, opt_U; // noiseless trajectory
+//  MatrixXd Q; VectorXd r;  // control policy
+////
+// // cout << "calling scp" << endl;
+//  scp_solver(pr2_scp, B_bar, U_bar, W_bar, rho_x, rho_u, &GoalFn, NULL, N_iter,
+//      opt_B, opt_U, Q, r);
+//
+//  TrajectoryInfo opt_traj(b_0, &GoalFn, NULL);
+//  for (int t = 0; t < T; t++) {
+//	  opt_traj.add_and_integrate(opt_U[t], VectorXd::Zero(NB), pr2_scp);
+//	  //VectorXd feedback = opt_traj.Q_feedback(pr2_scp);
+//	  //VectorXd u_policy = Q.block(t*NU, t*NB, NU, NB) * feedback + r.segment(t*NU, NU);
+//	  //opt_traj.add_and_integrate(u_policy, VectorXd::Zero(NB), pr2_scp);
+//  }
+//  vector<VectorXd> opt_traj_r(T+1);
+//  for (int t = 0; t < T+1; t++) {
+//	  pr2_scp.parse_localizer_belief_state(opt_traj._X[t], opt_traj_r[t]);
+//  }
+//  cout << _goal_offset.transpose() << endl;
+//  cout << (GoalFn(pr2_scp, opt_traj._X[T])).transpose() << endl;
+//  PR2_SCP_Plotter plotter2(&pr2_scp_l, &scene, T + 1);
+//  plotter2.draw_belief_trajectory(opt_traj_r, c_blue, c_orange, traj_group);
+//
+//  pr2->setDOFValues(active_dof_indices, toVec(opt_traj_r[T]));
 
   //use a composite viewer
   int width = 800;

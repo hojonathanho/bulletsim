@@ -505,7 +505,9 @@ void convex_gurobi_solver(const TrajectoryInfo &nominal,
 		  ub[ind + t*NU + i] = nominal._U_upper_limit[t][i];
 	  }
   }
-  ind += NU*T + NG; //U, goal_diff
+  ind += NU*T; // U
+
+  ind += NG; // goal_diff
 
   for (int i = 0; i < NP; i++) {
 	  lb[ind + i] = 0;
@@ -535,6 +537,7 @@ void convex_gurobi_solver(const TrajectoryInfo &nominal,
 //  }
 
   ind += NU*NS*T; // sample_u
+
   ind += NG*NS; // sample_diff
 
   for (int i = 0; i < NP*NS; i++) {

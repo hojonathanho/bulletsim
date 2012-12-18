@@ -114,6 +114,9 @@ class Robot {
    virtual void dbdb(const VectorXd &b, const VectorXd &u, MatrixXd &A);
    virtual void dbdu(const VectorXd &b, const VectorXd &u, MatrixXd &B);
    virtual void db(const VectorXd &b, const VectorXd &u, MatrixXd &A, MatrixXd &B, VectorXd &c);
+   virtual void dbndb(const VectorXd& b, const VectorXd& u, int col_i, MatrixXd& A_i);
+   virtual void dbndu(const VectorXd& b, const VectorXd& u, int col_i, MatrixXd& B_i);
+
    virtual void db_trajectory(const vector<VectorXd>& B_bar, const vector<VectorXd>& U_bar, vector<MatrixXd>& As, vector<MatrixXd>& Bs, vector<VectorXd>& Cs);
 
    //Position utils linearization

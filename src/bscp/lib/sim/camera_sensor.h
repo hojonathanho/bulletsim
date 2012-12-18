@@ -48,7 +48,7 @@ class CameraSensor : public Sensor
 	MatrixXd _N;
 	bool N_set;
 
-    CameraSensor(int num_obj, Matrix3d &KK, int image_width, int image_height, Matrix4d fixed_offset = Matrix4d::Identity(), double camera_draw_size=0.005, double fov_angle=M_PI) : Sensor(num_obj*2) {
+    CameraSensor(const int num_obj, const Matrix3d &KK, const int image_width, const int image_height, Matrix4d fixed_offset = Matrix4d::Identity(), double camera_draw_size=0.005, double fov_angle=M_PI) : Sensor(num_obj*2) {
     	_num_obj = num_obj;
     	_KK = KK;
     	_far = 10000;
@@ -174,27 +174,27 @@ class CameraSensor : public Sensor
 					* Vector4d(obj_pos(i * 3), obj_pos(i * 3 + 1),
 							obj_pos(i * 3 + 2), 1.0);
 			Vector3d pxy;
-			Vector3d Xn(XXc(0) / XXc(2), XXc(1) / XXc(2), 1.0);
+			//Vector3d Xn(XXc(0) / XXc(2), XXc(1) / XXc(2), 1.0);
 			double cos_ang = -XXc(2) / XXc.segment(0,3).norm();
 			if (cos_ang > cos(_fov_angle/2.0)) { //inside FOV
-				cout << "inside fov" << endl;
-				N.block(2*i, 2*i, 2, 2) = XXc.segment(0,3).norm()*(1.0001 - cos_ang) * Matrix2d::Identity();
+				//cout << "inside fov" << endl;
+				N.block(2*i, 2*i, 2, 2) = 3*(1.0001 - cos_ang) * Matrix2d::Identity();
 			}
-			else { //outside FOV
+			//else { //outside FOV
 
 				//double tr_s =  0.5*Gamma.trace()*(cos_ang + 1.001);
-			    double tr_s = Gamma.trace()*exp(-5*(1.0 - cos_ang));
-				double g_px = C.row(2*i) * C.row(2*i).transpose();
+			    double tr_s = 0.1*Gamma.trace()*exp(-5*(1.0 - cos_ang));
+				MatrixXd g_px = C.row(2*i).transpose() * C.row(2*i);
 				double tr_px = (Gamma*(g_px)*Gamma).trace();
 				double v_px = (C.row(2*i)) * Gamma * (C.row(2*i).transpose());
-				double g_py = C.row(2*i+1) * C.row(2*i+1).transpose();
+				MatrixXd g_py = C.row(2*i+1).transpose() * C.row(2*i+1);
 				double tr_py = (Gamma*g_py*Gamma).trace();
 				double v_py = (C.row(2*i+1)) * Gamma *( C.row(2*i+1).transpose());
-				N(2*i  , 2*i  ) = max(sqrt(max(tr_px / tr_s - v_px, 1e-8)), XXc.segment(0,3).norm()*(1.0001 - cos_ang));
-				N(2*i+1, 2*i+1) = max(sqrt(max(tr_py / tr_s - v_py, 1e-8)), XXc.segment(0,3).norm()*(1.0001 - cos_ang));
+				N(2*i  , 2*i  ) = max(sqrt(max(tr_px / tr_s - v_px, 1e-8)), 3*(1.0001 - cos_ang));
+				N(2*i+1, 2*i+1) = max(sqrt(max(tr_py / tr_s - v_py, 1e-8)), 3*(1.0001 - cos_ang));
 //				N(2*i, 2*i) = sqrt( ((1-tr_s)*n_px) / tr_s );
 //				N(2*i+1, 2*i+1) = sqrt( ((1-tr_s)*n_px) / tr_s );
-			}
+			//}
 		}
 		//cout << N << endl;
 
