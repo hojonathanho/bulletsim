@@ -194,7 +194,7 @@ void CustomScene::cutCloth () {
 ////////////////////////////////// Suture Cloth ////////////////////////////////////////
 /** Constructor for the cloth in the scene. */
 CustomScene::SutureCloth::SutureCloth(CustomScene &scene, btScalar side_length, btScalar z, btVector3 center) {
-		cloth = scene.createCloth(side_length, z, center, cut_nodes1, cut_nodes2);
+		cloth = scene.createCloth(side_length, z, center, cut_nodes1, cut_nodes2, true, true, 60,60);
 }
 
 /** Returns the line of maximum variance of the cut-points
@@ -457,6 +457,26 @@ void CustomScene::plotNeedle (bool remove) {
 }
 
 //////////////////////////////////////////////// Hole ///////////////////////////////////////////////////
+
+/** Increases the number of nodes around the hole on the softbody to
+ *  make needle-cloth interaction realistic around the hole. */
+void CustomScene::Hole::refineAroundHole (int iter) {
+	calculateCenter();
+	std::cout<<h_center.x()<<" "<<h_center.y()<<" "<<h_center.z()<<std::endl;
+	/*
+	for (int i = 0; i< h_nodes.size(); ++i){
+		btVector3 nodeCenter = h_nodes[i]->m_x;
+		ImplicitSphere	iSphere(nodeCenter,0.02*GeneralConfig::scale);
+		h_scene->sCloth->cloth->refine(&iSphere, 0.0001, false);
+	}*/
+
+	for (int i = 1; i <= iter; ++i){
+			btVector3 nodeCenter = h_nodes[i]->m_x;
+			ImplicitSphere	iSphere(nodeCenter,0.008*i*GeneralConfig::scale);
+			h_scene->sCloth->cloth->refine(&iSphere, 0.0001, false);
+}
+	}
+
 /** Calculates center of hole. */
 void CustomScene::Hole::calculateCenter() {
 	int nnodes = h_nodes.size(),j;
@@ -479,7 +499,7 @@ void CustomScene::Hole::holeCutCallback() {
 	if (!numContacts) return;
 
 	btVector3 Tip = h_scene->sNeedle->getNeedleTipTransform().getOrigin();
-	// This definitely works (the simple approach of cutting on contact
+	// This definitely works (the simple approach of cutting on contact)
 #if 0
 	for (i = 0; i < nnodes; ++i) {
 		for (j = 0; j < numContacts; ++j) {
@@ -784,11 +804,11 @@ void CustomScene::run() {
     pr2m.pr2->ignoreCollisionWith(sNeedle->s_needle->getChildren()[0]->rigidBody.get());
 
     // Setting up the cloth
-    sCloth.reset(new SutureCloth(*this,GeneralConfig::scale * 0.5, 0, GeneralConfig::scale * btVector3(0.6, 0, table_height+0.01)));
+    sCloth.reset(new SutureCloth(*this,GeneralConfig::scale * 0.4, 0, GeneralConfig::scale * btVector3(0.6, 0, table_height+0.01)));
     btSoftBody * const psb = sCloth->cloth->softBody.get();
     pr2m.pr2->ignoreCollisionWith(psb);
 
-    sNeedle->s_needle->ignoreCollisionWith(psb);
+    //sNeedle->s_needle->ignoreCollisionWith(psb);
 
     // Setting up PR2's starting pose
     pr2m.setArmPose("side", 'b');
@@ -827,7 +847,6 @@ void CustomScene::run() {
     findNearbyNodes (h1,hole1Pt);
     addPreStepCallback(boost::bind(&CustomScene::Hole::holeCutCallback, h1.get()));
     holes.push_back(h1);
-
 
     // Reset right and left actions.
     leftSBAction.reset(new PR2SoftBodyGripperAction(pr2m.pr2Left,
@@ -983,6 +1002,7 @@ void CustomScene::testRun () {
 
 	// Set up planner for right hand
 	IKInterpolationPlanner planner(pr2m, rave, 'r');
+	IKInterpolationPlanner plannerL(pr2m, rave, 'l');
 
 	// Move down into cloth in order to pick up flap
 	//TODO: Change the dist travelling down to something depending on the height diff
@@ -996,7 +1016,7 @@ void CustomScene::testRun () {
 	}
 
 	// Move forward into flap by 5cm
-	res = planner.goInDirection('f',0.05,10);
+	res = planner.goInDirection('f',0.1,10);
 	if (res.first) {
 		pr2m.controller->appendTrajectory(res.second);
 		pr2m.controller->run();
@@ -1042,6 +1062,47 @@ void CustomScene::testRun () {
 
 	// Grap needle with left hand
 	grabNeedle('l');
+	leftOCAction->setCloseAction();
+	runAction(leftOCAction,BulletConfig::dt);
+
+    //pr2m.setArmPose("side", 'b');
+	//pr2m.setTorso(1);
+
+	sNeedle->togglePiercing();
+	holes[0]->togglePiercing();
+
+	// move the needle to the hole
+	btTransform holeT = util::getOrthogonalTransform(holes[0]->normal());
+	holeT.setOrigin(holes[0]->h_center);
+
+	btTransform gripperT = util::toBtTransform(pr2m.pr2Left->manip->GetEndEffectorTransform(),GeneralConfig::scale);
+	btTransform Ta = holeT*(sNeedle->getNeedleTipTransform().inverse()*gripperT);
+
+	vector <Transform> pokeT;
+	pokeT.push_back(util::toRaveTransform(Ta,1/GeneralConfig::scale));
+
+	holes[0]->refineAroundHole(2);
+
+	res = plannerL.smoothPlan(pokeT);
+	if (res.first) {
+		pr2m.controller->appendTrajectory(res.second);
+		pr2m.controller->run();
+	} else {
+		std::cout<<"Plan Failed while : Poking with needle at the hole."<<std::endl;
+		return;
+	}
+
+	// Move in a circle
+	float dir = -1.0;
+	res = plannerL.circleAroundRadius(this, dir, sNeedle->s_needle_radius, pi/1.5);
+	if (res.first) {
+		pr2m.controller->appendTrajectory(res.second);
+		pr2m.controller->run();
+	} else {
+		std::cout<<"Plan failed!"<<std::endl;
+	}
+
+
 }
 ////////////////////////////////////////////////////////////////////////////////////
 

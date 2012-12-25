@@ -93,8 +93,8 @@ public:
 		bool h_currently_piercing, h_started_piercing, h_pierced;
 
 		Hole (CustomScene * scene): h_scene(scene), h_pierced (false),
-								h_center(0,0,0), h_currently_piercing(false),
-												h_started_piercing(false){};
+										h_center(0,0,0), h_currently_piercing(false),
+														h_started_piercing(false){};
 
 		/** Toggle piercing:
 		 *  If the hole is already pierced, h_currently_piercing will be set
@@ -104,6 +104,10 @@ public:
 			h_started_piercing = h_currently_piercing ? h_started_piercing:false;
 			std::cout<<"Hole piercing: "<<h_currently_piercing<<std::endl;
 		}
+
+		/** Increases the number of nodes around the hole on the softbody to
+		 *  make needle-cloth interaction realistic around the hole. */
+		void refineAroundHole (int iter=3);
 
 		/** Calculate center of hole from the vector of nodes. */
 		void calculateCenter ();
