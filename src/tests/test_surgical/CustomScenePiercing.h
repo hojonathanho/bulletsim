@@ -135,12 +135,12 @@ public:
 		// max distance between needle tip and point to cut at
 		float s_pierce_threshold;
 
-		// Manipulator currently grasping the gripper.
-		RaveRobotObject::Manipulator::Ptr gripperManip;
+		// Manipulator currently grasping the needle.
+		RaveRobotObject::Manipulator::Ptr s_gripperManip;
 		// Is the needle being grasped?
-		bool grasped;
+		bool s_grasped;
 		// Correction matrix of the needle
-		btMatrix3x3 corrRot;
+		btMatrix3x3 s_corrRot;
 
 		SuturingNeedle (CustomScene * scene);
 
