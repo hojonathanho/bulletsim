@@ -4,6 +4,8 @@
 #include <vector>
 #include <map>
 
+using namespace std;
+
 template <typename T, typename S>
 std::ostream& operator<<(std::ostream& os, const std::map<T,S>& m)
 {
@@ -44,12 +46,28 @@ T min(const std::vector<T>& v) {
 }
 
 template <typename T>
+int argMin(const std::vector<T>& v) {
+	T m = min(v);
+	for (int i=0; i<v.size(); i++)
+		if (v[i] == m) return i;
+	return -1;
+}
+
+template <typename T>
 T max(const std::vector<T>& v) {
 	assert(v.size() > 0);
 	T result = v[0];
 	for (int i=1; i<v.size(); i++)
 		result = max(result, v[i]);
 	return result;
+}
+
+template <typename T>
+int argMax(const std::vector<T>& v) {
+	T m = max(v);
+	for (int i=0; i<v.size(); i++)
+		if (v[i] == m) return i;
+	return -1;
 }
 
 template <typename T>

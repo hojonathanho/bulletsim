@@ -7,9 +7,14 @@
 
 class HumanHandObject : public RaveObject, public boost::enable_shared_from_this<HumanHandObject> {
 	vector<BulletConstraint::Ptr> m_constraints;
+  float m_angStiffness;
+  float m_angDamping;
+  float m_linDamping; //not used yet
+  float m_linStopErp;
 public:
   typedef boost::shared_ptr<HumanHandObject> Ptr;
-	HumanHandObject(RaveInstance::Ptr rave);
+	HumanHandObject(RaveInstance::Ptr rave, float angStiffness=.1, float angDamping=1, float linDamping=.75, float linStopErp=.2);
+	HumanHandObject(RaveInstance::Ptr rave, const btTransform& trs, float angStiffness=.1, float angDamping=1, float linDamping=.75, float linStopErp=.2);
 
 	void MyNearCallback(btBroadphasePair& collisionPair, btCollisionDispatcher& dispatcher, const btDispatcherInfo& dispatchInfo);
 	void init();

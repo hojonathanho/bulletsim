@@ -1,7 +1,7 @@
-include_directories( ${TETGEN_DIR}
-    ${PCL_INCLUDE_DIRS} )
-
-link_directories( ${TETGEN_DIR} )
+include_directories( 
+	${TETGEN_DIR}
+	${PCL_INCLUDE_DIRS}
+)
 
 add_executable(test_simplescene test_simplescene.cpp)
 target_link_libraries(test_simplescene simulation robots)
@@ -59,9 +59,6 @@ target_link_libraries(test_hand simulation)
 
 #add_executable(test_raven test_raven.cpp)
 #target_link_libraries(test_raven robots simulation)
-
-add_executable(test_softbody_mappings test_softbody_mappings.cpp)
-target_link_libraries(test_softbody_mappings simulation)
 
 add_executable(test_PR2Object test_PR2Object.cpp)
 target_link_libraries(test_PR2Object simulation robots ${ROS_LIBRARIES})

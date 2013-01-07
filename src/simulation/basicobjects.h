@@ -96,6 +96,8 @@ public:
     MoveAction::Ptr createMoveAction() { return MoveAction::Ptr(new MoveAction(this)); }
     MoveAction::Ptr createMoveAction(const btTransform &start, const btTransform &end, float time) { return MoveAction::Ptr(new MoveAction(this, start, end, time)); }
 		void setColor(float r, float g, float b, float a);
+		void setColor(osg::Vec4f color) { setColor(color.r(), color.g(), color.b(), color.a()); }
+		osg::Vec4f getColor() const { return m_color; }
 		
 		void setTexture(const cv::Mat& image);
 		void adjustTransparency(float increment);
@@ -132,7 +134,7 @@ private:
 public:
     btVector3 com; // Center of mass. Currently, this variable is not maintained. It's used for message passing between createFromLink and createFromJoint
 
-		cv::Mat& getTexture() { return *m_cvimage; }
+		cv::Mat& getTexture() const { return *m_cvimage; }
 };
 
 class BulletConstraint : public EnvironmentObject {

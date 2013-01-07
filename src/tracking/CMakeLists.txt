@@ -22,7 +22,8 @@ add_library(tracking
 	plotting_tracking.cpp
 	simple_physics_tracker.cpp 
 	physics_tracker.cpp 
-	multihyp_tracker.cpp
+	stochastic_tracker.cpp
+	multihyp_tracker.cpp 
 	surface_sampling.cpp 
 	sparse_utils.cpp
 	tracked_object.cpp 

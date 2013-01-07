@@ -13,6 +13,30 @@ static const float DEPTH_OCCLUSION_DIST = .03;
 static const float RAY_SHORTEN_DIST = .0001;
 static const float MIN_DEPTH = .4;
 
+// 1's if the point is a no observation point
+// a no observation point lies above the table and behind a real object
+VectorXf ObservationVisibility::checkObservationVisibility(ColorCloud::Ptr cloud) {
+  MatrixXf eigen_cloud = toEigenMatrix(cloud);
+	MatrixXf ptsCam = m_transformer->toCamFromWorldMatrixXf(eigen_cloud);
+  VectorXf ptDists = ptsCam.rowwise().norm();
+  MatrixXi uvs = xyz2uv(ptsCam);
+  VectorXf vis(ptsCam.rows(),true);
+
+  assert(m_depth.type() == CV_32FC1);
+
+  for (int iPt=0; iPt<ptsCam.rows(); ++iPt) {
+    int u = uvs(iPt,0);
+    int v = uvs(iPt,1);
+    if (cloud->at(iPt).z < 0)
+    	vis[iPt] = false;
+    if (u<m_depth.rows && v<m_depth.cols && u>0 && v>0) {
+      if (!isfinite(m_depth.at<float>(u,v)) || (m_depth.at<float>(u,v) > ptDists[iPt]))
+      	vis[iPt] = false;
+    }
+  }
+  return vis;
+}
+
 VectorXf EverythingIsVisible::checkNodeVisibility(TrackedObject::Ptr obj) {
   return VectorXf::Ones(obj->m_nNodes);
 }

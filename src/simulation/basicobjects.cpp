@@ -160,6 +160,9 @@ void BulletObject::destroy() {
 }
 
 BulletObject::BulletObject(const BulletObject &o) : isKinematic(o.isKinematic), enable_texture(o.enable_texture), m_color(o.m_color) {
+		if (enable_texture) setTexture(o.getTexture());
+		else setColor(o.getColor());
+
     // we need to access lots of private members of btRigidBody and etc
     // the easiest way to do this is to use serialization
 

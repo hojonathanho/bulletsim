@@ -232,8 +232,8 @@ Eigen::MatrixXf calculateResponsibilitiesNaive(const Eigen::MatrixXf& estPts, co
 
 // gamma(z_nk) = p(z_k = 1 | c_n)
 Eigen::MatrixXf calculateResponsibilities(const Eigen::MatrixXf& estPts, const Eigen::MatrixXf& obsPts, const Eigen::MatrixXf& stdev, const Eigen::VectorXf& pVis, const Eigen::VectorXf& outlierDist, const Eigen::VectorXf& outlierStdev) {
-	int K = estPts.rows(); //nodes
 	int N = obsPts.rows(); //observations
+	int K = estPts.rows(); //nodes
 	int F = estPts.cols(); //features
 
 	assert(obsPts.cols() == F);
@@ -287,6 +287,50 @@ Eigen::MatrixXf calculateResponsibilities(const Eigen::MatrixXf& estPts, const E
 	return pZgivenC.topRows(K);
 }
 
+float calculateLogLikelihood(const Eigen::MatrixXf& estPts, const Eigen::MatrixXf& obsPts, const Eigen::MatrixXf& pZgivenC, const Eigen::MatrixXf& stdev) {
+	int K = estPts.rows(); //nodes
+	int N = obsPts.rows(); //observations
+	int F = estPts.cols(); //features
+
+	assert(obsPts.cols() == F);
+	assert(pZgivenC.rows() == K);
+	assert(pZgivenC.cols() == N);
+	assert(stdev.rows() == K);
+	assert(stdev.cols() == F);
+
+	/*
+	MatrixXf invStdev = stdev.array().inverse();
+	MatrixXf invVariances = invStdev.array().square();
+
+	float L = 0;
+	for (int n=0; n<N; n++) {
+		for (int k=0; k<K; k++) {
+			if (pZgivenC(k,n) != 0) {
+				VectorXf diff = obsPts.row(n)-estPts.row(k);
+//				cout << diff << endl;
+//				cout << pZgivenC(k,n) << " " << log(pZgivenC(k,n)) << endl;
+				L += log(pZgivenC(k,n)) * diff.transpose() * invVariances.row(k).asDiagonal() * diff;
+			}
+		}
+	}
+
+	return L;
+	*/
+	/*
+	float squared_errors = 0;
+	for (int k=0; k<K; k++) {
+		VectorXf weightedObsPts = VectorXf::Zero(F);
+		for (int n=0; n<N; n++)
+			weightedObsPts += pZgivenC(k,n) * obsPts.row(n);
+		squared_errors += (estPts.row(k).transpose() - weightedObsPts).squaredNorm();
+	}
+	return squared_errors;
+	*/
+
+	VectorXf inliers = pZgivenC.colwise().sum();
+	VectorXf outliers = VectorXf::Ones(inliers.rows(), inliers.cols());
+	return inliers.sum()/outliers.sum();
+}
 
 #if 0
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////

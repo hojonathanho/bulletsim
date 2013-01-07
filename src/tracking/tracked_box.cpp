@@ -25,6 +25,8 @@ TrackedBox::TrackedBox(BoxObject::Ptr sim) : TrackedObject(sim, "box") {
 	for (int i=0; i < m_nNodes; i++) {
 		m_masses(i) = (1/invMass)/m_nNodes;
 	}
+
+	init();
 }
 
 std::vector<btVector3> TrackedBox::getPoints() {

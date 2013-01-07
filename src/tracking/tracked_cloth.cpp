@@ -34,6 +34,8 @@ TrackedCloth::TrackedCloth(BulletSoftObject::Ptr sim) : TrackedObject(sim, "towe
   for (int i=0; i < m_nNodes; ++i) {
     m_masses(i) = 1/verts[m_node2vert[i]].m_im;
   }
+
+  init();
 }
 
 inline cv::Point2f TrackedCloth::getTexCoord(const int& nodeIdx) {
@@ -59,8 +61,6 @@ void TrackedCloth::applyEvidence(const Eigen::MatrixXf& corr, const Eigen::Matri
     BOOST_FOREACH(int iNode, m_vert2nodes[iVert]) impulse += nodeImpulses[iNode];
     impulse/= m_vert2nodes[iVert].size();
     getSim()->softBody->addForce(impulse, iVert);
-
-    assert(isfinite(impulse.x()) && isfinite(impulse.y()) && isfinite(impulse.z()));
   }
 }
 

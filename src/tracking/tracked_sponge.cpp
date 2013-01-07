@@ -57,6 +57,8 @@ TrackedSponge::TrackedSponge(BulletSoftObject::Ptr sim) : TrackedObject(sim, "sp
   for (int i=0; i < m_nNodes; ++i) {
     m_masses(i) = 1/verts[m_node2vert[i]].m_im;
   }
+
+  init();
 }
 
 vector<btVector3> TrackedSponge::getPoints() {

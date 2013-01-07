@@ -186,7 +186,7 @@ Eigen::MatrixXf TrackedObjectFeatureExtractor::computeFeature(FeatureType fType)
 		feature = colorTransform(m_obj->getColors(), CV_BGR2Lab);
 	} else if (fType == FT_SURF) {
 		feature.resize(m_obj->m_nNodes, FT_SIZES[FT_SURF]);
-		TrackedTowel* tracked_towel = dynamic_cast<TrackedTowel*> (m_obj.get());
+		TrackedTowel::Ptr tracked_towel = boost::dynamic_pointer_cast<TrackedTowel>(m_obj);
 		cv::Mat tex_image = tracked_towel->getSim()->getTexture();
 
 		if (tex_image.empty())
@@ -223,7 +223,7 @@ Eigen::MatrixXf TrackedObjectFeatureExtractor::computeFeature(FeatureType fType)
 
 	} else if (fType == FT_GRADNORM) {
 		feature.resize(m_obj->m_nNodes, FT_SIZES[FT_GRADNORM]);
-		TrackedTowel* tracked_towel = dynamic_cast<TrackedTowel*> (m_obj.get());
+		TrackedTowel::Ptr tracked_towel = boost::dynamic_pointer_cast<TrackedTowel>(m_obj);
 		cv::Mat tex_image = tracked_towel->getSim()->getTexture().clone();
 
 		if (tex_image.empty())

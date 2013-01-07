@@ -3,6 +3,7 @@
 #include <iostream>
 #include "bullet_io.h"
 #include <boost/foreach.hpp>
+#include <boost/bind.hpp>
 #include "clouds/utils_pcl.h"
 #include "utils/conversions.h"
 #include "utils/utils_vector.h"

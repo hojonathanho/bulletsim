@@ -9,8 +9,12 @@ void toggle(bool* b){
 	*b = !(*b);
 }
 
-void add(int* n, int increment) {
-	*n += increment;
+void add(int* n, int increment, int max_n) {
+	if (max_n==0) *n += increment;
+	else {
+		if (increment < 0) increment += max_n*(1 + (int)(-increment)/max_n);
+		*n = (*n + increment)%max_n;
+	}
 }
 
 namespace util {

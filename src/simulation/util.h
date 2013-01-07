@@ -20,7 +20,7 @@ using namespace std;
 #define EXPAND(x) STRINGIFY(x)
 
 void toggle(bool* b);
-void add(int* n, int increment);
+void add(int* n, int increment, int max_n=0); // if max_n!=0, then n is wrapped around 0 and max_n
 
 struct Scene;
 

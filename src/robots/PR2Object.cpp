@@ -7,18 +7,22 @@
 
 #include "PR2Object.h"
 #include "robots/ros2rave.h"
+#include <boost/assign.hpp>
 
-PR2Object::PR2Object(RaveInstance::Ptr rave) : RaveRobotObject(rave, "robots/pr2-beta-static.zae") {
-	m_manip_ids.push_back(LEFT);
-	m_manip_ids.push_back(RIGHT);
-	assert(m_manip_ids.size() == MANIP_ID_SIZE);
-}
+const vector<PR2Object::ManipId> PR2Object::m_manip_ids = boost::assign::list_of(LEFT)(RIGHT);
+const vector<string> PR2Object::m_arm_joint_names = boost::assign::list_of("shoulder_pan_joint")("shoulder_lift_joint")("upper_arm_roll_joint")
+		("elbow_flex_joint")("forearm_roll_joint")("wrist_flex_joint")("wrist_roll_joint");
 
-PR2Object::PR2Object() {
-	m_manip_ids.push_back(LEFT);
-	m_manip_ids.push_back(RIGHT);
-	assert(m_manip_ids.size() == MANIP_ID_SIZE);
-}
+PR2Object::PR2Object(RaveInstance::Ptr rave)
+	: RaveRobotObject(rave, "robots/pr2-beta-static.zae")
+	, m_current_joint_ind(0)
+	, m_disable_set_joint_state(false)
+{}
+
+PR2Object::PR2Object()
+	: m_current_joint_ind(0)
+	, m_disable_set_joint_state(false)
+{}
 
 void PR2Object::init() {
 	//other options are not supported
@@ -45,11 +49,12 @@ void PR2Object::init() {
 		smfg->gripper->setGrabOnlyOnContact(true);
 		m_monitors[manip_id] = smfg;
 		m_detectors[manip_id].reset(new HysterisGrabDetector(0.02, 0.03,
-				boost::bind(&PR2Object::grab, shared_from_this(), manip_id),
-				boost::bind(&PR2Object::release, shared_from_this(), manip_id)));
+				boost::bind(&PR2Object::grab, shared_from_this(), manip_id, true),
+				boost::bind(&PR2Object::release, shared_from_this(), manip_id, true)));
 	}
 
 	// Environment callbacks (they get called by the Scene owning this environment (if any))
+	// Environment callbacks for moving the base
 	getEnvironment()->addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Left, boost::bind(&PR2Object::drive, this, 0,.05, 0), "(left arrow) Translate the PR2 to the left");
 	getEnvironment()->addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Right, boost::bind(&PR2Object::drive, this, 0,-.05, 0), "(right arrow) Translate the PR2 to the right");
 	getEnvironment()->addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Up, boost::bind(&PR2Object::drive, this, .05,0,  0), "(up arrow) Translate the PR2 forward");
@@ -63,11 +68,20 @@ void PR2Object::init() {
 //  getEnvironment()->addVoidKeyCallback('l',boost::bind(&PR2Object::moveByIK, this, LEFT, 0,-0.01,0), "move left gripper along finger normal axis -");
 //	getEnvironment()->addVoidKeyCallback('i',boost::bind(&PR2Object::moveByIK, this, LEFT, 0,0,0.01), "move left gripper along wrist axis +");
 //  getEnvironment()->addVoidKeyCallback('k',boost::bind(&PR2Object::moveByIK, this, LEFT, 0,0,-0.01), "move left gripper along wrist axis -");
-
-  getEnvironment()->addVoidKeyCallback('x',boost::bind(&PR2Object::changeGripperAngle, this, LEFT, 0.01), "increase the left gripper's angle");
-  getEnvironment()->addVoidKeyCallback('z',boost::bind(&PR2Object::changeGripperAngle, this, LEFT, -0.01), "decrease the left gripper's angle");
-  getEnvironment()->addVoidKeyCallback('X',boost::bind(&PR2Object::changeGripperAngle, this, RIGHT, 0.01), "increase the right gripper's angle");
-  getEnvironment()->addVoidKeyCallback('Z',boost::bind(&PR2Object::changeGripperAngle, this, RIGHT, -0.01), "decrease the right gripper's angle");
+//
+//	// Environment callbacks for changing gripper angles
+//  getEnvironment()->addVoidKeyCallback('x',boost::bind(&PR2Object::changeGripperAngle, this, LEFT, 0.01), "increase the left gripper's angle");
+//  getEnvironment()->addVoidKeyCallback('z',boost::bind(&PR2Object::changeGripperAngle, this, LEFT, -0.01), "decrease the left gripper's angle");
+//  getEnvironment()->addVoidKeyCallback('X',boost::bind(&PR2Object::changeGripperAngle, this, RIGHT, 0.01), "increase the right gripper's angle");
+//  getEnvironment()->addVoidKeyCallback('Z',boost::bind(&PR2Object::changeGripperAngle, this, RIGHT, -0.01), "decrease the right gripper's angle");
+//
+//  // Environment callbacks for changing arm DOF's
+//	getEnvironment()->addVoidKeyCallback('m',boost::bind(add, &m_current_joint_ind, 1, m_arm_joint_names.size()), "change the current DOF ind to the next one");
+//	getEnvironment()->addVoidKeyCallback('n',boost::bind(add, &m_current_joint_ind, -1, m_arm_joint_names.size()), "change the current DOF ind to the previous one");
+//	getEnvironment()->addVoidKeyCallback('b',boost::bind(&PR2Object::changeCurrentDOFValue, this, LEFT, 0.01), "change current left arm DOF value +");
+//	getEnvironment()->addVoidKeyCallback('v',boost::bind(&PR2Object::changeCurrentDOFValue, this, LEFT, -0.01), "change current left arm DOF value -");
+//	getEnvironment()->addVoidKeyCallback('B',boost::bind(&PR2Object::changeCurrentDOFValue, this, RIGHT, 0.01), "change current right arm DOF value +");
+//	getEnvironment()->addVoidKeyCallback('V',boost::bind(&PR2Object::changeCurrentDOFValue, this, RIGHT, -0.01), "change current right arm DOF value -");
 }
 
 EnvironmentObject::Ptr PR2Object::copy(Fork &f) const {
@@ -90,26 +104,34 @@ void PR2Object::postCopy(EnvironmentObject::Ptr copy, Fork &f) const {
 	}
 }
 
-void PR2Object::grab(ManipId manip_id) {
+void PR2Object::grab(ManipId manip_id, bool call_callbacks) {
 	if (manip_id == ALL) {
 		BOOST_FOREACH(ManipId manip_id, m_manip_ids) grab(manip_id);
 	} else {
-		BOOST_FOREACH(ManipCallback& preGrabCallback, preGrabCallbacks) preGrabCallback(manip_id);
+		m_disable_set_joint_state = true;
+		if (call_callbacks) BOOST_FOREACH(ManipCallbackPtr& preGrabCallback, preGrabCallbacks) (*preGrabCallback)(manip_id);
 		m_monitors[manip_id]->grab();
+		cout << "PR2Object::grab" << endl;
+		m_disable_set_joint_state = false;
 	}
 }
 
-void PR2Object::release(ManipId manip_id) {
+void PR2Object::release(ManipId manip_id, bool call_callbacks) {
 	if (manip_id == ALL) {
 		BOOST_FOREACH(ManipId manip_id, m_manip_ids) release(manip_id);
 	} else {
-		BOOST_FOREACH(ManipCallback& preReleaseCallback, preReleaseCallbacks) preReleaseCallback(manip_id);
+		m_disable_set_joint_state = true;
+		if (call_callbacks) BOOST_FOREACH(ManipCallbackPtr& preReleaseCallback, preReleaseCallbacks) (*preReleaseCallback)(manip_id);
 		m_monitors[manip_id]->release();
+		cout << "PR2Object::release" << endl;
+		m_disable_set_joint_state = false;
 	}
 }
 
 void PR2Object::setJointState(const sensor_msgs::JointState& msg) {
-  setupROSRave(robot, msg);
+  if (m_disable_set_joint_state) return;
+
+	setupROSRave(robot, msg);
   ValuesInds vi = getValuesInds(msg.position);
   setDOFValues(vi.second, vi.first);
 
@@ -129,7 +151,7 @@ void PR2Object::update() {
 	BOOST_FOREACH(ManipId manip_id, m_manip_ids) {
 		m_detectors[manip_id]->update(m_manipulators[manip_id]->getGripperAngle());
 		m_monitors[manip_id]->updateGrabPose();
-		BOOST_FOREACH(ManipCallback& postStateCallback, postStateCallbacks)
-			postStateCallback(manip_id);
+		BOOST_FOREACH(ManipCallbackPtr& postStateCallback, postStateCallbacks)
+			(*postStateCallback)(manip_id);
 	}
 }

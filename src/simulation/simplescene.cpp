@@ -70,7 +70,20 @@ void Scene::setup(bool populate) {
     drawingOn = false; // no drawing until startViewer()
 }
 
+void Scene::setEnvironment(Environment::Ptr new_env) {
+	if (env == new_env) return;
+	assert(env && new_env);
+	// remove and add again the picking_mouse_handler because it depends on the old environment's dynamic world
+	if (picking_mouse_handler) viewer.removeEventHandler(picking_mouse_handler.get());
+	osg->root->removeChild(env->osg->root.get());
+	env = new_env;
+	picking_mouse_handler = new PickingMouseHandler(*this);
+	viewer.addEventHandler(picking_mouse_handler.get());
+	osg->root->addChild(env->osg->root.get());
+}
+
 void Scene::swapEnvironment(Environment::Ptr& new_env) {
+	if (env == new_env) return;
 	assert(env && new_env);
 	// remove and add again the picking_mouse_handler because it depends on the old environment's dynamic world
 	if (picking_mouse_handler) viewer.removeEventHandler(picking_mouse_handler.get());

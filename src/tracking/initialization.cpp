@@ -14,12 +14,15 @@
 #include <pcl/common/transforms.h>
 #include <pcl/point_cloud.h>
 #include "tracked_object.h"
+#include "tracked_compound.h"
 #include <tf/tf.h>
 #include "simulation/bullet_io.h"
 #include "simulation/softbodies.h"
+#include "simulation/hand.h"
 #include "utils/logging.h"
 #include "clouds/geom.h"
 #include "clouds/cloud_ops.h"
+
 
 //DEBUG
 #include "physics_tracker.h"
@@ -30,18 +33,17 @@ using namespace Eigen;
 
 using namespace std;
 
-TrackedObject::Ptr toTrackedObject(const bulletsim_msgs::ObjectInit& initMsg, ColorCloudPtr cloud, cv::Mat image, cv::Mat mask, CoordinateTransformer* transformer) {
+EnvironmentObject::Ptr toInitializedObject(const bulletsim_msgs::ObjectInit& initMsg, ColorCloudPtr cloud, cv::Mat image, cv::Mat mask, CoordinateTransformer* transformer) {
   if (initMsg.type == "rope") {
 	  vector<btVector3> nodes = toBulletVectors(initMsg.rope.nodes);
 	  BOOST_FOREACH(btVector3& node, nodes) node += btVector3(0,0,.01);
 
 	  CapsuleRope::Ptr sim(new CapsuleRope(scaleVecs(nodes,METERS), initMsg.rope.radius*METERS));
-	  TrackedRope::Ptr tracked_rope(new TrackedRope(sim));
-
   	if (!image.empty())
   	  sim->setTexture(image, mask, toBulletTransform(transformer->camFromWorldEigen));
-
-	  return tracked_rope;
+  	else
+  		sim->setColor(1,1,1,0.5);
+  	return sim;
   }
   else if (initMsg.type == "towel_corners") {
 //	  const vector<geometry_msgs::Point32>& points = initMsg.towel_corners.polygon.points;
@@ -52,12 +54,13 @@ TrackedObject::Ptr toTrackedObject(const bulletsim_msgs::ObjectInit& initMsg, Co
   	BulletSoftObject::Ptr sim = makeCloth(poly_corners, TrackingConfig::node_density/METERS, TrackingConfig::surface_density/(METERS*METERS));
   	if (!image.empty())
   	  sim->setTexture(image, toBulletTransform(transformer->camFromWorldEigen));
+  	else
+  		sim->setColor(1,1,1,0.5);
 
 	  //Shift the whole cloth upwards in case some of it starts below the table surface
 	  sim->softBody->translate(btVector3(0,0,0.01*METERS));
 
-	  TrackedCloth::Ptr tracked_towel(new TrackedCloth(sim));
-	  return tracked_towel;
+  	return sim;
   }
   else if (initMsg.type == "box") {
   	ColorCloudPtr plane_cloud = filterPlane(cloud, 0.02*METERS);
@@ -67,13 +70,25 @@ TrackedObject::Ptr toTrackedObject(const bulletsim_msgs::ObjectInit& initMsg, Co
 		BulletSoftObject::Ptr sim = makeSponge(top_corners, thickness, 100, pow(TrackingConfig::sponge_res*METERS,3));
   	if (!image.empty())
   	  sim->setTexture(image, toBulletTransform(transformer->camFromWorldEigen));
-//		sim->setColor(1,1,1,1);
+  	else
+  		sim->setColor(1,1,1,0.5);
 
 	  //Shift the whole sponge upwards in case some of it starts below the table surface
 	  sim->softBody->translate(btVector3(0,0,.01*METERS));
 
-		TrackedSponge::Ptr tracked_sponge(new TrackedSponge(sim));
-		return tracked_sponge;
+	  return sim;
+  }
+  else if (initMsg.type == "hand") {
+  	btVector3 center(0,0,0);
+		for (int i=0; i<cloud->size(); i++) {
+			center += toBulletVector(cloud->at(i));
+		}
+		center /= (float)cloud->size();
+		btTransform initHandTrans = btTransform(btQuaternion(btVector3(1,0,0), -M_PI/2.0), center);
+		HumanHandObject::Ptr hand(new HumanHandObject(RaveInstance::Ptr(new RaveInstance()), initHandTrans));
+		CompoundObject<BulletObject>::Ptr sim = hand;
+
+		return sim;
   }
   else
 	  throw runtime_error("unrecognized initialization type" + initMsg.type);
@@ -130,17 +145,17 @@ bulletsim_msgs::TrackedObject toTrackedObjectMessage(TrackedObject::Ptr obj) {
   return msg;
 }
 
-TrackedObject::Ptr callInitServiceAndCreateObject(ColorCloudPtr cloud, cv::Mat image, cv::Mat mask, CoordinateTransformer* transformer) {
+EnvironmentObject::Ptr callInitServiceAndCreateObject(ColorCloudPtr cloud, cv::Mat image, cv::Mat mask, CoordinateTransformer* transformer) {
   bulletsim_msgs::Initialization init;
   pcl::toROSMsg(*scaleCloud(cloud, 1/METERS), init.request.cloud);
   init.request.cloud.header.frame_id = "/ground";
 	
   bool success = ros::service::call(initializationService, init);
   if (success)
-  	return toTrackedObject(init.response.objectInit, cloud, image, mask, transformer);
+  	return toInitializedObject(init.response.objectInit, cloud, image, mask, transformer);
   else {
 		ROS_ERROR("initialization failed");
-		return TrackedObject::Ptr();
+		return EnvironmentObject::Ptr();
   }
 }
 

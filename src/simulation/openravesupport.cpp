@@ -113,13 +113,13 @@ RaveRobotObject::Ptr getRobotByName(Environment::Ptr env, RaveInstance::Ptr rave
   return boost::dynamic_pointer_cast<RaveRobotObject>(getObjectByName(env, rave, name));
 }
 
-RaveObject::RaveObject(RaveInstance::Ptr rave_, KinBodyPtr body_, TrimeshMode trimeshMode, bool isKinematic_, bool offset_com) {
-	initRaveObject(rave_, body_, trimeshMode, isKinematic_, offset_com);
+RaveObject::RaveObject(RaveInstance::Ptr rave_, KinBodyPtr body_, TrimeshMode trimeshMode, bool isKinematic_, bool offset_com, float scale) {
+	initRaveObject(rave_, body_, trimeshMode, isKinematic_, offset_com, scale);
 }
 
-RaveObject::RaveObject(RaveInstance::Ptr rave_, const std::string &uri, TrimeshMode trimeshMode, bool isKinematic_, bool offset_com) {
+RaveObject::RaveObject(RaveInstance::Ptr rave_, const std::string &uri, TrimeshMode trimeshMode, bool isKinematic_, bool offset_com, float scale) {
 	KinBodyPtr robot = rave_->env->ReadRobotURI(uri);
-	initRaveObject(rave_, robot, trimeshMode, isKinematic_, offset_com);
+	initRaveObject(rave_, robot, trimeshMode, isKinematic_, offset_com, scale);
 }
 
 void RaveObject::init() {
@@ -146,7 +146,7 @@ static BulletObject::Ptr createFromLink(KinBody::LinkPtr link,
         std::vector<boost::shared_ptr<btCollisionShape> >& subshapes,
         std::vector<boost::shared_ptr<btCollisionShape> >& graphics_subshapes,
         std::vector<boost::shared_ptr<btStridingMeshInterface> >& meshes,
-         TrimeshMode trimeshMode, bool isKinematic, bool offset_com) {
+         TrimeshMode trimeshMode, bool isKinematic, bool offset_com, float scale) {
 
   LOG_DEBUG("creating link from " << link->GetName());
 
@@ -184,8 +184,7 @@ static BulletObject::Ptr createFromLink(KinBody::LinkPtr link,
 
 		switch (geom->GetType()) {
 		case KinBody::Link::GEOMPROPERTIES::GeomBox: {
-			btVector3 half_extents = util::toBtVector(GeneralConfig::scale
-					* geom->GetBoxExtents()) + btVector3(1,1,1)*BulletConfig::linkPadding*METERS;
+			btVector3 half_extents = util::toBtVector(geom->GetBoxExtents()*METERS*scale) + btVector3(1,1,1)*BulletConfig::linkPadding*METERS*scale;
 			subshape.reset(new btBoxShape(half_extents));
 			local_center_of_mass = btVector3(0,0,0);
 			volume = half_extents.x()*half_extents.y()*half_extents.z()*8;
@@ -193,8 +192,7 @@ static BulletObject::Ptr createFromLink(KinBody::LinkPtr link,
 		}
 
 		case KinBody::Link::GEOMPROPERTIES::GeomSphere: {
-			btScalar radius = GeneralConfig::scale
-				* geom->GetSphereRadius() + BulletConfig::linkPadding*METERS;
+			btScalar radius = geom->GetSphereRadius()*METERS*scale + BulletConfig::linkPadding*METERS;
 			subshape.reset(new btSphereShape(radius));
 			local_center_of_mass = btVector3(0,0,0);
 			volume = (4.0/3.0)*M_PI*pow(radius,3);
@@ -203,8 +201,8 @@ static BulletObject::Ptr createFromLink(KinBody::LinkPtr link,
 
 		case KinBody::Link::GEOMPROPERTIES::GeomCylinder: {
 			// cylinder axis aligned to Y
-			btScalar radius = GeneralConfig::scale * geom->GetCylinderRadius();
-			btScalar height = GeneralConfig::scale * geom->GetCylinderHeight();
+			btScalar radius = geom->GetCylinderRadius()*METERS*scale;
+			btScalar height = geom->GetCylinderHeight()*METERS*scale;
 			subshape.reset(new btCylinderShapeZ(btVector3(radius, radius, height/2.0)));
 			local_center_of_mass = btVector3(0,0,0);
 			volume = M_PI*pow(radius,2)*height;
@@ -224,9 +222,9 @@ static BulletObject::Ptr createFromLink(KinBody::LinkPtr link,
 			 printf("-----------\n");*/
 
 			for (size_t i = 0; i < mesh.indices.size(); i += 3)
-				ptrimesh->addTriangle(util::toBtVector(mesh.vertices[i])*METERS,
-					util::toBtVector(mesh.vertices[i+1])*METERS,
-					util::toBtVector(mesh.vertices[i+2])*METERS);
+				ptrimesh->addTriangle(util::toBtVector(mesh.vertices[i])*METERS*scale,
+					util::toBtVector(mesh.vertices[i+1])*METERS*scale,
+					util::toBtVector(mesh.vertices[i+2])*METERS*scale);
 			// store the trimesh somewhere so it doesn't get deallocated by the smart pointer
 			meshes.push_back(boost::shared_ptr<btStridingMeshInterface>(ptrimesh));
 
@@ -277,7 +275,7 @@ static BulletObject::Ptr createFromLink(KinBody::LinkPtr link,
 		subshapes.push_back(subshape);
 		if (graphics_subshape) graphics_subshapes.push_back(graphics_subshape);
 		subshape->setMargin(BulletConfig::margin*METERS);  //margin: subshape. seems to result in padding convex shape AND increases collision dist on top of that
-		btTransform geomTrans = util::toBtTransform(geom->GetTransform(),GeneralConfig::scale);
+		btTransform geomTrans = util::toBtTransform(geom->GetTransform(),METERS*scale);
 
 		compound->addChildShape(geomTrans, subshape.get());
 		if (BulletConfig::graphicsMesh) {
@@ -294,11 +292,11 @@ static BulletObject::Ptr createFromLink(KinBody::LinkPtr link,
 		float density = -mass; // in kg/m^3
 		btScalar compound_volume = 0;
 		BOOST_FOREACH(btScalar vol, volumes) compound_volume += vol;
-		mass = (density/pow(METERS,3))*compound_volume;
+		mass = (density/pow(METERS*scale,3))*compound_volume;
 	}
 
 	if (mass==0 && !isKinematic) LOG_WARN_FMT("warning: link %s is non-kinematic but mass is zero", link->GetName().c_str());
-	btTransform bodyTrans = util::toBtTransform(link->GetTransform(),GeneralConfig::scale);
+	btTransform bodyTrans = util::toBtTransform(link->GetTransform(),METERS*scale);
 	BulletObject::Ptr child;
 	if (offset_com) { // offset the compound shape so that the center of mass lies at the origin
 		btVector3 compound_com(0,0,0);
@@ -338,7 +336,7 @@ static BulletObject::Ptr createFromLink(KinBody::LinkPtr link,
 
 }
 
-BulletConstraint::Ptr createFromJoint(KinBody::JointPtr joint, std::map<KinBody::LinkPtr, BulletObject::Ptr> linkMap) {
+BulletConstraint::Ptr createFromJoint(KinBody::JointPtr joint, std::map<KinBody::LinkPtr, BulletObject::Ptr> linkMap, float scale) {
 
 	KinBody::LinkPtr joint1 = joint->GetFirstAttached();
 	KinBody::LinkPtr joint2 = joint->GetSecondAttached();
@@ -359,8 +357,8 @@ BulletConstraint::Ptr createFromJoint(KinBody::JointPtr joint, std::map<KinBody:
 
 	switch ((joint)->GetType()) {
 	case KinBody::Joint::JointHinge: {
-		btVector3 pivotInA = util::toBtVector(t0inv * (joint)->GetAnchor())*METERS;
-		btVector3 pivotInB = util::toBtVector(t1inv * (joint)->GetAnchor())*METERS;
+		btVector3 pivotInA = util::toBtVector(t0inv * (joint)->GetAnchor())*METERS*scale;
+		btVector3 pivotInB = util::toBtVector(t1inv * (joint)->GetAnchor())*METERS*scale;
 		btVector3 axisInA = util::toBtVector(t0inv.rotate((joint)->GetAxis(0)));
 		btVector3 axisInB = util::toBtVector(t1inv.rotate((joint)->GetAxis(0)));
 
@@ -391,8 +389,8 @@ BulletConstraint::Ptr createFromJoint(KinBody::JointPtr joint, std::map<KinBody:
 	case KinBody::Joint::JointSlider: {
 		Transform tslider;
 		tslider.rot = quatRotateDirection(Vector(1, 0, 0), (joint)->GetAxis(0));
-		btTransform frameInA = util::toBtTransform(t0inv * tslider, METERS);
-		btTransform frameInB = util::toBtTransform(t1inv * tslider, METERS);
+		btTransform frameInA = util::toBtTransform(t0inv * tslider, METERS*scale);
+		btTransform frameInB = util::toBtTransform(t1inv * tslider, METERS*scale);
 		cnt = new btSliderConstraint(*body0, *body1, frameInA, frameInB, true);
     LOG_INFO("slider joint");
 		break;
@@ -411,7 +409,7 @@ BulletConstraint::Ptr createFromJoint(KinBody::JointPtr joint, std::map<KinBody:
 }
 
 void RaveObject::initRaveObject(RaveInstance::Ptr rave_, KinBodyPtr body_,
-		TrimeshMode trimeshMode, bool isKinematic_, bool offset_com) {
+		TrimeshMode trimeshMode, bool isKinematic_, bool offset_com, float scale) {
 	rave = rave_;
 	body = body_;
 	rave->rave2bulletsim[body] = this;
@@ -425,7 +423,7 @@ void RaveObject::initRaveObject(RaveInstance::Ptr rave_, KinBodyPtr body_,
 	// iterate through each link in the robot (to be stored in the children vector)
 	bool first = true;
 	BOOST_FOREACH(KinBody::LinkPtr link, links) {
-		BulletObject::Ptr child = createFromLink(link, subshapes, graphics_subshapes, meshes, trimeshMode, isKinematic, offset_com);
+		BulletObject::Ptr child = createFromLink(link, subshapes, graphics_subshapes, meshes, trimeshMode, isKinematic, offset_com, scale);
 		first = false;
 		linkMap[link] = child;
 		if (child) {
@@ -444,7 +442,7 @@ void RaveObject::initRaveObject(RaveInstance::Ptr rave_, KinBodyPtr body_,
 		vbodyjoints.insert(vbodyjoints.end(),body->GetJoints().begin(),body->GetJoints().end());
 		vbodyjoints.insert(vbodyjoints.end(),body->GetPassiveJoints().begin(),body->GetPassiveJoints().end());
 		BOOST_FOREACH(KinBody::JointPtr joint, vbodyjoints) {
-			BulletConstraint::Ptr constraint = createFromJoint(joint, linkMap);
+			BulletConstraint::Ptr constraint = createFromJoint(joint, linkMap, scale);
 			if (constraint) {
 				// todo: put this in init:
 				// getEnvironment()->bullet->dynamicsWorld->addConstraint(constraint->cnt, bIgnoreCollision);
@@ -551,7 +549,6 @@ void RaveObject::internalCopy(RaveObject::Ptr o, Fork &f) const {
 	}
 
 	o->body = o->rave->env->GetKinBody(body->GetName());
-	o->setColor(1,0,1,.4);
 }
 
 EnvironmentObject::Ptr RaveObject::copy(Fork &f) const {
@@ -585,14 +582,14 @@ void RaveObject::postCopy(EnvironmentObject::Ptr copy, Fork &f) const {
 		o->ignoreCollisionObjs.insert((btCollisionObject *) f.copyOf(*i));
 }
 
-RaveRobotObject::RaveRobotObject(RaveInstance::Ptr rave_, RobotBasePtr robot_, TrimeshMode trimeshMode, bool isKinematic_, bool offset_com) {
+RaveRobotObject::RaveRobotObject(RaveInstance::Ptr rave_, RobotBasePtr robot_, TrimeshMode trimeshMode, bool isKinematic_, bool offset_com, float scale) {
 	robot = robot_;
-	initRaveObject(rave_, robot_, trimeshMode, isKinematic_, offset_com);
+	initRaveObject(rave_, robot_, trimeshMode, isKinematic_, offset_com, scale);
 }
 
-RaveRobotObject::RaveRobotObject(RaveInstance::Ptr rave_, const std::string &uri, TrimeshMode trimeshMode, bool isKinematic_, bool offset_com) {
+RaveRobotObject::RaveRobotObject(RaveInstance::Ptr rave_, const std::string &uri, TrimeshMode trimeshMode, bool isKinematic_, bool offset_com, float scale) {
 	robot = rave_->env->ReadRobotURI(uri);
-	initRaveObject(rave_, robot, trimeshMode, isKinematic_, offset_com);
+	initRaveObject(rave_, robot, trimeshMode, isKinematic_, offset_com, scale);
 	rave->env->AddRobot(robot);
 }
 

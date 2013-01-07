@@ -27,15 +27,15 @@
 
 struct LocalConfig: Config {
   static std::string cameraFrame;
-
+  static bool multiHyp;
   LocalConfig() :
     Config() {
     params.push_back(new Parameter<string> ("cameraFrame", &cameraFrame, "camera frame"));
+    params.push_back(new Parameter<bool> ("multiHyp", &multiHyp, "0: PhysicsTracker. 1: MultiHypTracker."));
   }
 };
-
 string LocalConfig::cameraFrame = "/openni_rgb_optical_frame";
-
+bool LocalConfig::multiHyp = true;
 
 boost::shared_ptr<CoordinateTransformer> transformer;
 boost::shared_ptr<tf::TransformListener> listener;
@@ -44,6 +44,7 @@ TrackedObject::Ptr trackedObj;
 TrackedObjectFeatureExtractor::Ptr objectFeatures;
 PR2Object::Ptr pr2;
 Environment::Ptr env;
+PhysicsTracker::Ptr alg;
 
 bool pending = false;
 ColorCloudPtr filteredCloud;
@@ -57,7 +58,16 @@ void callback (const sensor_msgs::PointCloud2ConstPtr& cloudMsg, const sensor_ms
   filteredCloud.reset(new ColorCloud());
   pcl::fromROSMsg(*cloudMsg, *filteredCloud);
   pcl::transformPointCloud(*filteredCloud, *filteredCloud, transformer->worldFromCamEigen);
-  pr2->setJointState(*jointMsg);
+  MultiHypTracker::Ptr maybe_multiHypTracker = boost::dynamic_pointer_cast<MultiHypTracker>(alg);
+  if (maybe_multiHypTracker) {
+  	// copy the trackers since maybe_multiHypTracker->m_trackers may have addional elements when setJointState is called
+  	vector<StochasticPhysicsTracker::Ptr> trackers = maybe_multiHypTracker->m_trackers;
+  	BOOST_FOREACH(StochasticPhysicsTracker::Ptr tracker, trackers) {
+  		tracker->m_pr2->setJointState(*jointMsg);
+  	}
+  } else {
+  	pr2->setJointState(*jointMsg);
+  }
   pending = true;
 }
 
@@ -71,14 +81,14 @@ void initializeTrackedObject() {
   	cv::Mat image_and_mask = cv_bridge::toCvCopy(msg)->image;
 		extractImageAndMask(image_and_mask, image, mask);
   }
-  trackedObj = callInitServiceAndCreateObject(filteredCloud, image, mask, transformer.get());
-  if (!trackedObj) throw runtime_error("initialization of object failed.");
+
+  EnvironmentObject::Ptr initializedSim = callInitServiceAndCreateObject(filteredCloud, image, mask, transformer.get());
+  if (!initializedSim) throw runtime_error("initialization of object failed.");
+  env->add(initializedSim);
+  initializedSim->setColor(0,.5,.5,.4);
+  trackedObj = createTrackedObject(initializedSim);
   LOG_INFO("created an object of type " << trackedObj->m_type);
-  trackedObj->init();
-  env->add(trackedObj->m_sim);
 }
-
-
 
 bool reinitialize(std_srvs::EmptyRequest& req, std_srvs::EmptyResponse& resp) {
   if (trackedObj) {
@@ -91,6 +101,7 @@ bool reinitialize(std_srvs::EmptyRequest& req, std_srvs::EmptyResponse& resp) {
 
 int main(int argc, char* argv[]) {
   GeneralConfig::scale = 100;
+  TrackingConfig::featureTypes = vector<int>(1,0); // xyz tracking only, no color tracking
 
   Eigen::internal::setNbThreads(2);
   Parser parser;
@@ -100,8 +111,9 @@ int main(int argc, char* argv[]) {
   parser.addGroup(RecordingConfig());
   parser.addGroup(ViewerConfig());
   parser.addGroup(LocalConfig());
-  GeneralConfig::scale = 10;
   parser.read(argc, argv);
+
+	srand ( time(NULL) );
 
   ros::init(argc, argv,"tracker_node");
   ros::NodeHandle nh;
@@ -115,7 +127,7 @@ int main(int argc, char* argv[]) {
 
   pr2 = PR2Object::Ptr(new PR2Object(scene.rave)); // it seems to also be ok to pass in empty RaveInstance::Ptr()
 	scene.env->add(pr2);
-  pr2->setColor(1,1,1,.5);
+  pr2->setColor(0,.5,.5,.4);
 
 //  Load(scene.env, scene.rave, EXPAND(BULLETSIM_DATA_DIR)"/xml/table.xml");
 //  RaveObject::Ptr table = getObjectByName(scene.env, scene.rave, "table");
@@ -128,7 +140,7 @@ int main(int argc, char* argv[]) {
 //	}
 //  /////
 	BoxObject::Ptr table(new BoxObject(0, btVector3(1.3,1.1,0.07)*METERS, btTransform(btQuaternion(0, 0, 0, 1), btVector3(1.4, 0, 0.7)*METERS)));
-	table->setColor(0,.8,0,.5);
+	table->setColor(1,1,1,1);
 	scene.env->add(table);
 
   scene.startViewer();
@@ -141,10 +153,10 @@ int main(int argc, char* argv[]) {
   boost::shared_ptr<ScreenThreadRecorder> screen_recorder;
   boost::shared_ptr<ImageTopicRecorder> image_topic_recorder;
   if (RecordingConfig::record == RECORD_RENDER_ONLY) {
-        screen_recorder.reset(new ScreenThreadRecorder(scene.viewer, RecordingConfig::dir + "/" +  RecordingConfig::video_file + "_tracked.avi"));
+		screen_recorder.reset(new ScreenThreadRecorder(scene.viewer, RecordingConfig::dir + "/" +  RecordingConfig::video_file + "_tracked.avi"));
   } else if (RecordingConfig::record == RECORD_RENDER_AND_TOPIC) {
-        screen_recorder.reset(new ScreenThreadRecorder(scene.viewer, RecordingConfig::dir + "/" +  RecordingConfig::video_file + "_tracked.avi"));
-        image_topic_recorder.reset(new ImageTopicRecorder(nh, "/preprocessor" + TrackingConfig::cameraTopics[0] + "/image", RecordingConfig::dir + "/" +  RecordingConfig::video_file + "_topic.avi"));
+		screen_recorder.reset(new ScreenThreadRecorder(scene.viewer, RecordingConfig::dir + "/" +  RecordingConfig::video_file + "_tracked.avi"));
+		image_topic_recorder.reset(new ImageTopicRecorder(nh, "/preprocessor" + TrackingConfig::cameraTopics[0] + "/image", RecordingConfig::dir + "/" +  RecordingConfig::video_file + "_topic.avi"));
   }
 
   CoordinateTransformer cam_transformer;
@@ -174,33 +186,38 @@ int main(int argc, char* argv[]) {
   initializeTrackedObject();
 
   VisibilityInterface::Ptr visInterface(new BulletRaycastVisibility(scene.env->bullet->dynamicsWorld, &cam_transformer));
+	ObservationVisibility::Ptr obsVisibility;
+	if (TrackingConfig::freeSpaceModel)
+		obsVisibility.reset(new ObservationVisibility(&cam_transformer));
 
   objectFeatures.reset(new TrackedObjectFeatureExtractor(trackedObj));
   CloudFeatureExtractor::Ptr cloudFeatures(new CloudFeatureExtractor());
-  //PhysicsTracker::Ptr alg(new PhysicsTracker(objectFeatures, cloudFeatures, visInterface));
-  //PhysicsTracker::Ptr alg(new MultiHypTracker(objectFeatures, cloudFeatures, visInterface, grabManagers));
-  //MultiHypTracker::Ptr alg_hyp(new MultiHypTracker(objectFeatures, cloudFeatures, visInterface, grabManagers));
-  PhysicsTracker::Ptr alg(new StochasticPhysicsTracker(objectFeatures, cloudFeatures, visInterface, StochasticPhysicsTracker::UNIFORM, 0.0));
-  PhysicsTrackerVisualizer::Ptr trackingVisualizer(new PhysicsTrackerVisualizer(&scene, alg));
+  PhysicsTrackerVisualizer::Ptr trackingVisualizer;
+  if (!LocalConfig::multiHyp) {
+		alg.reset(new PhysicsTracker(objectFeatures, cloudFeatures, visInterface, obsVisibility));
+		trackingVisualizer.reset(new PhysicsTrackerVisualizer(&scene, alg));
+  } else {
+		alg.reset(new MultiHypTracker(objectFeatures, cloudFeatures, visInterface, obsVisibility, TrackingConfig::dist, TrackingConfig::distParam));
+		trackingVisualizer.reset(new MultiHypTrackerVisualizer(&scene, alg));
+  }
 
-  bool applyEvidence = false;
+  bool applyEvidence = TrackingConfig::applyEvidenceInit;;
   scene.addVoidKeyCallback('a',boost::bind(toggle, &applyEvidence), "toggle apply evidence");
-  scene.addVoidKeyCallback('=',boost::bind(&EnvironmentObject::adjustTransparency, trackedObj->getSim(), 0.1f), "increase opacity");
-  scene.addVoidKeyCallback('-',boost::bind(&EnvironmentObject::adjustTransparency, trackedObj->getSim(), -0.1f), "decrease opacity");
-  scene.addVoidKeyCallback('q',boost::bind(exit, 0), "exit");
+  bool exit_loop = false;
+	scene.addVoidKeyCallback('q',boost::bind(toggle, &exit_loop), "exit");
 
-  while (ros::ok()) {
+  while (!exit_loop && ros::ok()) {
     //Update the inputs of the featureExtractors and visibilities (if they have any inputs)
     cloudFeatures->updateInputs(filteredCloud);
     //TODO update arbitrary number of depth images)
     pending = false;
+
     while (ros::ok() && !pending) {
       alg->updateFeatures();
       alg->expectationStep();
-      alg->maximizationStep(applyEvidence);
+      alg->maximizationStep(applyEvidence); // this also steps the simulation!
 
       trackingVisualizer->update();
-      scene.env->step(.03,2,.015);
       scene.draw();
       ros::spinOnce();
     }

@@ -65,6 +65,7 @@ public:
   Scene(OpenRAVE::EnvironmentBasePtr);
   Scene(Environment::Ptr);
   Scene(Environment::Ptr, RaveInstance::Ptr);
+  void setEnvironment(Environment::Ptr new_env);
   void swapEnvironment(Environment::Ptr&);
 
   void showWindow(bool showWindow, bool realtime);
@@ -112,8 +113,8 @@ public:
   void runAction(ObjectAction &a, float dt);
   void runAction(ObjectAction::Ptr a, float dt) { runAction(*a.get(), dt); }
 
-  vector<PlotObject::Ptr> draw_once_objects;
-  void addDrawOnce(PlotObject::Ptr obj) { draw_once_objects.push_back(obj); }
+  vector<EnvironmentObject::Ptr> draw_once_objects; // mostly PlotObject::Ptr
+  void addDrawOnce(EnvironmentObject::Ptr obj) { draw_once_objects.push_back(obj); }
 
   virtual void draw();
 

@@ -26,17 +26,18 @@ public:
 
   TrackedObject(EnvironmentObject::Ptr sim, string type);
   virtual ~TrackedObject() {};
-  void init();
 
   virtual std::vector<btVector3> getPoints() = 0;
   Eigen::MatrixXf& getColors();
-  virtual void initColors() { m_colors = Eigen::MatrixXf::Constant(m_nNodes, 3, 1.0); }
+  virtual void initColors() { m_colors = Eigen::MatrixXf::Constant(m_nNodes, 3, 1.0); } // every derived class should call this after initializing m_nNodes
+	void init() { initColors(); }
 
   virtual const Eigen::VectorXf getPriorDist();
 
   virtual const Eigen::VectorXf getOutlierDist() { return Eigen::VectorXf::Constant(3, TrackingConfig::pointOutlierDist*METERS); }
   virtual const Eigen::VectorXf getOutlierStdev() { return Eigen::VectorXf::Constant(3, TrackingConfig::pointPriorDist*METERS); }
   virtual void applyEvidence(const Eigen::MatrixXf& corr, const Eigen::MatrixXf& obsPts) = 0;
+  bool isConsistent(); // checks if the estimated points are feasible (currently, it checks that they are all finite)
   virtual EnvironmentObject* getSim()=0;
 };
 
@@ -131,6 +132,8 @@ protected:
   int m_nEdgeNodesZ;
   Eigen::VectorXf m_masses;
 };
+
+TrackedObject::Ptr createTrackedObject(EnvironmentObject::Ptr sim);
 
 std::vector<btVector3> calcImpulsesDamped(const std::vector<btVector3>& estPos, const std::vector<btVector3>& estVel,
   const std::vector<btVector3>& obsPts, const Eigen::MatrixXf& corr, const vector<float>& masses, float kp, float kd) ;

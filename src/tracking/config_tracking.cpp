@@ -1,5 +1,6 @@
 #include "config_tracking.h"
 #include "feature_extractor.h"
+#include "stochastic_tracker.h"
 #include <boost/assign.hpp>
 
 std::string TrackingConfig::filteredCloudTopic = "/preprocessor/points";
@@ -11,10 +12,13 @@ std::vector<std::string> TrackingConfig::cameraTopics = boost::assign::list_of("
 std::vector<int> TrackingConfig::featureTypes = boost::assign::list_of(FeatureExtractor::FT_XYZ)(FeatureExtractor::FT_LAB);
 
 float TrackingConfig::downsample = 0.02;
+bool TrackingConfig::applyEvidenceInit = true;
 
+bool TrackingConfig::freeSpaceModel = false;
 float TrackingConfig::pointOutlierDist = 0.02;
 float TrackingConfig::pointPriorCount = 10;
 float TrackingConfig::pointPriorDist = 0.02;
+float TrackingConfig::pointPriorDistNoObs = 0.02;
 float TrackingConfig::colorLPriorDist = 0.4;
 float TrackingConfig::colorABPriorDist = 0.08;
 float TrackingConfig::epsilon = 0.001;
@@ -34,3 +38,6 @@ float TrackingConfig::sponge_res = 0.03;
 
 std::string TrackingConfig::record_camera_pos_file = "";
 std::string TrackingConfig::playback_camera_pos_file = "";
+
+int TrackingConfig::dist = StochasticPhysicsTracker::NORMAL;
+float TrackingConfig::distParam = 0.02;

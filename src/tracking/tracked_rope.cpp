@@ -15,6 +15,8 @@ TrackedRope::TrackedRope(CapsuleRope::Ptr sim) : TrackedObject(sim, "rope") {
   for (int i=0; i < m_nNodes; i++) {
     m_masses(i) = 1/getSim()->children[i]->rigidBody->getInvMass();
   }
+
+  init();
 }
 
 std::vector<btVector3> TrackedRope::getPoints() {

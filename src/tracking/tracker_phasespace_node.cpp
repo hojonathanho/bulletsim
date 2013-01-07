@@ -121,7 +121,6 @@ int main(int argc, char* argv[]) {
 
   TrackedObject::Ptr trackedObj = callInitServiceAndCreateObject(filteredCloud, first_organized_filtered_cloud, rgb_images[0], transformer_images[0]);
   if (!trackedObj) throw runtime_error("initialization of object failed.");
-  trackedObj->init();
   scene.env->add(trackedObj->m_sim);
 
  	////////////////////////////////////////////////
@@ -172,8 +171,6 @@ int main(int argc, char* argv[]) {
 
 	bool applyEvidence = true;
   scene.addVoidKeyCallback('a',boost::bind(toggle, &applyEvidence));
-  scene.addVoidKeyCallback('=',boost::bind(&EnvironmentObject::adjustTransparency, trackedObj->getSim(), 0.1f));
-  scene.addVoidKeyCallback('-',boost::bind(&EnvironmentObject::adjustTransparency, trackedObj->getSim(), -0.1f));
   bool exit_loop = false;
   scene.addVoidKeyCallback('q',boost::bind(toggle, &exit_loop));
 

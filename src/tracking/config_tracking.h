@@ -15,10 +15,13 @@ struct TrackingConfig : Config {
   static std::vector<int> featureTypes;
 
   static float downsample;
+  static bool applyEvidenceInit;
 
+  static bool freeSpaceModel;
   static float pointOutlierDist;
   static float pointPriorCount;
   static float pointPriorDist;
+  static float pointPriorDistNoObs;
   static float colorLPriorDist;
   static float colorABPriorDist;
   static float epsilon;
@@ -40,6 +43,9 @@ struct TrackingConfig : Config {
   static std::string record_camera_pos_file;
   static std::string playback_camera_pos_file;
 
+  static int dist;
+  static float distParam;
+
     TrackingConfig() : Config() {
         params.push_back(new Parameter<std::string>("filteredCloudTopic", &filteredCloudTopic, "filtered cloud topic"));
         params.push_back(new Parameter<std::string>("depthTopic", &depthTopic, "depth image topic"));
@@ -48,7 +54,10 @@ struct TrackingConfig : Config {
 
         params.push_back(new ParameterVec<std::string>("cameraTopics", &cameraTopics, "camera base topics"));
         params.push_back(new Parameter<float>("downsample", &downsample, "downsample after merging clouds"));
+        params.push_back(new Parameter<bool>("applyEvidenceInit", &applyEvidenceInit, "If evidence should be applied upon start up"));
+        params.push_back(new Parameter<bool>("freeSpaceModel", &freeSpaceModel, "Runs the new model in which nodes are also assigned to free space"));
         params.push_back(new Parameter<float>("pointPriorDist", &pointPriorDist, "Prior distribution for xyz. This is also the initial values for sigmas xyz. For cloth pick 0.08; for rope pick 0.02."));
+        params.push_back(new Parameter<float>("pointPriorDistNoObs", &pointPriorDistNoObs, "No observation prior distribution for xyz. This is also the initial values for sigmas xyz."));
         params.push_back(new Parameter<float>("pointPriorCount", &pointPriorCount, "Number of pseudo observations"));
         params.push_back(new ParameterVec<int>("featureTypes", &featureTypes, "feature types. see feature_extractor.h"));
         params.push_back(new Parameter<float>("pointOutlierDist", &pointOutlierDist, "Intuitively, observed points farther than distance=sqrt(3)*pointOutlierDist (special case) from a node are considered outliers. Pick distance/sqrt(3) ~= distance*0.5 ."));
@@ -71,5 +80,8 @@ struct TrackingConfig : Config {
 
         params.push_back(new Parameter<std::string>("record_camera_pos_file", &record_camera_pos_file, "file to save the camera positions to"));
         params.push_back(new Parameter<std::string>("playback_camera_pos_file", &playback_camera_pos_file, "file to read and playback camera positions from"));
+
+        params.push_back(new Parameter<int>("dist", &dist, "Distribution type for stochastic tracker. 0:UNIFORM 1:NORMAL 2:NONE"));
+        params.push_back(new Parameter<float>("distParam", &distParam, "Distribuition parameter for stochastic tracker. [-param,param] range for Uniform. variance = param for Normal."));
     }
 };

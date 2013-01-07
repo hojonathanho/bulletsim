@@ -100,6 +100,8 @@ void BulletSoftObject::init() {
     	setTextureAfterInit();
     else
     	setColorAfterInit();
+  	getEnvironment()->addVoidKeyCallback('=',boost::bind(&EnvironmentObject::adjustTransparency, this, 0.1f), "increase opacity");
+  	getEnvironment()->addVoidKeyCallback('-',boost::bind(&EnvironmentObject::adjustTransparency, this, -0.1f), "decrease opacity");
 }
 
 void BulletSoftObject::computeNodeFaceMapping() {

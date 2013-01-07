@@ -3,6 +3,16 @@
 #include "tracked_object.h"
 #include <opencv2/core/core.hpp>
 
+class ObservationVisibility {
+public:
+  typedef boost::shared_ptr<ObservationVisibility> Ptr;
+	CoordinateTransformer* m_transformer;
+	cv::Mat m_depth;
+	ObservationVisibility(CoordinateTransformer* transformer) : m_transformer(transformer) {}
+	Eigen::VectorXf checkObservationVisibility(ColorCloud::Ptr cloud);
+	void updateInput(const cv::Mat& in) { m_depth = in; }
+};
+
 class VisibilityInterface {
 public:
   typedef boost::shared_ptr<VisibilityInterface> Ptr;
@@ -15,6 +25,14 @@ class EverythingIsVisible : public VisibilityInterface {
 public:
 	typedef boost::shared_ptr<EverythingIsVisible> Ptr;
 	Eigen::VectorXf checkNodeVisibility(TrackedObject::Ptr obj);
+};
+
+class ConstantVisibility : public VisibilityInterface {
+	Eigen::VectorXf m_nodes_visibility;
+public:
+	typedef boost::shared_ptr<ConstantVisibility> Ptr;
+	ConstantVisibility(Eigen::VectorXf nodes_visibility) : m_nodes_visibility(nodes_visibility) {}
+	Eigen::VectorXf checkNodeVisibility(TrackedObject::Ptr obj) { return m_nodes_visibility; }
 };
 
 class DepthImageVisibility : public VisibilityInterface {

@@ -10,7 +10,7 @@
 	<Kinbody name="HumanHand20DOF">
 
 		<Body name="palm" type="dynamic">
-		  <Translation>0 0 0.1 </Translation>
+		  <Translation>0 0 0 </Translation>
 		  <Geom type="trimesh">
 		    <render>iv/palm.wrl 0.001</render>
 		    <collision>iv/palm.wrl 0.001</collision>

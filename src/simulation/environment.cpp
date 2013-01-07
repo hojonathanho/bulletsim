@@ -1,5 +1,6 @@
 #include "environment.h"
 #include "simplescene.h"
+#include "basicobjects.h"
 #include "openravesupport.h"
 #include "config_bullet.h"
 
@@ -164,8 +165,9 @@ void Environment::toggleDebugDraw() {
 }
 
 void Environment::addKeyCallback(int c, Callback cb, std::string desc) {
-	if (keyCallbacks.count(c) != 0)
-		 cout << "warning: key " << c << " is bound to multiple callbacks in the environment" << endl;
+	// for now, it's okay to have multiple environment callbacks associated with a key
+//	if (keyCallbacks.count(c) != 0)
+//		cout << "warning: key " << c << " is bound to multiple callbacks in the environment" << endl;
 	keyCallbacks.insert(make_pair(c, cb));
 	keyCallbackDescs.insert(make_pair(c, desc));
 }
@@ -177,10 +179,12 @@ void Environment::addVoidKeyCallback(int c, VoidCallback cb, std::string desc) {
 Fork::Fork(const Environment::Ptr parentEnv_) :
     parentEnv(parentEnv_), env(new Environment()) {
   copyObjects();
+  env->preDraw();
 }
 Fork::Fork(const Environment::Ptr parentEnv_, const RaveInstancePtr rave_) :
     parentEnv(parentEnv_), env(new Environment()), rave(rave_) {
   copyObjects();
+  env->preDraw();
 }
 
 

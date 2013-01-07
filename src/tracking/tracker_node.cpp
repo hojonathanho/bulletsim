@@ -15,6 +15,7 @@
 
 #include "clouds/utils_pcl.h"
 #include "utils_tracking.h"
+#include "tracked_compound.h"
 #include "utils/logging.h"
 #include "utils/utils_vector.h"
 #include "visibility.h"
@@ -54,7 +55,9 @@ bool pending = false; // new message received, waiting to be processed
 
 tf::TransformListener* listener;
 
+ros::Time lastTime;
 void callback(const vector<sensor_msgs::PointCloud2ConstPtr>& cloud_msg, const vector<sensor_msgs::ImageConstPtr>& image_msgs) {
+	lastTime = cloud_msg[0]->header.stamp;
   if (rgb_images.size()!=nCameras) rgb_images.resize(nCameras);
   if (mask_images.size()!=nCameras) mask_images.resize(nCameras);
   if (depth_images.size()!=nCameras) depth_images.resize(nCameras);
@@ -81,12 +84,11 @@ void callback(const vector<sensor_msgs::PointCloud2ConstPtr>& cloud_msg, const v
 }
 
 int main(int argc, char* argv[]) {
-  Eigen::internal::setNbThreads(2);
-
   GeneralConfig::scale = 100;
   BulletConfig::maxSubSteps = 0;
   BulletConfig::gravity = btVector3(0,0,-0.1);
 
+  Eigen::internal::setNbThreads(2);
   Parser parser;
   parser.addGroup(TrackingConfig());
   parser.addGroup(GeneralConfig());
@@ -94,6 +96,8 @@ int main(int argc, char* argv[]) {
   parser.addGroup(ViewerConfig());
   parser.addGroup(RecordingConfig());
   parser.read(argc, argv);
+
+  srand ( time(NULL) );
 
   nCameras = TrackingConfig::cameraTopics.size();
 
@@ -134,29 +138,35 @@ int main(int argc, char* argv[]) {
       util::toOSGVector(METERS*transformer->worldFromCamUnscaled.getOrigin()+METERS*transformer->worldFromCamUnscaled.getBasis().getColumn(2)),
       util::toOSGVector(-transformer->worldFromCamUnscaled.getBasis().getColumn(1)));
 
-	TrackedObject::Ptr trackedObj = callInitServiceAndCreateObject(filteredCloud, rgb_images[0], mask_images[0], transformers[0]);
-  if (!trackedObj) throw runtime_error("initialization of object failed.");
-  trackedObj->init();
-  scene.env->add(trackedObj->m_sim);
+	EnvironmentObject::Ptr initializedSim = callInitServiceAndCreateObject(filteredCloud, rgb_images[0], mask_images[0], transformers[0]);
+  if (!initializedSim) throw runtime_error("initialization of object failed.");
+  scene.env->add(initializedSim);
+  TrackedObject::Ptr trackedObj = createTrackedObject(initializedSim);
 
  	// actual tracking algorithm
-	MultiVisibility::Ptr visInterface(new MultiVisibility());
+  MultiVisibility::Ptr visInterface(new MultiVisibility());
 	for (int i=0; i<nCameras; i++) {
-		if (trackedObj->m_type == "rope") // Don't do self-occlusion if the trackedObj is a rope
+		if (trackedObj->m_type == "rope") { // Don't do self-occlusion if the trackedObj is a rope
 			visInterface->addVisibility(DepthImageVisibility::Ptr(new DepthImageVisibility(transformers[i])));
-		else
+		} else if (trackedObj->m_type == "compound") { // i.e. hand
+			visInterface->addVisibility(EverythingIsVisible::Ptr(new EverythingIsVisible()));
+//			visInterface->addVisibility(AllOcclusionsVisibility::Ptr(new AllOcclusionsVisibility(scene.env->bullet->dynamicsWorld, transformers[i])));
+		} else { // i.e. towel and sponge
+//			visInterface->addVisibility(EverythingIsVisible::Ptr(new EverythingIsVisible()));
 			visInterface->addVisibility(AllOcclusionsVisibility::Ptr(new AllOcclusionsVisibility(scene.env->bullet->dynamicsWorld, transformers[i])));
+		}
 	}
+	ObservationVisibility::Ptr obsVisibility;
+	if (TrackingConfig::freeSpaceModel)
+		obsVisibility.reset(new ObservationVisibility(transformers[0]));
 
 	TrackedObjectFeatureExtractor::Ptr objectFeatures(new TrackedObjectFeatureExtractor(trackedObj));
 	CloudFeatureExtractor::Ptr cloudFeatures(new CloudFeatureExtractor());
-	PhysicsTracker::Ptr alg(new PhysicsTracker(objectFeatures, cloudFeatures, visInterface));
+	PhysicsTracker::Ptr alg(new PhysicsTracker(objectFeatures, cloudFeatures, visInterface, obsVisibility));
 	PhysicsTrackerVisualizer::Ptr trackingVisualizer(new PhysicsTrackerVisualizer(&scene, alg));
 
-	bool applyEvidence = true;
-  scene.addVoidKeyCallback('a',boost::bind(toggle, &applyEvidence), "apply evidence");
-  scene.addVoidKeyCallback('=',boost::bind(&EnvironmentObject::adjustTransparency, trackedObj->getSim(), 0.1f), "increase opacity");
-  scene.addVoidKeyCallback('-',boost::bind(&EnvironmentObject::adjustTransparency, trackedObj->getSim(), -0.1f), "decrease opacity");
+	bool applyEvidence = TrackingConfig::applyEvidenceInit;
+  scene.addVoidKeyCallback('a',boost::bind(toggle, &applyEvidence), "toggle apply evidence");
   bool exit_loop = false;
   scene.addVoidKeyCallback('q',boost::bind(toggle, &exit_loop), "exit");
 
@@ -182,25 +192,25 @@ int main(int argc, char* argv[]) {
 		camsync.enable(CamSync::PLAYBACK, TrackingConfig::playback_camera_pos_file);
 	}
 
-  scene.setSyncTime(false);
-  scene.setDrawing(true);
   while (!exit_loop && ros::ok()) {
   	//Update the inputs of the featureExtractors and visibilities (if they have any inputs)
   	cloudFeatures->updateInputs(filteredCloud, rgb_images[0], transformers[0]);
   	for (int i=0; i<nCameras; i++)
     	visInterface->visibilities[i]->updateInput(depth_images[i]);
+  	if (obsVisibility) obsVisibility->updateInput(depth_images[0]);
     pending = false;
     while (ros::ok() && !pending) {
     	//Do iteration
       alg->updateFeatures();
       alg->expectationStep();
-      alg->maximizationStep(applyEvidence);
+      alg->maximizationStep(applyEvidence); // this also steps the simulation!
 
       trackingVisualizer->update();
-
-      scene.step(.03,2,.015);
+      scene.draw();
       ros::spinOnce();
     }
-    objPub.publish(toTrackedObjectMessage(trackedObj));
+    bulletsim_msgs::TrackedObject objOut = toTrackedObjectMessage(trackedObj);
+    objOut.header.stamp = lastTime;
+    objPub.publish(objOut);
  	}
 }

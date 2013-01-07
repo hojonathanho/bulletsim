@@ -15,6 +15,7 @@
 #include <boost/shared_ptr.hpp>
 #include <boost/enable_shared_from_this.hpp>
 #include <boost/function.hpp>
+#include <boost/bind.hpp>
 
 using namespace std;
 
@@ -96,8 +97,10 @@ public:
 
     virtual osg::Node *getOSGNode() const { return NULL; }
 
-    virtual void setColor(float r, float g, float b, float a) {};
-		virtual void adjustTransparency(float increment) {};
+    virtual void setColor(float r, float g, float b, float a) { throw std::runtime_error("setColor() hasn't been defined yet"); };
+    virtual void setColor(osg::Vec4f color) { throw std::runtime_error("setColor() hasn't been defined yet"); };
+    virtual osg::Vec4f getColor() { throw std::runtime_error("getColor() hasn't been defined yet"); return osg::Vec4f(0,0,0,0); };
+		virtual void adjustTransparency(float increment) { throw std::runtime_error("adjustTransparency() hasn't been defined yet"); };
 
 		//gets the index of the closest part of the object (face, capsule, rigid_body, etc)
 		//for rigid bodies, there is only one index so this will always return 0
@@ -106,6 +109,9 @@ public:
 		//gets the transform of the indexed part
 		//for rigid bodies, this just returns the rigid body's transform
 		virtual btTransform getIndexTransform(int index) { std::runtime_error("getIndexTransform() hasn't been defined yet"); return btTransform();}
+
+		virtual float getMass() { throw std::runtime_error("getMass() hasn't been defined yet"); return 0.0; };
+		virtual void setMass(float mass) { throw std::runtime_error("setMass() hasn't been defined yet"); };
 };
 
 class RaveInstance;
@@ -225,6 +231,8 @@ public:
                 (*i)->init();
             }
         }
+      	getEnvironment()->addVoidKeyCallback('=',boost::bind(&EnvironmentObject::adjustTransparency, this, 0.1f), "increase opacity");
+      	getEnvironment()->addVoidKeyCallback('-',boost::bind(&EnvironmentObject::adjustTransparency, this, -0.1f), "decrease opacity");
     }
 
     virtual void prePhysics() {
@@ -254,6 +262,8 @@ public:
 				if (*i)
 					(*i)->setColor(r,g,b,a);
     }
+		void setColor(osg::Vec4f color) { setColor(color.r(), color.g(), color.b(), color.a()); }
+		osg::Vec4f getColor() { return children[0]->getColor(); } //assumes all children have same color
 
 		void setTexture(cv::Mat image) {
 			int height = image.size().height;
@@ -301,6 +311,25 @@ public:
 			return children[index/index_size]->getIndexTransform(index % index_size);
 		}
 
+		float getMass() {
+			float mass = 0;
+			typename ChildVector::iterator i;
+			for (i = children.begin(); i != children.end(); ++i) {
+				EnvironmentObject::Ptr obj = boost::dynamic_pointer_cast<EnvironmentObject>(*i);
+				if (!obj) std::runtime_error("Tried to getMass/setMass from/to a compound object not made of BulletObject");
+				mass += obj->getMass();
+			}
+			return mass;
+		}
+		void setMass(float mass) {
+			float old_mass = getMass();
+			typename ChildVector::iterator i;
+			for (i = children.begin(); i != children.end(); ++i) {
+				EnvironmentObject::Ptr obj = boost::dynamic_pointer_cast<EnvironmentObject>(*i);
+				if (!obj) std::runtime_error("Tried to getMass/setMass from/to a compound object not made of BulletObject");
+				obj->setMass(mass * obj->getMass()/old_mass);
+			}
+		}
 };
 
 class ObjectAction {

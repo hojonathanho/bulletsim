@@ -63,6 +63,7 @@ public:
     		computeNodeFaceTetraMapping();
     		computeBoundaries();
     	}
+			setColor(1,1,1,1);
     }
     BulletSoftObject(btSoftBody *softBody_) : softBody(softBody_), nextAnchorHandle(0)
     {
@@ -71,6 +72,7 @@ public:
 				computeNodeFaceTetraMapping();
 				computeBoundaries();
    		}
+			setColor(1,1,1,1);
 		}
     virtual ~BulletSoftObject() { }
 
@@ -82,8 +84,6 @@ public:
     static void saveToFile(btSoftBody *psb, ostream &s);
     virtual void saveToFile(const char *fileName) const;
     virtual void saveToFile(ostream &s) const;
-
-    void setColor(float,float,float,float);
 
     // just sets the image, not the texture coordinates
     void setTexture(cv::Mat image);
@@ -135,11 +135,13 @@ private:
     AnchorHandle nextAnchorHandle;
     map<AnchorHandle, int> anchormap;
 public:
+    void setColor(float,float,float,float);
+		void setColor(osg::Vec4f color) { setColor(color.r(), color.g(), color.b(), color.a()); }
+		osg::Vec4f getColor() { return m_color; }
 		cv::Mat getTexture() {
 		  if(m_cvimage) return *m_cvimage;
 		  else return cv::Mat();
 		}
-		osg::Vec4f getColor() {return m_color;}
 };
 
 

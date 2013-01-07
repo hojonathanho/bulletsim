@@ -12,6 +12,8 @@ Eigen::MatrixXf calculateStdev(const Eigen::MatrixXf& estPts, const Eigen::Matri
 Eigen::MatrixXf calculateResponsibilitiesNaive(const Eigen::MatrixXf& estPts, const Eigen::MatrixXf& obsPts, const Eigen::MatrixXf& stdev, const Eigen::VectorXf& pVis, const Eigen::VectorXf& outlierDist, const Eigen::VectorXf& outlierStdev);
 Eigen::MatrixXf calculateResponsibilities(const Eigen::MatrixXf& estPts, const Eigen::MatrixXf& obsPts, const Eigen::MatrixXf& stdev, const Eigen::VectorXf& pVis, const Eigen::VectorXf& outlierDist, const Eigen::VectorXf& outlierStdev);
 
+float calculateLogLikelihood(const Eigen::MatrixXf& estPts, const Eigen::MatrixXf& obsPts, const Eigen::MatrixXf& pZgivenC, const Eigen::MatrixXf& stdev);
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////// DEPRECATED //////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////

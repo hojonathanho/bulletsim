@@ -96,32 +96,26 @@ int main(int argc, char *argv[]) {
 	const btScalar	mass=0.1;
 
 	cv::Mat flag_tex = cv::imread(string(getenv("BULLETSIM_SOURCE_DIR")) + "/data/rgbs/flag_tex.jpg");
-  vector<btVector3> cloth_corners;
-	cloth_corners.push_back(btVector3(+sx,+sy,h));
-	cloth_corners.push_back(btVector3(+sx,-sy,h));
-  cloth_corners.push_back(btVector3(-sx,-sy,h));
-	cloth_corners.push_back(btVector3(-sx,+sy,h));
-	BulletSoftObject::Ptr cloth = makeCloth(cloth_corners, rx, ry, mass);
+  BulletSoftObject::Ptr cloth = makeCloth(sx, sy, btVector3(0,0,h), TrackingConfig::node_density/METERS, TrackingConfig::surface_density/(METERS*METERS));
 	if (flag_tex.empty()) cloth->setColor(1,0,0,1);
 	else cloth->setTexture(flag_tex.clone(), generateTexCoordinates(cloth,flag_tex,sx,sy));
 	scene.env->add(cloth);
 
+	/*
 	cv::Mat flag_observed_tex = stitchImages(flag_tex);
-	vector<btVector3> observed_cloth_corners;
-	observed_cloth_corners.push_back(btVector3(+2*sx,+2*sy,h));
-	observed_cloth_corners.push_back(btVector3(+2*sx,-2*sy,h));
-	observed_cloth_corners.push_back(btVector3(-2*sx,-2*sy,h));
-	observed_cloth_corners.push_back(btVector3(-2*sx,+2*sy,h));
-	BulletSoftObject::Ptr observed_cloth = makeCloth(observed_cloth_corners, 2*rx, 2*ry, 4*mass);
-	if (flag_tex.empty()) observed_cloth->setColor(1,0,0,1);
+	BulletSoftObject::Ptr observed_cloth = makeCloth(2*sx, 2*sy, btVector3(0,0,h), 2*rx, 2*ry, 4*mass);
+	if (flag_observed_tex.empty()) observed_cloth->setColor(1,0,0,1);
 	else observed_cloth->setTexture(flag_observed_tex.clone(), generateTexCoordinates(observed_cloth,flag_observed_tex,2*sx,2*sy));
 	TrackedObject::Ptr observed_tracked(new TrackedCloth(observed_cloth));
 	observed_tracked->init();
-
-	cv::imwrite("/home/alex/Desktop/flag4.jpg", flag_observed_tex);
+	*/
+	cv::Mat flag_observed_tex = flag_tex;
+	BulletSoftObject::Ptr observed_cloth = makeCloth(sx, sy, btVector3(0,0,h), TrackingConfig::node_density/METERS, TrackingConfig::surface_density/(METERS*METERS));
+	if (flag_observed_tex.empty()) observed_cloth->setColor(1,0,0,1);
+	else observed_cloth->setTexture(flag_observed_tex.clone(), generateTexCoordinates(observed_cloth,flag_observed_tex,sx,sy));
+	TrackedObject::Ptr observed_tracked(new TrackedCloth(observed_cloth));
 
 	TrackedObject::Ptr trackedObj(new TrackedCloth(cloth));
-	trackedObj->init();
 	EverythingIsVisible::Ptr visInterface(new EverythingIsVisible());
 
 	TrackedObjectFeatureExtractor::Ptr objectFeatures(new TrackedObjectFeatureExtractor(trackedObj));
@@ -131,8 +125,6 @@ int main(int argc, char *argv[]) {
 
 	bool applyEvidence = true;
   scene.addVoidKeyCallback('a',boost::bind(toggle, &applyEvidence), "apply evidence");
-  scene.addVoidKeyCallback('=',boost::bind(&EnvironmentObject::adjustTransparency, trackedObj->getSim(), 0.1f), "increase opacity");
-  scene.addVoidKeyCallback('-',boost::bind(&EnvironmentObject::adjustTransparency, trackedObj->getSim(), -0.1f), "decrease opacity");
   bool exit_loop = false;
   scene.addVoidKeyCallback('q',boost::bind(toggle, &exit_loop), "exit");
 

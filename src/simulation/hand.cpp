@@ -5,6 +5,12 @@
 #include "utils/config.h"
 using namespace std;
 
+HumanHandObject::Ptr hand;
+void MyNearCallbackWrapper(btBroadphasePair& collisionPair,
+	btCollisionDispatcher& dispatcher, const btDispatcherInfo& dispatchInfo) {
+	hand->MyNearCallback(collisionPair, dispatcher, dispatchInfo);
+}
+
 void HumanHandObject::MyNearCallback(btBroadphasePair& collisionPair,
 	btCollisionDispatcher& dispatcher, const btDispatcherInfo& dispatchInfo) {
 
@@ -15,35 +21,66 @@ void HumanHandObject::MyNearCallback(btBroadphasePair& collisionPair,
 	else if (children[0]->rigidBody.get() == collisionPair.m_pProxy1->m_clientObject)
 		other_client = collisionPair.m_pProxy0->m_clientObject;
 	if (other_client)
-		if ((children[2]->rigidBody.get() == other_client) ||
-				(children[6]->rigidBody.get() == other_client) ||
-				(children[10]->rigidBody.get() == other_client) ||
-				(children[14]->rigidBody.get() == other_client) ||
-				(children[18]->rigidBody.get() == other_client))
+		if ((children.size() > 2 && children[2]->rigidBody.get() == other_client) ||
+				(children.size() > 6 && children[6]->rigidBody.get() == other_client) ||
+				(children.size() > 10 && children[10]->rigidBody.get() == other_client) ||
+				(children.size() > 14 && children[14]->rigidBody.get() == other_client) ||
+				(children.size() > 18 && children[18]->rigidBody.get() == other_client))
 			return;
 
 	// Only dispatch the Bullet collision information if you want the physics to continue
 	dispatcher.defaultNearCallback(collisionPair, dispatcher, dispatchInfo);
 }
 
-HumanHandObject::HumanHandObject(RaveInstance::Ptr rave) :
-	RaveObject(rave, EXPAND(BULLETSIM_DATA_DIR)"/robot_model/HumanHand/HumanHand20DOF.robot.xml", CONVEX_HULL, false, true) {
+HumanHandObject::HumanHandObject(RaveInstance::Ptr rave, float angStiffness, float angDamping, float linDamping, float linStopErp) :
+	RaveObject(rave, EXPAND(BULLETSIM_DATA_DIR)"/robot_model/HumanHand/HumanHand20DOF.robot.xml", CONVEX_HULL, false, true, 0.87048490361),
+	m_angStiffness(angStiffness),
+	m_angDamping(angDamping),
+	m_linDamping(linDamping),
+	m_linStopErp(linStopErp)
+{
 	setColor(239.0/255.0, 208.0/255.0, 207.0/255.0, 0.6);
+}
+
+HumanHandObject::HumanHandObject(RaveInstance::Ptr rave, const btTransform& trs, float angStiffness, float angDamping, float linDamping, float linStopErp) :
+	RaveObject(rave, EXPAND(BULLETSIM_DATA_DIR)"/robot_model/HumanHand/HumanHand20DOF.robot.xml", CONVEX_HULL, false, true, 0.87048490361),
+	m_angStiffness(angStiffness),
+	m_angDamping(angDamping),
+	m_linDamping(linDamping),
+	m_linStopErp(linStopErp)
+{
+	setColor(239.0/255.0, 208.0/255.0, 207.0/255.0, 0.6);
+	for (int i=0; i<children.size(); i++)
+		children[i]->rigidBody->setCenterOfMassTransform(trs * children[i]->rigidBody->getCenterOfMassTransform());
 }
 
 void HumanHandObject::init() {
 	RaveObject::init();
 
 	// set callback for ignoring collisions between the proximal phalanges and the palm
-	boost::function<void(btBroadphasePair& collisionPair, btCollisionDispatcher& dispatcher, const btDispatcherInfo& dispatchInfo)>
-		near_cb = boost::bind(&HumanHandObject::MyNearCallback, this, _1, _2, _3);
-	getEnvironment()->bullet->dispatcher->setNearCallback(*near_cb.target<btNearCallback>());
+	hand = shared_from_this();
+	cout << "children size " << children.size() <<  endl;
+	if (children.size() != 3) {
+		cout << "not 3 " << endl;
+		getEnvironment()->bullet->dispatcher->setNearCallback(&MyNearCallbackWrapper);
+	} else {
+		cout << "is 3 " << endl;
+	}
+
+	for (int i=0; i<children.size(); i++) {
+		children[i]->setMass(1.0);
+		children[i]->rigidBody->setDamping(m_linDamping, m_angDamping);
+		children[i]->rigidBody->setFriction(1);
+		children[i]->rigidBody->setDeactivationTime(DISABLE_DEACTIVATION);
+	}
 
 	vector<KinBody::JointPtr> vbodyjoints; vbodyjoints.reserve(body->GetJoints().size()+body->GetPassiveJoints().size());
 	vbodyjoints.insert(vbodyjoints.end(),body->GetJoints().begin(),body->GetJoints().end());
 	vbodyjoints.insert(vbodyjoints.end(),body->GetPassiveJoints().begin(),body->GetPassiveJoints().end());
 	BOOST_FOREACH(KinBody::JointPtr joint, vbodyjoints) {
-		m_constraints.push_back(jointMap[joint]);
+		BulletConstraint::Ptr constraint = jointMap[joint];
+		m_constraints.push_back(constraint);
+		constraint->cnt->setParam(BT_CONSTRAINT_STOP_ERP, m_linStopErp);
 	}
 }
 
