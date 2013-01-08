@@ -79,7 +79,7 @@ PyModule::PyModule(const fs::path &path) {
     }
     p = fs::path("..") / p;
   }
-  throw runtime_error("could not load python module");
+  throw std::runtime_error("could not load python module");
 }
 
 py::object pointVecToNP(const vector<btVector3> &v) {

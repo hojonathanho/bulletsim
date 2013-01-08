@@ -23,8 +23,8 @@ struct LocalConfig : public Config {
 };
 string LocalConfig::task;
 string LocalConfig::rope;
-float LocalConfig::pert = 1.;
-double LocalConfig::trajSlow = 1.;
+float LocalConfig::pert = 0.01;
+double LocalConfig::trajSlow = 2.;
 bool LocalConfig::loadRopeFromDemo = false;
 
 int main(int argc, char *argv[]) {

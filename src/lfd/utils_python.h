@@ -1,13 +1,12 @@
 #pragma once
 #include <boost/python.hpp>
-#include <iostream>
-#include <string>
-using namespace std;
 namespace py = boost::python;
-
 #include <boost/filesystem.hpp>
 namespace fs = boost::filesystem;
-
+#include <vector>
+using std::vector;
+#include <string>
+using std::string;
 #include <btBulletDynamicsCommon.h>
 
 struct PyGlobals {

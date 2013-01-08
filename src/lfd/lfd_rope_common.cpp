@@ -22,7 +22,7 @@ static vector<btVector3> initTableCornersWorld() {
 LFDRopeScene::LFDRopeScene(int argc, char *argv[], Config config) {
   GeneralConfig::scale = 10.;
   BulletConfig::maxSubSteps = 100;
-  BulletConfig::internalTimeStep = 0.01;
+  BulletConfig::internalTimeStep = 0.001;
   BulletConfig::gravity = btVector3(0, 0, -1);
 
   Parser parser;
