@@ -39,7 +39,8 @@ static inline btVector3 getInnerPt(RaveRobotObject::Manipulator::Ptr manip, KinB
 // Returns true is pt is on the inner side of the specified finger of the gripper
 static inline bool onInnerSide(RaveRobotObject::Manipulator::Ptr manip, const btVector3 &pt, KinBody::LinkPtr leftFinger, KinBody::LinkPtr rightFinger, bool left) {
   // then the innerPt and the closing direction define the plane
-  return (getManipRot(manip) * getClosingDirection(manip, left)).dot(pt - getInnerPt(manip, leftFinger, rightFinger, left)) > 0;
+  static const float TOLERANCE = 0.1;
+  return (getManipRot(manip) * getClosingDirection(manip, left)).dot(pt - getInnerPt(manip, leftFinger, rightFinger, left)) > -TOLERANCE;
 }
 
 static bool inGraspRegion(RaveRobotObject::Manipulator::Ptr manip, const btVector3 &pt, KinBody::LinkPtr leftFinger, KinBody::LinkPtr rightFinger) {
@@ -175,12 +176,13 @@ void TableRopeScene::resetRope(const vector<btVector3> &ctrlPoints) {
   }
   m_rope.reset(new CapsuleRope(
     ctrlPoints,
-    .005*METERS, // radius
+    .005*METERS/*, // radius
     .5, // angStiffness
     1, // angDamping
     .9, // linDamping
     .8, // angLimit
     .9 // linStopErp
+    */
   ));
   env->add(m_rope);
   setGrabBodies(m_rope->children);
