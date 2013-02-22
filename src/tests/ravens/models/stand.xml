@@ -1,0 +1,42 @@
+<KinBody name="stand">
+  <translation>0 0 0 </translation>
+  <body type="dynamic" name="plate">
+     <geom type="box">
+	<translation>0 0 -0.01</translation>
+        <extents>.375 0.23 0.01</extents>
+        <diffuseColor>.6 .6 .6</diffuseColor>
+      	<ambientColor>0.6 0.6 0.6</ambientColor>
+      </geom>
+  </body>
+
+
+  <body type="dynamic" name="lpole">
+     <geom type="box">
+	<translation>-0.35 0 0.115</translation>
+        <extents>.025 0.025 0.115</extents>
+        <diffuseColor>.6 .6 .6</diffuseColor>
+      	<ambientColor>0.6 0.6 0.6</ambientColor>
+      </geom>
+   </body>
+
+  <joint name="dummy" type="hinge" enable="false">
+     <body>lpole</body>
+     <body>plate</body>
+     <limits>0 0</limits>
+  </joint>
+
+  <body type="dynamic" name="rpole">
+    <geom type="box">
+	<translation>0.35 0 0.115</translation>
+        <extents>.025 0.035 0.115</extents>
+        <diffuseColor>.6 .6 .6</diffuseColor>
+      	<ambientColor>0.6 0.6 0.6</ambientColor>
+      </geom>
+  </body>
+
+  <joint name="dummy0" type="hinge" enable="false">
+     <body>rpole</body>
+     <body>plate</body>
+     <limits>0 0</limits>
+  </joint>
+</KinBody>
