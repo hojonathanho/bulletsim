@@ -261,7 +261,7 @@ void CustomScene::testTrajectory3() {
 
 }
 
-/* Sets up the scene and UI even handlers,
+/* Sets up the scene and UI event handlers,
  * initializes various structures.*/
 void CustomScene::run() {
     viewer.addEventHandler(new CustomKeyHandler(*this));
