@@ -1,5 +1,5 @@
 <Environment>
-  <Robot file="/home/joschu/Downloads/raven2.zae" name="raven">
+  <Robot file="/home/sibi/sandbox/bulletsim/data/ravens/raven2.zae" name="raven">
     <Translation>0   0    0</Translation>
   </Robot> 
 </Environment>
