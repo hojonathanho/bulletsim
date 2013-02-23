@@ -409,9 +409,10 @@ std::pair<bool, RaveTrajectory::Ptr> IKInterpolationPlanner::circleAroundRadius 
 
 /** Unwraps vector of way points with DOF values wrapped around from pi to -pi.
  *  Returns a vector with no DOF wrap-around.
- */
-void unwrapWayPointDOFs (vector< vector <dReal> *> &WayPointDOFs){//, vector< vector <dReal> *> &unwrappedWayPointDOFs) {
-
+ *
+ *  This post-processing step gets rid of extraneous turns while
+ *  executing the trajectory. */
+void unwrapWayPointDOFs (vector< vector <dReal> *> &WayPointDOFs){
 	dReal pi = 3.14159265;
 	int numWayPoints = WayPointDOFs.size();
 

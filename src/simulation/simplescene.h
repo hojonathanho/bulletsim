@@ -21,6 +21,7 @@ public:
   void getTransformation(osg::Vec3d &eye, osg::Vec3d &center, osg::Vec3d &up) const;
 };
 
+
 struct Scene {
   typedef boost::shared_ptr<Scene> Ptr;
 

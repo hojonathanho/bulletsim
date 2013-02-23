@@ -61,14 +61,23 @@ add_executable(test_softbody_mappings test_softbody_mappings.cpp)
 target_link_libraries(test_softbody_mappings simulation)
 
 ################################################################
-include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/test_surgical)
+#include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/test_surgical)
+include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/ravens)
+
 #link_directories( ${CMAKE_CURRENT_SOURCE_DIR}/test_surgical )
 
-add_executable(test_suture_cloth test_suture_cloth.cpp
-                            	 test_surgical/CustomScene.cpp
-                            	 test_surgical/CustomKeyHandler.cpp
-                            	 test_surgical/RavePlanners.cpp)
-target_link_libraries(test_suture_cloth simulation robots)
+#add_executable(test_suture_cloth test_suture_cloth.cpp
+#                            	 test_surgical/CustomScene.cpp
+#                            	 test_surgical/CustomKeyHandler.cpp
+#                            	 test_surgical/RavePlanners.cpp)
+#target_link_libraries(test_suture_cloth simulation robots)
+
+add_executable(ravens ravens/test_ravens.cpp
+                      ravens/CustomScene.cpp
+                      ravens/CustomKeyHandler.cpp
+                      ravens/RavenPlanners.cpp)
+target_link_libraries(ravens simulation robots)
+
 
 add_executable(test_piercing test_piercing.cpp
                             	 test_surgical/CustomScenePiercing.cpp

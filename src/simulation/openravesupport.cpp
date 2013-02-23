@@ -559,20 +559,19 @@ RaveRobotObject::RaveRobotObject(RaveInstance::Ptr rave_, const std::string &uri
 	rave->env->AddRobot(robot);
 }
 
-RaveRobotObject::Manipulator::Ptr RaveRobotObject::createManipulator(
-		const std::string &manipName, bool useFakeGrabber) {
+RaveRobotObject::Manipulator::Ptr RaveRobotObject::createManipulator(const std::string &manipName, bool useFakeGrabber) {
 	RaveRobotObject::Manipulator::Ptr m(new Manipulator(this));
 	// initialize the ik module
 	robot->SetActiveManipulator(manipName);
 	m->manip = m->origManip = robot->GetActiveManipulator();
 	m->ikmodule = RaveCreateModule(rave->env, "ikfast");
-	rave->env->AddModule(m->ikmodule, "");
-	// stringstream ssin, ssout;
-	// ssin << "LoadIKFastSolver " << robot->GetName() << " " << (int)IkParameterization::Type_Transform6D;
-	// if (!m->ikmodule->SendCommand(ssout, ssin)) {
-	//   cout << "failed to load iksolver\n";
-	//     return Manipulator::Ptr(); // null
-	// }
+	rave->env->Add(m->ikmodule, true, "");
+	stringstream ssin, ssout;
+	ssin << "LoadIKFastSolver " << robot->GetName() << " " << (int)IkParameterization::Type_Transform6D;
+	if (!m->ikmodule->SendCommand(ssout, ssin)) {
+	   cout << "******* Failed to load iksolver *******\n";
+	   return Manipulator::Ptr(); // null
+	}
 
 	m->useFakeGrabber = useFakeGrabber;
 	if (useFakeGrabber) {

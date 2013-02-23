@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<Robot name="ravens">
+ 
+  <Robot file="raven2.zae" name="lraven" prefix="l_">
+    <translation> 0.075 0 0.23 </translation>
+  </Robot>
+
+  <Robot file="raven2.zae" name="rraven" prefix="r_">
+    <translation> -0.075 0 0.23 </translation>
+    <rotationmat>-1 0 0 0 -1 0 0 0 1</rotationmat>
+  </Robot>
+
+<KinBody name="frame" file="stand.xml"/>
+
+<KinBody name="dum">
+  <joint name="leftdummy" type="hinge" enable="false">
+     <body>l_base_link_L</body>
+     <body>lpole</body>
+     <limits>0 0</limits>
+  </joint>
+
+    <joint name="rightdummy" type="hinge" enable="false">
+      <body>rpole</body>
+      <body>r_base_link_L</body>
+      <limits>0 0</limits>
+    </joint>
+</KinBody>
+
+</Robot>
