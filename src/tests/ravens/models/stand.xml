@@ -1,6 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
 <KinBody name="stand">
   <translation>0 0 0 </translation>
-  <body type="dynamic" name="plate">
+  <body type="dynamic" name="base_plate"> <!-- 'base_plate' link is the same as 'base_link' in pr2-->
      <geom type="box">
 	<translation>0 0 -0.01</translation>
         <extents>.375 0.23 0.01</extents>
@@ -8,7 +9,6 @@
       	<ambientColor>0.6 0.6 0.6</ambientColor>
       </geom>
   </body>
-
 
   <body type="dynamic" name="lpole">
      <geom type="box">
@@ -21,7 +21,7 @@
 
   <joint name="dummy" type="hinge" enable="false">
      <body>lpole</body>
-     <body>plate</body>
+     <body>base_plate</body>
      <limits>0 0</limits>
   </joint>
 
@@ -36,7 +36,7 @@
 
   <joint name="dummy0" type="hinge" enable="false">
      <body>rpole</body>
-     <body>plate</body>
+     <body>base_plate</body>
      <limits>0 0</limits>
   </joint>
 </KinBody>

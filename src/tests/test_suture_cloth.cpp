@@ -5,7 +5,7 @@
 #include "simulation/basicobjects.h"
 #include <BulletSoftBody/btSoftBodyHelpers.h>
 #include <openrave/kinbody.h>
-#include "robots/pr2.h"
+#include "robots/ravens.h"
 #include "CustomScene.h"
 
 
