@@ -388,22 +388,22 @@ void RaveObject::initRaveObject(RaveInstance::Ptr rave_, KinBodyPtr body_,
 		// since the joints are always in contact, we should ignore their collisions
 		// when setting joint positions (OpenRAVE should take care of them anyway)
 			ignoreCollisionWith(child->rigidBody.get());
-	}
-}
-
-if (isDynamic) {
-	vector<KinBody::JointPtr> vbodyjoints; vbodyjoints.reserve(body->GetJoints().size()+body->GetPassiveJoints().size());
-	vbodyjoints.insert(vbodyjoints.end(),body->GetJoints().begin(),body->GetJoints().end());
-	vbodyjoints.insert(vbodyjoints.end(),body->GetPassiveJoints().begin(),body->GetPassiveJoints().end());
-	BOOST_FOREACH(KinBody::JointPtr joint, vbodyjoints) {
-		BulletConstraint::Ptr constraint = createFromJoint(joint, linkMap);
-		if (constraint) {
-			// todo: put this in init:
-			// getEnvironment()->bullet->dynamicsWorld->addConstraint(constraint->cnt, bIgnoreCollision);
-			jointMap[joint] = constraint;
 		}
 	}
-}
+
+	if (isDynamic) {
+		vector<KinBody::JointPtr> vbodyjoints; vbodyjoints.reserve(body->GetJoints().size()+body->GetPassiveJoints().size());
+		vbodyjoints.insert(vbodyjoints.end(),body->GetJoints().begin(),body->GetJoints().end());
+		vbodyjoints.insert(vbodyjoints.end(),body->GetPassiveJoints().begin(),body->GetPassiveJoints().end());
+		BOOST_FOREACH(KinBody::JointPtr joint, vbodyjoints) {
+			BulletConstraint::Ptr constraint = createFromJoint(joint, linkMap);
+			if (constraint) {
+				// todo: put this in init:
+				// getEnvironment()->bullet->dynamicsWorld->addConstraint(constraint->cnt, bIgnoreCollision);
+				jointMap[joint] = constraint;
+			}
+		}
+	}
 }
 
 bool RaveObject::detectCollisions() {

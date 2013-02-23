@@ -369,7 +369,7 @@ btTransform CustomScene::SutureCloth::getCutGraspTransform(int side_num, RaveRob
 CustomScene::SuturingNeedle::SuturingNeedle(CustomScene * _scene) :
 												scene(*_scene), s_needle_radius(0.112),
 												s_needle_mass(50), s_pierce_threshold(0.03),
-												s_end_angle(1.257), s_piercing(false), grasped(false) {
+												s_end_angle(1.257), s_piercing(false), s_grasped(false) {
 
 
 
@@ -414,10 +414,10 @@ btTransform CustomScene::SuturingNeedle::getNeedleHandleTransform () {
 }
 
 void CustomScene::SuturingNeedle::setGraspingTransformCallback() {
-	if (!grasped || !gripperManip) return;
+	if (!s_grasped || !s_gripperManip) return;
 
-	btTransform nTfm = gripperManip->getTransform();
-	nTfm.setBasis(nTfm.getBasis() * corrRot);
+	btTransform nTfm = s_gripperManip->getTransform();
+	nTfm.setBasis(nTfm.getBasis() * s_corrRot);
 
 	nTfm = rotateByAngle(nTfm, -s_end_angle, s_needle_radius);
 
@@ -577,7 +577,7 @@ void CustomScene::findNearbyNodes(Hole::Ptr hole, btVector3 holePt) {
 													< DIST_THRESHOLD)
 			hole->h_nodes.push_back(&sCloth->cloth->softBody->m_nodes[i]);
 
-	std::cout<<"Added "<<hole->h_nodes.size()<<" nodes to the hole."<<std::endl;
+	std::cout<<"Added "<<hole->h_nodes.size()<<" nodes to the hole.setGraspingTransformCallback"<<std::endl;
 }
 
 /** Calculates centers of all the holes only when necessary. */
@@ -627,7 +627,10 @@ void CustomScene::plotHoles (bool remove) {
 
 // TODO: Need to add check for grasping needle at middle/ moving needle to gripper
 void CustomScene::grabNeedle (char rl) {
+	/**RaveRobotObject::Manipulator::Ptr currManip = rl=='r' ? pr2m.pr2Right : pr2m.pr2Left;
 
+	bool check =  pr2m.pr2->robot->Grab(sNeedle->s_needle->body, currManip->manip->GetEndEffector());
+	std::cout<<"Grabbed: "<<check<<std::endl;**/
 	btTransform needleT;
 	needleT = sNeedle->getNeedleHandleTransform();
 	util::drawAxes(needleT,2,env);
@@ -665,9 +668,17 @@ void CustomScene::grabNeedle (char rl) {
 	if (res.first) {
 		pr2m.controller->appendTrajectory(res.second);
 		pr2m.controller->run();
+		btTransform nTfm = currManip->getTransform();
+		nTfm.setBasis(nTfm.getBasis() * corrRot);
+		pr2m.pr2->robot->Grab(sNeedle->s_needle->body, currManip->manip->GetEndEffector());
+		std::vector<KinBodyPtr> gbodies;
+		pr2m.pr2->robot->GetGrabbed(gbodies);
+		std::cout<<"Number of grabbed bodies: "<<gbodies.size()<<std::endl;
+		/*
 		sNeedle->gripperManip = currManip;
 		sNeedle->corrRot = corrRot;
 		sNeedle->grasped = true;
+		 */
 		return;
 	}
 
@@ -676,7 +687,6 @@ void CustomScene::grabNeedle (char rl) {
 
 	std::cout<<"Plan failed!"<<std::endl;
 	//moveNeedleToGripper(rl);
-
 }
 
 /** Moves needle to gripper specified by rl. */
@@ -693,8 +703,8 @@ void CustomScene::moveNeedleToGripper(char rl) {
 
 /** Release needle and possible set transform to somewhere. */
 void CustomScene::releaseNeedle() {
-	sNeedle->grasped = false;
-	sNeedle->gripperManip.reset();
+	sNeedle->s_grasped = false;
+	sNeedle->s_gripperManip.reset();
 }
 
 /** Move to point on cloth to grasp. */
@@ -831,6 +841,7 @@ void CustomScene::run() {
 	//createKinBodyFromBulletBoxObject(table, rave); // add the table to the rave environment
     env->add(sCloth->cloth);
     env->add(sNeedle->s_needle);
+    rave->env->AddKinBody(sNeedle->s_needle->body);
     env->add(plot_points);
     env->add(plot_needle);
     env->add(plot_holes);
