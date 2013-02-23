@@ -54,8 +54,8 @@ target_link_libraries(test_picking simulation utils)
 add_executable(test_hand test_hand.cpp)
 target_link_libraries(test_hand simulation)
 
-#add_executable(test_raven test_raven.cpp)
-#target_link_libraries(test_raven robots simulation)
+add_executable(test_raven test_raven.cpp)
+target_link_libraries(test_raven robots simulation)
 
 add_executable(test_softbody_mappings test_softbody_mappings.cpp)
 target_link_libraries(test_softbody_mappings simulation)
@@ -75,6 +75,11 @@ add_executable(test_piercing test_piercing.cpp
                             	 test_surgical/CustomKeyHandlerPiercing.cpp
                             	 test_surgical/RavePlanners.cpp)
 target_link_libraries(test_piercing simulation robots)
+
+add_executable(test_raven2 test_ravens/test_raven2.cpp
+                            	 test_ravens/CustomSceneRaven.cpp
+                            	 test_ravens/CustomKeyHandler.cpp)
+target_link_libraries(test_raven2 simulation robots)
 
 add_executable(rave_cpp test_surgical/planning.cpp)
 target_link_libraries(rave_cpp simulation robots)
