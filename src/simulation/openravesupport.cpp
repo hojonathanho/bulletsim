@@ -175,11 +175,12 @@ btCompoundShape* shiftTransform(btCompoundShape* boxCompound,btScalar mass,btTra
 	return newBoxCompound;
 }
 
+
 static BulletObject::Ptr createFromLink(KinBody::LinkPtr link,
-        std::vector<boost::shared_ptr<btCollisionShape> >& subshapes,
-        std::vector<boost::shared_ptr<btStridingMeshInterface> >& meshes,
-         TrimeshMode trimeshMode,
-        float fmargin, bool isDynamic) {
+       std::vector<boost::shared_ptr<btCollisionShape> >& subshapes,
+       std::vector<boost::shared_ptr<btStridingMeshInterface> >& meshes,
+       TrimeshMode trimeshMode,
+       float fmargin, bool isDynamic) {
 
 #if OPENRAVE_VERSION_MINOR>6
   const std::vector<boost::shared_ptr<OpenRAVE::KinBody::Link::GEOMPROPERTIES> > & geometries=link->GetGeometries();
@@ -208,6 +209,7 @@ static BulletObject::Ptr createFromLink(KinBody::LinkPtr link,
         for (std::list<KinBody::Link::GEOMPROPERTIES>::const_iterator geom = geometries.begin(); geom != geometries.end(); ++geom) {
 #endif
 		btVector3 offset(0, 0, 0);
+
 
 		boost::shared_ptr<btCollisionShape> subshape;
 		const KinBody::Link::TRIMESH &mesh = geom->GetCollisionMesh();
@@ -302,11 +304,11 @@ static BulletObject::Ptr createFromLink(KinBody::LinkPtr link,
 
 	btTransform childTrans = util::toBtTransform(link->GetTransform(),GeneralConfig::scale);
 
+
 	float mass = isDynamic ? link->GetMass() : 0;
 	BulletObject::Ptr child(new BulletObject(mass, compound, childTrans,!isDynamic));
 //	child->drawingOn=false;
 	return child;
-
 }
 
 BulletConstraint::Ptr createFromJoint(KinBody::JointPtr joint, std::map<KinBody::LinkPtr, BulletObject::Ptr> linkMap) {
@@ -385,25 +387,25 @@ void RaveObject::initRaveObject(RaveInstance::Ptr rave_, KinBodyPtr body_,
 		childPosMap[child] = getChildren().size() - 1;
 		if (child) {
 			collisionObjMap[child->rigidBody.get()] = link;
-		// since the joints are always in contact, we should ignore their collisions
-		// when setting joint positions (OpenRAVE should take care of them anyway)
+			// since the joints are always in contact, we should ignore their collisions
+			// when setting joint positions (OpenRAVE should take care of them anyway)
 			ignoreCollisionWith(child->rigidBody.get());
-	}
-}
-
-if (isDynamic) {
-	vector<KinBody::JointPtr> vbodyjoints; vbodyjoints.reserve(body->GetJoints().size()+body->GetPassiveJoints().size());
-	vbodyjoints.insert(vbodyjoints.end(),body->GetJoints().begin(),body->GetJoints().end());
-	vbodyjoints.insert(vbodyjoints.end(),body->GetPassiveJoints().begin(),body->GetPassiveJoints().end());
-	BOOST_FOREACH(KinBody::JointPtr joint, vbodyjoints) {
-		BulletConstraint::Ptr constraint = createFromJoint(joint, linkMap);
-		if (constraint) {
-			// todo: put this in init:
-			// getEnvironment()->bullet->dynamicsWorld->addConstraint(constraint->cnt, bIgnoreCollision);
-			jointMap[joint] = constraint;
 		}
 	}
-}
+
+	if (isDynamic) {
+		vector<KinBody::JointPtr> vbodyjoints; vbodyjoints.reserve(body->GetJoints().size()+body->GetPassiveJoints().size());
+		vbodyjoints.insert(vbodyjoints.end(),body->GetJoints().begin(),body->GetJoints().end());
+		vbodyjoints.insert(vbodyjoints.end(),body->GetPassiveJoints().begin(),body->GetPassiveJoints().end());
+		BOOST_FOREACH(KinBody::JointPtr joint, vbodyjoints) {
+			BulletConstraint::Ptr constraint = createFromJoint(joint, linkMap);
+			if (constraint) {
+				// todo: put this in init:
+				// getEnvironment()->bullet->dynamicsWorld->addConstraint(constraint->cnt, bIgnoreCollision);
+				jointMap[joint] = constraint;
+			}
+		}
+	}
 }
 
 bool RaveObject::detectCollisions() {
@@ -431,6 +433,7 @@ void RaveRobotObject::setDOFValues(const vector<int> &indices, const vector<
 	{
 		EnvironmentMutex::scoped_lock lock(rave->env->GetMutex());
 		robot->SetActiveDOFs(indices);
+
 		robot->SetActiveDOFValues(vals);
 		rave->env->UpdatePublishedBodies();
 	}

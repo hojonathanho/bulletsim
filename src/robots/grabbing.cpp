@@ -94,7 +94,6 @@ btRigidBody* getNearestDynamicBody(btDynamicsWorld* world, btVector3& pt) {
   btCollisionObjectArray& rigidobjs = world->getCollisionObjectArray();
 
 
-
   float bestDist = SIMD_INFINITY;
   float bestInd = -1;
   bool bestIsRigid = true;

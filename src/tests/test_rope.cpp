@@ -22,7 +22,6 @@ int main(int argc, char *argv[]) {
   parser.read(argc, argv);
 
 
-
   const float table_height = .765;
   const float rope_radius = .01;
   const float segment_len = .025;

@@ -10,10 +10,13 @@
 
 
 Ravens::Ravens(Scene &s) : scene(s), inputState(),
-		_up({0.33, -0.35, 2.59, -0.15, 0.59, -1.41}),
+		_home({-0.153327, -2.29152, -0.0686984, 2.11724, -0.760324, -1.11199}),
+		//0.901649, -2.34235, 0.000721707, 1.88705, -1.40717, 0.0254475, 0.25, -0.25,
 		_side({1.832, -0.332, 1.011, -1.437, 1.1 , -2.106}) {
 
-	arm_up.assign(_up, _up+6);
+
+
+	arm_home.assign(_home, _home+6);
 	arm_side.assign(_side, _side+6);
 	loadRobot();
 	initIK();
@@ -44,6 +47,7 @@ void Ravens::loadRobot() {
     ravens.reset(new RaveRobotObject(scene.rave, ROBOT_MODEL_FILE));
     scene.env->add(ravens);
   }
+  ravens->setColor(0.26,0.274,0.294,1.0);
 }
 
 
@@ -196,6 +200,7 @@ void Ravens::setArmJointAngles(const vector<dReal> &joint_values, char lr) {
 	RaveRobotObject::Manipulator::Ptr armManip = (lr=='l') ? manipL : manipR;
 	ravens->setDOFValues(armManip->manip->GetArmIndices(), joint_values);
 }
+
 const vector<dReal> & Ravens::getArmJointAngles(char lr) {
 	RaveRobotObject::Manipulator::Ptr armManip = (lr=='l') ? manipL : manipR;
 	return ravens->getDOFValues(armManip->manip->GetArmIndices());
@@ -212,7 +217,7 @@ void Ravens::setBothArmsJointAngles(const vector<dReal> &joint_left, const vecto
 /* Set the arm pose. pose \in {"side", "up"}*/
 void Ravens::setArmPose(std::string pose, char lrb) {
 	vector<dReal> * joints;
-	joints = (pose=="side")? &arm_side: &arm_up;
+	joints = (pose=="home")? &arm_side: &arm_home;
 
 	if (lrb == 'l') {
 		setArmJointAngles(*joints, 'l');

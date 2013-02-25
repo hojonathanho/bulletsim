@@ -4,6 +4,7 @@
 bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,
 		                      osgGA::GUIActionAdapter &) {
 	 //std::pair<std::pair<btVector3, btVector3> , std::pair<int, int> > cutInfo;
+	vector<double> dofs;
 
     switch (ea.getEventType()) {
     case osgGA::GUIEventAdapter::KEYDOWN:
@@ -38,7 +39,7 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,
         	break;
 
         case 'l': // saves the openrave environment to a file
-        	scene.testGrasping();
+        	scene.plotGrasp();
         	break;
 
         case 'z': // plots the points on lying on the cut
@@ -68,9 +69,19 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,
         case 'T':
         	scene.testCircular();
         	break;
-        /******************************* RIGHT LOCAL **********************************/
+        case 'K':
+        	dofs = scene.ravens.ravens->getDOFValues();
+        	for (int c=0; c<dofs.size(); c+=1)
+        		std::cout<<" "<<dofs[c];
+        	std::cout<<std::endl;
+        	break;
+        case 'I':
+        	scene.ravens.setArmPose("home",'r');
+        	break;
+
+        	/******************************* RIGHT LOCAL **********************************/
         case 'e':
-             scene.moveEndEffector('f',false,'r');
+        	scene.moveEndEffector('f',false,'r');
              break;
         case 'r':
              scene.moveEndEffector('b',false,'r');

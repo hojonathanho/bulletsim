@@ -55,6 +55,7 @@ class PR2SoftBodyGripper {
         return trans;
     }
 
+
     // Returns the direction that the specified finger will move when closing
     // (manipulator frame)
     btVector3 getClosingDirection(bool left) const {

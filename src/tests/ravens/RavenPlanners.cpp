@@ -251,9 +251,9 @@ std::pair<bool, RaveTrajectory::Ptr> IKInterpolationPlanner::smoothPlan(std::vec
     		}
     		DOFs.push_back(bestDOFs);
 
-    		std::cout<<"Iter "<<i+1<<": ";
-    		for (int k = 0; k < bestDOFs->size(); ++k) std::cout<<bestDOFs->at(k)<<" ";
-    		std::cout<<std::endl;
+    		//std::cout<<"Iter "<<i+1<<": ";
+    		//for (int k = 0; k < bestDOFs->size(); ++k) std::cout<<bestDOFs->at(k)<<" ";
+    		//std::cout<<std::endl;
     		currentDOFs = *bestDOFs;
 
 
@@ -265,9 +265,9 @@ std::pair<bool, RaveTrajectory::Ptr> IKInterpolationPlanner::smoothPlan(std::vec
 
     unwrapWayPointDOFs(DOFs);
     for (int i = 0; i < DOFs.size(); ++i) {
-    	std::cout<<"Iter "<<i+1<<": ";
-    	for (int k = 0; k < DOFs[i]->size(); ++k) std::cout<<DOFs[i]->at(k)<<" ";
-    	std::cout<<std::endl;
+    	//std::cout<<"Iter "<<i+1<<": ";
+    	//for (int k = 0; k < DOFs[i]->size(); ++k) std::cout<<DOFs[i]->at(k)<<" ";
+    	//std::cout<<std::endl;
     	traj->Insert(traj->GetNumWaypoints(),*DOFs[i]);
     }
 

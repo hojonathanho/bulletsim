@@ -4,7 +4,7 @@
 #ifndef _CUSTOM_SCENE_RAVENS_
 #define _CUSTOM_SCENE_RAVENS_
 
-#include "PR2SoftBodyGripperAction.h"
+#include "SoftBodyGripperAction.h"
 
 #include "simulation/simplescene.h"
 #include <BulletSoftBody/btSoftBodyHelpers.h>
@@ -23,8 +23,12 @@
 #include "simulation/config_viewer.h"
 #include "simulation/softBodyHelpers.h"
 
+#include "simulation/rope.h"
+#include "robots/grabbing.h"
+
 #include "RavenPlanners.h"
 
+#include "jointRecorder.h"
 
 
 //class CustomScene;
@@ -66,7 +70,50 @@ public:
 		btTransform getCutGraspTransform(int side_num, RaveRobotObject::Ptr robot, float frac=0.5);
 	};
 
-	PR2SoftBodyGripperAction::Ptr leftAction, rightAction;
+
+	/* Class to represent the suturing needle + thread. */
+	class SuturingNeedle {
+
+		float rope_radius;
+		float segment_len;
+		int nLinks;
+		boost::shared_ptr<CapsuleRope> ropePtr;
+		Grab* needle_rope_grab;
+
+	public:
+		typedef boost::shared_ptr<SuturingNeedle> Ptr;
+		CustomScene &scene;
+
+		RaveObject::Ptr s_needle;
+		const float 			s_needle_radius, s_needle_mass;
+		const float 			s_end_angle;
+
+		// Is the needle currently piercing?
+		bool s_piercing;
+		// max distance between needle tip and point to cut at
+		float s_pierce_threshold;
+
+		// Manipulator currently grasping the needle.
+		RaveRobotObject::Manipulator::Ptr s_gripperManip;
+		// Is the needle being grasped?
+		bool s_grasped;
+		// Correction matrix of the needle
+		btMatrix3x3 s_corrRot;
+
+		SuturingNeedle (CustomScene * scene, float _rope_radius=.001, float _segment_len=0.005, int _nLinks=50);
+
+		/** Toggle's needle piercing state. */
+		void togglePiercing () {s_piercing = !s_piercing;}
+
+		btTransform getNeedleTipTransform ();
+		btTransform getNeedleHandleTransform ();
+
+		void setGraspingTransformCallback ();
+		void setConnectedRopeTransformCallback();
+	};
+
+
+	SoftBodyGripperAction::Ptr leftAction, rightAction;
 	BulletInstance::Ptr bullet2;
 	OSGInstance::Ptr osg2;
 	Fork::Ptr fork;
@@ -76,6 +123,9 @@ public:
 
 	// the cloth to be sutured
 	SutureCloth::Ptr sCloth;
+
+	// Suturing needle
+	SuturingNeedle::Ptr sNeedle;
 
 	// the table in the scene
 	BoxObject::Ptr table;
@@ -88,16 +138,22 @@ public:
 	PlotPoints::Ptr plot_points;
 	std::vector<btVector3> plotpoints;
 	std::vector<btVector4> plotcolors;
-
+	// Points for plotting center and tip of needle
+	PlotPoints::Ptr plot_needle;
 
 	/** Axes corresponding to the location where the
      *  left grippers are. **/
 	PlotAxes::Ptr plot_axes1;
 	PlotAxes::Ptr plot_axes2;
 
+	jointRecorder::Ptr j_recorder;
+
 	CustomScene() : ravens(*this), isRaveViewer(false) {
 		ikPlannerL.reset(new IKInterpolationPlanner(ravens,rave,'l'));
 		ikPlannerR.reset(new IKInterpolationPlanner(ravens,rave,'r'));
+
+		j_recorder.reset
+			(new jointRecorder ("/home/ankush/sandbox/bulletsim/src/tests/ravens/recorded/raven_joints.txt", ravens.ravens, 2.0));
 	}
 
 	/** Returns the coordinates of the last point directly below (-z) SOURCE_PT
@@ -128,13 +184,19 @@ public:
 									  std::vector<int> &cut_nodes1, std::vector<int> &cut_nodes2,
 									  bool getCutIndices=true,
 				                      bool shouldCut = true,
-				                      unsigned int resx = 50, unsigned int resy =50);
+				                      unsigned int resx = 60, unsigned int resy =60);
 
 	/** Returns ||(v1.x, v1.y) - (v2.x, v2.y)||. */
 	btScalar inline getXYDistance(btVector3 &v1, btVector3 &v2);
 
 	/** Move the end-effector. */
 	void moveEndEffector(char dir, bool world=false, char lr='l', float step=0.005);
+
+	/** Plots needle tip, flag for removing plots. */
+	void plotNeedle(bool remove = false);
+	/** Plots a few things related to grasping. */
+	void plotGrasp(bool remove = false);
+
 
 	/** small tests to test the planners and the controller. */
 	void testTrajectory();
@@ -146,5 +208,11 @@ public:
 	void testGrasping();
 	void run();
 };
+
+
+/** Rotates a transform TFM by AND, around the point along
+ * x-axis of the transform at a distance RAD away.*/
+btTransform rotateByAngle (btTransform &tfm, const float ang, const float rad);
+
 
 #endif

@@ -2,6 +2,25 @@
 #include "CustomKeyHandler.h"
 
 
+/** Rotates a transform TFM by AND, around the point along
+ * x-axis of the transform at a distance RAD away.*/
+btTransform rotateByAngle (btTransform &tfm, const float ang, const float rad) {
+	float pi = 3.14159265, r = rad*GeneralConfig::scale;
+
+	btTransform WorldToEndEffectorTransform = tfm;
+
+	btTransform initT;
+	initT.setIdentity();
+	initT.setOrigin(r*btVector3(-1,0,0));
+
+	OpenRAVE::Transform T = OpenRAVE::geometry::matrixFromAxisAngle(OpenRAVE::Vector(0,0,ang));
+	btTransform bT = util::toBtTransform(T);
+	bT.setOrigin(r*btVector3(1,0,0));
+
+	return WorldToEndEffectorTransform*bT*initT;
+}
+
+
 /** Returns the coordinates of the last point below (-z) SOURCE_PT
     on the cloth represented by PSB. */
 btVector3 CustomScene::getDownPoint(btVector3 & source_pt,
@@ -61,7 +80,7 @@ std::vector<btVector3> CustomScene::checkNodeVisibility(btVector3 camera_origin,
 /* Creates a square cloth with side length 2s.
    The four coordinates of the cloth are:
    {(s,s,z) (-s,s,z) (-s,-s,z) (s,-s,z)}
-   Then, the center of the cloth (initially at (0,0,0)
+   Then, the center of the cloth (initially at (0,,0)
    is translated to CENTER.*/
 BulletSoftObject::Ptr CustomScene::createCloth(btScalar s, btScalar z, btVector3 center,
 								  std::vector<int> &cut_nodes1, std::vector<int> &cut_nodes2,
@@ -69,6 +88,9 @@ BulletSoftObject::Ptr CustomScene::createCloth(btScalar s, btScalar z, btVector3
 			                      bool shouldCut,
 			                      unsigned int resx, unsigned int resy) {
 
+	z += 0.05*METERS;
+	resx = 80;
+	resy = 80;
 	btVector3 corner1(-s,-s,z), corner2(+s,-s,z), corner3(-s,+s,z), corner4(+s,+s,z);
 	btSoftBody* psb=btSoftBodyHelpers::CreatePatch(*(env->bullet->softBodyWorldInfo),
 													center + corner1,
@@ -78,25 +100,36 @@ BulletSoftObject::Ptr CustomScene::createCloth(btScalar s, btScalar z, btVector3
 													resx, resy,
 													1+2+4+8, true);
 
-	psb->getCollisionShape()->setMargin(0.4);
 	btSoftBody::Material* pm=psb->appendMaterial();
-	pm->m_kLST		=	0.4;
-    //	pm->m_flags		-=	btSoftBody::fMaterial::DebugDraw;
-	psb->m_cfg.kSRHR_CL = 1;
-	psb->m_cfg.kSSHR_CL = 1;
-	psb->generateBendingConstraints(2, pm);
-	psb->setTotalMass(150);
+	psb->setTotalMass(1000);
 
 	// cut the soft-body
 	if (shouldCut) {
-	cutPlane cut (center + 0.05*corner3 + 0.95*corner4,
-			      center + 0.05*corner4 + 0.95*corner2,
-			      center + 0.05*corner2 + 0.95*corner1,
-			      center + 0.05*corner1 + 0.95*corner3,
-			      0.25,0.75);
+		cutPlane cut (center + 0.05*corner3 + 0.95*corner4,
+				      center + 0.05*corner4 + 0.95*corner2,
+				      center + 0.05*corner2 + 0.95*corner1,
+				      center + 0.05*corner1 + 0.95*corner3,
+				      0.25,0.75);
 
-	CutPlaneSoftBody(psb, &cut, 0.001, cut_nodes1, cut_nodes2, getCutIndices);
+		CutPlaneSoftBody(psb, &cut, 0.001, cut_nodes1, cut_nodes2, getCutIndices);
 	}
+
+	psb->generateBendingConstraints(2, psb->m_nodes[0].m_material);
+	pm->m_kLST	=	1.0;
+	psb->generateClusters(1e3);
+	psb->getCollisionShape()->setMargin(0.002*METERS);
+
+	psb->m_cfg.collisions	=	0;
+	psb->m_cfg.collisions += btSoftBody::fCollision::CL_SELF;
+	psb->m_cfg.collisions += btSoftBody::fCollision::SDF_RS;
+
+    psb->m_cfg.kDF = 1;
+    psb->m_cfg.piterations = 50;
+    psb->m_cfg.viterations = 50;
+    psb->m_cfg.citerations = 50;
+    psb->m_cfg.diterations = 50;
+    psb->randomizeConstraints();
+
 	return BulletSoftObject::Ptr(new BulletSoftObject(psb));
 }
 
@@ -171,9 +204,47 @@ void CustomScene::testTrajectory2() {
 	}
 }
 
-/** small test to test circular trajectory. */
-void CustomScene::testCircular() {}
+/** Test circular. */
+void CustomScene::testCircular () {}
 
+/** Small test for plotting grasping relating things. */
+void CustomScene::plotGrasp (bool remove) {
+	plot_points->setPoints(std::vector<btVector3>(),std::vector<btVector4>());
+
+	btVector3 pt1 = leftAction->getVec1(false);
+	btVector3 vec = leftAction->getVec2(false);
+	btTransform tfm = util::getOrthogonalTransform(vec);
+	//tfm.setOrigin(pt1);
+
+	std::vector<btVector3> plotpoints;
+	std::vector<btVector4> color;
+
+	if (!remove) {
+		plotpoints.push_back(pt1);
+		color.push_back(btVector4(1,0,0,1));
+
+		plotpoints.push_back(vec);
+		color.push_back(btVector4(1,0,0,1));
+
+		//plotpoints.push_back(pt2);
+		//color.push_back(btVector4(0,0,1,1));
+
+		//plotpoints.push_back(pt3);
+		//color.push_back(btVector4(1,0,0,1));
+
+		//plotpoints.push_back(pt4);
+		//color.push_back(btVector4(0,0,1,1));
+
+		//util::drawAxes(tfm, 2, env);
+	}
+	else {
+		plotpoints.push_back(btVector3(0,0,0));
+		color.push_back(btVector4(0,0,0,0));
+	}
+
+	plot_points->setPoints(plotpoints,color);
+
+}
 
 
 /** small test to test the smooth planning of IK planner. */
@@ -198,32 +269,41 @@ void CustomScene::moveEndEffector(char dir, bool world, char lr, float step) {
 void CustomScene::run() {
     viewer.addEventHandler(new CustomKeyHandler(*this));
 
+    BulletConfig::internalTimeStep = 0.001;
     const float dt = BulletConfig::dt;
-    /*
-    const float table_height = .60;
+
+
+    // add a table
+    const float table_height = 0.15;
     const float table_thickness = .05;
-    table = BoxObject::Ptr(new BoxObject(0, GeneralConfig::scale * btVector3(.75,.75,table_thickness/2),
+    table = BoxObject::Ptr(new BoxObject(0, GeneralConfig::scale * btVector3(0.23,0.23,table_thickness/2),
                                          btTransform(btQuaternion(0, 0, 0, 1),
-                        		                     GeneralConfig::scale * btVector3(0.85, 0, table_height-table_thickness/2))));
+                        		                     GeneralConfig::scale * btVector3(0, 0, table_height-table_thickness/2))));
     table->rigidBody->setFriction(10);
-
-    sCloth.reset(new SutureCloth(*this,GeneralConfig::scale * 0.5, 0, GeneralConfig::scale * btVector3(0.6, 0, table_height+0.01)));
-
-    btSoftBody * const psb = sCloth->cloth->softBody.get();
-    pr2m.pr2->ignoreCollisionWith(psb);
-    pr2m.setArmPose("side", 'b');
-    pr2m.setTorso(1);
-
-
     env->add(table);
-	createKinBodyFromBulletBoxObject(table, rave); // add the table to the rave environment
-    env->add(sCloth->cloth);
-    */
+    table->setColor(0.62, 0.32, 0.17, 1.0);
+    createKinBodyFromBulletBoxObject(table, rave);
 
+    // add a needle
+    sNeedle.reset(new SuturingNeedle(this));
+    ravens.ravens->ignoreCollisionWith(sNeedle->s_needle->getChildren()[0]->rigidBody.get());
+    env->add(sNeedle->s_needle);
+    rave->env->AddKinBody(sNeedle->s_needle->body);
+
+    // add a cloth
+    sCloth.reset(new SutureCloth(*this,GeneralConfig::scale * 0.05, 0, GeneralConfig::scale * btVector3(0, 0, table_height+0.01)));
+    btSoftBody * const psb = sCloth->cloth->softBody.get();
+    env->add(sCloth->cloth);
+    sCloth->cloth->setColor(0.933,0.807,0.701,1.0);
+
+
+
+    // position the ravens
     btTransform T;
     T.setIdentity();
     T.setOrigin(btVector3(0,0,0.05));
     ravens.applyTransform(util::toRaveTransform(T));
+
 
     // set up the points for plotting
     plot_points.reset(new PlotPoints(5));
@@ -233,24 +313,25 @@ void CustomScene::run() {
     plot_axes2.reset(new PlotAxes());
     env->add(plot_axes2);
 
-    /*leftAction.reset(new PR2SoftBodyGripperAction(pr2m.pr2Left,
-    		                                      "l_gripper_l_finger_tip_link",
-    		                                      "l_gripper_r_finger_tip_link", 1));
-    leftAction->setTarget(sCloth->cloth);
-    rightAction.reset(new PR2SoftBodyGripperAction(pr2m.pr2Right,
-    		                                       "r_gripper_l_finger_tip_link",
-    		                                       "r_gripper_r_finger_tip_link", 1));
-    rightAction->setTarget(sCloth->cloth);*/
+    //addPreStepCallback(boost::bind(&jointRecorder::recordCallback, j_recorder.get()));
 
+    leftAction.reset(new SoftBodyGripperAction( ravens.manipL,
+                                               	"l_grasper2_L",
+                                               	"l_grasper1_L", 1));
+    leftAction->setTarget(sCloth->cloth);
+    rightAction.reset(new SoftBodyGripperAction( ravens.manipR,
+    		   	   	   	   	   	   	   	   	   	 "r_grasper2_L",
+    		   	   	   	   	   	   	   	   	   	 "r_grasper1_L", 1));
+    rightAction->setTarget(sCloth->cloth);
     //setSyncTime(true);
     startViewer();
     stepFor(dt, 2);
 
-    //leftAction->setOpenAction();
-    //runAction(leftAction, dt);
+    leftAction->setOpenAction();
+    runAction(leftAction, dt);
 
-    //rightAction->setOpenAction();
-    //runAction(rightAction, dt);
+    rightAction->setOpenAction();
+    runAction(rightAction, dt);
 
     startFixedTimestepLoop(dt);
 }
@@ -309,6 +390,9 @@ pair<pair<btVector3, btVector3> , pair<int, int> > CustomScene::SutureCloth::fit
 }
 
 
+
+
+
 /** See the doc for fitLine.
  *  In addition to fitting a line to the cut-points this function aligns
  *  the direction of the cut with the x-axis of the robot's (PR2's) transform. */
@@ -334,6 +418,9 @@ CustomScene::SutureCloth::fitLineAligned(int side_num, RaveRobotObject::Ptr robo
 		return pair<pair<btVector3, btVector3> , pair<int, int> >(lineInfo, extremaIndices);
 	}
 }
+
+
+
 
 
 /** Returns a transform for grasping.
@@ -381,4 +468,128 @@ btTransform CustomScene::SutureCloth::getCutGraspTransform(int side_num, RaveRob
 	}
 	cutT.setOrigin(translation);
 	return cutT;
+}
+
+
+
+
+//////////////////////////////////////////////// Suturing needle ////////////////////////////////////////
+/** Constructor for suturing needle. Creates needle from file.*/
+CustomScene::SuturingNeedle::SuturingNeedle(CustomScene * _scene, float _rope_radius, float _segment_len, int _nLinks) :
+											scene(*_scene), s_needle_radius(0.0112),
+											s_needle_mass(50), s_pierce_threshold(0.03),
+											s_end_angle(1.257), s_piercing(false), s_grasped(false),
+											rope_radius(_rope_radius), segment_len(_segment_len), nLinks(_nLinks) {
+
+
+	static const char sNeedle_MODEL_FILE[] = EXPAND(BULLETSIM_DATA_DIR) "/xml/needle.xml";
+	KinBodyPtr needle_body = scene.rave->env->ReadKinBodyURI(sNeedle_MODEL_FILE);
+	btTransform needle_tfm;
+	scene.table->motionState->getWorldTransform(needle_tfm);
+
+
+	needle_tfm.setOrigin((needle_tfm.getOrigin() + btVector3(-0.4*GeneralConfig::scale,0.45*GeneralConfig::scale,0.05*GeneralConfig::scale))/ GeneralConfig::scale);
+	needle_body->SetTransform(util::toRaveTransform(needle_tfm));
+
+	s_needle = RaveObject::Ptr(new RaveObject(scene.rave,needle_body,RAW,true));
+	vector<BulletObject::Ptr> children = s_needle->getChildren();
+	btVector3 inertia(0,0,0);
+	children[0]->rigidBody->getCollisionShape()->calculateLocalInertia(s_needle_mass,inertia);
+	children[0]->rigidBody->setMassProps(s_needle_mass,inertia);
+
+	s_needle->setColor(0.97,0.09,0.266,1.0); // set the needle's color
+    scene.addPreStepCallback(boost::bind(&CustomScene::SuturingNeedle::setGraspingTransformCallback, this));
+
+    //------------------------ initialize the rope -------------------------------
+	vector<btVector3> ctrlPts;
+    float height = needle_tfm.getOrigin().z();
+    for (int i=0; i< nLinks; i++)
+    	ctrlPts.push_back(METERS*btVector3(.5+segment_len*i,0,height+5*rope_radius));
+
+    ropePtr.reset(new CapsuleRope(ctrlPts,METERS*rope_radius,0.4,1,0.75,1,1));
+    scene.env->add(ropePtr);
+
+    ropePtr->setColor(0,1,0,1);
+    /*vector<BulletObject::Ptr> rope_children =  ropePtr->getChildren();
+    for (int j=0; j<rope_children.size(); j++)
+    	rope_children[j]->setColor(0,1,0,1);*/
+
+
+    s_needle->ignoreCollisionWith(ropePtr->children[0]->rigidBody.get());
+    needle_rope_grab = new Grab(ropePtr->children[0]->rigidBody.get(), getNeedleHandleTransform().getOrigin(),scene.env->bullet->dynamicsWorld);
+    scene.addPreStepCallback(boost::bind(&CustomScene::SuturingNeedle::setConnectedRopeTransformCallback, this));
+    //scene.drawAxes(getNeedleHandleTransform());
+    util::drawAxes(getNeedleHandleTransform(), 1, scene.env);
+    //------------------------------------------------------------------------------
+}
+
+
+
+/** Returns transform of needle's tip.*/
+btTransform CustomScene::SuturingNeedle::getNeedleTipTransform () {
+
+	btTransform tfm = s_needle->getIndexTransform(0);
+	return rotateByAngle(tfm, -s_end_angle, s_needle_radius);
+}
+
+
+
+
+/** Returns transform of needle's handle.*/
+btTransform CustomScene::SuturingNeedle::getNeedleHandleTransform () {
+
+	btTransform tfm = s_needle->getIndexTransform(0);
+	return rotateByAngle(tfm, s_end_angle, s_needle_radius);
+
+}
+
+
+void CustomScene::SuturingNeedle::setGraspingTransformCallback() {
+	if (!s_grasped || !s_gripperManip) return;
+
+	btTransform nTfm = s_gripperManip->getTransform();
+	nTfm.setBasis(nTfm.getBasis() * s_corrRot);
+
+	nTfm = rotateByAngle(nTfm, -s_end_angle, s_needle_radius);
+
+	s_needle->getChildren()[0]->motionState->setKinematicPos(nTfm);
+}
+
+void CustomScene::SuturingNeedle::setConnectedRopeTransformCallback() {
+	btTransform nTfm = getNeedleHandleTransform ();
+	needle_rope_grab->updatePosition(nTfm.getOrigin());
+}
+
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/** Plot needle curve-center and tip. */
+void CustomScene::plotNeedle (bool remove) {
+	plot_needle->setPoints(std::vector<btVector3>(),std::vector<btVector4>());
+
+	btTransform tfm = sNeedle->s_needle->getIndexTransform(0);
+	std::vector<btVector3> plotpoints;
+	std::vector<btVector4> color;
+
+	if (!remove) {
+		// COM of needle
+		plotpoints.push_back(tfm.getOrigin());
+		color.push_back(btVector4(1,0,0,1));
+
+		// Needle tip
+		plotpoints.push_back(sNeedle->getNeedleTipTransform().getOrigin());
+		color.push_back(btVector4(0,0,1,1));
+
+		// Needle handle
+		plotpoints.push_back(sNeedle->getNeedleHandleTransform().getOrigin());
+		color.push_back(btVector4(1,1,0,1));
+
+	}
+	else {
+		plotpoints.push_back(btVector3(0,0,0));
+		color.push_back(btVector4(0,0,0,0));
+	}
+
+	plot_needle->setPoints(plotpoints,color);
 }

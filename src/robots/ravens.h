@@ -106,9 +106,9 @@ private:
     void initIK();
 
     // arm postures
-    const dReal _up[7];
-    std::vector<dReal> arm_up;
-    const dReal _side[7];
+    const dReal _home[6];
+    std::vector<dReal> arm_home;
+    const dReal _side[6];
     std::vector<dReal> arm_side;
 
     btTransform leftInitTrans, rightInitTrans;
