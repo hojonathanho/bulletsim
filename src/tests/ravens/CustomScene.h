@@ -29,6 +29,7 @@
 #include "RavenPlanners.h"
 
 #include "jointRecorder.h"
+#include "jointPlayback.h"
 
 
 //class CustomScene;
@@ -48,7 +49,7 @@ public:
 		// node indices of the nodes on the cut
 		std::vector<int> cut_nodes1, cut_nodes2;
 
-		SutureCloth(CustomScene &scene, btScalar side_length, btScalar z, btVector3 center);
+		SutureCloth(CustomScene &scene, btScalar s1, btScalar s2, btScalar z, btVector3 center);
 
 
 		/** Returns the line of maximum variance of the cut-points
@@ -147,13 +148,14 @@ public:
 	PlotAxes::Ptr plot_axes2;
 
 	jointRecorder::Ptr j_recorder;
+	jointPlayback::Ptr j_playback;
 
 	CustomScene() : ravens(*this), isRaveViewer(false) {
 		ikPlannerL.reset(new IKInterpolationPlanner(ravens,rave,'l'));
 		ikPlannerR.reset(new IKInterpolationPlanner(ravens,rave,'r'));
 
-		j_recorder.reset
-			(new jointRecorder ("/home/ankush/sandbox/bulletsim/src/tests/ravens/recorded/raven_joints.txt", ravens.ravens, 2.0));
+		j_recorder.reset (new jointRecorder (*this, ravens.ravens));
+		j_playback.reset (new jointPlayback (*this, &ravens));
 	}
 
 	/** Returns the coordinates of the last point directly below (-z) SOURCE_PT
@@ -180,11 +182,11 @@ public:
 	     {(s,s) (-s,s,) (-s,-s) (s,-s)}
 	     Then, the center of the cloth (initially at (0,0,0)
 	     is translated to CENTER.*/
-	BulletSoftObject::Ptr createCloth(btScalar s, btScalar z, btVector3 center,
+	BulletSoftObject::Ptr createCloth(btScalar s1, btScalar s2, btScalar z, btVector3 center,
 									  std::vector<int> &cut_nodes1, std::vector<int> &cut_nodes2,
 									  bool getCutIndices=true,
 				                      bool shouldCut = true,
-				                      unsigned int resx = 60, unsigned int resy =60);
+				                      unsigned int resx = 60, unsigned int resy = 20);
 
 	/** Returns ||(v1.x, v1.y) - (v2.x, v2.y)||. */
 	btScalar inline getXYDistance(btVector3 &v1, btVector3 &v2);

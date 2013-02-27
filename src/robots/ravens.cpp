@@ -2,19 +2,10 @@
 #include "simulation/environment.h"
 #include "thread_socket_interface.h"
 
-//static const char LEFT_GRIPPER_LEFT_FINGER_NAME[] = "l_gripper_l_finger_tip_link";
-//static const char LEFT_GRIPPER_RIGHT_FINGER_NAME[] = "l_gripper_r_finger_tip_link";
-
-//static const char RIGHT_GRIPPER_LEFT_FINGER_NAME[] = "r_gripper_l_finger_tip_link";
-//static const char RIGHT_GRIPPER_RIGHT_FINGER_NAME[] = "r_gripper_r_finger_tip_link";
-
 
 Ravens::Ravens(Scene &s) : scene(s), inputState(),
 		_home({-0.153327, -2.29152, -0.0686984, 2.11724, -0.760324, -1.11199}),
-		//0.901649, -2.34235, 0.000721707, 1.88705, -1.40717, 0.0254475, 0.25, -0.25,
 		_side({1.832, -0.332, 1.011, -1.437, 1.1 , -2.106}) {
-
-
 
 	arm_home.assign(_home, _home+6);
 	arm_side.assign(_side, _side+6);
@@ -23,6 +14,7 @@ Ravens::Ravens(Scene &s) : scene(s), inputState(),
 	controller.reset(new RavensController(scene, ravens));
 	registerSceneCallbacks();
 }
+
 
 void Ravens::registerSceneCallbacks() {
     Scene::Callback mousecb = boost::bind(&Ravens::processMouseInput, this, _1);
@@ -33,6 +25,7 @@ void Ravens::registerSceneCallbacks() {
     scene.addCallback(osgGA::GUIEventAdapter::KEYDOWN, keycb);
     scene.addCallback(osgGA::GUIEventAdapter::KEYUP, keycb);
 }
+
 
 void Ravens::loadRobot() {
   if (!SceneConfig::enableRobot) return;
@@ -100,11 +93,8 @@ bool Ravens::processKeyInput(const osgGA::GUIEventAdapter &ea) {
 void Ravens::applyTransform(OpenRAVE::Transform T) {
 	{
 		EnvironmentMutex::scoped_lock lock(scene.rave->env->GetMutex());
-		std::cout<<ravens->robot->GetTransform()<<std::endl;
-
 		OpenRAVE::Transform t = ravens->robot->GetTransform();
 		ravens->robot->SetTransform(T*t);
-		std::cout<<ravens->robot->GetTransform()<<std::endl;
 		scene.rave->env->UpdatePublishedBodies();
 	}
 	ravens->updateBullet();
@@ -214,10 +204,11 @@ void Ravens::setBothArmsJointAngles(const vector<dReal> &joint_left, const vecto
 	setArmJointAngles(joint_right, 'r');
 }
 
+
 /* Set the arm pose. pose \in {"side", "up"}*/
 void Ravens::setArmPose(std::string pose, char lrb) {
 	vector<dReal> * joints;
-	joints = (pose=="home")? &arm_side: &arm_home;
+	joints = (pose=="home")? &arm_home: &arm_side;
 
 	if (lrb == 'l') {
 		setArmJointAngles(*joints, 'l');
@@ -234,7 +225,7 @@ void Ravens::setArmPose(std::string pose, char lrb) {
 //mirror image of joints (r->l or l->r)
 std::vector<dReal> mirror_ravens_joints(const std::vector<dReal> &x) {
 	assert(("Mirror Joints: Expecting 6 values. Not found.", x.size()==6));
-	dReal vec[] = {-1*x[0],x[1],-1*x[2],x[3],-1*x[4],x[5]};
+	dReal vec[] = {-1*x[0],x[1], x[2],x[3], x[4],x[5]};
 	std::vector<dReal> mirrored;
 	mirrored.assign(vec,vec+6);
     return mirrored;

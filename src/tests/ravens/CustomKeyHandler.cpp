@@ -1,3 +1,4 @@
+
 #include "CustomKeyHandler.h"
 
 
@@ -67,7 +68,7 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,
         	//scene.testTrajectory3();
         	break;
         case 'T':
-        	scene.testCircular();
+        	scene.j_recorder->toggleRecording();
         	break;
         case 'K':
         	dofs = scene.ravens.ravens->getDOFValues();
@@ -76,7 +77,11 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,
         	std::cout<<std::endl;
         	break;
         case 'I':
-        	scene.ravens.setArmPose("home",'r');
+        	scene.ravens.setArmPose("home",'b');
+        	break;
+        case 'q':
+        	scene.j_playback->loadTrajectory();
+        	scene.j_playback->runTrajectory();
         	break;
 
         	/******************************* RIGHT LOCAL **********************************/

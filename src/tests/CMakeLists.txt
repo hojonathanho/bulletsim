@@ -75,7 +75,8 @@ include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/ravens)
 add_executable(ravens ravens/test_ravens.cpp
                       ravens/CustomScene.cpp
                       ravens/CustomKeyHandler.cpp
-                      ravens/RavenPlanners.cpp)
+                      ravens/RavenPlanners.cpp
+                      ravens/ravens_config.cpp)
 target_link_libraries(ravens simulation robots)
 
 
