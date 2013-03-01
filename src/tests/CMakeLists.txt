@@ -79,6 +79,10 @@ add_executable(ravens ravens/test_ravens.cpp
                       ravens/ravens_config.cpp)
 target_link_libraries(ravens simulation robots)
 
+add_executable(test_boxcloth ravens/test_boxcloth.cpp
+                      ravens/BoxCloth.cpp)
+target_link_libraries(test_boxcloth simulation)
+
 
 
 add_executable(rave_cpp test_surgical/planning.cpp)

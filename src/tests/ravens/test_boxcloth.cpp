@@ -47,7 +47,14 @@ int main(int argc, char* argv[]) {
 
 	Scene scene;
 
-	BoxCloth::Ptr cloth(new BoxCloth(LocalConfig::n,LocalConfig::m,LocalConfig::s,LocalConfig::h));
+	vector<unsigned int> hole_x;
+	hole_x.push_back(1);
+	hole_x.push_back(2);
+	vector<unsigned int> hole_y;
+	hole_y.push_back(2);
+	hole_y.push_back(5);
+
+	BoxCloth::Ptr cloth(new BoxCloth(LocalConfig::n,LocalConfig::m, hole_x, hole_y, LocalConfig::s,LocalConfig::h));
 
 	scene.env->add(cloth);
 	scene.startViewer();
