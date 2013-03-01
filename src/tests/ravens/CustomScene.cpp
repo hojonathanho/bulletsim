@@ -89,8 +89,8 @@ BulletSoftObject::Ptr CustomScene::createCloth(btScalar s1, btScalar s2, btScala
 			                      unsigned int resx, unsigned int resy) {
 
 	z += 0.05*METERS;
-	resx = 80;
-	resy = 80;
+	resx = 60;
+	resy = 30;
 
 	btVector3 corner1(-s1,-s2,z), corner2(+s1,-s2,z), corner3(-s1,+s2,z), corner4(+s1,+s2,z);
 	btSoftBody* psb=btSoftBodyHelpers::CreatePatch(*(env->bullet->softBodyWorldInfo),
@@ -102,7 +102,7 @@ BulletSoftObject::Ptr CustomScene::createCloth(btScalar s1, btScalar s2, btScala
 													1+2+4+8, true);
 
 	btSoftBody::Material* pm=psb->appendMaterial();
-	psb->setTotalMass(100000);
+	psb->setTotalMass(1e5);
 
 	// cut the soft-body
 	if (shouldCut) {
@@ -117,8 +117,8 @@ BulletSoftObject::Ptr CustomScene::createCloth(btScalar s1, btScalar s2, btScala
 
 	psb->generateBendingConstraints(2, psb->m_nodes[0].m_material);
 	pm->m_kLST	=	1.0;
-	psb->generateClusters(1e3);
-	psb->getCollisionShape()->setMargin(0.002*METERS);
+	psb->generateClusters(512);
+	psb->getCollisionShape()->setMargin(0.01*METERS);
 
 	psb->m_cfg.collisions	=	0;
 	//psb->m_cfg.collisions += btSoftBody::fCollision::CL_SELF;
@@ -126,9 +126,10 @@ BulletSoftObject::Ptr CustomScene::createCloth(btScalar s1, btScalar s2, btScala
 
     psb->m_cfg.kDF = 1;
     psb->m_cfg.piterations = 50;
-    psb->m_cfg.viterations = 50;
+    //psb->m_cfg.viterations = 10;
     psb->m_cfg.citerations = 50;
-    psb->m_cfg.diterations = 50;
+    //psb->m_cfg.diterations = 10;
+    psb->updateConstants();
     psb->randomizeConstraints();
 
 	return BulletSoftObject::Ptr(new BulletSoftObject(psb));
@@ -288,15 +289,21 @@ void CustomScene::run() {
     // add a needle
     sNeedle.reset(new SuturingNeedle(this));
     ravens.ravens->ignoreCollisionWith(sNeedle->s_needle->getChildren()[0]->rigidBody.get());
-    //env->add(sNeedle->s_needle);
+
+    if (RavenConfig::cloth)
+    	env->add(sNeedle->s_needle);
+
     rave->env->AddKinBody(sNeedle->s_needle->body);
 
     // add a cloth
     sCloth.reset(new SutureCloth(*this,GeneralConfig::scale * 0.09, GeneralConfig::scale * 0.03, 0, GeneralConfig::scale * btVector3(0, 0, table_height+0.01)));
     btSoftBody * const psb = sCloth->cloth->softBody.get();
-    //env->add(sCloth->cloth);
+    env->add(sCloth->cloth);
     sCloth->cloth->setColor(0.933,0.807,0.701,1.0);
 
+    ///////////////// Sponge
+
+    ////////////////////////
 
 
     // position the ravens
@@ -510,11 +517,9 @@ CustomScene::SuturingNeedle::SuturingNeedle(CustomScene * _scene, float _rope_ra
     for (int i=0; i< nLinks; i++)
     	ctrlPts.push_back(handlePos + METERS*btVector3(.5+segment_len*i,0,5*rope_radius));
 
-    ropePtr.reset(new CapsuleRope(ctrlPts,METERS*rope_radius,0.5,1,0,1,1));
+    ropePtr.reset(new CapsuleRope(ctrlPts,METERS*rope_radius));
     scene.env->add(ropePtr);
-
     ropePtr->setColor(0,1,0,1);
-
 
     //s_needle->ignoreCollisionWith(ropePtr->children[0]->rigidBody.get());
     //needle_rope_grab = new Grab(ropePtr->children[0]->rigidBody.get(), getNeedleHandleTransform().getOrigin(),scene.env->bullet->dynamicsWorld);

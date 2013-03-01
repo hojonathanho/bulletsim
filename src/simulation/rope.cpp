@@ -75,10 +75,10 @@ void createRopeTransforms(vector<btTransform>& transforms, vector<btScalar>& len
 CapsuleRope::CapsuleRope(const vector<btVector3>& ctrlPoints, btScalar radius_, float angStiffness_, float angDamping_, float linDamping_, float angLimit_, float linStopErp_) {
   radius = radius_;
   angStiffness = angStiffness_;
-  angDamping = angDamping_;
-  linDamping = linDamping_;
-  angLimit = angLimit_;
-  nLinks = ctrlPoints.size()-1;
+  angDamping   = angDamping_;
+  linDamping   = linDamping_;
+  angLimit     = angLimit_;
+  nLinks       = ctrlPoints.size()-1;
   vector<btTransform> transforms;
   vector<btScalar> lengths;
   createRopeTransforms(transforms,lengths,ctrlPoints);

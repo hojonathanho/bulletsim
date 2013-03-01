@@ -235,6 +235,7 @@ public:
     inline btVector3 getHalfExtents() { return halfExtents; }
 };
 
+
 // A wrapper for btCapsuleShapeX
 class CapsuleObject : public BulletObject {
 private: 
