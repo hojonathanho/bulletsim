@@ -79,7 +79,6 @@ public:
 		float rope_radius;
 		float segment_len;
 		int nLinks;
-		boost::shared_ptr<CapsuleRope> ropePtr;
 		Grab* needle_rope_grab;
 
 	public:
@@ -87,6 +86,7 @@ public:
 		CustomScene &scene;
 
 		RaveObject::Ptr s_needle;
+		boost::shared_ptr<CapsuleRope> ropePtr;
 		const float 			s_needle_radius, s_needle_mass;
 		const float 			s_end_angle;
 
@@ -102,7 +102,7 @@ public:
 		// Correction matrix of the needle
 		btMatrix3x3 s_corrRot;
 
-		SuturingNeedle (CustomScene * scene, float _rope_radius=.001, float _segment_len=0.005, int _nLinks=50);
+		SuturingNeedle (CustomScene * scene, float _rope_radius=.001, float _segment_len=0.01, int _nLinks=50);
 
 		/** Toggle's needle piercing state. */
 		void togglePiercing () {s_piercing = !s_piercing;}

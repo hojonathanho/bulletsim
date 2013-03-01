@@ -80,9 +80,9 @@ bool RavensGrabMonitor::checkContacts(bool left, btRigidBody *target) {
 	btRigidBody * const finger =
 			m_manip->robot->associatedObj(left ? leftFinger : rightFinger)->rigidBody.get();
 
-    btScalar avg = 0.0;
+	btScalar avg = 0.0;
 	const btScalar a = 0.15; // moving average
-	const btScalar threshold = 5.; // 5 times average impulse means we stop closing the gripper
+	const btScalar threshold = 5; // 5 times average impulse means we stop closing the gripper
 
 	BulletInstance::Ptr bullet = m_manip->robot->getEnvironment()->bullet;
 	for (int i = 0; i < bullet->dispatcher->getNumManifolds(); ++i) {
@@ -95,21 +95,32 @@ bool RavensGrabMonitor::checkContacts(bool left, btRigidBody *target) {
 		}
 
 		for (int j = 0; j < contactManifold->getNumContacts(); j++) {
+
 			btManifoldPoint& pt = contactManifold->getContactPoint(j);
 			btScalar impulse = pt.getAppliedImpulse();
 
-			cout << "   current " << impulse << '\n';
-			cout << "   average " << avg << '\n';
+			//cout << "   current " << impulse << '\n';
+			//cout << "   no change average " << avg << '\n';
 
 			btVector3 contact_pt = pt.getPositionWorldOnA();
 			contact_pt           = (left? origLeftFingerInvTrans : origRightFingerInvTrans) * contact_pt;
 
-			if (avg <= 0.0001)
-				avg = impulse;
-			if (impulse > threshold*avg && onInnerSide(contact_pt, left))
-				return true;
+			/**if (avg <= 0.0001) {
+				avg = (double)impulse;
+			}*/
 
-			avg = a*impulse + (1. - a)*avg;
+			if (impulse > 100) {//threshold*avg) {
+				cout<<"   Found exceeding impulse"<<endl;
+				if (onInnerSide(contact_pt, left)) {
+					cout<<"   Found inner contact point"<<endl;
+					return true;
+				} else {
+					cout<<"   NOT Found inner point"<<endl;
+				}
+			}
+
+			//avg = (double) a*impulse + (1.0 - a)*avg;
+			//cout<<"   weighted avg: "<<avg<<endl;
 		}
 	}
 	return false;
@@ -140,7 +151,7 @@ RavensGrabMonitor::RavensGrabMonitor(RaveRobotObject::Manipulator::Ptr manip, bt
 
 void RavensGrabMonitor::grab() {
   // grabs objects in contact
-  cout << "grabbing objects in contact" << endl;
+  //cout << "grabbing objects in contact" << endl;
 
   int num_in_contact = 0;
   for (int i = 0; i < m_bodies.size(); i += 1) {

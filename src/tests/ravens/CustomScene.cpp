@@ -298,12 +298,8 @@ void CustomScene::run() {
     // add a cloth
     sCloth.reset(new SutureCloth(*this,GeneralConfig::scale * 0.09, GeneralConfig::scale * 0.03, 0, GeneralConfig::scale * btVector3(0, 0, table_height+0.01)));
     btSoftBody * const psb = sCloth->cloth->softBody.get();
-    env->add(sCloth->cloth);
+//    /env->add(sCloth->cloth);
     sCloth->cloth->setColor(0.933,0.807,0.701,0.8);
-
-    ///////////////// Sponge
-
-    ////////////////////////
 
 
     // position the ravens
@@ -340,22 +336,27 @@ void CustomScene::run() {
 
 
     /** Define the actions. */
+    vector<BulletObject::Ptr> targets;
+    targets.push_back(sNeedle->s_needle->children[0]);
+    for (int i=0; i< sNeedle->ropePtr->children.size(); i+=1)
+    	targets.push_back(sNeedle->ropePtr->children[i]);
+
     lAction.reset(new RavensRigidBodyGripperAction( ravens.manipL,
     		"l_grasper2_L",
     		"l_grasper1_L",
     		env->bullet->dynamicsWorld, 1, *this));
-    lAction->setTargets(sNeedle->s_needle->children);
-    rAction.reset(new RavensRigidBodyGripperAction( ravens.manipL,
+    lAction->setTargets(targets);
+    rAction.reset(new RavensRigidBodyGripperAction( ravens.manipR,
     		"r_grasper2_L",
     		"r_grasper1_L",
     		env->bullet->dynamicsWorld, 1, *this));
-    rAction->setTargets(sNeedle->s_needle->children);
+    rAction->setTargets(targets);
 
 
-    lAction->setOpenAction();
+    /*lAction->setOpenAction();
     runAction(lAction, dt);
     rAction->setOpenAction();
-    runAction(rAction, dt);
+    runAction(rAction, dt);*/
 
 
     //setSyncTime(true);
