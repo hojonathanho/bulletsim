@@ -1,0 +1,180 @@
+#include "RavenGrabMonitor.h"
+#include <Eigen/Dense>
+#include "simulation/util.h"
+#include "utils/config.h"
+#include "utils/logging.h"
+using namespace std;
+using namespace OpenRAVE;
+using namespace Eigen;
+
+
+
+/** Constructor for grabs for ravens. */
+RavensGrab::RavensGrab(btRigidBody* rb, const btTransform& pose,
+		btDynamicsWorld* world,  bool leftFinger_, btTransform & offset_) : Grab(rb, pose, world), leftFinger(leftFinger_),offset(offset_) {}
+
+
+float RavensGrabMonitor::getGripperAngle(RaveRobotObject::Manipulator::Ptr manip) {
+	vector<int> indices;
+	manip->manip->GetChildDOFIndices(indices);
+
+	vector<dReal> dofs;
+	manip->robot->robot->GetDOFValues(dofs, indices);
+
+	return fabs(dofs[0] - dofs[1]);
+}
+
+bool RavensGrabMonitor::isClosed(RaveRobotObject::Manipulator::Ptr manip, float closedThreshold) {
+  return (getGripperAngle(manip) < closedThreshold);
+}
+
+btTransform RavensGrabMonitor::getManipRot() const {
+    btTransform trans(m_manip->getTransform());
+    trans.setOrigin(btVector3(0, 0, 0));
+    return trans;
+}
+
+// Finds some innermost point on the gripper
+btVector3 RavensGrabMonitor::getInnerPt(bool left) const {
+    btTransform trans(m_manip->robot->getLinkTransform(left ? leftFinger : rightFinger));
+    // this assumes that the gripper is symmetric when it is closed
+    // we get an innermost point on the gripper by transforming a point
+    // on the center of the gripper when it is closed
+    const btTransform &origInv = left ? origLeftFingerInvTrans : origRightFingerInvTrans;
+    return trans * origInv * centerPt;
+    // actually above, we can just cache origInv * centerPt
+}
+
+
+// Returns the direction that the specified finger will move when closing
+// (manipulator frame)
+btVector3 RavensGrabMonitor::getClosingDirection(bool left) const {
+	btTransform trans(m_manip->robot->getLinkTransform(left ? leftFinger : rightFinger));
+	return trans.getBasis().getColumn(2);
+}
+
+// Returns the direction that the specified finger will move when closing
+// (manipulator frame)
+btVector3 RavensGrabMonitor::getToolDirection() const {
+	return getManipRot() * btVector3(0,0,1);
+}
+
+// Returns true is pt is on the inner side of the specified finger of the gripper
+bool RavensGrabMonitor::onInnerSide(const btVector3 &pt, bool left) const {
+    // then the innerPt and the closing direction define the plane
+	btVector3 z = getToolDirection();
+	btVector3 y = getClosingDirection(left);
+	btVector3 x = y.cross(z);
+	btVector3 o = getInnerPt(left) + z*0.01*METERS;
+
+	return ((pt-getInnerPt(left)).dot(y) > -.005*METERS)
+		 && ((pt-getInnerPt(left)).dot(z) < 0)
+		 && abs((pt-getInnerPt(left)).dot(x) < .002*METERS);
+}
+
+
+/** Look for contacts between the specified finger and target
+    if the applied impulse reaches some threshold, this returns true
+    signifying that the gripper cannot be closed further without penetrating the target. */
+bool RavensGrabMonitor::checkContacts(bool left, btRigidBody *target) {
+	btRigidBody * const finger =
+			m_manip->robot->associatedObj(left ? leftFinger : rightFinger)->rigidBody.get();
+
+    btScalar avg = 0.0;
+	const btScalar a = 0.15; // moving average
+	const btScalar threshold = 5.; // 5 times average impulse means we stop closing the gripper
+
+	BulletInstance::Ptr bullet = m_manip->robot->getEnvironment()->bullet;
+	for (int i = 0; i < bullet->dispatcher->getNumManifolds(); ++i) {
+		btPersistentManifold* contactManifold = bullet->dispatcher->getManifoldByIndexInternal(i);
+		btCollisionObject* obA = static_cast<btCollisionObject*>(contactManifold->getBody0());
+		btCollisionObject* obB = static_cast<btCollisionObject*>(contactManifold->getBody1());
+
+		if ((obA != finger || obB != target) && (obB != finger || obA != target)) {
+			continue;
+		}
+
+		for (int j = 0; j < contactManifold->getNumContacts(); j++) {
+			btManifoldPoint& pt = contactManifold->getContactPoint(j);
+			btScalar impulse = pt.getAppliedImpulse();
+
+			cout << "   current " << impulse << '\n';
+			cout << "   average " << avg << '\n';
+
+			btVector3 contact_pt = pt.getPositionWorldOnA();
+			contact_pt           = (left? origLeftFingerInvTrans : origRightFingerInvTrans) * contact_pt;
+
+			if (avg <= 0.0001)
+				avg = impulse;
+			if (impulse > threshold*avg && onInnerSide(contact_pt, left))
+				return true;
+
+			avg = a*impulse + (1. - a)*avg;
+		}
+	}
+	return false;
+}
+
+RavensGrabMonitor::RavensGrabMonitor(RaveRobotObject::Manipulator::Ptr manip, btDynamicsWorld *dynamicsWorld,
+		const string &leftFingerName, const string &rightFingerName, Scene &s_) :
+		s(s_),
+		numGrabbed(0),
+		Monitor(manip),
+		m_world(dynamicsWorld),
+		m_bodies(),
+		m_grabs(),
+		m_i(0),
+		leftFinger(manip->robot->robot->GetLink(leftFingerName)),
+		rightFinger(manip->robot->robot->GetLink(rightFingerName)),
+		origLeftFingerInvTrans(manip->robot->getLinkTransform(leftFinger).inverse()),
+		origRightFingerInvTrans(manip->robot->getLinkTransform(rightFinger).inverse()),
+		centerPt(manip->getTransform().getOrigin()),
+		indices() {
+
+	manip->manip->GetChildDOFIndices(indices);
+	s.addPreStepCallback(boost::bind(&RavensGrabMonitor::updateGrabPose,this));
+}
+
+
+
+
+void RavensGrabMonitor::grab() {
+  // grabs objects in contact
+  cout << "grabbing objects in contact" << endl;
+
+  int num_in_contact = 0;
+  for (int i = 0; i < m_bodies.size(); i += 1) {
+
+	  // check for contact
+	  bool r_contact  =  checkContacts(false, m_bodies[i]->rigidBody.get());
+  	  bool l_contact  =  checkContacts(true,  m_bodies[i]->rigidBody.get());
+
+  	  if (l_contact || r_contact) {
+  		  num_in_contact += 1;
+  		  boost::shared_ptr<btRigidBody>  finger = m_manip->robot->associatedObj(l_contact ? leftFinger : rightFinger)->rigidBody;
+  		  btTransform bodyTfm;
+  		  m_bodies[i]->motionState->getWorldTransform(bodyTfm);
+  		  btTransform offset = finger->getWorldTransform().inverseTimes(bodyTfm);
+  		  RavensGrab::Ptr grab(new RavensGrab(m_bodies[i]->rigidBody.get(), bodyTfm, m_world, l_contact, offset));
+  		  m_grabs.push_back(grab);
+  	  }
+  }
+  cout<< " Grabbed : "<<num_in_contact<<" objects."<<endl;
+  numGrabbed = num_in_contact;
+}
+
+
+void RavensGrabMonitor::release() {
+	while (m_grabs.size() != 0)
+		m_grabs.pop_back();
+}
+
+
+void RavensGrabMonitor::updateGrabPose() {
+	if (!m_grabs.size()) return;
+	for (int i=0; i < m_grabs.size(); i+=1) {
+		btTransform targetT;
+		m_manip->robot->associatedObj(m_grabs[i]->leftFinger ? leftFinger : rightFinger)->motionState->getWorldTransform(targetT);
+		m_grabs[i]->updatePose(targetT*m_grabs[i]->offset);
+	}
+}
