@@ -2,7 +2,7 @@
 #include "simulation/softbodies.h"
 #include "simulation/config_bullet.h"
 #include "simulation/tetgen_helpers.h"
-
+#include "simulation/rope.h"
 #include <BulletSoftBody/btSoftBody.h>
 #include <BulletSoftBody/btSoftBodyHelpers.h>
 
@@ -246,6 +246,18 @@ int main(int argc, char *argv[]) {
     //initTetraPrism(scene);
     //init3DCloth(scene);
     initSponge(scene);
+
+    boost::shared_ptr<CapsuleRope> ropePtr;
+	vector<btVector3> ctrlPts;
+	int nLinks = 20;
+	btScalar segment_len = 0.05, rope_radius = 0.05;
+    for (int i=0; i< nLinks; i++)
+    	ctrlPts.push_back(btVector3(5,5,1) + METERS*btVector3(.5+segment_len*i,0,5*rope_radius));
+
+    ropePtr.reset(new CapsuleRope(ctrlPts,METERS*rope_radius));
+    scene.env->add(ropePtr);
+    ropePtr->setColor(0,1,0,1);
+
 
     scene.startViewer();
     scene.startLoop();

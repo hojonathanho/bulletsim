@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "simulation/simplescene.h"
+#include "robots/ravens.h"
 #include "ravens_config.h"
 
 /** Class to record joint values and store them to a file. */
@@ -17,7 +18,7 @@ class jointRecorder {
 
 	Scene &scene;						// Scene in which robot is
 
-	RaveRobotObject::Ptr robot;			// Robot whose joints we are recording
+	Ravens::Ptr ravens;					// Ravens from the scene
 	std::vector<dReal> joint_vals;		// Vector to store joint values
 	bool recording;						// Check if recording currently
 	float record_freq;					// Frequency of recording
@@ -32,8 +33,8 @@ public:
 	typedef boost::shared_ptr<jointRecorder> Ptr;
 
 	// Constructor
-	jointRecorder (Scene &_scene, RaveRobotObject::Ptr _robot, float _dt = -1, float record_freq = -1.0) :
-		scene (_scene), robot(_robot), recording(false), dt(_dt) {
+	jointRecorder (Scene &_scene, Ravens * _robot, float _dt = -1, float record_freq = -1.0) :
+		scene (_scene), ravens(_robot), recording(false), dt(_dt) {
 
 		scene.addPreStepCallback(boost::bind(&jointRecorder::recordCallback, this));
 		filename = "/home/ankush/sandbox/bulletsim/src/tests/ravens/recorded/raven_joints.txt";
@@ -52,7 +53,7 @@ public:
 
 		if (currTime >= 1/record_freq && recording) {
 
-			robot->robot->GetDOFValues(joint_vals);
+			ravens->ravens->robot->GetDOFValues(joint_vals);
 			int jsize = joint_vals.size();
 
 			for (int i = 0; i < jsize; ++i)
@@ -79,6 +80,9 @@ public:
 			currTime = 0.0;
 		}
 	}
+
+	// Function to get frequency of recording
+	float getRecordingFrequency () {return record_freq;}
 
 	~jointRecorder () { std::cout<<"done recording\n"; file.close();}
 };

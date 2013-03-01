@@ -114,6 +114,27 @@ public:
 	};
 
 
+	/** Class for cloth made using box objects and spring constraints. */
+	class BoxSutureCloth {
+
+	public:
+		typedef boost::shared_ptr<BoxSutureCloth> Ptr;
+
+
+		// node indices of the nodes on the cut
+		std::vector<int> cut_nodes1, cut_nodes2;
+
+		/** @params:
+		 *  N : the number of box-objects along the x-dimension.
+		 *  M : the number of box-objects along the y-dimension.
+		 *  S : the length of side of each box object.
+		 *  H : the height of the box object : should be small to represent a plate.
+		 *  CENTER : location of the center of the cloth.
+		 */
+		BoxSutureCloth(CustomScene &scene, int n, int m, btScalar s, btVector3 center);
+
+	};
+
 	SoftBodyGripperAction::Ptr leftAction, rightAction;
 	BulletInstance::Ptr bullet2;
 	OSGInstance::Ptr osg2;
@@ -154,7 +175,7 @@ public:
 		ikPlannerL.reset(new IKInterpolationPlanner(ravens,rave,'l'));
 		ikPlannerR.reset(new IKInterpolationPlanner(ravens,rave,'r'));
 
-		j_recorder.reset (new jointRecorder (*this, ravens.ravens));
+		j_recorder.reset (new jointRecorder (*this, &ravens));
 		j_playback.reset (new jointPlayback (*this, &ravens));
 	}
 
