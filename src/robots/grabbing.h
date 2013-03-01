@@ -43,6 +43,7 @@ public:
     virtual void grab() = 0;
     virtual void release() = 0;
     virtual void updateGrabPose() = 0;
+    bool isClosed(RaveRobotObject::Manipulator::Ptr manip, float closedThreshold) {return true;}
 
   void setManip(RaveRobotObject::Manipulator::Ptr);
 };

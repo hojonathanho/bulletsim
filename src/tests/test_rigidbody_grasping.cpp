@@ -173,8 +173,9 @@ struct CustomScene : public Scene {
                 btTransform(btQuaternion(0, 0, 0, 1), GeneralConfig::scale * btVector3(1, 0, table_height-table_thickness/2))));
         env->add(table);
 
-        BoxObject::Ptr box(new BoxObject(1, GeneralConfig::scale * btVector3(.03, .03, .03),
+        BoxObject::Ptr box(new BoxObject(1, GeneralConfig::scale * btVector3(.02, .02, .02),
                 btTransform(btQuaternion(0, 0, 0, 1), GeneralConfig::scale * btVector3(0.7, 0.188, table_height + 0.1/2))));
+        box->setColor(0,0,1,1);
         env->add(box);
         pr2m.pr2->ignoreCollisionWith(box->rigidBody.get());
 

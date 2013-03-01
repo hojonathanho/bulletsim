@@ -331,15 +331,37 @@ void CustomScene::run() {
     		   	   	   	   	   	   	   	   	   	 "r_grasper1_L",
     		   	   	   	   	   	   	   	   	   	 "r_palm_L", 1));
     rightAction->setTarget(sCloth->cloth);
+    /*leftAction->setOpenAction();
+    runAction(leftAction, dt);
+
+    rightAction->setOpenAction();
+    runAction(rightAction, dt);*/
+
+
+
+    /** Define the actions. */
+    lAction.reset(new RavensRigidBodyGripperAction( ravens.manipL,
+    		"l_grasper2_L",
+    		"l_grasper1_L",
+    		env->bullet->dynamicsWorld, 1, *this));
+    lAction->setTargets(sNeedle->s_needle->children);
+    rAction.reset(new RavensRigidBodyGripperAction( ravens.manipL,
+    		"r_grasper2_L",
+    		"r_grasper1_L",
+    		env->bullet->dynamicsWorld, 1, *this));
+    rAction->setTargets(sNeedle->s_needle->children);
+
+
+    lAction->setOpenAction();
+    runAction(lAction, dt);
+    rAction->setOpenAction();
+    runAction(rAction, dt);
+
+
     //setSyncTime(true);
     startViewer();
     stepFor(dt, 2);
 
-    leftAction->setOpenAction();
-    runAction(leftAction, dt);
-
-    rightAction->setOpenAction();
-    runAction(rightAction, dt);
 
     startFixedTimestepLoop(dt);
 }

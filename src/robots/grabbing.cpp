@@ -18,6 +18,7 @@ Grab::Grab(btRigidBody* rb, const btVector3& pos, btDynamicsWorld* world_) {
   updatePosition(pos);
 }
 
+
 Grab::Grab(btRigidBody* rb, const btTransform& pose, btDynamicsWorld* world_) {
   world = world_;
   cnt = new btGeneric6DofConstraint(*rb,rb->getCenterOfMassTransform().inverseTimes(pose),true); // second parameter?
@@ -29,9 +30,11 @@ Grab::Grab(btRigidBody* rb, const btTransform& pose, btDynamicsWorld* world_) {
   updatePose(pose);
 }
 
+
 void Grab::updatePosition(const btVector3& pos) {
   cnt->getFrameOffsetA().setOrigin(pos);
 }
+
 
 void Grab::updatePose(const btTransform& tf) {
   cnt->getFrameOffsetA() = tf;
@@ -63,7 +66,7 @@ Monitor::Monitor(RaveRobotObject::Manipulator::Ptr manip) :
   closedThreshold(.2),
   m_wasClosed(isClosed(manip, .2))
 {
-  cout << "monitor init: " << m_wasClosed << " " << isClosed(manip, closedThreshold) << endl;
+  cout << "monitor init: " << m_wasClosed << " " << this->isClosed(manip, closedThreshold) << endl;
 }
 
 void Monitor::update() {
@@ -88,7 +91,7 @@ MonitorForGrabbing::MonitorForGrabbing(RaveRobotObject::Manipulator::Ptr manip, 
 {
 }
 
-void MonitorForGrabbing::setBodies(vector<BulletObject::Ptr>& bodies) {}
+void MonitorForGrabbing::setBodies(vector<BulletObject::Ptr>& bodies) {m_bodies = bodies;}
 
 btRigidBody* getNearestDynamicBody(btDynamicsWorld* world, btVector3& pt) {
   btCollisionObjectArray& rigidobjs = world->getCollisionObjectArray();

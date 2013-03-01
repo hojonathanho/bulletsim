@@ -5,6 +5,7 @@
 #define _CUSTOM_SCENE_RAVENS_
 
 #include "SoftBodyGripperAction.h"
+#include "RavensRigidBodyAction.h"
 
 #include "simulation/simplescene.h"
 #include <BulletSoftBody/btSoftBodyHelpers.h>
@@ -136,12 +137,17 @@ public:
 	};
 
 	SoftBodyGripperAction::Ptr leftAction, rightAction;
+
+	RavensRigidBodyGripperAction::Ptr lAction, rAction;  //>>>>>>>>>>>>> testing
+
 	BulletInstance::Ptr bullet2;
 	OSGInstance::Ptr osg2;
 	Fork::Ptr fork;
 	RaveRobotObject::Ptr origRobot, tmpRobot;
 	Ravens ravens;
 	IKInterpolationPlanner::Ptr ikPlannerL, ikPlannerR;
+
+
 
 	// the cloth to be sutured
 	SutureCloth::Ptr sCloth;

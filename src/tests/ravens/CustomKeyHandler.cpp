@@ -11,14 +11,14 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,
     case osgGA::GUIEventAdapter::KEYDOWN:
         switch (ea.getKey()) {
         case 'a':
-            scene.leftAction->reset();
-            scene.leftAction->toggleAction();
-            scene.runAction(scene.leftAction, BulletConfig::dt);
+            scene.lAction->reset();
+            scene.lAction->toggleAction();
+            scene.runAction(scene.lAction, BulletConfig::dt);
             break;
         case 's':
-            scene.rightAction->reset();
-            scene.rightAction->toggleAction();
-            scene.runAction(scene.rightAction, BulletConfig::dt);
+            scene.rAction->reset();
+            scene.rAction->toggleAction();
+            scene.runAction(scene.rAction, BulletConfig::dt);
             break;
 
         case 'W':
