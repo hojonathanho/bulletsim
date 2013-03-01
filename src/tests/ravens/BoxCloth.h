@@ -1,14 +1,14 @@
 #pragma once
-#include "environment.h"
-#include "basicobjects.h"
+#include <simulation/environment.h>
+#include <simulation/basicobjects.h>
 #include "btBulletDynamicsCommon.h"
 #include <vector>
 #include <utils/config.h>
 
+
 class BoxCloth : public CompoundObject<BulletObject> {
 
 private:
-
 	// number of boxes along the x-dimension
 	int n;
 
@@ -32,9 +32,8 @@ public:
 	std::vector<boost::shared_ptr<btCollisionShape> > shapes;
 	std::vector<BulletConstraint::Ptr> joints;
 
-	BoxCloth(unsigned int n_, unsigned int m_, btScalar s_=METERS*0.02, btScalar h_=METERS*0.00, float angStiffness_=.1, float linDamping_=.75, float angDamping_=1, float angLimit_=.4);
+	BoxCloth(unsigned int n_, unsigned int m_, btScalar s_=METERS*0.02, btScalar h_=METERS*0.001, float angStiffness_=0, float linDamping_=0.3, float angDamping_=0.1, float angLimit_=1);
 
 	void init();
 	void destroy();
-	void setTexture(cv::Mat image, cv::Mat mask, const btTransform& camFromWorld);
 };
