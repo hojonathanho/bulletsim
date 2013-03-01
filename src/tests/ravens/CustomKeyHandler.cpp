@@ -39,10 +39,6 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,
         	scene.rave->env->Save("/home/ankush/sandbox/rave_suture/suture_env2.xml");
         	break;
 
-        case 'l': // saves the openrave environment to a file
-        	scene.plotGrasp();
-        	break;
-
         case 'z': // plots the points on lying on the cut
 
         	scene.plotcolors.clear();
@@ -67,9 +63,6 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,
         case 'O': // executes an openrave trajectory
         	//scene.testTrajectory3();
         	break;
-        case 'T':
-        	scene.j_recorder->toggleRecording();
-        	break;
         case 'K':
         	dofs = scene.ravens.ravens->getDOFValues();
         	for (int c=0; c<dofs.size(); c+=1)
@@ -83,6 +76,15 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,
         	scene.j_playback->loadTrajectory();
         	scene.j_playback->runTrajectory();
         	break;
+
+        // Recording/Playback stuff
+        case 'T':
+        	scene.j_recorder->toggleRecording();
+        	break;
+        case 'l':
+        	scene.j_playback->toggleEnabled();
+        	break;
+
 
         	/******************************* RIGHT LOCAL **********************************/
         case 'e':

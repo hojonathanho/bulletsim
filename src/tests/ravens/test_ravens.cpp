@@ -7,6 +7,7 @@
 #include <openrave/kinbody.h>
 #include "robots/pr2.h"
 #include "CustomScene.h"
+#include "ravens_config.h"
 
 
 int main(int argc, char *argv[]) {
@@ -21,6 +22,7 @@ int main(int argc, char *argv[]) {
 	parser.addGroup(GeneralConfig());
 	parser.addGroup(BulletConfig());
 	parser.addGroup(SceneConfig());
+	parser.addGroup(RavenConfig());
 	parser.read(argc, argv);
 
 	CustomScene().run();

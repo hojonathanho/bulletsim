@@ -33,16 +33,18 @@ public:
 	typedef boost::shared_ptr<jointRecorder> Ptr;
 
 	// Constructor
-	jointRecorder (Scene &_scene, Ravens * _robot, float _dt = -1, float record_freq = -1.0) :
-		scene (_scene), ravens(_robot), recording(false), dt(_dt) {
+	jointRecorder (Scene &_scene, Ravens * _robot, float _dt = -1, float _record_freq = -1.0) :
+		scene (_scene), ravens(_robot), recording(false), dt(_dt), currTime(0.0), record_freq(_record_freq) {
 
-		scene.addPreStepCallback(boost::bind(&jointRecorder::recordCallback, this));
 		filename = "/home/ankush/sandbox/bulletsim/src/tests/ravens/recorded/raven_joints.txt";
 
 		if (dt == -1)
 			dt = BulletConfig::dt;
+
 		if (record_freq == -1.0)
 			record_freq = RavenConfig::record_freq;
+
+		scene.addPreStepCallback(boost::bind(&jointRecorder::recordCallback, this));
 	}
 
 	/* Callback which opens file, stores latest joint values, closes file.
@@ -51,22 +53,20 @@ public:
 	 * Must be added to the scene's list of callbacks. */
 	void recordCallback () {
 
-		if (currTime >= 1/record_freq && recording) {
+		if (currTime >= 1.0/record_freq && recording) {
 
+			joint_vals.clear();
 			ravens->ravens->robot->GetDOFValues(joint_vals);
 			int jsize = joint_vals.size();
 
 			for (int i = 0; i < jsize; ++i)
-				//joint_vals_str.append()
 				file << joint_vals[i] << " ";
 			file << "\n";
 			file.flush();
 
 			currTime = 0.0;
-		}
-		else {
-			currTime += dt;
-		}
+
+		} else if (recording) currTime += dt;
 	}
 
 	// Toggles file and opens/closes file appropriately
@@ -74,7 +74,7 @@ public:
 		recording = !recording;
 		std::cout << "Recording: " << (recording ? "true" : "false") << std::endl;
 		if (recording)
-			file.open(filename.c_str(), ios::app | ios::out);
+			file.open(filename.c_str(), ios::out | ios::app);
 		else {
 			file.close();
 			currTime = 0.0;
@@ -84,7 +84,7 @@ public:
 	// Function to get frequency of recording
 	float getRecordingFrequency () {return record_freq;}
 
-	~jointRecorder () { std::cout<<"done recording\n"; file.close();}
+	~jointRecorder () { std::cout<<"Done recording.\n"; file.close();}
 };
 
 #endif

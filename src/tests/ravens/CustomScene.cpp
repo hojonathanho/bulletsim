@@ -122,7 +122,7 @@ BulletSoftObject::Ptr CustomScene::createCloth(btScalar s1, btScalar s2, btScala
 
 	psb->m_cfg.collisions	=	0;
 	//psb->m_cfg.collisions += btSoftBody::fCollision::CL_SELF;
-	psb->m_cfg.collisions += btSoftBody::fCollision::SDF_RS;
+	psb->m_cfg.collisions  += btSoftBody::fCollision::SDF_RS;
 
     psb->m_cfg.kDF = 1;
     psb->m_cfg.piterations = 50;
@@ -283,7 +283,7 @@ void CustomScene::run() {
                         		                     GeneralConfig::scale * btVector3(0, 0, table_height-table_thickness/2))));
     table->rigidBody->setFriction(10);
     env->add(table);
-    table->setColor(0.62, 0.32, 0.17, 1.0);
+    table->setColor(0.62, 0.32, 0.17, 0.8);
     createKinBodyFromBulletBoxObject(table, rave);
 
     // add a needle
@@ -299,7 +299,7 @@ void CustomScene::run() {
     sCloth.reset(new SutureCloth(*this,GeneralConfig::scale * 0.09, GeneralConfig::scale * 0.03, 0, GeneralConfig::scale * btVector3(0, 0, table_height+0.01)));
     btSoftBody * const psb = sCloth->cloth->softBody.get();
     env->add(sCloth->cloth);
-    sCloth->cloth->setColor(0.933,0.807,0.701,1.0);
+    sCloth->cloth->setColor(0.933,0.807,0.701,0.8);
 
     ///////////////// Sponge
 
@@ -484,7 +484,7 @@ btTransform CustomScene::SutureCloth::getCutGraspTransform(int side_num, RaveRob
 /** Constructor for suturing needle. Creates needle from file.*/
 CustomScene::SuturingNeedle::SuturingNeedle(CustomScene * _scene, float _rope_radius, float _segment_len, int _nLinks) :
 											scene(*_scene), s_needle_radius(0.0112),
-											s_needle_mass(50), s_pierce_threshold(0.03),
+											s_needle_mass(500), s_pierce_threshold(0.03),
 											s_end_angle(1.257), s_piercing(false), s_grasped(false),
 											rope_radius(_rope_radius), segment_len(_segment_len), nLinks(_nLinks) {
 
