@@ -5,7 +5,6 @@
 #include "simulation/simplescene.h"
 
 
-
 class RavensGrab : public Grab {
 
 public:
@@ -36,7 +35,6 @@ public:
   const btVector3 centerPt;
   vector<int> indices;
 
-
   std::vector<BulletObject::Ptr> m_bodies;
   std::vector<int> m_collidingBodies;
   btDynamicsWorld* m_world;
@@ -45,14 +43,15 @@ public:
   int numGrabbed;
   Scene &s;
 
+
   RavensGrabMonitor(RaveRobotObject::Manipulator::Ptr _manip, btDynamicsWorld* _world,
 		  	  	  	  const string &leftFingerName, const string &rightFingerName, Scene &s);
-
   btTransform getManipRot() const;
+  btTransform getInverseFingerTfm (bool left);
   btVector3 getInnerPt(bool left) const ;
   btVector3 getClosingDirection(bool left) const;
   btVector3 getToolDirection() const;
-  bool onInnerSide(const btVector3 &pt, bool left) const;
+  bool onInnerSide(const btVector3 &pt, bool left);
 
   bool checkContacts (bool leftFinger, btRigidBody *target);
   void setBodies(std::vector<BulletObject::Ptr>& bodies) {m_bodies = bodies;}

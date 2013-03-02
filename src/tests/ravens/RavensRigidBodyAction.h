@@ -1,5 +1,6 @@
 #pragma once
 #include "RavenGrabMonitor.h"
+#include "jointRecorder.h"
 
 class RavensRigidBodyGripperAction : public Action {
 
@@ -12,6 +13,10 @@ class RavensRigidBodyGripperAction : public Action {
     // manages the grabs for the ravens
     RavensGrabMonitor::Ptr grabMonitor;
 
+    string arm;
+    // jointRecorder to push in "grab" or "release" lines into file
+    jointRecorder::Ptr jr;
+
     // min/max gripper dof vals
     static const float CLOSED_VAL = 0.0f, OPEN_VAL = 0.25f;
 
@@ -21,8 +26,8 @@ public:
                            	     const string &leftFingerName,
                            	     const string &rightFingerName,
                            	     btDynamicsWorld* world_,
-                           	     float time, Scene &s) :
-                           	    	 Action(time), manip(manip_), vals(2, 0) {
+                           	     float time, Scene &s, char _arm, jointRecorder * _jr) :
+                           	     Action(time), manip(manip_), vals(2, 0), jr (_jr), arm(&_arm) {
 
     	grabMonitor.reset(new RavensGrabMonitor(manip_, world_, leftFingerName, rightFingerName, s));
     	manip->manip->GetChildDOFIndices(indices);
@@ -33,6 +38,16 @@ public:
         grabMonitor->release();
     }
 
+    btVector3 getVec (bool left) {
+    	btVector3 z = grabMonitor->getToolDirection();
+    	return grabMonitor->getInnerPt(left) + z*0.015*METERS;
+    }
+
+    btVector3 getClosingDirection(bool left) {return grabMonitor->getClosingDirection(left);}
+
+    btTransform getTfm (bool left) {
+    	return grabMonitor->getInverseFingerTfm(left).inverse();
+    }
 
     void setEndpoints(vector<dReal> start, dReal end) { startVals = start; endVal = end; }
 
@@ -54,6 +69,8 @@ public:
 
     void reset() {
         Action::reset();
+        if (grabMonitor->getNumGrabbed() > 0)
+        	jr->addMessageToFile(arm + " release");
         grabMonitor->release();
     }
 
@@ -65,6 +82,7 @@ public:
         if (endVal != OPEN_VAL) {
         	grabMonitor->grab();
         	if (grabMonitor->getNumGrabbed() > 0) {
+        		jr->addMessageToFile(arm + " grab");
         		setDone(true);
         		return;
         	}

@@ -213,31 +213,56 @@ void CustomScene::testCircular () {}
 void CustomScene::plotGrasp (bool remove) {
 	plot_points->setPoints(std::vector<btVector3>(),std::vector<btVector4>());
 
-	btVector3 pt1 = leftAction->getVec1(false);
-	btVector3 vec = leftAction->getVec2(false);
-	btTransform tfm = util::getOrthogonalTransform(vec);
-	//tfm.setOrigin(pt1);
+	btVector3 pt1 = lAction->getVec(false);
+	btVector3 pt2 = lAction->getVec(true);
+	btVector3 pt3 = rAction->getVec(false);
+	btVector3 pt4 = rAction->getVec(true);
+	btVector3 vec1 = rAction->getClosingDirection(true);
+	btVector3 vec2 = rAction->getClosingDirection(false);
+	btVector3 vec3 = rAction->getClosingDirection(true);
+	btVector3 vec4 = rAction->getClosingDirection(false);
+
+	btTransform tfm1 = util::getOrthogonalTransform(vec1);
+	tfm1.setOrigin(pt4);
+	btTransform tfm2 = util::getOrthogonalTransform(vec2);
+	tfm2.setOrigin(pt3);
+
+	btTransform tfm3 = util::getOrthogonalTransform(vec3);
+	tfm3.setOrigin(pt2);
+	btTransform tfm4 = util::getOrthogonalTransform(vec4);
+	tfm4.setOrigin(pt1);
+
+	btTransform tfm5 = lAction->getTfm(true);
+	//tfm5.setOrigin(pt2);
+	btTransform tfm6 = rAction->getTfm(true);
+	//tfm6.setOrigin(pt4);
+
+	btTransform tfm7 = lAction->getTfm(false);
+	//tfm7.setOrigin(pt1);
+	btTransform tfm8 = rAction->getTfm(false);
+	//tfm8.setOrigin(pt3);
 
 	std::vector<btVector3> plotpoints;
 	std::vector<btVector4> color;
 
 	if (!remove) {
-		plotpoints.push_back(pt1);
+		plotpoints.push_back(pt2);
 		color.push_back(btVector4(1,0,0,1));
 
-		plotpoints.push_back(vec);
+		plotpoints.push_back(pt2 + 0.1*vec1);
+		color.push_back(btVector4(0,0,1,1));
+
+		plotpoints.push_back(pt4);
 		color.push_back(btVector4(1,0,0,1));
 
-		//plotpoints.push_back(pt2);
-		//color.push_back(btVector4(0,0,1,1));
-
-		//plotpoints.push_back(pt3);
-		//color.push_back(btVector4(1,0,0,1));
+		plotpoints.push_back(pt4 + 0.1*vec3);
+		color.push_back(btVector4(0,0,1,1));
 
 		//plotpoints.push_back(pt4);
 		//color.push_back(btVector4(0,0,1,1));
 
-		//util::drawAxes(tfm, 2, env);
+		util::drawAxes(tfm7, 2, env);
+		util::drawAxes(tfm8, 2, env);
 	}
 	else {
 		plotpoints.push_back(btVector3(0,0,0));
@@ -344,19 +369,21 @@ void CustomScene::run() {
     lAction.reset(new RavensRigidBodyGripperAction( ravens.manipL,
     		"l_grasper2_L",
     		"l_grasper1_L",
-    		env->bullet->dynamicsWorld, 1, *this));
+    		env->bullet->dynamicsWorld,
+    		1, *this, 'l', j_recorder.get()));
     lAction->setTargets(targets);
     rAction.reset(new RavensRigidBodyGripperAction( ravens.manipR,
     		"r_grasper2_L",
     		"r_grasper1_L",
-    		env->bullet->dynamicsWorld, 1, *this));
+    		env->bullet->dynamicsWorld,
+    		1, *this,'r', j_recorder.get()));
     rAction->setTargets(targets);
 
 
-    /*lAction->setOpenAction();
+    lAction->setOpenAction();
     runAction(lAction, dt);
     rAction->setOpenAction();
-    runAction(rAction, dt);*/
+    runAction(rAction, dt);
 
 
     //setSyncTime(true);

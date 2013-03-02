@@ -84,6 +84,9 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,
         case 'l':
         	scene.j_playback->toggleEnabled();
         	break;
+        case ']':
+        	scene.plotGrasp();
+        	break;
 
 
         	/******************************* RIGHT LOCAL **********************************/

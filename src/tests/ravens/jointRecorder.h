@@ -81,6 +81,12 @@ public:
 		}
 	}
 
+	void addMessageToFile(string message) {
+		if (!recording) return;
+		file << message << "\n";
+		file.flush();
+	}
+
 	// Function to get frequency of recording
 	float getRecordingFrequency () {return record_freq;}
 
