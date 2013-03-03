@@ -186,6 +186,14 @@ public:
 		j_playback.reset (new jointPlayback (*this, &ravens));
 	}
 
+
+	void callGripperAction(char lr='l') {
+		RavensRigidBodyGripperAction::Ptr action = (lr == 'r')? rAction : lAction;
+		action->reset();
+        action->toggleAction();
+        runAction(action, BulletConfig::dt);
+	}
+
 	/** Returns the coordinates of the last point directly below (-z) SOURCE_PT
 	      on the cloth represented by PSB. */
 	btVector3 getDownPoint(btVector3 &source_pt, boost::shared_ptr<btSoftBody> psb,

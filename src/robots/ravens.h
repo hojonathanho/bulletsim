@@ -170,6 +170,8 @@ public:
     void toggleLeftEngaged() {lEngaged = !lEngaged;}
     void toggleRightEngaged() {rEngaged = !rEngaged;}
     void processHapticInput();
+    void runLeftGripperAction();
+    void runRightGripperAction();
 
 
     /** Set the transform of the base of the robot.*/

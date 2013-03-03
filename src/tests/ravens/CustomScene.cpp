@@ -531,7 +531,7 @@ btTransform CustomScene::SutureCloth::getCutGraspTransform(int side_num, RaveRob
 /** Constructor for suturing needle. Creates needle from file.*/
 CustomScene::SuturingNeedle::SuturingNeedle(CustomScene * _scene, float _rope_radius, float _segment_len, int _nLinks) :
 											scene(*_scene), s_needle_radius(0.0112*NEEDLE_SCALE_FACTOR),
-											s_needle_mass(5e5), s_pierce_threshold(0.03),
+											s_needle_mass(1000), s_pierce_threshold(0.03),
 											s_end_angle(1.4), s_piercing(false), s_grasped(false),
 											rope_radius(_rope_radius), segment_len(_segment_len), nLinks(_nLinks) {
 
@@ -573,8 +573,8 @@ CustomScene::SuturingNeedle::SuturingNeedle(CustomScene * _scene, float _rope_ra
     //needleEndT.setOrigin(needleEndT.getOrigin() + METERS*(needleEndT.getBasis()*btVector3(0,-0.005,0)));
     //util::drawAxes(needleEndT, .1*METERS, scene.env);
 
-    needle_rope_grab = new Grab(ropePtr->children[0]->rigidBody.get(), getNeedleHandleTransform().getOrigin(),scene.env->bullet->dynamicsWorld);
-    scene.addPreStepCallback(boost::bind(&CustomScene::SuturingNeedle::setConnectedRopeTransformCallback, this));
+    //needle_rope_grab = new Grab(ropePtr->children[0]->rigidBody.get(), getNeedleHandleTransform().getOrigin(),scene.env->bullet->dynamicsWorld);
+    //scene.addPreStepCallback(boost::bind(&CustomScene::SuturingNeedle::setConnectedRopeTransformCallback, this));
     //------------------------------------------------------------------------------
 }
 

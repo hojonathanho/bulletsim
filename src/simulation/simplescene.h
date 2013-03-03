@@ -113,6 +113,7 @@ struct Scene {
 
   void runAction(Action &a, float dt);
   void runAction(Action::Ptr a, float dt) { runAction(*a.get(), dt); }
+  virtual void callGripperAction(char lr) = 0;
 
   virtual void draw();
 

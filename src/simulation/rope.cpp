@@ -84,6 +84,7 @@ CapsuleRope::CapsuleRope(const vector<btVector3>& ctrlPoints, btScalar radius_, 
   createRopeTransforms(transforms,lengths,ctrlPoints);
   for (int i=0; i < nLinks; i++) {
     btTransform trans = transforms[i];
+
     btScalar len = lengths[i];
     float mass = 1;
     CapsuleObject::Ptr child(new CapsuleObject(1,radius,len,trans));

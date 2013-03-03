@@ -178,9 +178,9 @@ bool getHapticInput(btTransform &trans0, bool buttons0[2], btTransform &trans1, 
         return false;
     trans0 = btTransform(toHapticBtMatrix(start_proxy_rot) * HAPTIC_ROTATION,
                          toHapticBtVector(start_proxy_pos));
+
     trans1 = btTransform(toHapticBtMatrix(end_proxy_rot) * HAPTIC_ROTATION,
                          toHapticBtVector(end_proxy_pos));
-
 
     return true;
 }
