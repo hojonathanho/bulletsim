@@ -311,21 +311,26 @@ void CustomScene::run() {
     table->setColor(0.62, 0.32, 0.17, 0.8);
     createKinBodyFromBulletBoxObject(table, rave);
 
+    cout<<"WHAT"<<endl;
+
     // add a needle
     sNeedle.reset(new SuturingNeedle(this));
     ravens.ravens->ignoreCollisionWith(sNeedle->s_needle->getChildren()[0]->rigidBody.get());
 
-    if (RavenConfig::cloth)
-    	env->add(sNeedle->s_needle);
+    env->add(sNeedle->s_needle);
 
     rave->env->AddKinBody(sNeedle->s_needle->body);
+
+    cout<<"WHAT"<<endl;
 
     // add a cloth
     sCloth.reset(new SutureCloth(*this,GeneralConfig::scale * 0.09, GeneralConfig::scale * 0.03, 0, GeneralConfig::scale * btVector3(0, 0, table_height+0.01)));
     btSoftBody * const psb = sCloth->cloth->softBody.get();
-//    /env->add(sCloth->cloth);
+    if (RavenConfig::cloth)
+    	env->add(sCloth->cloth);
     sCloth->cloth->setColor(0.933,0.807,0.701,0.8);
 
+    cout<<"WHAT"<<endl;
 
     // position the ravens
     btTransform T;
@@ -341,6 +346,8 @@ void CustomScene::run() {
     env->add(plot_axes1);
     plot_axes2.reset(new PlotAxes());
     env->add(plot_axes2);
+
+    cout<<"WHAT"<<endl;
 
     leftAction.reset(new SoftBodyGripperAction( ravens.manipL,
                                                	"l_grasper2_L",
@@ -358,7 +365,7 @@ void CustomScene::run() {
     rightAction->setOpenAction();
     runAction(rightAction, dt);*/
 
-
+    cout<<"WHAT"<<endl;
 
     /** Define the actions. */
     vector<BulletObject::Ptr> targets;
@@ -366,19 +373,25 @@ void CustomScene::run() {
     for (int i=0; i< sNeedle->ropePtr->children.size(); i+=1)
     	targets.push_back(sNeedle->ropePtr->children[i]);
 
+    char l[] = "l\0";
+    char r[] = "r\0";
+
     lAction.reset(new RavensRigidBodyGripperAction( ravens.manipL,
     		"l_grasper2_L",
     		"l_grasper1_L",
     		env->bullet->dynamicsWorld,
-    		1, *this, 'l', j_recorder.get()));
+    		1, *this, l, j_recorder.get()));
     lAction->setTargets(targets);
     rAction.reset(new RavensRigidBodyGripperAction( ravens.manipR,
     		"r_grasper2_L",
     		"r_grasper1_L",
     		env->bullet->dynamicsWorld,
-    		1, *this,'r', j_recorder.get()));
+    		1, *this, r, j_recorder.get()));
     rAction->setTargets(targets);
 
+    j_playback->setGripperActions(lAction.get(), rAction.get());
+
+    cout<<"WHAT"<<endl;
 
     lAction->setOpenAction();
     runAction(lAction, dt);
@@ -386,10 +399,12 @@ void CustomScene::run() {
     runAction(rAction, dt);
 
 
+    cout<<"WHAT"<<endl;
     //setSyncTime(true);
     startViewer();
     stepFor(dt, 2);
 
+    cout<<"WHAT"<<endl;
 
     startFixedTimestepLoop(dt);
 }
@@ -565,7 +580,7 @@ CustomScene::SuturingNeedle::SuturingNeedle(CustomScene * _scene, float _rope_ra
 	std::cout<<handlePos.getX()<<","<<handlePos.getY()<<","<<handlePos.getZ()<<std::endl;
 
     for (int i=0; i< nLinks; i++)
-    	ctrlPts.push_back(handlePos + METERS*btVector3(.5+segment_len*i,0,5*rope_radius));
+    	ctrlPts.push_back(handlePos + METERS*btVector3(0,-0.3+segment_len*i,5*rope_radius));
 
     ropePtr.reset(new CapsuleRope(ctrlPts,METERS*rope_radius));
     scene.env->add(ropePtr);

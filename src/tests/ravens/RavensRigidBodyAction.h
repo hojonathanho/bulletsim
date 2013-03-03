@@ -26,8 +26,8 @@ public:
                            	     const string &leftFingerName,
                            	     const string &rightFingerName,
                            	     btDynamicsWorld* world_,
-                           	     float time, Scene &s, char _arm, jointRecorder * _jr) :
-                           	     Action(time), manip(manip_), vals(2, 0), jr (_jr), arm(&_arm) {
+                           	     float time, Scene &s, char * _arm, jointRecorder * _jr) :
+                           	     Action(time), manip(manip_), vals(2, 0), jr (_jr), arm(_arm) {
 
     	grabMonitor.reset(new RavensGrabMonitor(manip_, world_, leftFingerName, rightFingerName, s));
     	manip->manip->GetChildDOFIndices(indices);
@@ -58,7 +58,11 @@ public:
     }
 
     void setTargets(vector<BulletObject::Ptr>& bodies) {grabMonitor->setBodies(bodies);}
-    void setOpenAction()  { setEndpoints(getCurrDOFVal(), OPEN_VAL); }
+    void setOpenAction()  {
+    	setEndpoints(getCurrDOFVal(), OPEN_VAL);
+    	string message(arm);
+    	jr->addMessageToFile(message.append(" release"));
+    }
     void setCloseAction() { setEndpoints(getCurrDOFVal(), CLOSED_VAL); }
     void toggleAction() {
         if (endVal == CLOSED_VAL)
@@ -69,10 +73,10 @@ public:
 
     void reset() {
         Action::reset();
-        if (grabMonitor->getNumGrabbed() > 0)
-        	jr->addMessageToFile(arm + " release");
         grabMonitor->release();
     }
+
+    void grab (float threshold=100) {grabMonitor->grab(threshold);}
 
     void step(float dt) {
         if (done()) return;
@@ -80,9 +84,11 @@ public:
         // if there's a large force on the fingers
         // then we probably can't close any further
         if (endVal != OPEN_VAL) {
-        	grabMonitor->grab();
+        	grab();
+    		//jr->addMessageToFile(arm.append(" grab"));
         	if (grabMonitor->getNumGrabbed() > 0) {
-        		jr->addMessageToFile(arm + " grab");
+                string message(arm);
+        		jr->addMessageToFile(message.append(" grab"));
         		setDone(true);
         		return;
         	}

@@ -8,7 +8,7 @@
 
 class BoxCloth : public CompoundObject<BulletObject> {
 
-private:
+public:
 	// number of boxes along the x-dimension
 	int n;
 
@@ -33,17 +33,19 @@ private:
 	float angDamping;
 	float angLimit;
 
+
+
 	bool isHole(unsigned int i, unsigned int j);
 	unsigned int getSerializedIndex(unsigned int i, unsigned int j);
 
-public:
 	typedef boost::shared_ptr<BoxCloth> Ptr;
 	std::vector<boost::shared_ptr<btCollisionShape> > shapes;
 	std::vector<BulletConstraint::Ptr> joints;
 
 	BoxCloth(unsigned int n_, unsigned int m_, vector<unsigned int> hole_is_, vector<unsigned int> hole_js_,
-			  btScalar s_=METERS*0.02, btScalar h_=METERS*0.001, float angStiffness_=0,
-			  float linDamping_=0.3, float angDamping_=0.1, float angLimit_=1);
+			  btScalar s_=METERS*0.02, btScalar h_=METERS*0.001, float angStiffness_=1e5,
+			  float linDamping_=0.3, float angDamping_=0.1, float angLimit_=0.5);
+
 
 	void init();
 	void destroy();

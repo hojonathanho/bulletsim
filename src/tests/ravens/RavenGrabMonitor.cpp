@@ -95,13 +95,12 @@ bool RavensGrabMonitor::onInnerSide(const btVector3 &pt, bool left) {
 /** Look for contacts between the specified finger and target
     if the applied impulse reaches some threshold, this returns true
     signifying that the gripper cannot be closed further without penetrating the target. */
-bool RavensGrabMonitor::checkContacts(bool left, btRigidBody *target) {
+bool RavensGrabMonitor::checkContacts(bool left, btRigidBody *target, float threshold) {
 	btRigidBody * const finger =
 			m_manip->robot->associatedObj(left ? leftFinger : rightFinger)->rigidBody.get();
 
 	//btScalar avg = 0.0;
 	//const btScalar a = 0.15; // moving average
-	const btScalar threshold = 100;
 
 	BulletInstance::Ptr bullet = m_manip->robot->getEnvironment()->bullet;
 	for (int i = 0; i < bullet->dispatcher->getNumManifolds(); ++i) {
@@ -118,6 +117,7 @@ bool RavensGrabMonitor::checkContacts(bool left, btRigidBody *target) {
 			btManifoldPoint& pt = contactManifold->getContactPoint(j);
 			btScalar impulse = pt.getAppliedImpulse();
 
+			cout <<" Found contacts with impulse "<<(float) impulse<<"."<<endl;
 			//cout << "   current " << impulse << '\n';
 			//cout << "   no change average " << avg << '\n';
 
@@ -171,10 +171,9 @@ RavensGrabMonitor::RavensGrabMonitor(RaveRobotObject::Manipulator::Ptr manip, bt
 	s.addPreStepCallback(boost::bind(&RavensGrabMonitor::updateGrabPose,this));
 }
 
+void RavensGrabMonitor::grab() {}
 
-
-
-void RavensGrabMonitor::grab() {
+void RavensGrabMonitor::grab(float threshold) {
   // grabs objects in contact
   //cout << "grabbing objects in contact" << endl;
 
@@ -182,8 +181,8 @@ void RavensGrabMonitor::grab() {
   for (int i = 0; i < m_bodies.size(); i += 1) {
 
 	  // check for contact
-	  bool r_contact  =  checkContacts(false, m_bodies[i]->rigidBody.get());
-  	  bool l_contact  =  checkContacts(true,  m_bodies[i]->rigidBody.get());
+	  bool r_contact  =  checkContacts(false, m_bodies[i]->rigidBody.get(), threshold);
+  	  bool l_contact  =  checkContacts(true,  m_bodies[i]->rigidBody.get(), threshold);
 
   	  if (l_contact || r_contact) {
   		  num_in_contact += 1;

@@ -72,10 +72,6 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,
         case 'I':
         	scene.ravens.setArmPose("home",'b');
         	break;
-        case 'q':
-        	scene.j_playback->loadTrajectory();
-        	scene.j_playback->runTrajectory();
-        	break;
 
         // Recording/Playback stuff
         case 'T':
