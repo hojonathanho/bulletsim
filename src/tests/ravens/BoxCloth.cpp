@@ -9,16 +9,6 @@
 using namespace std;
 
 
-/** Useful for creating rigid bodies: creates collision shape, motion state etc.
-boost::shared_ptr<btRigidBody> createRigidBody(const boost::shared_ptr<btCollisionShape> shapePtr, const btTransform& trans, btScalar mass) {
-	bool isDynamic = (mass != 0.f);
-	btVector3 localInertia(0,0,0);
-	if (isDynamic) shapePtr->calculateLocalInertia(mass,localInertia);
-	btDefaultMotionState* myMotionState = new btDefaultMotionState(trans);
-	btRigidBody::btRigidBodyConstructionInfo cInfo(mass,myMotionState,shapePtr.get(),localInertia);
-	return boost::shared_ptr<btRigidBody>(new btRigidBody(cInfo));
-}*/
-
 /** Creates a matrix of transformation for each of the n x m boxes.
  *  The side length along x,y dimensions is assumed to be s.
  *  The transforms are centered around CENTER. */
@@ -36,7 +26,7 @@ void createBoxTransforms(vector<btTransform> &transforms, unsigned int n, unsign
 	}
 }
 
-
+/*
 vector<boost::shared_ptr<btGeneric6DofSpringConstraint> >
 createBendConstraint(btScalar side_len, bool isX,
 		               const boost::shared_ptr<btRigidBody> rbA,
@@ -65,7 +55,7 @@ createBendConstraint(btScalar side_len, bool isX,
 		tB.setOrigin(offsetB[k]);
 
 		holder[k].reset(new btGeneric6DofSpringConstraint(*rbA,*rbB,tA,tB,false));
-		for (int i=3; i<=5; i++) {
+		for (int i=0; i<=5; i++) {
 			holder[k]->enableSpring(i,true);
 			holder[k]->setStiffness(i,stiffness);
 			holder[k]->setDamping(i,damping);
@@ -74,7 +64,7 @@ createBendConstraint(btScalar side_len, bool isX,
 		holder[k]->setAngularUpperLimit(btVector3(limit,limit,limit));
 	}
 	return holder;
-}
+}*/
 
 
 vector<boost::shared_ptr<btGeneric6DofSpringConstraint> >
@@ -110,17 +100,23 @@ createBendConstraint2(btScalar side_len, bool isX,
 		tA.setOrigin(offsetA[k]);
 		tB.setOrigin(offsetB[k]);
 
-		holder[k].reset(new btGeneric6DofSpringConstraint(*rbA,*rbB,tA,tB,false));
-		for (int i=3; i<=5; i++) {
+		holder[k].reset(new btGeneric6DofSpringConstraint(*rbA,*rbB,tA,tB,true));
+		for (int i=0; i<=5; i++) {
 			holder[k]->enableSpring(i,true);
-			holder[k]->setStiffness(i,stiffness);
-			holder[k]->setDamping(i,damping);
+			holder[k]->setStiffness(i,0);
+			holder[k]->setDamping(i,0);
 		}
-		holder[k]->setAngularLowerLimit(btVector3(-limit,-limit,-limit));
-		holder[k]->setAngularUpperLimit(btVector3(limit,limit,limit));
+
+
+
+		//holder[k]->setAngularLowerLimit(btVector3(-limit,-limit,-limit));
+		//holder[k]->setAngularUpperLimit(btVector3(limit,limit,limit));
+		holder[k]->setEquilibriumPoint();
+
 	}
 	return holder;
 }
+
 
 bool BoxCloth::isHole(unsigned int i, unsigned int j) {
 	int k = 0;
@@ -130,20 +126,23 @@ bool BoxCloth::isHole(unsigned int i, unsigned int j) {
 	return !(k == hole_is.size());
 }
 
+
 unsigned int BoxCloth::getSerializedIndex(unsigned int i, unsigned int j) {
 	return (i*m + j);
 }
 
+
 BoxCloth::BoxCloth(unsigned int n_, unsigned int m_, vector<unsigned int> hole_is_, vector<unsigned int> hole_js_,
-				   btScalar s_, btScalar h_, float angStiffness_, float linDamping_,
-				   float angDamping_, float angLimit_) : n(n_), m(m_), s(s_*METERS), h(h_*METERS),
-					                                      hole_is(hole_is_), hole_js(hole_js_)     {
+		btScalar s_, btScalar h_, float angStiffness_, float linDamping_,
+		float angDamping_, float angLimit_) : n(n_), m(m_), s(s_*METERS), h(h_*METERS),
+		hole_is(hole_is_), hole_js(hole_js_)     {
+
 	angStiffness = angStiffness_;
 	angDamping   = angDamping_;
 	angLimit     = angLimit_;
 	linDamping   = linDamping_;
 
-	assert(("The indices for holes should have the same size!" , hole_is.size() == hole_js.size()));
+	assert(("BoxCloth: The indices for holes should have the same size!" , hole_is.size() == hole_js.size()));
 
 	vector<btTransform> transforms;
 	vector< vector<BoxObject> >  boxes;
@@ -152,8 +151,9 @@ BoxCloth::BoxCloth(unsigned int n_, unsigned int m_, vector<unsigned int> hole_i
 	const btScalar vertical_offset = 1*METERS;
 
 	createBoxTransforms(transforms,n,m,s, btVector3(0,0,vertical_offset));
+
 	btVector3 halfExtents(s/2, s/2, h/2);
-	btScalar  mass = 100.0;
+	btScalar  mass = 1000.0;
 
 	// create boxes.
 	for (unsigned int i=0; i < n; i++) {
@@ -165,12 +165,10 @@ BoxCloth::BoxCloth(unsigned int n_, unsigned int m_, vector<unsigned int> hole_i
 				child->rigidBody->setFriction(1);
 				children.push_back(child);
 				grid_to_obj_inds.insert(make_pair(make_pair(i,j), children.size()-1));
-			} else {
-				cout<<"skipped: "<<i << ", "<<j<<endl;
+
 			}
 		}
 	}
-
 
 	// create constraints
 
@@ -212,12 +210,11 @@ BoxCloth::BoxCloth(unsigned int n_, unsigned int m_, vector<unsigned int> hole_i
 }
 
 
+
 void BoxCloth::init() {
 	CompoundObject<BulletObject>::init();
-	cout<<"num joints: "<<joints.size()<<endl;
-	for (int i=0; i< joints.size(); i++) {
+	for (int i=0; i< joints.size(); i++)
 		getEnvironment()->addConstraint(joints[i]);
-	}
 }
 
 void BoxCloth::destroy() {
