@@ -11,6 +11,21 @@
 #include <boost/shared_ptr.hpp>
 #include <iostream>
 #include <stdexcept>
+
+
+#include <osgShadow/ShadowedScene>
+#include <osgShadow/ShadowMap>
+#include <osgShadow/SoftShadowMap>
+#include <osgShadow/ParallelSplitShadowMap>
+#include <osgShadow/LightSpacePerspectiveShadowMap>
+#include <osgShadow/StandardShadowMap>
+
+
+
+#define RECEIVES_SHADOW_MASK 0x1
+#define CASTS_SHADOW_MASK     0x2
+
+
 using namespace std;
 
 struct OSGInstance {
@@ -18,8 +33,11 @@ struct OSGInstance {
 
     osg::ref_ptr<osg::Group> root;
 
+    osg::ref_ptr<osgShadow::ShadowMap> sm;
+
     OSGInstance();
 };
+
 
 struct BulletInstance {
     typedef boost::shared_ptr<BulletInstance> Ptr;
@@ -58,6 +76,8 @@ public:
     virtual ~EnvironmentObject() { }
 
     Environment *getEnvironment() { return env; }
+
+
 
     // These are for environment forking.
     // copy() should return a copy of the object suitable for addition

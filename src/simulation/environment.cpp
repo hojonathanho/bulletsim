@@ -2,9 +2,19 @@
 #include "config_bullet.h"
 
 OSGInstance::OSGInstance() {
-    root = new osg::Group;
+    //root = new osg::Group;               // does not do shadow magic
+	osg::ref_ptr<osgShadow::ShadowedScene> shadow_root = new osgShadow::ShadowedScene;   // does do shadow magic
+    shadow_root->setReceivesShadowTraversalMask(RECEIVES_SHADOW_MASK);
+    shadow_root->setCastsShadowTraversalMask(CASTS_SHADOW_MASK);
+    sm = new osgShadow::ShadowMap;
+    shadow_root->setShadowTechnique(sm.get());
+    int mapres = 8*1024;
+    sm->setTextureSize(osg::Vec2s(mapres,mapres));
+
+    root = shadow_root;
     osg::setNotifyLevel(osg::FATAL);
 }
+
 
 BulletInstance::BulletInstance() {
   broadphase = new btDbvtBroadphase();
@@ -67,11 +77,20 @@ Environment::~Environment() {
 }
 
 void Environment::add(EnvironmentObject::Ptr obj) {
+
+
     obj->setEnvironment(this);
     obj->init();
     objects.push_back(obj);
-    // objects are reponsible for adding themselves
-    // to the dynamics world and the osg root
+
+    if (obj->getOSGNode()) { //shadow magic
+    	obj->getOSGNode()->setNodeMask(CASTS_SHADOW_MASK);
+    	obj->getOSGNode()->setNodeMask(RECEIVES_SHADOW_MASK);
+    }
+
+
+// objects are reponsible for adding themselves
+// to the dynamics world and the osg root
 }
 
 void Environment::remove(EnvironmentObject::Ptr obj) {

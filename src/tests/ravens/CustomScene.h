@@ -34,6 +34,7 @@
 
 
 //class CustomScene;
+#define NEEDLE_SCALE_FACTOR 0.8
 
 class CustomScene : public Scene {
 public:
@@ -102,7 +103,7 @@ public:
 		// Correction matrix of the needle
 		btMatrix3x3 s_corrRot;
 
-		SuturingNeedle (CustomScene * scene, float _rope_radius=.001, float _segment_len=0.01, int _nLinks=50);
+		SuturingNeedle (CustomScene * scene, float _rope_radius=.001, float _segment_len=0.005, int _nLinks=50);
 
 		/** Toggle's needle piercing state. */
 		void togglePiercing () {s_piercing = !s_piercing;}
@@ -183,6 +184,14 @@ public:
 
 		j_recorder.reset (new jointRecorder (*this, &ravens));
 		j_playback.reset (new jointPlayback (*this, &ravens));
+	}
+
+
+	void callGripperAction(char lr='l') {
+		RavensRigidBodyGripperAction::Ptr action = (lr == 'r')? rAction : lAction;
+		action->reset();
+        action->toggleAction();
+        runAction(action, BulletConfig::dt);
 	}
 
 	/** Returns the coordinates of the last point directly below (-z) SOURCE_PT

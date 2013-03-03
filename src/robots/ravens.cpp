@@ -11,6 +11,7 @@ Ravens::Ravens(Scene &s) : scene(s), inputState(),
 	arm_side.assign(_side, _side+6);
 	loadRobot();
 	initIK();
+	initHaptics();
 	controller.reset(new RavensController(scene, ravens));
 	registerSceneCallbacks();
 }
@@ -24,6 +25,9 @@ void Ravens::registerSceneCallbacks() {
     Scene::Callback keycb = boost::bind(&Ravens::processKeyInput, this, _1);
     scene.addCallback(osgGA::GUIEventAdapter::KEYDOWN, keycb);
     scene.addCallback(osgGA::GUIEventAdapter::KEYUP, keycb);
+
+    if (SceneConfig::enableHaptics)
+        scene.addPreStepCallback(boost::bind(&Ravens::processHapticInput, this));
 }
 
 
@@ -40,7 +44,7 @@ void Ravens::loadRobot() {
     ravens.reset(new RaveRobotObject(scene.rave, ROBOT_MODEL_FILE));
     scene.env->add(ravens);
   }
-  ravens->setColor(0.26,0.274,0.294,1.0);
+  ravens->setColor(0.26,0.274,0.294,0.8);
 }
 
 
@@ -172,7 +176,7 @@ bool Ravens::processMouseInput(const osgGA::GUIEventAdapter &ea) {
                 if (rot.length() > 0.99f && rot.length() < 1.01f)
                     newTrans.setRotation(rot * origTrans.getRotation());
             }
-            manip->moveByIK(newTrans, SceneConfig::enableRobotCollision, true);
+            manip->moveByIK(newTrans, true, true);
             return true;
         }
     }
@@ -222,6 +226,136 @@ void Ravens::setArmPose(std::string pose, char lrb) {
 }
 
 
+void Ravens::initHaptics() {
+
+	if (!SceneConfig::enableHaptics) return;
+
+
+    connectionInit(); // socket connection for haptics
+
+    btTransform rT = btTransform::getIdentity();
+    //lT.setOrigin(manipL->getTransform().getOrigin());
+    hapTrackerLeft.reset(new SphereObject(0, 0.005*METERS, rT, true));
+    hapTrackerLeft->rigidBody->setCollisionFlags(
+            hapTrackerLeft->rigidBody->getCollisionFlags()
+            | btRigidBody::CF_NO_CONTACT_RESPONSE);
+    hapTrackerLeft->setColor(1, 0, 0, 0.2);
+    scene.env->add(hapTrackerLeft);
+
+    btTransform lT = btTransform::getIdentity();
+    //rT.setOrigin(manipR->getTransform().getOrigin());
+    hapTrackerRight.reset(new SphereObject(0, 0.005*METERS, lT, true));
+    hapTrackerRight->rigidBody->setCollisionFlags(
+            hapTrackerRight->rigidBody->getCollisionFlags()
+            | btRigidBody::CF_NO_CONTACT_RESPONSE);
+    hapTrackerRight->setColor(0, 1, 0, 0.2);
+    scene.env->add(hapTrackerRight);
+
+    setHapticPollRate(10); // default 10 hz
+
+    lEngaged = false;
+    rEngaged = false;
+    setHapticCb(hapticRightBoth,  boost::bind(&Ravens::toggleRightEngaged, this));
+    setHapticCb(hapticLeftBoth, boost::bind(&Ravens::toggleLeftEngaged, this));
+
+    setHapticCb(hapticRight1Down,  boost::bind(&Ravens::runRightGripperAction, this));
+    setHapticCb(hapticLeft1Down,   boost::bind(&Ravens::runLeftGripperAction, this));
+
+}
+
+
+void Ravens::runLeftGripperAction () {
+	scene.callGripperAction('l');
+}
+
+void Ravens::runRightGripperAction () {
+	scene.callGripperAction('r');
+}
+
+
+void Ravens::processHapticInput() {
+    if (!SceneConfig::enableHaptics)
+        return;
+
+
+    // throttle
+    float currTime = scene.viewer.getFrameStamp()->getSimulationTime();
+    if (currTime - inputState.lastHapticReadTime < 1./hapticPollRate)
+        return;
+    inputState.lastHapticReadTime = currTime;
+
+    // read the haptic controllers
+    btTransform trans0, trans1;
+    bool buttons0[2], buttons1[2];
+    if (!util::getHapticInput(trans0, buttons0, trans1, buttons1)) {
+        cout << "failed to read haptic input" << endl;
+        return;
+    }
+
+    static const btTransform PERMUTE(btMatrix3x3( 0, 1, 0,
+    		                                      1,  0, 0,
+        		                                  0,  0, -1),
+        		                         btVector3(0,0,0));
+
+    trans0 = PERMUTE*trans0;
+    trans1 = PERMUTE*trans1;
+
+    // adjust the transforms
+    btVector3 ZERO_OFFSET     = btVector3(0, 75, 31.017);
+    btVector3 HAPTIC_OFFSET_L = btVector3(-0.1, -0.12, 0)*METERS + util::toBtVector(this->ravens->robot->GetLink("base_plate")->GetTransform().trans)*METERS;
+    btVector3 HAPTIC_OFFSET_R = btVector3(0.1,  -0.12, 0)*METERS  + util::toBtVector(this->ravens->robot->GetLink("base_plate")->GetTransform().trans)*METERS;
+
+    static const btScalar HAPTIC_SCALE = -1. / 500 * METERS;
+
+    btVector3 translation0 = trans0.getOrigin() + ZERO_OFFSET;
+    translation0.setY(-1*translation0.getY());
+
+    btVector3 translation1 = trans1.getOrigin() + ZERO_OFFSET;
+    translation1.setY(-1*translation1.getY());
+
+    trans0.setOrigin(translation0*HAPTIC_SCALE + leftInitTrans.getOrigin() + HAPTIC_OFFSET_L);
+    trans1.setOrigin(translation1*HAPTIC_SCALE + rightInitTrans.getOrigin()+ HAPTIC_OFFSET_R);
+
+    hapTrackerLeft->motionState->setKinematicPos (trans0);
+    hapTrackerRight->motionState->setKinematicPos(trans1);
+    handleButtons(buttons0, buttons1);
+    if (lEngaged) manipL->moveByIK(trans0, false, true);
+    if (rEngaged) manipR->moveByIK(trans1, false, true);
+}
+
+
+
+void Ravens::handleButtons(bool left[], bool right[]) {
+
+  static bool lastLeft[2] = { left[0], left[1] };
+  static bool lastRight[2] = { right[0], right[1] };
+
+  vector<RavensHapticEvent> events;
+  if (left[0] && !lastLeft[0]) events.push_back(hapticLeft0Down);
+  if (!left[0] && lastLeft[0]) events.push_back(hapticLeft0Up);
+  if (left[0]) events.push_back(hapticLeft0Hold);
+  if (left[1] && !lastLeft[1]) events.push_back(hapticLeft1Down);
+  if (!left[1] && lastLeft[1]) events.push_back(hapticLeft1Up);
+  if (left[1]) events.push_back(hapticLeft1Hold);
+  if (right[0] && !lastRight[0]) events.push_back(hapticRight0Down);
+  if (!right[0] && lastRight[0]) events.push_back(hapticRight0Up);
+  if (right[0]) events.push_back(hapticRight0Hold);
+  if (right[1] && !lastRight[1]) events.push_back(hapticRight1Down);
+  if (!right[1] && lastRight[1]) events.push_back(hapticRight1Up);
+  if (right[1]) events.push_back(hapticRight1Hold);
+  if (left[0] && left[1] && !(lastLeft[0] && lastLeft[1])) events.push_back(hapticLeftBoth);
+  if (right[0] && right[1] && !(lastRight[0] && lastRight[1])) events.push_back(hapticRightBoth);
+
+  lastLeft[0] = left[0];
+  lastLeft[1] = left[1];
+  lastRight[0] = right[0];
+  lastRight[1] = right[1];
+
+  BOOST_FOREACH(RavensHapticEvent evt, events) if (hapticEvent2Func.find(evt) != hapticEvent2Func.end()) hapticEvent2Func[evt]();
+
+}
+
+
 //mirror image of joints (r->l or l->r)
 std::vector<dReal> mirror_ravens_joints(const std::vector<dReal> &x) {
 	assert(("Mirror Joints: Expecting 6 values. Not found.", x.size()==6));
@@ -253,3 +387,15 @@ void RavensController::execute() {
 		currentTime += dt;
 	}
 }
+
+
+
+
+
+
+
+
+
+
+
+
