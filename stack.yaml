@@ -1,3 +1,0 @@
-Package: bulletsim
-Catkin-ProjectName: bulletsim
-Depends: catkin, hydra_msgs, sensor_msgs, pcl, bulletsim_msgs, vision_opencv

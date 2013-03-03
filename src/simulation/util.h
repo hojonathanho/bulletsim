@@ -4,15 +4,12 @@
 #include <LinearMath/btTransform.h>
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
-#include <osg/Vec3d>
-#include <osg/Geometry>
 #include <openrave/openrave.h>
 #include <string>
 #include <fstream>
 #include <iostream>
 #include <vector>
 #include "utils/my_assert.h"
-#include "plotting.h"
 #include <opencv2/imgproc/imgproc.hpp>
 using namespace std;
 
@@ -36,8 +33,6 @@ namespace util {
   inline btTransform scaleTransform(const btTransform &t, btScalar a) {
       return btTransform(t.getRotation(), a*t.getOrigin());
   }
-  inline osg::Vec3d toOSGVector(const btVector3 &v) { return osg::Vec3d(v.x(), v.y(), v.z()); }
-  inline btVector3 toBtVector(const osg::Vec3d &v) { return btVector3(v.x(), v.y(), v.z()); }
   inline btVector3 toBtVector(const OpenRAVE::Vector &v) { return btVector3(v.x, v.y, v.z); }
   inline btVector3 toBtVector(const Eigen::Vector3d &v) { return btVector3(v(0), v(1), v(2)); }
   inline btTransform toBtTransform(const OpenRAVE::Transform &t) {
@@ -61,11 +56,6 @@ namespace util {
     return OpenRAVE::Transform(toRaveQuaternion(t.getRotation()), toRaveVector(scale * t.getOrigin()));
   }
 
-  osg::ref_ptr<osg::Vec3Array> toVec3Array(const std::vector<btVector3>&);
-  osg::ref_ptr<osg::Vec4Array> toVec4Array(const std::vector<btVector4>&);
-  osg::ref_ptr<osg::Vec3Array> toVec3Array(const Eigen::MatrixXf& in);
-  osg::ref_ptr<osg::Vec4Array> toVec4Array(const Eigen::MatrixXf& in);
-
   // Nan/Inf checking
   inline bool isfinite(const btVector3 &v) {
       return std::isfinite(v.x()) && std::isfinite(v.y()) && std::isfinite(v.z());
@@ -78,22 +68,6 @@ namespace util {
   inline bool isfinite(const btTransform &t) {
       return isfinite(t.getOrigin()) && isfinite(t.getBasis());
   }
-
-
-  ///////////////// PLOTTING FOR DEBUGGING ////////////////////////////
-  //These plot and remain in the environment
-
-  void setGlobalEnv(Environment::Ptr env);
-  Environment::Ptr getGlobalEnv();
-  void setGlobalScene(Scene* scene);
-  Scene* getGlobalScene();
-  
-
-  PlotSpheres::Ptr drawSpheres(vector<btVector3> points, Eigen::Vector3f color, float alpha, float radius, Environment::Ptr env);
-  PlotSpheres::Ptr drawSpheres(btVector3 point, Eigen::Vector3f color, float alpha, float radius, Environment::Ptr env);
-  PlotLines::Ptr drawLines(vector<btVector3> points0, vector<btVector3> points1, Eigen::Vector3f color, float alpha, Environment::Ptr env);
-  PlotLines::Ptr drawPoly(vector<btVector3> points, Eigen::Vector3f color, float alpha, Environment::Ptr env);
-  PlotAxes::Ptr drawAxes(btTransform transform, float size, Environment::Ptr env);
 
   ///////////////// FILE IO ////////////////////////////
   template <class T>

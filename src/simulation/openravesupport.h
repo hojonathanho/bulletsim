@@ -14,8 +14,6 @@ using namespace std;
 using namespace OpenRAVE;
 
 
-
-
 struct RaveInstance {
   typedef boost::shared_ptr<RaveInstance> Ptr;
 
@@ -35,7 +33,7 @@ void Load(Environment::Ptr env, RaveInstance::Ptr rave, const string& name);
 // copy constructor. will never call RaveInitialize or RaveDestroy
 
 enum TrimeshMode {
-  CONVEX_DECOMP, // use HACD convex decomposition
+  //CONVEX_DECOMP, // use HACD convex decomposition
   CONVEX_HULL, // use btShapeHull
   RAW, // use btBvhTriangleMeshShape (not recommended, makes simulation very slow)
 };
@@ -150,10 +148,7 @@ public:
   void release(RaveObject::Ptr target);
 	KinBody::LinkPtr getGrabberLink(RaveObject::Ptr target);
 
-  // If useFakeGrabber is true, the manipulator will use a GrabberKinematicObject
-  // which can "grab" objects by simply setting a point constraint with the nearest
-  // object in front of the manipulator. Pass in false for realistic grasping.
-  RobotManipulatorPtr createManipulator(const std::string &manipName, bool useFakeGrabber         = false);
+  RobotManipulatorPtr createManipulator(const std::string &manipName);
   void destroyManipulator(RobotManipulatorPtr m); // not necessary to call this on destruction
   RobotManipulatorPtr getManipByIndex(int i) const { return createdManips[i]; }
   RobotManipulatorPtr getManipByName(const std::string& name);
@@ -170,10 +165,6 @@ struct RobotManipulator {
   ModuleBasePtr ikmodule;
   RobotBase::ManipulatorPtr manip, origManip;
   int index; // id for this manipulator in this robot instance
-
-  bool useFakeGrabber;
-  GrabberKinematicObject::Ptr grabber;
-  void updateGrabberPos();
 
   RobotManipulator(RaveRobotObject *robot_) : robot(robot_) { }
 
@@ -237,10 +228,6 @@ public:
     m_robot->SetTransform(m_tf);
   }
 };
-
-
-
-
 
 
 #endif // _OPENRAVESUPPORT_H_

@@ -2,8 +2,6 @@ set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/3rdparty_bin)
 
 add_subdirectory(haptics)
 add_subdirectory(bullet-2.79)
-add_subdirectory(osgWorks-2.0)
-add_subdirectory(osgBullet-2.0)
 add_subdirectory(json)
 add_subdirectory(tetgen-1.4.3)
 add_subdirectory(log4cplus-1.1.0-rc3)

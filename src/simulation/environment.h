@@ -5,8 +5,8 @@
 #include <BulletSoftBody/btSoftRigidDynamicsWorld.h>
 #include <BulletSoftBody/btSoftBodyRigidBodyCollisionConfiguration.h>
 #include <opencv2/core/core.hpp>
-#include <osgbCollision/GLDebugDrawer.h>
 #include <vector>
+#include <set>
 #include <boost/shared_ptr.hpp>
 #include <iostream>
 #include <stdexcept>
@@ -90,7 +90,7 @@ struct Environment {
     typedef std::vector<EnvironmentObject::Ptr> ConstraintList;
     ConstraintList constraints;
 
-    Environment(BulletInstance::Ptr bullet_, OSGInstance::Ptr osg_) : bullet(bullet_), osg(osg_) { }
+    Environment(BulletInstance::Ptr bullet_) : bullet(bullet_) { }
     ~Environment();
 
     void add(EnvironmentObject::Ptr obj);
@@ -124,9 +124,9 @@ public:
         dataMap.insert(std::make_pair(orig, copy));
     }
 
-    Fork(const Environment *parentEnv_, BulletInstance::Ptr bullet, OSGInstance::Ptr osg);
-    Fork(const Environment::Ptr parentEnv_, BulletInstance::Ptr bullet, OSGInstance::Ptr osg);
-    Fork(const Environment::Ptr parentEnv_, const RaveInstancePtr rave_, BulletInstance::Ptr bullet, OSGInstance::Ptr osg);
+    Fork(const Environment *parentEnv_, BulletInstance::Ptr bullet);
+    Fork(const Environment::Ptr parentEnv_, BulletInstance::Ptr bullet);
+    Fork(const Environment::Ptr parentEnv_, const RaveInstancePtr rave_, BulletInstance::Ptr bullet);
 
     void *copyOf(const void *orig) const {
         DataMap::const_iterator i = dataMap.find(orig);

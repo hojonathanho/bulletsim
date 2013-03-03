@@ -1,7 +1,6 @@
 #include <openrave-core.h>
 #include "openravesupport.h"
 #include <BulletCollision/CollisionShapes/btShapeHull.h>
-#include "convexdecomp.h"
 #include "utils/config.h"
 #include "bullet_io.h"
 #include "utils/logging.h"
@@ -22,14 +21,6 @@ using boost::shared_ptr;
  * link padding is currently not being used for shapes other than convex hull
  */
 
-
-btVector3 computeCentroid(const KinBody::Link::TRIMESH& mesh) {
-	btVector3 sum(0, 0, 0);
-	BOOST_FOREACH(const RaveVector<double>& v, mesh.vertices) {
-		sum += util::toBtVector(v);
-	}
-	return sum / mesh.vertices.size();
-}
 
 RaveInstance::RaveInstance(OpenRAVE::EnvironmentBasePtr env_) {
   env = env_;
@@ -199,54 +190,43 @@ static BulletObject::Ptr createFromLink(KinBody::LinkPtr link,
 		case KinBody::Link::GEOMPROPERTIES::GeomTrimesh:
 			if (mesh.indices.size() < 3)
 				break;
-			if (trimeshMode == CONVEX_DECOMP) {
-				printf("running convex decomposition\n");
-				ConvexDecomp decomp(BulletConfig::margin*METERS);
-				for (size_t i = 0; i < mesh.vertices.size(); ++i)
-					decomp.addPoint(util::toBtVector(mesh.vertices[i]));
-				for (size_t i = 0; i < mesh.indices.size(); i += 3)
-					decomp.addTriangle(mesh.indices[i], mesh.indices[i + 1], mesh.indices[i + 2]);
-				subshape = decomp.run(subshapes); // use subshapes to just store smart pointer
-
-			}
-			else {
-				btTriangleMesh* ptrimesh = new btTriangleMesh();
-				// for some reason adding indices makes everything crash
-				/*
-				 printf("-----------\n");
-				 for (int z = 0; z < mesh.indices.size(); ++z)
-				 printf("%d\n", mesh.indices[z]);
-				 printf("-----------\n");*/
+      else {
+        btTriangleMesh* ptrimesh = new btTriangleMesh();
+        // for some reason adding indices makes everything crash
+        /*
+         printf("-----------\n");
+         for (int z = 0; z < mesh.indices.size(); ++z)
+         printf("%d\n", mesh.indices[z]);
+         printf("-----------\n");*/
 
 
-				for (size_t i = 0; i < mesh.indices.size(); i += 3)
-					ptrimesh->addTriangle(util::toBtVector(mesh.vertices[i])*METERS,
-										  util::toBtVector(mesh.vertices[i+1])*METERS,
-										  util::toBtVector(mesh.vertices[i+2])*METERS);
-				// store the trimesh somewhere so it doesn't get deallocated by the smart pointer
-				meshes.push_back(boost::shared_ptr<btStridingMeshInterface>(ptrimesh));
+        for (size_t i = 0; i < mesh.indices.size(); i += 3)
+          ptrimesh->addTriangle(util::toBtVector(mesh.vertices[i])*METERS,
+                      util::toBtVector(mesh.vertices[i+1])*METERS,
+                      util::toBtVector(mesh.vertices[i+2])*METERS);
+        // store the trimesh somewhere so it doesn't get deallocated by the smart pointer
+        meshes.push_back(boost::shared_ptr<btStridingMeshInterface>(ptrimesh));
 
-				if (BulletConfig::graphicsMesh) useGraphicsMesh = true;
+        if (BulletConfig::graphicsMesh) useGraphicsMesh = true;
 
-				if (trimeshMode == CONVEX_HULL) {
-					boost::shared_ptr<btConvexShape> pconvexbuilder(new btConvexTriangleMeshShape(ptrimesh));
-					pconvexbuilder->setMargin(BulletConfig::linkPadding*METERS); // margin: hull padding
+        if (trimeshMode == CONVEX_HULL) {
+          boost::shared_ptr<btConvexShape> pconvexbuilder(new btConvexTriangleMeshShape(ptrimesh));
+          pconvexbuilder->setMargin(BulletConfig::linkPadding*METERS); // margin: hull padding
 
-					//Create a hull shape to approximate Trimesh
-					boost::shared_ptr<btShapeHull> hull(new btShapeHull(pconvexbuilder.get()));
-					hull->buildHull(-666); // note: margin argument not used
+          //Create a hull shape to approximate Trimesh
+          boost::shared_ptr<btShapeHull> hull(new btShapeHull(pconvexbuilder.get()));
+          hull->buildHull(-666); // note: margin argument not used
 
-					btConvexHullShape *convexShape = new btConvexHullShape();
-					for (int i = 0; i < hull->numVertices(); ++i)
-						convexShape->addPoint(hull->getVertexPointer()[i]);
+          btConvexHullShape *convexShape = new btConvexHullShape();
+          for (int i = 0; i < hull->numVertices(); ++i)
+            convexShape->addPoint(hull->getVertexPointer()[i]);
 
-					subshape.reset(convexShape);
+          subshape.reset(convexShape);
 
-				}
-				else { // RAW
-					subshape.reset(new btBvhTriangleMeshShape(ptrimesh, true));
-				}
-			}
+        } else { // RAW
+          subshape.reset(new btBvhTriangleMeshShape(ptrimesh, true));
+        }
+      }
 			break;
 
 		default:
@@ -483,7 +463,6 @@ void RaveObject::internalCopy(RaveObject::Ptr o, Fork &f) const {
 	}
 
 	o->body = o->rave->env->GetKinBody(body->GetName());
-	o->setColor(1,0,1,.4);
 }
 
 EnvironmentObject::Ptr RaveObject::copy(Fork &f) const {
@@ -554,7 +533,7 @@ RobotManipulatorPtr RaveRobotObject::getManipByName(const std::string& name) {
 }
 
 RaveRobotObject::Manipulator::Ptr RaveRobotObject::createManipulator(
-		const std::string &manipName, bool useFakeGrabber) {
+		const std::string &manipName) {
 	if (getManipByName(manipName)) return getManipByName(manipName);
   RaveRobotObject::Manipulator::Ptr m(new Manipulator(this));
 	// initialize the ik module
@@ -572,22 +551,9 @@ RaveRobotObject::Manipulator::Ptr RaveRobotObject::createManipulator(
 	//     return Manipulator::Ptr(); // null
 	// }
 
-	m->useFakeGrabber = useFakeGrabber;
-	if (useFakeGrabber) {
-		m->grabber.reset(new GrabberKinematicObject(0.02, 0.05));
-		m->updateGrabberPos();
-		ignoreCollisionWith(m->grabber->rigidBody.get());
-	}
-
 	m->index = createdManips.size();
 	createdManips.push_back(m);
 	return m;
-}
-
-void RaveRobotObject::Manipulator::updateGrabberPos() {
-	// set the grabber right on top of the end effector
-	if (useFakeGrabber)
-		grabber->motionState->setKinematicPos(getTransform());
 }
 
 bool RaveRobotObject::Manipulator::solveIKUnscaled(
@@ -646,9 +612,6 @@ bool RobotManipulator::moveByIKUnscaled(
 		return false;
 	}
 
-	if (useFakeGrabber)
-		updateGrabberPos();
-
 	return true;
 }
 
@@ -685,11 +648,6 @@ RobotManipulator::Ptr RaveRobotObject::Manipulator::copy(
 
 	newRobot->robot->SetActiveManipulator(manip->GetName());
 	o->manip = newRobot->robot->GetActiveManipulator();
-
-	o->useFakeGrabber = useFakeGrabber;
-	if (useFakeGrabber)
-		o->grabber = boost::static_pointer_cast<GrabberKinematicObject>(
-				grabber->copy(f));
 
 	return o;
 }

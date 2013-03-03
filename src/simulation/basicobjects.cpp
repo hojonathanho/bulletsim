@@ -99,7 +99,7 @@ void BulletObject::destroy() {
     getEnvironment()->bullet->dynamicsWorld->removeRigidBody(rigidBody.get());
 }
 
-BulletObject::BulletObject(const BulletObject &o) : isKinematic(o.isKinematic), enable_texture(o.enable_texture), m_color(o.m_color) {
+BulletObject::BulletObject(const BulletObject &o) : isKinematic(o.isKinematic) {
     // we need to access lots of private members of btRigidBody and etc
     // the easiest way to do this is to use serialization
 
@@ -185,20 +185,6 @@ BulletObject::BulletObject(const BulletObject &o) : isKinematic(o.isKinematic), 
         colObj->setHitFraction(colObjData.m_hitFraction);
         colObj->setActivationState(colObjData.m_activationState1);
     }
-}
-
-void BulletObject::MoveAction::step(float dt) {
-    if (done()) return;
-    stepTime(dt);
-    const float a = fracElapsed();
-    // linear interpolation of pos
-    btVector3 newpos = (1-a)*start.getOrigin() + a*end.getOrigin();
-    btQuaternion newrot = start.getRotation().slerp(end.getRotation(), a);
-    btTransform newtrans(newrot, newpos);
-    if (obj->isKinematic)
-        obj->motionState->setKinematicPos(newtrans);
-    else
-        obj->motionState->setWorldTransform(newtrans);
 }
 
 

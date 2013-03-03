@@ -2,11 +2,6 @@
 #include "openravesupport.h"
 #include "config_bullet.h"
 
-OSGInstance::OSGInstance() {
-    root = new osg::Group;
-    osg::setNotifyLevel(osg::FATAL);
-}
-
 BulletInstance::BulletInstance() {
   broadphase = new btDbvtBroadphase();
   //    broadphase = new btAxisSweep3(btVector3(-2*METERS, -2*METERS, -1*METERS), btVector3(2*METERS, 2*METERS, 3*METERS));
@@ -42,8 +37,8 @@ void BulletInstance::setDefaultGravity() {
 }
 
 void BulletInstance::contactTest(btCollisionObject *obj,
-                                CollisionObjectSet &out,
-                                const CollisionObjectSet *ignore) {
+                                BulletInstance::CollisionObjectSet &out,
+                                const BulletInstance::CollisionObjectSet *ignore) {
     struct ContactCallback : public btCollisionWorld::ContactResultCallback {
         const CollisionObjectSet *ignore;
         CollisionObjectSet &out;
@@ -109,19 +104,18 @@ void Environment::step(btScalar dt, int maxSubSteps, btScalar fixedTimeStep) {
       bullet->dynamicsWorld->stepSimulation(dt, maxSubSteps, fixedTimeStep);
       bullet->softBodyWorldInfo->m_sparsesdf.GarbageCollect();
     }
-    preDraw();
 }
 
-Fork::Fork(const Environment *parentEnv_, BulletInstance::Ptr bullet, OSGInstance::Ptr osg) :
-    parentEnv(parentEnv_), env(new Environment(bullet, osg)) {
+Fork::Fork(const Environment *parentEnv_, BulletInstance::Ptr bullet) :
+    parentEnv(parentEnv_), env(new Environment(bullet)) {
   copyObjects();
 }
-Fork::Fork(const Environment::Ptr parentEnv_, BulletInstance::Ptr bullet, OSGInstance::Ptr osg) :
-    parentEnv(parentEnv_.get()), env(new Environment(bullet, osg)) {
+Fork::Fork(const Environment::Ptr parentEnv_, BulletInstance::Ptr bullet) :
+    parentEnv(parentEnv_.get()), env(new Environment(bullet)) {
   copyObjects();
 }
-Fork::Fork(const Environment::Ptr parentEnv_, const RaveInstancePtr rave_, BulletInstance::Ptr bullet, OSGInstance::Ptr osg) :
-    parentEnv(parentEnv_.get()), env(new Environment(bullet, osg)),
+Fork::Fork(const Environment::Ptr parentEnv_, const RaveInstancePtr rave_, BulletInstance::Ptr bullet) :
+    parentEnv(parentEnv_.get()), env(new Environment(bullet)),
     rave(rave_) {
   copyObjects();
 }
