@@ -18,13 +18,12 @@ add_library(simulation
 #    softBodyHelpers.cpp
 #    rope.cpp
     config_bullet.cpp
-    config_viewer.cpp
     bullet_io.cpp
 #    tetgen_helpers.cpp
 )
 
 target_link_libraries(simulation
-    #utils
+    utils
     #haptics
     #tetgen
     ${Boost_LIBRARIES}

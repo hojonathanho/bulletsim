@@ -23,11 +23,6 @@ struct Scene;
 
 namespace util {
 
-  // reads input from haptic devices (using getDeviceState),
-  // and then transforms the rotations/coordinates to our coordinate system
-  bool getHapticInput(btTransform &trans0, bool buttons0[2], btTransform &trans1, bool buttons1[2]);
-
-
   ///////////////// CONVERSIONS ////////////////////////////
 
   inline btTransform scaleTransform(const btTransform &t, btScalar a) {

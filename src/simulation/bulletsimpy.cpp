@@ -25,6 +25,11 @@ vector<string> toStrVec(py::list py_str_list) {
   return out;
 }
 
+btVector3 toBtVector3(py::list v) {
+  assert(py::len(v) == 3);
+  return btVector3(py::extract<btScalar>(v[0]), py::extract<btScalar>(v[1]), py::extract<btScalar>(v[2]));
+}
+
 template<typename T>
 struct type_traits {
   static const char* npname;
@@ -75,10 +80,14 @@ class PyBulletObject {
 public:
   PyBulletObject(RaveObject::Ptr obj) : m_obj(obj) { }
 
-  bool IsKinematic() { m_obj->getIsKinematic(); }
+  bool IsKinematic() { return m_obj->getIsKinematic(); }
+  string GetName() { return m_obj->body->GetName(); }
 
-  OpenRAVE::Transform GetTransform() {
-    return util::toRaveTransform(m_obj->children[0]->rigidBody->getCenterOfMassTransform(), 1./METERS);
+  py::object GetTransform() {
+    btScalar mat[16];
+    // FIXME: scaling?
+    m_obj->children[0]->rigidBody->getCenterOfMassTransform().getOpenGLMatrix(mat);
+    return toNdarray2(mat, 4, 4).attr("T");
   }
 
   void UpdateFromRave() {
@@ -94,8 +103,8 @@ public:
   PyBulletEnvironment(Environment::Ptr env, RaveInstance::Ptr rave) : m_env(env), m_rave(rave) {
   }
 
-  void SetGravity(const btVector3 &g) {
-    m_env->bullet->setGravity(g);
+  void SetGravity(py::list g) {
+    m_env->bullet->setGravity(toBtVector3(g));
   }
 
   py::object GetGravity() {
@@ -130,6 +139,7 @@ BOOST_PYTHON_MODULE(cbulletsimpy) {
 
   py::class_<PyBulletObject>("BulletObject", py::no_init)
     .def("IsKinematic", &PyBulletObject::IsKinematic)
+    .def("GetName", &PyBulletObject::GetName)
     .def("GetTransform", &PyBulletObject::GetTransform)
     .def("UpdateFromRave", &PyBulletObject::UpdateFromRave)
     ;

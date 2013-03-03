@@ -2,6 +2,7 @@
 #include <btBulletDynamicsCommon.h>
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
+#include <vector>
 
 inline btVector3 toBulletVector(const std::vector<float>& vec) {return btVector3(vec[0],vec[1],vec[2]);}
 inline btVector3 toBulletVector(const Eigen::Vector3f& vec) {return btVector3(vec[0],vec[1],vec[2]);}
