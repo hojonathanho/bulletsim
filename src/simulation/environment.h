@@ -33,7 +33,7 @@ struct OSGInstance {
 
     osg::ref_ptr<osg::Group> root;
 
-    osg::ref_ptr<osgShadow::ShadowMap> sm;
+    osg::ref_ptr<osgShadow::MinimalCullBoundsShadowMap> sm;
 
     OSGInstance();
 };
@@ -68,11 +68,15 @@ class EnvironmentObject {
 private:
     Environment *env;
 
+
+
 public:
     typedef boost::shared_ptr<EnvironmentObject> Ptr;
 
+    bool receiveShadow;
+
     EnvironmentObject() { }
-    EnvironmentObject(Environment *env_) : env(env_) { }
+    EnvironmentObject(Environment *env_) : env(env_) , receiveShadow(false) { }
     virtual ~EnvironmentObject() { }
 
     Environment *getEnvironment() { return env; }

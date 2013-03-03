@@ -6,9 +6,10 @@ OSGInstance::OSGInstance() {
 	osg::ref_ptr<osgShadow::ShadowedScene> shadow_root = new osgShadow::ShadowedScene;   // does do shadow magic
     shadow_root->setReceivesShadowTraversalMask(RECEIVES_SHADOW_MASK);
     shadow_root->setCastsShadowTraversalMask(CASTS_SHADOW_MASK);
-    sm = new osgShadow::ShadowMap;
+
+    sm = new osgShadow::MinimalCullBoundsShadowMap;// ParallelSplitShadowMap;// DebugShadowMap;// ShadowMap;
     shadow_root->setShadowTechnique(sm.get());
-    int mapres = 8*1024;
+    int mapres = 4*1024;
     sm->setTextureSize(osg::Vec2s(mapres,mapres));
 
     root = shadow_root;
@@ -83,9 +84,13 @@ void Environment::add(EnvironmentObject::Ptr obj) {
     obj->init();
     objects.push_back(obj);
 
-    if (obj->getOSGNode()) { //shadow magic
+
+    if (obj->getOSGNode())  {//shadow magic : osg does not respect you or all the flags you set
     	obj->getOSGNode()->setNodeMask(CASTS_SHADOW_MASK);
-    	obj->getOSGNode()->setNodeMask(RECEIVES_SHADOW_MASK);
+    	if (obj->receiveShadow)
+    		obj->getOSGNode()->setNodeMask(RECEIVES_SHADOW_MASK);
+    	else
+    		obj->getOSGNode()->setNodeMask(obj->getOSGNode()->getNodeMask() & ~RECEIVES_SHADOW_MASK);
     }
 
 

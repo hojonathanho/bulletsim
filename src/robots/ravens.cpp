@@ -44,7 +44,7 @@ void Ravens::loadRobot() {
     ravens.reset(new RaveRobotObject(scene.rave, ROBOT_MODEL_FILE));
     scene.env->add(ravens);
   }
-  ravens->setColor(0.26,0.274,0.294,0.8);
+  ravens->setColor(0.3,0.274,0.5,1.0);
 }
 
 
@@ -253,6 +253,10 @@ void Ravens::initHaptics() {
 
     setHapticPollRate(10); // default 10 hz
 
+
+    this->ravens->ignoreCollisionWith(hapTrackerLeft->rigidBody.get());
+    this->ravens->ignoreCollisionWith(hapTrackerRight->rigidBody.get());
+
     lEngaged = false;
     rEngaged = false;
     setHapticCb(hapticRightBoth,  boost::bind(&Ravens::toggleRightEngaged, this));
@@ -319,8 +323,8 @@ void Ravens::processHapticInput() {
     hapTrackerLeft->motionState->setKinematicPos (trans0);
     hapTrackerRight->motionState->setKinematicPos(trans1);
     handleButtons(buttons0, buttons1);
-    if (lEngaged) manipL->moveByIK(trans0, false, true);
-    if (rEngaged) manipR->moveByIK(trans1, false, true);
+    if (lEngaged) manipL->moveByIK(trans0, false, false);
+    if (rEngaged) manipR->moveByIK(trans1, false, false);
 }
 
 
@@ -346,8 +350,8 @@ void Ravens::handleButtons(bool left[], bool right[]) {
   if (left[0] && left[1] && !(lastLeft[0] && lastLeft[1])) events.push_back(hapticLeftBoth);
   if (right[0] && right[1] && !(lastRight[0] && lastRight[1])) events.push_back(hapticRightBoth);
 
-  lastLeft[0] = left[0];
-  lastLeft[1] = left[1];
+  lastLeft[0]  = left[0];
+  lastLeft[1]  = left[1];
   lastRight[0] = right[0];
   lastRight[1] = right[1];
 

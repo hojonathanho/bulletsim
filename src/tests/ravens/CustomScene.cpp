@@ -306,6 +306,8 @@ void CustomScene::run() {
     table = BoxObject::Ptr(new BoxObject(0, GeneralConfig::scale * btVector3(0.23,0.23,table_thickness/2),
                                          btTransform(btQuaternion(0, 0, 0, 1),
                         		                     GeneralConfig::scale * btVector3(0, 0, table_height-table_thickness/2))));
+    table->receiveShadow = true;
+
     table->rigidBody->setFriction(10);
     env->add(table);
     table->setColor(0.62, 0.32, 0.17, 0.8);
@@ -314,6 +316,9 @@ void CustomScene::run() {
     // add a needle
     sNeedle.reset(new SuturingNeedle(this));
     ravens.ravens->ignoreCollisionWith(sNeedle->s_needle->getChildren()[0]->rigidBody.get());
+    ravens.ravens->ignoreCollisionWith(table->rigidBody.get());
+
+
 
     if (RavenConfig::cloth)
     	env->add(sNeedle->s_needle);
