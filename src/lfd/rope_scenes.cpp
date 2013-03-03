@@ -129,12 +129,11 @@ GrabbingScene::GrabbingScene(bool telekinesis)  {
     env->add(m_teleRight);
   }
 
-  float step = .01;
-  Scene::VoidCallback cb = boost::bind(&GrabbingScene::drive, this, step, 0);
-  addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Left, boost::bind(&GrabbingScene::drive, this, 0, step));
-  addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Right, boost::bind(&GrabbingScene::drive, this, 0, -step));
-  addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Up, boost::bind(&GrabbingScene::drive, this, -step, 0));
-  addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Down, boost::bind(&GrabbingScene::drive, this, step, 0));
+  // float step = .01;
+  // addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Left, boost::bind(&GrabbingScene::drive, this, 0, step));
+  // addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Right, boost::bind(&GrabbingScene::drive, this, 0, -step));
+  // addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Up, boost::bind(&GrabbingScene::drive, this, -step, 0));
+  // addVoidKeyCallback(osgGA::GUIEventAdapter::KEY_Down, boost::bind(&GrabbingScene::drive, this, step, 0));
 }
 
 void GrabbingScene::step(float dt) {
@@ -153,10 +152,33 @@ BulletObject::Ptr makeTable(const vector<btVector3>& corners, float thickness) {
   return BulletObject::Ptr(new BoxObject(0,halfExtents,btTransform(btQuaternion(0,0,0,1),origin)));
 }
 
+// left indices: [ 15, 16, 17, 18, 19, 20, 21 ] vals: [ 0.870844, 0.163559, 0.6, -1.28408, 2.25124, -0.827074, 3.09148 ]
+static vector<double> pr2LeftNeutralPos() {
+  static const double vals[] = { .870844, 0.163559, 0.6, -1.28408, 2.25124, -0.827074, 3.09148 };
+  vector<double> v(7);
+  for (int i = 0; i < 7; ++i) {
+    v[i] = vals[i];
+  }
+  return v;
+}
+// right indices: [ 27, 28, 29, 30, 31, 32, 33 ] vals: [ -0.793454, 0.221086, -0.6, -1.54165, -2.4981, -0.989481, -2.842 ]
+static vector<double> pr2RightNeutralPos() {
+  static const double vals[] = { -0.793454, 0.221086, -0.6, -1.54165, -2.4981, -0.989481, -2.842 };
+  vector<double> v(7);
+  for (int i = 0; i < 7; ++i) {
+    v[i] = vals[i];
+  }
+  return v;
+}
+
 TableRopeScene::TableRopeScene(const vector<btVector3> &tableCornersWorld_, const vector<btVector3>& controlPointsWorld, bool telekinesis) : GrabbingScene(telekinesis), tableCornersWorld(tableCornersWorld_) {
   vector<int> indices(1,pr2m->pr2->robot->GetJointIndex("torso_lift_joint"));
   vector<double> values(1, .31);
   pr2m->pr2->setDOFValues(indices, values);
+
+  pr2m->pr2Left->setDOFValues(pr2LeftNeutralPos());
+  pr2m->pr2Right->setDOFValues(pr2RightNeutralPos());
+
   PlotPoints::Ptr corners(new PlotPoints(20));
   corners->setPoints(tableCornersWorld);
   env->add(corners);
@@ -176,13 +198,12 @@ void TableRopeScene::resetRope(const vector<btVector3> &ctrlPoints) {
   }
   m_rope.reset(new CapsuleRope(
     ctrlPoints,
-    .005*METERS/*, // radius
-    .5, // angStiffness
+    .005*METERS, // radius
+    2., // angStiffness
     1, // angDamping
     .9, // linDamping
-    .8, // angLimit
+    .5, // angLimit
     .9 // linStopErp
-    */
   ));
   env->add(m_rope);
   setGrabBodies(m_rope->children);

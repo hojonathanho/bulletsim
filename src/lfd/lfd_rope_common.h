@@ -29,7 +29,7 @@ struct RopeStatePlot : public PlotLines {
   void setRope(const RopeState &rs, const Eigen::Vector3f &color, float alpha);
 };
 
-RopeState loadRopeStateFromDemoCloud(const string &demo_task, const string &demo_seg);
+RopeState loadRopeStateFromDemoCloud(const string &demo_task, const string &demo_seg, float seg_len=0.02);
 
 } // namespace lfd
 

@@ -27,11 +27,8 @@ public:
 };
 
 struct RopeInitModule : public PyModule {
-  RopeInitModule() : PyModule("bulletsim/bulletsim_python/src/tracking_initialization/rope_initialization.py") { }
-
-  py::object find_path_through_point_cloud(py::object xyzs) {
-    return getModule().attr("find_path_through_point_cloud")(xyzs);
-  }
+  RopeInitModule();
+  py::object find_path_through_point_cloud(py::object xyzs, float seg_len=0.02);
 };
 
 } // namespace lfd

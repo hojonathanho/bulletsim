@@ -85,11 +85,11 @@ CapsuleRope::CapsuleRope(const vector<btVector3>& ctrlPoints, btScalar radius_, 
   for (int i=0; i < nLinks; i++) {
     btTransform trans = transforms[i];
     btScalar len = lengths[i];
-    float mass = 0.1;
+    float mass = 0.2;
     CapsuleObject::Ptr child(new CapsuleObject(mass,radius,len,trans));
     child->rigidBody->setDamping(linDamping,angDamping);
     child->rigidBody->setFriction(1);
-    child->collisionShape->setMargin(0.04);
+    //child->collisionShape->setMargin(0.04);
 
     children.push_back(child);
 

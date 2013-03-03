@@ -4,6 +4,7 @@
 
 #include "utils/vector_io.h"
 #include "utils/conversions.h"
+#include "utils/logging.h"
 
 using namespace lfd;
 
@@ -13,19 +14,48 @@ struct LocalConfig : public Config {
   static float pert;
   static double trajSlow;
   static bool loadRopeFromDemo;
+  static float loadedRopeSegLen;
+  static float loadedRopeScale;
+  static float loadedRopeTranslateX;
+  static float loadedRopeTranslateY;
   LocalConfig() : Config() { 
     params.push_back(new Parameter<string>("task", &task, "task name"));
     params.push_back(new Parameter<string>("rope", &rope, "rope control points file"));
     params.push_back(new Parameter<float>("pert", &pert, "rope perturbation variance"));
     params.push_back(new Parameter<double>("trajSlow", &trajSlow, "slowdown factor for trajectory execution"));
     params.push_back(new Parameter<bool>("loadRopeFromDemo", &loadRopeFromDemo, "load rope from demo observation"));
+    params.push_back(new Parameter<float>("loadedRopeSegLen", &loadedRopeSegLen, "num control points for rope (if loadRopeFromDemo == true)"));
+    params.push_back(new Parameter<float>("loadedRopeScale", &loadedRopeScale, "loaded rope scale (wrt centroid)"));
+    params.push_back(new Parameter<float>("loadedRopeTranslateX", &loadedRopeTranslateX, "loaded rope translate (x direction)"));
+    params.push_back(new Parameter<float>("loadedRopeTranslateY", &loadedRopeTranslateY, "loaded rope translate (y direction)"));
   }
 };
 string LocalConfig::task;
 string LocalConfig::rope;
-float LocalConfig::pert = 0.01;
+float LocalConfig::pert = 0;
 double LocalConfig::trajSlow = 2.;
 bool LocalConfig::loadRopeFromDemo = false;
+float LocalConfig::loadedRopeSegLen = 0.025;
+float LocalConfig::loadedRopeScale = 1.;
+float LocalConfig::loadedRopeTranslateX = 0.;
+float LocalConfig::loadedRopeTranslateY = 0.;
+
+
+static void adjustPts(vector<btVector3> &pts) {
+  btVector3 centroid(0, 0, 0);
+  for (int i = 0; i < pts.size(); ++i) {
+    centroid += pts[i];
+  }
+  centroid /= (btScalar) pts.size();
+
+  for (int i = 0; i < pts.size(); ++i) {
+    pts[i] = (pts[i] - centroid)*LocalConfig::loadedRopeScale + centroid;
+  }
+
+  for (int i = 0; i < pts.size(); ++i) {
+    pts[i] += btVector3(LocalConfig::loadedRopeTranslateX, LocalConfig::loadedRopeTranslateY, 0.) * METERS;
+  }
+}
 
 int main(int argc, char *argv[]) {
   LFDRopeScene s(argc, argv, LocalConfig());
@@ -33,7 +63,14 @@ int main(int argc, char *argv[]) {
   // Load rope
   vector<btVector3> ropeCtlPts;
   if (LocalConfig::loadRopeFromDemo) {
-    ropeCtlPts = loadRopeStateFromDemoCloud(LocalConfig::task, "00.00");
+    try {
+      ropeCtlPts = loadRopeStateFromDemoCloud(LocalConfig::task, "00.00", LocalConfig::loadedRopeSegLen);
+      adjustPts(ropeCtlPts);
+    } catch (const py::error_already_set &e) {
+      Python_printError();
+      throw;
+    }
+    LOG_INFO("Initialized rope with " << ropeCtlPts.size() << " control points");
   } else {
     ropeCtlPts = toBulletVectors(floatMatFromFile(LocalConfig::rope)) * METERS;
   }

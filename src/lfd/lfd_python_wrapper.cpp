@@ -32,4 +32,18 @@ py::object DemoLoadingModule::loadDemos(const string &task, const string &demo_l
   return getModule().attr("load_demos")(task, demo_list_file);
 }
 
+RopeInitModule::RopeInitModule() : PyModule("bulletsim/bulletsim_python/src/tracking_initialization/rope_initialization.py") {
+}
+
+py::object RopeInitModule::find_path_through_point_cloud(py::object xyzs, float seg_len) {
+  py::list args;
+  args.append(xyzs);
+
+  py::dict kwargs;
+  kwargs["seg_len"] = seg_len;
+  kwargs["plotting"] = false;
+ 
+  return getModule().attr("find_path_through_point_cloud")(*py::tuple(args), **kwargs);
+}
+
 } // namespace lfd

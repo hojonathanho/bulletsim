@@ -35,7 +35,7 @@ def find_path_through_point_cloud_simple(xyzs, plotting=False):
     
 
 
-def find_path_through_point_cloud(xyzs, plotting = False):
+def find_path_through_point_cloud(xyzs, plotting = False, seg_len=0.02):
     xyzs = np.asarray(xyzs).reshape(-1,3)
     S = skeletonize_point_cloud(xyzs)
     segs = get_segments(S)
@@ -69,9 +69,9 @@ def find_path_through_point_cloud(xyzs, plotting = False):
         else: total_path.extend(segs[node//2][::-1])
 
     total_path_3d = remove_duplicate_rows(np.array([S.node[i]["xyz"] for i in total_path]))
-    total_path_3d = unif_resample(total_path_3d, seg_len=.02, tol=.003) # tolerance of 1mm
-    total_path_3d = unif_resample(total_path_3d, seg_len=.02, tol=.003) # tolerance of 1mm
-#    total_path_3d = unif_resample(total_path_3d, seg_len=.02, tol=.003) # tolerance of 1mm
+    total_path_3d = unif_resample(total_path_3d, seg_len=seg_len, tol=.003) # tolerance of 1mm
+    total_path_3d = unif_resample(total_path_3d, seg_len=seg_len, tol=.003) # tolerance of 1mm
+#    total_path_3d = unif_resample(total_path_3d, seg_len=seg_len, tol=.003) # tolerance of 1mm
 
 
     if plotting:
@@ -132,7 +132,6 @@ def unif_resample(x,n=None,tol=0,deg=None, seg_len = .02):
     dl = norms(xup[1:] - xup[:-1],1)
     l = np.cumsum(np.r_[0,dl])
     (tck,_) = si.splprep(xup.T,k=deg,s = tol**2*len(xup),u=l)
-
 
     if n is not None: newu = np.linspace(0,l[-1],n)
     else: newu = np.linspace(0, l[-1], l[-1]//seg_len)

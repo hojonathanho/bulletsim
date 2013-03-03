@@ -118,6 +118,7 @@ public:
 		}
 
 		ColorCloudPtr cloud_out = boxFilter(cloud_in, m_mins, m_maxes);
+		cout << MIN_HUE << ' ' << MAX_HUE << ' ' << MIN_SAT << ' ' << MAX_SAT << ' ' << MIN_VAL << ' ' << MAX_VAL << endl;
 		cloud_out = hueFilter(cloud_out, MIN_HUE, MAX_HUE, MIN_SAT, MAX_SAT,MIN_VAL, MAX_VAL);
 		if (LocalConfig::downsample > 0) cloud_out = downsampleCloud(cloud_out, LocalConfig::downsample);
 		if (LocalConfig::removeOutliers) cloud_out = removeOutliers(cloud_out, 1, 10);

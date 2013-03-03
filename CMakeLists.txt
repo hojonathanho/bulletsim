@@ -9,12 +9,12 @@ IF (NOT CMAKE_BUILD_TYPE)
 ENDIF (NOT CMAKE_BUILD_TYPE)
 
 
-
 # external libraries
+set(Boost_USE_STATIC_LIBS ON)
 find_package(Boost COMPONENTS system filesystem program_options REQUIRED)
 
 find_package(Eigen3 REQUIRED)
-find_package(OpenRAVE 0.8 REQUIRED)
+find_package(OpenRAVE REQUIRED)
 find_package(OpenThreads REQUIRED)
 find_package(osg REQUIRED)
 find_package(osgDB REQUIRED)
