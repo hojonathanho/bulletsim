@@ -29,11 +29,10 @@ struct RaveInstance {
 };
 
 void LoadFromRave(Environment::Ptr env, RaveInstance::Ptr rave);
+void LoadFromRaveExplicit(Environment::Ptr env, RaveInstance::Ptr rave, const vector<string> &dynamicNames);
 void Load(Environment::Ptr env, RaveInstance::Ptr rave, const string& name);
-// copy constructor. will never call RaveInitialize or RaveDestroy
 
 enum TrimeshMode {
-  //CONVEX_DECOMP, // use HACD convex decomposition
   CONVEX_HULL, // use btShapeHull
   RAW, // use btBvhTriangleMeshShape (not recommended, makes simulation very slow)
 };
@@ -85,6 +84,8 @@ public:
   void updateBullet();
   // update's openrave stuff based on bullet
   void updateRave();
+
+  bool getIsKinematic() const { return isKinematic; }
 
 protected:
   // these two containers just keep track of the smart pointers

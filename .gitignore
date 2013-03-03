@@ -5,7 +5,6 @@ build/*
 *.wpu
 data/knots
 CMakeFiles
-*.cmake
 *.a
 bin/
 CMakeCache.txt

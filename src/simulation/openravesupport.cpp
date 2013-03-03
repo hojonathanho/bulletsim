@@ -70,6 +70,30 @@ void LoadFromRave(Environment::Ptr env, RaveInstance::Ptr rave) {
 
 }
 
+// explicit kinematic policy
+void LoadFromRaveExplicit(Environment::Ptr env, RaveInstance::Ptr rave, const vector<string> &dynamicNames) {
+  std::set<string> bodiesAlreadyLoaded;
+  BOOST_FOREACH(EnvironmentObject::Ptr obj, env->objects) {
+    RaveObject* robj = dynamic_cast<RaveObject*>(obj.get());
+    if (robj) bodiesAlreadyLoaded.insert(robj->body->GetName());
+  }
+  std::vector<boost::shared_ptr<OpenRAVE::KinBody> > bodies;
+  rave->env->GetBodies(bodies);
+  BOOST_FOREACH(OpenRAVE::KinBodyPtr body, bodies) {
+    if (bodiesAlreadyLoaded.find(body->GetName()) == bodiesAlreadyLoaded.end()) {
+      bool isKinematic = std::find(dynamicNames.begin(), dynamicNames.end(), body->GetName()) == dynamicNames.end();
+      if (body->IsRobot()) {
+        LOG_INFO("loading robot " << body->GetName());
+        env->add(RaveRobotObject::Ptr(new RaveRobotObject(
+				  rave, boost::dynamic_pointer_cast<RobotBase>(body), CONVEX_HULL, isKinematic)));
+      } else {
+        LOG_INFO("loading " << body->GetName());
+        env->add(RaveObject::Ptr(new RaveObject(rave, body, CONVEX_HULL, isKinematic)));
+      }
+    }
+  }
+}
+
 void Load(Environment::Ptr env, RaveInstance::Ptr rave, const string& filename) {
 	bool success = rave->env->Load(filename);
 	if (!success)

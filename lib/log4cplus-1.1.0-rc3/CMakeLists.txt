@@ -10,7 +10,7 @@ set (log4cplus_postfix "")
 find_package (Threads)
 message (STATUS "Threads: ${CMAKE_THREAD_LIBS_INIT}")
 
-set(BUILD_SHARED_LIBS FALSE CACHE BOOL "If TRUE, log4cplus is built as a shared library, otherwise as a static library")
+set(BUILD_SHARED_LIBS TRUE CACHE BOOL "If TRUE, log4cplus is built as a shared library, otherwise as a static library")
 
 if (WIN32)
   set (UNICODE_DEFAULT ON)

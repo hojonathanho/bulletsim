@@ -1,6 +1,0 @@
-string side
-float64[] start_joints
-float64[] end_joints
-sensor_msgs/JointState joint_states
----
-float64[] trajectory

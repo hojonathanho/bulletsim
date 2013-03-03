@@ -1,20 +1,23 @@
 cmake_minimum_required(VERSION 2.6)
 project(bulletsim)
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/CMakeModules")
+
+set(Boost_USE_STATIC_LIBS off)
+include(cmake/main.cmake)
+
 set(BULLETSIM_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
 IF (NOT CMAKE_BUILD_TYPE)
  SET(CMAKE_BUILD_TYPE "RelWithDebInfo")
 ENDIF (NOT CMAKE_BUILD_TYPE)
 
+set(BUILD_SHARED_LIBS on)
+
 # external libraries
-set(Boost_USE_STATIC_LIBS ON)
-find_package(Boost COMPONENTS system filesystem program_options REQUIRED)
+find_package(Boost COMPONENTS system python filesystem program_options REQUIRED)
 
 find_package(Eigen3 REQUIRED)
 find_package(OpenRAVE REQUIRED)
 
-set(BUILD_SHARED_LIBS 0)
 add_definitions("-DEIGEN_DEFAULT_TO_ROW_MAJOR")
 add_definitions("-DBT_NO_PROFILE")
 

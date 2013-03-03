@@ -1,2 +1,0 @@
-Depends: catkin, genmsg, geometry_msgs, std_msgs
-Catkin-ProjectName: bulletsim_msgs

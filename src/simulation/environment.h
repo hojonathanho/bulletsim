@@ -4,9 +4,9 @@
 #include <btBulletDynamicsCommon.h>
 #include <BulletSoftBody/btSoftRigidDynamicsWorld.h>
 #include <BulletSoftBody/btSoftBodyRigidBodyCollisionConfiguration.h>
-#include <opencv2/core/core.hpp>
 #include <vector>
 #include <set>
+#include <map>
 #include <boost/shared_ptr.hpp>
 #include <iostream>
 #include <stdexcept>
@@ -197,13 +197,6 @@ public:
         for (i = children.begin(); i != children.end(); ++i)
             if (*i)
                 (*i)->destroy();
-    }
-
-    void setColor(float r, float g, float b, float a) {
-			typename ChildVector::iterator i;
-			for (i = children.begin(); i != children.end(); ++i)
-				if (*i)
-					(*i)->setColor(r,g,b,a);
     }
 
 		int getIndex(const btTransform& transform) {

@@ -16,20 +16,23 @@ add_library(simulation
     util.cpp
 #    softbodies.cpp
 #    softBodyHelpers.cpp
-    rope.cpp
+#    rope.cpp
     config_bullet.cpp
     config_viewer.cpp
     bullet_io.cpp
-    tetgen_helpers.cpp
+#    tetgen_helpers.cpp
 )
 
 target_link_libraries(simulation
-    utils
-    haptics
-    tetgen
+    #utils
+    #haptics
+    #tetgen
     ${Boost_LIBRARIES}
     ${BULLET_LIBS}
     ${OpenRAVE_LIBRARIES}
     ${OpenRAVE_CORE_LIBRARIES}
     ${LOG4CPLUS_LIBRARY}
 )
+
+boost_python_module(cbulletsimpy bulletsimpy.cpp)
+target_link_libraries(cbulletsimpy simulation)
