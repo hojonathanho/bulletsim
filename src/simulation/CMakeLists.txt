@@ -33,6 +33,7 @@ target_link_libraries(simulation
   haptics
   osgBullet
   osgWorks
+  osgShadow
   tetgen
   ${OpenCV_LIBS}
   ${Boost_LIBRARIES}
