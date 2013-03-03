@@ -144,6 +144,9 @@ void RaveObject::init() {
 void RaveObject::destroy() {
 	CompoundObject<BulletObject>::destroy();
 
+  rave->rave2bulletsim.erase(body);
+  rave->bulletsim2rave.erase(this);
+
 	typedef std::map<KinBody::JointPtr, BulletConstraint::Ptr> map_t;
 	map_t mmap;
 	BOOST_FOREACH( map_t::value_type &joint_cnt, mmap ) getEnvironment()->removeConstraint(joint_cnt.second);
@@ -194,21 +197,20 @@ static BulletObject::Ptr createFromLink(KinBody::LinkPtr link,
 
 		switch (geom->GetType()) {
 		case KinBody::Link::GEOMPROPERTIES::GeomBox:
-			subshape.reset(new btBoxShape(util::toBtVector(GeneralConfig::scale
-					* geom->GetBoxExtents()) + btVector3(1,1,1)*BulletConfig::linkPadding*METERS));
+      subshape.reset(new btBoxShape(
+        METERS*(util::toBtVector(geom->GetBoxExtents()) + btVector3(1,1,1)*BulletConfig::linkPadding)));
 			break;
 
 		case KinBody::Link::GEOMPROPERTIES::GeomSphere:
-			subshape.reset(new btSphereShape(GeneralConfig::scale
-					* geom->GetSphereRadius() + BulletConfig::linkPadding*METERS));
+      subshape.reset(new btSphereShape(geom->GetSphereRadius()*METERS + BulletConfig::linkPadding*METERS));
 			break;
 
 		case KinBody::Link::GEOMPROPERTIES::GeomCylinder:
 			// cylinder axis aligned to Y
-			subshape.reset(new btCylinderShapeZ(btVector3(GeneralConfig::scale
-					* geom->GetCylinderRadius(), GeneralConfig::scale
-					* geom->GetCylinderRadius(), GeneralConfig::scale
-					* geom->GetCylinderHeight() / 2.)));
+      subshape.reset(new btCylinderShapeZ(METERS* btVector3(
+        0*BulletConfig::linkPadding + geom->GetCylinderRadius(),
+        0*BulletConfig::linkPadding + geom->GetCylinderRadius(),
+        0*BulletConfig::linkPadding + geom->GetCylinderHeight() / 2.)));
 			break;
 
 		case KinBody::Link::GEOMPROPERTIES::GeomTrimesh:
@@ -271,7 +273,7 @@ static BulletObject::Ptr createFromLink(KinBody::LinkPtr link,
 	}
 
 
-	float mass = link->GetMass();
+	float mass = isKinematic ? 0 : link->GetMass();
 	if (mass==0 && !isKinematic) LOG_WARN_FMT("warning: link %s is non-kinematic but mass is zero", link->GetName().c_str());
 	BulletObject::Ptr child;
 	if (useCompound) {

@@ -84,9 +84,9 @@ public:
   string GetName() { return m_obj->body->GetName(); }
 
   py::object GetTransform() {
+    btTransform t(m_obj->toRaveFrame(m_obj->children[0]->rigidBody->getCenterOfMassTransform()));
     btScalar mat[16];
-    // FIXME: scaling?
-    m_obj->children[0]->rigidBody->getCenterOfMassTransform().getOpenGLMatrix(mat);
+    t.getOpenGLMatrix(mat);
     return toNdarray2(mat, 4, 4).attr("T");
   }
 
