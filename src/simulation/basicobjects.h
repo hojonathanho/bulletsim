@@ -1,8 +1,6 @@
 #ifndef _BASICOBJECTS_H_
 #define _BASICOBJECTS_H_
 
-#include <opencv2/core/core.hpp>
-#include <osg/MatrixTransform>
 #include "environment.h"
 
 // an object that is entirely specified as a bullet btRigidBody
@@ -46,10 +44,6 @@ public:
     boost::shared_ptr<btCollisionShape> collisionShape;
     boost::shared_ptr<btCollisionShape> graphicsShape;
 
-    // OSG MEMBERS
-    osg::ref_ptr<osg::Node> node;
-    osg::ref_ptr<osg::MatrixTransform> transform;
-
     // CONSTRUCTORS
     // our own construction info class, which forces motionstate to be null
     struct CI : public btRigidBody::btRigidBodyConstructionInfo {
@@ -73,32 +67,7 @@ public:
 
     // called by Environment
     void init();
-    void preDraw();
     void destroy();
-
-    // by default uses osgBullet. Can be overridden to provide custom OSG mesh
-    virtual osg::ref_ptr<osg::Node> createOSGNode();
-
-    // actions (for the user)
-    class MoveAction : public ObjectAction {
-        BulletObject *obj;
-        btTransform start, end;
-
-    public:
-        typedef boost::shared_ptr<MoveAction> Ptr;
-        MoveAction(BulletObject *obj_) : obj(obj_) { }
-        MoveAction(BulletObject *obj_, const btTransform &start_, const btTransform &end_, float execTime) : obj(obj_), start(start_), end(end_), ObjectAction(execTime) { }
-        void setEndpoints(const btTransform &start_, const btTransform &end_) {
-            start = start_; end = end_;
-        }
-        void step(float dt);
-    };
-    MoveAction::Ptr createMoveAction() { return MoveAction::Ptr(new MoveAction(this)); }
-    MoveAction::Ptr createMoveAction(const btTransform &start, const btTransform &end, float time) { return MoveAction::Ptr(new MoveAction(this, start, end, time)); }
-		void setColor(float r, float g, float b, float a);
-		
-		void setTexture(const cv::Mat& image);
-		void adjustTransparency(float increment);
 
 		int getIndex(const btTransform& transform) { return 0; }
 		int getIndexSize() { return 1; }
@@ -108,16 +77,8 @@ public:
 		bool isKinematic;
 
 private:
-		bool enable_texture;
-		osg::Vec4f m_color;
-		void setColorAfterInit();
-		osg::ref_ptr<osg::Image> m_image;
-		boost::shared_ptr<cv::Mat> m_cvimage;
-		void setTextureAfterInit();
     void setFlagsAndActivation();
     void construct(btScalar mass, boost::shared_ptr<btCollisionShape> cs, const btTransform& initTrans, bool isKinematic_);
-public:
-		cv::Mat& getTexture() { return *m_cvimage; }
 };
 
 class BulletConstraint : public EnvironmentObject {
@@ -141,29 +102,6 @@ public:
     void destroy();
 };
 
-class GrabberKinematicObject : public BulletObject {
-private:
-    float radius, height;
-    btVector3 constraintPivot;
-    BulletConstraint::Ptr constraint;
-
-public:
-    typedef boost::shared_ptr<GrabberKinematicObject> Ptr;
-
-    GrabberKinematicObject(float radius_, float height_);
-    EnvironmentObject::Ptr copy(Fork &f) const {
-        Ptr o(new GrabberKinematicObject(*this));
-        internalCopy(o, f);
-        return o;
-    }
-    void destroy() { releaseConstraint(); BulletObject::destroy(); }
-
-    osg::ref_ptr<osg::Node> createOSGNode();
-
-    void grabNearestObjectAhead();
-    void releaseConstraint();
-};
-
 // An infinite surface on the X-Y plane.
 // the drawHalfExtents argument to the constructor is for rendering only
 class PlaneStaticObject : public BulletObject {
@@ -181,9 +119,6 @@ public:
         internalCopy(o, f);
         return o;
     }
-
-    // must override this since osgBullet doesn't recognize btStaticPlaneShape
-    osg::ref_ptr<osg::Node> createOSGNode();
 };
 
 // A cylinder along the Z-axis
@@ -250,7 +185,6 @@ public:
         internalCopy(o, f);
         return o;
     }
-    osg::ref_ptr<osg::Node> createOSGNode();
 };
 
 // A wrapper for btCapsuleShape
@@ -267,7 +201,6 @@ public:
         internalCopy(o, f);
         return o;
     }
-    osg::ref_ptr<osg::Node> createOSGNode();
 };
 
 #endif // _BASICOBJECTS_H_

@@ -1,32 +1,7 @@
 #include "basicobjects.h"
 #include "config_bullet.h"
-#include <opencv2/core/core.hpp>
-#include <opencv2/highgui/highgui.hpp>
-#include <osg/BlendFunc>
-#include <osg/Geometry>
-#include <osg/Geode>
-#include <osg/Shape>
-#include <osg/ShapeDrawable>
-#include <osg/Texture2D>
-#include <osgDB/ReadFile>
-//#include <osgDB/WriteFile>
-#include <osgwTools/Shapes.h>
-#include <osgbCollision/CollisionShapes.h>
 #include <Serialize/BulletFileLoader/btBulletFile.h>
 #include <boost/scoped_array.hpp>
-#include "set_colors_visitor.h"
-#include <opencv2/imgproc/imgproc.hpp>
-#include <boost/filesystem.hpp>
-namespace fs = boost::filesystem;
-
-/*
- * todo: it would make more sense to create node at construction time
- * so we don't have to do setColorAfterInit stuff
- */
-
-
-#define MAX_RAYCAST_DISTANCE 100.0
-	 
 
 BulletObject::MotionState::Ptr BulletObject::MotionState::clone(BulletObject &newObj) {
     btTransform t; getWorldTransform(t);
@@ -74,8 +49,6 @@ void BulletObject::setFlagsAndActivation() {
 
 
 void BulletObject::construct(btScalar mass, boost::shared_ptr<btCollisionShape> cs, const btTransform& initTrans, bool isKinematic_) {
-	enable_texture = false;
-	m_color = osg::Vec4(1,1,1,1);
 	isKinematic = isKinematic_;
 	collisionShape = cs;
 	
@@ -105,26 +78,6 @@ BulletObject::~BulletObject() {
 
 void BulletObject::init() {
     getEnvironment()->bullet->dynamicsWorld->addRigidBody(rigidBody.get());
-    node = createOSGNode();
-    transform = new osg::MatrixTransform;
-    transform->addChild(node.get());
-    getEnvironment()->osg->root->addChild(transform.get());
-
-    osg::ref_ptr<osg::BlendFunc> blendFunc = new osg::BlendFunc;
-    blendFunc->setFunction(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    osg::StateSet *ss = node->getOrCreateStateSet();
-    ss->setAttributeAndModes(blendFunc);
-    ss->setMode(GL_BLEND, osg::StateAttribute::ON);
-//    ss->setRenderingHint(osg::StateSet::TRANSPARENT_BIN);
-    if (enable_texture)
-    	setTextureAfterInit();
-    else
-    	setColorAfterInit();
-}
-
-osg::ref_ptr<osg::Node> BulletObject::createOSGNode() {
-  btCollisionShape* shape = graphicsShape ? graphicsShape.get() : collisionShape.get();
-  return osg::ref_ptr<osg::Node>(osgbCollision::osgNodeFromBtCollisionShape(shape));
 }
 
 btScalar IDENTITY[] = {1,0,0,0,
@@ -142,21 +95,8 @@ btScalar* identityIfBad(btScalar m[16]) { //doesn't fix segfaults, unfortunately
   return m;
 }
 
-void BulletObject::preDraw() {
-    // before drawing, we must copy the orientation/position
-    // of the object from Bullet to OSG
-    btTransform btTrans;
-    rigidBody->getMotionState()->getWorldTransform(btTrans);
-
-    btScalar m[16];
-   	btTrans.getOpenGLMatrix(m);
-		//transform->setMatrix(osg::Matrix(identityIfBad(m)));
-    transform->setMatrix(osg::Matrix(m));
-}
-
 void BulletObject::destroy() {
     getEnvironment()->bullet->dynamicsWorld->removeRigidBody(rigidBody.get());
-    getEnvironment()->osg->root->removeChild(transform.get());
 }
 
 BulletObject::BulletObject(const BulletObject &o) : isKinematic(o.isKinematic), enable_texture(o.enable_texture), m_color(o.m_color) {
@@ -261,69 +201,6 @@ void BulletObject::MoveAction::step(float dt) {
         obj->motionState->setWorldTransform(newtrans);
 }
 
-void BulletObject::setColor(float r, float g, float b, float a) {
-		m_color = osg::Vec4f(r,g,b,a);
-		if (node) setColorAfterInit();
-		enable_texture = false;
-}
-
-void BulletObject::setColorAfterInit() {
-		//clear out texture mapping information
-  	osg::StateSet *ss = node->getOrCreateStateSet();
-		ss->getTextureAttributeList().clear();
-		ss->getTextureModeList().clear();
-
-  	if (m_color.a() != 1.0f) {
-  		osg::StateSet *ss = node->getOrCreateStateSet();
-  		ss->setRenderingHint(osg::StateSet::TRANSPARENT_BIN);
-    }
-    SetColorsVisitor visitor(m_color.r(),m_color.g(),m_color.b(),m_color.a());
-    node->accept(visitor);
-}
-
-void BulletObject::setTexture(const cv::Mat& image) {
-	m_cvimage.reset(new cv::Mat);
-	image.copyTo(*m_cvimage);
-
-	//hack to convert cv::Mat images to osg::Image images
-  fs::path p = fs::temp_directory_path() / fs::unique_path("%%%%-%%%%-%%%%-%%%%.jpg");
-	cv::imwrite(p.c_str(), image);
-	m_image = osgDB::readImageFile(p.c_str());
-  fs::remove(p);
-
-	if (node) setTextureAfterInit();
-	enable_texture = true;
-}
-
-void BulletObject::setTextureAfterInit() {
-	if (m_image) {
-		// clear out color information
-		m_color = osg::Vec4f(1,1,1,m_color.a());
-		setColorAfterInit();
-
-		osg::Texture2D* texture = new osg::Texture2D;
-		// protect from being optimized away as static state:
-		texture->setDataVariance(osg::Object::DYNAMIC);
-		// Assign the texture to the image we read from file:
-		texture->setImage(m_image.get());
-		// Create a new StateSet with default settings:
-		//osg::StateSet* stateOne = new osg::StateSet();
-		osg::StateSet* state = node->getOrCreateStateSet();
-		// Assign texture unit 0 of our new StateSet to the texture
-		// we just created and enable the texture.
-		state->setTextureAttributeAndModes(0,texture,osg::StateAttribute::ON);
-	}
-}
-
-void BulletObject::adjustTransparency(float increment) {
-	m_color.a() += increment;
-	if (m_color.a() > 1.0f) m_color.a() = 1.0f;
-	if (m_color.a() < 0.0f) m_color.a() = 0.0f;
-	if (enable_texture)
-		setTextureAfterInit();
-	else
-		setColorAfterInit();
-}
 
 void BulletConstraint::init() {
     getEnvironment()->bullet->dynamicsWorld->addConstraint(cnt.get(), disableCollisionsBetweenLinkedBodies);
@@ -509,99 +386,9 @@ EnvironmentObject::Ptr BulletConstraint::copy(Fork &f) const {
     return Ptr(new BulletConstraint(newcnt, disableCollisionsBetweenLinkedBodies));
 }
 
-GrabberKinematicObject::GrabberKinematicObject(float radius_, float height_) :
-    radius(radius_), height(height_),
-    constraintPivot(0, 0, height_), // this is where objects will attach to
-    BulletObject(0, new btConeShapeZ(radius_, height_),
-            btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0)), true) {
-}
-
-osg::ref_ptr<osg::Node> GrabberKinematicObject::createOSGNode() {
-    osg::ref_ptr<osg::Geode> geode = new osg::Geode;
-    osg::ref_ptr<osg::Cone> cone = new osg::Cone(osg::Vec3(), radius, height);
-    cone->setCenter(osg::Vec3(0, 0, -cone->getBaseOffset()));
-    // FIXME: this cone seems a bit taller than the bullet cone
-    geode->addDrawable(new osg::ShapeDrawable(cone));
-    return geode;
-}
-
-void GrabberKinematicObject::grabNearestObjectAhead() {
-    // first, try to find the object ahead.
-    // trace a ray in the direction of the end affector and get the first object hit
-    btTransform trans; motionState->getWorldTransform(trans);
-    btVector3 rayFrom = trans(btVector3(0, 0, 0)); // some point in the middle of the stick
-    btVector3 rayTo = trans(constraintPivot); // the end affector
-    rayTo = (rayTo - rayFrom).normalize()*MAX_RAYCAST_DISTANCE + rayTo;
-
-    printf("from: %f %f %f\nto:%f %f %f\n", rayFrom.x(), rayFrom.y(), rayFrom.z(), rayTo.x(), rayTo.y(), rayTo.z());
-    // send the ray
-    btCollisionWorld::ClosestRayResultCallback rayCallback(rayFrom, rayTo);
-    getEnvironment()->bullet->dynamicsWorld->rayTest(rayFrom, rayTo, rayCallback);
-    printf("tracing!\n");
-    if (rayCallback.hasHit()) {
-        printf("hit!\n");
-        btRigidBody *hitBody = btRigidBody::upcast(rayCallback.m_collisionObject);
-        if (hitBody && !hitBody->isStaticObject() && !hitBody->isKinematicObject()) {
-            hitBody->setActivationState(DISABLE_DEACTIVATION);
-
-            releaseConstraint();
-
-            // the constraint in the grabber's coordinate system
-            btTransform grabberFrame;
-            grabberFrame.setIdentity();
-            grabberFrame.setOrigin(constraintPivot);
-            grabberFrame.setRotation(trans.inverse().getRotation());
-
-            // the constraint in the target's coordinate system
-            const btTransform &hitBodyTransInverse = hitBody->getCenterOfMassTransform().inverse();
-            btVector3 localHitPoint = hitBodyTransInverse * rayCallback.m_hitPointWorld;
-            btTransform hitFrame;
-            hitFrame.setIdentity();
-            hitFrame.setOrigin(localHitPoint);
-            hitFrame.setRotation(hitBodyTransInverse.getRotation());
-
-            btGeneric6DofConstraint *cnt = new btGeneric6DofConstraint(*rigidBody, *hitBody, grabberFrame, hitFrame, false);
-            // make the constraint completely rigid
-            cnt->setLinearLowerLimit(btVector3(0., 0., 0.));
-            cnt->setLinearUpperLimit(btVector3(0., 0., 0.));
-            cnt->setAngularLowerLimit(btVector3(0., 0., 0.));
-            cnt->setAngularUpperLimit(btVector3(0., 0., 0.));
-            constraint.reset(new BulletConstraint(cnt));
-            getEnvironment()->addConstraint(constraint);
-        }
-    }
-}
-
-void GrabberKinematicObject::releaseConstraint() {
-    if (!constraint) return;
-    getEnvironment()->removeConstraint(constraint);
-    constraint.reset();
-}
-
 PlaneStaticObject::PlaneStaticObject(const btVector3 &planeNormal_, btScalar planeConstant_, const btTransform &initTrans, btScalar drawHalfExtents_) :
     planeNormal(planeNormal_), planeConstant(planeConstant_), drawHalfExtents(drawHalfExtents_),
     BulletObject(0, new btStaticPlaneShape(planeNormal_, planeConstant_), initTrans) {
-}
-
-osg::ref_ptr<osg::Node> PlaneStaticObject::createOSGNode() {
-    osg::ref_ptr<osg::Vec3Array> vertices = new osg::Vec3Array;
-    vertices->push_back(osg::Vec3(-drawHalfExtents, -drawHalfExtents, 0.));
-    vertices->push_back(osg::Vec3(drawHalfExtents, -drawHalfExtents, 0.));
-    vertices->push_back(osg::Vec3(drawHalfExtents, drawHalfExtents, 0.));
-    vertices->push_back(osg::Vec3(-drawHalfExtents, drawHalfExtents, 0.));
-
-    osg::ref_ptr<osg::Vec3Array> normals = new osg::Vec3Array;
-    normals->push_back(osg::Vec3(0., 0., 1.));
-
-    osg::ref_ptr<osg::Geometry> quad = new osg::Geometry;
-    quad->setVertexArray(vertices.get());
-    quad->setNormalArray(normals.get());
-    quad->setNormalBinding(osg::Geometry::BIND_OVERALL);
-    quad->addPrimitiveSet(new osg::DrawArrays(GL_QUADS, 0, 4));
-
-    osg::ref_ptr<osg::Geode> geode = new osg::Geode();
-    geode->addDrawable(quad.get());
-    return geode;
 }
 
 CylinderStaticObject::CylinderStaticObject(btScalar mass_, btScalar radius_, btScalar height_, const btTransform &initTrans) :
@@ -624,23 +411,7 @@ CapsuleObject::CapsuleObject(btScalar mass_, btScalar radius_, btScalar height_,
     BulletObject(mass_, new btCapsuleShapeX(radius_, height_), initTrans) {
 }
 
-osg::ref_ptr<osg::Node> CapsuleObject::createOSGNode() {
-    osg::ref_ptr<osg::Geode> geode = new osg::Geode;
-    osg::ref_ptr<osg::Capsule> capsule = new osg::Capsule(osg::Vec3(0, 0, 0), radius, height);
-    capsule->setRotation(osg::Quat(osg::PI_2, osg::Vec3(0, 1, 0)));
-    geode->addDrawable(new osg::ShapeDrawable(capsule));
-    return geode;
-}
-
 CapsuleObjectY::CapsuleObjectY(btScalar mass_, btScalar radius_, btScalar height_, const btTransform &initTrans) :
     mass(mass_), radius(radius_), height(height_),
     BulletObject(mass_, new btCapsuleShape(radius_, height_), initTrans) {
-}
-
-osg::ref_ptr<osg::Node> CapsuleObjectY::createOSGNode() {
-    osg::ref_ptr<osg::Geode> geode = new osg::Geode;
-    osg::ref_ptr<osg::Capsule> capsule = new osg::Capsule(osg::Vec3(0, 0, 0), radius, height);
-    capsule->setRotation(osg::Quat(osg::PI_2, osg::Vec3(1, 0, 0)));
-    geode->addDrawable(new osg::ShapeDrawable(capsule));
-    return geode;
 }

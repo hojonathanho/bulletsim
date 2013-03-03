@@ -13,14 +13,6 @@
 
 using namespace std;
 
-struct OSGInstance {
-    typedef boost::shared_ptr<OSGInstance> Ptr;
-
-    osg::ref_ptr<osg::Group> root;
-
-    OSGInstance();
-};
-
 struct BulletInstance {
     typedef boost::shared_ptr<BulletInstance> Ptr;
 
@@ -74,13 +66,7 @@ public:
     void setEnvironment(Environment *env_) { env = env_; }
     virtual void init() { }
     virtual void prePhysics() { }
-    virtual void preDraw() { }
     virtual void destroy() { }
-
-    virtual osg::Node *getOSGNode() const { return NULL; }
-
-    virtual void setColor(float r, float g, float b, float a) {};
-		virtual void adjustTransparency(float increment) {};
 
 		//gets the index of the closest part of the object (face, capsule, rigid_body, etc)
 		//for rigid bodies, there is only one index so this will always return 0
@@ -97,7 +83,6 @@ struct Environment {
     typedef boost::shared_ptr<Environment> Ptr;
 
     BulletInstance::Ptr bullet;
-    OSGInstance::Ptr osg;
 
     typedef std::vector<EnvironmentObject::Ptr> ObjectList;
     ObjectList objects;
@@ -115,7 +100,6 @@ struct Environment {
     void removeConstraint(EnvironmentObject::Ptr cnt);
 
     void step(btScalar dt, int maxSubSteps, btScalar fixedTimeStep);
-    void preDraw(); // for drawing without running physics
 };
 
 // An Environment Fork is a wrapper around an Environment with an operator
@@ -208,13 +192,6 @@ public:
                 (*i)->prePhysics();
     }
 
-    virtual void preDraw() {
-        typename ChildVector::iterator i;
-        for (i = children.begin(); i != children.end(); ++i)
-            if (*i)
-                (*i)->preDraw();
-    }
-
     virtual void destroy() {
         typename ChildVector::iterator i;
         for (i = children.begin(); i != children.end(); ++i)
@@ -228,27 +205,6 @@ public:
 				if (*i)
 					(*i)->setColor(r,g,b,a);
     }
-
-		void setTexture(cv::Mat image) {
-			int height = image.size().height;
-			int width = image.size().width;
-			int n = (int) children.size();
-			int split_width = width/n;
-			for (int i=0; i<n; i++)
-				if (children[i]) {
-					cv::Mat splitImage = cv::Mat(image, cv::Rect(i*split_width, 0, split_width, height));
-					cv::flip(splitImage, splitImage, 1);
-					splitImage = splitImage.t();
-					children[i]->setTexture(splitImage);
-				}
-		}
-
-		void adjustTransparency(float increment) {
-			typename ChildVector::iterator i;
-      for (i = children.begin(); i != children.end(); ++i)
-          if (*i)
-              (*i)->adjustTransparency(increment);
-		}
 
 		int getIndex(const btTransform& transform) {
 			const btVector3 pos = transform.getOrigin();
@@ -275,29 +231,6 @@ public:
 			return children[index/index_size]->getIndexTransform(index % index_size);
 		}
 
-};
-
-class ObjectAction {
-protected:
-    float timeElapsed;
-    float execTime;
-    bool isDone;
-    int plotOnly;
-
-    void setDone(bool b) { isDone = b; }
-    void stepTime(float dt) { timeElapsed += dt; }
-    float fracElapsed() const { return min(timeElapsed / execTime, 1.f); }
-    void setColor(float r, float g, float b, float a);
-
-public:
-    typedef boost::shared_ptr<ObjectAction> Ptr;
-    ObjectAction() : isDone(false), timeElapsed(0.), execTime(1.) { }
-    ObjectAction(float execTime_) : isDone(false), timeElapsed(0.), execTime(execTime_) { }
-
-    virtual bool done() const { return timeElapsed >= execTime || isDone; }
-    virtual void step(float dt) = 0;
-    virtual void reset() { timeElapsed = 0.; setDone(false); }
-    virtual void setExecTime(float t) { execTime = t; }
 };
 
 #endif // _ENVIRONMENT_H_

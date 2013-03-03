@@ -112,12 +112,6 @@ void Environment::step(btScalar dt, int maxSubSteps, btScalar fixedTimeStep) {
     preDraw();
 }
 
-void Environment::preDraw() {
-    ObjectList::iterator i;
-    for (i = objects.begin(); i != objects.end(); ++i)
-        (*i)->preDraw();
-}
-
 Fork::Fork(const Environment *parentEnv_, BulletInstance::Ptr bullet, OSGInstance::Ptr osg) :
     parentEnv(parentEnv_), env(new Environment(bullet, osg)) {
   copyObjects();
