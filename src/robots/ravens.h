@@ -11,6 +11,24 @@
 
 class Scene;
 
+namespace RavensHapticsEventId {
+enum RavensHapticEvent {
+  hapticLeft0Up,
+  hapticLeft0Down,
+  hapticLeft0Hold,
+  hapticLeft1Up,
+  hapticLeft1Down,
+  hapticLeft1Hold,
+  hapticLeftBoth,
+  hapticRight0Up,
+  hapticRight0Down,
+  hapticRight0Hold,
+  hapticRight1Up,
+  hapticRight1Down,
+  hapticRight1Hold,
+  hapticRightBoth
+};
+}
 
 /*Class for executing OpenRAVE trajectories on Ravens in Bulletsim. */
 class RavensController {
@@ -88,6 +106,8 @@ public:
 std::vector<dReal> mirror_ravens_joints(const std::vector<dReal> &x);
 
 
+using namespace RavensHapticsEventId;
+
 class Ravens {
 private:
     Scene &scene;
@@ -111,7 +131,16 @@ private:
     const dReal _side[6];
     std::vector<dReal> arm_side;
 
+
+    /** for haptic input. */
     btTransform leftInitTrans, rightInitTrans;
+    float hapticPollRate;
+    map<RavensHapticEvent, boost::function<void()> > hapticEvent2Func;
+    void actionWrapper(Action::Ptr a, float dt) {
+        a->reset();
+        scene.runAction(a, dt);
+    }
+    void initHaptics();
 
 
 public:
@@ -122,11 +151,25 @@ public:
     /** Controller for DOFs of the ravens. */
     RavensController::Ptr                    controller;
 
+    SphereObject::Ptr hapTrackerLeft, hapTrackerRight;
+    bool lEngaged, rEngaged; // only accept haptic input if engaged
+
+
     Ravens(Scene &s);
     void registerSceneCallbacks();
     void cycleIKSolution(int manipNum); // manipNum == 0 for left, 1 for right
     bool processKeyInput(const osgGA::GUIEventAdapter &ea);
     bool processMouseInput(const osgGA::GUIEventAdapter &ea);
+
+
+    /** Functions for Haptic input; using phantoms. */
+    void setHapticPollRate(float hz) { hapticPollRate = hz; }
+    void setHapticCb(RavensHapticEvent h, boost::function<void()> cb) {hapticEvent2Func[h] = cb;}
+    void setHapticCb(RavensHapticEvent h, Action::Ptr a, float dt) { setHapticCb(h, boost::bind(&Ravens::actionWrapper, this, a, dt));}
+    void handleButtons(bool left[], bool right[]);
+    void toggleLeftEngaged() {lEngaged = !lEngaged;}
+    void toggleRightEngaged() {rEngaged = !rEngaged;}
+    void processHapticInput();
 
 
     /** Set the transform of the base of the robot.*/
