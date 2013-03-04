@@ -235,20 +235,20 @@ void Ravens::initHaptics() {
 
     btTransform rT = btTransform::getIdentity();
     //lT.setOrigin(manipL->getTransform().getOrigin());
-    hapTrackerLeft.reset(new SphereObject(0, 0.005*METERS, rT, true));
+    hapTrackerLeft.reset(new SphereObject(0, 0.003*METERS, rT, true));
     hapTrackerLeft->rigidBody->setCollisionFlags(
             hapTrackerLeft->rigidBody->getCollisionFlags()
             | btRigidBody::CF_NO_CONTACT_RESPONSE);
-    hapTrackerLeft->setColor(1, 0, 0, 0.2);
+    hapTrackerLeft->setColor(1, 0, 0, 0.8);
     scene.env->add(hapTrackerLeft);
 
     btTransform lT = btTransform::getIdentity();
     //rT.setOrigin(manipR->getTransform().getOrigin());
-    hapTrackerRight.reset(new SphereObject(0, 0.005*METERS, lT, true));
+    hapTrackerRight.reset(new SphereObject(0, 0.003*METERS, lT, true));
     hapTrackerRight->rigidBody->setCollisionFlags(
             hapTrackerRight->rigidBody->getCollisionFlags()
             | btRigidBody::CF_NO_CONTACT_RESPONSE);
-    hapTrackerRight->setColor(0, 1, 0, 0.2);
+    hapTrackerRight->setColor(0, 1, 0, 0.8);
     scene.env->add(hapTrackerRight);
 
     setHapticPollRate(10); // default 10 hz

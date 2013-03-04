@@ -313,7 +313,7 @@ void CustomScene::run() {
     table->setColor(0.62, 0.32, 0.17, 0.8);
     createKinBodyFromBulletBoxObject(table, rave);
 
-    cout<<"WHAT"<<endl;
+
 
     // add a needle
     sNeedle.reset(new SuturingNeedle(this));
@@ -326,7 +326,6 @@ void CustomScene::run() {
 
     rave->env->AddKinBody(sNeedle->s_needle->body);
 
-    cout<<"WHAT"<<endl;
 
     // add a cloth
     sCloth.reset(new SutureCloth(*this,GeneralConfig::scale * 0.09, GeneralConfig::scale * 0.03, 0, GeneralConfig::scale * btVector3(0, 0, table_height+0.01)));
@@ -335,7 +334,7 @@ void CustomScene::run() {
     	env->add(sCloth->cloth);
     sCloth->cloth->setColor(0.933,0.807,0.701,0.8);
 
-    cout<<"WHAT"<<endl;
+
 
     // position the ravens
     btTransform T;
@@ -352,7 +351,6 @@ void CustomScene::run() {
     plot_axes2.reset(new PlotAxes());
     env->add(plot_axes2);
 
-    cout<<"WHAT"<<endl;
 
     leftAction.reset(new SoftBodyGripperAction( ravens.manipL,
                                                	"l_grasper2_L",
@@ -368,9 +366,9 @@ void CustomScene::run() {
     runAction(leftAction, dt);
 
     rightAction->setOpenAction();
-    runAction(rightAction, dt);*/
+    runAction(rightAction, dt);*/   // cout<<"WHAT"<<endl;
 
-    cout<<"WHAT"<<endl;
+
 
     /** Define the actions. */
     vector<BulletObject::Ptr> targets;
@@ -396,20 +394,16 @@ void CustomScene::run() {
 
     j_playback->setGripperActions(lAction.get(), rAction.get());
 
-    cout<<"WHAT"<<endl;
+
 
     lAction->setOpenAction();
     runAction(lAction, dt);
     rAction->setOpenAction();
     runAction(rAction, dt);
 
-
-    cout<<"WHAT"<<endl;
     //setSyncTime(true);
     startViewer();
     stepFor(dt, 2);
-
-    cout<<"WHAT"<<endl;
 
     startFixedTimestepLoop(dt);
 }

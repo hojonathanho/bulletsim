@@ -18,9 +18,10 @@ Scene::Scene() {
 
     // populate the scene with some basic objects
     //ground.reset(new PlaneStaticObject(btVector3(0., 0., 1.), 0., btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0))));
-    ground.reset(new BoxObject(0, btVector3(5*METERS, 5*METERS, 0.01*METERS), btTransform(btQuaternion(0,0,0,1), btVector3(0,0,-0.01*METERS))));
+    ground.reset(new BoxObject(0, btVector3(1*METERS, 1*METERS, 0.01*METERS), btTransform(btQuaternion(0,0,0,1), btVector3(0,0,-0.01*METERS))));
     ground->collisionShape->setMargin(0.001*METERS);
     ground->rigidBody->setFriction(1.0);
+    ground->receiveShadow = true;
     // in centimeters
 		float width = 2*ground->getHalfExtents().x() * 100/METERS;
 		float height = 2*ground->getHalfExtents().y() * 100/METERS;
@@ -64,7 +65,25 @@ void Scene::startViewer() {
     manip->setWheelZoomFactor(ViewerConfig::zoomFactor);
     viewer.setCameraManipulator(manip);
     viewer.setSceneData(osg->root.get());
+
+    //viewer.getCamera()->getView()->setLightingMode(osg::View::NO_LIGHT);
+
+    osg::Light* light = new osg::Light();
+    osg::LightSource * lightsource = new osg::LightSource();
+    lightsource->setLight(light);
+    osg->root->addChild(lightsource);
+
+    osg::StateSet* stateset = osg->root->getOrCreateStateSet();
+    lightsource->setStateSetModes(*stateset, osg::StateAttribute::ON);
+
+    light->setAmbient(osg::Vec4d(0.0, 0.0, 0.0, 1.0));
+    light->setDiffuse(osg::Vec4d(1.0, 1.0, 1.0, 1.0));
+    light->setSpecular(osg::Vec4d(0.5, 0.2, 0.5, 1.0));
+    light->setPosition(osg::Vec4d(2*METERS, 3*METERS, METERS*3.0, 1.0));
+
     viewer.realize();
+
+
     step(0);
 }
 

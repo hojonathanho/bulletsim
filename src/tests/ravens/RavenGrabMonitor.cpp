@@ -88,7 +88,7 @@ bool RavensGrabMonitor::onInnerSide(const btVector3 &pt, bool left) {
     // then the innerPt and the closing direction define the plane
 	btTransform itfm = getInverseFingerTfm (left);
 	btVector3 new_pt = itfm * pt;
-	return (abs(new_pt.x()) < .005*METERS) && (new_pt.y() > -.005*METERS) && (new_pt.z() < 0);
+	return (abs(new_pt.x()) < .0025*METERS) && (new_pt.y() > -.002*METERS) && (new_pt.z() < 0);
 }
 
 
@@ -131,15 +131,15 @@ bool RavensGrabMonitor::checkContacts(bool left, btRigidBody *target, float thre
 			if (impulse > threshold) {//threshold*avg) {
 				cout<<"   Found exceeding impulse"<<endl;
 				if (onInnerSide(contact_pt, left)) {
-					contact_pt = tfm.inverse()*contact_pt;
-					cout<<"Point: " <<contact_pt.x()<<","<<contact_pt.y()<<","<<contact_pt.z()<<endl;
-					cout<<"Distance: "<<contact_pt.length()<<endl;
-					cout<<"   Found inner contact point"<<endl;
+					//contact_pt = tfm.inverse()*contact_pt;
+					//cout<<"Point: " <<contact_pt.x()<<","<<contact_pt.y()<<","<<contact_pt.z()<<endl;
+					//cout<<"Distance: "<<contact_pt.length()<<endl;
+					//cout<<"   Found inner contact point"<<endl;
 					return true;
 				} else {
-					contact_pt = tfm.inverse()*contact_pt;
-					cout<<"Point: " <<contact_pt.x()<<","<<contact_pt.y()<<","<<contact_pt.z()<<endl;
-					cout<<"Distance: "<<contact_pt.length()<<endl;
+					//contact_pt = tfm.inverse()*contact_pt;
+					//cout<<"Point: " <<contact_pt.x()<<","<<contact_pt.y()<<","<<contact_pt.z()<<endl;
+					//cout<<"Distance: "<<contact_pt.length()<<endl;
 					cout<<"   NOT Found inner point"<<endl;
 				}
 			}
@@ -150,6 +150,7 @@ bool RavensGrabMonitor::checkContacts(bool left, btRigidBody *target, float thre
 	}
 	return false;
 }
+
 
 RavensGrabMonitor::RavensGrabMonitor(RaveRobotObject::Manipulator::Ptr manip, btDynamicsWorld *dynamicsWorld,
 		const string &leftFingerName, const string &rightFingerName, Scene &s_) :

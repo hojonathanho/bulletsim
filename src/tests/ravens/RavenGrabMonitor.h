@@ -28,7 +28,7 @@ public:
   typedef boost::shared_ptr<RavensGrabMonitor> Ptr;
 
   // min/max gripper dof vals
-  static const float CLOSED_VAL = 0.0f, OPEN_VAL = 0.25f;
+  static const float CLOSED_VAL = 0.01f, OPEN_VAL = 0.25f;
 
   KinBody::LinkPtr leftFinger, rightFinger;
   const btTransform origLeftFingerInvTrans, origRightFingerInvTrans;
