@@ -9,7 +9,7 @@
 #include <fstream>
 #include <iostream>
 #include <vector>
-#include "utils/my_assert.h"
+#include "my_assert.h"
 #include <opencv2/imgproc/imgproc.hpp>
 using namespace std;
 

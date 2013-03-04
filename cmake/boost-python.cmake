@@ -1,5 +1,4 @@
 function(boost_python_module NAME)
-  set(Boost_USE_STATIC_LIBS off)
   find_package(Boost COMPONENTS python REQUIRED)
   find_package(PythonLibs REQUIRED)
   find_package(Numpy)

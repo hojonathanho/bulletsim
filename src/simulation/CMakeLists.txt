@@ -6,7 +6,8 @@ include_directories(
     ${TETGEN_DIR}
 )
 
-SET(CMAKE_CXX_FLAGS "-Wall -Wno-sign-compare -Wno-reorder")
+#SET(CMAKE_CXX_FLAGS "-Wall -Wno-sign-compare -Wno-reorder")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations -fvisibility=hidden")
 
 
 add_library(simulation
@@ -20,10 +21,14 @@ add_library(simulation
     config_bullet.cpp
     bullet_io.cpp
 #    tetgen_helpers.cpp
+    logging.cpp
+    config.cpp
+    conversions.cpp
+    utils_vector.cpp
 )
 
 target_link_libraries(simulation
-    utils
+#    utils
     #haptics
     #tetgen
     ${Boost_LIBRARIES}

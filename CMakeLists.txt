@@ -6,23 +6,28 @@ include(cmake/main.cmake)
 
 set(BULLETSIM_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
-IF (NOT CMAKE_BUILD_TYPE)
- SET(CMAKE_BUILD_TYPE "RelWithDebInfo")
-ENDIF (NOT CMAKE_BUILD_TYPE)
+# http://cmake.3232098.n2.nabble.com/Default-value-for-CMAKE-BUILD-TYPE-td7550756.html
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+  message(STATUS "Setting build type to 'Debug' as none was specified.")
+  set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
+  # Set the possible values of build type for cmake-gui
+  set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release"
+    "MinSizeRel" "RelWithDebInfo")
+endif()
 
-set(BUILD_SHARED_LIBS on)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+#set(BUILD_SHARED_LIBS true)
 
 # external libraries
 find_package(Boost COMPONENTS system python filesystem program_options REQUIRED)
-
 find_package(Eigen3 REQUIRED)
-find_package(OpenRAVE REQUIRED)
+find_package(OpenRAVE 0.9 REQUIRED)
 
 add_definitions("-DEIGEN_DEFAULT_TO_ROW_MAJOR")
 add_definitions("-DBT_NO_PROFILE")
-
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
-SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fopenmp")
 
 # directories for libraries packaged in this tree
 set(BULLET_DIR ${BULLETSIM_SOURCE_DIR}/lib/bullet-2.79)

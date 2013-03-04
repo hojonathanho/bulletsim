@@ -1,9 +1,9 @@
 #include <openrave-core.h>
 #include "openravesupport.h"
 #include <BulletCollision/CollisionShapes/btShapeHull.h>
-#include "utils/config.h"
+#include "config.h"
 #include "bullet_io.h"
-#include "utils/logging.h"
+#include "logging.h"
 #include "config_bullet.h"
 
 #include <set>

@@ -1,7 +1,7 @@
 #include "conversions.h"
 #include <boost/foreach.hpp>
-#include "utils/my_assert.h"
-#include "utils/my_exceptions.h"
+#include "my_assert.h"
+#include "my_exceptions.h"
 
 Eigen::Matrix3f toEigenMatrix(const btMatrix3x3& basis)
 {

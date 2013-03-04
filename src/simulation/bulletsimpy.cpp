@@ -1,6 +1,7 @@
 #include <boost/python.hpp>
 #include "environment.h"
 #include "openravesupport.h"
+#include "logging.h"
 
 using namespace Eigen;
 using namespace OpenRAVE;
@@ -142,6 +143,7 @@ PyBulletEnvironment PyLoadFromRave(py::object py_rave_env, py::list dynamic_obj_
 
 
 BOOST_PYTHON_MODULE(cbulletsimpy) {
+  LoggingInit();
   openravepy = py::import("openravepy");
   numpy = py::import("numpy");
 

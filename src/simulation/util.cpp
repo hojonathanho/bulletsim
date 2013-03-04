@@ -1,7 +1,6 @@
 #include "util.h"
-#include "thread_socket_interface.h"
 #include <boost/foreach.hpp>
-#include "utils/conversions.h"
+#include "conversions.h"
 
 using namespace Eigen;
 

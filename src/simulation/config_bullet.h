@@ -1,5 +1,5 @@
 #pragma once
-#include "utils/config.h"
+#include "config.h"
 #include <btBulletDynamicsCommon.h>
 
 struct BulletConfig : Config {
