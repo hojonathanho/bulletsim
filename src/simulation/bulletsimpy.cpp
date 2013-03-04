@@ -66,6 +66,10 @@ EnvironmentBasePtr GetCppEnv(py::object py_env) {
   EnvironmentBasePtr cpp_env = RaveGetEnvironment(id);
   return cpp_env;
 }
+py::object GetPyEnv(EnvironmentBasePtr cpp_env) {
+  int id = RaveGetEnvironmentId(cpp_env);
+  return openravepy.attr("RaveGetEnvironment")(id);
+}
 KinBodyPtr GetCppKinBody(py::object py_kb, EnvironmentBasePtr env) {
   int id = py::extract<int>(py_kb.attr("GetEnvironmentId")());
   return env->GetBodyFromEnvironmentId(id);
@@ -103,16 +107,20 @@ public:
   PyBulletEnvironment(Environment::Ptr env, RaveInstance::Ptr rave) : m_env(env), m_rave(rave) {
   }
 
+  PyBulletObject GetObjectByName(const string &name) {
+    return PyBulletObject(getObjectByName(m_env, m_rave, name));
+  }
+
+  py::object GetRaveEnv() {
+    return GetPyEnv(m_rave->env);
+  }
+
   void SetGravity(py::list g) {
     m_env->bullet->setGravity(toBtVector3(g));
   }
 
   py::object GetGravity() {
     return toNdarray1(m_env->bullet->dynamicsWorld->getGravity().m_floats, 3);
-  }
-
-  PyBulletObject GetObjectByName(const string &name) {
-    return PyBulletObject(getObjectByName(m_env, m_rave, name));
   }
 
   void Step(float dt, int maxSubSteps, float fixedTimeStep) {
@@ -145,10 +153,11 @@ BOOST_PYTHON_MODULE(cbulletsimpy) {
     ;
 
   py::class_<PyBulletEnvironment>("BulletEnvironment", py::no_init)
-    .def("Step", &PyBulletEnvironment::Step)
-    .def("GetObjectByName", &PyBulletEnvironment::GetObjectByName)
+    .def("GetObjectByName", &PyBulletEnvironment::GetObjectByName, "get a BulletObject, given the OpenRAVE object name")
+    .def("GetRaveEnv", &PyBulletEnvironment::GetRaveEnv, "get the backing OpenRAVE environment")
     .def("SetGravity", &PyBulletEnvironment::SetGravity)
     .def("GetGravity", &PyBulletEnvironment::GetGravity)
+    .def("Step", &PyBulletEnvironment::Step)
     ;
 
   py::def("LoadFromRave", &PyLoadFromRave);

@@ -21,6 +21,8 @@ print [(o.GetName(), o.IsKinematic()) for o in bullet_objs]
 dyn_objs = [bullet_env.GetObjectByName(b.GetName()) for b in env.GetBodies() if b.GetName() in dyn_obj_names]
 print 'dyn objs', [o.GetName() for o in dyn_objs]
 
+robot_obj = bullet_env.GetObjectByName(env.GetRobots()[0].GetName())
+
 TIMESTEPS = 100
 for t in range(TIMESTEPS):
   print t
@@ -32,6 +34,7 @@ for t in range(TIMESTEPS):
 
   env.UpdatePublishedBodies()
 
+  robot_obj.UpdateFromRave()
   bullet_env.Step(0.01, 100, 0.01)
   raw_input('hi')
 
