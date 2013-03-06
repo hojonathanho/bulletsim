@@ -42,9 +42,10 @@ RaveInstance::RaveInstance(const RaveInstance &o, int cloneOpts) {
 }
 
 RaveInstance::~RaveInstance() {
-    env->Destroy();
-	if (isRoot)
-		RaveDestroy();
+  cout << "DESTROY" << endl;
+//    env->Destroy();
+//	if (isRoot)
+//		RaveDestroy();
 }
 
 void LoadFromRave(Environment::Ptr env, RaveInstance::Ptr rave) {

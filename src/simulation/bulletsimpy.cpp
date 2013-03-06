@@ -7,15 +7,7 @@ using namespace Eigen;
 using namespace OpenRAVE;
 namespace py = boost::python;
 
-py::object openravepy, numpy;
-
-/*
-py::list toPyList(const IntVec& x) {
-  py::list out;
-  for (int i=0; i < x.size(); ++i) out.append(x[i]);
-  return out;
-}
-*/
+static py::object openravepy, numpy;
 
 vector<string> toStrVec(py::list py_str_list) {
   int n = py::len(py_str_list);
@@ -75,18 +67,22 @@ KinBodyPtr GetCppKinBody(py::object py_kb, EnvironmentBasePtr env) {
   int id = py::extract<int>(py_kb.attr("GetEnvironmentId")());
   return env->GetBodyFromEnvironmentId(id);
 }
+py::object GetPyKinBody(KinBodyPtr kb) {
+  int id = kb->GetEnvironmentId();
+  return GetPyEnv(kb->GetEnv()).attr("GetBodyFromEnvironmentId")(id);
+}
 KinBody::LinkPtr GetCppLink(py::object py_link, EnvironmentBasePtr env) {
   KinBodyPtr parent = GetCppKinBody(py_link.attr("GetParent")(), env);
   int idx = py::extract<int>(py_link.attr("GetIndex")());
   return parent->GetLinks()[idx];
 }
 
+class PyBulletEnvironment;
 class PyBulletObject {
 public:
-  PyBulletObject(RaveObject::Ptr obj) : m_obj(obj) { }
-
   bool IsKinematic() { return m_obj->getIsKinematic(); }
   string GetName() { return m_obj->body->GetName(); }
+  py::object GetKinBody() { return GetPyKinBody(m_obj->body); }
 
   py::object GetTransform() {
     btTransform t(m_obj->toRaveFrame(m_obj->children[0]->rigidBody->getCenterOfMassTransform()));
@@ -95,24 +91,54 @@ public:
     return toNdarray2(mat, 4, 4).attr("T");
   }
 
-  void UpdateFromRave() {
+  void UpdateBullet() {
     m_obj->updateBullet();
   }
 
+  void UpdateRave() {
+    cout << "before env id: " << RaveGetEnvironmentId(m_obj->rave->env) << endl;
+    m_obj->updateRave();
+    cout << "after env id: " << RaveGetEnvironmentId(m_obj->rave->env) << endl;
+  }
+
 private:
+  friend class PyBulletEnvironment;
+  PyBulletObject(RaveObject::Ptr obj) : m_obj(obj) { }
   RaveObject::Ptr m_obj;
 };
+typedef boost::shared_ptr<PyBulletObject> PyBulletObjectPtr;
 
 class PyBulletEnvironment {
 public:
-  PyBulletEnvironment(Environment::Ptr env, RaveInstance::Ptr rave) : m_env(env), m_rave(rave) {
+  PyBulletEnvironment(py::object py_rave_env, py::list dynamic_obj_names) {
+    BulletInstance::Ptr bullet(new BulletInstance);
+    m_env.reset(new Environment(bullet));
+    m_rave.reset(new RaveInstance(GetCppEnv(py_rave_env)));
+    LoadFromRaveExplicit(m_env, m_rave, toStrVec(dynamic_obj_names));
+    m_env->bullet->setGravity(btVector3(0, 0, -9.8));
+  }
+
+//  PyBulletEnvironment(Environment::Ptr env, RaveInstance::Ptr rave) : m_env(env), m_rave(rave) {
+//    m_env->bullet->setGravity(btVector3(0, 0, -9.8));
+//  }
+
+  ~PyBulletEnvironment() {
+    cout << "py bullet env destroyed" << endl;
   }
 
   PyBulletObject GetObjectByName(const string &name) {
     return PyBulletObject(getObjectByName(m_env, m_rave, name));
   }
 
+  PyBulletObject GetObjectFromKinBody(py::object py_kb) {
+    if (openravepy.attr("RaveGetEnvironmentId")(py_kb.attr("GetEnv")()) != RaveGetEnvironmentId(m_rave->env)) {
+      throw std::runtime_error("trying to get Bullet object for a KinBody that doesn't belong to this (OpenRAVE base) environment");
+    }
+    return PyBulletObject(getObjectByName(m_env, m_rave, GetCppKinBody(py_kb, m_rave->env)->GetName()));
+  }
+
   py::object GetRaveEnv() {
+    cout << "getting rave env with id " << RaveGetEnvironmentId(m_rave->env) << endl;
     return GetPyEnv(m_rave->env);
   }
 
@@ -132,14 +158,15 @@ private:
   Environment::Ptr m_env;
   RaveInstance::Ptr m_rave;
 };
+typedef boost::shared_ptr<PyBulletEnvironment> PyBulletEnvironmentPtr;
 
-PyBulletEnvironment PyLoadFromRave(py::object py_rave_env, py::list dynamic_obj_names) {
-  BulletInstance::Ptr bullet(new BulletInstance);
-  Environment::Ptr env(new Environment(bullet));
-  RaveInstance::Ptr rave(new RaveInstance(GetCppEnv(py_rave_env)));
-  LoadFromRaveExplicit(env, rave, toStrVec(dynamic_obj_names));
-  return PyBulletEnvironment(env, rave);
-}
+//PyBulletEnvironment PyLoadFromRave(py::object py_rave_env, py::list dynamic_obj_names) {
+//  BulletInstance::Ptr bullet(new BulletInstance);
+//  Environment::Ptr env(new Environment(bullet));
+//  RaveInstance::Ptr rave(new RaveInstance(GetCppEnv(py_rave_env)));
+//  LoadFromRaveExplicit(env, rave, toStrVec(dynamic_obj_names));
+//  return PyBulletEnvironment(env, rave);
+//}
 
 
 BOOST_PYTHON_MODULE(cbulletsimpy) {
@@ -147,20 +174,23 @@ BOOST_PYTHON_MODULE(cbulletsimpy) {
   openravepy = py::import("openravepy");
   numpy = py::import("numpy");
 
-  py::class_<PyBulletObject>("BulletObject", py::no_init)
+  py::class_<PyBulletObject, PyBulletObjectPtr>("BulletObject", py::no_init)
     .def("IsKinematic", &PyBulletObject::IsKinematic)
     .def("GetName", &PyBulletObject::GetName)
+    .def("GetKinBody", &PyBulletObject::GetKinBody, "get the KinBody in the OpenRAVE environment this object was created from")
     .def("GetTransform", &PyBulletObject::GetTransform)
-    .def("UpdateFromRave", &PyBulletObject::UpdateFromRave)
+    .def("UpdateBullet", &PyBulletObject::UpdateBullet, "set bullet object transform from the current transform in the OpenRAVE environment")
+    .def("UpdateRave", &PyBulletObject::UpdateRave, "set the transform in the OpenRAVE environment from what it currently is in Bullet")
     ;
 
-  py::class_<PyBulletEnvironment>("BulletEnvironment", py::no_init)
+  py::class_<PyBulletEnvironment, PyBulletEnvironmentPtr>("BulletEnvironment", py::init<py::object, py::list>())
     .def("GetObjectByName", &PyBulletEnvironment::GetObjectByName, "get a BulletObject, given the OpenRAVE object name")
+    .def("GetObjectFromKinBody", &PyBulletEnvironment::GetObjectFromKinBody, "")
     .def("GetRaveEnv", &PyBulletEnvironment::GetRaveEnv, "get the backing OpenRAVE environment")
     .def("SetGravity", &PyBulletEnvironment::SetGravity)
     .def("GetGravity", &PyBulletEnvironment::GetGravity)
     .def("Step", &PyBulletEnvironment::Step)
     ;
 
-  py::def("LoadFromRave", &PyLoadFromRave);
+//  py::def("LoadFromRave", &PyLoadFromRave);
 }
