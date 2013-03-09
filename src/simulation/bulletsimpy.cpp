@@ -171,6 +171,8 @@ typedef boost::shared_ptr<PyBulletEnvironment> PyBulletEnvironmentPtr;
 
 BOOST_PYTHON_MODULE(cbulletsimpy) {
   LoggingInit();
+  log4cplus::Logger::getRoot().setLogLevel(GeneralConfig::verbose);
+
   openravepy = py::import("openravepy");
   numpy = py::import("numpy");
 
