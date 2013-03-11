@@ -314,16 +314,14 @@ void CustomScene::run() {
     table->setColor(0.62, 0.32, 0.17, 0.8);
     createKinBodyFromBulletBoxObject(table, rave);
 
-
-
     // add a needle
     sNeedle.reset(new SuturingNeedle(this));
     ravens.ravens->ignoreCollisionWith(sNeedle->s_needle->getChildren()[0]->rigidBody.get());
     ravens.ravens->ignoreCollisionWith(table->rigidBody.get());
 
     env->add(sNeedle->s_needle);
-
     rave->env->Add(sNeedle->s_needle->body);
+
 
 
     // add a cloth

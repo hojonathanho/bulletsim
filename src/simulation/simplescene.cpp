@@ -263,3 +263,4 @@ bool SceneConfig::enableRobot = true;
 bool SceneConfig::enableRobotCollision = false;
 bool SceneConfig::useFakeGrabber = false;
 float SceneConfig::mouseDragScale = 1.;
+bool SceneConfig::enableShadows = false;

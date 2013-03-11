@@ -132,6 +132,7 @@ struct SceneConfig : Config {
   static bool useFakeGrabber;
   static bool startIdle;
   static float mouseDragScale;
+  static bool enableShadows;
   SceneConfig() : Config() {
     params.push_back(new Parameter<bool>("enableIK", &enableIK, "enable OpenRAVE IK for the PR2"));
     params.push_back(new Parameter<bool>("enableHaptics", &enableHaptics, "enable haptics for the PR2"));
@@ -139,5 +140,6 @@ struct SceneConfig : Config {
     params.push_back(new Parameter<bool>("enableRobotCollision", &enableRobotCollision, "collision detection between robot and environment during user manipulation"));
     params.push_back(new Parameter<bool>("useFakeGrabber", &useFakeGrabber, "use a fake grabber; pass false for realistic grasping"));
     params.push_back(new Parameter<float>("mouseDragScale", &mouseDragScale, "scaling factor for mouse control for IK"));
+    params.push_back(new Parameter<bool>("enableShadows", &enableShadows, "enable shadows in the scene"));
   }
 };
