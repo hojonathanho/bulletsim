@@ -28,7 +28,7 @@
 #include "robots/grabbing.h"
 
 #include "RavenPlanners.h"
-
+#include "BoxCloth.h"
 #include "jointRecorder.h"
 #include "jointPlayback.h"
 
@@ -39,8 +39,10 @@
 class CustomScene : public Scene {
 public:
 
+
 	/** A class to represent the cloth in the scene.
 	 * Holds the cloth object and other supporting structures. */
+	/*
 	class SutureCloth {
 	public:
 		typedef boost::shared_ptr<SutureCloth> Ptr;
@@ -58,20 +60,20 @@ public:
 		 * Performs a PCA on the points.
 		 * SIDE_NUM  \in {1, 2} : if 1 : cut-points on the left.
 		 *                        if 2 : cut-points on the right.
-		 * The return value is a point on the line found and the direction-cosine of the line. */
+		 * The return value is a point on the line found and the direction-cosine of the line. *\/
 		pair<pair<btVector3, btVector3> , pair<int, int> > fitLine(int side_num);
 
 
 		/** See the DOC for fitLine.
 		 *  In addition to fitting a line to the cut-points it aligns
-		 *  the direction of the cut with the x-axis of the robot's (PR2) transform. */
+		 *  the direction of the cut with the x-axis of the robot's (PR2) transform. *\/
 		pair<pair<btVector3, btVector3> , pair<int, int> >fitLineAligned(int side_num, RaveRobotObject::Ptr robot);
 
 		/** Returns a transform for grasping.
 		 *  @param SIDE_NUM  \in {1, 2} : if 1 : transform for left-cut
-		 *                                if 2 : transform for right-cut */
+		 *                                if 2 : transform for right-cut *\/
 		btTransform getCutGraspTransform(int side_num, RaveRobotObject::Ptr robot, float frac=0.5);
-	};
+	};*/
 
 
 	/* Class to represent the suturing needle + thread. */
@@ -137,7 +139,7 @@ public:
 
 	};
 
-	SoftBodyGripperAction::Ptr leftAction, rightAction;
+	//SoftBodyGripperAction::Ptr leftAction, rightAction;
 
 	RavensRigidBodyGripperAction::Ptr lAction, rAction;  //>>>>>>>>>>>>> testing
 
@@ -150,8 +152,12 @@ public:
 
 
 
+	/*
 	// the cloth to be sutured
 	SutureCloth::Ptr sCloth;
+	*/
+	// Two sides of box cloth cloth
+	BoxCloth::Ptr cloth1, cloth2;
 
 	// Suturing needle
 	SuturingNeedle::Ptr sNeedle;
@@ -188,10 +194,10 @@ public:
 
 
 	void callGripperAction(char lr='l') {
-		RavensRigidBodyGripperAction::Ptr action = (lr == 'r')? rAction : lAction;
-		action->reset();
-        action->toggleAction();
-        runAction(action, BulletConfig::dt);
+		osg::ref_ptr<osgGA::GUIEventAdapter> e = new osgGA::GUIEventAdapter();
+		e->setKey(lr == 'l' ? 'a' : 's');
+		e->setEventType(osgGA::GUIEventAdapter::KEYDOWN);
+		viewer.getEventQueue()->addEvent(e);
 	}
 
 	/** Returns the coordinates of the last point directly below (-z) SOURCE_PT

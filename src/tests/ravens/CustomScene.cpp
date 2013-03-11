@@ -82,6 +82,7 @@ std::vector<btVector3> CustomScene::checkNodeVisibility(btVector3 camera_origin,
    {(s,s,z) (-s,s,z) (-s,-s,z) (s,-s,z)}
    Then, the center of the cloth (initially at (0,,0)
    is translated to CENTER.*/
+/*
 BulletSoftObject::Ptr CustomScene::createCloth(btScalar s1, btScalar s2, btScalar z, btVector3 center,
 								  std::vector<int> &cut_nodes1, std::vector<int> &cut_nodes2,
 								  bool getCutIndices,
@@ -133,7 +134,7 @@ BulletSoftObject::Ptr CustomScene::createCloth(btScalar s1, btScalar s2, btScala
     psb->randomizeConstraints();
 
 	return BulletSoftObject::Ptr(new BulletSoftObject(psb));
-}
+}*/
 
 
 
@@ -320,19 +321,46 @@ void CustomScene::run() {
     ravens.ravens->ignoreCollisionWith(sNeedle->s_needle->getChildren()[0]->rigidBody.get());
     ravens.ravens->ignoreCollisionWith(table->rigidBody.get());
 
-
-
     env->add(sNeedle->s_needle);
 
-    rave->env->AddKinBody(sNeedle->s_needle->body);
+    rave->env->Add(sNeedle->s_needle->body);
 
 
     // add a cloth
-    sCloth.reset(new SutureCloth(*this,GeneralConfig::scale * 0.09, GeneralConfig::scale * 0.03, 0, GeneralConfig::scale * btVector3(0, 0, table_height+0.01)));
-    btSoftBody * const psb = sCloth->cloth->softBody.get();
-    if (RavenConfig::cloth)
-    	env->add(sCloth->cloth);
-    sCloth->cloth->setColor(0.933,0.807,0.701,0.8);
+	vector<unsigned int> hole_x, hole_y;
+
+	unsigned int bcn = 5, bcm = 15;
+	float bcs = 0.01, bch = 0.0005;
+
+	hole_x.push_back(1); hole_x.push_back(1); hole_x.push_back(1); hole_x.push_back(1);
+	hole_y.push_back(3); hole_y.push_back(6); hole_y.push_back(9); hole_y.push_back(12);
+	cloth1.reset(new BoxCloth(bcn, bcm, hole_x, hole_y, bcs, bch, btVector3((float)bcn/2*bcs + 0.003,0, table_height+0.02)));
+	env->add(cloth1);
+
+	hole_x.clear(); hole_y.clear();
+	hole_x.push_back(3); hole_x.push_back(3); hole_x.push_back(3); hole_x.push_back(3);
+	hole_y.push_back(3); hole_y.push_back(6); hole_y.push_back(9); hole_y.push_back(12);
+	cloth2.reset(new BoxCloth(bcn, bcm, hole_x, hole_y, bcs, bch, btVector3(-(float)bcn/2*bcs - 0.003, 0, table_height+0.02)));
+	env->add(cloth2);
+
+/*
+	hole_x.push_back(3); hole_x.push_back(2);
+	hole_y.push_back(2); hole_y.push_back(3);
+	BoxCloth::Ptr cloth1(new BoxCloth(5,4, hole_x, hole_y, RavenConfig::bcS,RavenConfig::bcH, btVector3(0, 0.05, table_height+0.02)));
+	env->add(cloth1);
+
+	hole_x.clear(); hole_y.clear();
+	hole_x.push_back(3); hole_x.push_back(2);
+	hole_y.push_back(2); hole_y.push_back(3);
+	BoxCloth::Ptr cloth2(new BoxCloth(5,4, hole_x, hole_y, RavenConfig::bcS,RavenConfig::bcH, btVector3(0, -0.2, table_height+0.02)));
+	env->add(cloth2);
+*/
+
+    //sCloth.reset(new SutureCloth(*this,GeneralConfig::scale * 0.09, GeneralConfig::scale * 0.03, 0, GeneralConfig::scale * btVector3(0, 0, table_height+0.01)));
+    //btSoftBody * const psb = sCloth->cloth->softBody.get();
+    //if (RavenConfig::cloth)
+    //	env->add(sCloth->cloth);
+    //sCloth->cloth->setColor(0.933,0.807,0.701,0.8);
 
 
 
@@ -352,6 +380,7 @@ void CustomScene::run() {
     env->add(plot_axes2);
 
 
+    /*
     leftAction.reset(new SoftBodyGripperAction( ravens.manipL,
                                                	"l_grasper2_L",
                                                	"l_grasper1_L",
@@ -361,7 +390,7 @@ void CustomScene::run() {
     		   	   	   	   	   	   	   	   	   	 "r_grasper2_L",
     		   	   	   	   	   	   	   	   	   	 "r_grasper1_L",
     		   	   	   	   	   	   	   	   	   	 "r_palm_L", 1));
-    rightAction->setTarget(sCloth->cloth);
+    rightAction->setTarget(sCloth->cloth);*/
     /*leftAction->setOpenAction();
     runAction(leftAction, dt);
 
@@ -375,6 +404,10 @@ void CustomScene::run() {
     targets.push_back(sNeedle->s_needle->children[0]);
     for (int i=0; i< sNeedle->ropePtr->children.size(); i+=1)
     	targets.push_back(sNeedle->ropePtr->children[i]);
+    for (int i=0; i < bcm; i+=1) {
+    	targets.push_back(cloth1->children[cloth1->grid_to_obj_inds[make_pair(0,i)]]);
+    	targets.push_back(cloth2->children[cloth2->grid_to_obj_inds[make_pair(bcn-1,i)]]);
+    }
 
     char l[] = "l\0";
     char r[] = "r\0";
@@ -414,8 +447,8 @@ void CustomScene::testGrasping() {}
 
 
 
-
-/** Constructor for the cloth in the scene. */
+/*
+/** Constructor for the cloth in the scene. *\/
 CustomScene::SutureCloth::SutureCloth(CustomScene &scene, btScalar s1, btScalar s2, btScalar z, btVector3 center) {
 		cloth = scene.createCloth(s1, s2, z, center, cut_nodes1, cut_nodes2);
 }
@@ -425,7 +458,7 @@ CustomScene::SutureCloth::SutureCloth(CustomScene &scene, btScalar s1, btScalar 
  * SIDE_NUM  \in {1, 2} : if 1 : cut-points on the left.
  *                        if 2 : cut-points on the right.
  * The return value is a point on the line found and the direction-cosine of the line.
- * Further, it returns 2 ints which are the indices of the extremum points of the cut. */
+ * Further, it returns 2 ints which are the indices of the extremum points of the cut. *\/
 pair<pair<btVector3, btVector3> , pair<int, int> > CustomScene::SutureCloth::fitLine(int side_num) {
 
 	std::vector<int> &pt_vector = (side_num==1)? cut_nodes1 : cut_nodes2;
@@ -448,7 +481,7 @@ pair<pair<btVector3, btVector3> , pair<int, int> > CustomScene::SutureCloth::fit
 	btVector3 direction_cosine(pca1(0), pca1(1), pca1(2));
 
 	/** Find the extremum nodes of the cut : node closest to the pr2,
-	 *     and the node farthest from the pr2. */
+	 *     and the node farthest from the pr2. *\/
 	Eigen::VectorXf proj = X_centered * pca1;
 	Eigen::MatrixXf::Index maxIdx, minIdx;
 	proj.maxCoeff(&maxIdx);
@@ -466,7 +499,7 @@ pair<pair<btVector3, btVector3> , pair<int, int> > CustomScene::SutureCloth::fit
 
 /** See the doc for fitLine.
  *  In addition to fitting a line to the cut-points this function aligns
- *  the direction of the cut with the x-axis of the robot's (PR2's) transform. */
+ *  the direction of the cut with the x-axis of the robot's (PR2's) transform. *\/
 pair<pair<btVector3, btVector3> , pair<int, int> >
 CustomScene::SutureCloth::fitLineAligned(int side_num, RaveRobotObject::Ptr robot) {
 
@@ -506,7 +539,7 @@ CustomScene::SutureCloth::fitLineAligned(int side_num, RaveRobotObject::Ptr robo
  *                  The robot information is only used to get the right
  *                  sense of direction. So only the transform of the
  *                  "base_link" of the robot is used. No other information
- *                  about the robot is used.  */
+ *                  about the robot is used.  *\/
 btTransform CustomScene::SutureCloth::getCutGraspTransform(int side_num, RaveRobotObject::Ptr robot, float frac) {
 
 	std::pair<std::pair<btVector3, btVector3> , std::pair<int, int> > cutInfo;
@@ -539,7 +572,7 @@ btTransform CustomScene::SutureCloth::getCutGraspTransform(int side_num, RaveRob
 	}
 	cutT.setOrigin(translation);
 	return cutT;
-}
+}*/
 
 //////////////////////////////////////////////// Suturing needle ////////////////////////////////////////
 /** Constructor for suturing needle. Creates needle from file.*/
