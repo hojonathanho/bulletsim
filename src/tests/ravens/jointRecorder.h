@@ -13,7 +13,7 @@
 #include "robots/ravens.h"
 #include "ravens_config.h"
 
-/** Class to record joint values and store them to a file. */
+/** Class to record joint values/ scene information and store them to a file. */
 class jointRecorder {
 
 	Scene &scene;						// Scene in which robot is

@@ -675,6 +675,20 @@ void RaveRobotObject::Manipulator::setDOFValues(const vector<double>& vals) {
 	robot->setDOFValues(manip->GetArmIndices(), vals);
 }
 
+/** Returns the end-effector transform when the DOFs are set to VALS.
+ *  Does not actually set the DOFs to vals.*/
+btTransform RaveRobotObject::Manipulator::getFK(const vector<double>& vals) {
+	robot->robot->SetActiveDOFs(manip->GetArmIndices());
+
+	vector<dReal> oldVals(0);
+	robot->robot->GetActiveDOFValues(oldVals);
+
+	robot->robot->SetActiveDOFValues(vals);
+	btTransform eeT = robot->toWorldFrame(util::toBtTransform(manip->GetTransform()));
+
+	robot->setDOFValues(manip->GetArmIndices(), oldVals);
+	return eeT;
+}
 
 RaveRobotObject::Manipulator::Ptr RaveRobotObject::Manipulator::copy(
 		RaveRobotObject::Ptr newRobot, Fork &f) {
