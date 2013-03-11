@@ -4,7 +4,7 @@
 
 bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,
 		                      osgGA::GUIActionAdapter &) {
-	 //std::pair<std::pair<btVector3, btVector3> , std::pair<int, int> > cutInfo;
+
 	vector<double> dofs;
 
     switch (ea.getEventType()) {

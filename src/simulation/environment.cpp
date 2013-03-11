@@ -1,21 +1,26 @@
 #include "environment.h"
 #include "config_bullet.h"
+#include "simplescene.h"
 
 OSGInstance::OSGInstance() {
-    //root = new osg::Group;               // does not do shadow magic
-	osg::ref_ptr<osgShadow::ShadowedScene> shadow_root = new osgShadow::ShadowedScene;   // does do shadow magic
-    shadow_root->setReceivesShadowTraversalMask(RECEIVES_SHADOW_MASK);
-    shadow_root->setCastsShadowTraversalMask(CASTS_SHADOW_MASK);
 
-    sm = new osgShadow::MinimalCullBoundsShadowMap;// ParallelSplitShadowMap;// DebugShadowMap;// ShadowMap;
-    shadow_root->setShadowTechnique(sm.get());
-    int mapres = 4*1024;
-    sm->setTextureSize(osg::Vec2s(mapres,mapres));
+	if (SceneConfig::enableShadows) {
+		osg::ref_ptr<osgShadow::ShadowedScene> shadow_root = new osgShadow::ShadowedScene;   // does do shadow magic
+		shadow_root->setReceivesShadowTraversalMask(RECEIVES_SHADOW_MASK);
+		shadow_root->setCastsShadowTraversalMask(CASTS_SHADOW_MASK);
 
-    root = shadow_root;
-    osg::setNotifyLevel(osg::FATAL);
+		sm = new osgShadow::MinimalCullBoundsShadowMap;// ParallelSplitShadowMap;// DebugShadowMap;// ShadowMap;
+		shadow_root->setShadowTechnique(sm.get());
+
+		int mapres = 4*1024;
+		sm->setTextureSize(osg::Vec2s(mapres,mapres));
+
+		root = shadow_root;
+	} else {
+		root = new osg::Group;
+	}
+	osg::setNotifyLevel(osg::FATAL);
 }
-
 
 BulletInstance::BulletInstance() {
   broadphase = new btDbvtBroadphase();
@@ -84,8 +89,7 @@ void Environment::add(EnvironmentObject::Ptr obj) {
     obj->init();
     objects.push_back(obj);
 
-
-    if (obj->getOSGNode())  {//shadow magic : osg does not respect you or all the flags you set
+    if (SceneConfig::enableShadows && obj->getOSGNode())  {//shadow magic : osg does not respect you or all the flags you set
     	obj->getOSGNode()->setNodeMask(CASTS_SHADOW_MASK);
     	if (obj->receiveShadow)
     		obj->getOSGNode()->setNodeMask(RECEIVES_SHADOW_MASK);
