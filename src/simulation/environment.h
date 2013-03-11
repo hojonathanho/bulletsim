@@ -107,6 +107,8 @@ public:
     virtual void setColor(float r, float g, float b, float a) {};
     virtual void adjustTransparency(float increment) {};
 
+    virtual string objectType () {return "EnvironmentObject";}
+
     //gets the index of the closest part of the object (face, capsule, rigid_body, etc)
     //for rigid bodies, there is only one index so this will always return 0
     virtual int getIndex(const btTransform& transform) { std::runtime_error("getIndex() hasn't been defined yet"); }
@@ -300,6 +302,8 @@ public:
 			const int index_size = children[0]->getIndexSize();
 			return children[index/index_size]->getIndexTransform(index % index_size);
 		}
+
+		string objectType () {return "CompoundObject";}
 
 };
 
