@@ -57,6 +57,8 @@ public:
 	  	  	  				const boost::shared_ptr<btRigidBody> rbA,
 	  	  	  				const boost::shared_ptr<btRigidBody>& rbB);
 
+	string objectType () {return "BoxCloth";}
+
 	void init();
 	void destroy();
 };
