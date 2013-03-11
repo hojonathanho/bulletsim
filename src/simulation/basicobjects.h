@@ -108,6 +108,8 @@ public:
 		int getIndexSize() { return 1; }
 		btTransform getIndexTransform(int index) { return rigidBody->getCenterOfMassTransform(); }
 
+		string objectType () {return "BulletObject";}
+
 private:
 		bool enable_texture;
 		osg::Vec4f m_color;
@@ -138,6 +140,8 @@ public:
     EnvironmentObject::Ptr copy(Fork &f) const;
     void init();
     void destroy();
+
+    string objectType () {return "BulletConstraint";}
 };
 
 class GrabberKinematicObject : public BulletObject {
@@ -161,6 +165,8 @@ public:
 
     void grabNearestObjectAhead();
     void releaseConstraint();
+
+    string objectType () {return "GripperKinematicObject";}
 };
 
 // An infinite surface on the X-Y plane.
@@ -183,6 +189,8 @@ public:
 
     // must override this since osgBullet doesn't recognize btStaticPlaneShape
     osg::ref_ptr<osg::Node> createOSGNode();
+
+    string objectType () {return "PlaneStaticObject";}
 };
 
 // A cylinder along the Z-axis
@@ -199,6 +207,8 @@ public:
         internalCopy(o, f);
         return o;
     }
+
+    string objectType () {return "CylinderStaticObject";}
 };
 
 class SphereObject : public BulletObject {
@@ -214,6 +224,7 @@ public:
         internalCopy(o, f);
         return o;
     }
+    string objectType () {return "SphereObject";}
 };
 
 
@@ -233,6 +244,8 @@ public:
     }
 
     inline btVector3 getHalfExtents() { return halfExtents; }
+
+    string objectType () {return "BoxObject";}
 };
 
 
@@ -251,6 +264,8 @@ public:
         return o;
     }
     osg::ref_ptr<osg::Node> createOSGNode();
+
+    string objectType () {return "CapsuleObject";}
 };
 
 // A wrapper for btCapsuleShape
@@ -268,6 +283,8 @@ public:
         return o;
     }
     osg::ref_ptr<osg::Node> createOSGNode();
+
+    string objectType () {return "CapsuleObjectY";}
 };
 
 #endif // _BASICOBJECTS_H_
