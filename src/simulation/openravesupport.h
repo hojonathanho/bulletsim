@@ -104,6 +104,8 @@ public:
   // and copy link positions to the Bullet rigid bodies.
   void updateBullet();
 
+  string objectType () {return "RaveObject";}
+
   // IK support
 };
 
@@ -176,6 +178,8 @@ public:
 
     Manipulator::Ptr copy(RaveRobotObject::Ptr newRobot, Fork &f);
   };
+
+  string objectType () {return "RaveRobotObject";}
 
   // If useFakeGrabber is true, the manipulator will use a GrabberKinematicObject
   // which can "grab" objects by simply setting a point constraint with the nearest
