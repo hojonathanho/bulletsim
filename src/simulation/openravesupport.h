@@ -13,6 +13,8 @@
 using namespace std;
 using namespace OpenRAVE;
 
+class RaveLinkObject;
+class RaveObject;
 
 struct RaveInstance {
   typedef boost::shared_ptr<RaveInstance> Ptr;
@@ -22,10 +24,28 @@ struct RaveInstance {
   std::map<KinBodyPtr, RaveObject*> rave2bulletsim;
   std::map<RaveObject*, KinBodyPtr> bulletsim2rave;
 
+  std::map<KinBody::LinkPtr, btRigidBody*> rave2bulletsim_links;
+  std::map<btRigidBody*, KinBody::LinkPtr> bulletsim2rave_links;
+
   RaveInstance();
   RaveInstance(OpenRAVE::EnvironmentBasePtr);
   RaveInstance(const RaveInstance &o, int cloneOpts);
   ~RaveInstance();
+};
+
+// Corresponds to an OpenRAVE link
+class RaveLinkObject : public BulletObject {
+public:
+  typedef boost::shared_ptr<RaveLinkObject> Ptr;
+
+  RaveInstance::Ptr rave;
+  KinBody::LinkPtr link;
+
+  RaveLinkObject(RaveInstance::Ptr rave_, KinBody::LinkPtr link_, btScalar mass, btCollisionShape *cs, const btTransform &initTrans, bool isKinematic_=false);
+  RaveLinkObject(RaveInstance::Ptr rave_, KinBody::LinkPtr link_, btScalar mass, boost::shared_ptr<btCollisionShape> cs, const btTransform &initTrans, bool isKinematic_=false);
+  void init();
+  void destroy();
+  // copying doesn't work!
 };
 
 void LoadFromRave(Environment::Ptr env, RaveInstance::Ptr rave);
@@ -37,8 +57,9 @@ enum TrimeshMode {
   RAW, // use btBvhTriangleMeshShape (not recommended, makes simulation very slow)
 };
 
-typedef CompoundObject<BulletObject> CompoundBulletObject;
-class RaveObject : public CompoundBulletObject {
+typedef CompoundObject<RaveLinkObject> CompoundRaveLinkObject;
+// Corresponds to an OpenRAVE KinBody
+class RaveObject : public CompoundRaveLinkObject {
 public:
   typedef boost::shared_ptr<RaveObject> Ptr;
   RaveInstance::Ptr rave;
@@ -57,9 +78,9 @@ public:
   void postCopy(EnvironmentObject::Ptr copy, Fork &f) const;
 
   // Gets equivalent rigid bodies in OpenRAVE and in Bullet
-  BulletObject::Ptr associatedObj(KinBody::LinkPtr link) const {
-    std::map<KinBody::LinkPtr, BulletObject::Ptr>::const_iterator i = linkMap.find(link);
-    return i == linkMap.end() ? BulletObject::Ptr() : i->second;
+  RaveLinkObject::Ptr associatedObj(KinBody::LinkPtr link) const {
+    std::map<KinBody::LinkPtr, RaveLinkObject::Ptr>::const_iterator i = linkMap.find(link);
+    return i == linkMap.end() ? RaveLinkObject::Ptr() : i->second;
   }
   KinBody::LinkPtr associatedObj(btCollisionObject *obj) const {
     std::map<btCollisionObject *, KinBody::LinkPtr>::const_iterator i = collisionObjMap.find(obj);
@@ -94,12 +115,12 @@ protected:
   std::vector<boost::shared_ptr<btCollisionShape> > subshapes;
 
   // for looking up the associated Bullet object for an OpenRAVE link
-  std::map<KinBody::LinkPtr, BulletObject::Ptr> linkMap;
+  std::map<KinBody::LinkPtr, RaveLinkObject::Ptr> linkMap;
   std::map<KinBody::JointPtr, BulletConstraint::Ptr> jointMap;
   std::map<btCollisionObject *, KinBody::LinkPtr> collisionObjMap;
 
   // maps a child to a position in the children array. used for copying
-  std::map<BulletObject::Ptr, int> childPosMap;
+  std::map<RaveLinkObject::Ptr, int> childPosMap;
 
   // maps from child index to link index. only used in updateBullet
   std::vector<int> linkIndsWithGeometry;

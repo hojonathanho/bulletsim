@@ -54,6 +54,20 @@ py::object toNdarray2(const T* data, size_t dim0, size_t dim1) {
 }
 
 
+py::object toNdarray(const btVector3 &v) {
+  return toNdarray1(v.m_floats, 3); // TODO: check float vs double
+}
+
+template<typename KeyT, typename ValueT>
+ValueT &findOrFail(map<KeyT, ValueT> &m, const KeyT &key, const string &error_str="") {
+  typename map<KeyT, ValueT>::iterator i = m.find(key);
+  if (i == m.end()) {
+    throw std::runtime_error(error_str);
+  }
+  return i->second;
+}
+
+
 EnvironmentBasePtr GetCppEnv(py::object py_env) {
   int id = py::extract<int>(openravepy.attr("RaveGetEnvironmentId")(py_env));
   EnvironmentBasePtr cpp_env = RaveGetEnvironment(id);
@@ -76,6 +90,10 @@ KinBody::LinkPtr GetCppLink(py::object py_link, EnvironmentBasePtr env) {
   int idx = py::extract<int>(py_link.attr("GetIndex")());
   return parent->GetLinks()[idx];
 }
+py::object GetPyLink(KinBody::LinkPtr link) {
+  py::object parent = GetPyKinBody(link->GetParent());
+  return parent.attr("GetLinks")()[link->GetIndex()];
+}
 
 class PyBulletEnvironment;
 class PyBulletObject {
@@ -96,9 +114,7 @@ public:
   }
 
   void UpdateRave() {
-    cout << "before env id: " << RaveGetEnvironmentId(m_obj->rave->env) << endl;
     m_obj->updateRave();
-    cout << "after env id: " << RaveGetEnvironmentId(m_obj->rave->env) << endl;
   }
 
 private:
@@ -107,6 +123,25 @@ private:
   RaveObject::Ptr m_obj;
 };
 typedef boost::shared_ptr<PyBulletObject> PyBulletObjectPtr;
+
+struct PyCollision {
+  py::object linkA;
+  py::object linkB;
+  py::object ptA, ptB, normalB2A;
+  double distance;
+  double weight;
+
+  PyCollision(const KinBody::LinkPtr linkA_, const KinBody::LinkPtr linkB_, const btVector3& ptA_, const btVector3& ptB_, const btVector3& normalB2A_, double distance_, double weight_=1) :
+    linkA(GetPyLink(linkA_)),
+    linkB(GetPyLink(linkB_)),
+    ptA(toNdarray(ptA_)),
+    ptB(toNdarray(ptB_)),
+    normalB2A(toNdarray(normalB2A_)),
+    distance(distance_),
+    weight(weight_)
+  { }
+};
+typedef boost::shared_ptr<PyCollision> PyCollisionPtr;
 
 class PyBulletEnvironment {
 public:
@@ -118,27 +153,22 @@ public:
     m_env->bullet->setGravity(btVector3(0, 0, -9.8));
   }
 
-//  PyBulletEnvironment(Environment::Ptr env, RaveInstance::Ptr rave) : m_env(env), m_rave(rave) {
-//    m_env->bullet->setGravity(btVector3(0, 0, -9.8));
-//  }
-
   ~PyBulletEnvironment() {
     cout << "py bullet env destroyed" << endl;
   }
 
-  PyBulletObject GetObjectByName(const string &name) {
-    return PyBulletObject(getObjectByName(m_env, m_rave, name));
+  PyBulletObjectPtr GetObjectByName(const string &name) {
+    return PyBulletObjectPtr(new PyBulletObject(getObjectByName(m_env, m_rave, name)));
   }
 
-  PyBulletObject GetObjectFromKinBody(py::object py_kb) {
+  PyBulletObjectPtr GetObjectFromKinBody(py::object py_kb) {
     if (openravepy.attr("RaveGetEnvironmentId")(py_kb.attr("GetEnv")()) != RaveGetEnvironmentId(m_rave->env)) {
       throw std::runtime_error("trying to get Bullet object for a KinBody that doesn't belong to this (OpenRAVE base) environment");
     }
-    return PyBulletObject(getObjectByName(m_env, m_rave, GetCppKinBody(py_kb, m_rave->env)->GetName()));
+    return PyBulletObjectPtr(new PyBulletObject(getObjectByName(m_env, m_rave, GetCppKinBody(py_kb, m_rave->env)->GetName())));
   }
 
   py::object GetRaveEnv() {
-    cout << "getting rave env with id " << RaveGetEnvironmentId(m_rave->env) << endl;
     return GetPyEnv(m_rave->env);
   }
 
@@ -147,11 +177,52 @@ public:
   }
 
   py::object GetGravity() {
-    return toNdarray1(m_env->bullet->dynamicsWorld->getGravity().m_floats, 3);
+    return toNdarray(m_env->bullet->dynamicsWorld->getGravity());
   }
 
   void Step(float dt, int maxSubSteps, float fixedTimeStep) {
     m_env->step(dt, maxSubSteps, fixedTimeStep);
+  }
+
+  py::list DetectCollisions() {
+    py::list collisions;
+    btDynamicsWorld *world = m_env->bullet->dynamicsWorld;
+    btCollisionDispatcher *dispatcher = m_env->bullet->dispatcher;
+    world->performDiscreteCollisionDetection();
+    int numManifolds = dispatcher->getNumManifolds();
+    LOG_DEBUG_FMT("number of manifolds: %i", numManifolds);
+    for (int i = 0; i < numManifolds; ++i) {
+      btPersistentManifold* contactManifold = dispatcher->getManifoldByIndexInternal(i);
+      int numContacts = contactManifold->getNumContacts();
+      LOG_DEBUG_FMT("number of contacts in manifold %i: %i", i, numContacts);
+      btRigidBody *objA = static_cast<btRigidBody *>(contactManifold->getBody0());
+      btRigidBody *objB = static_cast<btRigidBody *>(contactManifold->getBody1());
+      for (int j = 0; j < numContacts; ++j) {
+        btManifoldPoint& pt = contactManifold->getContactPoint(j);
+        KinBody::LinkPtr linkA = findOrFail(m_rave->bulletsim2rave_links, objA);
+        KinBody::LinkPtr linkB = findOrFail(m_rave->bulletsim2rave_links, objB);
+        collisions.append(PyCollisionPtr(new PyCollision(
+          linkA, linkB, pt.getPositionWorldOnA(), pt.getPositionWorldOnB(),
+          pt.m_normalWorldOnB, pt.m_distance1, 1./numContacts)));
+        LOG_DEBUG_FMT("%s/%s - %s/%s collided", linkA->GetParent()->GetName().c_str(), linkA->GetName().c_str(), linkB->GetParent()->GetName().c_str(), linkB->GetName().c_str());
+      }
+      // caching helps performance, but for optimization the cost should not be history-dependent
+      //contactManifold->clearManifold();
+    }
+    return collisions;
+  }
+
+  void SetContactDistance(double dist) {
+    LOG_DEBUG_FMT("setting contact distance to %.2f", dist);
+    //m_contactDistance = dist;
+    //SHAPE_EXPANSION = btVector3(1,1,1)*dist;
+    //gContactBreakingThreshold = 2.001*dist; // wtf. when I set it to 2.0 there are no contacts with distance > 0
+    btCollisionObjectArray& objs = m_env->bullet->dynamicsWorld->getCollisionObjectArray();
+    for (int i = 0; i < objs.size(); ++i) {
+      objs[i]->setContactProcessingThreshold(dist);
+    }
+    btCollisionDispatcher* dispatcher = m_env->bullet->dispatcher;
+    dispatcher->setDispatcherFlags(dispatcher->getDispatcherFlags() & ~btCollisionDispatcher::CD_USE_RELATIVE_CONTACT_BREAKING_THRESHOLD);
   }
 
 private:
@@ -159,15 +230,6 @@ private:
   RaveInstance::Ptr m_rave;
 };
 typedef boost::shared_ptr<PyBulletEnvironment> PyBulletEnvironmentPtr;
-
-//PyBulletEnvironment PyLoadFromRave(py::object py_rave_env, py::list dynamic_obj_names) {
-//  BulletInstance::Ptr bullet(new BulletInstance);
-//  Environment::Ptr env(new Environment(bullet));
-//  RaveInstance::Ptr rave(new RaveInstance(GetCppEnv(py_rave_env)));
-//  LoadFromRaveExplicit(env, rave, toStrVec(dynamic_obj_names));
-//  return PyBulletEnvironment(env, rave);
-//}
-
 
 BOOST_PYTHON_MODULE(cbulletsimpy) {
   LoggingInit();
@@ -192,7 +254,17 @@ BOOST_PYTHON_MODULE(cbulletsimpy) {
     .def("SetGravity", &PyBulletEnvironment::SetGravity)
     .def("GetGravity", &PyBulletEnvironment::GetGravity)
     .def("Step", &PyBulletEnvironment::Step)
+    .def("DetectCollisions", &PyBulletEnvironment::DetectCollisions)
+    .def("SetContactDistance", &PyBulletEnvironment::SetContactDistance)
     ;
 
-//  py::def("LoadFromRave", &PyLoadFromRave);
+  py::class_<PyCollision, PyCollisionPtr>("Collision", py::no_init)
+    .def_readonly("linkA", &PyCollision::linkA)
+    .def_readonly("linkB", &PyCollision::linkB)
+    .def_readonly("ptA", &PyCollision::ptA)
+    .def_readonly("ptB", &PyCollision::ptB)
+    .def_readonly("normalB2A", &PyCollision::normalB2A)
+    .def_readonly("distance", &PyCollision::distance)
+    .def_readonly("weight", &PyCollision::weight)
+    ;
 }

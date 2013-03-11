@@ -11,7 +11,7 @@ print env.GetBodies()
 
 dyn_obj_names = ['mug1', 'mug2', 'mug3', 'mug4', 'mug5']
 
-bullet_env = bulletsimpy.LoadFromRave(env, dyn_obj_names)
+bullet_env = bulletsimpy.BulletEnvironment(env, dyn_obj_names)
 bullet_env.SetGravity([0, 0, -9.8])
 print 'gravity set to:', bullet_env.GetGravity()
 
@@ -27,14 +27,24 @@ TIMESTEPS = 100
 for t in range(TIMESTEPS):
   print t
 
-  for o in bullet_objs:
+  for o in dyn_objs:
     print o.GetName()
     print o.GetTransform()
-    env.GetKinBody(o.GetName()).SetTransform(o.GetTransform())
-
+    o.UpdateRave()
   env.UpdatePublishedBodies()
 
-  robot_obj.UpdateFromRave()
+  robot_obj.UpdateBullet()
   bullet_env.Step(0.01, 100, 0.01)
-  raw_input('hi')
 
+  print "Collisions:"
+  collisions = bullet_env.DetectCollisions()
+  for c in collisions:
+    print 'linkA:', c.linkA.GetParent().GetName(), c.linkA.GetName()
+    print 'linkB:', c.linkB.GetParent().GetName(), c.linkB.GetName()
+    print 'ptA:', c.ptA
+    print 'ptB:', c.ptB
+    print 'normalB2A:', c.normalB2A
+    print 'distance:', c.distance
+    print 'weight:', c.weight
+
+  raw_input('enter to step')

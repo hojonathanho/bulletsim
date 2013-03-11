@@ -48,6 +48,24 @@ RaveInstance::~RaveInstance() {
 //		RaveDestroy();
 }
 
+RaveLinkObject::RaveLinkObject(RaveInstance::Ptr rave_, KinBody::LinkPtr link_, btScalar mass, btCollisionShape *cs, const btTransform &initTrans, bool isKinematic_) :
+  rave(rave_), link(link_), BulletObject(mass, cs, initTrans, isKinematic_) { }
+
+RaveLinkObject::RaveLinkObject(RaveInstance::Ptr rave_, KinBody::LinkPtr link_, btScalar mass, boost::shared_ptr<btCollisionShape> cs, const btTransform &initTrans, bool isKinematic_) :
+  rave(rave_), link(link_), BulletObject(mass, cs, initTrans, isKinematic_) { }
+
+void RaveLinkObject::init() {
+  BulletObject::init();
+	rave->rave2bulletsim_links[link] = rigidBody.get();
+  rave->bulletsim2rave_links[rigidBody.get()] = link;
+}
+
+void RaveLinkObject::destroy() {
+  BulletObject::destroy();
+  rave->rave2bulletsim_links.erase(link);
+  rave->bulletsim2rave_links.erase(rigidBody.get());
+}
+
 void LoadFromRave(Environment::Ptr env, RaveInstance::Ptr rave) {
 
   std::set<string> bodiesAlreadyLoaded;
@@ -134,7 +152,7 @@ RaveObject::RaveObject(RaveInstance::Ptr rave_, KinBodyPtr body_, TrimeshMode tr
 }
 
 void RaveObject::init() {
-	CompoundObject<BulletObject>::init();
+  CompoundRaveLinkObject::init();
 
 	typedef std::map<KinBody::JointPtr, BulletConstraint::Ptr> map_t;
 	BOOST_FOREACH( map_t::value_type &joint_cnt, jointMap ) { 	
@@ -143,7 +161,7 @@ void RaveObject::init() {
 }
 
 void RaveObject::destroy() {
-	CompoundObject<BulletObject>::destroy();
+  CompoundRaveLinkObject::destroy();
 
   rave->rave2bulletsim.erase(body);
   rave->bulletsim2rave.erase(this);
@@ -155,7 +173,7 @@ void RaveObject::destroy() {
 }
 
 
-static BulletObject::Ptr createFromLink(KinBody::LinkPtr link,
+static RaveLinkObject::Ptr createFromLink(RaveInstance::Ptr rave, KinBody::LinkPtr link,
         std::vector<boost::shared_ptr<btCollisionShape> >& subshapes,
         std::vector<boost::shared_ptr<btStridingMeshInterface> >& meshes,
          TrimeshMode trimeshMode,
@@ -172,7 +190,7 @@ static BulletObject::Ptr createFromLink(KinBody::LinkPtr link,
 	// (this is the case with the PR2 model). therefore just add an empty BulletObject
 	// pointer so we know to skip it in the future
 	if (geometries.empty()) {
-		return BulletObject::Ptr();
+		return RaveLinkObject::Ptr();
 	}
 
 //	bool useCompound = geometries.size() > 1;
@@ -276,14 +294,14 @@ static BulletObject::Ptr createFromLink(KinBody::LinkPtr link,
 
 	float mass = isKinematic ? 0 : link->GetMass();
 	if (mass==0 && !isKinematic) LOG_WARN_FMT("warning: link %s is non-kinematic but mass is zero", link->GetName().c_str());
-	BulletObject::Ptr child;
+	RaveLinkObject::Ptr child;
 	if (useCompound) {
     btTransform childTrans = util::toBtTransform(link->GetTransform(),GeneralConfig::scale);
-	  child.reset(new BulletObject(mass, compound,childTrans,isKinematic));
+	  child.reset(new RaveLinkObject(rave, link, mass, compound, childTrans,isKinematic));
 	}
 	else {
 	  btTransform geomTrans = util::toBtTransform(link->GetTransform() * link->GetGeometry(0)->GetTransform(),METERS);
-    child.reset(new BulletObject(mass, subshapes.back(), geomTrans, isKinematic));
+    child.reset(new RaveLinkObject(rave, link, mass, subshapes.back(), geomTrans, isKinematic));
     if (useGraphicsMesh) child->graphicsShape.reset(new btBvhTriangleMeshShape(meshes.back().get(), true));
 	}
 
@@ -291,7 +309,7 @@ static BulletObject::Ptr createFromLink(KinBody::LinkPtr link,
 
 }
 
-BulletConstraint::Ptr createFromJoint(KinBody::JointPtr joint, std::map<KinBody::LinkPtr, BulletObject::Ptr> linkMap) {
+BulletConstraint::Ptr createFromJoint(KinBody::JointPtr joint, std::map<KinBody::LinkPtr, RaveLinkObject::Ptr> linkMap) {
 
 	KinBody::LinkPtr joint1 = joint->GetFirstAttached();
 	KinBody::LinkPtr joint2 = joint->GetSecondAttached();
@@ -365,7 +383,7 @@ void RaveObject::initRaveObject(RaveInstance::Ptr rave_, KinBodyPtr body_,
 	getChildren().reserve(links.size());
 	// iterate through each link in the robot (to be stored in the children vector)
 	BOOST_FOREACH(KinBody::LinkPtr link, links) {
-		BulletObject::Ptr child = createFromLink(link, subshapes, meshes, trimeshMode, isKinematic);
+		RaveLinkObject::Ptr child = createFromLink(rave, link, subshapes, meshes, trimeshMode, isKinematic);
 		if (child) getChildren().push_back(child);
 
 		linkMap[link] = child;
@@ -398,7 +416,7 @@ bool RaveObject::detectCollisions() {
 
 	BulletInstance::CollisionObjectSet objs;
 	for (int i = 0; i < getChildren().size(); ++i) {
-		BulletObject::Ptr child = getChildren()[i];
+		RaveLinkObject::Ptr child = getChildren()[i];
 		if (!child)
 			continue;
 		objs.clear();
@@ -421,7 +439,7 @@ void RaveRobotObject::setDOFValues(const vector<int> &indices, const vector<dRea
 }
 
 void RaveObject::prePhysics() {
-  CompoundObject<BulletObject>::prePhysics();
+  CompoundRaveLinkObject::prePhysics();
 }
 
 void RaveObject::updateRave() {
@@ -460,7 +478,7 @@ vector<double> RaveRobotObject::getDOFValues() {
 }
 
 void RaveObject::internalCopy(RaveObject::Ptr o, Fork &f) const {
-	CompoundObject<BulletObject>::internalCopy(o, f); // copies all children
+	CompoundObject<RaveLinkObject>::internalCopy(o, f); // copies all children
 
 	if (f.rave) {
 	  o->rave = f.rave;
@@ -470,20 +488,20 @@ void RaveObject::internalCopy(RaveObject::Ptr o, Fork &f) const {
 	}
 
 	// now we need to set up mappings in the copied robot
-	for (std::map<KinBody::LinkPtr, BulletObject::Ptr>::const_iterator i =
+	for (std::map<KinBody::LinkPtr, RaveLinkObject::Ptr>::const_iterator i =
 			linkMap.begin(); i != linkMap.end(); ++i) {
 		const KinBody::LinkPtr raveObj = o->rave->env->GetKinBody(
 				i->first->GetParent()->GetName())->GetLink(i->first->GetName());
 
 		const int j = childPosMap.find(i->second)->second;
-		const BulletObject::Ptr bulletObj = o->getChildren()[j];
+		const RaveLinkObject::Ptr bulletObj = o->getChildren()[j];
 
 		o->linkMap.insert(std::make_pair(raveObj, bulletObj));
 		o->collisionObjMap.insert(std::make_pair(bulletObj->rigidBody.get(),
 				raveObj));
 	}
 
-	for (std::map<BulletObject::Ptr, int>::const_iterator i =
+	for (std::map<RaveLinkObject::Ptr, int>::const_iterator i =
 			childPosMap.begin(); i != childPosMap.end(); ++i) {
 		const int j = childPosMap.find(i->first)->second;
 		o->childPosMap.insert(std::make_pair(o->getChildren()[j], i->second));
