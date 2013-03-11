@@ -1,6 +1,5 @@
 #include "simulation/simplescene.h"
 #include "BoxCloth.h"
-#include "simulation/simplescene.h"
 #include "simulation/softbodies.h"
 #include "simulation/config_bullet.h"
 #include "simulation/softBodyHelpers.h"
@@ -48,13 +47,13 @@ int main(int argc, char* argv[]) {
 	Scene scene;
 
 	vector<unsigned int> hole_x;
-	hole_x.push_back(1);
+	hole_x.push_back(3);
 	hole_x.push_back(2);
 	vector<unsigned int> hole_y;
 	hole_y.push_back(2);
-	hole_y.push_back(5);
+	hole_y.push_back(3);
 
-	BoxCloth::Ptr cloth(new BoxCloth(LocalConfig::n,LocalConfig::m, hole_x, hole_y, LocalConfig::s,LocalConfig::h));
+	BoxCloth::Ptr cloth(new BoxCloth(LocalConfig::n,LocalConfig::m, hole_x, hole_y, LocalConfig::s,LocalConfig::h, btVector3(0,1,0.3)));
 
 	scene.env->add(cloth);
 	scene.startViewer();
