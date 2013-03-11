@@ -72,6 +72,13 @@ include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/ravens)
 #                            	 test_surgical/RavePlanners.cpp)
 #target_link_libraries(test_suture_cloth simulation robots)
 
+
+#BOOST PYTHON STUFF
+find_package(Boost COMPONENTS python)
+include_directories (${Boost_INCLUDE_DIRS})
+find_package(PythonLibs)
+include_directories (${PYTHON_INCLUDE_DIRS})
+
 add_executable(ravens ravens/test_ravens.cpp
 					  ravens/RavenGrabMonitor.cpp
                       ravens/CustomScene.cpp
@@ -79,7 +86,7 @@ add_executable(ravens ravens/test_ravens.cpp
                       ravens/RavenPlanners.cpp
                       ravens/ravens_config.cpp
                       ravens/BoxCloth.cpp)
-target_link_libraries(ravens simulation robots)
+target_link_libraries(ravens simulation robots boost_python ${PYTHON_LIBRARIES} ${Boost_LIBRARIES})
 
 add_executable(test_boxcloth ravens/test_boxcloth.cpp
                       ravens/BoxCloth.cpp)

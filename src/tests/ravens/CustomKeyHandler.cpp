@@ -30,7 +30,7 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,
         	scene.rave_viewer->main(true);
     		break;
 
-        case 't': // generates a kinematic from the cloth and adds to the openrave environment
+        case 't': // generates a kinematic body from the cloth and adds to the openrave environment
         	//createKinBodyFromBulletSoftObject(scene.sCloth->cloth, scene.rave);
         	createKinBodyFromBulletBoxObject(scene.table, scene.rave);
         	break;
