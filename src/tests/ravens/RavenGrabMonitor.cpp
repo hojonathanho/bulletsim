@@ -88,7 +88,7 @@ bool RavensGrabMonitor::onInnerSide(const btVector3 &pt, bool left) {
     // then the innerPt and the closing direction define the plane
 	btTransform itfm = getInverseFingerTfm (left);
 	btVector3 new_pt = itfm * pt;
-	return (abs(new_pt.x()) < .0025*METERS) && (new_pt.y() > -.002*METERS) && (new_pt.z() < 0);
+	return (abs(new_pt.x()) < .0025*METERS) && (new_pt.y() > -.001*METERS) && (new_pt.z() < 0.005*METERS);
 }
 
 
@@ -172,7 +172,7 @@ RavensGrabMonitor::RavensGrabMonitor(RaveRobotObject::Manipulator::Ptr manip, bt
 	s.addPreStepCallback(boost::bind(&RavensGrabMonitor::updateGrabPose,this));
 }
 
-void RavensGrabMonitor::grab() {}
+void RavensGrabMonitor::grab() {grab(100);}
 
 void RavensGrabMonitor::grab(float threshold) {
   // grabs objects in contact
@@ -181,9 +181,11 @@ void RavensGrabMonitor::grab(float threshold) {
   int num_in_contact = 0;
   for (int i = 0; i < m_bodies.size(); i += 1) {
 
+	  float adjusted_thresh = threshold;
+	  if (m_bodies[i]->objectType() == "BoxObject") adjusted_thresh *= 50;
 	  // check for contact
-	  bool r_contact  =  checkContacts(false, m_bodies[i]->rigidBody.get(), threshold);
-  	  bool l_contact  =  checkContacts(true,  m_bodies[i]->rigidBody.get(), threshold);
+	  bool r_contact  =  checkContacts(false, m_bodies[i]->rigidBody.get(), adjusted_thresh);
+  	  bool l_contact  =  checkContacts(true,  m_bodies[i]->rigidBody.get(), adjusted_thresh);
 
   	  if (l_contact || r_contact) {
   		  num_in_contact += 1;

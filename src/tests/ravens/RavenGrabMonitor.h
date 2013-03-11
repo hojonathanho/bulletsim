@@ -53,7 +53,7 @@ public:
   btVector3 getToolDirection() const;
   bool onInnerSide(const btVector3 &pt, bool left);
 
-  bool checkContacts (bool leftFinger, btRigidBody *target, float threshold);
+  bool checkContacts (bool leftFinger, btRigidBody *target, float threshold=100);
   void setBodies(std::vector<BulletObject::Ptr>& bodies) {m_bodies = bodies;}
   void grab();
   void grab(float threshold);
