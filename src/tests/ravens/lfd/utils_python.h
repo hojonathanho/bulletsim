@@ -5,6 +5,7 @@
 #include <boost/python.hpp>
 #include <iostream>
 #include <string>
+#include <simulation/simplescene.h>
 
 using namespace std;
 namespace py = boost::python;
@@ -26,11 +27,11 @@ static inline int   ii(py::object o) {return py::extract<int>(o);}
 void setup_python();
 
 /** Converts a vector of btVector3 (list of 3d points) to a 2D numpy array.*/
-py::object ptsToNumpy(const vector<btVector3>& pts);
+py::object pointsToNumpy(const std::vector<btVector3>& pts);
 
 /** Reverse of ptsToNumpy. Converts a 2D numpy array into a vector of btVector3.
  *  Assuming that there are THREE columns. */
-vector<btVector3> ptsFromNumpy(const py::object &py_pts);
+vector<btVector3> pointsFromNumpy(const py::object &py_pts);
 
 
 /** Converts a vector of btTransforms to a 3D numpy array.*/
