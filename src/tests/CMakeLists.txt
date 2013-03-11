@@ -77,7 +77,8 @@ add_executable(ravens ravens/test_ravens.cpp
                       ravens/CustomScene.cpp
                       ravens/CustomKeyHandler.cpp
                       ravens/RavenPlanners.cpp
-                      ravens/ravens_config.cpp)
+                      ravens/ravens_config.cpp
+                      ravens/BoxCloth.cpp)
 target_link_libraries(ravens simulation robots)
 
 add_executable(test_boxcloth ravens/test_boxcloth.cpp
