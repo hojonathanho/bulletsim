@@ -31,7 +31,7 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,
     		break;
 
         case 't': // generates a kinematic from the cloth and adds to the openrave environment
-        	createKinBodyFromBulletSoftObject(scene.sCloth->cloth, scene.rave);
+        	//createKinBodyFromBulletSoftObject(scene.sCloth->cloth, scene.rave);
         	createKinBodyFromBulletBoxObject(scene.table, scene.rave);
         	break;
 
@@ -39,6 +39,7 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,
         	scene.rave->env->Save("/home/ankush/sandbox/rave_suture/suture_env2.xml");
         	break;
 
+        /*
         case 'z': // plots the points on lying on the cut
 
         	scene.plotcolors.clear();
@@ -55,7 +56,7 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,
         	}
         	scene.plot_points->setPoints(scene.plotpoints,scene.plotcolors);
         	break;
-
+		*/
         case 'o': // executes an openrave trajectory
         	scene.testTrajectory2();
         	break;
