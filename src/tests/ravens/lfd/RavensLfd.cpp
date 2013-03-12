@@ -95,6 +95,18 @@ bool RavensLfdRpm::transformJoints(const vector<vector<dReal> > &joints, vector<
 			for(int k =0; k < rarm_indices.size(); k+=1)
 				combined_joints[rarm_indices[k]] = new_r_joints[i][k];
 		}
+
+		//plot the given transforms and the new transforms:
+		vector<btVector3> inPts(2*joints.size());
+		vector<btVector3> outPts(2*joints.size());
+		for (int i =0; i<2*joints.size();i+=2) {
+			inPts[i]    = METERS*rightEETransforms[i].getOrigin();
+			inPts[i+1]  = METERS*leftEETransforms[i].getOrigin();
+			outPts[i]   = METERS*warpedRightEETransforms[i].getOrigin();
+			outPts[i+1] = METERS*warpedLeftEETransforms[i].getOrigin();
+		}
+	    util::drawSpheres(inPts, Eigen::Vector3f(0,1,1), 1, 0.01*METERS, ravens.scene.env);
+	    util::drawSpheres(outPts, Eigen::Vector3f(1,0,0), 1, 0.01*METERS, ravens.scene.env);
 		return true;
 	} else {
 		return false;

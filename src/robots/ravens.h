@@ -110,7 +110,6 @@ using namespace RavensHapticsEventId;
 
 class Ravens {
 private:
-    Scene &scene;
 
     struct {
         bool moveManip0, moveManip1,
@@ -144,6 +143,7 @@ private:
 
 
 public:
+    Scene &scene;
     typedef boost::shared_ptr<Ravens> Ptr;
 
     RaveRobotObject::Ptr                         ravens;
