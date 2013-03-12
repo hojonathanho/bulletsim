@@ -32,6 +32,8 @@
 #include "jointRecorder.h"
 #include "jointPlayback.h"
 
+#include "ravens_config.h"
+#include "lfd/utils_python.h"
 
 //class CustomScene;
 #define NEEDLE_SCALE_FACTOR 0.8

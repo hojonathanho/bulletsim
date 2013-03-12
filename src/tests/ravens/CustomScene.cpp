@@ -300,6 +300,9 @@ void CustomScene::run() {
     //BulletConfig::internalTimeStep = 0.001;
     const float dt = BulletConfig::dt;
 
+    // setup boost::python for calling lfd functions
+    if (RavenConfig::enableLfd)
+    	setup_python();
 
     // add a table
     const float table_height = 0.15;

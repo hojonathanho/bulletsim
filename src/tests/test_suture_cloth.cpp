@@ -10,7 +10,6 @@
 
 
 
-
 int main(int argc, char *argv[]) {
 	GeneralConfig::scale = 20.;
 	ViewerConfig::cameraHomePosition = btVector3(100, 0, 100);

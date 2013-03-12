@@ -23,6 +23,7 @@ int main(int argc, char *argv[]) {
 	parser.addGroup(BulletConfig());
 	parser.addGroup(SceneConfig());
 	parser.addGroup(RavenConfig());
+
 	parser.read(argc, argv);
 
 	CustomScene().run();
