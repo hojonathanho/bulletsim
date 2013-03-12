@@ -74,7 +74,7 @@ void jointPlayback::process () {
 		jCount = 0;
 		gCount = (lfdProcessor->grabIndices.size() > 0 ? 0 : -1);
 		rCount = (lfdProcessor->releaseIndices.size() > 0 ? 0 : -1);
-	}
+	} else { initialized = false; enabled = false;}
 }
 
 void jointPlayback::playProcessed () {
@@ -105,7 +105,8 @@ void jointPlayback::playProcessed () {
 		currTime = 0.0;
 		if (++jCount >= processedJoints.size()) {
 			process();
-			if (!processedSuccessfully) {initialized = false; enabled = false;}
+			if (!processedSuccessfully)
+			{initialized = false; enabled = false;}
 		}
 	} else currTime += dt;
 

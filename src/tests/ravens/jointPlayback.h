@@ -50,7 +50,9 @@ public:
 		if (!processing && file_closed) {
 			file.open(filename.c_str(), ios::in);
 			file_closed = false;
-		} else if (processing) {
+			currTime = 0.0;
+		} else if (processing && !initialized) {
+			currTime = 0.0;
 			lfdProcessor->initProcessing();
 			initialized = true;
 			process();
@@ -66,6 +68,7 @@ public:
 
 	// Goes without saying what this does
 	void toggleEnabled () {
+		cout<<"enabled: "<<enabled<<endl;
 		if (enabled) halt();
 		else run();
 
