@@ -191,7 +191,7 @@ public:
 		ikPlannerR.reset(new IKInterpolationPlanner(ravens,rave,'r'));
 
 		jRecorder.reset (new jointRecorder (*this));
-		jPlayback.reset (new jointPlayback (*this, RavenConfig::lfdProcessing));
+		jPlayback.reset (new jointPlayback (*this, RavenConfig::enableLfd));
 	}
 
 
