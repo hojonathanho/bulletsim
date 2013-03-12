@@ -39,9 +39,14 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,
         	scene.rave->env->Save("/home/ankush/sandbox/rave_suture/suture_env2.xml");
         	break;
 
-        /*
-        case 'z': // plots the points on lying on the cut
 
+        case 'z':
+        	dofs = scene.ravens.ravens->getDOFValues();
+        	for (int c=0; c<dofs.size(); c+=1)
+        		std::cout<<" "<<dofs[c];
+        	std::cout<<std::endl;
+        	break;
+		/*
         	scene.plotcolors.clear();
         	scene.plotpoints.clear();
 
@@ -65,10 +70,7 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,
         	//scene.testTrajectory3();
         	break;
         case 'K':
-        	dofs = scene.ravens.ravens->getDOFValues();
-        	for (int c=0; c<dofs.size(); c+=1)
-        		std::cout<<" "<<dofs[c];
-        	std::cout<<std::endl;
+        	scene.recordRopePoints();
         	break;
         case 'I':
         	scene.ravens.setArmPose("home",'b');
@@ -76,10 +78,10 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,
 
         // Recording/Playback stuff
         case 'T':
-        	scene.j_recorder->toggleRecording();
+        	scene.jRecorder->toggleRecording();
         	break;
         case 'l':
-        	scene.j_playback->toggleEnabled();
+        	scene.jPlayback->toggleEnabled();
         	break;
         case ']':
         	scene.plotGrasp();

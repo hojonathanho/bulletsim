@@ -183,15 +183,15 @@ public:
 	PlotAxes::Ptr plot_axes1;
 	PlotAxes::Ptr plot_axes2;
 
-	jointRecorder::Ptr j_recorder;
-	jointPlayback::Ptr j_playback;
+	jointRecorder::Ptr jRecorder;
+	jointPlayback::Ptr jPlayback;
 
 	CustomScene() : ravens(*this), isRaveViewer(false) {
 		ikPlannerL.reset(new IKInterpolationPlanner(ravens,rave,'l'));
 		ikPlannerR.reset(new IKInterpolationPlanner(ravens,rave,'r'));
 
-		j_recorder.reset (new jointRecorder (*this, &ravens));
-		j_playback.reset (new jointPlayback (*this, &ravens));
+		jRecorder.reset (new jointRecorder (*this));
+		jPlayback.reset (new jointPlayback (*this, RavenConfig::enableLfd));
 	}
 
 
@@ -243,6 +243,11 @@ public:
 	/** Plots a few things related to grasping. */
 	void plotGrasp(bool remove = false);
 
+	vector<btVector3> getRopePoints (bool nodes);
+	/** Stores the points of the rope into current recording file.
+	 *  Stores either nodes or control points.
+	 *  */
+	void recordRopePoints (bool nodes=true);
 
 	/** small tests to test the planners and the controller. */
 	void testTrajectory();

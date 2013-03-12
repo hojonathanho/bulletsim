@@ -4,19 +4,25 @@
 #include <sstream>
 #include <string>
 
-#include "robots/ravens.h"
+#include "jointLFDProcessor.h"
 
-#include "RavensRigidBodyAction.h"
+using namespace std;
+
+class CustomScene;
 
 /* Class to load a trajectory and play it back. **/
 class jointPlayback {
 
-	Scene &scene;									// Scene in which robot is
-	Ravens::Ptr ravens;								// Ravens from the scene
-	RavensRigidBodyGripperAction::Ptr lAct, rAct;	// Left and right gripper actions
+	CustomScene &scene;								// Scene in which robot is
 
 	vector<int> joint_inds;		 					// Indices of joints to set DOF values
 	vector<dReal> joint_vals;						// Latest joint values loaded from file.
+
+	LFDProcessor::Ptr lfdProcessor;					// Processor for LFD
+	vector <vector <double> > processedJoints;		// If doing LFD Processing
+	bool processedSuccessfully;						// LFD processing was successful
+	unsigned int jCount, gCount, rCount;			// Counters for joints, grabs and releases
+	bool initialized;								// LFD Processor intialized?
 
 	float freq;										// Frequency of recording
 	float dt;										// Time step of simulation
@@ -27,37 +33,27 @@ class jointPlayback {
 
 	bool enabled;									// Check if trajectory is currently playing back
 	bool file_closed;								// Check if the file is closed
+	bool processing;
 
 public:
 
 	typedef boost::shared_ptr<jointPlayback> Ptr;
 
 	// Constructor
-	jointPlayback (	Scene &_scene, Ravens * _robot,
-						float _freq = -1.0, float _dt = -1.0 ) :
-		scene(_scene), ravens (_robot), freq (_freq), dt (_dt), currTime (0.0),
-		enabled(false), file_closed(true) {
-
-		filename = "/home/ankush/sandbox/bulletsim/src/tests/ravens/recorded/raven_joints.txt";
-
-		if (freq == -1.0)
-			freq = RavenConfig::record_freq;
-
-		if (dt == -1.0)
-			dt = BulletConfig::dt;
-
-		int dof = ravens->ravens->robot->GetDOF();
-		for (int i = 0; i < dof; ++i) joint_inds.push_back(i);
-
-		scene.addPreStepCallback(boost::bind(&jointPlayback::executeNextWaypoint, this));
-	}
+	jointPlayback (	CustomScene &_scene, bool _processing=false,
+					float _freq = -1.0, float _dt = -1.0,
+					string _filename="/home/sibi/sandbox/bulletsim/src/tests/ravens/recorded/raven_joints.txt");
 
 	/** Start the controller. */
 	void run() {
 		enabled = true;
-		if (file_closed) {
+		if (!processing && file_closed) {
 			file.open(filename.c_str(), ios::in);
 			file_closed = false;
+		} else if (processing) {
+			lfdProcessor->initProcessing();
+			initialized = true;
+			process();
 		}
 	}
 
@@ -76,51 +72,14 @@ public:
 		std::cout<<"Playback: "<<(enabled ? "true" : "false") << std::endl;
 	}
 
-	void setGripperActions (	RavensRigidBodyGripperAction * _lAct,
-								RavensRigidBodyGripperAction * _rAct) {
-		lAct.reset(_lAct);
-		rAct.reset(_rAct);
-	}
+	// Callback to execute waypoints from file
+	void executeNextWaypoint ();
 
-	void executeNextWaypoint () {
-		if (!enabled)
-			return;
+	// Process trajectory using LFD
+	void process ();
 
-		string line;
-		float jval;
-
-		// If next way point not loaded, load it.
-		if (currTime >= 1/freq) {
-			if (getline(file, line)) {
-				if (line.c_str()[0] == 'l' || line.c_str()[0] == 'r') {
-					cout<<"Different message found."<<endl;
-					istringstream in(line);
-					string arm; in >> arm;
-					RavensRigidBodyGripperAction::Ptr gripAct = (arm == "l" ? lAct : rAct);
-
-					string action; in >> action;
-					if (action == "grab") {
-						cout<<"Playback: Grabbing."<<endl;
-						gripAct->grab(10);
-					}
-					else if (action == "release") {
-						cout<<"Playback: Releasing."<<endl;
-						gripAct->reset();
-					}
-				} else {
-					istringstream in(line);
-					joint_vals.clear();
-					while (in >> jval) joint_vals.push_back(jval);
-					ravens->ravens->setDOFValues(joint_inds, joint_vals);
-					currTime = 0.0;
-				}
-			} else {
-				file.close();
-				enabled = false;
-				file_closed = true;
-			}
-		} else currTime += dt;
-	}
+	// Callback to play processed points
+	void playProcessed ();
 
 	~jointPlayback() {file.close();}
 
