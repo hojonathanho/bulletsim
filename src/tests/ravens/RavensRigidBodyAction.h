@@ -60,8 +60,8 @@ public:
     void setTargets(vector<BulletObject::Ptr>& bodies) {grabMonitor->setBodies(bodies);}
     void setOpenAction()  {
     	setEndpoints(getCurrDOFVal(), OPEN_VAL);
-    	string message(arm);
-    	jr->addMessageToFile(message.append(" release"));
+    	string message = "release ";
+    	jr->addMessageToFile(message.append(arm));
     }
     void setCloseAction() { setEndpoints(getCurrDOFVal(), CLOSED_VAL); }
     void toggleAction() {
@@ -87,8 +87,8 @@ public:
         	grab();
     		//jr->addMessageToFile(arm.append(" grab"));
         	if (grabMonitor->getNumGrabbed() > 0) {
-                string message(arm);
-        		jr->addMessageToFile(message.append(" grab"));
+                string message = "grab ";
+        		jr->addMessageToFile(message.append(arm));
         		setDone(true);
         		return;
         	}
