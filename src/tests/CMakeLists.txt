@@ -96,7 +96,7 @@ target_link_libraries(test_lfd_wrapper simulation lfd)
 #------------------------------------------------------------------
 add_executable(test_boxcloth ravens/test_boxcloth.cpp
                       ravens/BoxCloth.cpp)
-target_link_libraries(test_boxcloth simulation)
+target_link_libraries(test_boxcloth simulation lfd)
 
 
 
