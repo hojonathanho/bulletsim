@@ -322,8 +322,8 @@ void CustomScene::run() {
     ravens.ravens->ignoreCollisionWith(sNeedle->s_needle->getChildren()[0]->rigidBody.get());
     ravens.ravens->ignoreCollisionWith(table->rigidBody.get());
 
-    env->add(sNeedle->s_needle);
-    rave->env->Add(sNeedle->s_needle->body);
+    //env->add(sNeedle->s_needle);
+    //rave->env->Add(sNeedle->s_needle->body);
 
 
 
@@ -336,13 +336,15 @@ void CustomScene::run() {
 	hole_x.push_back(1); hole_x.push_back(1); hole_x.push_back(1); hole_x.push_back(1);
 	hole_y.push_back(3); hole_y.push_back(6); hole_y.push_back(9); hole_y.push_back(12);
 	cloth1.reset(new BoxCloth(bcn, bcm, hole_x, hole_y, bcs, bch, btVector3((float)bcn/2*bcs + 0.003,0, table_height+0.02)));
-	env->add(cloth1);
+	if (RavenConfig::cloth)
+		env->add(cloth1);
 
 	hole_x.clear(); hole_y.clear();
 	hole_x.push_back(3); hole_x.push_back(3); hole_x.push_back(3); hole_x.push_back(3);
 	hole_y.push_back(3); hole_y.push_back(6); hole_y.push_back(9); hole_y.push_back(12);
 	cloth2.reset(new BoxCloth(bcn, bcm, hole_x, hole_y, bcs, bch, btVector3(-(float)bcn/2*bcs - 0.003, 0, table_height+0.02)));
-	env->add(cloth2);
+	if (RavenConfig::cloth)
+		env->add(cloth2);
 
 /*
 	hole_x.push_back(3); hole_x.push_back(2);
@@ -631,11 +633,13 @@ CustomScene::SuturingNeedle::SuturingNeedle(CustomScene * _scene, float _rope_ra
 	vector<btTransform> transforms;
 	vector<btScalar> lengths;
     for (int i=0; i< nLinks; i++)
-    	ctrlPts.push_back(handlePos + METERS*btVector3(segment_len*i,0,2*rope_radius));
+    	ctrlPts.push_back(handlePos + METERS*btVector3(segment_len*i - 0.1,0,2*rope_radius));
 
 	ropePtr.reset(new CapsuleRope(ctrlPts,METERS*rope_radius));
     scene.env->add(ropePtr);
     ropePtr->setColor(0,1,0,1);
+    ropePtr->children[0]->setColor(1,0,0,1);
+    ropePtr->children[ropePtr->children.size()-1]->setColor(0,0,1,1);
 
     //s_needle->ignoreCollisionWith(ropePtr->children[0]->rigidBody.get());
     btTransform needleEndT =  getNeedleHandleTransform();
