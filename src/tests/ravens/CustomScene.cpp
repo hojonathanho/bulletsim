@@ -414,17 +414,14 @@ void CustomScene::run() {
     		"l_grasper2_L",
     		"l_grasper1_L",
     		env->bullet->dynamicsWorld,
-    		1, *this, l, j_recorder.get()));
+    		1, *this, l, jRecorder.get()));
     lAction->setTargets(targets);
     rAction.reset(new RavensRigidBodyGripperAction( ravens.manipR,
     		"r_grasper2_L",
     		"r_grasper1_L",
     		env->bullet->dynamicsWorld,
-    		1, *this, r, j_recorder.get()));
+    		1, *this, r, jRecorder.get()));
     rAction->setTargets(targets);
-
-    j_playback->setGripperActions(lAction.get(), rAction.get());
-
 
 
     lAction->setOpenAction();
@@ -443,6 +440,30 @@ void CustomScene::run() {
 /** Small test to see if the robot can grasp the cloth.*/
 void CustomScene::testGrasping() {}
 
+vector<btVector3> CustomScene::getRopePoints (bool nodes) {
+	vector<btVector3> ropePoints;
+	if (nodes) ropePoints = sNeedle->ropePtr->getNodes();
+	else ropePoints = sNeedle->ropePtr->getControlPoints();
+
+	for (int i = 0; i < ropePoints.size(); ++i)
+		ropePoints[i] = ropePoints[i]/METERS;
+
+	return ropePoints;
+}
+
+// Record rope points to file
+void CustomScene::recordRopePoints (bool nodes) {
+
+	vector<btVector3> ropePoints = getRopePoints(nodes);
+
+	ostringstream ropeMessage;
+	ropeMessage << "section \n rope ";
+
+	for (int i = 0; i < ropePoints.size(); ++i)
+		ropeMessage << ropePoints[i].x() << " " << ropePoints[i].y() << " " << ropePoints[i].z() << " | ";
+
+	jRecorder->addMessageToFile(ropeMessage.str());
+}
 
 
 /*
