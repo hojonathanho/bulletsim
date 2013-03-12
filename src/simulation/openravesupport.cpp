@@ -616,7 +616,7 @@ bool RaveRobotObject::Manipulator::solveAllIKUnscaled(
 	vsolutions.clear();
 	// see comments for solveIKUnscaled
 	if (!origManip->FindIKSolutions(IkParameterization(targetTrans),
-			vsolutions, true)) {
+			vsolutions, IKFO_IgnoreSelfCollisions | IKFO_IgnoreEndEffectorCollisions)) {  // the third argument had the value : true, change back if experiencing problems
 		std::cout << "ik  failed on " << manip->GetName() << endl;
 		return false;
 	}

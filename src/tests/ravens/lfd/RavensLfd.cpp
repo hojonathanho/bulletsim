@@ -92,10 +92,10 @@ bool RavensLfdRpm::transformJoints(const vector<vector<dReal> > &joints, vector<
 
 	/** Do IK on the warped transforms. */
 	vector<vector<dReal> > new_r_joints;
-	bool r_success = doSmoothIK2(ravens.manipR, warpedRightEETransforms, new_r_joints);
+	bool r_success = doSmoothIK(ravens.manipR, warpedRightEETransforms, new_r_joints);
 
 	vector<vector<dReal> > new_l_joints;
-	bool l_success = doSmoothIK2(ravens.manipL, warpedLeftEETransforms, new_l_joints);
+	bool l_success = doSmoothIK(ravens.manipL, warpedLeftEETransforms, new_l_joints);
 
 	//plot the given transforms and the new transforms:
 	/**vector<btVector3> inPtsR(joints.size());
