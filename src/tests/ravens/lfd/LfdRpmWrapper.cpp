@@ -25,7 +25,7 @@ btVector3 RegistrationModule::transform_point(btVector3 pt) {
 	return transform_points(one_pt)[0];
 }
 
-vector<btVector3>& RegistrationModule::transform_points(vector<btVector3> &pts) {
+vector<btVector3> RegistrationModule::transform_points(const vector<btVector3> &pts) {
 	py::object py_pts = pointsToNumpy(pts);
 	py::object transformed_py_pts = registration_module.attr("transform_points")(py_pts);
 	return pointsFromNumpy(transformed_py_pts);
@@ -42,7 +42,7 @@ btTransform RegistrationModule::transform_frame(btTransform &frame) {
 	return transform_frames(one_frame)[0];
 }
 
-vector<btTransform>& RegistrationModule::transform_frames(vector<btTransform> &frames) {
+vector<btTransform> RegistrationModule::transform_frames(const vector<btTransform> &frames) {
 
 	vector<btMatrix3x3> rots(frames.size());
 	for(int i=0; i<frames.size(); i+=1)

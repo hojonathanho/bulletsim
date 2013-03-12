@@ -21,7 +21,7 @@ RavensLfdRpm::RavensLfdRpm (Ravens & ravens_, const vector<btVector3> &src_pts,
 bool RavensLfdRpm::doSmoothIK(RaveRobotObject::Manipulator::Ptr manip, const vector<btTransform> & transforms,
 		vector< vector<dReal> > &joints) {
 	joints.clear();
-	vector<dReal> &currentDOFs = manip->getDOFValues();
+	vector<dReal> currentDOFs = manip->getDOFValues();
 
 	for(int i = 0; i < transforms.size(); i+=1) {
 		vector <vector<dReal> > values;
@@ -89,7 +89,7 @@ bool RavensLfdRpm::transformJoints(const vector<vector<dReal> > &joints, vector<
 		for(int i=0; i< joints.size(); i+=1) {
 			vector<dReal> combined_joints(num_dofs);
 			for(int k =0; k < num_dofs; k+=1)
-				combined_joints[k] = joints[k];
+				combined_joints[k] = joints[i][k];
 			for(int k =0; k < larm_indices.size(); k+=1)
 				combined_joints[larm_indices[k]] = new_l_joints[i][k];
 			for(int k =0; k < rarm_indices.size(); k+=1)

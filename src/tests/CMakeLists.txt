@@ -65,7 +65,6 @@ target_link_libraries(test_softbody_mappings simulation)
 include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/ravens)
 
 #link_directories( ${CMAKE_CURRENT_SOURCE_DIR}/test_surgical )
-
 #add_executable(test_suture_cloth test_suture_cloth.cpp
 #                            	 test_surgical/CustomScene.cpp
 #                            	 test_surgical/CustomKeyHandler.cpp
@@ -73,7 +72,9 @@ include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/ravens)
 #target_link_libraries(test_suture_cloth simulation robots)
 
 
-#BOOST PYTHON STUFF
+# ---------------- BOOST PYTHON STUFF : LFD --------------------------
+add_subdirectory(ravens/lfd)
+
 find_package(Boost COMPONENTS python)
 include_directories (${Boost_INCLUDE_DIRS})
 find_package(PythonLibs)
@@ -86,17 +87,20 @@ add_executable(ravens ravens/test_ravens.cpp
                       ravens/RavenPlanners.cpp
                       ravens/ravens_config.cpp
                       ravens/BoxCloth.cpp)
-target_link_libraries(ravens simulation robots)
+target_link_libraries(ravens simulation robots lfd)
+add_executable(test_lfd_wrapper ravens/test_lfd_wrapper.cpp )
+target_link_libraries(test_lfd_wrapper simulation lfd)
 
+#------------------------------------------------------------------
 add_executable(test_boxcloth ravens/test_boxcloth.cpp
                       ravens/BoxCloth.cpp)
 target_link_libraries(test_boxcloth simulation)
 
-add_library(utils_python ravens/lfd/utils_python.cpp )
-target_link_libraries(utils_python simulation boost_python ${PYTHON_LIBRARIES} ${Boost_LIBRARIES})
 
-add_executable(test_lfd_wrapper ravens/test_lfd_wrapper.cpp ravens/lfd/LfdRpmWrapper.cpp )
-target_link_libraries(test_lfd_wrapper simulation boost_python ${PYTHON_LIBRARIES} ${Boost_LIBRARIES} utils_python)
+
+
+
+
 
 add_executable(rave_cpp test_surgical/planning.cpp)
 target_link_libraries(rave_cpp simulation robots)

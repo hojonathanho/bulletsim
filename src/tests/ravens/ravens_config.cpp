@@ -6,4 +6,4 @@ int   RavenConfig::bcN = 5;
 int   RavenConfig::bcM = 5;
 float RavenConfig::bcS = 0.005;
 float RavenConfig::bcH = 0.0005;
-float RavenConfig::enableLfd = false;
+bool RavenConfig::enableLfd = false;

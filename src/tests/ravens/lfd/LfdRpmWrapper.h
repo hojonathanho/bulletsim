@@ -35,11 +35,11 @@ public:
     /** Transform a btVector using tps.
      *  Performs the mapping: pt in demonstration |--> pt in new setting. */
 	btVector3 transform_point(btVector3 pt);
-    vector<btVector3> & transform_points(vector<btVector3> &pts);
+    vector<btVector3>  transform_points(const vector<btVector3> &pts);
 
 
     /** Transform a 4x4 btTransform using tps.
      *  Performs the mapping: pt in demonstration |--> pt in new setting. */
 	btTransform transform_frame(btTransform &frame);
-	vector<btTransform> & transform_frames(vector<btTransform> &frames);
+	vector<btTransform> transform_frames(const vector<btTransform> &frames);
 };

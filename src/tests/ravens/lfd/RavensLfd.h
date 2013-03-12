@@ -2,6 +2,7 @@
 #include "LfdRpmWrapper.h"
 #include <iostream>
 #include "simulation/util.h"
+#include "robots/ravens.h"
 
 using namespace std;
 

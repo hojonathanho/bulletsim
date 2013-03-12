@@ -1,9 +1,19 @@
-find_package(PythonLibs REQUIRED)
+#BOOST PYTHON STUFF
+find_package(Boost COMPONENTS python)
+include_directories (${Boost_INCLUDE_DIRS})
+find_package(PythonLibs)
+include_directories (${PYTHON_INCLUDE_DIRS})
 
+#add_library(utils_python utils_python.cpp )
+#target_link_libraries(utils_python simulation boost_python ${PYTHON_LIBRARIES} ${Boost_LIBRARIES})
 
-include_directories(
-  ${PYTHON_INCLUDE_DIRS}
-)
+add_library(lfd LfdRpmWrapper.cpp
+				RavensLfd.cpp
+				utils_python.cpp
+				)
 
-add_library(lfd LfdRpmWrapper.cpp)
-target_link_libraries(lfd boost_python ${PYTHON_LIBRARIES})
+target_link_libraries(lfd simulation robots 
+                          boost_python
+                          ${PYTHON_LIBRARIES}
+                          ${Boost_LIBRARIES}
+                     )

@@ -23,7 +23,7 @@ void setup_python() {
 
 
 /** Converts a vector of btVector3 (list of 3d points) to a 2D numpy array.*/
-py::object pointsToNumpy(vector<btVector3>& pts) {
+py::object pointsToNumpy(const vector<btVector3>& pts) {
 	int nRows = pts.size();
 	int nCols = 3;
 	py::object out = NP.attr("zeros")(py::make_tuple(nRows,nCols));
@@ -39,7 +39,7 @@ py::object pointsToNumpy(vector<btVector3>& pts) {
 
 /** Reverse of ptsToNumpy. Converts a 2D numpy array into a vector of btVector3.
  *  Assuming that there are THREE columns. */
-vector<btVector3> pointsFromNumpy(py::object &py_pts) {
+vector<btVector3> pointsFromNumpy(const py::object &py_pts) {
 	int n = ii(py_pts.attr("__len__")());
 	vector<btVector3> out_pts(n);
 
