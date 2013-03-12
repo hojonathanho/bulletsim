@@ -82,6 +82,8 @@ include_directories (${PYTHON_INCLUDE_DIRS})
 add_executable(ravens ravens/test_ravens.cpp
 					  ravens/RavenGrabMonitor.cpp
                       ravens/CustomScene.cpp
+                      ravens/jointPlayback.cpp
+                      ravens/jointRecorder.cpp
                       ravens/CustomKeyHandler.cpp
                       ravens/RavenPlanners.cpp
                       ravens/ravens_config.cpp
