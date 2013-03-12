@@ -79,6 +79,15 @@ bool RavensLfdRpm::transformJoints(const vector<vector<dReal> > &joints, vector<
 	vector<vector<dReal> > new_l_joints;
 	bool l_success = doSmoothIK(ravens.manipL, warpedLeftEETransforms, new_l_joints);
 
+	//plot the given transforms and the new transforms:
+	vector<btVector3> inPts(2*joints.size());
+	vector<btVector3> outPts(2*joints.size());
+	for (int i =0; i<2*joints.size();i+=2) {
+		inPts[i]    = METERS*rightEETransforms[i].getOrigin();
+		inPts[i+1]  = METERS*leftEETransforms[i].getOrigin();
+		outPts[i]   = METERS*warpedRightEETransforms[i].getOrigin();
+		outPts[i+1] = METERS*warpedLeftEETransforms[i].getOrigin();
+	}
     util::drawSpheres(inPts, Eigen::Vector3f(0,1,1), 1, 0.01*METERS, ravens.scene.env);
     util::drawSpheres(outPts, Eigen::Vector3f(1,0,0), 1, 0.01*METERS, ravens.scene.env);
 
@@ -99,15 +108,7 @@ bool RavensLfdRpm::transformJoints(const vector<vector<dReal> > &joints, vector<
 				combined_joints[rarm_indices[k]] = new_r_joints[i][k];
 		}
 
-		//plot the given transforms and the new transforms:
-		vector<btVector3> inPts(2*joints.size());
-		vector<btVector3> outPts(2*joints.size());
-		for (int i =0; i<2*joints.size();i+=2) {
-			inPts[i]    = METERS*rightEETransforms[i].getOrigin();
-			inPts[i+1]  = METERS*leftEETransforms[i].getOrigin();
-			outPts[i]   = METERS*warpedRightEETransforms[i].getOrigin();
-			outPts[i+1] = METERS*warpedLeftEETransforms[i].getOrigin();
-		}
+
 
 		return true;
 	} else {
