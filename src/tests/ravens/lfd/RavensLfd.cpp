@@ -5,8 +5,10 @@ using namespace std;
 
 RavensLfdRpm::RavensLfdRpm (Ravens & ravens_, const vector<btVector3> &src_pts,
 		const vector<btVector3> &target_pts) : ravens(ravens_),
-		lfdrpm(new RegistrationModule(src_pts, target_pts)) {
+		lfdrpm(new RegistrationModule(src_pts, target_pts, 10, 0.02, 0.0002, 0.04, 0.0002)) {
 
+	/*int n_iter = 5, float reg_init = .1, float reg_final = .001,
+				float rad_init = .2, float rad_final = .001*/
 	if (src_pts.size() < 50 || target_pts.size() < 50)
 		cout <<"LFD RPM : Warning too few points!"<<endl;
 
@@ -17,7 +19,7 @@ RavensLfdRpm::RavensLfdRpm (Ravens & ravens_, const vector<btVector3> &src_pts,
 }
 
 /** Does smooth IK on transforms (in joint space: basically chooses the closest subsequent joint-set [l2 normwise].
-  *  Ik is done for each transform in TRANSFORMS and the corresponding joints are stored in JOINTS.*/
+ *  Ik is done for each transform in TRANSFORMS and the corresponding joints are stored in JOINTS.*/
 bool RavensLfdRpm::doSmoothIK(RaveRobotObject::Manipulator::Ptr manip, const vector<btTransform> & transforms,
 		vector< vector<dReal> > &joints) {
 	joints.clear();
@@ -53,7 +55,7 @@ bool RavensLfdRpm::doSmoothIK(RaveRobotObject::Manipulator::Ptr manip, const vec
 
 
 /** Does smooth IK on transforms (in joint space: basically chooses the closest subsequent joint-set [l2 normwise].
-  *  Ik is done for each transform in TRANSFORMS and the corresponding joints are stored in JOINTS.*/
+ *  Ik is done for each transform in TRANSFORMS and the corresponding joints are stored in JOINTS.*/
 bool doSmoothIK2(RaveRobotObject::Manipulator::Ptr manip, const vector<btTransform> & transforms,
 		vector< vector<dReal> > &joints) {
 	joints.clear();
@@ -75,6 +77,7 @@ bool RavensLfdRpm::transformJoints(const vector<vector<dReal> > &joints, vector<
 	/** Do forward-kinematics and get the end-effector transform. */
 	vector<btTransform> rightEETransforms(joints.size());
 	vector<btTransform> leftEETransforms(joints.size());
+
 	for (int i =0; i< joints.size(); i+=1) {
 		vector<dReal> r_joints;
 		extractJoints(rarm_indices, joints[i], r_joints);
@@ -82,8 +85,10 @@ bool RavensLfdRpm::transformJoints(const vector<vector<dReal> > &joints, vector<
 		vector<dReal> l_joints;
 		extractJoints(larm_indices, joints[i], l_joints);
 
+		/** work with end-effector transforms. */
 		rightEETransforms[i]  = util::scaleTransform(ravens.manipR->getFK(r_joints), 1.f/METERS);
 		leftEETransforms[i]   = util::scaleTransform(ravens.manipL->getFK(l_joints), 1.f/METERS);
+
 	}
 
 	/** Warp the end-effector transforms. */
@@ -97,22 +102,10 @@ bool RavensLfdRpm::transformJoints(const vector<vector<dReal> > &joints, vector<
 	vector<vector<dReal> > new_l_joints;
 	bool l_success = doSmoothIK(ravens.manipL, warpedLeftEETransforms, new_l_joints);
 
-	//plot the given transforms and the new transforms:
-	/**vector<btVector3> inPtsR(joints.size());
-	vector<btVector3> inPtsL(joints.size());
-	vector<btVector3> outPtsR(joints.size());
-	vector<btVector3> outPtsL(joints.size());
-
-	for (int i =0; i<joints.size();i+=1) {
-		inPtsR[i]    = METERS*rightEETransforms[i].getOrigin();
-		inPtsL[i]    = METERS*leftEETransforms[i].getOrigin();
-		outPtsR[i]   = METERS*warpedRightEETransforms[i].getOrigin();
-		outPtsL[i]   = METERS*warpedLeftEETransforms[i].getOrigin();
-	}
-    util::drawSpheres(inPtsR, Eigen::Vector3f(0,1,1), 1, 0.005*METERS, ravens.scene.env);
-    util::drawSpheres(inPtsL, Eigen::Vector3f(0,0,1), 1, 0.005*METERS, ravens.scene.env);
-    util::drawSpheres(outPtsR, Eigen::Vector3f(1,0,0), 1, 0.005*METERS, ravens.scene.env);
-    util::drawSpheres(outPtsL, Eigen::Vector3f(1,1,0), 1, 0.005*METERS, ravens.scene.env);*/
+	/**plotPointos (	rightEETransforms,
+					leftEETransforms,
+					warpedRightEETransforms,
+					warpedLeftEETransforms );*/
 
 	if (r_success && l_success) {
 		/** combine the new joint values into one vector while filling in the dofs
@@ -138,6 +131,130 @@ bool RavensLfdRpm::transformJoints(const vector<vector<dReal> > &joints, vector<
 	}
 }
 
+
+bool RavensLfdRpm::transformJointsTrajOpt(const vector<vector<dReal> > &joints, vector<vector<dReal> > &new_joints) {
+
+
+	vector<KinBody::LinkPtr> links;
+	ravens.manipR->manip->GetChildLinks(links);
+	KinBody::LinkPtr r_palm_link = links[0];
+	links.clear();
+	ravens.manipL->manip->GetChildLinks(links);
+	KinBody::LinkPtr l_palm_link = links[0];
+
+	double tol, max_change;
+	int min_steps;
+
+	std::pair< vector <float>, vector < vector <double> > > times_joints = adaptive_resample(joints, tol, max_change, min_steps);
+
+	vector<float> resampled_times = times_joints.first;
+	vector <vector<double> >resampled_joints = times_joints.second;
+
+	/** Do forward-kinematics and get the end-effector transform. */
+	vector<btTransform> rightTransforms(resampled_joints.size());
+	vector<btTransform> leftTransforms(resampled_joints.size());
+
+
+	vector< vector<dReal> > larm_joints, rarm_joints;
+
+	for (int i =0; i< resampled_joints.size(); i+=1) {
+		vector<dReal> r_joints;
+		extractJoints(rarm_indices, resampled_joints[i], r_joints);
+		rarm_joints.push_back(r_joints);
+
+		vector<dReal> l_joints;
+		extractJoints(larm_indices, resampled_joints[i], l_joints);
+		larm_joints.push_back(l_joints);
+
+		/** work with palm links. */
+		rightTransforms[i]  = util::scaleTransform(ravens.manipR->getFK(r_joints, r_palm_link), 1.f/METERS);
+		leftTransforms[i]   = util::scaleTransform(ravens.manipL->getFK(l_joints, l_palm_link), 1.f/METERS);
+	}
+
+	/** Warp the end-effector transforms. */
+	vector<btTransform> warpedRightTransforms = lfdrpm->transform_frames(rightTransforms);
+	vector<btTransform> warpedLeftTransforms  = lfdrpm->transform_frames(leftTransforms);
+
+	/** Do IK on the warped transforms. */
+	vector<vector<dReal> > new_r_joints =	 doTrajectoryOptimization(ravens.manipR, rightTransforms, rarm_joints);
+	vector<vector<dReal> > new_l_joints =	 doTrajectoryOptimization(ravens.manipL, leftTransforms, larm_joints);
+
+	vector<float> new_times(joints.size());
+	for (int i = 0.0; i < joints.size(); ++i) new_times[i] = (float) i;
+
+	vector<vector <dReal> > interpolated_r_joints = interpolate(new_times, new_r_joints, resampled_times);
+	vector<vector <dReal> > interpolated_l_joints = interpolate(new_times, new_l_joints, resampled_times);
+
+	/**plotPointos (	rightEETransforms,
+					leftEETransforms,
+					warpedRightEETransforms,
+					warpedLeftEETransforms );*/
+
+	/** combine the new joint values into one vector while filling in the dofs
+	 * which do not correspond to the arm joints from the original input.*/
+	assert(("Number of set of joint angles for the arms are different.",
+			(interpolated_r_joints.size()==interpolated_l_joints.size() && interpolated_r_joints.size()==joints.size())));
+	new_joints.clear();
+	const int num_dofs = joints[0].size();
+	for(int i=0; i< joints.size(); i+=1) {
+		vector<dReal> combined_joints(num_dofs);
+		for(int k =0; k < num_dofs; k+=1)
+			combined_joints[k] = joints[i][k];
+		for(int k =0; k < larm_indices.size(); k+=1)
+			combined_joints[larm_indices[k]] = interpolated_l_joints[i][k];
+		for(int k =0; k < rarm_indices.size(); k+=1)
+			combined_joints[rarm_indices[k]] = interpolated_r_joints[i][k];
+		new_joints.push_back(combined_joints);
+	}
+	return true;
+}
+
+
+void RavensLfdRpm::plotPointos (vector< btTransform > &rightEETransforms,
+		vector< btTransform > &leftEETransforms,
+		vector< btTransform > &warpedRightEETransforms,
+		vector< btTransform > &warpedLeftEETransforms) {
+
+	vector<btVector3> inPtsR(rightEETransforms.size());
+	vector<btVector3> inPtsL(rightEETransforms.size());
+	vector<btVector3> outPtsR(rightEETransforms.size());
+	vector<btVector3> outPtsL(rightEETransforms.size());
+
+	for (int i =0; i<rightEETransforms.size();i+=1) {
+		inPtsR[i]    = METERS*rightEETransforms[i].getOrigin();
+		inPtsL[i]    = METERS*leftEETransforms[i].getOrigin();
+		outPtsR[i]   = METERS*warpedRightEETransforms[i].getOrigin();
+		outPtsL[i]   = METERS*warpedLeftEETransforms[i].getOrigin();
+	}
+	util::drawSpheres(inPtsR, Eigen::Vector3f(0,1,1), 0.1, 0.005*METERS, ravens.scene.env);
+	util::drawSpheres(inPtsL, Eigen::Vector3f(0,0,1), 0.1, 0.005*METERS, ravens.scene.env);
+	util::drawSpheres(outPtsR, Eigen::Vector3f(1,0,0), 0.1, 0.005*METERS, ravens.scene.env);
+	util::drawSpheres(outPtsL, Eigen::Vector3f(1,1,0), 0.1, 0.005*METERS, ravens.scene.env);
+}
+
+
+void RavensLfdRpm::plotTransforms (	vector< btTransform > &right_in,
+		vector< btTransform > &left_in,
+		vector< btTransform > &right_out,
+		vector< btTransform > &left_out) {
+	vector<btTransform> inPtsR(right_in.size());
+	vector<btTransform> inPtsL(left_in.size());
+	vector<btTransform> outPtsR(right_out.size());
+	vector<btTransform> outPtsL(left_out.size());
+
+	for (int i =0; i<right_in.size();i+=1) {
+		inPtsR[i]    = util::scaleTransform(right_in[i], METERS);
+		inPtsL[i]    = util::scaleTransform(left_in[i], METERS);
+		outPtsR[i]   = util::scaleTransform(right_out[i], METERS);
+		outPtsL[i]   = util::scaleTransform(left_out[i], METERS);
+	}
+	util::drawAxes(inPtsR, 0.005*METERS, ravens.scene.env);
+	util::drawAxes(inPtsL, 0.005*METERS, ravens.scene.env);
+	util::drawAxes(outPtsR, 0.005*METERS, ravens.scene.env);
+	util::drawAxes(outPtsL, 0.005*METERS, ravens.scene.env);
+
+}
+
 /** Extract the joints indexed by INDS from IN_JOINT_VALS and store them into OUT_JOINT_VALS.*/
 void RavensLfdRpm::extractJoints (const vector<int> &inds, const vector<dReal> &in_joint_vals, vector<dReal> &out_joint_vals) {
 	out_joint_vals.clear();
@@ -153,5 +270,31 @@ bool warpRavenJoints(Ravens &ravens,
 		const vector<btVector3> &src_pts, const vector<btVector3> &target_pts,
 		const vector< vector<dReal> >& in_joints, vector< vector<dReal> > & out_joints) {
 	RavensLfdRpm lfdrpm(ravens, src_pts, target_pts);
-	return lfdrpm.transformJoints(in_joints, out_joints);
+	return lfdrpm.transformJointsTrajOpt(in_joints, out_joints);
 }
+
+/** Do trajectory optimization to solve for the new joint angles for getting to the new warped trasforms.
+ *   Please ensure that the input transforms (OLD_TRANSFORMS) correspond to the palm links of the manipulator.*/
+vector< vector<double> > & doTrajectoryOptimization(RaveRobotObject::Manipulator::Ptr manip,
+		const vector<btTransform> & palm_transforms,
+		const vector< vector<dReal> > &old_joints) {
+	RobotBasePtr robot     = manip->manip->GetRobot();
+	EnvironmentBasePtr env = robot->GetEnv();
+	int env_id             = RaveGetEnvironmentId(env);
+
+	py::object py_env   = PyGlobals::openrave_module.attr("RaveGetEnvironment")(env_id);
+	py::object py_robot = py_env.attr("GetRobot")(robot->GetName());
+
+	vector<KinBody::LinkPtr> links;
+	manip->manip->GetChildLinks(links);
+	KinBody::LinkPtr palm_link = links[0];
+
+	py::object py_link   = py_robot.attr("GetLink")(palm_link->GetName());
+	py::object py_mats   = transformsToNumpy(palm_transforms); //need to downsample?
+	py::object py_old_joints = jointsToNumpy(old_joints);
+	py::object py_traj   = PyGlobals::iros_utils_module.attr("plan_follow_traj")(py_robot, manip->manip->GetName(), py_link, py_mats, py_old_joints);
+
+	vector<vector<double> > new_joints = jointsFromNumpy(py_traj);
+	return new_joints;
+}
+
