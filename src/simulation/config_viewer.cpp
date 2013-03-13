@@ -1,6 +1,6 @@
 #include "config_viewer.h"
 
-btVector3 ViewerConfig::cameraHomePosition = btVector3(5, 0, 5);
+btVector3 ViewerConfig::cameraHomePosition = btVector3(0, 0.2, 0.2);
 btVector3 ViewerConfig::cameraHomeCenter = btVector3(0, 0, 0);
 btVector3 ViewerConfig::cameraHomeUp = btVector3(0, 0, 1);
 int ViewerConfig::windowHeight = 800;
