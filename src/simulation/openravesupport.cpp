@@ -690,6 +690,21 @@ btTransform RaveRobotObject::Manipulator::getFK(const vector<double>& vals) {
 	return eeT;
 }
 
+/** Returns the LINK's transform when the DOFs are set to VALS.
+ *  Does not actually set the DOFs to vals.*/
+btTransform RaveRobotObject::Manipulator::getFK(const vector<double>& vals, KinBody::LinkPtr link) {
+	robot->robot->SetActiveDOFs(manip->GetArmIndices());
+
+	vector<dReal> oldVals(0);
+	robot->robot->GetActiveDOFValues(oldVals);
+
+	robot->robot->SetActiveDOFValues(vals);
+	btTransform T = robot->toWorldFrame(util::toBtTransform(link->GetTransform()));
+
+	robot->setDOFValues(manip->GetArmIndices(), oldVals);
+	return T;
+}
+
 RaveRobotObject::Manipulator::Ptr RaveRobotObject::Manipulator::copy(
 		RaveRobotObject::Ptr newRobot, Fork &f) {
 	OpenRAVE::EnvironmentMutex::scoped_lock lock(
