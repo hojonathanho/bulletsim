@@ -20,6 +20,7 @@ int main(int argc, char *argv[]) {
 	BulletConfig::gravity = -1*btVector3(0,0,10);
 	RavenConfig::record_freq = 100;
 	RavenConfig::cloth = 0;
+	RavenConfig::enableLfd = 1;
 	SceneConfig::enableHaptics = 1;
 	SceneConfig::enableShadows = 1;
 	GeneralConfig::scale = 100.;
