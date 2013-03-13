@@ -154,6 +154,12 @@ void drawAxes(btTransform transform, float size, Environment::Ptr env) {
 	plot_axes->setup(transform, size);
 }
 
+void drawAxes(vector< btTransform > transforms, float size, Environment::Ptr env) {
+
+	for (int i; i < transforms.size(); ++i)
+		drawAxes(transforms[i], size, env);
+}
+
 static Environment::Ptr gEnv;
 void setGlobalEnv(Environment::Ptr env) { gEnv = env; }
 Environment::Ptr getGlobalEnv() { return gEnv; }

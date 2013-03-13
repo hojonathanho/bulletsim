@@ -100,6 +100,7 @@ namespace util {
   void drawLines(vector<btVector3> points0, vector<btVector3> points1, Eigen::Vector3f color, float alpha, Environment::Ptr env);
   void drawPoly(vector<btVector3> points, Eigen::Vector3f color, float alpha, Environment::Ptr env);
   void drawAxes(btTransform transform, float size, Environment::Ptr env);
+  void drawAxes(vector< btTransform > transforms, float size, Environment::Ptr env);
 
   ///////////////// FILE IO ////////////////////////////
   template <class T>
