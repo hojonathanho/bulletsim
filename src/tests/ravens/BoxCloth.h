@@ -43,7 +43,7 @@ public:
 
 	typedef boost::shared_ptr<BoxCloth> Ptr;
 	std::vector<boost::shared_ptr<btCollisionShape> > shapes;
-	std::vector<CompoundObject<BulletObject>::Ptr> holes;
+	std::vector<CompoundObject<BulletObject>::Ptr>    holes;
 	std::vector<BulletConstraint::Ptr> joints;
 
 	BoxCloth(unsigned int n_, unsigned int m_, vector<unsigned int> hole_is_, vector<unsigned int> hole_js_,

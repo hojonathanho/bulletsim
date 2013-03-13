@@ -176,7 +176,7 @@ bool Ravens::processMouseInput(const osgGA::GUIEventAdapter &ea) {
                 if (rot.length() > 0.99f && rot.length() < 1.01f)
                     newTrans.setRotation(rot * origTrans.getRotation());
             }
-            manip->moveByIK(newTrans, true, true);
+            manip->moveByIK(newTrans, false, false);
             return true;
         }
     }

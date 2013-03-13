@@ -97,23 +97,6 @@ bool RavensLfdRpm::transformJoints(const vector<vector<dReal> > &joints, vector<
 	vector<vector<dReal> > new_l_joints;
 	bool l_success = doSmoothIK(ravens.manipL, warpedLeftEETransforms, new_l_joints);
 
-	//plot the given transforms and the new transforms:
-	/**vector<btVector3> inPtsR(joints.size());
-	vector<btVector3> inPtsL(joints.size());
-	vector<btVector3> outPtsR(joints.size());
-	vector<btVector3> outPtsL(joints.size());
-
-	for (int i =0; i<joints.size();i+=1) {
-		inPtsR[i]    = METERS*rightEETransforms[i].getOrigin();
-		inPtsL[i]    = METERS*leftEETransforms[i].getOrigin();
-		outPtsR[i]   = METERS*warpedRightEETransforms[i].getOrigin();
-		outPtsL[i]   = METERS*warpedLeftEETransforms[i].getOrigin();
-	}
-    util::drawSpheres(inPtsR, Eigen::Vector3f(0,1,1), 1, 0.005*METERS, ravens.scene.env);
-    util::drawSpheres(inPtsL, Eigen::Vector3f(0,0,1), 1, 0.005*METERS, ravens.scene.env);
-    util::drawSpheres(outPtsR, Eigen::Vector3f(1,0,0), 1, 0.005*METERS, ravens.scene.env);
-    util::drawSpheres(outPtsL, Eigen::Vector3f(1,1,0), 1, 0.005*METERS, ravens.scene.env);*/
-
 	if (r_success && l_success) {
 		/** combine the new joint values into one vector while filling in the dofs
 		 * which do not correspond to the arm joints from the original input.*/

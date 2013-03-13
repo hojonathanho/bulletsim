@@ -57,7 +57,7 @@ public:
         return v;
     }
 
-    void setTargets(vector<BulletObject::Ptr>& bodies) {grabMonitor->setBodies(bodies);}
+    void setTargets(vector<CompoundObject<BulletObject>::Ptr>& bodies) {grabMonitor->setBodies(bodies);}
     void setOpenAction()  {
     	setEndpoints(getCurrDOFVal(), OPEN_VAL);
     	string message = "release ";
