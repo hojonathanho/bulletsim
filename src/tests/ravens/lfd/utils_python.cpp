@@ -94,7 +94,7 @@ vector<float> vectorFromNumpy(const py::object &py_vec) {
 	int n = ii(py_vec.attr("__len__")());
 	vector<float> out_vec(n);
 
-	for (int i=0; i < n; i++) out_vec.push_back(ff(py_vec[i]));
+	for (int i=0; i < n; i++) out_vec[i] = ff(py_vec[i]);
 
 	return out_vec;
 }
@@ -193,14 +193,20 @@ vector<vector<double> > jointsFromNumpy(py::object array2d) {
 
 /** Does linear interpolation on data to return samples as times specified in SAMPLE_TIMES.
  *  The input data is 2D, at TIME_STAMPS. */
-vector<vector<double> > & interpolate(const vector<float> & sample_times, const vector<vector<double > > & data, const vector<float> & time_stamps) {
+vector<vector<double> > interpolate(const vector<float> & sample_times, const vector<vector<double > > & data, const vector<float> & time_stamps) {
 
 	py::object py_sample_times = vectorToNumpy(sample_times);
 	py::object py_data         = jointsToNumpy(data);
 	py::object py_time_stamps  = vectorToNumpy(time_stamps);
 
 	py::object interp2d          = PyGlobals::math_module.attr("interp2d");
-	py::object interpolated_data = interp2d(py_sample_times, py_time_stamps, py_data);
+	py::object interpolated_data;
+
+	try {
+		interpolated_data = interp2d(py_sample_times, py_time_stamps, py_data);
+	} catch(...) {
+		PyErr_Print();
+	}
 
 	vector<vector<double> > out = jointsFromNumpy(interpolated_data);
 	return out;
@@ -227,11 +233,12 @@ vector<vector<double> > & interpolate(const vector<float> & sample_times, const 
  *    returns a pair: - first is a vector of times the data was resampled.
  *                      note: the times are such that in the input data the ith vector is assumed to be a sample at time =i.
  *                    - second is the actual data (2 dimensional)*/
-pair< vector<float>, vector< vector <double> > > &
+pair< vector<float>, vector< vector <double> > >
 	adaptive_resample (const vector < vector <double> > & in_signal, double tol, double max_change, int min_steps) {
 
 
 	py::object py_signal     = jointsToNumpy(in_signal);
+
 	py::object times_samples = PyGlobals::iros_utils_module.attr("adaptive_resample")(py_signal, tol, max_change, min_steps);
 	py::object py_times      = times_samples[0];
 	py::object py_samples    = times_samples[1];

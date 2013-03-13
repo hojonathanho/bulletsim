@@ -137,13 +137,12 @@ bool RavensLfdRpm::transformJointsTrajOpt(const vector<vector<dReal> > &joints, 
 	ravens.manipL->manip->GetChildLinks(links);
 	KinBody::LinkPtr l_palm_link = links[0];
 
-	double tol, max_change;
-	int min_steps;
-
-	std::pair< vector <float>, vector < vector <double> > > times_joints = adaptive_resample(joints, tol, max_change, min_steps);
+	double tol = 0.2;
+	std::pair< vector <float>, vector < vector <double> > > times_joints = adaptive_resample(joints, tol);
 
 	vector<float> resampled_times = times_joints.first;
-	vector <vector<double> >resampled_joints = times_joints.second;
+	vector <vector<double> > resampled_joints = times_joints.second;
+
 
 	/** Do forward-kinematics and get the end-effector transform. */
 	vector<btTransform> rightTransforms(resampled_joints.size());
@@ -270,7 +269,7 @@ bool warpRavenJoints(Ravens &ravens,
 
 /** Do trajectory optimization to solve for the new joint angles for getting to the new warped trasforms.
  *   Please ensure that the input transforms (OLD_TRANSFORMS) correspond to the palm links of the manipulator.*/
-vector< vector<double> > & doTrajectoryOptimization(RaveRobotObject::Manipulator::Ptr manip,
+vector< vector<double> > doTrajectoryOptimization(RaveRobotObject::Manipulator::Ptr manip,
 		const vector<btTransform> & palm_transforms,
 		const vector< vector<dReal> > &old_joints) {
 	RobotBasePtr robot     = manip->manip->GetRobot();
@@ -287,8 +286,13 @@ vector< vector<double> > & doTrajectoryOptimization(RaveRobotObject::Manipulator
 	py::object py_link   = py_robot.attr("GetLink")(palm_link->GetName());
 	py::object py_mats   = transformsToNumpy(palm_transforms); //need to downsample?
 	py::object py_old_joints = jointsToNumpy(old_joints);
-	py::object py_traj   = PyGlobals::iros_utils_module.attr("plan_follow_traj")(py_robot, manip->manip->GetName(), py_link, py_mats, py_old_joints);
-
+	py::object py_manip_name(manip->manip->GetName());
+	py::object py_traj;
+	try {
+		  py_traj = PyGlobals::iros_utils_module.attr("plan_follow_traj")(py_robot, py_manip_name, py_link, py_mats, py_old_joints);
+	} catch(...) {
+		PyErr_Print();
+	}
 	vector<vector<double> > new_joints = jointsFromNumpy(py_traj);
 	return new_joints;
 }

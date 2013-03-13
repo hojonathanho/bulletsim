@@ -43,7 +43,7 @@ public:
 
 
 /** Do trajectory optimization to solve for the new joint angles for getting to the new warped transforms. */
-vector< vector<double> > & doTrajectoryOptimization(RaveRobotObject::Manipulator::Ptr manip, const vector<btTransform> & transforms,
+vector< vector<double> > doTrajectoryOptimization(RaveRobotObject::Manipulator::Ptr manip, const vector<btTransform> & transforms,
 		const vector< vector<dReal> > &old_joints);
 
 /** Warp the joint values of the ravens using SRC_PTS as the reference

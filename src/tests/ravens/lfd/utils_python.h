@@ -72,7 +72,7 @@ py::object jointsToNumpy( const vector< vector<dReal> > &joints);
 
 /** Does linear interpolation on data to return samples as times specified in SAMPLE_TIMES.
  *  The input data is 2D, at TIME_STAMPS. */
-vector<vector<double> > & interpolate(const vector<float> & sample_times, const vector<vector<double > > & data, const vector<float> & time_stamps);
+vector<vector<double> > interpolate(const vector<float> & sample_times, const vector<vector<double > > & data, const vector<float> & time_stamps);
 
 /** Resample original signal with a small number of waypoints so that the the sparsely sampled function,
  *   when linearly interpolated, deviates from the original function by less than TOL at every time
@@ -94,5 +94,5 @@ vector<vector<double> > & interpolate(const vector<float> & sample_times, const 
  *    returns a pair: - first is a vector of times the data was resampled.
  *                      note: the times are such that in the input data the ith vector is assumed to be a sample at time =i.
  *                    - second is the actual data (2 dimensional)*/
-pair< vector<float>, vector< vector <double> > > &
+pair< vector<float>, vector< vector <double> > >
 	adaptive_resample (const vector < vector <double> > & in_signal, double tol, double max_change=-1, int min_steps=3);
