@@ -22,7 +22,7 @@
 
 
 
-#define RECEIVES_SHADOW_MASK 0x1
+#define RECEIVES_SHADOW_MASK  0x1
 #define CASTS_SHADOW_MASK     0x2
 
 

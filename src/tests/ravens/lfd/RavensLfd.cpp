@@ -102,11 +102,6 @@ bool RavensLfdRpm::transformJoints(const vector<vector<dReal> > &joints, vector<
 	vector<vector<dReal> > new_l_joints;
 	bool l_success = doSmoothIK(ravens.manipL, warpedLeftEETransforms, new_l_joints);
 
-	/**plotPointos (	rightEETransforms,
-					leftEETransforms,
-					warpedRightEETransforms,
-					warpedLeftEETransforms );*/
-
 	if (r_success && l_success) {
 		/** combine the new joint values into one vector while filling in the dofs
 		 * which do not correspond to the arm joints from the original input.*/

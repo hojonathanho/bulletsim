@@ -35,7 +35,7 @@ public:
   const btVector3 centerPt;
   vector<int> indices;
 
-  std::vector<BulletObject::Ptr> m_bodies;
+  std::vector<CompoundObject<BulletObject>::Ptr> m_bodies; // changed so that we can use the moving average over a compound object while grabbing
   std::vector<int> m_collidingBodies;
   btDynamicsWorld* m_world;
   std::vector<RavensGrab::Ptr> m_grabs;
@@ -53,15 +53,15 @@ public:
   btVector3 getToolDirection() const;
   bool onInnerSide(const btVector3 &pt, bool left);
 
-  bool checkContacts (bool leftFinger, btRigidBody *target, float threshold=100);
-  void setBodies(std::vector<BulletObject::Ptr>& bodies) {m_bodies = bodies;}
+  bool checkContacts (bool leftFinger, btRigidBody *target, double &avg_impulse, float threshold=100.f);
+  void setBodies(std::vector<CompoundObject<BulletObject>::Ptr>& bodies) {m_bodies = bodies;}
   void grab();
   void grab(float threshold);
-  int getNumGrabbed() {return numGrabbed;}
+  int  getNumGrabbed() {return numGrabbed;}
   void release();
   void updateGrabPose();
   float getGripperAngle(RaveRobotObject::Manipulator::Ptr manip);
-  bool isClosed(RaveRobotObject::Manipulator::Ptr manip, float closedThreshold);
+  bool  isClosed(RaveRobotObject::Manipulator::Ptr manip, float closedThreshold);
 };
 
 
