@@ -86,17 +86,23 @@ void jointPlayback::playProcessed () {
 
 		// Perform grabbing
 		while (true) {
-			if (gCount != -1 && lfdProcessor->grabIndices[gCount].first >= jCount) {
+			if (gCount != -1 && lfdProcessor->grabIndices[gCount].first <= jCount) {
 				RavensRigidBodyGripperAction::Ptr gripAct = (lfdProcessor->grabIndices[gCount].second == "l" ? scene.lAction : scene.rAction);
+
+				cout<<"Playback: Grabbing."<<endl;
 				gripAct->grab(10);
+
 				gCount = (gCount + 1 < lfdProcessor->grabIndices.size() ? gCount + 1 : -1);
 			} else break;
 		}
 		// Perform releasing
 		while (true) {
-			if (rCount != -1 && lfdProcessor->releaseIndices[rCount].first >= jCount) {
+			if (rCount != -1 && lfdProcessor->releaseIndices[rCount].first <= jCount) {
 				RavensRigidBodyGripperAction::Ptr gripAct = (lfdProcessor->releaseIndices[rCount].second == "l" ? scene.lAction : scene.rAction);
+
+				cout<<"Playback: Releasing."<<endl;
 				gripAct->reset();
+
 				rCount = (rCount + 1 < lfdProcessor->releaseIndices.size() ? rCount + 1 : -1);
 			} else break;
 		}
