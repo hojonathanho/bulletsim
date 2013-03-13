@@ -35,55 +35,55 @@ public:
 		fileClosed = false;
 	}
 
-	/*
-	-       void process () {
-	-               iFS.open(jointFile.c_str(), ios::in);
-	-               oFS.open(outFile.c_str(), ios::out);
-	-
-	-               string line;
-	-
-	-               while (getline(iFS, line)) {
-	-                       istringstream in(line);
-	-                       if (isalpha(line.c_str()[0])) {
-	-                               string command; in >> command;
-	-
-	-                               if (command == "grab" || command == "release") {
-	-                                       string arm;     in >> arm;
-	-                                       oFS << command << " " << arm << "\n";
-	-                                       oFS.flush();
-	-                               } else if (command == "rope") {
-	-                                       src_points.clear();
-	-                                       vector<float> rVals;
-	-                                       string val;
-	-
-	-                                       while (in >> val) {
-	-                                               if (val == "|") {
-	-                                                       btVector3 point(rVals[0], rVals[1], rVals[2]);
-	-                                                       src_points.push_back(point);
-	-                                                       rVals.clear();
-	-                                               } else {
-	-                                                       float rVal = atof(val.c_str());
-	-                                                       rVals.push_back(rVal);
-	-                                               }
-	-                                       }
-	-                               }
-	-                       } else {
-	-                               vector<float> jointVals; float jval;
-	-                               while (in >> jval) jointVals.push_back(jval);
-	-
-	-                               vector<float> finalJoints = lfdProcess (jointVals, src_points);
-	-
-	-                               int jsize = jointVals.size();
-	-
-	-                               for (int i = 0; i < jsize; ++i)
-	-                                       oFS << jointVals[i] << " ";
-	-                               oFS << "\n";
-	-                               oFS.flush();
-	-                       }
-	-               }
-	-
-	-               cout<<"Joint file has been processed for new scene!"<<endl;
-	-       }*/
+
+	/*void process () {
+		iFS.open(jointFile.c_str(), ios::in);
+		oFS.open(outFile.c_str(), ios::out);
+
+		string line;
+
+		while (getline(iFS, line)) {
+			istringstream in(line);
+			if (isalpha(line.c_str()[0])) {
+				string command; in >> command;
+
+				if (command == "grab" || command == "release") {
+					string arm;     in >> arm;
+					oFS << command << " " << arm << "\n";
+					oFS.flush();
+				} else if (command == "rope") {
+					src_points.clear();
+					vector<float> rVals;
+					string val;
+
+					while (in >> val) {
+						if (val == "|") {
+							btVector3 point(rVals[0], rVals[1], rVals[2]);
+							src_points.push_back(point);
+							rVals.clear();
+						} else {
+							float rVal = atof(val.c_str());
+							rVals.push_back(rVal);
+						}
+					}
+				}
+			} else {
+				vector<float> jointVals; float jval;
+				while (in >> jval) jointVals.push_back(jval);
+
+				vector<float> finalJoints = lfdProcess (jointVals, src_points);
+
+				int jsize = jointVals.size();
+
+				for (int i = 0; i < jsize; ++i)
+					oFS << jointVals[i] << " ";
+				oFS << "\n";
+				oFS.flush();
+			}
+		}
+
+		cout<<"Joint file has been processed for new scene!"<<endl;
+	}*/
 
 
 	bool preProcess (Ravens &ravens, vector<btVector3> ropePoints, vector< vector <double> > & processedJointValues) {
@@ -92,6 +92,8 @@ public:
 			return false;
 		}
 		jointValueVector.clear();
+		grabIndices.clear();
+		releaseIndices.clear();
 
 		string line;
 
