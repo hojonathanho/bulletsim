@@ -63,7 +63,11 @@ public:
     	string message = "release ";
     	jr->addMessageToFile(message.append(arm));
     }
-    void setCloseAction() { setEndpoints(getCurrDOFVal(), CLOSED_VAL); }
+    void setCloseAction() {
+    	setEndpoints(getCurrDOFVal(), CLOSED_VAL);
+        string message = "grab ";
+		jr->addMessageToFile(message.append(arm));
+    }
     void toggleAction() {
         if (endVal == CLOSED_VAL)
             setOpenAction();
@@ -87,8 +91,6 @@ public:
         	grab();
     		//jr->addMessageToFile(arm.append(" grab"));
         	if (grabMonitor->getNumGrabbed() > 0) {
-                string message = "grab ";
-        		jr->addMessageToFile(message.append(arm));
         		setDone(true);
         		return;
         	}
