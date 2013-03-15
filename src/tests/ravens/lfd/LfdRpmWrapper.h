@@ -29,8 +29,8 @@ public:
 	 *    reg_init/reg_final: regularization on curvature; affineness vs. non-affineness
 	 *    rad_init/rad_final: radius for correspondence calculation (meters) */
 	RegistrationModule(vector<btVector3> src_pts, vector<btVector3> target_pts,
-			int n_iter = 5, float reg_init = .1, float reg_final = .001,
-			float rad_init = .2, float rad_final = .001);
+			int n_iter = 50, float reg_init = .1, float reg_final = .001,
+			float rad_init = .05, float rad_final = .0005);
 
     /** Transform a btVector using tps.
      *  Performs the mapping: pt in demonstration |--> pt in new setting. */

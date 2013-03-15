@@ -107,7 +107,7 @@ public:
 		// Correction matrix of the needle
 		btMatrix3x3 s_corrRot;
 
-		SuturingNeedle (CustomScene * scene, float _rope_radius=.001, float _segment_len=0.005, int _nLinks=65);
+		SuturingNeedle (CustomScene * scene, float _rope_radius=.0006, float _segment_len=0.003, int _nLinks=90);
 
 		/** Toggle's needle piercing state. */
 		void togglePiercing () {s_piercing = !s_piercing;}

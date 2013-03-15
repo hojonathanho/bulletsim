@@ -340,3 +340,171 @@ vector< vector<double> > doTrajectoryOptimization2(RaveRobotObject::Manipulator:
 	vector<vector<double> > new_joints = jointsFromNumpy(py_traj);
 	return new_joints;
 }
+
+
+
+
+
+
+
+
+bool RavensLfdRpm::transformJointsTrajOptWithIK(const vector<vector<dReal> > &joints, vector<vector<dReal> > &new_joints) {
+
+	vector<KinBody::LinkPtr> links;
+	ravens.manipR->manip->GetChildLinks(links);
+	KinBody::LinkPtr r_finger1_link = links[1];
+	KinBody::LinkPtr r_finger2_link = links[2];
+
+	links.clear();
+	ravens.manipL->manip->GetChildLinks(links);
+	KinBody::LinkPtr l_finger1_link = links[1];
+	KinBody::LinkPtr l_finger2_link = links[2];
+
+	double tol = 0.02;  //DOWNSAMPLE
+	std::pair< vector <float>, vector < vector <double> > > times_joints = adaptive_resample(joints, tol);
+	vector<float> resampled_times             = times_joints.first;
+	vector <vector<double> > resampled_joints = times_joints.second;
+
+	/** Do forward-kinematics and get the end-effector transform. */
+	vector<btTransform> right1Transforms(resampled_joints.size());
+	vector<btTransform> right2Transforms(resampled_joints.size());
+	vector<btTransform> left1Transforms(resampled_joints.size());
+	vector<btTransform> left2Transforms(resampled_joints.size());
+	vector<btTransform> leftEETransforms(resampled_joints.size());
+	vector<btTransform> rightEETransforms(resampled_joints.size());
+
+	vector< vector<dReal> > larm_joints, rarm_joints;
+
+	for (int i =0; i< resampled_joints.size(); i+=1) {
+		vector<dReal> r_joints;
+		extractJoints(rarm_indices, resampled_joints[i], r_joints);
+		rarm_joints.push_back(r_joints);
+
+		vector<dReal> l_joints;
+		extractJoints(larm_indices, resampled_joints[i], l_joints);
+		larm_joints.push_back(l_joints);
+
+		/** work with palm links. */
+		right1Transforms[i]  = util::scaleTransform(ravens.manipR->getFK(r_joints, r_finger1_link), 1.f/METERS);
+		right2Transforms[i]  = util::scaleTransform(ravens.manipR->getFK(r_joints, r_finger2_link), 1.f/METERS);
+		left1Transforms[i]   = util::scaleTransform(ravens.manipL->getFK(l_joints, l_finger1_link), 1.f/METERS);
+		left2Transforms[i]   = util::scaleTransform(ravens.manipL->getFK(l_joints, l_finger2_link), 1.f/METERS);
+
+		leftEETransforms[i] = util::scaleTransform(ravens.manipL->getFK(l_joints), 1.f/METERS);
+		rightEETransforms[i] = util::scaleTransform(ravens.manipR->getFK(r_joints), 1.f/METERS);
+	}
+
+	/** Warp the end-effector transforms. */
+	vector<btTransform> warpedRight1Transforms = lfdrpm->transform_frames(right1Transforms);
+	vector<btTransform> warpedLeft1Transforms  = lfdrpm->transform_frames(left1Transforms);
+	vector<btTransform> warpedRight2Transforms = lfdrpm->transform_frames(right2Transforms);
+	vector<btTransform> warpedLeft2Transforms  = lfdrpm->transform_frames(left2Transforms);
+
+	vector<btTransform> warpedRightEETransforms = lfdrpm->transform_frames(rightEETransforms);
+	vector<btTransform> warpedLeftEETransforms  = lfdrpm->transform_frames(leftEETransforms);
+
+
+	vector<vector<dReal> > r_ik_joints;
+	doSmoothIKAllJoints(ravens.manipR, warpedRightEETransforms, r_ik_joints);
+	vector<vector<dReal> > l_ik_joints;
+	doSmoothIKAllJoints(ravens.manipL, warpedLeftEETransforms, l_ik_joints);
+
+
+	/** Do trajectory optimization on the warped transforms. */
+	vector<vector<dReal> > new_r_joints =	 doTrajectoryOptimization2(ravens.manipR, r_finger1_link->GetName(), r_finger2_link->GetName(),warpedRight1Transforms, warpedRight2Transforms, r_ik_joints);
+	vector<vector<dReal> > new_l_joints =	 doTrajectoryOptimization2(ravens.manipL, l_finger1_link->GetName(), l_finger2_link->GetName(),warpedLeft1Transforms, warpedLeft2Transforms, l_ik_joints);
+
+	// upsample : interpolate
+	vector<float> new_times(joints.size());
+	for (int i = 0.0; i < joints.size(); ++i) new_times[i] = (float) i;
+	vector<vector <dReal> > interpolated_r_joints = interpolate(new_times, new_r_joints, resampled_times);
+	vector<vector <dReal> > interpolated_l_joints = interpolate(new_times, new_l_joints, resampled_times);
+
+	/*
+	vector<btVector3> pts0(left1Transforms.size()-1);
+	vector<btVector3> pts1(left1Transforms.size()-1);
+	for (int i =0; i<left1Transforms.size()-1; i+=1) {
+		pts0[i]    = METERS*left1Transforms[i].getOrigin();
+		pts1[i]    = METERS*left1Transforms[i+1].getOrigin();
+	}
+	util::drawLines(pts0, pts1, Eigen::Vector3f(1,0,0), 0.5, ravens.scene.env);*/
+
+	/** combine the new joint values into one vector while filling in the dofs
+	 * which do not correspond to the arm joints from the original input.*/
+	assert(("Number of set of joint angles for the arms are different.",
+			(interpolated_r_joints.size()==interpolated_l_joints.size() && interpolated_r_joints.size()==joints.size())));
+	new_joints.clear();
+	const int num_dofs = joints[0].size();
+	for(int i=0; i< joints.size(); i+=1) {
+		vector<dReal> combined_joints(num_dofs);
+		for(int k =0; k < num_dofs; k+=1)
+			combined_joints[k] = joints[i][k];
+		for(int k =0; k < larm_indices.size(); k+=1)
+			combined_joints[larm_indices[k]] = interpolated_l_joints[i][k];
+		for(int k =0; k < rarm_indices.size(); k+=1)
+			combined_joints[rarm_indices[k]] = interpolated_r_joints[i][k];
+		new_joints.push_back(combined_joints);
+	}
+	return true;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/** Does smooth IK on transforms (in joint space: basically chooses the closest subsequent joint-set [l2 normwise].
+ *  Ik is done for each transform in TRANSFORMS and the corresponding joints are stored in JOINTS.*/
+bool RavensLfdRpm::doSmoothIKAllJoints(RaveRobotObject::Manipulator::Ptr manip, const vector<btTransform> & transforms,
+		vector< vector<dReal> > &joints) {
+
+	vector< vector<dReal> > old_joints;
+	vector<float> time_stamps;
+	vector<dReal> currentDOFs = manip->getDOFValues();
+
+	for(int i = 0; i < transforms.size(); i+=1) {
+		vector <vector<dReal> > values;
+		if (manip->solveAllIKUnscaled(util::toRaveTransform(transforms[i]), values)) {
+			time_stamps.push_back(i);
+			int solSize = values.size();
+
+			vector<double> * bestDOFs (new vector<double>());
+			*bestDOFs = values[0];
+
+			double bestL2 = util::wrapAroundL2(*bestDOFs, currentDOFs);
+
+			for (int j = 1; j < solSize; ++j) {
+				double newL2 = util::wrapAroundL2(values[j],currentDOFs);
+				if (newL2 < bestL2) {
+					*bestDOFs = values[j];
+					bestL2 = newL2;
+				}
+			}
+			old_joints.push_back(*bestDOFs);
+			currentDOFs = *bestDOFs;
+		}
+	}
+
+	joints.clear();
+	vector<float> new_time_stamps(transforms.size());
+	for (int i = 0; i < new_time_stamps.size(); ++i) new_time_stamps[i] = i;
+
+	joints = interpolate (new_time_stamps, old_joints, time_stamps);
+
+	return true;
+}

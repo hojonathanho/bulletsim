@@ -36,7 +36,7 @@ void jointPlayback::executeNextWaypoint () {
 			string command; in >> command;
 			if (command == "grab" || command == "release") {
 				string arm;	in >> arm;
-				RavensRigidBodyGripperAction::Ptr gripAct = (arm == "l" ? scene.lAction : scene.rAction);
+				grabAct = (arm == "l" ? scene.lAction : scene.rAction);
 				if (command == "grab") {
 					cout<<"Playback: Grabbing."<<endl;
 					grabMode = true;
@@ -45,7 +45,7 @@ void jointPlayback::executeNextWaypoint () {
 				else if (command == "release") {
 					cout<<"Playback: Releasing."<<endl;
 					grabMode = false;
-					gripAct->reset();
+					grabAct->reset();
 				}
 			} else if (command == "joints") {
 				joint_vals.clear();
@@ -88,7 +88,7 @@ void jointPlayback::playProcessed () {
 		char action = 'n';
 		if (gCount != -1 && lfdProcessor->grabIndices[gCount].first == jCount) {
 			action = 'g';
-			grabAct = (lfdProcessor->releaseIndices[gCount].second == "l" ? scene.lAction : scene.rAction);
+			grabAct = (lfdProcessor->grabIndices[gCount].second == "l" ? scene.lAction : scene.rAction);
 			while (gCount < lfdProcessor->grabIndices.size() && lfdProcessor->grabIndices[gCount].first == jCount) gCount ++;
 			if (gCount == lfdProcessor->grabIndices.size()) gCount = -1;
 		}
@@ -112,7 +112,7 @@ void jointPlayback::playProcessed () {
 
 		scene.ravens.ravens->setDOFValues(joint_inds, processedJoints[jCount]);
 		if (grabMode) {
-			grabAct->step(max(1/freq, dt));
+			grabAct->step(3.0*max(1/freq, dt));
 			if (grabAct->done()) grabMode = false;
 		}
 

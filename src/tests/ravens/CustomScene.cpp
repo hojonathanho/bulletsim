@@ -634,7 +634,7 @@ CustomScene::SuturingNeedle::SuturingNeedle(CustomScene * _scene, float _rope_ra
 	vector<btTransform> transforms;
 	vector<btScalar> lengths;
 	for (int i=0; i< nLinks; i++)
-		ctrlPts.push_back(handlePos + METERS*btVector3(segment_len*i - 0.1,0,2*rope_radius));
+		ctrlPts.push_back(handlePos + METERS*btVector3(segment_len*i - 0.15,0,2*rope_radius));
 
 	ropePtr.reset(new CapsuleRope(ctrlPts,METERS*rope_radius));
 	scene.env->add(ropePtr);

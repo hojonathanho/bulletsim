@@ -5,6 +5,7 @@
 #include <string>
 
 #include "jointLFDProcessor.h"
+#include "RavensRigidBodyAction.h"
 
 using namespace std;
 

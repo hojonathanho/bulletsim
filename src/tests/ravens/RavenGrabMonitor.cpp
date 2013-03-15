@@ -132,6 +132,7 @@ bool RavensGrabMonitor::checkContacts(bool left, btRigidBody *target, double &av
 					//cout<<"Point: " <<contact_pt.x()<<","<<contact_pt.y()<<","<<contact_pt.z()<<endl;
 					//cout<<"Distance: "<<contact_pt.length()<<endl;
 					//cout<<"   Found inner contact point"<<endl;
+					cout<<"-------"<<endl;
 					return true;
 				} else {
 					//contact_pt = tfm.inverse()*contact_pt;
@@ -181,15 +182,19 @@ void RavensGrabMonitor::grab(float threshold) {
 		double avg_impulse = 0.0;
 		bool r_contact = false;
 		bool l_contact = false;
+		cout<<" Body "<< i+1 <<endl;
+		//string t;
+		//cin >> t;
 		for (int j=0; j < m_bodies[i]->children.size(); j+=1) {// for each bullet object in the compound object
 
 			float adjusted_thresh = threshold;
 			if (m_bodies[i]->children[j]->objectType() == "BoxObject") adjusted_thresh *= 50;
 
 			// check for contact
+			//cout<<"Avg before: "<<avg_impulse<<endl;
 			r_contact = checkContacts(false, m_bodies[i]->children[j]->rigidBody.get(), avg_impulse, adjusted_thresh);
 			l_contact = checkContacts(true,  m_bodies[i]->children[j]->rigidBody.get(), avg_impulse, adjusted_thresh);
-
+			//cout<<"Avg after: "<<avg_impulse<<endl;
 
 			if (l_contact || r_contact) {
 				num_in_contact += 1;

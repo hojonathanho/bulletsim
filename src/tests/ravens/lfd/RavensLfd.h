@@ -16,6 +16,8 @@ private:
 	/** Does smooth IK on transforms (in joint space: basically chooses the closest subsequent joint-set [l2 normwise].
 	 *  Ik is done for each transform in TRANSFORMS and the corresponding joints are stored in JOINTS.*/
 	bool doSmoothIK(RaveRobotObject::Manipulator::Ptr manip, const vector<btTransform> & transforms, vector< vector<dReal> > &joints);
+	bool doSmoothIKAllJoints(RaveRobotObject::Manipulator::Ptr manip, const vector<btTransform> & transforms, vector< vector<dReal> > &joints);
+
 
 	Ravens  &ravens;
 	RegistrationModule::Ptr lfdrpm;
@@ -38,6 +40,8 @@ public:
 
 	/** Warp the joint angles of ravens using warping and trajectory optimization.*/
 	bool transformJointsTrajOpt(const vector<vector<dReal> > &joints, vector<vector<dReal> > &new_joints);
+	bool transformJointsTrajOptWithIK(const vector<vector<dReal> > &joints, vector<vector<dReal> > &new_joints) ;
+
 
 };
 
