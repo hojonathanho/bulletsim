@@ -17,6 +17,8 @@ class jointPlayback {
 
 	vector<int> joint_inds;		 					// Indices of joints to set DOF values
 	vector<dReal> joint_vals;						// Latest joint values loaded from file.
+	bool grabMode;									// The robot is grabbing in playback
+	RavensRigidBodyGripperAction::Ptr grabAct;		// Action to grab stuff
 
 	LFDProcessor::Ptr lfdProcessor;					// Processor for LFD
 	vector <vector <double> > processedJoints;		// If doing LFD Processing
