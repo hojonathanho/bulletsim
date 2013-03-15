@@ -32,25 +32,20 @@ void jointPlayback::executeNextWaypoint () {
 	if (currTime >= 1/freq) {
 		float fileEnded = true;
 		while (getline(file, line)) {
-			if (isalpha(line.c_str()[0])) {
-				cout<<"Different message found."<<endl;
-				istringstream in(line);
-				string command; in >> command;
-
-				if (command == "grab" || command == "release") {
-					string arm;	in >> arm;
-					RavensRigidBodyGripperAction::Ptr gripAct = (arm == "l" ? scene.lAction : scene.rAction);
-					if (command == "grab") {
-						cout<<"Playback: Grabbing."<<endl;
-						gripAct->grab(10);
-					}
-					else if (command == "release") {
-						cout<<"Playback: Releasing."<<endl;
-						gripAct->reset();
-					}
+			istringstream in(line);
+			string command; in >> command;
+			if (command == "grab" || command == "release") {
+				string arm;	in >> arm;
+				RavensRigidBodyGripperAction::Ptr gripAct = (arm == "l" ? scene.lAction : scene.rAction);
+				if (command == "grab") {
+					cout<<"Playback: Grabbing."<<endl;
+					gripAct->grab(10);
 				}
-			} else {
-				istringstream in(line);
+				else if (command == "release") {
+					cout<<"Playback: Releasing."<<endl;
+					gripAct->reset();
+				}
+			} else if (command == "joints") {
 				joint_vals.clear();
 				while (in >> jval) joint_vals.push_back(jval);
 				scene.ravens.ravens->setDOFValues(joint_inds, joint_vals);

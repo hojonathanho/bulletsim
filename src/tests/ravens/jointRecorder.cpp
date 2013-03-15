@@ -39,6 +39,7 @@ void jointRecorder::recordCallback () {
 		scene.ravens.ravens->robot->GetDOFValues(joint_vals);
 		int jsize = joint_vals.size();
 
+		file << "joints ";
 		for (int i = 0; i < jsize; ++i)
 			file << joint_vals[i] << " ";
 		file << "\n";

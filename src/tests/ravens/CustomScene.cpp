@@ -312,7 +312,7 @@ void CustomScene::run() {
 					GeneralConfig::scale * btVector3(0, 0, table_height-table_thickness/2))));
 	table->receiveShadow = true;
 
-	table->rigidBody->setFriction(10);
+	table->rigidBody->setFriction(0.1);
 	env->add(table);
 	table->setColor(0.62, 0.32, 0.17, 0.8);
 	createKinBodyFromBulletBoxObject(table, rave);

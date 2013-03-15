@@ -19,9 +19,9 @@ h = []
 
 for l in ravens.GetLinks():
     print l.GetName()
-    if l.GetName()in ['r_gripper_l_finger_tip_link', 'r_gripper_r_finger_tip_link','l_finger_l_tip_link', 'l_grasper1_L', 'l_palm_L', 'r_palm_L']:
-        T = l.GetTransform()
-        print l.GetName()
-        #h.append(drawTransform(env,T))
-        raw_input()
+#    if l.GetName()in ['r_gripper_l_finger_tip_link', 'r_gripper_r_finger_tip_link','l_finger_l_tip_link', 'l_grasper1_L', 'l_palm_L', 'r_palm_L']:
+#        T = l.GetTransform()
+#        print l.GetName()
+#        #h.append(drawTransform(env,T))
+#        raw_input()
 

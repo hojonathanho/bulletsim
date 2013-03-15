@@ -147,9 +147,9 @@ py::object transformsToNumpy(const vector<btTransform>& trans) {
 			}
 		}
 		out[i][3][0] = 0; out[i][3][1] = 0; out[i][3][2] = 0; out[i][3][3] = 1;
-		out[i][0][0] = mat.getOrigin()[0];
-		out[i][0][1] = mat.getOrigin()[1];
-		out[i][0][2] = mat.getOrigin()[2];
+		out[i][0][3] = mat.getOrigin()[0];
+		out[i][1][3] = mat.getOrigin()[1];
+		out[i][2][3] = mat.getOrigin()[2];
 	}
 	return out;
 }

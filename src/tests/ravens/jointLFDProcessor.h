@@ -122,22 +122,20 @@ public:
 		fileClosed = true;
 		while (getline(iFS, line)) {
 			istringstream in(line);
-			if (isalpha(line.c_str()[0])) {
-				string command; in >> command;
+			string command; in >> command;
 
-				if (command == "section") 	{fileClosed = false; break;}
-				if (command == "grab") 	{
-					string arm; in >> arm;
-					grabIndices.push_back(make_pair (jointValueVector.size() - 1, arm));
-				}
-				if (command == "release") {
-					string arm; in >> arm;
-					releaseIndices.push_back(make_pair (jointValueVector.size() - 1, arm));
-			}
-			} else {
+			if (command == "section") 	{
+				fileClosed = false;
+				break;
+			} else if (command == "grab") 	{
+				string arm; in >> arm;
+				grabIndices.push_back(make_pair (jointValueVector.size() - 1, arm));
+			} else if (command == "release") {
+				string arm; in >> arm;
+				releaseIndices.push_back(make_pair (jointValueVector.size() - 1, arm));
+			} else if (command == "joints") {
 				vector<double> jointVals; double jval;
 				while (in >> jval) jointVals.push_back(jval);
-
 				jointValueVector.push_back(jointVals);
 			}
 		}

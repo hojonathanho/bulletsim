@@ -46,6 +46,11 @@ public:
 vector< vector<double> > doTrajectoryOptimization(RaveRobotObject::Manipulator::Ptr manip, const vector<btTransform> & transforms,
 		const vector< vector<dReal> > &old_joints);
 
+vector< vector<double> > doTrajectoryOptimization2(RaveRobotObject::Manipulator::Ptr manip, std::string link1_name, std::string link2_name,
+		const vector<btTransform> & finger1_transforms, const vector<btTransform> & finger2_transforms,
+		const vector< vector<dReal> > &old_joints);
+
+
 /** Warp the joint values of the ravens using SRC_PTS as the reference
  *  and TARGETR_PTS as the new points for warping.*/
 bool warpRavenJoints(Ravens &ravens,
