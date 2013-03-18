@@ -242,6 +242,8 @@ void PlotAxes::setup(osg::Vec3f origin, osg::Vec3f x, osg::Vec3f y, osg::Vec3f z
 void PlotAxes::clear() {
 	PlotLines::clear();
 	m_ends->clear();
+    getEnvironment()->osg->root->removeChild(m_geode.get());
+    getEnvironment()->osg->root->removeChild(m_ends->m_geode.get());
 }
 
 PlotCurve::PlotCurve(float width) : osg::Geode(), m_defaultColor(1,0,0,1) {
