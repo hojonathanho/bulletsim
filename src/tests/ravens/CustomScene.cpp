@@ -322,8 +322,8 @@ void CustomScene::run() {
 	ravens.ravens->ignoreCollisionWith(sNeedle->s_needle->getChildren()[0]->rigidBody.get());
 	ravens.ravens->ignoreCollisionWith(table->rigidBody.get());
 
-	//env->add(sNeedle->s_needle);
-	//rave->env->Add(sNeedle->s_needle->body);
+	env->add(sNeedle->s_needle);
+	rave->env->Add(sNeedle->s_needle->body);
 
 
 
@@ -604,7 +604,7 @@ btTransform CustomScene::SutureCloth::getCutGraspTransform(int side_num, RaveRob
 /** Constructor for suturing needle. Creates needle from file.*/
 CustomScene::SuturingNeedle::SuturingNeedle(CustomScene * _scene, float _rope_radius, float _segment_len, int _nLinks) :
 													scene(*_scene), s_needle_radius(0.0112*NEEDLE_SCALE_FACTOR),
-													s_needle_mass(1000), s_pierce_threshold(0.03),
+													s_needle_mass(300), s_pierce_threshold(0.03),
 													s_end_angle(1.4), s_piercing(false), s_grasped(false),
 													rope_radius(_rope_radius), segment_len(_segment_len), nLinks(_nLinks) {
 
@@ -614,11 +614,11 @@ CustomScene::SuturingNeedle::SuturingNeedle(CustomScene * _scene, float _rope_ra
 	btTransform table_tfm;
 	scene.table->motionState->getWorldTransform(table_tfm);
 
-	float table_height = 0.05*METERS;
+	float table_height = 0.15*METERS;
 	table_tfm.setOrigin(table_tfm.getOrigin() + (btVector3(0,0,table_height/2)) );
 	needle_body->SetTransform(util::toRaveTransform(table_tfm, 1.0f/METERS));
 
-	s_needle = RaveObject::Ptr(new RaveObject(scene.rave,needle_body,RAW,true));
+	s_needle = RaveObject::Ptr(new RaveObject(scene.rave,needle_body,RAW,false));
 	vector<BulletObject::Ptr> children = s_needle->getChildren();
 	btVector3 inertia(0,0,0);
 	children[0]->rigidBody->getCollisionShape()->calculateLocalInertia(s_needle_mass,inertia);
@@ -634,7 +634,8 @@ CustomScene::SuturingNeedle::SuturingNeedle(CustomScene * _scene, float _rope_ra
 	vector<btTransform> transforms;
 	vector<btScalar> lengths;
 	for (int i=0; i< nLinks; i++)
-		ctrlPts.push_back(handlePos + METERS*btVector3(segment_len*i - 0.15,0,2*rope_radius));
+		//ctrlPts.push_back(handlePos + METERS*btVector3(segment_len*i - 0.15,0,2*rope_radius));  // horizontal rope
+		ctrlPts.push_back(handlePos + METERS*btVector3(0, segment_len*(i - nLinks/2.0), 2*rope_radius)); //vertical rope
 
 	ropePtr.reset(new CapsuleRope(ctrlPts,METERS*rope_radius));
 	scene.env->add(ropePtr);
@@ -642,13 +643,14 @@ CustomScene::SuturingNeedle::SuturingNeedle(CustomScene * _scene, float _rope_ra
 	ropePtr->children[0]->setColor(1,0,0,1);
 	ropePtr->children[ropePtr->children.size()-1]->setColor(0,0,1,1);
 
+
 	//s_needle->ignoreCollisionWith(ropePtr->children[0]->rigidBody.get());
 	btTransform needleEndT =  getNeedleHandleTransform();
 	//needleEndT.setOrigin(needleEndT.getOrigin() + METERS*(needleEndT.getBasis()*btVector3(0,-0.005,0)));
 	//util::drawAxes(needleEndT, .1*METERS, scene.env);
 
-	//needle_rope_grab = new Grab(ropePtr->children[0]->rigidBody.get(), getNeedleHandleTransform().getOrigin(),scene.env->bullet->dynamicsWorld);
-	//scene.addPreStepCallback(boost::bind(&CustomScene::SuturingNeedle::setConnectedRopeTransformCallback, this));
+	needle_rope_grab = new Grab(ropePtr->children[0]->rigidBody.get(), getNeedleHandleTransform().getOrigin(),scene.env->bullet->dynamicsWorld);
+	scene.addPreStepCallback(boost::bind(&CustomScene::SuturingNeedle::setConnectedRopeTransformCallback, this));
 	//------------------------------------------------------------------------------
 }
 

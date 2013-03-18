@@ -36,7 +36,7 @@
 #include "lfd/utils_python.h"
 
 //class CustomScene;
-#define NEEDLE_SCALE_FACTOR 0.8
+#define NEEDLE_SCALE_FACTOR 0.8*1.5
 
 class CustomScene : public Scene {
 public:
