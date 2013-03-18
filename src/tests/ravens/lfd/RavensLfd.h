@@ -3,12 +3,18 @@
 #include <iostream>
 #include "simulation/util.h"
 #include "robots/ravens.h"
+#include "simulation/plotting.h"
+
 
 using namespace std;
+
 
 /** Simple class which helps apply lfd by transforming the joints angles. */
 class RavensLfdRpm {
 private:
+
+	PlotLines::Ptr plot_lines_left, plot_lines_right;
+
 	/** Extract the joints indexed by INDS from IN_JOINT_VALS and store them into OUT_JOINT_VALS.*/
 	void extractJoints (const vector<int> &inds, const vector<dReal> &in_joint_vals,
 			vector<dReal> &out_joint_vals);
@@ -25,9 +31,10 @@ private:
 	vector<int> larm_indices;
 	vector<int> rarm_indices;
 
-	void plotTransforms (vector< btTransform > &, vector< btTransform > &, vector< btTransform > &, vector< btTransform > &);
-
-	void plotPointos (vector< btTransform > &, vector< btTransform > &, vector< btTransform > &, vector< btTransform > &);
+	/** Plotting util functions. */
+	void plotTransforms (const vector< btTransform > &transforms);
+	void plotPoints     (const vector< btTransform > &transforms);
+	void plotPath       (const vector< btTransform > &transforms, PlotLines::Ptr plot_lines);
 
 public:
 	/** Ravens   : the robot to transform the joints for.
