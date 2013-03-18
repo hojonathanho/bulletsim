@@ -23,7 +23,9 @@ int main(int argc, char *argv[]) {
 	RavenConfig::enableLfd = 1;
 	SceneConfig::enableHaptics = 1;
 	SceneConfig::enableShadows = 1;
+	RavenConfig::enableLfd = 1;
 	GeneralConfig::scale = 100.;
+	BulletConfig::friction = .1;
 
 	Parser parser;
 
