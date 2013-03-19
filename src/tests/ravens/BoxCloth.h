@@ -59,6 +59,9 @@ public:
 
 	string objectType () {return "BoxCloth";}
 
+	void getBoxClothPoints(vector< pair<int, int> > indices, vector<btVector3> & boxPoints);
+	void getBoxClothHoles(vector<btVector3> & holePoints);
+
 	void init();
 	void destroy();
 };

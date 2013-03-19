@@ -113,14 +113,14 @@ createBendConstraint2(btScalar side_len, bool isX,
 	}
 	return holder;
 }
-*/
+ */
 vector<boost::shared_ptr<btGeneric6DofSpringConstraint> >
 createBendConstraint(  btScalar side_len,
-					   vector< boost::shared_ptr<btRigidBody> > & rbA,
-					   vector< boost::shared_ptr<btRigidBody> > & rbB,
-					   vector<btVector3> & offsetA,
-					   vector<btVector3> & offsetB,
-					   float damping, float stiffness, float limit) {
+		vector< boost::shared_ptr<btRigidBody> > & rbA,
+		vector< boost::shared_ptr<btRigidBody> > & rbB,
+		vector<btVector3> & offsetA,
+		vector<btVector3> & offsetB,
+		float damping, float stiffness, float limit) {
 
 	boost::shared_ptr<btGeneric6DofSpringConstraint> springPtr1;
 	boost::shared_ptr<btGeneric6DofSpringConstraint> springPtr2;
@@ -224,8 +224,8 @@ void BoxCloth::addChild (float mass, btVector3 hfExtents, btTransform &tfm) {
 }
 
 void BoxCloth::addHoleConstraint (vector<btVector3> &offsetA, vector<btVector3> &offsetB,
-								  const boost::shared_ptr<btRigidBody> rbA,
-								  const boost::shared_ptr<btRigidBody>& rbB) {
+		const boost::shared_ptr<btRigidBody> rbA,
+		const boost::shared_ptr<btRigidBody>& rbB) {
 
 	for (int k=0; k<2; k++) {
 		boost::shared_ptr<btGeneric6DofConstraint> constraintPtr;
@@ -361,6 +361,61 @@ BoxCloth::BoxCloth(unsigned int n_, unsigned int m_, vector<unsigned int> hole_i
 
 			}
 		}
+	}
+}
+
+/** Returns vector of points uniformly sampled across each non-hole box-cloth. */
+void BoxCloth::getBoxClothPoints(vector< pair<int, int> > indices, vector<btVector3> & boxPoints) {
+
+	for (unsigned int i=0; i < indices.size(); ++i) {
+		if (getSerializedIndex(indices[i].first+1,indices[i].second) >= 0 &&
+				getSerializedIndex(indices[i].first+1,indices[i].second) < n*m &&
+				!isHole(indices[i].first,indices[i].second)) {
+
+			unsigned int curr = grid_to_obj_inds[indices[i]];
+			btTransform currTfm = children[curr]->getIndexTransform(0);
+			btVector3 center = currTfm.getOrigin();
+			btVector3 xVec = currTfm.getBasis().getColumn(0), yVec = currTfm.getBasis().getColumn(1);
+
+			boxPoints.push_back(center);
+			boxPoints.push_back(center+xVec*s/3+yVec*s/3);
+			boxPoints.push_back(center+xVec*s/3-yVec*s/3);
+			boxPoints.push_back(center-xVec*s/3+yVec*s/3);
+			boxPoints.push_back(center-xVec*s/3-yVec*s/3);
+			boxPoints.push_back(center+xVec*s/4+yVec*s/4);
+			boxPoints.push_back(center+xVec*s/4-yVec*s/4);
+			boxPoints.push_back(center-xVec*s/4+yVec*s/4);
+			boxPoints.push_back(center-xVec*s/4-yVec*s/4);
+		}
+	}
+}
+
+/** Returns vector of points uniformly sampled across each non-hole box-cloth. */
+void BoxCloth::getBoxClothHoles(vector<btVector3> & holePoints) {
+
+	for (unsigned int k=0; k < hole_is.size(); k++) {
+		unsigned int curr = grid_to_obj_inds[make_pair(hole_is[k],hole_js[k])];
+
+		btTransform topTfm = children[curr+2]->getIndexTransform(0);
+		btTransform botTfm = children[curr+3]->getIndexTransform(0);
+		btVector3 xVec = topTfm.getBasis().getColumn(0), yVec = topTfm.getBasis().getColumn(1);
+		btVector3 center = topTfm.getOrigin() - yVec*s/3;
+
+		holePoints.push_back(children[curr]->getIndexTransform(0).getOrigin());
+		holePoints.push_back(children[curr+1]->getIndexTransform(0).getOrigin());
+		holePoints.push_back(topTfm.getOrigin() + xVec*s/3);
+		holePoints.push_back(topTfm.getOrigin() - xVec*s/3);
+		holePoints.push_back(botTfm.getOrigin() + xVec*s/3);
+		holePoints.push_back(botTfm.getOrigin() - xVec*s/3);
+		holePoints.push_back(center);
+		holePoints.push_back(center+xVec*s/6+yVec*s/6);
+		holePoints.push_back(center+xVec*s/6-yVec*s/6);
+		holePoints.push_back(center-xVec*s/6+yVec*s/6);
+		holePoints.push_back(center-xVec*s/6-yVec*s/6);
+		holePoints.push_back(center+xVec*s/8+yVec*s/8);
+		holePoints.push_back(center+xVec*s/8-yVec*s/8);
+		holePoints.push_back(center-xVec*s/8+yVec*s/8);
+		holePoints.push_back(center-xVec*s/8-yVec*s/8);
 	}
 }
 
