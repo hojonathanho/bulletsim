@@ -96,7 +96,7 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,
 			//scene.testTrajectory3();
 			break;
 		case 'K':
-			scene.recordRopePoints();
+			scene.recordPoints();
 			break;
 		case 'I':
 			scene.ravens.setArmPose("home",'b');
@@ -111,6 +111,18 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,
 			break;
 		case ']':
 			scene.plotGrasp();
+			break;
+		case '-':
+			scene.plotAllPoints();
+			break;
+		case '[':
+			scene.plotNeedle();
+			break;
+		case '=':
+			scene.testNeedle2();
+			break;
+		case '+':
+			scene.testGrab();
 			break;
 
 
