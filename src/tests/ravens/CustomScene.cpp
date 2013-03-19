@@ -189,7 +189,7 @@ void CustomScene::getBoxPoints(vector<btVector3> & boxPoints) {
 
 	//cloth2: i = n-1
 	vector< pair<int,int> > indices2(bcm);
-	for (int i = 0; i < bcm; ++i) indices2[i] = make_pair(4,i);
+	for (int i = 0; i < bcm; ++i) indices2[i] = make_pair(bcn-1,i);
 	cloth2->getBoxClothPoints(indices2, boxPoints);
 
 }
@@ -207,21 +207,34 @@ void CustomScene::recordPoints () {
 	cout<<"Recording points to file."<<endl;
 
 	ostringstream message;
-	message << "section \n";
+	message << "section";
 
 	vector<btVector3> ropePoints;
 	sNeedle->getRopePoints(true, ropePoints);
-	message << "rope ";
+	message << "\nrope ";
 	for (int i = 0; i < ropePoints.size(); ++i)
 		message << ropePoints[i].x() << " " << ropePoints[i].y() << " " << ropePoints[i].z() << " | ";
 
-	/*
+
+	vector<btVector3> needlePoints;
+	sNeedle->getNeedlePoints(needlePoints);
+	message << "\nneedle ";
+	for (int i = 0; i < needlePoints.size(); ++i)
+		message << needlePoints[i].x() << " " << needlePoints[i].y() << " " << needlePoints[i].z() << " | ";
+
+
 	vector<btVector3> boxPoints;
-	(true, ropePoints);
-	message << "rope ";
-	for (int i = 0; i < ropePoints.size(); ++i)
-		message << ropePoints[i].x() << " " << ropePoints[i].y() << " " << ropePoints[i].z() << " | ";
-	*/
+	getBoxPoints(boxPoints);
+	message << "\nbox ";
+	for (int i = 0; i < boxPoints.size(); ++i)
+		message << boxPoints[i].x() << " " << boxPoints[i].y() << " " << boxPoints[i].z() << " | ";
+
+
+	vector<btVector3> boxHoles;
+	getBoxHoles(boxHoles);
+	message << "\nholes ";
+	for (int i = 0; i < boxHoles.size(); ++i)
+		message << boxHoles[i].x() << " " << boxHoles[i].y() << " " << boxHoles[i].z() << " | ";
 
 	jRecorder->addMessageToFile(message.str());
 }

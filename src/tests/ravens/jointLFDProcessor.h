@@ -101,8 +101,8 @@ public:
 		// Get rope values out now.
 		src_points.clear();
 		getline(iFS, line);
-		istringstream ropeStream(line);
-		string ropeStr; ropeStream >> ropeStr; assert (ropeStr == "rope");
+		istringstream stream(line);
+		string type; stream >> type; assert (type == "rope");
 
 		vector<float> rVals;
 		string val;
@@ -113,9 +113,16 @@ public:
 				rVals.clear();
 			} else {
 				float rVal = atof(val.c_str());
-				rVals.push_back(rVal);
-			}
+				rVals.push_back(rVal);X			}
 		}
+
+		getline(iFS, line); stream = istringstream(line);
+		stream >> type; assert (ropeStr == "needle");
+		getline(iFS, line); stream = istringstream(line);
+		stream >> type; assert (ropeStr == "box");
+		getline(iFS, line); stream = istringstream(line);
+		stream >> type; assert (ropeStr == "holes");
+
 
 		///////////////////////////////////
 
