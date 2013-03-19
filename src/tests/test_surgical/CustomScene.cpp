@@ -101,6 +101,67 @@ BulletSoftObject::Ptr CustomScene::createCloth(btScalar s, btScalar z, btVector3
 }
 
 
+/* Creates a square cloth with side length 2s.
+   The four coordinates of the cloth are:
+   {(s,s,z) (-s,s,z) (-s,-s,z) (s,-s,z)}
+   Then, the center of the cloth (initially at (0,,0)
+   is translated to CENTER.*/
+/*
+BulletSoftObject::Ptr CustomScene::createCloth(btScalar s1, btScalar s2, btScalar z, btVector3 center,
+								  std::vector<int> &cut_nodes1, std::vector<int> &cut_nodes2,
+								  bool getCutIndices,
+			                      bool shouldCut,
+			                      unsigned int resx, unsigned int resy) {
+
+	z += 0.05*METERS;
+	resx = 60;
+	resy = 30;
+
+	btVector3 corner1(-s1,-s2,z), corner2(+s1,-s2,z), corner3(-s1,+s2,z), corner4(+s1,+s2,z);
+	btSoftBody* psb=btSoftBodyHelpers::CreatePatch(*(env->bullet->softBodyWorldInfo),
+													center + corner1,
+													center + corner2,
+													center + corner3,
+													center + corner4,
+													resx, resy,
+													1+2+4+8, true);
+
+	btSoftBody::Material* pm=psb->appendMaterial();
+	psb->setTotalMass(1e5);
+
+	// cut the soft-body
+	if (shouldCut) {
+		cutPlane cut (center + 0.05*corner3 + 0.95*corner4,
+				      center + 0.05*corner4 + 0.95*corner2,
+				      center + 0.05*corner2 + 0.95*corner1,
+				      center + 0.05*corner1 + 0.95*corner3,
+				      0.25,0.75);
+
+		CutPlaneSoftBody(psb, &cut, 0.001, cut_nodes1, cut_nodes2, getCutIndices);
+	}
+
+	psb->generateBendingConstraints(2, psb->m_nodes[0].m_material);
+	pm->m_kLST	=	1.0;
+	psb->generateClusters(512);
+	psb->getCollisionShape()->setMargin(0.01*METERS);
+
+	psb->m_cfg.collisions	=	0;
+	//psb->m_cfg.collisions += btSoftBody::fCollision::CL_SELF;
+	psb->m_cfg.collisions  += btSoftBody::fCollision::SDF_RS;
+
+    psb->m_cfg.kDF = 1;
+    psb->m_cfg.piterations = 50;
+    //psb->m_cfg.viterations = 10;
+    psb->m_cfg.citerations = 50;
+    //psb->m_cfg.diterations = 10;
+    psb->updateConstants();
+    psb->randomizeConstraints();
+
+	return BulletSoftObject::Ptr(new BulletSoftObject(psb));
+}*/
+
+
+
 
 /** Draws the axes at LEFT_GRIPPER1 and LEFT_GRIPPER2. */
 void CustomScene::drawAxes() {

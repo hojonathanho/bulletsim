@@ -128,6 +128,19 @@ public:
 				                      bool shouldCut = true,
 				                      unsigned int resx = 50, unsigned int resy =50);
 
+	/*Creates a square cloth with side length 2s.
+	     The four coordinates of the cloth are:
+	     {(s,s) (-s,s,) (-s,-s) (s,-s)}
+	     Then, the center of the cloth (initially at (0,0,0)
+	     is translated to CENTER.*\/
+	     From the other CustomScene.cpp
+	BulletSoftObject::Ptr createCloth(btScalar s1, btScalar s2, btScalar z, btVector3 center,
+									  std::vector<int> &cut_nodes1, std::vector<int> &cut_nodes2,
+									  bool getCutIndices=true,
+				                      bool shouldCut = true,
+				                      unsigned int resx = 60, unsigned int resy = 20);
+	*/
+
 	/** Returns ||(v1.x, v1.y) - (v2.x, v2.y)||. */
 	btScalar inline getXYDistance(btVector3 &v1, btVector3 &v2);
 
