@@ -40,6 +40,7 @@ void jointPlayback::executeNextWaypoint () {
 				if (command == "grab") {
 					cout<<"Playback: Grabbing."<<endl;
 					grabMode = true;
+					grabAct->reset();
 					grabAct->setCloseAction();
 				}
 				else if (command == "release") {
@@ -52,7 +53,7 @@ void jointPlayback::executeNextWaypoint () {
 				while (in >> jval) joint_vals.push_back(jval);
 				scene.ravens.ravens->setDOFValues(joint_inds, joint_vals);
 				if (grabMode) {
-					grabAct->step(max(1/freq, dt));
+					grabAct->step(3*max(1/freq, dt));
 					if (grabAct->done()) grabMode = false;
 				}
 				currTime = 0.0;
@@ -70,7 +71,9 @@ void jointPlayback::executeNextWaypoint () {
 }
 
 void jointPlayback::process () {
-	processedSuccessfully = lfdProcessor->preProcess(scene.ravens, scene.getRopePoints(true), processedJoints);
+	vector<btVector3> ropePoints;
+	scene.sNeedle->getRopePoints(true, ropePoints);
+	processedSuccessfully = lfdProcessor->preProcess(scene.ravens, ropePoints, processedJoints);
 	if (processedSuccessfully) {
 		jCount = 0;
 		gCount = (lfdProcessor->grabIndices.size() > 0 ? 0 : -1);
@@ -102,6 +105,7 @@ void jointPlayback::playProcessed () {
 		if (action == 'g') {
 			cout<<"Playback: Grabbing."<<endl;
 			grabMode = true;
+			grabAct->reset();
 			grabAct->setCloseAction();
 		}
 		else if (action == 'r') {
@@ -112,7 +116,7 @@ void jointPlayback::playProcessed () {
 
 		scene.ravens.ravens->setDOFValues(joint_inds, processedJoints[jCount]);
 		if (grabMode) {
-			grabAct->step(3.0*max(1/freq, dt));
+			grabAct->step(4.0*max(1/freq, dt));
 			if (grabAct->done()) grabMode = false;
 		}
 

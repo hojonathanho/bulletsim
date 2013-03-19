@@ -22,7 +22,7 @@ void jointRecorder::toggleRecording () {
 	if (recording) {
 		file.open(filename.c_str(), ios::out | ios::app);
 		if (init)
-			scene.recordRopePoints();
+			scene.recordPoints();
 	} else {
 		file.close();
 		currTime = 0.0;
