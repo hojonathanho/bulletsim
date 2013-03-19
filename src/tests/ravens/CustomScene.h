@@ -41,43 +41,6 @@
 class CustomScene : public Scene {
 public:
 
-
-	/** A class to represent the cloth in the scene.
-	 * Holds the cloth object and other supporting structures. */
-	/*
-	class SutureCloth {
-	public:
-		typedef boost::shared_ptr<SutureCloth> Ptr;
-
-		// the cloth
-		BulletSoftObject::Ptr cloth;
-
-		// node indices of the nodes on the cut
-		std::vector<int> cut_nodes1, cut_nodes2;
-
-		SutureCloth(CustomScene &scene, btScalar s1, btScalar s2, btScalar z, btVector3 center);
-
-
-		/** Returns the line of maximum variance of the cut-points
-		 * Performs a PCA on the points.
-		 * SIDE_NUM  \in {1, 2} : if 1 : cut-points on the left.
-		 *                        if 2 : cut-points on the right.
-		 * The return value is a point on the line found and the direction-cosine of the line. *\/
-		pair<pair<btVector3, btVector3> , pair<int, int> > fitLine(int side_num);
-
-
-		/** See the DOC for fitLine.
-		 *  In addition to fitting a line to the cut-points it aligns
-		 *  the direction of the cut with the x-axis of the robot's (PR2) transform. *\/
-		pair<pair<btVector3, btVector3> , pair<int, int> >fitLineAligned(int side_num, RaveRobotObject::Ptr robot);
-
-		/** Returns a transform for grasping.
-		 *  @param SIDE_NUM  \in {1, 2} : if 1 : transform for left-cut
-		 *                                if 2 : transform for right-cut *\/
-		btTransform getCutGraspTransform(int side_num, RaveRobotObject::Ptr robot, float frac=0.5);
-	};*/
-
-
 	/* Class to represent the suturing needle + thread. */
 	class SuturingNeedle {
 
@@ -102,25 +65,30 @@ public:
 
 		// Manipulator currently grasping the needle.
 		RaveRobotObject::Manipulator::Ptr s_gripperManip;
-		// Is the needle being grasped?
-		bool s_grasped;
-		// Correction matrix of the needle
-		btMatrix3x3 s_corrRot;
+		// Which gripper is grasping the needle?
+		char s_grasping_gripper;
+		btTransform s_grasp_tfm;
 
 		SuturingNeedle (CustomScene * scene, float _rope_radius=.0006, float _segment_len=0.003, int _nLinks=90);
 
 		/** Toggle's needle piercing state. */
 		void togglePiercing () {s_piercing = !s_piercing;}
 
+		bool pointCloseToNeedle (btVector3 pt);
+
 		btTransform getNeedleTipTransform ();
 		btTransform getNeedleHandleTransform ();
+		btTransform getNeedleCenterTransform ();
+
+		void getNeedlePoints (vector<btVector3> & needlePoints);
+		void getRopePoints (bool nodes, vector<btVector3> & ropePoints);
 
 		void setGraspingTransformCallback ();
 		void setConnectedRopeTransformCallback();
 	};
 
 
-	/** Class for cloth made using box objects and spring constraints. */
+	/** Class for cloth made using box objects and spring constraints. *\/
 	class BoxSutureCloth {
 
 	public:
@@ -136,10 +104,10 @@ public:
 		 *  S : the length of side of each box object.
 		 *  H : the height of the box object : should be small to represent a plate.
 		 *  CENTER : location of the center of the cloth.
-		 */
+		 *\/
 		BoxSutureCloth(CustomScene &scene, int n, int m, btScalar s, btVector3 center);
 
-	};
+	};*/
 
 	//SoftBodyGripperAction::Ptr leftAction, rightAction;
 
@@ -160,6 +128,8 @@ public:
 	*/
 	// Two sides of box cloth cloth
 	BoxCloth::Ptr cloth1, cloth2;
+	unsigned int bcn, bcm;
+	float bcs, bch;
 
 	// Suturing needle
 	SuturingNeedle::Ptr sNeedle;
@@ -192,6 +162,8 @@ public:
 
 		jRecorder.reset (new jointRecorder (*this));
 		jPlayback.reset (new jointPlayback (*this, RavenConfig::enableLfd));
+
+		bcn = 5; bcm = 15; bcs = 0.01; bch = 0.0005;
 	}
 
 
@@ -202,62 +174,37 @@ public:
 		viewer.getEventQueue()->addEvent(e);
 	}
 
-	/** Returns the coordinates of the last point directly below (-z) SOURCE_PT
-	      on the cloth represented by PSB. */
-	btVector3 getDownPoint(btVector3 &source_pt, boost::shared_ptr<btSoftBody> psb,
-			btScalar radius=3.0);
-
-	/** Raycasts from SOURCE to all the nodes of PSB
-	      and returns a vector of the same size as the nodes of PSB
-	      depicting whether that node is visible or not. */
-	std::vector<btVector3> checkNodeVisibility(btVector3 camera_origin,
-			boost::shared_ptr<btSoftBody> psb);
-
-	/** Finds the distance from a node corresponding to
-	      INPUT_IND on the cloth to the closest node attached to the gripper
-	double getDistfromNodeToClosestAttachedNodeInGripper
-	(GripperKinematicObject::Ptr gripper, int input_ind, int &closest_ind);*/
-
-	/** Draws the axes at LEFT_GRIPPER1 and LEFT_GRIPPER2. */
-	void drawAxes();
-
-	/*Creates a square cloth with side length 2s.
-	     The four coordinates of the cloth are:
-	     {(s,s) (-s,s,) (-s,-s) (s,-s)}
-	     Then, the center of the cloth (initially at (0,0,0)
-	     is translated to CENTER.*/
-	BulletSoftObject::Ptr createCloth(btScalar s1, btScalar s2, btScalar z, btVector3 center,
-									  std::vector<int> &cut_nodes1, std::vector<int> &cut_nodes2,
-									  bool getCutIndices=true,
-				                      bool shouldCut = true,
-				                      unsigned int resx = 60, unsigned int resy = 20);
-
-	/** Returns ||(v1.x, v1.y) - (v2.x, v2.y)||. */
-	btScalar inline getXYDistance(btVector3 &v1, btVector3 &v2);
-
 	/** Move the end-effector. */
 	void moveEndEffector(char dir, bool world=false, char lr='l', float step=0.005);
+
+
+	/** Gets points along edge. */
+	void getBoxPoints(vector<btVector3> & boxPoints);
+	/** Gets points of holes. */
+	void getBoxHoles(vector<btVector3> & boxHoles);
+	/** Stores the points of the rope into current recording file.
+	 *  Stores either nodes or control points.
+	 *  */
+	void recordPoints ();
+
+
+	void run();
 
 	/** Plots needle tip, flag for removing plots. */
 	void plotNeedle(bool remove = false);
 	/** Plots a few things related to grasping. */
 	void plotGrasp(bool remove = false);
-
-	vector<btVector3> getRopePoints (bool nodes);
-	/** Stores the points of the rope into current recording file.
-	 *  Stores either nodes or control points.
-	 *  */
-	void recordRopePoints (bool nodes=true);
+	/** Plot point cloud. */
+	void plotAllPoints(bool remove = false);
 
 	/** small tests to test the planners and the controller. */
 	void testTrajectory();
 	void testTrajectory2();
 	void testTrajectory3();
-	void testCircular();
-
-	/** Small test to see if the robot can grasp the cloth.*/
+	void testNeedle2();
+	void testNeedle();
+	void testGrab();
 	void testGrasping();
-	void run();
 };
 
 
