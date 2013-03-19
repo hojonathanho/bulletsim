@@ -4,6 +4,7 @@
 #include <openrave/kinbody.h>
 #include "simulation/simplescene.h"
 
+class CustomScene;
 
 class RavensGrab : public Grab {
 
@@ -30,6 +31,9 @@ public:
   // min/max gripper dof vals
   static const float CLOSED_VAL = 0.01f, OPEN_VAL = 0.25f;
 
+  RaveRobotObject::Manipulator::Ptr manip;
+  char gripper;
+
   KinBody::LinkPtr leftFinger, rightFinger;
   const btTransform origLeftFingerInvTrans, origRightFingerInvTrans;
   const btVector3 centerPt;
@@ -41,11 +45,11 @@ public:
   std::vector<RavensGrab::Ptr> m_grabs;
   int m_i;
   int numGrabbed;
-  Scene &s;
+  CustomScene &s;
 
 
-  RavensGrabMonitor(RaveRobotObject::Manipulator::Ptr _manip, btDynamicsWorld* _world,
-		  	  	  	  const string &leftFingerName, const string &rightFingerName, Scene &s);
+  RavensGrabMonitor(RaveRobotObject::Manipulator::Ptr _manip, btDynamicsWorld* _world, char _gripper,
+		  	  	  	  const string &leftFingerName, const string &rightFingerName, CustomScene &s);
   btTransform getManipRot() const;
   btTransform getInverseFingerTfm (bool left);
   btVector3 getInnerPt(bool left) const ;
@@ -56,7 +60,8 @@ public:
   bool checkContacts (bool leftFinger, btRigidBody *target, double &avg_impulse, float threshold=100.f);
   void setBodies(std::vector<CompoundObject<BulletObject>::Ptr>& bodies) {m_bodies = bodies;}
   void grab();
-  void grab(float threshold);
+  void grab(bool grabN, float threshold=100);
+  void grabNeedle();
   int  getNumGrabbed() {return numGrabbed;}
   void release();
   void updateGrabPose();

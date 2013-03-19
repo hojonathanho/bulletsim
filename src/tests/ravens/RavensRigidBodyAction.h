@@ -26,10 +26,10 @@ public:
                            	     const string &leftFingerName,
                            	     const string &rightFingerName,
                            	     btDynamicsWorld* world_,
-                           	     float time, Scene &s, char * _arm, jointRecorder * _jr) :
+                           	     float time, CustomScene &s, char * _arm, jointRecorder * _jr) :
                            	     Action(time), manip(manip_), vals(2, 0), jr (_jr), arm(_arm) {
 
-    	grabMonitor.reset(new RavensGrabMonitor(manip_, world_, leftFingerName, rightFingerName, s));
+    	grabMonitor.reset(new RavensGrabMonitor(manip_, world_, arm[0], leftFingerName, rightFingerName, s));
     	manip->manip->GetChildDOFIndices(indices);
     	setCloseAction();
     }
@@ -80,7 +80,7 @@ public:
         grabMonitor->release();
     }
 
-    void grab (float threshold=100) {grabMonitor->grab(threshold);}
+    void grab (bool grabN, float threshold=100) {grabMonitor->grab(grabN,threshold);}
 
     void step(float dt) {
         if (done()) return;
@@ -88,7 +88,7 @@ public:
         // if there's a large force on the fingers
         // then we probably can't close any further
         if (endVal != OPEN_VAL) {
-        	grab();
+        	grab(fracElapsed()  >= 0.5 ? true : false);
     		//jr->addMessageToFile(arm.append(" grab"));
         	if (grabMonitor->getNumGrabbed() > 0) {
         		setDone(true);

@@ -1,8 +1,10 @@
 #include "RavenGrabMonitor.h"
+#include "CustomScene.h"
 #include <Eigen/Dense>
 #include "simulation/util.h"
 #include "utils/config.h"
 #include "utils/logging.h"
+
 using namespace std;
 using namespace OpenRAVE;
 using namespace Eigen;
@@ -150,29 +152,31 @@ bool RavensGrabMonitor::checkContacts(bool left, btRigidBody *target, double &av
 }
 
 
-RavensGrabMonitor::RavensGrabMonitor(RaveRobotObject::Manipulator::Ptr manip, btDynamicsWorld *dynamicsWorld,
-		const string &leftFingerName, const string &rightFingerName, Scene &s_) :
+RavensGrabMonitor::RavensGrabMonitor(RaveRobotObject::Manipulator::Ptr _manip, btDynamicsWorld *dynamicsWorld,
+		char _gripper, const string &leftFingerName, const string &rightFingerName, CustomScene &s_) :
+		gripper (_gripper),
 		s(s_),
 		numGrabbed(0),
-		Monitor(manip),
+		Monitor(_manip),
 		m_world(dynamicsWorld),
 		m_bodies(),
 		m_grabs(),
 		m_i(0),
-		leftFinger(manip->robot->robot->GetLink(leftFingerName)),
-		rightFinger(manip->robot->robot->GetLink(rightFingerName)),
-		origLeftFingerInvTrans(manip->robot->getLinkTransform(leftFinger).inverse()),
-		origRightFingerInvTrans(manip->robot->getLinkTransform(rightFinger).inverse()),
-		centerPt(manip->getTransform().getOrigin()),
+		leftFinger(_manip->robot->robot->GetLink(leftFingerName)),
+		rightFinger(_manip->robot->robot->GetLink(rightFingerName)),
+		origLeftFingerInvTrans(_manip->robot->getLinkTransform(leftFinger).inverse()),
+		origRightFingerInvTrans(_manip->robot->getLinkTransform(rightFinger).inverse()),
+		centerPt(_manip->getTransform().getOrigin()),
 		indices() {
 
+	manip = (gripper == 'l' ? s.ravens.manipL : s.ravens.manipR);
 	manip->manip->GetChildDOFIndices(indices);
 	s.addPreStepCallback(boost::bind(&RavensGrabMonitor::updateGrabPose,this));
 }
 
-void RavensGrabMonitor::grab() {grab(100);}
+void RavensGrabMonitor::grab() {grab(false);}
 
-void RavensGrabMonitor::grab(float threshold) {
+void RavensGrabMonitor::grab(bool grabN, float threshold) {
 	// grabs objects in contact
 	//cout << "grabbing objects in contact" << endl;
 
@@ -182,19 +186,24 @@ void RavensGrabMonitor::grab(float threshold) {
 		double avg_impulse = 0.0;
 		bool r_contact = false;
 		bool l_contact = false;
-		cout<<" Body "<< i+1 <<endl;
-		//string t;
-		//cin >> t;
 		for (int j=0; j < m_bodies[i]->children.size(); j+=1) {// for each bullet object in the compound object
+
+			if (grabN && m_bodies[i]->objectType() == "RaveObject") {
+				btVector3 eePose = manip->getTransform().getOrigin();
+				if (s.sNeedle->pointCloseToNeedle(eePose)) {
+					grabNeedle();
+					cout<<"Grabbed needle!"<<endl;
+					num_in_contact += 1;
+				}
+				continue;
+			}
 
 			float adjusted_thresh = threshold;
 			if (m_bodies[i]->children[j]->objectType() == "BoxObject") adjusted_thresh *= 50;
 
 			// check for contact
-			//cout<<"Avg before: "<<avg_impulse<<endl;
 			r_contact = checkContacts(false, m_bodies[i]->children[j]->rigidBody.get(), avg_impulse, adjusted_thresh);
 			l_contact = checkContacts(true,  m_bodies[i]->children[j]->rigidBody.get(), avg_impulse, adjusted_thresh);
-			//cout<<"Avg after: "<<avg_impulse<<endl;
 
 			if (l_contact || r_contact) {
 				num_in_contact += 1;
@@ -212,10 +221,33 @@ void RavensGrabMonitor::grab(float threshold) {
 }
 
 
+
+void RavensGrabMonitor::grabNeedle () {
+	s.sNeedle->s_grasping_gripper = gripper;
+	s.sNeedle->s_gripperManip = manip;
+
+	btTransform wFee = manip->getTransform(), wFn = s.sNeedle->s_needle->getIndexTransform(0);
+	btTransform eeFn = wFee.inverse()*wFn;
+	s.sNeedle->s_grasp_tfm = eeFn;
+
+	vector<KinBody::LinkPtr> links;
+	manip->manip->GetChildLinks(links);
+	s.ravens.ravens->robot->Release(s.sNeedle->s_needle->body);
+	s.ravens.ravens->robot->Grab(s.sNeedle->s_needle->body, links[0]);
+}
+
+
 void RavensGrabMonitor::release() {
 	numGrabbed = 0;
 	while (m_grabs.size() != 0)
 		m_grabs.pop_back();
+	if (s.sNeedle->s_grasping_gripper == gripper) {
+		s.sNeedle->s_grasping_gripper = 'n';
+		btTransform current = s.sNeedle->s_needle->getIndexTransform(0);
+		current.getOrigin().setZ(s.table->getIndexTransform(0).getOrigin().z()+s.table->getHalfExtents().z() + 0.005*METERS);
+		s.sNeedle->s_needle->getChildren()[0]->motionState->setKinematicPos(current);
+		s.ravens.ravens->robot->Release(s.sNeedle->s_needle->body);
+	}
 }
 
 
