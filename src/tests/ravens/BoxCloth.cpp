@@ -378,10 +378,10 @@ void BoxCloth::getBoxClothPoints(vector< pair<int, int> > indices, vector<btVect
 			btVector3 xVec = currTfm.getBasis().getColumn(0), yVec = currTfm.getBasis().getColumn(1);
 
 			boxPoints.push_back(center);
-			boxPoints.push_back(center+xVec*s/3+yVec*s/3);
-			boxPoints.push_back(center+xVec*s/3-yVec*s/3);
-			boxPoints.push_back(center-xVec*s/3+yVec*s/3);
-			boxPoints.push_back(center-xVec*s/3-yVec*s/3);
+			/*boxPoints.push_back(center+xVec*s/2+yVec*s/2);
+			boxPoints.push_back(center+xVec*s/2-yVec*s/2);
+			boxPoints.push_back(center-xVec*s/2+yVec*s/2);
+			boxPoints.push_back(center-xVec*s/2-yVec*s/2);*/
 			boxPoints.push_back(center+xVec*s/4+yVec*s/4);
 			boxPoints.push_back(center+xVec*s/4-yVec*s/4);
 			boxPoints.push_back(center-xVec*s/4+yVec*s/4);
@@ -401,21 +401,25 @@ void BoxCloth::getBoxClothHoles(vector<btVector3> & holePoints) {
 		btVector3 xVec = topTfm.getBasis().getColumn(0), yVec = topTfm.getBasis().getColumn(1);
 		btVector3 center = topTfm.getOrigin() - yVec*s/3;
 
-		holePoints.push_back(children[curr]->getIndexTransform(0).getOrigin());
+		/*holePoints.push_back(children[curr]->getIndexTransform(0).getOrigin());
 		holePoints.push_back(children[curr+1]->getIndexTransform(0).getOrigin());
 		holePoints.push_back(topTfm.getOrigin() + xVec*s/3);
 		holePoints.push_back(topTfm.getOrigin() - xVec*s/3);
 		holePoints.push_back(botTfm.getOrigin() + xVec*s/3);
-		holePoints.push_back(botTfm.getOrigin() - xVec*s/3);
+		holePoints.push_back(botTfm.getOrigin() - xVec*s/3);*/
 		holePoints.push_back(center);
 		holePoints.push_back(center+xVec*s/6+yVec*s/6);
 		holePoints.push_back(center+xVec*s/6-yVec*s/6);
 		holePoints.push_back(center-xVec*s/6+yVec*s/6);
 		holePoints.push_back(center-xVec*s/6-yVec*s/6);
-		holePoints.push_back(center+xVec*s/8+yVec*s/8);
-		holePoints.push_back(center+xVec*s/8-yVec*s/8);
-		holePoints.push_back(center-xVec*s/8+yVec*s/8);
-		holePoints.push_back(center-xVec*s/8-yVec*s/8);
+		holePoints.push_back(center+xVec*s/9+yVec*s/9);
+		holePoints.push_back(center+xVec*s/9-yVec*s/9);
+		holePoints.push_back(center-xVec*s/9+yVec*s/9);
+		holePoints.push_back(center-xVec*s/9-yVec*s/9);
+		holePoints.push_back(center+xVec*s/12+yVec*s/12);
+		holePoints.push_back(center+xVec*s/12-yVec*s/12);
+		holePoints.push_back(center-xVec*s/12+yVec*s/12);
+		holePoints.push_back(center-xVec*s/12-yVec*s/12);
 	}
 }
 
