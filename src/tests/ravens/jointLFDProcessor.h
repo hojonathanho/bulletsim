@@ -16,23 +16,26 @@ public:
 
 	vector< vector<double> > jointValueVector;
 
-	bool found_rope;
+	bool use_rope;
 	vector<btVector3> rope_points;
-	bool found_needle;
+	bool use_needle;
 	vector<btVector3> needle_points;
-	bool found_box;
+	bool use_box;
 	vector<btVector3> box_points;
-	bool found_hole;
+	bool use_hole;
 	vector<btVector3> hole_points;
+
+	unsigned int mode_count;
+	vector<string> modes;
 
 	vector< pair<int, string> > grabIndices;
 	vector< pair<int, string> > releaseIndices;
 
 	LFDProcessor (string _inputFile = "/home/ankush/sandbox/bulletsim/src/tests/ravens/recorded/raven_joints.txt") :
 						   jointFile (_inputFile), fileClosed(false),
-						   found_rope (false), found_needle (false), found_box (false), found_hole (false){}
+						   use_rope (false), use_needle (false), use_box (false), use_hole (false){}
 
-	void setInputFile (string _inputFile) {jointFile = _inputFile;}
+	void setInputFile (const string _inputFile) {jointFile = _inputFile;}
 
 	void initProcessing () {
 		iFS.open(jointFile.c_str(), ios::in);
@@ -41,9 +44,14 @@ public:
 		// File always starts with section
 		assert (section == "section");
 		fileClosed = false;
+		mode_count = 0;
 	}
 
-	bool preProcess (Ravens &ravens, vector<btVector3> new_rope_points, vector< vector <double> > & processedJointValues) {
+	void initializeModes (const vector<string> & _modes) {modes = _modes;}
+
+	bool preProcess (	Ravens &ravens,
+						vector<btVector3> new_rope_points, ////
+						vector< vector <double> > & processedJointValues) {
 		if (fileClosed) {
 			cout<<"File has ended."<<endl;
 			return false;
@@ -52,7 +60,7 @@ public:
 		jointValueVector.clear();
 		grabIndices.clear();
 		releaseIndices.clear();
-		found_rope = found_needle = found_box = found_hole = false;
+		use_rope = use_needle = use_box = use_hole = false;
 
 		string line;
 
@@ -64,7 +72,7 @@ public:
 			string command; in >> command;
 
 			if (command == "rope") {
-				found_rope = true;
+				use_rope = true;
 				vector<float> vals;
 				string val;
 				while (in >> val) {
@@ -78,7 +86,7 @@ public:
 					}
 				}
 			} else if (command == "needle") {
-				found_needle = true;
+				use_needle = true;
 				vector<float> vals;
 				string val;
 				while (in >> val) {
@@ -92,7 +100,7 @@ public:
 					}
 				}
 			} else if (command == "box") {
-				found_box = true;
+				use_box = true;
 				vector<float> vals;
 				string val;
 				while (in >> val) {
@@ -106,7 +114,7 @@ public:
 					}
 				}
 			} else if (command == "hole") {
-				found_hole = true;
+				use_hole = true;
 				vector<float> vals;
 				string val;
 				while (in >> val) {
@@ -137,14 +145,25 @@ public:
 
 		if (fileClosed) {iFS.close();}
 
+		if (mode_count < modes.size()) {
+			if (modes[mode_count] == "knot") {
+
+			} else if (modes[mode_count] == "flap") {
+
+			}
+		}
+
+		mode_count ++;
+
+
 		bool successful = warpRavenJoints (ravens, rope_points, new_rope_points, jointValueVector, processedJointValues);
 
 		//Actually should be:
-		/* warpRavenJoints (ravens, make_pair(found_rope, make_pair(rope_points, new_rope_points)),
-									make_pair(found_needle, make_pair(needle_points, new_needle_points)),
-									make_pair(found_box, make_pair(box_points, new_box_points)),
-									make_pair(found_hole, make_pair(hole_points, new_hole_points)),
-									jointValueVector, processedJointValues);*/
+		/* bool successful = warpRavenJoints (	ravens, make_pair(use_rope, make_pair(rope_points, new_rope_points)),
+												make_pair(use_needle, make_pair(needle_points, new_needle_points)),
+												make_pair(use_box, make_pair(box_points, new_box_points)),
+												make_pair(use_hole, make_pair(hole_points, new_hole_points)),
+												jointValueVector, processedJointValues);*/
 
 		if (!successful) {
 			cout<<"Unable to find trajectory."<<endl;
