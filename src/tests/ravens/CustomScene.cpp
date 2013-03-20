@@ -38,8 +38,7 @@ CustomScene::SuturingNeedle::SuturingNeedle(CustomScene * _scene, float _rope_ra
 	btTransform table_tfm;
 	scene.table->motionState->getWorldTransform(table_tfm);
 
-	float table_height = 0.15*METERS;
-	table_tfm.setOrigin(table_tfm.getOrigin() + (btVector3(0,0,table_height/2)) );
+	table_tfm.setOrigin(table_tfm.getOrigin() + METERS*btVector3((float)scene.bcn*scene.bcs + 0.01, 0.1, scene.table->getHalfExtents().z()/METERS + 0.005) );
 	needle_body->SetTransform(util::toRaveTransform(table_tfm, 1.0f/METERS));
 
 	s_needle = RaveObject::Ptr(new RaveObject(scene.rave,needle_body,RAW,false));
@@ -59,7 +58,8 @@ CustomScene::SuturingNeedle::SuturingNeedle(CustomScene * _scene, float _rope_ra
 	vector<btScalar> lengths;
 	for (int i=0; i< nLinks; i++)
 		//ctrlPts.push_back(handlePos + METERS*btVector3(segment_len*i - 0.15,0,2*rope_radius));  // horizontal rope
-		ctrlPts.push_back(handlePos + METERS*btVector3(0, segment_len*(i - nLinks/2.0), 2*rope_radius)); //vertical rope
+		//ctrlPts.push_back(handlePos + METERS*btVector3(0, segment_len*(i - nLinks/2.0), 2*rope_radius)); //vertical rope
+		ctrlPts.push_back(handlePos + METERS*btVector3(0, -segment_len*i, 2*rope_radius)); //vertical rope
 
 	ropePtr.reset(new CapsuleRope(ctrlPts,METERS*rope_radius));
 	scene.env->add(ropePtr);
@@ -73,8 +73,8 @@ CustomScene::SuturingNeedle::SuturingNeedle(CustomScene * _scene, float _rope_ra
 	//needleEndT.setOrigin(needleEndT.getOrigin() + METERS*(needleEndT.getBasis()*btVector3(0,-0.005,0)));
 	//util::drawAxes(needleEndT, .1*METERS, scene.env);
 
-	//needle_rope_grab = new Grab(ropePtr->children[0]->rigidBody.get(), getNeedleHandleTransform().getOrigin(),scene.env->bullet->dynamicsWorld);
-	//scene.addPreStepCallback(boost::bind(&CustomScene::SuturingNeedle::setConnectedRopeTransformCallback, this));
+	needle_rope_grab = new Grab(ropePtr->children[0]->rigidBody.get(), getNeedleHandleTransform().getOrigin(),scene.env->bullet->dynamicsWorld);
+	scene.addPreStepCallback(boost::bind(&CustomScene::SuturingNeedle::setConnectedRopeTransformCallback, this));
 	//------------------------------------------------------------------------------
 }
 
@@ -134,7 +134,7 @@ void CustomScene::SuturingNeedle::setConnectedRopeTransformCallback() {
 	needle_rope_grab->updatePosition(nTfm.getOrigin());
 }
 
-void CustomScene::SuturingNeedle::getNeedlePoints (vector<btVector3> & needlePoints) {
+void CustomScene::SuturingNeedle::getNeedlePoints (vector<btVector3> & needlePoints, float scale) {
 
 	needlePoints.clear();
 	unsigned int num_points = 30;
@@ -143,18 +143,14 @@ void CustomScene::SuturingNeedle::getNeedlePoints (vector<btVector3> & needlePoi
 	float ang_diff = 2*s_end_angle;
 
 	for (int i = 0; i < num_points; ++i)
-		needlePoints.push_back(rotateByAngle (tfm, -s_end_angle + (float) i/(num_points - 1)*ang_diff, s_needle_radius).getOrigin());
+		needlePoints.push_back(rotateByAngle (tfm, -s_end_angle + (float) i/(num_points - 1)*ang_diff, s_needle_radius).getOrigin()*scale);
 }
 
-void CustomScene::SuturingNeedle::getRopePoints (bool nodes, vector<btVector3> & ropePoints) {
-
-	ropePoints.clear();
-
+void CustomScene::SuturingNeedle::getRopePoints (bool nodes, vector<btVector3> & ropePoints, float scale) {
 	if (nodes) ropePoints = ropePtr->getNodes();
 	else ropePoints = ropePtr->getControlPoints();
 
-	for (int i = 0; i < ropePoints.size(); ++i)
-		ropePoints[i] = ropePoints[i]/METERS;
+	for (int i = 0; i < ropePoints.size(); ++i) ropePoints[i]  = ropePoints[i]*scale;
 }
 
 
@@ -179,7 +175,7 @@ void CustomScene::moveEndEffector(char dir, bool world, char lr, float step) {
 }
 
 
-void CustomScene::getBoxPoints(vector<btVector3> & boxPoints) {
+void CustomScene::getBoxPoints(vector<btVector3> & boxPoints, float scale) {
 	boxPoints.clear();
 
 
@@ -194,12 +190,16 @@ void CustomScene::getBoxPoints(vector<btVector3> & boxPoints) {
 	for (int i = 0; i < bcm; ++i) indices2[i] = make_pair(bcn-1,i);
 	cloth2->getBoxClothPoints(indices2, boxPoints);
 
+	for (int i = 0; i < boxPoints.size(); ++i) boxPoints[i]  = boxPoints[i]*scale;
+
 }
 
-void CustomScene::getBoxHoles(vector<btVector3> & boxHoles) {
+void CustomScene::getBoxHoles(vector<btVector3> & boxHoles, float scale) {
 	boxHoles.clear();
 	cloth1->getBoxClothHoles(boxHoles);
 	cloth2->getBoxClothHoles(boxHoles);
+
+	for (int i = 0; i < boxHoles.size(); ++i) boxHoles[i]  = boxHoles[i]*scale;
 }
 
 
@@ -212,29 +212,29 @@ void CustomScene::recordPoints () {
 	message << "section";
 
 	vector<btVector3> ropePoints;
-	sNeedle->getRopePoints(true, ropePoints);
+	sNeedle->getRopePoints(true, ropePoints, 1.0/METERS);
 	message << "\nrope ";
 	for (int i = 0; i < ropePoints.size(); ++i)
 		message << ropePoints[i].x() << " " << ropePoints[i].y() << " " << ropePoints[i].z() << " | ";
 
 
 	vector<btVector3> needlePoints;
-	sNeedle->getNeedlePoints(needlePoints);
+	sNeedle->getNeedlePoints(needlePoints, 1.0/METERS);
 	message << "\nneedle ";
 	for (int i = 0; i < needlePoints.size(); ++i)
 		message << needlePoints[i].x() << " " << needlePoints[i].y() << " " << needlePoints[i].z() << " | ";
 
 
 	vector<btVector3> boxPoints;
-	getBoxPoints(boxPoints);
+	getBoxPoints(boxPoints, 1.0/METERS);
 	message << "\nbox ";
 	for (int i = 0; i < boxPoints.size(); ++i)
 		message << boxPoints[i].x() << " " << boxPoints[i].y() << " " << boxPoints[i].z() << " | ";
 
 
 	vector<btVector3> boxHoles;
-	getBoxHoles(boxHoles);
-	message << "\nholes ";
+	getBoxHoles(boxHoles, 1.0/METERS);
+	message << "\nhole ";
 	for (int i = 0; i < boxHoles.size(); ++i)
 		message << boxHoles[i].x() << " " << boxHoles[i].y() << " " << boxHoles[i].z() << " | ";
 
@@ -273,8 +273,8 @@ void CustomScene::run() {
 	ravens.ravens->ignoreCollisionWith(sNeedle->s_needle->getChildren()[0]->rigidBody.get());
 	ravens.ravens->ignoreCollisionWith(table->rigidBody.get());
 
-	//env->add(sNeedle->s_needle);
-	//rave->env->Add(sNeedle->s_needle->body);
+	env->add(sNeedle->s_needle);
+	rave->env->Add(sNeedle->s_needle->body);
 
 	// add a cloth
 	vector<unsigned int> hole_x, hole_y;
@@ -465,6 +465,12 @@ void CustomScene::plotAllPoints(bool remove) {
 
 	std::vector<btVector3> plotpoints(needlePoints.size() + ropePoints.size() + boxPoints.size() + boxHoles.size());
 	std::vector<btVector4> color(needlePoints.size() + ropePoints.size() + boxPoints.size() + boxHoles.size());
+
+	cout<<"Size of ropePoints: "<<ropePoints.size()<<endl;
+	cout<<"Size of needlePoints: "<<needlePoints.size()<<endl;
+	cout<<"Size of boxPoints: "<<boxPoints.size()<<endl;
+	cout<<"Size of boxHoles: "<<boxHoles.size()<<endl;
+	cout<<"Size of plotPoints: "<<plotpoints.size()<<endl;
 
 
 	if (!remove) {

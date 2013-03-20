@@ -80,8 +80,8 @@ public:
 		btTransform getNeedleHandleTransform ();
 		btTransform getNeedleCenterTransform ();
 
-		void getNeedlePoints (vector<btVector3> & needlePoints);
-		void getRopePoints (bool nodes, vector<btVector3> & ropePoints);
+		void getNeedlePoints (vector<btVector3> & needlePoints, float scale=1.0);
+		void getRopePoints (bool nodes, vector<btVector3> & ropePoints, float scale=1.0);
 
 		void setGraspingTransformCallback ();
 		void setConnectedRopeTransformCallback();
@@ -179,9 +179,9 @@ public:
 
 
 	/** Gets points along edge. */
-	void getBoxPoints(vector<btVector3> & boxPoints);
+	void getBoxPoints(vector<btVector3> & boxPoints, float scale=1.0);
 	/** Gets points of holes. */
-	void getBoxHoles(vector<btVector3> & boxHoles);
+	void getBoxHoles(vector<btVector3> & boxHoles, float scale=1.0);
 	/** Stores the points of the rope into current recording file.
 	 *  Stores either nodes or control points.
 	 *  */
