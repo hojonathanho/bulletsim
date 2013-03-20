@@ -100,12 +100,12 @@ vector<float> vectorFromNumpy(const py::object &py_vec) {
 }
 
 /** Converts a vector of btMatrix3x3 to a 3D numpy array.*/
-py::object rotationsToNumpy(vector<btMatrix3x3>& rots) {
+py::object rotationsToNumpy(const vector<btMatrix3x3>& rots) {
 	int n = rots.size();
 	py::object out = NP.attr("zeros")(py::make_tuple(n, 3, 3));
 
 	for (int i=0; i < n; i++) {
-		btMatrix3x3 & mat = rots[i];
+		const btMatrix3x3 & mat = rots[i];
 		for (int j=0; j < 3; j+= 1) {
 			for (int k=0; k <3; k+=1) {
 				out[i][j][k] = mat[j][k];
@@ -118,7 +118,7 @@ py::object rotationsToNumpy(vector<btMatrix3x3>& rots) {
 
 /** Reverse of rotationsToNumpy. Converts a 3D numpy array into a vector of btMatrix3x3.
  *  Assumes that there the dimensions are nx3x3. */
-vector<btMatrix3x3> rotationsFromNumpy(py::object &py_rots) {
+vector<btMatrix3x3> rotationsFromNumpy(const py::object &py_rots) {
 	int n = ii(py_rots.attr("__len__")());
 	vector<btMatrix3x3> out_rots(n);
 

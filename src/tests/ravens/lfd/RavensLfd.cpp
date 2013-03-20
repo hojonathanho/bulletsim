@@ -258,7 +258,7 @@ bool warpRavenJoints(Ravens &ravens,
 		const vector<btVector3> &src_pts, const vector<btVector3> &target_pts,
 		const vector< vector<dReal> >& in_joints, vector< vector<dReal> > & out_joints) {
 	RavensLfdRpm lfdrpm(ravens, src_pts, target_pts);
-	//	/return lfdrpm.transformJoints(in_joints, out_joints);
+	// return lfdrpm.transformJoints(in_joints, out_joints);
 	return lfdrpm.transformJointsTrajOpt(in_joints, out_joints);
 }
 

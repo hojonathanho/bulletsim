@@ -1,7 +1,6 @@
 /** Wrapper for calling John's learning from demonstrations python functions using boost python.*/
 
 #include "LfdRpmWrapper.h"
-#include "utils_python.cpp"
 
 /** Wraps around lfd rpm module. */
 RegistrationModule::RegistrationModule(vector<btVector3> src_pts, vector<btVector3> target_pts,
