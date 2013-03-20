@@ -10,11 +10,15 @@ RegistrationModule::RegistrationModule(vector<btVector3> src_pts, vector<btVecto
 
 	tps_rpm_func = PyGlobals::lfd_registration_module.attr("tps_rpm");
 
-	py::object srcPts    = pointsToNumpy(src_pts);
-	py::object targetPts = pointsToNumpy(target_pts);
+	py::object py_src_pts    = pointsToNumpy(src_pts);
+	py::object py_target_pts = pointsToNumpy(target_pts);
 
-	registration_module  = tps_rpm_func(srcPts, targetPts, n_iter,
-	                            		reg_init, reg_final, rad_init, rad_final);
+	try {
+		registration_module  = tps_rpm_func(py_src_pts, py_target_pts, n_iter,
+											reg_init, reg_final, rad_init, rad_final);
+	} catch (...) {
+		PyErr_Print();
+	}
 }
 
 /** Transform a btVector using tps.
