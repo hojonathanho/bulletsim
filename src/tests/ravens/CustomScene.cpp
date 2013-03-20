@@ -148,6 +148,8 @@ void CustomScene::SuturingNeedle::getNeedlePoints (vector<btVector3> & needlePoi
 
 void CustomScene::SuturingNeedle::getRopePoints (bool nodes, vector<btVector3> & ropePoints) {
 
+	ropePoints.clear();
+
 	if (nodes) ropePoints = ropePtr->getNodes();
 	else ropePoints = ropePtr->getControlPoints();
 

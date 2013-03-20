@@ -368,8 +368,8 @@ BoxCloth::BoxCloth(unsigned int n_, unsigned int m_, vector<unsigned int> hole_i
 void BoxCloth::getBoxClothPoints(vector< pair<int, int> > indices, vector<btVector3> & boxPoints) {
 
 	for (unsigned int i=0; i < indices.size(); ++i) {
-		if (getSerializedIndex(indices[i].first+1,indices[i].second) >= 0 &&
-				getSerializedIndex(indices[i].first+1,indices[i].second) < n*m &&
+		if (getSerializedIndex(indices[i].first,indices[i].second) >= 0 &&
+				getSerializedIndex(indices[i].first,indices[i].second) < n*m &&
 				!isHole(indices[i].first,indices[i].second)) {
 
 			unsigned int curr = grid_to_obj_inds[indices[i]];
