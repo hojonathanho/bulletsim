@@ -379,6 +379,11 @@ void CustomScene::plotNeedle (bool remove) {
 		plotpoints.push_back(sNeedle->getNeedleHandleTransform().getOrigin());
 		color.push_back(btVector4(1,1,0,1));
 
+		// Middle of grippers
+		plotpoints.push_back(ravens.manipL->getTransform().getOrigin());
+		color.push_back(btVector4(1,1,1,1));
+		plotpoints.push_back(ravens.manipR->getTransform().getOrigin());
+		color.push_back(btVector4(1,1,1,1));
 	}
 	else {
 		plotpoints.push_back(btVector3(0,0,0));
