@@ -2,7 +2,7 @@
 #include "CustomKeyHandler.h"
 
 
-/** Rotates a transform TFM by AND, around the point along
+/** Rotates a transform TFM by ANG, around the point along
  * x-axis of the transform at a distance RAD away.*/
 btTransform rotateByAngle (btTransform &tfm, const float ang, const float rad) {
 	float pi = 3.14159265, r = rad*GeneralConfig::scale;
@@ -41,7 +41,7 @@ CustomScene::SuturingNeedle::SuturingNeedle(CustomScene * _scene, float _rope_ra
 	table_tfm.setOrigin(table_tfm.getOrigin() + METERS*btVector3((float)scene.bcn*scene.bcs + 0.01, 0.05, scene.table->getHalfExtents().z()/METERS + 0.005) );
 	needle_body->SetTransform(util::toRaveTransform(table_tfm, 1.0f/METERS));
 
-	s_needle = RaveObject::Ptr(new RaveObject(scene.rave,needle_body,RAW,false));
+	s_needle = RaveObject::Ptr(new RaveObject(scene.rave,needle_body,RAW,true));
 	vector<BulletObject::Ptr> children = s_needle->getChildren();
 	btVector3 inertia(0,0,0);
 	children[0]->rigidBody->getCollisionShape()->calculateLocalInertia(s_needle_mass,inertia);
@@ -390,6 +390,9 @@ void CustomScene::plotNeedle (bool remove) {
 		color.push_back(btVector4(1,1,1,1));
 		plotpoints.push_back(ravens.manipR->getTransform().getOrigin()+ravens.manipR->getTransform().getBasis().getColumn(2)*-0.003*METERS);
 		color.push_back(btVector4(1,1,1,1));
+
+		util::drawAxes(sNeedle->getNeedleHandleTransform(), 0.2*METERS, env);
+		util::drawAxes(sNeedle->s_needle->getIndexTransform(0), 0.2*METERS, env);
 	}
 	else {
 		plotpoints.push_back(btVector3(0,0,0));

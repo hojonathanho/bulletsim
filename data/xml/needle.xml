@@ -1,1 +1,215 @@
-<KinBody name="needle" file="sneedle.dae"/>
+<!--Needle-->
+<KinBody name="needle">
+
+  <Body name="needle" type="dynamic">
+
+    <!--Mass-->
+    <Mass type="mimicgeom">
+      <density>1000</density>
+    </Mass>
+
+    <!--Spheres-->
+    <Geom type="sphere">
+      <Translation>0.0112 0.0112 0.0</Translation>
+      <Radius>0.000703716754404</Radius>
+    </Geom>
+    <Geom type="sphere">
+      <Translation>0.0104824135362 0.0111769883988 0.0</Translation>
+      <Radius>0.000703716754404</Radius>
+    </Geom>
+    <Geom type="sphere">
+      <Translation>0.00976777578913 0.0111080481548 0.0</Translation>
+      <Radius>0.000703716754404</Radius>
+    </Geom>
+    <Geom type="sphere">
+      <Translation>0.00905902335854 0.0109934625583 0.0</Translation>
+      <Radius>0.000703716754404</Radius>
+    </Geom>
+    <Geom type="sphere">
+      <Translation>0.00835906866021 0.010833702466 0.0</Translation>
+      <Radius>0.000703716754404</Radius>
+    </Geom>
+    <Geom type="sphere">
+      <Translation>0.00767078795814 0.0106294243665 0.0</Translation>
+      <Radius>0.000703716754404</Radius>
+    </Geom>
+    <Geom type="sphere">
+      <Translation>0.00699700954535 0.0103814676823 0.0</Translation>
+      <Radius>0.000703716754404</Radius>
+    </Geom>
+    <Geom type="sphere">
+      <Translation>0.00634050212188 0.0100908513205 0.0</Translation>
+      <Radius>0.000703716754404</Radius>
+    </Geom>
+    <Geom type="sphere">
+      <Translation>0.00570396341756 0.00975876948618 0.0</Translation>
+      <Radius>0.000703716754404</Radius>
+    </Geom>
+    <Geom type="sphere">
+      <Translation>0.00509000910644 0.00938658677479 0.0</Translation>
+      <Radius>0.000703716754404</Radius>
+    </Geom>
+    <Geom type="sphere">
+      <Translation>0.0045011620585 0.00897583256492 0.0</Translation>
+      <Radius>0.000703716754404</Radius>
+    </Geom>
+    <Geom type="sphere">
+      <Translation>0.00393984197255 0.00852819473373 0.0</Translation>
+      <Radius>0.000703716754404</Radius>
+    </Geom>
+    <Geom type="sphere">
+      <Translation>0.00340835543324 0.00804551272109 0.0</Translation>
+      <Radius>0.000703716754404</Radius>
+    </Geom>
+    <Geom type="sphere">
+      <Translation>0.00290888643276 0.00752976997093 0.0</Translation>
+      <Radius>0.000703716754404</Radius>
+    </Geom>
+    <Geom type="sphere">
+      <Translation>0.00244348739636 0.00698308578082 0.0</Translation>
+      <Radius>0.000703716754404</Radius>
+    </Geom>
+    <Geom type="sphere">
+      <Translation>0.00201407074851 0.00640770659337 0.0</Translation>
+      <Radius>0.000703716754404</Radius>
+    </Geom>
+    <Geom type="sphere">
+      <Translation>0.00162240105434 0.00580599676508 0.0</Translation>
+      <Radius>0.000703716754404</Radius>
+    </Geom>
+    <Geom type="sphere">
+      <Translation>0.00127008776862 0.0051804288507 0.0</Translation>
+      <Radius>0.000703716754404</Radius>
+    </Geom>
+    <Geom type="sphere">
+      <Translation>0.000958578622223 0.00453357344297 0.0</Translation>
+      <Radius>0.000703716754404</Radius>
+    </Geom>
+    <Geom type="sphere">
+      <Translation>0.000689153673043 0.00386808860952 0.0</Translation>
+      <Radius>0.000703716754404</Radius>
+    </Geom>
+    <Geom type="sphere">
+      <Translation>0.000462920045989 0.00318670897027 0.0</Translation>
+      <Radius>0.000703716754404</Radius>
+    </Geom>
+    <Geom type="sphere">
+      <Translation>0.000280807383564 0.00249223446031 0.0</Translation>
+      <Radius>0.000703716754404</Radius>
+    </Geom>
+    <Geom type="sphere">
+      <Translation>0.000143564025758 0.00178751882437 0.0</Translation>
+      <Radius>0.000703716754404</Radius>
+    </Geom>
+    <Geom type="sphere">
+      <Translation>5.1753934969e-05 0.00107545789017 0.0</Translation>
+      <Radius>0.000703716754404</Radius>
+    </Geom>
+    <Geom type="sphere">
+      <Translation>5.7543785523e-06 0.000358977668803 0.0</Translation>
+      <Radius>0.000703716754404</Radius>
+    </Geom>
+    <Geom type="sphere">
+      <Translation>5.7543785523e-06 -0.000358977668803 0.0</Translation>
+      <Radius>0.000703716754404</Radius>
+    </Geom>
+    <Geom type="sphere">
+      <Translation>5.1753934969e-05 -0.00107545789017 0.0</Translation>
+      <Radius>0.000703716754404</Radius>
+    </Geom>
+    <Geom type="sphere">
+      <Translation>0.000143564025758 -0.00178751882437 0.0</Translation>
+      <Radius>0.000703716754404</Radius>
+    </Geom>
+    <Geom type="sphere">
+      <Translation>0.000280807383564 -0.00249223446031 0.0</Translation>
+      <Radius>0.000703716754404</Radius>
+    </Geom>
+    <Geom type="sphere">
+      <Translation>0.000462920045989 -0.00318670897027 0.0</Translation>
+      <Radius>0.000703716754404</Radius>
+    </Geom>
+    <Geom type="sphere">
+      <Translation>0.000689153673043 -0.00386808860952 0.0</Translation>
+      <Radius>0.000703716754404</Radius>
+    </Geom>
+    <Geom type="sphere">
+      <Translation>0.000958578622223 -0.00453357344297 0.0</Translation>
+      <Radius>0.000703716754404</Radius>
+    </Geom>
+    <Geom type="sphere">
+      <Translation>0.00127008776862 -0.0051804288507 0.0</Translation>
+      <Radius>0.000703716754404</Radius>
+    </Geom>
+    <Geom type="sphere">
+      <Translation>0.00162240105434 -0.00580599676508 0.0</Translation>
+      <Radius>0.000703716754404</Radius>
+    </Geom>
+    <Geom type="sphere">
+      <Translation>0.00201407074851 -0.00640770659337 0.0</Translation>
+      <Radius>0.000703716754404</Radius>
+    </Geom>
+    <Geom type="sphere">
+      <Translation>0.00244348739636 -0.00698308578082 0.0</Translation>
+      <Radius>0.000703716754404</Radius>
+    </Geom>
+    <Geom type="sphere">
+      <Translation>0.00290888643276 -0.00752976997093 0.0</Translation>
+      <Radius>0.000703716754404</Radius>
+    </Geom>
+    <Geom type="sphere">
+      <Translation>0.00340835543324 -0.00804551272109 0.0</Translation>
+      <Radius>0.000703716754404</Radius>
+    </Geom>
+    <Geom type="sphere">
+      <Translation>0.00393984197255 -0.00852819473373 0.0</Translation>
+      <Radius>0.000703716754404</Radius>
+    </Geom>
+    <Geom type="sphere">
+      <Translation>0.0045011620585 -0.00897583256492 0.0</Translation>
+      <Radius>0.000703716754404</Radius>
+    </Geom>
+    <Geom type="sphere">
+      <Translation>0.00509000910644 -0.00938658677479 0.0</Translation>
+      <Radius>0.000703716754404</Radius>
+    </Geom>
+    <Geom type="sphere">
+      <Translation>0.00570396341756 -0.00975876948618 0.0</Translation>
+      <Radius>0.000703716754404</Radius>
+    </Geom>
+    <Geom type="sphere">
+      <Translation>0.00634050212188 -0.0100908513205 0.0</Translation>
+      <Radius>0.000703716754404</Radius>
+    </Geom>
+    <Geom type="sphere">
+      <Translation>0.00699700954535 -0.0103814676823 0.0</Translation>
+      <Radius>0.000703716754404</Radius>
+    </Geom>
+    <Geom type="sphere">
+      <Translation>0.00767078795814 -0.0106294243665 0.0</Translation>
+      <Radius>0.000703716754404</Radius>
+    </Geom>
+    <Geom type="sphere">
+      <Translation>0.00835906866021 -0.010833702466 0.0</Translation>
+      <Radius>0.000703716754404</Radius>
+    </Geom>
+    <Geom type="sphere">
+      <Translation>0.00905902335854 -0.0109934625583 0.0</Translation>
+      <Radius>0.000703716754404</Radius>
+    </Geom>
+    <Geom type="sphere">
+      <Translation>0.00976777578913 -0.0111080481548 0.0</Translation>
+      <Radius>0.000703716754404</Radius>
+    </Geom>
+    <Geom type="sphere">
+      <Translation>0.0104824135362 -0.0111769883988 0.0</Translation>
+      <Radius>0.000703716754404</Radius>
+    </Geom>
+    <Geom type="sphere">
+      <Translation>0.0112 -0.0112 0.0</Translation>
+      <Radius>0.000703716754404</Radius>
+    </Geom>
+
+  </Body>
+
+</KinBody>
