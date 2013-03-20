@@ -36,7 +36,6 @@
 #include "lfd/utils_python.h"
 
 //class CustomScene;
-#define NEEDLE_SCALE_FACTOR 0.8*1.5
 
 class CustomScene : public Scene {
 public:
@@ -163,7 +162,8 @@ public:
 		jRecorder.reset (new jointRecorder (*this));
 		jPlayback.reset (new jointPlayback (*this, RavenConfig::enableLfd));
 
-		bcn = 5; bcm = 15; bcs = 0.01; bch = 0.0005;
+		bcn = RavenConfig::bcN; bcm = RavenConfig::bcM;
+		bcs = RavenConfig::bcS; bch = RavenConfig::bcH;
 	}
 
 

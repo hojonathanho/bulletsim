@@ -27,9 +27,9 @@ btTransform rotateByAngle (btTransform &tfm, const float ang, const float rad) {
 
 /** Constructor for suturing needle. Creates needle from file.*/
 CustomScene::SuturingNeedle::SuturingNeedle(CustomScene * _scene, float _rope_radius, float _segment_len, int _nLinks) :
-													scene(*_scene), s_needle_radius(0.0112*NEEDLE_SCALE_FACTOR),
+													scene(*_scene), s_needle_radius(0.01),
 													s_needle_mass(1000), s_pierce_threshold(0.03),
-													s_end_angle(1.4), s_piercing(false), s_grasping_gripper('n'),
+													s_end_angle(1.57), s_piercing(false), s_grasping_gripper('n'),
 													rope_radius(_rope_radius), segment_len(_segment_len), nLinks(_nLinks) {
 
 
@@ -41,11 +41,9 @@ CustomScene::SuturingNeedle::SuturingNeedle(CustomScene * _scene, float _rope_ra
 	table_tfm.setOrigin(table_tfm.getOrigin() + METERS*btVector3((float)scene.bcn*scene.bcs + 0.01, 0.05, scene.table->getHalfExtents().z()/METERS + 0.005) );
 	needle_body->SetTransform(util::toRaveTransform(table_tfm, 1.0f/METERS));
 
-	s_needle = RaveObject::Ptr(new RaveObject(scene.rave,needle_body,RAW,true));
+	s_needle = RaveObject::Ptr(new RaveObject(scene.rave,needle_body,CONVEX_HULL,false));
 	vector<BulletObject::Ptr> children = s_needle->getChildren();
-	btVector3 inertia(0,0,0);
-	children[0]->rigidBody->getCollisionShape()->calculateLocalInertia(s_needle_mass,inertia);
-	children[0]->rigidBody->setMassProps(s_needle_mass,inertia);
+	cout<<"children: "<<children.size()<<endl;
 
 	s_needle->setColor(0.97,0.09,0.266,1.0); // set the needle's color
 	scene.addPreStepCallback(boost::bind(&CustomScene::SuturingNeedle::setGraspingTransformCallback, this));
@@ -346,6 +344,8 @@ void CustomScene::run() {
 	runAction(lAction, dt);
 	rAction->setOpenAction();
 	runAction(rAction, dt);
+
+	ravens.setArmPose("home",'b');
 
 	//setSyncTime(true);
 	startViewer();
