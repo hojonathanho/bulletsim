@@ -62,12 +62,19 @@ btVector3 RavensGrabMonitor::getToolDirection() const {
 	return getManipRot() * btVector3(0,0,1);
 }
 
+/*
+ * Transform at the middle of the gripper.
+ * Origin close to middle of gripper.
+ * z points outward in pointing direction
+ * y points in closing direction of finger
+ * x points out of plane of gripper
+ */
 btTransform RavensGrabMonitor::getInverseFingerTfm (bool left) {
-	btVector3 z = getToolDirection();
+	btVector3 z = -1*getToolDirection();
 	btVector3 y = getClosingDirection(left);
 	btVector3 x = y.cross(z);
 
-	btVector3 o = getInnerPt(left) + z*0.015*METERS;
+	btVector3 o = getInnerPt(left) + z*0.003*METERS;
 
 	btTransform trans;
 
@@ -90,7 +97,7 @@ bool RavensGrabMonitor::onInnerSide(const btVector3 &pt, bool left) {
 	// then the innerPt and the closing direction define the plane
 	btTransform itfm = getInverseFingerTfm (left);
 	btVector3 new_pt = itfm * pt;
-	return (abs(new_pt.x()) < .0025*METERS) && (new_pt.y() > -.001*METERS) && (new_pt.z() < 0.005*METERS);
+	return ((abs(new_pt.x()) < .0025*METERS) && (new_pt.y() > -.001*METERS) && (abs(new_pt.z()) < 0.005*METERS));
 }
 
 
@@ -117,6 +124,8 @@ bool RavensGrabMonitor::checkContacts(bool left, btRigidBody *target, double &av
 
 			btManifoldPoint& pt = contactManifold->getContactPoint(j);
 			btScalar impulse    = pt.getAppliedImpulse();
+
+			//if (impulse > 100000) return true;
 
 			cout <<" Found contacts with impulse "<<(float) impulse<<"."<<endl;
 
@@ -188,8 +197,14 @@ void RavensGrabMonitor::grab(bool grabN, float threshold) {
 		bool l_contact = false;
 		for (int j=0; j < m_bodies[i]->children.size(); j+=1) {// for each bullet object in the compound object
 
-			if (grabN && m_bodies[i]->objectType() == "RaveObject") {
-				btVector3 eePose = manip->getTransform().getOrigin();
+
+			if (grabN && (s.sNeedle->s_needle->children[0]->isKinematic || s.sNeedle->s_needle_mass == 0)
+					&& m_bodies[i]->objectType() == "RaveObject") {
+				// To get to the center of the gripper
+				btTransform gpTfm = manip->getTransform();
+				btVector3 offset = gpTfm.getBasis().getColumn(2)*-0.003*METERS;
+
+				btVector3 eePose = manip->getTransform().getOrigin() + offset;
 				if (s.sNeedle->pointCloseToNeedle(eePose)) {
 					grabNeedle();
 					cout<<"Grabbed needle!"<<endl;
@@ -221,15 +236,23 @@ void RavensGrabMonitor::grab(bool grabN, float threshold) {
 }
 
 
-
+// Reorients and grabs needle
 void RavensGrabMonitor::grabNeedle () {
 	s.sNeedle->s_grasping_gripper = gripper;
 	s.sNeedle->s_gripperManip = manip;
 
+	btTransform gpTfm = manip->getTransform();
+	btVector3 offset = gpTfm.getBasis().getColumn(2)*-0.003*METERS;
+	btVector3 eePose = manip->getTransform().getOrigin() + offset;
+
+
+
+	// Fix needle tfm
 	btTransform wFee = manip->getTransform(), wFn = s.sNeedle->s_needle->getIndexTransform(0);
 	btTransform eeFn = wFee.inverse()*wFn;
 	s.sNeedle->s_grasp_tfm = eeFn;
 
+	// grab needle for openrave - not sure if this is useful
 	vector<KinBody::LinkPtr> links;
 	manip->manip->GetChildLinks(links);
 	s.ravens.ravens->robot->Release(s.sNeedle->s_needle->body);
@@ -245,7 +268,10 @@ void RavensGrabMonitor::release() {
 		s.sNeedle->s_grasping_gripper = 'n';
 		btTransform current = s.sNeedle->s_needle->getIndexTransform(0);
 		current.getOrigin().setZ(s.table->getIndexTransform(0).getOrigin().z()+s.table->getHalfExtents().z() + 0.005*METERS);
-		s.sNeedle->s_needle->getChildren()[0]->motionState->setKinematicPos(current);
+		if (s.sNeedle->s_needle->children[0]->isKinematic)
+			s.sNeedle->s_needle->getChildren()[0]->motionState->setKinematicPos(current);
+		else if (s.sNeedle->s_needle_mass == 0)
+			s.sNeedle->s_needle->getChildren()[0]->motionState->setWorldTransform(current);
 		s.ravens.ravens->robot->Release(s.sNeedle->s_needle->body);
 	}
 }
