@@ -259,8 +259,8 @@ void Ravens::initHaptics() {
 
     lEngaged = false;
     rEngaged = false;
-    setHapticCb(hapticRightBoth,  boost::bind(&Ravens::toggleRightEngaged, this));
-    setHapticCb(hapticLeftBoth, boost::bind(&Ravens::toggleLeftEngaged, this));
+    setHapticCb(hapticRight0Down,  boost::bind(&Ravens::toggleRightEngaged, this));
+    setHapticCb(hapticLeft0Down, boost::bind(&Ravens::toggleLeftEngaged, this));
 
     setHapticCb(hapticRight1Down,  boost::bind(&Ravens::runRightGripperAction, this));
     setHapticCb(hapticLeft1Down,   boost::bind(&Ravens::runLeftGripperAction, this));
