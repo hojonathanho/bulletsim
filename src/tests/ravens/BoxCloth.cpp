@@ -114,19 +114,22 @@ createBendConstraint2(btScalar side_len, bool isX,
 	return holder;
 }
  */
-vector<boost::shared_ptr<btGeneric6DofSpringConstraint> >
+vector<boost::shared_ptr<btPoint2PointConstraint> >
 createBendConstraint(  btScalar side_len,
 		vector< boost::shared_ptr<btRigidBody> > & rbA,
 		vector< boost::shared_ptr<btRigidBody> > & rbB,
 		vector<btVector3> & offsetA,
-		vector<btVector3> & offsetB,
-		float damping, float stiffness, float limit) {
+		vector<btVector3> & offsetB) {
 
-	boost::shared_ptr<btGeneric6DofSpringConstraint> springPtr1;
-	boost::shared_ptr<btGeneric6DofSpringConstraint> springPtr2;
-	vector<boost::shared_ptr<btGeneric6DofSpringConstraint> > holder;
-	holder.push_back(springPtr1);
-	holder.push_back(springPtr2);
+
+	//boost::shared_ptr<btPoint2PointConstraint> jointPtr(new btPoint2PointConstraint(*children[i-1]->rigidBody,*children[i]->rigidBody,btVector3(len/2,0,0),btVector3(-len/2,0,0)));
+	//jointPtr->setParam(BT_CONSTRAINT_STOP_ERP, linStopErp_);
+	//jointPtr->setBreakingImpulseThreshold(10.2); /// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< added as per the demos
+	boost::shared_ptr<btPoint2PointConstraint> p2pPtr1;
+	boost::shared_ptr<btPoint2PointConstraint> p2pPtr2;
+	vector<boost::shared_ptr<btPoint2PointConstraint> > holder;
+	holder.push_back(p2pPtr1);
+	holder.push_back(p2pPtr2);
 
 	for (int k=0; k<2; k++) {
 		btTransform tA,tB;
@@ -134,14 +137,11 @@ createBendConstraint(  btScalar side_len,
 		tA.setOrigin(offsetA[k]);
 		tB.setOrigin(offsetB[k]);
 
-		holder[k].reset(new btGeneric6DofSpringConstraint(*rbA[k],*rbB[k],tA,tB,true));
+		holder[k].reset(new btPoint2PointConstraint(*rbA[k],*rbB[k], offsetA[k], offsetB[k]));
 		for (int i=0; i<=5; i++) {
-			holder[k]->enableSpring(i,true);
-			holder[k]->setStiffness(i,0);
-			holder[k]->setDamping(i,0);
+			holder[k]->setParam(BT_CONSTRAINT_STOP_ERP, 0.2);
+			holder[k]->setBreakingImpulseThreshold(100000000);
 		}
-		holder[k]->setEquilibriumPoint();
-
 	}
 	return holder;
 }
@@ -162,57 +162,57 @@ unsigned int BoxCloth::getSerializedIndex(unsigned int i, unsigned int j) {
 // Assuming no hole is a corner.
 void BoxCloth::makeHole(btTransform &tfm){
 	// Create the 4 box objects
-	btVector3 halfExtents1(s/6, s/6, h/2);
-	btScalar  mass1 = 100.0;
+	btVector3 halfExtents1(s/6, s/2, h/2);
+	btScalar  mass1 = 250.0;
 	btVector3 halfExtents2(s/2, s/6, h/2);
-	btScalar  mass2 = 300.0;
+	btScalar  mass2 = 250.0;
 
 	unsigned int size = children.size();
 
 	btTransform tfm1(tfm);
-	tfm1.getOrigin() += s/3*tfm1.getBasis().getColumn(0);
+	tfm1.getOrigin() += s/3*tfm1.getBasis().getColumn(0);// - h/4*tfm1.getBasis().getColumn(2);
 	addChild (mass1, halfExtents1, tfm1);
 
 	btTransform tfm2(tfm);
-	tfm2.getOrigin() -= s/3*tfm2.getBasis().getColumn(0);
+	tfm2.getOrigin() -= s/3*tfm2.getBasis().getColumn(0);// - h/4*tfm1.getBasis().getColumn(2);
 	addChild (mass1, halfExtents1, tfm2);
 
 	btTransform tfm3(tfm);
-	tfm3.getOrigin() += s/3*tfm3.getBasis().getColumn(1);
+	tfm3.getOrigin() += s/3*tfm3.getBasis().getColumn(1);// + h/4*tfm1.getBasis().getColumn(2);
 	addChild (mass2, halfExtents2, tfm3);
 
 	btTransform tfm4(tfm);
-	tfm4.getOrigin() -= s/3*tfm4.getBasis().getColumn(1);
+	tfm4.getOrigin() -= s/3*tfm4.getBasis().getColumn(1);// + h/4*tfm1.getBasis().getColumn(2);
 	addChild (mass2, halfExtents2, tfm4);
 
 	// Adding constraints
 	vector<btVector3> offsetA, offsetB;
 
-	offsetA.push_back(btVector3(s/12,s/6,0));
-	offsetA.push_back(btVector3(-s/12,s/6,0));
-	offsetB.push_back(btVector3(5*s/12,-s/6,0));
-	offsetB.push_back(btVector3(3*s/12,-s/6,0));
+	offsetA.push_back(btVector3(-s/12,s/3+s/12,0));
+	offsetA.push_back(btVector3(s/12,s/3-s/12,0));
+	offsetB.push_back(btVector3(s/3-s/12,s/12,0));
+	offsetB.push_back(btVector3(s/3+s/12,-s/12,0));
 	addHoleConstraint(offsetA, offsetB, children[size]->rigidBody, children[size+2]->rigidBody);
 
 	offsetA.clear(); offsetB.clear();
-	offsetA.push_back(btVector3(s/12,-s/6,0));
-	offsetA.push_back(btVector3(-s/12,-s/6,0));
-	offsetB.push_back(btVector3(5*s/12,s/6,0));
-	offsetB.push_back(btVector3(3*s/12,s/6,0));
+	offsetA.push_back(btVector3(-s/12,-s/3-s/12,0));
+	offsetA.push_back(btVector3(s/12,-s/3+s/12,0));
+	offsetB.push_back(btVector3(s/3-s/12,-s/12,0));
+	offsetB.push_back(btVector3(s/3+s/12,s/12,0));
 	addHoleConstraint(offsetA, offsetB, children[size]->rigidBody, children[size+3]->rigidBody);
 
 	offsetA.clear(); offsetB.clear();
-	offsetA.push_back(btVector3(s/12,s/6,0));
-	offsetA.push_back(btVector3(-s/12,s/6,0));
-	offsetB.push_back(btVector3(-3*s/12,-s/6,0));
-	offsetB.push_back(btVector3(-5*s/12,-s/6,0));
+	offsetA.push_back(btVector3(s/12,s/3+s/12,0));
+	offsetA.push_back(btVector3(-s/12,s/3-s/12,0));
+	offsetB.push_back(btVector3(-s/3+s/12,s/12,0));
+	offsetB.push_back(btVector3(-s/3-s/12,-s/12,0));
 	addHoleConstraint(offsetA, offsetB, children[size+1]->rigidBody, children[size+2]->rigidBody);
 
 	offsetA.clear(); offsetB.clear();
-	offsetA.push_back(btVector3(s/12,-s/6,0));
-	offsetA.push_back(btVector3(-s/12,-s/6,0));
-	offsetB.push_back(btVector3(-3*s/12,s/6,0));
-	offsetB.push_back(btVector3(-5*s/12,s/6,0));
+	offsetA.push_back(btVector3(-s/12,-s/3+s/12,0));
+	offsetA.push_back(btVector3(s/12,-s/3-s/12,0));
+	offsetB.push_back(btVector3(-s/3-s/12,s/12,0));
+	offsetB.push_back(btVector3(-s/3+s/12,-s/12,0));
 	addHoleConstraint(offsetA, offsetB, children[size+1]->rigidBody, children[size+3]->rigidBody);
 }
 
@@ -308,7 +308,7 @@ BoxCloth::BoxCloth(unsigned int n_, unsigned int m_, vector<unsigned int> hole_i
 
 			if (getSerializedIndex(i+1,j) >= 0 && getSerializedIndex(i+1,j) < n*m) {
 
-				vector<boost::shared_ptr<btGeneric6DofSpringConstraint> > springPtrs;
+				vector<boost::shared_ptr<btPoint2PointConstraint> > springPtrs;
 				vector< boost::shared_ptr<btRigidBody> > rbA, rbB;
 				vector<btVector3> offsetA, offsetB;
 
@@ -328,14 +328,14 @@ BoxCloth::BoxCloth(unsigned int n_, unsigned int m_, vector<unsigned int> hole_i
 					offsetB.push_back(btVector3 (-s/2,s/2.01-s/3,0)); offsetB.push_back(btVector3 (-s/2,-s/2.01+s/3,0));
 				}
 
-				springPtrs = createBendConstraint(s, rbA, rbB, offsetA, offsetB, angDamping, angStiffness, angLimit);
+				springPtrs = createBendConstraint(s, rbA, rbB, offsetA, offsetB);
 				for(int k=0; k < springPtrs.size(); k+=1)
 					joints.push_back(BulletConstraint::Ptr(new BulletConstraint(springPtrs[k], true)));
 			}
 
 			if (getSerializedIndex(i,j+1) >= 0 && getSerializedIndex(i,j+1) < n*m && j < m-1)  {
 
-				vector<boost::shared_ptr<btGeneric6DofSpringConstraint> > springPtrs;
+				vector<boost::shared_ptr<btPoint2PointConstraint> > springPtrs;
 				vector< boost::shared_ptr<btRigidBody> > rbA, rbB;
 				vector<btVector3> offsetA, offsetB;
 
@@ -355,7 +355,7 @@ BoxCloth::BoxCloth(unsigned int n_, unsigned int m_, vector<unsigned int> hole_i
 					offsetB.push_back(btVector3 (s/2.01,s/6,0)); offsetB.push_back(btVector3 (-s/2.01,s/6,0));
 				}
 
-				springPtrs = createBendConstraint(s, rbA, rbB, offsetA, offsetB, angDamping, angStiffness, angLimit);
+				springPtrs = createBendConstraint(s, rbA, rbB, offsetA, offsetB);
 				for(int k=0; k < springPtrs.size(); k+=1)
 					joints.push_back(BulletConstraint::Ptr(new BulletConstraint(springPtrs[k], true)));
 
