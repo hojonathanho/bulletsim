@@ -61,7 +61,7 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,
 			if (scene.sNeedle->s_needle->getChildren()[0]->isKinematic)
 				scene.sNeedle->s_needle->getChildren()[0]->motionState->setKinematicPos(table_tfm);
 			else
-				scene.sNeedle->s_needle->getChildren()[0]->rigidBody->setCenterOfMassTransform(table_tfm);
+				scene.sNeedle->s_needle->getChildren()[0]->motionState->setWorldTransform(table_tfm);
 			//scene.sNeedle->s_needle->body->SetTransform(util::toRaveTransform(table_tfm, 1.0f/METERS));
 			break;
 		}
