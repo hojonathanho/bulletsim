@@ -21,28 +21,15 @@ def rotateByAngle (tfm, ang, r):
 
     return wTOee.dot(T.dot(initT))
 
-def plotTfm():
-    angles = np.linspace(-np.pi/2, np.pi/2, 20)
-    tfm = np.eye(4)
-    #env.plot3(np.array([[0,0,0]]), 2)
-    env.plot3(tfm[0:3,3], 10, [1,1,1])
-
-    for ang in angles:
-        tfm2 = rotateByAngle(tfm, ang, 0.1)
-        h = env.plot3(tfm2[0:3,3], 10, [1,0,0])
-        handles.append(h)
-        print tfm2[0:3,3]
-        print "tfm"
-
 if __name__=="__main__":
 
-    num_sphere = 50
+    num_box = 50
     needle_rad = 0.0112
 
     if len(sys.argv) > 1:
         try: 
-            num_sphere = int(sys.argv[1])
-            print "Number of spheres: ", num_sphere
+            num_box = int(sys.argv[1])
+            print "Number of boxes: ", num_box
         except:
             pass
     if len(sys.argv) > 2:
@@ -66,17 +53,21 @@ if __name__=="__main__":
     fo.write("    <!--Mass-->\n")
     fo.write("    <Mass type=\"mimicgeom\">\n      <density>1000</density>\n    </Mass>\n\n")
 
-    fo.write("    <!--Spheres-->\n")
-    sphere_rad = needle_rad*np.pi/(num_sphere)
-    angles = np.linspace(-np.pi/2, np.pi/2, num_sphere)
+    fo.write("    <!--Boxes-->\n")
+    box_len = needle_rad*np.pi/(num_box)
+    angles = np.linspace(-np.pi/2, np.pi/2, num_box)
+    he = [box_len/2, box_len, box_len/2]
     for ang in angles:
         tfm = rotateByAngle(np.eye(4), ang, needle_rad)
         c = tfm[0:3,3]
-        fo.write("    <Geom type=\"sphere\">\n")
+        fo.write("    <Geom type=\"box\">\n")
+        fo.write("      <Extents>"+str(he[0])+" "+str(he[1])+" "+str(he[2])+"</Extents>\n")        
         fo.write("      <Translation>"+str(c[0])+" "+str(c[1])+" "+str(c[2])+"</Translation>\n")
-        fo.write("      <Radius>"+str(sphere_rad)+"</Radius>\n")
-        fo.write("    </Geom>\n")
-        
+        fo.write("      <RotationMat>"+str(tfm[0,0])+" "+str(tfm[0,1])+" "+str(tfm[0,2])+" "\
+                                      +str(tfm[1,0])+" "+str(tfm[1,1])+" "+str(tfm[1,2])+" "\
+                                      +str(tfm[2,0])+" "+str(tfm[2,1])+" "+str(tfm[2,2])+" "+"</RotationMat>\n")
+        fo.write("    </Geom>\n")   
+    
     fo.write("\n  </Body>\n\n")
 
     fo.write("</KinBody>")

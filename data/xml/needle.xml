@@ -8,206 +8,156 @@
       <density>1000</density>
     </Mass>
 
-    <!--Spheres-->
-    <Geom type="sphere">
-      <Translation>0.0112 0.0112 0.0</Translation>
-      <Radius>0.000703716754404</Radius>
+    <!--Boxes-->
+    <Geom type="box">
+      <Extents>0.000523598775598 0.0010471975512 0.000523598775598</Extents>
+      <Translation>0.01 0.01 0.0</Translation>
+      <RotationMat>6.12323399574e-17 1.0 0.0 -1.0 6.12323399574e-17 0.0 0.0 0.0 1.0 </RotationMat>
     </Geom>
-    <Geom type="sphere">
-      <Translation>0.0104824135362 0.0111769883988 0.0</Translation>
-      <Radius>0.000703716754404</Radius>
+    <Geom type="box">
+      <Extents>0.000523598775598 0.0010471975512 0.000523598775598</Extents>
+      <Translation>0.00891880981576 0.00994137957154 0.0</Translation>
+      <RotationMat>0.108119018424 0.994137957154 0.0 -0.994137957154 0.108119018424 0.0 0.0 0.0 1.0 </RotationMat>
     </Geom>
-    <Geom type="sphere">
-      <Translation>0.00976777578913 0.0111080481548 0.0</Translation>
-      <Radius>0.000703716754404</Radius>
+    <Geom type="box">
+      <Extents>0.000523598775598 0.0010471975512 0.000523598775598</Extents>
+      <Translation>0.00785029559789 0.0097662055571 0.0</Translation>
+      <RotationMat>0.214970440211 0.97662055571 0.0 -0.97662055571 0.214970440211 0.0 0.0 0.0 1.0 </RotationMat>
     </Geom>
-    <Geom type="sphere">
-      <Translation>0.00905902335854 0.0109934625583 0.0</Translation>
-      <Radius>0.000703716754404</Radius>
+    <Geom type="box">
+      <Extents>0.000523598775598 0.0010471975512 0.000523598775598</Extents>
+      <Translation>0.00680698469864 0.00947653171183 0.0</Translation>
+      <RotationMat>0.319301530136 0.947653171183 0.0 -0.947653171183 0.319301530136 0.0 0.0 0.0 1.0 </RotationMat>
     </Geom>
-    <Geom type="sphere">
-      <Translation>0.00835906866021 0.010833702466 0.0</Translation>
-      <Radius>0.000703716754404</Radius>
+    <Geom type="box">
+      <Extents>0.000523598775598 0.0010471975512 0.000523598775598</Extents>
+      <Translation>0.0058011089844 0.00907575419671 0.0</Translation>
+      <RotationMat>0.41988910156 0.907575419671 0.0 -0.907575419671 0.41988910156 0.0 0.0 0.0 1.0 </RotationMat>
     </Geom>
-    <Geom type="sphere">
-      <Translation>0.00767078795814 0.0106294243665 0.0</Translation>
-      <Radius>0.000703716754404</Radius>
+    <Geom type="box">
+      <Extents>0.000523598775598 0.0010471975512 0.000523598775598</Extents>
+      <Translation>0.00484446142823 0.00856857176168 0.0</Translation>
+      <RotationMat>0.515553857177 0.856857176168 0.0 -0.856857176168 0.515553857177 0.0 0.0 0.0 1.0 </RotationMat>
     </Geom>
-    <Geom type="sphere">
-      <Translation>0.00699700954535 0.0103814676823 0.0</Translation>
-      <Radius>0.000703716754404</Radius>
+    <Geom type="box">
+      <Extents>0.000523598775598 0.0010471975512 0.000523598775598</Extents>
+      <Translation>0.00394825784806 0.00796093065706 0.0</Translation>
+      <RotationMat>0.605174215194 0.796093065706 0.0 -0.796093065706 0.605174215194 0.0 0.0 0.0 1.0 </RotationMat>
     </Geom>
-    <Geom type="sphere">
-      <Translation>0.00634050212188 0.0100908513205 0.0</Translation>
-      <Radius>0.000703716754404</Radius>
+    <Geom type="box">
+      <Extents>0.000523598775598 0.0010471975512 0.000523598775598</Extents>
+      <Translation>0.00312300541147 0.00725995491923 0.0</Translation>
+      <RotationMat>0.687699458853 0.725995491923 0.0 -0.725995491923 0.687699458853 0.0 0.0 0.0 1.0 </RotationMat>
     </Geom>
-    <Geom type="sphere">
-      <Translation>0.00570396341756 0.00975876948618 0.0</Translation>
-      <Radius>0.000703716754404</Radius>
+    <Geom type="box">
+      <Extents>0.000523598775598 0.0010471975512 0.000523598775598</Extents>
+      <Translation>0.00237837944872 0.00647386284782 0.0</Translation>
+      <RotationMat>0.762162055128 0.647386284782 0.0 -0.647386284782 0.762162055128 0.0 0.0 0.0 1.0 </RotationMat>
     </Geom>
-    <Geom type="sphere">
-      <Translation>0.00509000910644 0.00938658677479 0.0</Translation>
-      <Radius>0.000703716754404</Radius>
+    <Geom type="box">
+      <Extents>0.000523598775598 0.0010471975512 0.000523598775598</Extents>
+      <Translation>0.00172311001843 0.00561187065362 0.0</Translation>
+      <RotationMat>0.827688998157 0.561187065362 0.0 -0.561187065362 0.827688998157 0.0 0.0 0.0 1.0 </RotationMat>
     </Geom>
-    <Geom type="sphere">
-      <Translation>0.0045011620585 0.00897583256492 0.0</Translation>
-      <Radius>0.000703716754404</Radius>
+    <Geom type="box">
+      <Extents>0.000523598775598 0.0010471975512 0.000523598775598</Extents>
+      <Translation>0.00116487955554 0.004684084407 0.0</Translation>
+      <RotationMat>0.883512044446 0.4684084407 0.0 -0.4684084407 0.883512044446 0.0 0.0 0.0 1.0 </RotationMat>
     </Geom>
-    <Geom type="sphere">
-      <Translation>0.00393984197255 0.00852819473373 0.0</Translation>
-      <Radius>0.000703716754404</Radius>
+    <Geom type="box">
+      <Extents>0.000523598775598 0.0010471975512 0.000523598775598</Extents>
+      <Translation>0.000710232801832 0.0037013815534 0.0</Translation>
+      <RotationMat>0.928976719817 0.37013815534 0.0 -0.37013815534 0.928976719817 0.0 0.0 0.0 1.0 </RotationMat>
     </Geom>
-    <Geom type="sphere">
-      <Translation>0.00340835543324 0.00804551272109 0.0</Translation>
-      <Radius>0.000703716754404</Radius>
+    <Geom type="box">
+      <Extents>0.000523598775598 0.0010471975512 0.000523598775598</Extents>
+      <Translation>0.000364500074808 0.00267528338529 0.0</Translation>
+      <RotationMat>0.963549992519 0.267528338529 0.0 -0.267528338529 0.963549992519 0.0 0.0 0.0 1.0 </RotationMat>
     </Geom>
-    <Geom type="sphere">
-      <Translation>0.00290888643276 0.00752976997093 0.0</Translation>
-      <Radius>0.000703716754404</Radius>
+    <Geom type="box">
+      <Extents>0.000523598775598 0.0010471975512 0.000523598775598</Extents>
+      <Translation>0.000131734774585 0.00161781996553 0.0</Translation>
+      <RotationMat>0.986826522542 0.161781996553 0.0 -0.161781996553 0.986826522542 0.0 0.0 0.0 1.0 </RotationMat>
     </Geom>
-    <Geom type="sphere">
-      <Translation>0.00244348739636 0.00698308578082 0.0</Translation>
-      <Radius>0.000703716754404</Radius>
+    <Geom type="box">
+      <Extents>0.000523598775598 0.0010471975512 0.000523598775598</Extents>
+      <Translation>1.46658614888e-05 0.000541389085854 0.0</Translation>
+      <RotationMat>0.998533413851 0.0541389085854 0.0 -0.0541389085854 0.998533413851 0.0 0.0 0.0 1.0 </RotationMat>
     </Geom>
-    <Geom type="sphere">
-      <Translation>0.00201407074851 0.00640770659337 0.0</Translation>
-      <Radius>0.000703716754404</Radius>
+    <Geom type="box">
+      <Extents>0.000523598775598 0.0010471975512 0.000523598775598</Extents>
+      <Translation>1.46658614888e-05 -0.000541389085854 0.0</Translation>
+      <RotationMat>0.998533413851 -0.0541389085854 0.0 0.0541389085854 0.998533413851 0.0 0.0 0.0 1.0 </RotationMat>
     </Geom>
-    <Geom type="sphere">
-      <Translation>0.00162240105434 0.00580599676508 0.0</Translation>
-      <Radius>0.000703716754404</Radius>
+    <Geom type="box">
+      <Extents>0.000523598775598 0.0010471975512 0.000523598775598</Extents>
+      <Translation>0.000131734774585 -0.00161781996553 0.0</Translation>
+      <RotationMat>0.986826522542 -0.161781996553 0.0 0.161781996553 0.986826522542 0.0 0.0 0.0 1.0 </RotationMat>
     </Geom>
-    <Geom type="sphere">
-      <Translation>0.00127008776862 0.0051804288507 0.0</Translation>
-      <Radius>0.000703716754404</Radius>
+    <Geom type="box">
+      <Extents>0.000523598775598 0.0010471975512 0.000523598775598</Extents>
+      <Translation>0.000364500074808 -0.00267528338529 0.0</Translation>
+      <RotationMat>0.963549992519 -0.267528338529 0.0 0.267528338529 0.963549992519 0.0 0.0 0.0 1.0 </RotationMat>
     </Geom>
-    <Geom type="sphere">
-      <Translation>0.000958578622223 0.00453357344297 0.0</Translation>
-      <Radius>0.000703716754404</Radius>
+    <Geom type="box">
+      <Extents>0.000523598775598 0.0010471975512 0.000523598775598</Extents>
+      <Translation>0.000710232801832 -0.0037013815534 0.0</Translation>
+      <RotationMat>0.928976719817 -0.37013815534 0.0 0.37013815534 0.928976719817 0.0 0.0 0.0 1.0 </RotationMat>
     </Geom>
-    <Geom type="sphere">
-      <Translation>0.000689153673043 0.00386808860952 0.0</Translation>
-      <Radius>0.000703716754404</Radius>
+    <Geom type="box">
+      <Extents>0.000523598775598 0.0010471975512 0.000523598775598</Extents>
+      <Translation>0.00116487955554 -0.004684084407 0.0</Translation>
+      <RotationMat>0.883512044446 -0.4684084407 0.0 0.4684084407 0.883512044446 0.0 0.0 0.0 1.0 </RotationMat>
     </Geom>
-    <Geom type="sphere">
-      <Translation>0.000462920045989 0.00318670897027 0.0</Translation>
-      <Radius>0.000703716754404</Radius>
+    <Geom type="box">
+      <Extents>0.000523598775598 0.0010471975512 0.000523598775598</Extents>
+      <Translation>0.00172311001843 -0.00561187065362 0.0</Translation>
+      <RotationMat>0.827688998157 -0.561187065362 0.0 0.561187065362 0.827688998157 0.0 0.0 0.0 1.0 </RotationMat>
     </Geom>
-    <Geom type="sphere">
-      <Translation>0.000280807383564 0.00249223446031 0.0</Translation>
-      <Radius>0.000703716754404</Radius>
+    <Geom type="box">
+      <Extents>0.000523598775598 0.0010471975512 0.000523598775598</Extents>
+      <Translation>0.00237837944872 -0.00647386284782 0.0</Translation>
+      <RotationMat>0.762162055128 -0.647386284782 0.0 0.647386284782 0.762162055128 0.0 0.0 0.0 1.0 </RotationMat>
     </Geom>
-    <Geom type="sphere">
-      <Translation>0.000143564025758 0.00178751882437 0.0</Translation>
-      <Radius>0.000703716754404</Radius>
+    <Geom type="box">
+      <Extents>0.000523598775598 0.0010471975512 0.000523598775598</Extents>
+      <Translation>0.00312300541147 -0.00725995491923 0.0</Translation>
+      <RotationMat>0.687699458853 -0.725995491923 0.0 0.725995491923 0.687699458853 0.0 0.0 0.0 1.0 </RotationMat>
     </Geom>
-    <Geom type="sphere">
-      <Translation>5.1753934969e-05 0.00107545789017 0.0</Translation>
-      <Radius>0.000703716754404</Radius>
+    <Geom type="box">
+      <Extents>0.000523598775598 0.0010471975512 0.000523598775598</Extents>
+      <Translation>0.00394825784806 -0.00796093065706 0.0</Translation>
+      <RotationMat>0.605174215194 -0.796093065706 0.0 0.796093065706 0.605174215194 0.0 0.0 0.0 1.0 </RotationMat>
     </Geom>
-    <Geom type="sphere">
-      <Translation>5.7543785523e-06 0.000358977668803 0.0</Translation>
-      <Radius>0.000703716754404</Radius>
+    <Geom type="box">
+      <Extents>0.000523598775598 0.0010471975512 0.000523598775598</Extents>
+      <Translation>0.00484446142823 -0.00856857176168 0.0</Translation>
+      <RotationMat>0.515553857177 -0.856857176168 0.0 0.856857176168 0.515553857177 0.0 0.0 0.0 1.0 </RotationMat>
     </Geom>
-    <Geom type="sphere">
-      <Translation>5.7543785523e-06 -0.000358977668803 0.0</Translation>
-      <Radius>0.000703716754404</Radius>
+    <Geom type="box">
+      <Extents>0.000523598775598 0.0010471975512 0.000523598775598</Extents>
+      <Translation>0.0058011089844 -0.00907575419671 0.0</Translation>
+      <RotationMat>0.41988910156 -0.907575419671 0.0 0.907575419671 0.41988910156 0.0 0.0 0.0 1.0 </RotationMat>
     </Geom>
-    <Geom type="sphere">
-      <Translation>5.1753934969e-05 -0.00107545789017 0.0</Translation>
-      <Radius>0.000703716754404</Radius>
+    <Geom type="box">
+      <Extents>0.000523598775598 0.0010471975512 0.000523598775598</Extents>
+      <Translation>0.00680698469864 -0.00947653171183 0.0</Translation>
+      <RotationMat>0.319301530136 -0.947653171183 0.0 0.947653171183 0.319301530136 0.0 0.0 0.0 1.0 </RotationMat>
     </Geom>
-    <Geom type="sphere">
-      <Translation>0.000143564025758 -0.00178751882437 0.0</Translation>
-      <Radius>0.000703716754404</Radius>
+    <Geom type="box">
+      <Extents>0.000523598775598 0.0010471975512 0.000523598775598</Extents>
+      <Translation>0.00785029559789 -0.0097662055571 0.0</Translation>
+      <RotationMat>0.214970440211 -0.97662055571 0.0 0.97662055571 0.214970440211 0.0 0.0 0.0 1.0 </RotationMat>
     </Geom>
-    <Geom type="sphere">
-      <Translation>0.000280807383564 -0.00249223446031 0.0</Translation>
-      <Radius>0.000703716754404</Radius>
+    <Geom type="box">
+      <Extents>0.000523598775598 0.0010471975512 0.000523598775598</Extents>
+      <Translation>0.00891880981576 -0.00994137957154 0.0</Translation>
+      <RotationMat>0.108119018424 -0.994137957154 0.0 0.994137957154 0.108119018424 0.0 0.0 0.0 1.0 </RotationMat>
     </Geom>
-    <Geom type="sphere">
-      <Translation>0.000462920045989 -0.00318670897027 0.0</Translation>
-      <Radius>0.000703716754404</Radius>
-    </Geom>
-    <Geom type="sphere">
-      <Translation>0.000689153673043 -0.00386808860952 0.0</Translation>
-      <Radius>0.000703716754404</Radius>
-    </Geom>
-    <Geom type="sphere">
-      <Translation>0.000958578622223 -0.00453357344297 0.0</Translation>
-      <Radius>0.000703716754404</Radius>
-    </Geom>
-    <Geom type="sphere">
-      <Translation>0.00127008776862 -0.0051804288507 0.0</Translation>
-      <Radius>0.000703716754404</Radius>
-    </Geom>
-    <Geom type="sphere">
-      <Translation>0.00162240105434 -0.00580599676508 0.0</Translation>
-      <Radius>0.000703716754404</Radius>
-    </Geom>
-    <Geom type="sphere">
-      <Translation>0.00201407074851 -0.00640770659337 0.0</Translation>
-      <Radius>0.000703716754404</Radius>
-    </Geom>
-    <Geom type="sphere">
-      <Translation>0.00244348739636 -0.00698308578082 0.0</Translation>
-      <Radius>0.000703716754404</Radius>
-    </Geom>
-    <Geom type="sphere">
-      <Translation>0.00290888643276 -0.00752976997093 0.0</Translation>
-      <Radius>0.000703716754404</Radius>
-    </Geom>
-    <Geom type="sphere">
-      <Translation>0.00340835543324 -0.00804551272109 0.0</Translation>
-      <Radius>0.000703716754404</Radius>
-    </Geom>
-    <Geom type="sphere">
-      <Translation>0.00393984197255 -0.00852819473373 0.0</Translation>
-      <Radius>0.000703716754404</Radius>
-    </Geom>
-    <Geom type="sphere">
-      <Translation>0.0045011620585 -0.00897583256492 0.0</Translation>
-      <Radius>0.000703716754404</Radius>
-    </Geom>
-    <Geom type="sphere">
-      <Translation>0.00509000910644 -0.00938658677479 0.0</Translation>
-      <Radius>0.000703716754404</Radius>
-    </Geom>
-    <Geom type="sphere">
-      <Translation>0.00570396341756 -0.00975876948618 0.0</Translation>
-      <Radius>0.000703716754404</Radius>
-    </Geom>
-    <Geom type="sphere">
-      <Translation>0.00634050212188 -0.0100908513205 0.0</Translation>
-      <Radius>0.000703716754404</Radius>
-    </Geom>
-    <Geom type="sphere">
-      <Translation>0.00699700954535 -0.0103814676823 0.0</Translation>
-      <Radius>0.000703716754404</Radius>
-    </Geom>
-    <Geom type="sphere">
-      <Translation>0.00767078795814 -0.0106294243665 0.0</Translation>
-      <Radius>0.000703716754404</Radius>
-    </Geom>
-    <Geom type="sphere">
-      <Translation>0.00835906866021 -0.010833702466 0.0</Translation>
-      <Radius>0.000703716754404</Radius>
-    </Geom>
-    <Geom type="sphere">
-      <Translation>0.00905902335854 -0.0109934625583 0.0</Translation>
-      <Radius>0.000703716754404</Radius>
-    </Geom>
-    <Geom type="sphere">
-      <Translation>0.00976777578913 -0.0111080481548 0.0</Translation>
-      <Radius>0.000703716754404</Radius>
-    </Geom>
-    <Geom type="sphere">
-      <Translation>0.0104824135362 -0.0111769883988 0.0</Translation>
-      <Radius>0.000703716754404</Radius>
-    </Geom>
-    <Geom type="sphere">
-      <Translation>0.0112 -0.0112 0.0</Translation>
-      <Radius>0.000703716754404</Radius>
+    <Geom type="box">
+      <Extents>0.000523598775598 0.0010471975512 0.000523598775598</Extents>
+      <Translation>0.01 -0.01 0.0</Translation>
+      <RotationMat>6.12323399574e-17 -1.0 0.0 1.0 6.12323399574e-17 0.0 0.0 0.0 1.0 </RotationMat>
     </Geom>
 
   </Body>
