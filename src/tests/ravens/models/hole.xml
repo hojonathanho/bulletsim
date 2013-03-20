@@ -10,11 +10,11 @@
 
     <!--Boxes-->
     <Geom type="box">
-      <Extents>0.00166666666667 0.00166666666667 0.00075</Extents>
+      <Extents>0.00166666666667 0.005 0.00075</Extents>
       <Translation>0.00333333333333 0 0</Translation>
     </Geom>
     <Geom type="box">
-      <Extents>0.00166666666667 0.00166666666667 0.00075</Extents>
+      <Extents>0.00166666666667 0.005 0.00075</Extents>
       <Translation>-0.00333333333333 0 0</Translation>
     </Geom>
     <Geom type="box">
