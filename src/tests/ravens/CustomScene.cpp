@@ -28,7 +28,7 @@ btTransform rotateByAngle (btTransform &tfm, const float ang, const float rad) {
 /** Constructor for suturing needle. Creates needle from file.*/
 CustomScene::SuturingNeedle::SuturingNeedle(CustomScene * _scene, float _rope_radius, float _segment_len, int _nLinks) :
 													scene(*_scene), s_needle_radius(0.0112*NEEDLE_SCALE_FACTOR),
-													s_needle_mass(300), s_pierce_threshold(0.03),
+													s_needle_mass(1000), s_pierce_threshold(0.03),
 													s_end_angle(1.4), s_piercing(false), s_grasping_gripper('n'),
 													rope_radius(_rope_radius), segment_len(_segment_len), nLinks(_nLinks) {
 
@@ -38,7 +38,7 @@ CustomScene::SuturingNeedle::SuturingNeedle(CustomScene * _scene, float _rope_ra
 	btTransform table_tfm;
 	scene.table->motionState->getWorldTransform(table_tfm);
 
-	table_tfm.setOrigin(table_tfm.getOrigin() + METERS*btVector3((float)scene.bcn*scene.bcs + 0.01, 0.1, scene.table->getHalfExtents().z()/METERS + 0.005) );
+	table_tfm.setOrigin(table_tfm.getOrigin() + METERS*btVector3((float)scene.bcn*scene.bcs + 0.01, 0.05, scene.table->getHalfExtents().z()/METERS + 0.005) );
 	needle_body->SetTransform(util::toRaveTransform(table_tfm, 1.0f/METERS));
 
 	s_needle = RaveObject::Ptr(new RaveObject(scene.rave,needle_body,RAW,false));
@@ -113,20 +113,26 @@ btTransform CustomScene::SuturingNeedle::getNeedleCenterTransform() {
  */
 bool CustomScene::SuturingNeedle::pointCloseToNeedle (btVector3 pt) {
 
-	float dirThresh = 0.0, distThresh = 0.008;
+	float xDirThresh = 0.0, zDirThresh = 0.1, distThresh = 0.008;
 
 	btTransform tfm = getNeedleCenterTransform();
 	btVector3 center = tfm.getOrigin();
 	btVector3 xVec = tfm.getBasis().getColumn(0);
+	btVector3 zVec = tfm.getBasis().getColumn(2);
 
-	return ((pt-center).normalized().dot(xVec) >= dirThresh) && fabs(((pt-center).length()/METERS - s_needle_radius) < distThresh);
+	return ((pt-center).normalized().dot(xVec) >= xDirThresh) &&
+			((pt-center).normalized().dot(zVec) <= zDirThresh) &&
+			fabs(((pt-center).length()/METERS - s_needle_radius) < distThresh);
 }
 
 void CustomScene::SuturingNeedle::setGraspingTransformCallback() {
 	if (s_grasping_gripper == 'n') return;
 
 	btTransform nTfm = s_gripperManip->getTransform()*s_grasp_tfm;
-	s_needle->getChildren()[0]->motionState->setKinematicPos(nTfm);
+	if (s_needle->children[0]->isKinematic)
+		s_needle->getChildren()[0]->motionState->setKinematicPos(nTfm);
+	else if (s_needle_mass == 0)
+		s_needle->getChildren()[0]->motionState->setWorldTransform(nTfm);
 }
 
 void CustomScene::SuturingNeedle::setConnectedRopeTransformCallback() {
@@ -379,16 +385,19 @@ void CustomScene::plotNeedle (bool remove) {
 		plotpoints.push_back(sNeedle->getNeedleHandleTransform().getOrigin());
 		color.push_back(btVector4(1,1,0,1));
 
-		// Middle of grippers
-		plotpoints.push_back(ravens.manipL->getTransform().getOrigin());
+		// Middle of grippers, offset distance: 3mm
+		plotpoints.push_back(ravens.manipL->getTransform().getOrigin()+ravens.manipL->getTransform().getBasis().getColumn(2)*-0.003*METERS);
 		color.push_back(btVector4(1,1,1,1));
-		plotpoints.push_back(ravens.manipR->getTransform().getOrigin());
+		plotpoints.push_back(ravens.manipR->getTransform().getOrigin()+ravens.manipR->getTransform().getBasis().getColumn(2)*-0.003*METERS);
 		color.push_back(btVector4(1,1,1,1));
 	}
 	else {
 		plotpoints.push_back(btVector3(0,0,0));
 		color.push_back(btVector4(0,0,0,0));
 	}
+
+	util::drawAxes(ravens.manipL->getTransform(),0.5,env);
+	util::drawAxes(ravens.manipR->getTransform(),0.5,env);
 
 	plot_needle->setPoints(plotpoints,color);
 }
@@ -446,8 +455,9 @@ void CustomScene::plotGrasp (bool remove) {
 		//plotpoints.push_back(pt4);
 		//color.push_back(btVector4(0,0,1,1));
 
-		util::drawAxes(tfm7, 2, env);
-		util::drawAxes(tfm8, 2, env);
+		//util::drawAxes(tfm7, 2, env);
+		//util::drawAxes(tfm8, 2, env);
+		util::drawAxes(lAction->getTfm(true),0.1*METERS, env);
 	}
 	else {
 		plotpoints.push_back(btVector3(0,0,0));
