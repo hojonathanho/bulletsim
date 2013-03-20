@@ -4,8 +4,6 @@
 #include <assert.h>
 #include "lfd/RavensLfd.h"
 
-//bool lfdProcess2 (vector< vector <float> > & initJoints, vector<btVector3> & src_points, vector<btVector3> & ropePoints, vector< vector<float> > & outJoints) {return true;}
-
 class LFDProcessor {
 
 	string jointFile;
@@ -17,12 +15,22 @@ public:
 	typedef boost::shared_ptr<LFDProcessor> Ptr;
 
 	vector< vector<double> > jointValueVector;
-	vector<btVector3> src_points;
+
+	bool found_rope;
+	vector<btVector3> rope_points;
+	bool found_needle;
+	vector<btVector3> needle_points;
+	bool found_box;
+	vector<btVector3> box_points;
+	bool found_hole;
+	vector<btVector3> hole_points;
+
 	vector< pair<int, string> > grabIndices;
 	vector< pair<int, string> > releaseIndices;
 
-	LFDProcessor (string _inputFile = "/home/sibi/sandbox/bulletsim/src/tests/ravens/recorded/raven_joints.txt") :
-						   jointFile (_inputFile), fileClosed(false) {}
+	LFDProcessor (string _inputFile = "/home/ankush/sandbox/bulletsim/src/tests/ravens/recorded/raven_joints.txt") :
+						   jointFile (_inputFile), fileClosed(false),
+						   found_rope (false), found_needle (false), found_box (false), found_hole (false){}
 
 	void setInputFile (string _inputFile) {jointFile = _inputFile;}
 
@@ -35,95 +43,18 @@ public:
 		fileClosed = false;
 	}
 
-
-	/*void process () {
-		iFS.open(jointFile.c_str(), ios::in);
-		oFS.open(outFile.c_str(), ios::out);
-
-		string line;
-
-		while (getline(iFS, line)) {
-			istringstream in(line);
-			if (isalpha(line.c_str()[0])) {
-				string command; in >> command;
-
-				if (command == "grab" || command == "release") {
-					string arm;     in >> arm;
-					oFS << command << " " << arm << "\n";
-					oFS.flush();
-				} else if (command == "rope") {
-					src_points.clear();
-					vector<float> rVals;
-					string val;
-
-					while (in >> val) {
-						if (val == "|") {
-							btVector3 point(rVals[0], rVals[1], rVals[2]);
-							src_points.push_back(point);
-							rVals.clear();
-						} else {
-							float rVal = atof(val.c_str());
-							rVals.push_back(rVal);
-						}
-					}
-				}
-			} else {
-				vector<float> jointVals; float jval;
-				while (in >> jval) jointVals.push_back(jval);
-
-				vector<float> finalJoints = lfdProcess (jointVals, src_points);
-
-				int jsize = jointVals.size();
-
-				for (int i = 0; i < jsize; ++i)
-					oFS << jointVals[i] << " ";
-				oFS << "\n";
-				oFS.flush();
-			}
-		}
-
-		cout<<"Joint file has been processed for new scene!"<<endl;
-	}*/
-
-
-	bool preProcess (Ravens &ravens, vector<btVector3> ropePoints, vector< vector <double> > & processedJointValues) {
+	bool preProcess (Ravens &ravens, vector<btVector3> new_rope_points, vector< vector <double> > & processedJointValues) {
 		if (fileClosed) {
 			cout<<"File has ended."<<endl;
 			return false;
 		}
+
 		jointValueVector.clear();
 		grabIndices.clear();
 		releaseIndices.clear();
+		found_rope = found_needle = found_box = found_hole = false;
 
 		string line;
-
-		// Assuming we always start at rope.
-		// Get rope values out now.
-		src_points.clear();
-		getline(iFS, line);
-		istringstream stream1(line);
-		string type; stream1 >> type; assert (type == "rope");
-
-		vector<float> rVals;
-		string val;
-		while (stream1 >> val) {
-			if (val == "|") {
-				btVector3 point(rVals[0], rVals[1], rVals[2]);
-				src_points.push_back(point);
-				rVals.clear();
-			} else {
-				float rVal = atof(val.c_str());
-				rVals.push_back(rVal);		
-			}
-		}
-
-		getline(iFS, line); istringstream stream2(line);
-		stream2 >> type; assert (type == "needle");
-		getline(iFS, line); istringstream stream3(line);
-		stream3 >> type; assert (type == "box");
-		getline(iFS, line); istringstream stream4(line);
-		stream4 >> type; assert (type == "holes");
-
 
 		///////////////////////////////////
 
@@ -132,7 +63,63 @@ public:
 			istringstream in(line);
 			string command; in >> command;
 
-			if (command == "section") 	{
+			if (command == "rope") {
+				found_rope = true;
+				vector<float> vals;
+				string val;
+				while (in >> val) {
+					if (val == "|") {
+						btVector3 point(vals[0], vals[1], vals[2]);
+						rope_points.push_back(point);
+						vals.clear();
+					} else {
+						float rVal = atof(val.c_str());
+						vals.push_back(rVal);
+					}
+				}
+			} else if (command == "needle") {
+				found_needle = true;
+				vector<float> vals;
+				string val;
+				while (in >> val) {
+					if (val == "|") {
+						btVector3 point(vals[0], vals[1], vals[2]);
+						needle_points.push_back(point);
+						vals.clear();
+					} else {
+						float rVal = atof(val.c_str());
+						vals.push_back(rVal);
+					}
+				}
+			} else if (command == "box") {
+				found_box = true;
+				vector<float> vals;
+				string val;
+				while (in >> val) {
+					if (val == "|") {
+						btVector3 point(vals[0], vals[1], vals[2]);
+						box_points.push_back(point);
+						vals.clear();
+					} else {
+						float rVal = atof(val.c_str());
+						vals.push_back(rVal);
+					}
+				}
+			} else if (command == "hole") {
+				found_hole = true;
+				vector<float> vals;
+				string val;
+				while (in >> val) {
+					if (val == "|") {
+						btVector3 point(vals[0], vals[1], vals[2]);
+						hole_points.push_back(point);
+						vals.clear();
+					} else {
+						float rVal = atof(val.c_str());
+						vals.push_back(rVal);
+					}
+				}
+			} else if (command == "section") 	{
 				fileClosed = false;
 				break;
 			} else if (command == "grab") 	{
@@ -150,8 +137,14 @@ public:
 
 		if (fileClosed) {iFS.close();}
 
-		bool successful = warpRavenJoints (ravens, src_points, ropePoints, jointValueVector, processedJointValues);
+		bool successful = warpRavenJoints (ravens, rope_points, new_rope_points, jointValueVector, processedJointValues);
 
+		//Actually should be:
+		/* warpRavenJoints (ravens, make_pair(found_rope, make_pair(rope_points, new_rope_points)),
+									make_pair(found_needle, make_pair(needle_points, new_needle_points)),
+									make_pair(found_box, make_pair(box_points, new_box_points)),
+									make_pair(found_hole, make_pair(hole_points, new_hole_points)),
+									jointValueVector, processedJointValues);*/
 
 		if (!successful) {
 			cout<<"Unable to find trajectory."<<endl;
