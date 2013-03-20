@@ -281,7 +281,6 @@ void Ravens::processHapticInput() {
     if (!SceneConfig::enableHaptics)
         return;
 
-
     // throttle
     float currTime = scene.viewer.getFrameStamp()->getSimulationTime();
     if (currTime - inputState.lastHapticReadTime < 1./hapticPollRate)
@@ -291,42 +290,34 @@ void Ravens::processHapticInput() {
     // read the haptic controllers
     btTransform trans0, trans1;
     bool buttons0[2], buttons1[2];
-    if (!util::getHapticInput(trans0, buttons0, trans1, buttons1)) {
+    if (!util::getHapticInput2(trans0, buttons0, trans1, buttons1)) {
         cout << "failed to read haptic input" << endl;
         return;
     }
 
-    static const btTransform PERMUTE(btMatrix3x3( 0, 1, 0,
-    		                                      1,  0, 0,
-        		                                  0,  0, -1),
-        		                         btVector3(0,0,0));
-
-    trans0 = PERMUTE*trans0;
-    trans1 = PERMUTE*trans1;
-
     // adjust the transforms
-    btVector3 ZERO_OFFSET     = btVector3(0, 75, 31.017);
-    btVector3 HAPTIC_OFFSET_L = btVector3(-0.1, -0.12, 0)*METERS + util::toBtVector(this->ravens->robot->GetLink("base_plate")->GetTransform().trans)*METERS;
-    btVector3 HAPTIC_OFFSET_R = btVector3(0.1,  -0.12, 0)*METERS  + util::toBtVector(this->ravens->robot->GetLink("base_plate")->GetTransform().trans)*METERS;
+    static const btVector3 ZERO_OFFSET  = btVector3(0, 31.1, 75);
+    static const btScalar  HAPTIC_SCALE = 1. / 500 * METERS;
+    static const btVector3 HAPTIC_OFFSET_L = METERS*(btVector3( -0.02, -0.1, 0.10) + util::toBtVector(this->ravens->robot->GetLink("base_plate")->GetTransform().trans));
+    static const btVector3 HAPTIC_OFFSET_R = METERS*(btVector3(  0.02, -0.1, 0.10) + util::toBtVector(this->ravens->robot->GetLink("base_plate")->GetTransform().trans));
+    static const btTransform CORRECTION(btMatrix3x3( -1, 0, 0,
+    		                                          0, 0, 1,
+             	 	 	 	 	 	 	              0, 1, 0));
 
-    static const btScalar HAPTIC_SCALE = -1. / 500 * METERS;
+    btVector3 translation0 = HAPTIC_SCALE * (trans0.getOrigin() + ZERO_OFFSET);
+    btVector3 translation1 = HAPTIC_SCALE * (trans1.getOrigin() + ZERO_OFFSET);
+    trans0.setOrigin(CORRECTION*translation0 + HAPTIC_OFFSET_L);
+    trans1.setOrigin(CORRECTION*translation1 + HAPTIC_OFFSET_R);
+    trans0.setBasis(CORRECTION.getBasis()*trans0.getBasis());
+    trans1.setBasis(CORRECTION.getBasis()*trans1.getBasis());
 
-    btVector3 translation0 = trans0.getOrigin() + ZERO_OFFSET;
-    translation0.setY(-1*translation0.getY());
-
-    btVector3 translation1 = trans1.getOrigin() + ZERO_OFFSET;
-    translation1.setY(-1*translation1.getY());
-
-    trans0.setOrigin(translation0*HAPTIC_SCALE + leftInitTrans.getOrigin() + HAPTIC_OFFSET_L);
-    trans1.setOrigin(translation1*HAPTIC_SCALE + rightInitTrans.getOrigin()+ HAPTIC_OFFSET_R);
-
+    //set the transforms
     hapTrackerLeft->motionState->setKinematicPos (trans0);
     hapTrackerRight->motionState->setKinematicPos(trans1);
     handleButtons(buttons0, buttons1);
     if (lEngaged) manipL->moveByIK(trans0, false, false);
     if (rEngaged) manipR->moveByIK(trans1, false, false);
 }
-
 
 
 void Ravens::handleButtons(bool left[], bool right[]) {

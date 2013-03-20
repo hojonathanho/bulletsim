@@ -5,6 +5,8 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/lexical_cast.hpp>
 
+#include <Eigen/Dense>
+
 UDPSocket receiver = UDPSocket();
 UDPSocket sender;
 string buf;
@@ -18,7 +20,7 @@ void parse(string buf, vector<string> &vect) {
   front = buf.find("HEAD") + 6;
   back = buf.find("TAIL", front);
   string data = buf.substr(front, back-front-1);
-  
+
   boost::split(vect, data, boost::is_any_of(","));
 }
 
@@ -33,8 +35,8 @@ void connectionInit() {
 		exit(-1);
 	}
   //receiver.set_non_blocking(true);
-  receiver.set_timeout(0);             // using recv()    
-  
+  receiver.set_timeout(0);             // using recv()
+
   if(! (sender.create())) {
 		cout << "Error creating socket!" << endl;
 		exit(-1);
@@ -51,17 +53,17 @@ void connectionInit() {
 	sender.set_timeout(0);    
 }
 
-bool getDeviceState (Vector3d& start_proxy_pos, Matrix3d& start_proxy_rot, bool start_proxybutton[], Vector3d& end_proxy_pos, Matrix3d& end_proxy_rot, bool end_proxybutton[]) {
+bool getDeviceState(Vector3d& start_proxy_pos, Matrix3d& start_proxy_rot, bool start_proxybutton[], Vector3d& end_proxy_pos, Matrix3d& end_proxy_rot, bool end_proxybutton[]) {
   if (receiver.recv(buf)) {
     while (receiver.recv(buf));
-    
+
     boost::split(vectbuf, buf, boost::is_any_of("\n"));
     parse(vectbuf[0], vect1);
     parse(vectbuf[1], vect2);
 
   	for(i=0; i<2; i++) {
       for(j=0; j<3; j++) {
-          start_proxy_rot(j,i) = boost::lexical_cast<double>(vect1[(2-i)*4+j].c_str());
+          start_proxy_rot(j,i)   = boost::lexical_cast<double>(vect1[(2-i)*4+j].c_str());
           end_proxy_rot(j,i) 	 = boost::lexical_cast<double>(vect2[(2-i)*4+j].c_str());
       }
   	}
@@ -69,7 +71,8 @@ bool getDeviceState (Vector3d& start_proxy_pos, Matrix3d& start_proxy_rot, bool 
     	start_proxy_rot(j,i) = -1 * boost::lexical_cast<double>(vect1[(2-i)*4+j].c_str());
     	end_proxy_rot(j,i) 	 = -1 * boost::lexical_cast<double>(vect2[(2-i)*4+j].c_str());
     }
-  	
+
+
   	// the three for loops above is equivalent to doing the following, but slightly more efficient.
   	/*
   	for(int i=0; i<3; i++) {
@@ -78,28 +81,62 @@ bool getDeviceState (Vector3d& start_proxy_pos, Matrix3d& start_proxy_rot, bool 
           end_proxy_rot(j,i) 	 = boost::lexical_cast<double>(vect2[i*4+j].c_str());
       }
   	}
-  	
+
   	Matrix3d rot_ztonegx;
   	rot_ztonegx(0,2) = -1;
   	rot_ztonegx(1,1) = 1;
   	rot_ztonegx(2,0) = 1;
-  	
+
   	start_proxy_rot = start_proxy_rot * rot_ztonegx;
   	end_proxy_rot = end_proxy_rot * rot_ztonegx;
   	*/
-  	  	
- 		start_proxy_pos(0) = 30 * boost::lexical_cast<double>(vect1[12].c_str());
+
+ 	start_proxy_pos(0) = 30 * boost::lexical_cast<double>(vect1[12].c_str());
     end_proxy_pos(0)   = 30 * boost::lexical_cast<double>(vect2[12].c_str());
     start_proxy_pos(1) = 30 * boost::lexical_cast<double>(vect1[13].c_str());
     end_proxy_pos(1)   = 30 * boost::lexical_cast<double>(vect2[13].c_str());
     start_proxy_pos(2) = 60 * boost::lexical_cast<double>(vect1[14].c_str()) - 6;
     end_proxy_pos(2)	 = 60 * boost::lexical_cast<double>(vect2[14].c_str()) - 6;
-    
+
     start_proxybutton[0] = boost::lexical_cast<int>(vect1[16].c_str());
     start_proxybutton[1] = boost::lexical_cast<int>(vect1[17].c_str());
-    end_proxybutton[0]  = boost::lexical_cast<int>(vect2[16].c_str());
-    end_proxybutton[1]  = boost::lexical_cast<int>(vect2[17].c_str());
-    
+    end_proxybutton[0]   = boost::lexical_cast<int>(vect2[16].c_str());
+    end_proxybutton[1]   = boost::lexical_cast<int>(vect2[17].c_str());
+
+    return true;
+  }
+  return false;
+}
+
+
+bool getDeviceState2 (Vector3d& start_proxy_pos, Matrix3d& start_proxy_rot, bool start_proxybutton[], Vector3d& end_proxy_pos, Matrix3d& end_proxy_rot, bool end_proxybutton[]) {
+  if (receiver.recv(buf)) {
+    while (receiver.recv(buf));
+
+    boost::split(vectbuf, buf, boost::is_any_of("\n"));
+    parse(vectbuf[0], vect1);
+    parse(vectbuf[1], vect2);
+
+
+    for(i=0; i<3; i++) { // keep rotations as they are
+    	for(j=0; j<3; j++) {
+    		start_proxy_rot(j,i)   = boost::lexical_cast<double>(vect1[i*4 + j].c_str());
+    		end_proxy_rot(j,i) 	   = boost::lexical_cast<double>(vect2[i*4 + j].c_str());
+    	}
+    }
+
+ 	start_proxy_pos(0) = 30 * boost::lexical_cast<double>(vect1[12].c_str());
+    end_proxy_pos(0)   = 30 * boost::lexical_cast<double>(vect2[12].c_str());
+    start_proxy_pos(1) = 30 * boost::lexical_cast<double>(vect1[13].c_str());
+    end_proxy_pos(1)   = 30 * boost::lexical_cast<double>(vect2[13].c_str());
+    start_proxy_pos(2) = 60 * boost::lexical_cast<double>(vect1[14].c_str()) - 6;
+    end_proxy_pos(2)	 = 60 * boost::lexical_cast<double>(vect2[14].c_str()) - 6;
+
+    start_proxybutton[0] = boost::lexical_cast<int>(vect1[16].c_str());
+    start_proxybutton[1] = boost::lexical_cast<int>(vect1[17].c_str());
+    end_proxybutton[0]   = boost::lexical_cast<int>(vect2[16].c_str());
+    end_proxybutton[1]   = boost::lexical_cast<int>(vect2[17].c_str());
+
     return true;
   }
   return false;
@@ -117,7 +154,7 @@ void sendDeviceState (const Vector3d& start_feedback_pos, bool start_feedback_en
 void getDeviceState (double start_proxyxform[], bool start_proxybutton[], double end_proxyxform[], bool end_proxybutton[]) {
   if (receiver.recv(buf)) {
     while (receiver.recv(buf));
-    
+
     boost::split(vectbuf, buf, boost::is_any_of("\n"));
     parse(vectbuf[0], vect1);
     parse(vectbuf[1], vect2);

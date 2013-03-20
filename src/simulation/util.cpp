@@ -165,6 +165,12 @@ void setGlobalEnv(Environment::Ptr env) { gEnv = env; }
 Environment::Ptr getGlobalEnv() { return gEnv; }
 
 static const btMatrix3x3 HAPTIC_ROTATION(btQuaternion(-M_PI/2., 0., 0.));
+static inline btMatrix3x3 toBtMatrix(const Matrix3d &m) {
+    // note: the rows are permuted
+    return btMatrix3x3(m(0, 0), m(0, 1), m(0, 2),
+                       m(1, 0), m(1, 1), m(1, 2),
+                       m(2, 0), m(2, 1), m(2, 2));
+}
 static inline btMatrix3x3 toHapticBtMatrix(const Matrix3d &m) {
     // note: the rows are permuted
     return btMatrix3x3(m(2, 0), m(2, 1), m(2, 2),
@@ -174,6 +180,20 @@ static inline btMatrix3x3 toHapticBtMatrix(const Matrix3d &m) {
 static inline btVector3 toHapticBtVector(const Vector3d &v) {
     // note: the components are permuted
     return btVector3(v.z(), v.x(), v.y());
+}
+
+bool getHapticInput2(btTransform &trans0, bool buttons0[2], btTransform &trans1, bool buttons1[2]) {// just converts eigen to btTransform
+    Vector3d start_proxy_pos, end_proxy_pos;
+    Matrix3d start_proxy_rot, end_proxy_rot;
+    if (!getDeviceState2(start_proxy_pos, start_proxy_rot, buttons0,
+                        end_proxy_pos, end_proxy_rot, buttons1))
+        return false;
+    trans0 = btTransform(toBtMatrix(start_proxy_rot),
+                         util::toBtVector(start_proxy_pos));
+
+    trans1 = btTransform(toBtMatrix(end_proxy_rot),
+                         util::toBtVector(end_proxy_pos));
+    return true;
 }
 
 bool getHapticInput(btTransform &trans0, bool buttons0[2], btTransform &trans1, bool buttons1[2]) {

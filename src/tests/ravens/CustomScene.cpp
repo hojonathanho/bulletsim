@@ -279,7 +279,6 @@ void CustomScene::run() {
 	// add a cloth
 	vector<unsigned int> hole_x, hole_y;
 
-
 	hole_x.push_back(1); hole_x.push_back(1); hole_x.push_back(1); hole_x.push_back(1);
 	hole_y.push_back(3); hole_y.push_back(6); hole_y.push_back(9); hole_y.push_back(12);
 	cloth1.reset(new BoxCloth(bcn, bcm, hole_x, hole_y, bcs, bch, btVector3((float)bcn/2*bcs + 0.003,0, table_height+0.02)));
