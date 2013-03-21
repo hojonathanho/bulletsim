@@ -124,6 +124,9 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,
 		case '+':
 			scene.testGrab();
 			break;
+		case '_':
+			scene.plotHoleTfm();
+			break;
 
 
 			/******************************* RIGHT LOCAL **********************************/

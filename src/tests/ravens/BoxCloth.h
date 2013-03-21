@@ -1,13 +1,18 @@
 #pragma once
 #include <simulation/environment.h>
 #include <simulation/basicobjects.h>
+#include <simulation/openravesupport.h>
+
 #include "btBulletDynamicsCommon.h"
 #include <vector>
 #include <utils/config.h>
 #include <utility>
 
+class CustomScene;
 
 class BoxCloth : public CompoundObject<BulletObject> {
+
+	CustomScene & scene;
 
 public:
 	// number of boxes along the x-dimension
@@ -43,10 +48,10 @@ public:
 
 	typedef boost::shared_ptr<BoxCloth> Ptr;
 	std::vector<boost::shared_ptr<btCollisionShape> > shapes;
-	std::vector<CompoundObject<BulletObject>::Ptr>    holes;
+	std::vector<RaveObject::Ptr>    holes;
 	std::vector<BulletConstraint::Ptr> joints;
 
-	BoxCloth(unsigned int n_, unsigned int m_, vector<unsigned int> hole_is_, vector<unsigned int> hole_js_,
+	BoxCloth(CustomScene &s, unsigned int n_, unsigned int m_, vector<unsigned int> hole_is_, vector<unsigned int> hole_js_,
 			  btScalar s_=METERS*0.02, btScalar h_=METERS*0.001, btVector3 center_=btVector3(0,0,0),
 			  float angStiffness_=1e5, float linDamping_=0.3, float angDamping_=0.1, float angLimit_=0.5);
 

@@ -54,11 +54,11 @@ if __name__=="__main__":
 
     fo.write("    <!--Boxes-->\n")
     fo.write("    <Geom type=\"box\">\n")
-    fo.write("      <Extents>"+str(s/6)+" "+str(s/6)+" "+str(h/2)+"</Extents>\n")
+    fo.write("      <Extents>"+str(s/6)+" "+str(s/2)+" "+str(h/2)+"</Extents>\n")
     fo.write("      <Translation>"+str(s/3)+" "+str(0)+" "+str(0)+"</Translation>\n")
     fo.write("    </Geom>\n")
     fo.write("    <Geom type=\"box\">\n")
-    fo.write("      <Extents>"+str(s/6)+" "+str(s/6)+" "+str(h/2)+"</Extents>\n")
+    fo.write("      <Extents>"+str(s/6)+" "+str(s/2)+" "+str(h/2)+"</Extents>\n")
     fo.write("      <Translation>"+str(-s/3)+" "+str(0)+" "+str(0)+"</Translation>\n")
     fo.write("    </Geom>\n")
     fo.write("    <Geom type=\"box\">\n")

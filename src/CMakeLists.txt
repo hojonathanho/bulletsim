@@ -1,4 +1,6 @@
 add_definitions("-DBULLETSIM_DATA_DIR=${BULLETSIM_SOURCE_DIR}/data")
+add_definitions("-DBULLETSIM_SRC_DIR=${BULLETSIM_SOURCE_DIR}/src")
+
 
 include_directories(
     ${BULLETSIM_SOURCE_DIR}/src

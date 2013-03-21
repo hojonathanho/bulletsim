@@ -241,13 +241,38 @@ void RavensGrabMonitor::grabNeedle () {
 	s.sNeedle->s_grasping_gripper = gripper;
 	s.sNeedle->s_gripperManip = manip;
 
+
+	// ********* Adjust position of needle to be properly in gripper ********//
 	btTransform gpTfm = manip->getTransform();
 	btVector3 offset = gpTfm.getBasis().getColumn(2)*-0.003*METERS;
 	btVector3 eePose = manip->getTransform().getOrigin() + offset;
 
+	btTransform tfm = s.sNeedle->getNeedleCenterTransform();
+	btVector3 center = tfm.getOrigin();
+	btVector3 xVec = tfm.getBasis().getColumn(0);
+	btVector3 zVec = tfm.getBasis().getColumn(2);
+
+	// Vector from center to point being checked
+	btVector3 dVec = eePose-center;
+	// Vector component out of plane of needle
+	btVector3 dVecZ = dVec.dot(zVec)*zVec;
+	// Vector in the plane of needle being checked for distance.
+	btVector3 dVecXY = dVec - dVecZ;
+
+	btTransform nTfm = s.sNeedle->s_needle->getIndexTransform(0);
+
+	// Move needle to inside gripper
+	nTfm.getOrigin() += zVec + (dVecXY.length()-s.sNeedle->s_needle_radius*METERS)*dVecXY.normalized();
+
+	if (s.sNeedle->s_needle->children[0]->isKinematic)
+		s.sNeedle->s_needle->getChildren()[0]->motionState->setKinematicPos(nTfm);
+	else if (s.sNeedle->s_needle_mass == 0)
+		s.sNeedle->s_needle->getChildren()[0]->motionState->setWorldTransform(nTfm);
+
+	/*************************************************************************/
 
 
-	// Fix needle tfm
+	// Find proper needle tfm relative to gripper
 	btTransform wFee = manip->getTransform(), wFn = s.sNeedle->s_needle->getIndexTransform(0);
 	btTransform eeFn = wFee.inverse()*wFn;
 	s.sNeedle->s_grasp_tfm = eeFn;
