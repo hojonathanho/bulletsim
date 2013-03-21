@@ -111,16 +111,21 @@ btTransform CustomScene::SuturingNeedle::getNeedleCenterTransform() {
  */
 bool CustomScene::SuturingNeedle::pointCloseToNeedle (btVector3 pt) {
 
-	float xDirThresh = 0.0, zDirThresh = 0.1, distThresh = 0.008;
+	float xDirThresh = 0.0, zDirThresh = 0.2, distThresh = 0.005;
 
 	btTransform tfm = getNeedleCenterTransform();
 	btVector3 center = tfm.getOrigin();
 	btVector3 xVec = tfm.getBasis().getColumn(0);
 	btVector3 zVec = tfm.getBasis().getColumn(2);
 
-	return ((pt-center).normalized().dot(xVec) >= xDirThresh) &&
-			((pt-center).normalized().dot(zVec) <= zDirThresh) &&
-			fabs(((pt-center).length()/METERS - s_needle_radius) < distThresh);
+	// Vector from center to point being checked
+	btVector3 dVec = pt-center;
+	// Vector in the plane of needle being checked for distance.
+	btVector3 dVecXY = dVec - dVec.dot(zVec)*zVec;
+
+	return (dVec.normalized().dot(xVec) >= xDirThresh) &&
+			(fabs(dVec.normalized().dot(zVec)) <= zDirThresh) &&
+			(fabs(dVecXY.length()/METERS - s_needle_radius) < distThresh);
 }
 
 void CustomScene::SuturingNeedle::setGraspingTransformCallback() {
@@ -283,14 +288,14 @@ void CustomScene::run() {
 	// add a cloth
 	vector<unsigned int> hole_x, hole_y;
 
-	hole_x.push_back(1); hole_x.push_back(1); hole_x.push_back(1); hole_x.push_back(1);
+	hole_x.push_back(0); hole_x.push_back(0); hole_x.push_back(0); hole_x.push_back(0);
 	hole_y.push_back(3); hole_y.push_back(6); hole_y.push_back(9); hole_y.push_back(12);
 	cloth1.reset(new BoxCloth(*this, bcn, bcm, hole_x, hole_y, bcs, bch, btVector3((float)bcn/2*bcs + 0.003,0, table_height+0.02)));
 	if (RavenConfig::cloth)
 		env->add(cloth1);
 
 	hole_x.clear(); hole_y.clear();
-	hole_x.push_back(3); hole_x.push_back(3); hole_x.push_back(3); hole_x.push_back(3);
+	hole_x.push_back(4); hole_x.push_back(4); hole_x.push_back(4); hole_x.push_back(4);
 	hole_y.push_back(3); hole_y.push_back(6); hole_y.push_back(9); hole_y.push_back(12);
 	cloth2.reset(new BoxCloth(*this, bcn, bcm, hole_x, hole_y, bcs, bch, btVector3(-(float)bcn/2*bcs - 0.003, 0, table_height+0.02)));
 	if (RavenConfig::cloth)
@@ -528,6 +533,10 @@ void CustomScene::plotAllPoints(bool remove) {
 
 }
 
+void CustomScene::plotHoleTfm () {
+	util::drawAxes(cloth1->holes[0]->getIndexTransform(0), 0.2*METERS, env);
+	util::drawAxes(cloth1->children[0]->getIndexTransform(0), 0.2*METERS, env);
+}
 
 
 /** Small test to see the angles of the ends of the needle.*/
@@ -564,6 +573,10 @@ void CustomScene::testNeedle2 () {
 
 	if (sNeedle->pointCloseToNeedle(lPt))
 		cout << "Lgripper close to needle. "<<endl;
+
+	vector<btVector3> vec;
+	sNeedle->getNeedlePoints(vec);
+	for (int i = 0; i < vec.size(); ++i) cout<<sNeedle->pointCloseToNeedle(vec[i])<<endl;
 }
 
 
