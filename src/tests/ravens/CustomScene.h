@@ -196,6 +196,8 @@ public:
 	void plotGrasp(bool remove = false);
 	/** Plot point cloud. */
 	void plotAllPoints(bool remove = false);
+	/** Plot tfm of hole. */
+	void plotHoleTfm ();
 
 	/** small tests to test the planners and the controller. */
 	void testTrajectory();
