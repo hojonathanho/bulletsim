@@ -5,9 +5,9 @@
 
     <!--Mass-->
     <Mass type="mimicgeom">
-      <density>250</density>
+      <total>1000</total>
     </Mass>
-
+  
     <!--Boxes-->
     <Geom type="box">
       <Extents>0.00166666666667 0.005 0.00075</Extents>
