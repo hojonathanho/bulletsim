@@ -7,7 +7,7 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,
 
 	vector<double> dofs;
 
-	boost::shared_ptr<CapsuleRope> rope = scene.sNeedle->ropePtr;
+	boost::shared_ptr<CapsuleRope> rope = scene.sPeg->ropePtr;
 	btTransform iT = btTransform::getIdentity();
 	const int N    = rope->children.size();
 	const float rope_radius=.0006, segment_len=0.003;
@@ -54,17 +54,17 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,
 			scene.rave->env->Save("/home/ankush/sandbox/rave_suture/suture_env2.xml");
 			break;
 
-		case '&': {
-			btTransform table_tfm;
-			scene.table->motionState->getWorldTransform(table_tfm);
-			table_tfm.getOrigin() += btVector3(0,0,1)*METERS;
-			if (scene.sNeedle->s_needle->getChildren()[0]->isKinematic)
-				scene.sNeedle->s_needle->getChildren()[0]->motionState->setKinematicPos(table_tfm);
-			else
-				scene.sNeedle->s_needle->getChildren()[0]->motionState->setWorldTransform(table_tfm);
+		//case '&': {
+		//	btTransform table_tfm;
+		//	scene.table->motionState->getWorldTransform(table_tfm);
+		//	table_tfm.getOrigin() += btVector3(0,0,1)*METERS;
+		//	if (scene.sNeedle->s_needle->getChildren()[0]->isKinematic)
+		//		scene.sNeedle->s_needle->getChildren()[0]->motionState->setKinematicPos(table_tfm);
+		//	else
+		//		scene.sNeedle->s_needle->getChildren()[0]->motionState->setWorldTransform(table_tfm);
 			//scene.sNeedle->s_needle->body->SetTransform(util::toRaveTransform(table_tfm, 1.0f/METERS));
-			break;
-		}
+		//	break;
+		//}
 
 		case 'z':
 			dofs = scene.ravens.ravens->getDOFValues();
@@ -109,24 +109,28 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,
 		case 'l':
 			scene.jPlayback->toggleEnabled();
 			break;
-		case ']':
-			scene.plotGrasp();
-			break;
+		//case ']':
+		//	scene.plotGrasp();
+		//	break;
 		case '-':
 			scene.plotAllPoints();
 			break;
-		case '[':
-			scene.plotNeedle();
-			break;
-		case '=':
-			scene.testNeedle2();
-			break;
-		case '+':
-			scene.testGrab();
-			break;
+		//case '[':
+		//	scene.plotNeedle();
+		//	break;
+		//case '=':
+		//	scene.testNeedle2();
+		//	break;
+		//case '+':
+		//	scene.testGrab();
+		//	break;
 		case '_':
 			scene.plotHoleTfm();
 			break;
+		case ')':
+			scene.plotPeg();
+			break;
+
 
 
 			/******************************* RIGHT LOCAL **********************************/

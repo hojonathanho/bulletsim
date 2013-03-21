@@ -83,7 +83,7 @@ bool warpRavenJoints(Ravens &ravens,
  *  OUT_JOINTS [out] is the output - the warped joint angles.*/
 bool warpRavenJoints( Ravens &ravens,
 						 const PointCloudInfo &rope_info,
-						 const PointCloudInfo &needle_info,
+						 //const PointCloudInfo &needle_info,
 						 const PointCloudInfo &cuts_info,
 						 const PointCloudInfo &holes_info,
 						 const vector< vector<dReal> >& in_joints, vector< vector<dReal> > & out_joints);

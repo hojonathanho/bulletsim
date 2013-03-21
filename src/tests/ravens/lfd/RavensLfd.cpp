@@ -276,7 +276,7 @@ bool warpRavenJoints(Ravens &ravens,
  *  and TARGETR_PTS as the new points for warping.*/
 bool warpRavenJoints( Ravens &ravens,
 		const PointCloudInfo &rope_info,
-		const PointCloudInfo &needle_info,
+		//const PointCloudInfo &needle_info,
 		const PointCloudInfo &cuts_info,
 		const PointCloudInfo &holes_info,
 		const vector< vector<dReal> >& in_joints, vector< vector<dReal> > & out_joints) {
@@ -287,10 +287,10 @@ bool warpRavenJoints( Ravens &ravens,
 		target_clouds.push_back(rope_info.second.second);
 	}
 
-	if (needle_info.first) {
-		src_clouds.push_back(needle_info.second.first);
-		target_clouds.push_back(needle_info.second.second);
-	}
+	//if (needle_info.first) {
+	//	src_clouds.push_back(needle_info.second.first);
+	//	target_clouds.push_back(needle_info.second.second);
+	//}
 
 	if (cuts_info.first) {
 		src_clouds.push_back(cuts_info.second.first);

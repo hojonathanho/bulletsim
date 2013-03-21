@@ -45,7 +45,7 @@ public:
 
 	bool preProcess (	Ravens & ravens,
 						vector<btVector3> & new_rope_points,
-						vector<btVector3> & new_needle_points,
+						//vector<btVector3> & new_needle_points,
 						vector<btVector3> & new_box_points,
 						vector<btVector3> & new_hole_points,
 						vector< vector <double> > & processedJointValues);

@@ -1,4 +1,3 @@
-#include "jointRecorder.h"
 #include "CustomScene.h"
 
 	// Constructor

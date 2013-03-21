@@ -582,9 +582,9 @@ BoxObject::BoxObject(btScalar mass_, const btVector3 &halfExtents_, const btTran
     mass(mass_), halfExtents(halfExtents_),
     BulletObject(mass_, new btBoxShape(halfExtents_), initTrans) { }
 
-CapsuleObject::CapsuleObject(btScalar mass_, btScalar radius_, btScalar height_, const btTransform &initTrans) :
+CapsuleObject::CapsuleObject(btScalar mass_, btScalar radius_, btScalar height_, const btTransform &initTrans, bool _isKinematic) :
     mass(mass_), radius(radius_), height(height_),
-    BulletObject(mass_, new btCapsuleShapeX(radius_, height_), initTrans) {
+    BulletObject(mass_, new btCapsuleShapeX(radius_, height_), initTrans, _isKinematic) {
 }
 
 osg::ref_ptr<osg::Node> CapsuleObject::createOSGNode() {

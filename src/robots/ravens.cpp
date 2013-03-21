@@ -40,11 +40,11 @@ void Ravens::loadRobot() {
     ravens.reset(new RaveRobotObject(scene.rave, maybeRobot));
     scene.env->add(ravens);
   } else {
-    static const char ROBOT_MODEL_FILE[] = "/home/ankush/sandbox/bulletsim/src/tests/ravens/models/ravens.xml";
+    static const char ROBOT_MODEL_FILE[] = EXPAND(BULLETSIM_SRC_DIR)"/tests/ravens/models/ravens.xml";
     ravens.reset(new RaveRobotObject(scene.rave, ROBOT_MODEL_FILE));
     scene.env->add(ravens);
   }
-  ravens->setColor(0.3,0.274,0.5,1.0);
+  ravens->setColor(0.3,0.274,0.5,0.2);
 }
 
 

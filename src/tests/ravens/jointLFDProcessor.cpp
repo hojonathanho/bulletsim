@@ -20,7 +20,7 @@ void LFDProcessor::hardCodeModes () {
 
 bool LFDProcessor::preProcess (	Ravens & ravens,
 		vector<btVector3> & new_rope_points,
-		vector<btVector3> & new_needle_points,
+		//vector<btVector3> & new_needle_points,
 		vector<btVector3> & new_box_points,
 		vector<btVector3> & new_hole_points,
 		vector< vector <double> > & processedJointValues) {
@@ -152,7 +152,7 @@ bool LFDProcessor::preProcess (	Ravens & ravens,
 	// OR
 	bool successful = warpRavenJoints (	ravens,
 			make_pair(use_rope, make_pair(rope_points, new_rope_points)),
-			make_pair(use_needle, make_pair(needle_points, new_needle_points)),
+			//make_pair(use_needle, make_pair(needle_points, new_needle_points)),
 			make_pair(use_box, make_pair(box_points, new_box_points)),
 			make_pair(use_hole, make_pair(hole_points, new_hole_points)),
 			jointValueVector, processedJointValues);

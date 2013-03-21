@@ -81,6 +81,7 @@ find_package(PythonLibs)
 include_directories (${PYTHON_INCLUDE_DIRS})
 
 add_executable(ravens ravens/test_ravens.cpp
+					  ravens/RavensRigidBodyAction.cpp
 					  ravens/RavenGrabMonitor.cpp
                       ravens/CustomScene.cpp
                       ravens/jointPlayback.cpp

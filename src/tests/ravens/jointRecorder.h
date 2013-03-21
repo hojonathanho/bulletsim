@@ -36,7 +36,7 @@ public:
 
 	// Constructor
 	jointRecorder (CustomScene &_scene, float _dt = -1, float _record_freq = -1.0,
-				   string _filename="/home/sibi/sandbox/bulletsim/src/tests/ravens/recorded/raven_joints.txt");
+				   string _filename=EXPAND(BULLETSIM_SRC_DIR)"/tests/ravens/recorded/raven_joints.txt");
 
 	/* Callback which opens file, stores latest joint values, closes file.
 	 * Does so only when the time since last check exceeds time period of checks.

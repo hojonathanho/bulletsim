@@ -1,7 +1,6 @@
 #include "CustomScene.h"
 #include "CustomKeyHandler.h"
 
-
 /** Rotates a transform TFM by ANG, around the point along
  * x-axis of the transform at a distance RAD away.*/
 btTransform rotateByAngle (btTransform &tfm, const float ang, const float rad) {
@@ -28,8 +27,7 @@ btTransform rotateByAngle (btTransform &tfm, const float ang, const float rad) {
 /** Constructor for suturing needle. Creates needle from file.*/
 CustomScene::SuturingNeedle::SuturingNeedle(CustomScene * _scene, float _rope_radius, float _segment_len, int _nLinks) :
 													scene(*_scene), s_needle_radius(0.015),
-													s_needle_mass(1000), s_pierce_threshold(0.03),
-													s_end_angle(1.57), s_piercing(false), s_grasping_gripper('n'),
+													s_needle_mass(1000), s_end_angle(1.57),  s_grasping_gripper('n'),
 													rope_radius(_rope_radius), segment_len(_segment_len), nLinks(_nLinks) {
 
 	static const char sNeedle_MODEL_FILE[] = EXPAND(BULLETSIM_DATA_DIR) "/xml/needle.xml";
@@ -161,7 +159,82 @@ void CustomScene::SuturingNeedle::getRopePoints (bool nodes, vector<btVector3> &
 	for (int i = 0; i < ropePoints.size(); ++i) ropePoints[i]  = ropePoints[i]*scale;
 }
 
+/////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////SUTURING PEG///////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+CustomScene::SuturingPeg::SuturingPeg (CustomScene * _scene, RaveRobotObject::Manipulator::Ptr _p_gripperManip,
+										float _p_rad, float _p_len,
+										float _rope_radius, float _segment_len, int _nLinks):
+										scene(*_scene), p_gripperManip(_p_gripperManip),
+										p_radius(_p_rad), p_len(_p_len), p_grasping_finger1(true),
+										rope_radius(_rope_radius), segment_len(_segment_len), nLinks(_nLinks) {
+
+
+	vector<KinBody::LinkPtr> links;
+	p_gripperManip->manip->GetChildLinks(links);
+	p_finger1 = links[1];
+	p_finger2 = links[2];
+
+	btTransform f1Tfm = util::toBtTransform(p_finger1->GetTransform(), METERS);
+	btTransform f2Tfm = util::toBtTransform(p_finger2->GetTransform(), METERS);
+
+	p_peg.reset(new CapsuleObject(1, p_radius*METERS, p_len*METERS, f1Tfm, true));
+
+	// Offset from the center of the two transforms
+	offset = btVector3((f1Tfm.getOrigin()-f2Tfm.getOrigin()).length()/2,
+						0.021*METERS,
+						p_len/2*METERS);
+
+	// To orient the peg properly
+	corrRot.setValue(0,0,1,0,1,0,-1,0,0);
+
+	_scene->env->add(p_peg);
+	p_peg->setColor(0,1,1,1.0); // set the peg's color
+	scene.addPreStepCallback(boost::bind(&CustomScene::SuturingPeg::setFingerTransformCallback, this));
+
+	//------------------------ initialize the rope -------------------------------
+	vector<btVector3> ctrlPts;
+
+	btVector3 handlePos = getPegCenterTransform().getOrigin();
+	vector<btTransform> transforms;
+	vector<btScalar> lengths;
+	for (int i=0; i< nLinks; i++)
+		//ctrlPts.push_back(handlePos + METERS*btVector3(segment_len*i - 0.15,0,2*rope_radius));  // horizontal rope
+		//ctrlPts.push_back(handlePos + METERS*btVector3(0, segment_len*(i - nLinks/2.0), 2*rope_radius)); //vertical rope
+		ctrlPts.push_back(handlePos + METERS*btVector3(-segment_len*i, 0, 2*rope_radius)); //vertical rope
+
+	ropePtr.reset(new CapsuleRope(ctrlPts,METERS*rope_radius));
+	scene.env->add(ropePtr);
+	ropePtr->setColor(0,1,0,1);
+	ropePtr->children[0]->setColor(1,0,0,1);
+	ropePtr->children[ropePtr->children.size()-1]->setColor(0,0,1,1);
+
+
+	peg_rope_grab = new Grab(ropePtr->children[0]->rigidBody.get(), getPegCenterTransform().getOrigin(),scene.env->bullet->dynamicsWorld);
+	scene.addPreStepCallback(boost::bind(&CustomScene::SuturingPeg::setConnectedRopeTransformCallback, this));
+	//------------------------------------------------------------------------------
+}
+
+btTransform CustomScene::SuturingPeg::getPegCenterTransform() {return p_peg->getIndexTransform(0);}
+
+void CustomScene::SuturingPeg::getRopePoints (bool nodes, vector<btVector3> & ropePoints, float scale) {
+	if (nodes) ropePoints = ropePtr->getNodes();
+	else ropePoints = ropePtr->getControlPoints();
+
+	for (int i = 0; i < ropePoints.size(); ++i) ropePoints[i]  = ropePoints[i]*scale;
+}
+
+void CustomScene::SuturingPeg::setFingerTransformCallback() {
+	btTransform fTfm = (p_grasping_finger1 ? util::toBtTransform(p_finger1->GetTransform(), METERS) : util::toBtTransform(p_finger2->GetTransform(), METERS));
+	fTfm.setOrigin(fTfm*offset);
+	fTfm.setBasis(fTfm.getBasis()*corrRot);
+	p_peg->motionState->setKinematicPos(fTfm);
+}
+
+void CustomScene::SuturingPeg::setConnectedRopeTransformCallback() {
+	peg_rope_grab->updatePosition(getPegCenterTransform().getOrigin());
+}
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////CUSTOM SCENE///////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -220,17 +293,17 @@ void CustomScene::recordPoints () {
 	message << "section";
 
 	vector<btVector3> ropePoints;
-	sNeedle->getRopePoints(true, ropePoints, 1.0/METERS);
+	sPeg->getRopePoints(true, ropePoints, 1.0/METERS);
 	message << "\nrope ";
 	for (int i = 0; i < ropePoints.size(); ++i)
 		message << ropePoints[i].x() << " " << ropePoints[i].y() << " " << ropePoints[i].z() << " | ";
 
 
-	vector<btVector3> needlePoints;
-	sNeedle->getNeedlePoints(needlePoints, 1.0/METERS);
-	message << "\nneedle ";
-	for (int i = 0; i < needlePoints.size(); ++i)
-		message << needlePoints[i].x() << " " << needlePoints[i].y() << " " << needlePoints[i].z() << " | ";
+	//vector<btVector3> needlePoints;
+	//sNeedle->getNeedlePoints(needlePoints, 1.0/METERS);
+	//message << "\nneedle ";
+	//for (int i = 0; i < needlePoints.size(); ++i)
+	//	message << needlePoints[i].x() << " " << needlePoints[i].y() << " " << needlePoints[i].z() << " | ";
 
 
 	vector<btVector3> boxPoints;
@@ -248,7 +321,6 @@ void CustomScene::recordPoints () {
 
 	jRecorder->addMessageToFile(message.str());
 }
-
 
 
 /* Sets up the scene and UI event handlers,
@@ -275,14 +347,18 @@ void CustomScene::run() {
 	env->add(table);
 	table->setColor(0.62, 0.32, 0.17, 0.8);
 	createKinBodyFromBulletBoxObject(table, rave);
-
-	// add a needle
-	sNeedle.reset(new SuturingNeedle(this));
-	ravens.ravens->ignoreCollisionWith(sNeedle->s_needle->getChildren()[0]->rigidBody.get());
 	ravens.ravens->ignoreCollisionWith(table->rigidBody.get());
 
-	env->add(sNeedle->s_needle);
-	rave->env->Add(sNeedle->s_needle->body);
+	// add a needle
+	//sNeedle.reset(new SuturingNeedle(this));
+	//ravens.ravens->ignoreCollisionWith(sNeedle->s_needle->getChildren()[0]->rigidBody.get());
+
+	//env->add(sNeedle->s_needle);
+	//rave->env->Add(sNeedle->s_needle->body);
+
+	// add a peg
+	sPeg.reset(new SuturingPeg(this, ravens.manipL));
+	ravens.ravens->ignoreCollisionWith(sPeg->p_peg->rigidBody.get());
 
 	// add a cloth
 	vector<unsigned int> hole_x, hole_y;
@@ -322,8 +398,8 @@ void CustomScene::run() {
 	vector<CompoundObject<BulletObject>::Ptr> targets;
 
 	// add the needle, rope, cloth as targets to check for collisions when grabbing.
-	targets.push_back(sNeedle->s_needle);
-	targets.push_back(sNeedle->ropePtr);
+	//targets.push_back(sNeedle->s_needle);
+	targets.push_back(sPeg->ropePtr);
 	targets.push_back(cloth1);
 	targets.push_back(cloth2);
 
@@ -336,6 +412,7 @@ void CustomScene::run() {
 			env->bullet->dynamicsWorld,
 			1, *this, l, jRecorder.get()));
 	lAction->setTargets(targets);
+	lAction->setPeg(true);
 	rAction.reset(new RavensRigidBodyGripperAction( ravens.manipR,
 			"r_grasper2_L",
 			"r_grasper1_L",
@@ -464,7 +541,16 @@ void CustomScene::plotGrasp (bool remove) {
 
 		//util::drawAxes(tfm7, 2, env);
 		//util::drawAxes(tfm8, 2, env);
-		util::drawAxes(lAction->getTfm(true),0.1*METERS, env);
+		//util::drawAxes(lAction->getTfm(true),0.1*METERS, env);
+		vector<KinBody::LinkPtr> links;
+		ravens.manipR->manip->GetChildLinks(links);
+		util::drawAxes(util::toBtTransform(links[1]->GetTransform(), METERS), 0.05*METERS, env);
+		util::drawAxes(util::toBtTransform(links[2]->GetTransform(), METERS), 0.05*METERS, env);
+
+		links.clear();
+		ravens.manipL->manip->GetChildLinks(links);
+		util::drawAxes(util::toBtTransform(links[1]->GetTransform(), METERS), 0.05*METERS, env);
+		util::drawAxes(util::toBtTransform(links[2]->GetTransform(), METERS), 0.05*METERS, env);
 	}
 	else {
 		plotpoints.push_back(btVector3(0,0,0));
@@ -480,16 +566,16 @@ void CustomScene::plotAllPoints(bool remove) {
 	plot_points->setPoints(std::vector<btVector3>(),std::vector<btVector4>());
 
 	//Get all points
-	vector<btVector3> needlePoints; sNeedle->getNeedlePoints(needlePoints);
-	vector<btVector3> ropePoints; sNeedle->getRopePoints(true, ropePoints);
+	//vector<btVector3> needlePoints; sNeedle->getNeedlePoints(needlePoints);
+	vector<btVector3> ropePoints; sPeg->getRopePoints(true, ropePoints);
 	vector<btVector3> boxPoints; getBoxPoints(boxPoints);
 	vector<btVector3> boxHoles; getBoxHoles(boxHoles);
 
-	std::vector<btVector3> plotpoints(needlePoints.size() + ropePoints.size() + boxPoints.size() + boxHoles.size());
-	std::vector<btVector4> color(needlePoints.size() + ropePoints.size() + boxPoints.size() + boxHoles.size());
+	std::vector<btVector3> plotpoints(ropePoints.size() + boxPoints.size() + boxHoles.size());
+	std::vector<btVector4> color(ropePoints.size() + boxPoints.size() + boxHoles.size());
 
 	cout<<"Size of ropePoints: "<<ropePoints.size()<<endl;
-	cout<<"Size of needlePoints: "<<needlePoints.size()<<endl;
+	//cout<<"Size of needlePoints: "<<needlePoints.size()<<endl;
 	cout<<"Size of boxPoints: "<<boxPoints.size()<<endl;
 	cout<<"Size of boxHoles: "<<boxHoles.size()<<endl;
 	cout<<"Size of plotPoints: "<<plotpoints.size()<<endl;
@@ -500,10 +586,10 @@ void CustomScene::plotAllPoints(bool remove) {
 		unsigned int i = 0;
 
 		//Needle in red
-		for (int j = 0; j < needlePoints.size(); ++j) {
-			plotpoints[i] = needlePoints[j];
-			color[i++] = btVector4(1,0,0,1);
-		}
+		//for (int j = 0; j < needlePoints.size(); ++j) {
+		//	plotpoints[i] = needlePoints[j];
+		//	color[i++] = btVector4(1,0,0,1);
+		//}
 
 		//Rope in blue
 		for (int j = 0; j < ropePoints.size(); ++j) {
@@ -537,6 +623,9 @@ void CustomScene::plotHoleTfm () {
 	util::drawAxes(cloth1->children[0]->getIndexTransform(0), 0.2*METERS, env);
 }
 
+void CustomScene::plotPeg () {
+	util::drawAxes(sPeg->p_peg->getIndexTransform(0), 0.5*METERS, env);
+}
 
 /** Small test to see the angles of the ends of the needle.*/
 void CustomScene::testNeedle() {

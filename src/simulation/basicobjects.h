@@ -257,7 +257,7 @@ private:
 public:
     typedef boost::shared_ptr<CapsuleObject> Ptr;
 
-    CapsuleObject(btScalar mass_, btScalar radius_, btScalar height_, const btTransform &initTrans);
+    CapsuleObject(btScalar mass_, btScalar radius_, btScalar height_, const btTransform &initTrans, bool _isKinematic=false);
     EnvironmentObject::Ptr copy(Fork &f) const {
         Ptr o(new CapsuleObject(*this));
         internalCopy(o, f);

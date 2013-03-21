@@ -4,7 +4,6 @@
 #ifndef _CUSTOM_SCENE_RAVENS_
 #define _CUSTOM_SCENE_RAVENS_
 
-#include "SoftBodyGripperAction.h"
 #include "RavensRigidBodyAction.h"
 
 #include "simulation/simplescene.h"
@@ -57,21 +56,13 @@ public:
 		const float 			s_needle_radius, s_needle_mass;
 		const float 			s_end_angle;
 
-		// Is the needle currently piercing?
-		bool s_piercing;
-		// max distance between needle tip and point to cut at
-		float s_pierce_threshold;
-
 		// Manipulator currently grasping the needle.
 		RaveRobotObject::Manipulator::Ptr s_gripperManip;
 		// Which gripper is grasping the needle?
 		char s_grasping_gripper;
 		btTransform s_grasp_tfm;
 
-		SuturingNeedle (CustomScene * scene, float _rope_radius=.0006, float _segment_len=0.003, int _nLinks=90);
-
-		/** Toggle's needle piercing state. */
-		void togglePiercing () {s_piercing = !s_piercing;}
+		SuturingNeedle (CustomScene * _scene, float _rope_radius=.0006, float _segment_len=0.003, int _nLinks=90);
 
 		bool pointCloseToNeedle (btVector3 pt);
 
@@ -83,6 +74,47 @@ public:
 		void getRopePoints (bool nodes, vector<btVector3> & ropePoints, float scale=1.0);
 
 		void setGraspingTransformCallback ();
+		void setConnectedRopeTransformCallback();
+	};
+
+	/* Class to represent the suturing needle + thread. */
+	class SuturingPeg {
+
+		const float rope_radius;
+		const float segment_len;
+		const int nLinks;
+		Grab* peg_rope_grab;
+
+		btVector3 offset;
+
+	public:
+		typedef boost::shared_ptr<SuturingPeg> Ptr;
+		CustomScene &scene;
+
+		CapsuleObject::Ptr p_peg;
+		boost::shared_ptr<CapsuleRope> ropePtr;
+		const float 			p_radius, p_len;
+
+		// Manipulator currently grasping the needle.
+		RaveRobotObject::Manipulator::Ptr p_gripperManip;
+		KinBody::LinkPtr p_finger1, p_finger2;
+
+		// Which gripper is grasping the needle?
+		bool p_grasping_finger1;
+		btTransform p_grasp_tfm;
+		btMatrix3x3 corrRot;
+
+		SuturingPeg (CustomScene * _scene, RaveRobotObject::Manipulator::Ptr _p_gripperManip,
+					float _p_rad=0.0006, float _p_len=0.004,
+					float _rope_radius=.0006, float _segment_len=0.003, int _nLinks=90);
+
+		void toggleFinger () {p_grasping_finger1 = !p_grasping_finger1;}
+
+		btTransform getPegCenterTransform ();
+
+		void getRopePoints (bool nodes, vector<btVector3> & ropePoints, float scale=1.0);
+
+		void setFingerTransformCallback ();
 		void setConnectedRopeTransformCallback();
 	};
 
@@ -133,6 +165,9 @@ public:
 	// Suturing needle
 	SuturingNeedle::Ptr sNeedle;
 
+	// Suturing peg
+	SuturingPeg::Ptr sPeg;
+
 	// the table in the scene
 	BoxObject::Ptr table;
 
@@ -174,6 +209,8 @@ public:
 		viewer.getEventQueue()->addEvent(e);
 	}
 
+	void togglePegFinger () {sPeg->toggleFinger();}
+
 	/** Move the end-effector. */
 	void moveEndEffector(char dir, bool world=false, char lr='l', float step=0.005);
 
@@ -198,6 +235,8 @@ public:
 	void plotAllPoints(bool remove = false);
 	/** Plot tfm of hole. */
 	void plotHoleTfm ();
+	/** Plot tfm of peg.*/
+	void plotPeg ();
 
 	/** small tests to test the planners and the controller. */
 	void testTrajectory();

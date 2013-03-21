@@ -198,7 +198,7 @@ void RavensGrabMonitor::grab(bool grabN, float threshold) {
 		for (int j=0; j < m_bodies[i]->children.size(); j+=1) {// for each bullet object in the compound object
 
 
-			if (grabN && (s.sNeedle->s_needle->children[0]->isKinematic || s.sNeedle->s_needle_mass == 0)
+/*			if (grabN && (s.sNeedle->s_needle->children[0]->isKinematic || s.sNeedle->s_needle_mass == 0)
 					&& m_bodies[i]->objectType() == "RaveObject") {
 				// To get to the center of the gripper
 				btTransform gpTfm = manip->getTransform();
@@ -211,7 +211,7 @@ void RavensGrabMonitor::grab(bool grabN, float threshold) {
 					num_in_contact += 1;
 				}
 				continue;
-			}
+			}*/
 
 			float adjusted_thresh = threshold;
 			if (m_bodies[i]->children[j]->objectType() == "BoxObject") adjusted_thresh *= 50;
@@ -303,7 +303,7 @@ void RavensGrabMonitor::release() {
 	numGrabbed = 0;
 	while (m_grabs.size() != 0)
 		m_grabs.pop_back();
-	if (s.sNeedle->s_grasping_gripper == gripper) {
+	/*if (s.sNeedle->s_grasping_gripper == gripper) {
 		s.sNeedle->s_grasping_gripper = 'n';
 
 		btTransform tTfm = s.table->getIndexTransform(0);
@@ -330,7 +330,7 @@ void RavensGrabMonitor::release() {
 		else if (s.sNeedle->s_needle_mass == 0)
 			s.sNeedle->s_needle->getChildren()[0]->motionState->setWorldTransform(nTfm);
 		s.ravens.ravens->robot->Release(s.sNeedle->s_needle->body);
-	}
+	}*/
 }
 
 
