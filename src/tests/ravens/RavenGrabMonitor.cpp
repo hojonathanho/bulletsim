@@ -244,25 +244,39 @@ void RavensGrabMonitor::grabNeedle () {
 
 	// ********* Adjust position of needle to be properly in gripper ********//
 	btTransform gpTfm = manip->getTransform();
-	btVector3 offset = gpTfm.getBasis().getColumn(2)*-0.003*METERS;
-	btVector3 eePose = manip->getTransform().getOrigin() + offset;
+	btVector3 gpVecZ = gpTfm.getBasis().getColumn(2);
+	btVector3 eePose = manip->getTransform().getOrigin() + gpVecZ*-0.003*METERS;
 
 	btTransform tfm = s.sNeedle->getNeedleCenterTransform();
 	btVector3 center = tfm.getOrigin();
 	btVector3 xVec = tfm.getBasis().getColumn(0);
 	btVector3 zVec = tfm.getBasis().getColumn(2);
 
+	btTransform nTfm = s.sNeedle->s_needle->getIndexTransform(0);
+
+
+	/* Step 1: Move needle to the right place.*/
 	// Vector from center to point being checked
 	btVector3 dVec = eePose-center;
 	// Vector component out of plane of needle
 	btVector3 dVecZ = dVec.dot(zVec)*zVec;
 	// Vector in the plane of needle being checked for distance.
 	btVector3 dVecXY = dVec - dVecZ;
-
-	btTransform nTfm = s.sNeedle->s_needle->getIndexTransform(0);
-
 	// Move needle to inside gripper
 	nTfm.getOrigin() += zVec + (dVecXY.length()-s.sNeedle->s_needle_radius*METERS)*dVecXY.normalized();
+
+	/*Step 2: Rotate needle within gripper to have z axes of gripper tfm and needle tfm aligned.*/
+	// Fixing z vector of needle tfm
+	btVector3 nVecZ = gpVecZ.dot(nTfm.getBasis().getColumn(2)) > 0 ? gpVecZ : -1*gpVecZ;
+	// Forcing x vector to be closes possible orthogonal vector to z of needle
+	btVector3 nVecX = nTfm.getBasis().getColumn(0) - nTfm.getBasis().getColumn(0).dot(nVecZ)*nVecZ;
+	nVecX.normalize();
+	// Finding y
+	btVector3 nVecY = nVecZ.cross(nVecX);
+	// Setting new rotation
+	nTfm.getBasis().setValue( nVecX.x(), nVecY.x(), nVecZ.x(),
+							  nVecX.y(), nVecY.y(), nVecZ.y(),
+							  nVecX.z(), nVecY.z(), nVecZ.z() );
 
 	if (s.sNeedle->s_needle->children[0]->isKinematic)
 		s.sNeedle->s_needle->getChildren()[0]->motionState->setKinematicPos(nTfm);
@@ -291,12 +305,30 @@ void RavensGrabMonitor::release() {
 		m_grabs.pop_back();
 	if (s.sNeedle->s_grasping_gripper == gripper) {
 		s.sNeedle->s_grasping_gripper = 'n';
-		btTransform current = s.sNeedle->s_needle->getIndexTransform(0);
-		current.getOrigin().setZ(s.table->getIndexTransform(0).getOrigin().z()+s.table->getHalfExtents().z() + 0.005*METERS);
+
+		btTransform tTfm = s.table->getIndexTransform(0);
+		// Reorient needle to suitable position on table
+		btTransform nTfm = s.sNeedle->s_needle->getIndexTransform(0);
+		// Set origin
+		nTfm.getOrigin().setZ(tTfm.getOrigin().z()+s.table->getHalfExtents().z() + 0.002*METERS);
+		// Fixing z vector of needle tfm
+		btVector3 tZ = tTfm.getBasis().getColumn(2);
+		btVector3 nVecZ = tZ.dot(nTfm.getBasis().getColumn(2)) > 0 ? tZ : -1*tZ;
+		// Forcing x vector to be closes possible orthogonal vector to z of needle
+		btVector3 nVecX = nTfm.getBasis().getColumn(0) - nTfm.getBasis().getColumn(0).dot(nVecZ)*nVecZ;
+		nVecX.normalize();
+		// Finding y
+		btVector3 nVecY = nVecZ.cross(nVecX);
+		// Setting new rotation
+		nTfm.getBasis().setValue( nVecX.x(), nVecY.x(), nVecZ.x(),
+								  nVecX.y(), nVecY.y(), nVecZ.y(),
+								  nVecX.z(), nVecY.z(), nVecZ.z() );
+
+
 		if (s.sNeedle->s_needle->children[0]->isKinematic)
-			s.sNeedle->s_needle->getChildren()[0]->motionState->setKinematicPos(current);
+			s.sNeedle->s_needle->getChildren()[0]->motionState->setKinematicPos(nTfm);
 		else if (s.sNeedle->s_needle_mass == 0)
-			s.sNeedle->s_needle->getChildren()[0]->motionState->setWorldTransform(current);
+			s.sNeedle->s_needle->getChildren()[0]->motionState->setWorldTransform(nTfm);
 		s.ravens.ravens->robot->Release(s.sNeedle->s_needle->body);
 	}
 }
