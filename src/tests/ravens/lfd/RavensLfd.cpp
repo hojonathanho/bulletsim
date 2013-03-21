@@ -5,10 +5,8 @@ using namespace std;
 
 RavensLfdRpm::RavensLfdRpm (Ravens & ravens_, const vector<btVector3> &src_pts,
 		const vector<btVector3> &target_pts) : ravens(ravens_), plot_lines_left(new PlotLines), plot_lines_right(new PlotLines),
-		lfdrpm(new RegistrationModule(src_pts, target_pts, 10, 0.02, 0.0002, 0.04, 0.0002)){
+		lfdrpm(new RegistrationModule(src_pts, target_pts, 50, 0.02, 0.0002, 0.2, 0.001)){
 
-	/*int n_iter = 5, float reg_init = .1, float reg_final = .001,
-				float rad_init = .2, float rad_final = .001*/
 	if (src_pts.size() < 50 || target_pts.size() < 50)
 		cout <<"LFD RPM : Warning too few points!"<<endl;
 
@@ -19,6 +17,17 @@ RavensLfdRpm::RavensLfdRpm (Ravens & ravens_, const vector<btVector3> &src_pts,
 	//ravens.scene.env->add(plot_lines_left);
 	//  ravens.scene.env->add(plot_lines_right);
 }
+
+RavensLfdRpm::RavensLfdRpm (Ravens & ravens_, const vector<vector<btVector3> > &src_clouds,
+		const vector<vector<btVector3> > &target_clouds) : ravens(ravens_), plot_lines_left(new PlotLines), plot_lines_right(new PlotLines),
+		lfdrpm(new RegistrationModule(src_clouds, target_clouds, 50, 0.02, 0.0002, 0.2, 0.001)){
+
+	std::cout<<"LFD RPM : Please make sure that the src and target points are scaled down by METERS."<<std::endl;
+
+	larm_indices = ravens.manipL->manip->GetArmIndices();
+	rarm_indices = ravens.manipR->manip->GetArmIndices();
+}
+
 
 /** Does smooth IK on transforms (in joint space: basically chooses the closest subsequent joint-set [l2 normwise].
  *  Ik is done for each transform in TRANSFORMS and the corresponding joints are stored in JOINTS.*/
@@ -262,6 +271,41 @@ bool warpRavenJoints(Ravens &ravens,
 	return lfdrpm.transformJointsTrajOpt(in_joints, out_joints);
 }
 
+
+/** Warp the joint values of the ravens using SRC_PTS as the reference
+ *  and TARGETR_PTS as the new points for warping.*/
+bool warpRavenJoints( Ravens &ravens,
+		const PointCloudInfo &rope_info,
+		const PointCloudInfo &needle_info,
+		const PointCloudInfo &cuts_info,
+		const PointCloudInfo &holes_info,
+		const vector< vector<dReal> >& in_joints, vector< vector<dReal> > & out_joints) {
+
+	vector<vector<btVector3> > src_clouds, target_clouds;
+	if (rope_info.first) {
+		src_clouds.push_back(rope_info.second.first);
+		target_clouds.push_back(rope_info.second.second);
+	}
+
+	if (needle_info.first) {
+		src_clouds.push_back(needle_info.second.first);
+		target_clouds.push_back(needle_info.second.second);
+	}
+
+	if (cuts_info.first) {
+		src_clouds.push_back(cuts_info.second.first);
+		target_clouds.push_back(cuts_info.second.second);
+	}
+
+	if (holes_info.first) {
+		src_clouds.push_back(holes_info.second.first);
+		target_clouds.push_back(holes_info.second.second);
+	}
+
+	RavensLfdRpm lfdrpm(ravens, src_clouds, target_clouds);
+	return lfdrpm.transformJointsTrajOpt(in_joints, out_joints);
+}
+
 /** Do trajectory optimization to solve for the new joint angles for getting to the new warped trasforms.
  *   Please ensure that the input transforms (OLD_TRANSFORMS) correspond to the palm links of the manipulator.*/
 vector< vector<double> > doTrajectoryOptimization(RaveRobotObject::Manipulator::Ptr manip,
@@ -432,24 +476,6 @@ bool RavensLfdRpm::transformJointsTrajOptWithIK(const vector<vector<dReal> > &jo
 	}
 	return true;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

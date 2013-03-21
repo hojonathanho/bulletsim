@@ -20,6 +20,31 @@ RegistrationModule::RegistrationModule(vector<btVector3> src_pts, vector<btVecto
 	}
 }
 
+/** Wraps around lfd rpm module. */
+RegistrationModule::RegistrationModule(vector <vector<btVector3> > src_clouds,
+		vector <vector<btVector3> > target_clouds,
+		int n_iter, float reg_init, float reg_final,
+		float rad_init, float rad_final) {
+
+	assert (("Different number of point-clouds.",src_clouds.size()==target_clouds.size()));
+	tps_rpm_func = PyGlobals::lfd_registration_module.attr("tps_rpm_multi");
+
+	py::list py_src_clouds, py_target_clouds;
+	for (int i=0; i<src_clouds.size(); i+=1) {
+		py::object py_src_cloud    = pointsToNumpy(src_clouds[i]);
+		py::object py_target_cloud = pointsToNumpy(target_clouds[i]);
+		py_src_clouds.append(py_src_cloud);
+		py_target_clouds.append(py_target_cloud);
+	}
+	try {
+		registration_module  = tps_rpm_func(py_src_clouds, py_target_clouds, n_iter,
+											reg_init, reg_final, rad_init, rad_final);
+	} catch (...) {
+		PyErr_Print();
+	}
+}
+
+
 /** Transform a btVector using tps.
  *  Performs the mapping: pt in demonstration |--> pt in new setting. */
 btVector3 RegistrationModule::transform_point(btVector3 pt) {

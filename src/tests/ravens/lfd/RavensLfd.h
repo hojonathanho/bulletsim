@@ -7,6 +7,7 @@
 
 
 using namespace std;
+typedef pair<bool, pair< vector<btVector3>, vector<btVector3> > >  PointCloudInfo;
 
 
 /** Simple class which helps apply lfd by transforming the joints angles. */
@@ -42,6 +43,12 @@ public:
 	 *  TARGET_PTS_: the new point locations. */
 	RavensLfdRpm (Ravens &ravens_, const vector<btVector3> &src_pts, const vector<btVector3> &target_pts);
 
+	/** Ravens   : the robot to transform the joints for.
+	 *  SRC_PTS_ : the reference point locations.
+	 *  TARGET_PTS_: the new point locations. */
+	RavensLfdRpm (Ravens &ravens_, const vector<vector<btVector3> > &src_clouds,
+			       const vector<vector<btVector3> > & target_pts);
+
 	/** Warp the joint angles of ravens using warping and IK.*/
 	bool transformJoints(const vector<vector<dReal> > &joint_vals, vector< vector<dReal> > &new_joint_vals);
 
@@ -67,3 +74,16 @@ vector< vector<double> > doTrajectoryOptimization2(RaveRobotObject::Manipulator:
 bool warpRavenJoints(Ravens &ravens,
 		const vector<btVector3> &src_pts, const vector<btVector3> &target_pts,
 		const vector< vector<dReal> >& in_joints, vector< vector<dReal> > & out_joints);
+
+
+/** Warp the joint values of the ravens using point-clouds with known associations.
+ *  ROPE/NEELDE/CUTS/HOLES info are pairs of point-clouds which need to be matched up for fitting TPS.
+ *    >> Correspondences are not found across the pair of point-clouds.
+ *  IN_JOINTS [in] are the joint-angles which need to be warped.
+ *  OUT_JOINTS [out] is the output - the warped joint angles.*/
+bool warpRavenJoints( Ravens &ravens,
+						 const PointCloudInfo &rope_info,
+						 const PointCloudInfo &needle_info,
+						 const PointCloudInfo &cuts_info,
+						 const PointCloudInfo &holes_info,
+						 const vector< vector<dReal> >& in_joints, vector< vector<dReal> > & out_joints);

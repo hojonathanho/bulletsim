@@ -32,6 +32,17 @@ public:
 			int n_iter = 50, float reg_init = .01, float reg_final = .0001,
 			float rad_init = .1, float rad_final = .0005);
 
+	/** tps-rpm algorithm mostly as described by chui and rangaran
+	 *  @params:
+	 *    src_pts           : point-clouds in the original demonstration (meters)
+	 *    target_pts        : point-clouds in the new situation          (meters)
+	 *    n_iter            : number of iterations
+	 *    reg_init/reg_final: regularization on curvature; affineness vs. non-affineness
+	 *    rad_init/rad_final: radius for correspondence calculation (meters) */
+	RegistrationModule(vector<vector<btVector3> > src_pts, vector<vector<btVector3> > target_pts,
+			int n_iter = 50, float reg_init = .01, float reg_final = .0001,
+			float rad_init = .1, float rad_final = .0005);
+
     /** Transform a btVector using tps.
      *  Performs the mapping: pt in demonstration |--> pt in new setting. */
 	btVector3 transform_point(btVector3 pt);
