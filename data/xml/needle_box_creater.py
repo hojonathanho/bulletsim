@@ -56,7 +56,7 @@ if __name__=="__main__":
     fo.write("    <!--Boxes-->\n")
     box_len = needle_rad*np.pi/(num_box)
     angles = np.linspace(-np.pi/2, np.pi/2, num_box)
-    he = [box_len/2, box_len, box_len/2]
+    he = [box_len/4, box_len, box_len/4]
     for ang in angles:
         tfm = rotateByAngle(np.eye(4), ang, needle_rad)
         c = tfm[0:3,3]
