@@ -310,6 +310,7 @@ BoxCloth::BoxCloth(CustomScene &_s, unsigned int n_, unsigned int m_, vector<uns
 				BoxObject::Ptr child(new BoxObject(mass, halfExtents, trans));
 				child->rigidBody->setDamping(linDamping, angDamping);
 				child->rigidBody->setFriction(1);
+				child->setColor(0.5,0.5,0.5,0.3);
 				children.push_back(child);
 				grid_to_obj_inds.insert(make_pair(make_pair(i,j), children.size()-1));
 			}
@@ -321,6 +322,7 @@ BoxCloth::BoxCloth(CustomScene &_s, unsigned int n_, unsigned int m_, vector<uns
 				RaveObject::Ptr hole = RaveObject::Ptr(new RaveObject(scene.rave,hole_body,CONVEX_HULL,true));
 
 				holes.push_back(hole);
+				hole->setColor(0.5,0.5,0.5,0.3);
 				children.push_back(hole->children[0]);
 				grid_to_obj_inds.insert(make_pair(make_pair(i,j), children.size()-1));
 			}
@@ -337,10 +339,10 @@ BoxCloth::BoxCloth(CustomScene &_s, unsigned int n_, unsigned int m_, vector<uns
 		boost::shared_ptr<btPoint2PointConstraint> jointPtr(new btPoint2PointConstraint(*children[grid_to_obj_inds[make_pair(corners_x[i], corners_y[i])]]->rigidBody,btVector3(0,0,0)));
 		joints.push_back(BulletConstraint::Ptr(new BulletConstraint(jointPtr, true)));
 	}
-	children[grid_to_obj_inds[make_pair(corners_x[0], corners_y[0])]]->setColor(1,0,0,0.8);
-	children[grid_to_obj_inds[make_pair(corners_x[1], corners_y[1])]]->setColor(0,1,0,0.8);
-	children[grid_to_obj_inds[make_pair(corners_x[2], corners_y[2])]]->setColor(0,0,1,0.8);
-	children[grid_to_obj_inds[make_pair(corners_x[3], corners_y[3])]]->setColor(1,0,1,0.8);
+	children[grid_to_obj_inds[make_pair(corners_x[0], corners_y[0])]]->setColor(1,0,0,0.4);
+	children[grid_to_obj_inds[make_pair(corners_x[1], corners_y[1])]]->setColor(0,1,0,0.4);
+	children[grid_to_obj_inds[make_pair(corners_x[2], corners_y[2])]]->setColor(0,0,1,0.4);
+	children[grid_to_obj_inds[make_pair(corners_x[3], corners_y[3])]]->setColor(1,0,1,0.4);
 
 	for (unsigned int i=0; i < n; i++) {
 		for(unsigned int j=0; j<m; j++) {

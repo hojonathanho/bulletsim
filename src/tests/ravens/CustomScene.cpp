@@ -27,18 +27,17 @@ btTransform rotateByAngle (btTransform &tfm, const float ang, const float rad) {
 
 /** Constructor for suturing needle. Creates needle from file.*/
 CustomScene::SuturingNeedle::SuturingNeedle(CustomScene * _scene, float _rope_radius, float _segment_len, int _nLinks) :
-													scene(*_scene), s_needle_radius(0.01),
+													scene(*_scene), s_needle_radius(0.015),
 													s_needle_mass(1000), s_pierce_threshold(0.03),
 													s_end_angle(1.57), s_piercing(false), s_grasping_gripper('n'),
 													rope_radius(_rope_radius), segment_len(_segment_len), nLinks(_nLinks) {
-
 
 	static const char sNeedle_MODEL_FILE[] = EXPAND(BULLETSIM_DATA_DIR) "/xml/needle.xml";
 	KinBodyPtr needle_body = scene.rave->env->ReadKinBodyURI(sNeedle_MODEL_FILE);
 	btTransform table_tfm;
 	scene.table->motionState->getWorldTransform(table_tfm);
 
-	table_tfm.setOrigin(table_tfm.getOrigin() + METERS*btVector3((float)scene.bcn*scene.bcs + 0.01, 0.05, scene.table->getHalfExtents().z()/METERS + 0.002) );
+	table_tfm.setOrigin(table_tfm.getOrigin() + METERS*btVector3(0.05, (float)scene.bcn*scene.bcs + 0.01, scene.table->getHalfExtents().z()/METERS + 0.002) );
 	needle_body->SetTransform(util::toRaveTransform(table_tfm, 1.0f/METERS));
 
 	s_needle = RaveObject::Ptr(new RaveObject(scene.rave,needle_body,CONVEX_HULL,false));
@@ -57,7 +56,7 @@ CustomScene::SuturingNeedle::SuturingNeedle(CustomScene * _scene, float _rope_ra
 	for (int i=0; i< nLinks; i++)
 		//ctrlPts.push_back(handlePos + METERS*btVector3(segment_len*i - 0.15,0,2*rope_radius));  // horizontal rope
 		//ctrlPts.push_back(handlePos + METERS*btVector3(0, segment_len*(i - nLinks/2.0), 2*rope_radius)); //vertical rope
-		ctrlPts.push_back(handlePos + METERS*btVector3(0, -segment_len*i, 2*rope_radius)); //vertical rope
+		ctrlPts.push_back(handlePos + METERS*btVector3(-segment_len*i, 0, 2*rope_radius)); //vertical rope
 
 	ropePtr.reset(new CapsuleRope(ctrlPts,METERS*rope_radius));
 	scene.env->add(ropePtr);
@@ -111,7 +110,7 @@ btTransform CustomScene::SuturingNeedle::getNeedleCenterTransform() {
  */
 bool CustomScene::SuturingNeedle::pointCloseToNeedle (btVector3 pt) {
 
-	float xDirThresh = 0.0, zDirThresh = 0.2, distThresh = 0.005;
+	float xDirThresh = 0.0, zDirThresh = 0.2, distThresh = 0.006;
 
 	btTransform tfm = getNeedleCenterTransform();
 	btVector3 center = tfm.getOrigin();
@@ -190,13 +189,13 @@ void CustomScene::getBoxPoints(vector<btVector3> & boxPoints, float scale) {
 
 	//cloth1: i = 0
 	vector< pair<int,int> > indices1(bcm);
-	for (int i = 0; i < bcm; ++i) indices1[i] = make_pair(0,i);
+	for (int i = 0; i < bcn; ++i) indices1[i] = make_pair(i,0);
 	cloth1->getBoxClothPoints(indices1, boxPoints);
 
 
 	//cloth2: i = n-1
 	vector< pair<int,int> > indices2(bcm);
-	for (int i = 0; i < bcm; ++i) indices2[i] = make_pair(bcn-1,i);
+	for (int i = 0; i < bcn; ++i) indices2[i] = make_pair(i, bcm-1);
 	cloth2->getBoxClothPoints(indices2, boxPoints);
 
 	for (int i = 0; i < boxPoints.size(); ++i) boxPoints[i]  = boxPoints[i]*scale;
@@ -290,14 +289,14 @@ void CustomScene::run() {
 
 	hole_x.push_back(0); hole_x.push_back(0); hole_x.push_back(0); hole_x.push_back(0);
 	hole_y.push_back(3); hole_y.push_back(6); hole_y.push_back(9); hole_y.push_back(12);
-	cloth1.reset(new BoxCloth(*this, bcn, bcm, hole_x, hole_y, bcs, bch, btVector3((float)bcn/2*bcs + 0.003,0, table_height+0.02)));
+	cloth1.reset(new BoxCloth(*this, bcn, bcm, hole_y, hole_x, bcs, bch, btVector3(0, (float)bcm/2*bcs + 0.003, table_height+0.02)));
 	if (RavenConfig::cloth)
 		env->add(cloth1);
 
 	hole_x.clear(); hole_y.clear();
 	hole_x.push_back(4); hole_x.push_back(4); hole_x.push_back(4); hole_x.push_back(4);
 	hole_y.push_back(3); hole_y.push_back(6); hole_y.push_back(9); hole_y.push_back(12);
-	cloth2.reset(new BoxCloth(*this, bcn, bcm, hole_x, hole_y, bcs, bch, btVector3(-(float)bcn/2*bcs - 0.003, 0, table_height+0.02)));
+	cloth2.reset(new BoxCloth(*this, bcn, bcm, hole_y, hole_x, bcs, bch, btVector3(0, -(float)bcm/2*bcs - 0.003, table_height+0.02)));
 	if (RavenConfig::cloth)
 		env->add(cloth2);
 

@@ -79,7 +79,7 @@ void Scene::startViewer() {
     light->setAmbient(osg::Vec4d(0.0, 0.0, 0.0, 1.0));
     light->setDiffuse(osg::Vec4d(1.0, 1.0, 1.0, 1.0));
     light->setSpecular(osg::Vec4d(0.5, 0.2, 0.5, 1.0));
-    light->setPosition(osg::Vec4d(2*METERS, 3*METERS, METERS*3.0, 1.0));
+    light->setPosition(osg::Vec4d(-2*0*METERS, -2*METERS, METERS*3.0, 1.0));
 
     viewer.realize();
 
