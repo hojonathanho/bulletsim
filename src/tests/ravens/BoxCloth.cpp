@@ -174,11 +174,10 @@ createBendConstraint(  btScalar side_len,
 		holder[k].reset(new btGeneric6DofSpringConstraint(*rbA[k],*rbB[k],tA,tB,true));
 		for (int i=0; i<=5; i++) {
 			holder[k]->enableSpring(i,true);
-			holder[k]->setStiffness(i,0);
-			holder[k]->setDamping(i,0);
+			holder[k]->setStiffness(i,40000);
+			holder[k]->setDamping(i,300);
 		}
 		holder[k]->setEquilibriumPoint();
-
 	}
 	return holder;
 }
@@ -316,7 +315,6 @@ BoxCloth::BoxCloth(CustomScene &_s, unsigned int n_, unsigned int m_, vector<uns
 			}
 			else {
 				btTransform trans = transforms[getSerializedIndex(i,j)];
-
 				static const char HOLE_MODEL_FILE[] = EXPAND(BULLETSIM_SRC_DIR)"/tests/ravens/models/hole.xml";
 				KinBodyPtr hole_body = scene.rave->env->ReadKinBodyURI(HOLE_MODEL_FILE);
 				hole_body->SetTransform(util::toRaveTransform(trans, 1.0f/METERS));
@@ -324,8 +322,6 @@ BoxCloth::BoxCloth(CustomScene &_s, unsigned int n_, unsigned int m_, vector<uns
 
 				holes.push_back(hole);
 				children.push_back(hole->children[0]);
-
-				//makeHole(trans);
 				grid_to_obj_inds.insert(make_pair(make_pair(i,j), children.size()-1));
 			}
 		}
@@ -363,7 +359,7 @@ BoxCloth::BoxCloth(CustomScene &_s, unsigned int n_, unsigned int m_, vector<uns
 				rbA.push_back(children[curr]->rigidBody); rbA.push_back(children[curr]->rigidBody);
 				offsetA.push_back(btVector3 (s/2,s/2.01,0)); offsetA.push_back(btVector3 (s/2,-s/2.01,0));
 				//} else {
-				//	rbA.push_back(children[curr+2]->rigidBody); rbA.push_back(children[curr+3]->rigidBody);
+				//	rbA.push_back(children[curr]->rigidBody); rbA.push_back(children[curr]->rigidBody);
 				//	offsetA.push_back(btVector3 (s/2,s/2.01-s/3,0)); offsetA.push_back(btVector3 (s/2,-s/2.01+s/3,0));
 				//}
 
@@ -371,13 +367,16 @@ BoxCloth::BoxCloth(CustomScene &_s, unsigned int n_, unsigned int m_, vector<uns
 				rbB.push_back(children[right]->rigidBody); rbB.push_back(children[right]->rigidBody);
 				offsetB.push_back(btVector3 (-s/2,s/2.01,0)); offsetB.push_back(btVector3 (-s/2,-s/2.01,0));
 				//} else {
-				//	rbB.push_back(children[right+2]->rigidBody); rbB.push_back(children[right+3]->rigidBody);
+				//	rbB.push_back(children[right]->rigidBody); rbB.push_back(children[right]->rigidBody);
 				//	offsetB.push_back(btVector3 (-s/2,s/2.01-s/3,0)); offsetB.push_back(btVector3 (-s/2,-s/2.01+s/3,0));
 				//}
 
 				springPtrs = createBendConstraint(s, rbA, rbB, offsetA, offsetB, angDamping, angStiffness, angLimit);
-				for(int k=0; k < springPtrs.size(); k+=1)
+				for(int k=0; k < springPtrs.size(); k+=1) {
 					joints.push_back(BulletConstraint::Ptr(new BulletConstraint(springPtrs[k], true)));
+					if (isHole(i,j) || isHole(i+1,j))
+						joints[joints.size()-1]->setColor(1,0,0,1);
+				}
 			}
 
 			if (getSerializedIndex(i,j+1) >= 0 && getSerializedIndex(i,j+1) < n*m && j < m-1)  {
@@ -390,21 +389,24 @@ BoxCloth::BoxCloth(CustomScene &_s, unsigned int n_, unsigned int m_, vector<uns
 				rbA.push_back(children[curr]->rigidBody); rbA.push_back(children[curr]->rigidBody);
 				offsetA.push_back(btVector3 (s/2.01,-s/2,0)); offsetA.push_back(btVector3 (-s/2.01,-s/2,0));
 				//} else {
-				//	rbA.push_back(children[curr+3]->rigidBody); rbA.push_back(children[curr+3]->rigidBody);
-				//	offsetA.push_back(btVector3 (s/2.01,-s/6,0)); offsetA.push_back(btVector3 (-s/2.01,-s/6,0));
+				//rbA.push_back(children[curr]->rigidBody); rbA.push_back(children[curr]->rigidBody);
+				//offsetA.push_back(btVector3 (s/2.01,-s/6,0)); offsetA.push_back(btVector3 (-s/2.01,-s/6,0));
 				//}
 
 				//if (!isHole(i,j+1)) {
 				rbB.push_back(children[below]->rigidBody); rbB.push_back(children[below]->rigidBody);
 				offsetB.push_back(btVector3 (s/2.01,s/2,0)); offsetB.push_back(btVector3 (-s/2.01,s/2,0));
-				//}else {
-				//	rbB.push_back(children[below+2]->rigidBody); rbB.push_back(children[below+2]->rigidBody);
+				//} else {
+				//	rbB.push_back(children[below]->rigidBody); rbB.push_back(children[below]->rigidBody);
 				//	offsetB.push_back(btVector3 (s/2.01,s/6,0)); offsetB.push_back(btVector3 (-s/2.01,s/6,0));
 				//}
 
 				springPtrs = createBendConstraint(s, rbA, rbB, offsetA, offsetB, angDamping, angStiffness, angLimit);
-				for(int k=0; k < springPtrs.size(); k+=1)
+				for(int k=0; k < springPtrs.size(); k+=1) {
 					joints.push_back(BulletConstraint::Ptr(new BulletConstraint(springPtrs[k], true)));
+					if (isHole(i,j) || isHole(i,j+1))
+						joints[joints.size()-1]->setColor(1,0,0,1);
+				}
 
 			}
 		}
