@@ -45,7 +45,7 @@ public:
 	// Constructor
 	jointPlayback (	CustomScene &_scene, bool _processing=false,
 					float _freq = -1.0, float _dt = -1.0,
-					string _filename="/home/sibi/sandbox/bulletsim/src/tests/ravens/recorded/raven_joints.txt");
+					string _filename=EXPAND(BULLETSIM_SRC_DIR)"/tests/ravens/recorded/raven_joints.txt");
 
 	/** Start the controller. */
 	void run() {

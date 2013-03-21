@@ -38,7 +38,7 @@ CustomScene::SuturingNeedle::SuturingNeedle(CustomScene * _scene, float _rope_ra
 	btTransform table_tfm;
 	scene.table->motionState->getWorldTransform(table_tfm);
 
-	table_tfm.setOrigin(table_tfm.getOrigin() + METERS*btVector3((float)scene.bcn*scene.bcs + 0.01, 0.05, scene.table->getHalfExtents().z()/METERS + 0.005) );
+	table_tfm.setOrigin(table_tfm.getOrigin() + METERS*btVector3((float)scene.bcn*scene.bcs + 0.01, 0.05, scene.table->getHalfExtents().z()/METERS + 0.002) );
 	needle_body->SetTransform(util::toRaveTransform(table_tfm, 1.0f/METERS));
 
 	s_needle = RaveObject::Ptr(new RaveObject(scene.rave,needle_body,CONVEX_HULL,false));

@@ -85,6 +85,7 @@ add_executable(ravens ravens/test_ravens.cpp
                       ravens/CustomScene.cpp
                       ravens/jointPlayback.cpp
                       ravens/jointRecorder.cpp
+                      ravens/jointLFDProcessor.cpp
                       ravens/CustomKeyHandler.cpp
                       ravens/RavenPlanners.cpp
                       ravens/ravens_config.cpp

@@ -71,9 +71,17 @@ void jointPlayback::executeNextWaypoint () {
 }
 
 void jointPlayback::process () {
-	vector<btVector3> ropePoints;
+	vector<btVector3> ropePoints, needlePoints, boxPoints, holePoints;
 	scene.sNeedle->getRopePoints(true, ropePoints, 1.0/METERS);
-	processedSuccessfully = lfdProcessor->preProcess(scene.ravens, ropePoints, processedJoints);
+	scene.sNeedle->getNeedlePoints(needlePoints, 1.0/METERS);
+	scene.getBoxPoints(boxPoints, 1.0/METERS);
+	scene.getBoxHoles(holePoints, 1.0/METERS);
+	processedSuccessfully = lfdProcessor->preProcess(	scene.ravens,
+														ropePoints,
+														needlePoints,
+														boxPoints,
+														holePoints,
+														processedJoints );
 	if (processedSuccessfully) {
 		jCount = 0;
 		gCount = (lfdProcessor->grabIndices.size() > 0 ? 0 : -1);
