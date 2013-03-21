@@ -41,6 +41,8 @@ public:
 
 	void initializeModes (const vector<string> & _modes) {modes = _modes;}
 
+	void hardCodeModes ();
+
 	bool preProcess (	Ravens & ravens,
 						vector<btVector3> & new_rope_points,
 						vector<btVector3> & new_needle_points,

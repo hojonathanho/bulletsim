@@ -8,8 +8,15 @@ void LFDProcessor::initProcessing () {
 	assert (section == "section");
 	fileClosed = false;
 	mode_count = 0;
+
+	//HARD CODE MODES:
+	hardCodeModes();
 }
 
+void LFDProcessor::hardCodeModes () {
+	modes.clear();
+	modes.push_back("pierce");
+}
 
 bool LFDProcessor::preProcess (	Ravens & ravens,
 		vector<btVector3> & new_rope_points,
@@ -131,23 +138,24 @@ bool LFDProcessor::preProcess (	Ravens & ravens,
 	mode_count ++;
 
 
-	bool successful = warpRavenJoints (ravens, rope_points, new_rope_points, jointValueVector, processedJointValues);
+	//bool successful = warpRavenJoints (ravens, rope_points, new_rope_points, jointValueVector, processedJointValues);
 
-	vector< pair<bool, pair<vector<btVector3>, vector<btVector3> > > > data;
+	//vector< pair<bool, pair<vector<btVector3>, vector<btVector3> > > > data;
 
-	data.push_back(make_pair(use_rope, make_pair(rope_points, new_rope_points)));
-	data.push_back(make_pair(use_needle, make_pair(needle_points, new_needle_points)));
-	data.push_back(make_pair(use_box, make_pair(box_points, new_box_points)));
-	data.push_back(make_pair(use_hole, make_pair(hole_points, new_hole_points)));
+	//data.push_back(make_pair(use_rope, make_pair(rope_points, new_rope_points)));
+	//data.push_back(make_pair(use_needle, make_pair(needle_points, new_needle_points)));
+	//data.push_back(make_pair(use_box, make_pair(box_points, new_box_points)));
+	//data.push_back(make_pair(use_hole, make_pair(hole_points, new_hole_points)));
 
 	//Actually should be:
-	/* bool successful = warpRavenJoints (ravens, data, jointValueVector, processedJointValues);
-	/* bool successful = warpRavenJoints (	ravens,
-	 	 	 	 	 	 	 	 	 	 	make_pair(use_rope, make_pair(rope_points, new_rope_points)),
-											make_pair(use_needle, make_pair(needle_points, new_needle_points)),
-											make_pair(use_box, make_pair(box_points, new_box_points)),
-											make_pair(use_hole, make_pair(hole_points, new_hole_points)),
-											jointValueVector, processedJointValues);*/
+	/* bool successful = warpRavenJoints (ravens, data, jointValueVector, processedJointValues);*/
+	// OR
+	bool successful = warpRavenJoints (	ravens,
+			make_pair(use_rope, make_pair(rope_points, new_rope_points)),
+			make_pair(use_needle, make_pair(needle_points, new_needle_points)),
+			make_pair(use_box, make_pair(box_points, new_box_points)),
+			make_pair(use_hole, make_pair(hole_points, new_hole_points)),
+			jointValueVector, processedJointValues);
 
 	if (!successful) {
 		cout<<"Unable to find trajectory."<<endl;
