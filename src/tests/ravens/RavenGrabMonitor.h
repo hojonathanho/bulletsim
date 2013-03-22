@@ -55,9 +55,10 @@ public:
   btVector3 getInnerPt(bool left) const ;
   btVector3 getClosingDirection(bool left) const;
   btVector3 getToolDirection() const;
-  bool onInnerSide(const btVector3 &pt, bool left);
+  bool onInnerSide(const btVector3 &pt, bool left, btVector3 threshVec=btVector3(0.0025, -0.001, 0.005));
 
-  bool checkContacts (bool leftFinger, btRigidBody *target, double &avg_impulse, float threshold=100.f);
+  bool checkContacts (bool leftFinger, btRigidBody *target, double &avg_impulse, float threshold=100.f,
+		  	  	  	  btVector3 grabThreshVec=btVector3(0.0025, -0.001, 0.005));
   void setBodies(std::vector<CompoundObject<BulletObject>::Ptr>& bodies) {m_bodies = bodies;}
   void grab();
   void grab(bool grabN, float threshold=100);

@@ -93,18 +93,21 @@ btTransform RavensGrabMonitor::getInverseFingerTfm (bool left) {
 }
 
 // Returns true is pt is on the inner side of the specified finger of the gripper
-bool RavensGrabMonitor::onInnerSide(const btVector3 &pt, bool left) {
+bool RavensGrabMonitor::onInnerSide(const btVector3 &pt, bool left, btVector3 threshVec) {
 	// then the innerPt and the closing direction define the plane
 	btTransform itfm = getInverseFingerTfm (left);
 	btVector3 new_pt = itfm * pt;
-	return ((abs(new_pt.x()) < .0025*METERS) && (new_pt.y() > -.001*METERS) && (abs(new_pt.z()) < 0.005*METERS));
+	return ((abs(new_pt.x()) < threshVec.x()*METERS) &&
+			(new_pt.y() > threshVec.y()*METERS) &&
+			(abs(new_pt.z()) < threshVec.z()*METERS));
 }
 
 
 /** Look for contacts between the specified finger and target
     if the applied impulse reaches some threshold, this returns true
     signifying that the gripper cannot be closed further without penetrating the target. */
-bool RavensGrabMonitor::checkContacts(bool left, btRigidBody *target, double &avg_impulse, float threshold) {
+bool RavensGrabMonitor::checkContacts(bool left, btRigidBody *target, double &avg_impulse,
+									  float threshold, btVector3 grabThresh) {
 	btRigidBody * const finger =
 			m_manip->robot->associatedObj(left ? leftFinger : rightFinger)->rigidBody.get();
 
@@ -138,7 +141,7 @@ bool RavensGrabMonitor::checkContacts(bool left, btRigidBody *target, double &av
 
 			if (impulse > multiplier*avg_impulse) {
 				cout<<"   Found exceeding impulse"<<endl;
-				if (onInnerSide(contact_pt, left)) {
+				if (onInnerSide(contact_pt, left, grabThresh)) {
 					//contact_pt = tfm.inverse()*contact_pt;
 					//cout<<"Point: " <<contact_pt.x()<<","<<contact_pt.y()<<","<<contact_pt.z()<<endl;
 					//cout<<"Distance: "<<contact_pt.length()<<endl;
@@ -217,8 +220,13 @@ void RavensGrabMonitor::grab(bool grabN, float threshold) {
 			if (m_bodies[i]->children[j]->objectType() == "BoxObject") adjusted_thresh *= 50;
 
 			// check for contact
-			r_contact = checkContacts(false, m_bodies[i]->children[j]->rigidBody.get(), avg_impulse, adjusted_thresh);
-			l_contact = checkContacts(true,  m_bodies[i]->children[j]->rigidBody.get(), avg_impulse, adjusted_thresh);
+			if (m_bodies[i]->children[j]->objectType() == "CapsuleObject") {
+				r_contact = checkContacts(false, m_bodies[i]->children[j]->rigidBody.get(), avg_impulse, adjusted_thresh, btVector3(0.0025,-0.001,0.01));
+				l_contact = checkContacts(true,  m_bodies[i]->children[j]->rigidBody.get(), avg_impulse, adjusted_thresh, btVector3(0.0025,-0.001,0.01));
+			} else {
+				r_contact = checkContacts(false, m_bodies[i]->children[j]->rigidBody.get(), avg_impulse, adjusted_thresh);
+				l_contact = checkContacts(true,  m_bodies[i]->children[j]->rigidBody.get(), avg_impulse, adjusted_thresh);
+			}
 
 			if (l_contact || r_contact) {
 				num_in_contact += 1;
