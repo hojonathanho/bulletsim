@@ -310,7 +310,7 @@ BoxCloth::BoxCloth(CustomScene &_s, unsigned int n_, unsigned int m_, vector<uns
 				BoxObject::Ptr child(new BoxObject(mass, halfExtents, trans));
 				child->rigidBody->setDamping(linDamping, angDamping);
 				child->rigidBody->setFriction(1);
-				child->setColor(0.5,0.5,0.5,0.3);
+				child->setColor(0.5,0.5,0.5,0.8);
 				children.push_back(child);
 				grid_to_obj_inds.insert(make_pair(make_pair(i,j), children.size()-1));
 			}
@@ -322,7 +322,7 @@ BoxCloth::BoxCloth(CustomScene &_s, unsigned int n_, unsigned int m_, vector<uns
 				RaveObject::Ptr hole = RaveObject::Ptr(new RaveObject(scene.rave,hole_body,CONVEX_HULL,true));
 
 				holes.push_back(hole);
-				hole->setColor(0.5,0.5,0.5,0.3);
+				hole->setColor(0.5,0.5,0.5,0.8);
 				children.push_back(hole->children[0]);
 				grid_to_obj_inds.insert(make_pair(make_pair(i,j), children.size()-1));
 			}
@@ -419,25 +419,28 @@ BoxCloth::BoxCloth(CustomScene &_s, unsigned int n_, unsigned int m_, vector<uns
 void BoxCloth::getBoxClothPoints(vector< pair<int, int> > indices, vector<btVector3> & boxPoints) {
 
 	for (unsigned int i=0; i < indices.size(); ++i) {
-		if (getSerializedIndex(indices[i].first,indices[i].second) >= 0 &&
-				getSerializedIndex(indices[i].first,indices[i].second) < n*m &&
-				!isHole(indices[i].first,indices[i].second)) {
 
-			unsigned int curr = grid_to_obj_inds[indices[i]];
-			btTransform currTfm = children[curr]->getIndexTransform(0);
-			btVector3 center = currTfm.getOrigin();
-			btVector3 xVec = currTfm.getBasis().getColumn(0), yVec = currTfm.getBasis().getColumn(1);
+		if (getSerializedIndex(indices[i].first,indices[i].second) < 0 ||
+			getSerializedIndex(indices[i].first,indices[i].second) >= n*m ||
+			indices[i].first < 0  || indices[i].first > n  ||
+			indices[i].second < 0 || indices[i].second > m ||
+			isHole(indices[i].first,indices[i].second)) {continue;}
 
-			boxPoints.push_back(center);
-			/*boxPoints.push_back(center+xVec*s/2+yVec*s/2);
-			boxPoints.push_back(center+xVec*s/2-yVec*s/2);
-			boxPoints.push_back(center-xVec*s/2+yVec*s/2);
-			boxPoints.push_back(center-xVec*s/2-yVec*s/2);*/
-			boxPoints.push_back(center+xVec*s/4+yVec*s/4);
-			boxPoints.push_back(center+xVec*s/4-yVec*s/4);
-			boxPoints.push_back(center-xVec*s/4+yVec*s/4);
-			boxPoints.push_back(center-xVec*s/4-yVec*s/4);
-		}
+		unsigned int curr = grid_to_obj_inds[indices[i]];
+		btTransform currTfm = children[curr]->getIndexTransform(0);
+		btVector3 center = currTfm.getOrigin();
+		btVector3 xVec = currTfm.getBasis().getColumn(0), yVec = currTfm.getBasis().getColumn(1);
+
+		boxPoints.push_back(center);
+		/*boxPoints.push_back(center+xVec*s/2+yVec*s/2);
+		boxPoints.push_back(center+xVec*s/2-yVec*s/2);
+		boxPoints.push_back(center-xVec*s/2+yVec*s/2);
+		boxPoints.push_back(center-xVec*s/2-yVec*s/2);*/
+		boxPoints.push_back(center+xVec*s/4+yVec*s/4);
+		boxPoints.push_back(center+xVec*s/4-yVec*s/4);
+		boxPoints.push_back(center-xVec*s/4+yVec*s/4);
+		boxPoints.push_back(center-xVec*s/4-yVec*s/4);
+
 	}
 }
 
@@ -445,6 +448,13 @@ void BoxCloth::getBoxClothPoints(vector< pair<int, int> > indices, vector<btVect
 void BoxCloth::getBoxClothHoles(vector<btVector3> & holePoints) {
 
 	for (unsigned int k=0; k < hole_is.size(); k++) {
+
+		if (getSerializedIndex(hole_is[k],hole_js[k]) < 0 ||
+			getSerializedIndex(hole_is[k],hole_js[k]) >= n*m ||
+			hole_is[k]  < 0  ||  hole_is[k] > n  ||
+			hole_js[k]  < 0  ||  hole_js[k] > m) {continue;}
+
+
 		unsigned int curr = grid_to_obj_inds[make_pair(hole_is[k],hole_js[k])];
 
 		btTransform tfm = children[curr]->getIndexTransform(0);
