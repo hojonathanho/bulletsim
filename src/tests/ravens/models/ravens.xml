@@ -27,4 +27,87 @@
     </joint>
 </KinBody>
 
+
+<KinBody name="lhandfinger1">
+
+    <Body name="lhandfinger1_sp">
+      <offsetfrom>l_grasper1_L</offsetfrom>
+      <translation>0.003 0.02 0</translation>
+      <rotationaxis>1 0 0 0</rotationaxis>
+
+      <Geom type="sphere">
+        <radius>0.001</radius>
+	<translation>0 0 0 </translation>
+      </Geom>
+    </Body>
+
+    <joint name="lhandfinger1dummy" type="hinge" enable="false">
+      <body>lhandfinger1_sp</body>
+      <body>l_grasper1_L</body>
+      <limits>0 0</limits>
+    </joint>
+</KinBody>
+
+
+<KinBody name="lhandfinger2">
+
+    <Body name="lhandfinger2_sp">
+      <offsetfrom>l_grasper2_L</offsetfrom>
+      <translation>0.003 0.02 0</translation>
+      <rotationaxis>1 0 0 0</rotationaxis>
+
+      <Geom type="sphere">
+        <radius>0.001</radius>
+	<translation>0 0 0 </translation>
+      </Geom>
+    </Body>
+
+    <joint name="lhandfinger2dummy" type="hinge" enable="false">
+      <body>lhandfinger2_sp</body>
+      <body>l_grasper2_L</body>
+      <limits>0 0</limits>
+    </joint>
+</KinBody>
+
+
+<KinBody name="rhandfinger1">
+
+    <Body name="rhandfinger1_sp">
+      <offsetfrom>r_grasper1_L</offsetfrom>
+      <translation>0.003 0.02 0</translation>
+      <rotationaxis>1 0 0 0</rotationaxis>
+
+      <Geom type="sphere">
+        <radius>0.001</radius>
+	<translation>0 0 0 </translation>
+      </Geom>
+    </Body>
+
+    <joint name="rhandfinger1dummy" type="hinge" enable="false">
+      <body>rhandfinger1_sp</body>
+      <body>r_grasper1_L</body>
+      <limits>0 0</limits>
+    </joint>
+</KinBody>
+
+
+<KinBody name="rhandfinger2">
+
+    <Body name="rhandfinger2_sp">
+      <offsetfrom>r_grasper1_L</offsetfrom>
+      <translation>0.003 0.02 0</translation>
+      <rotationaxis>1 0 0 0</rotationaxis>
+
+      <Geom type="sphere">
+        <radius>0.001</radius>
+	<translation>0 0 0 </translation>
+      </Geom>
+    </Body>
+
+    <joint name="rhandfinger2dummy" type="hinge" enable="false">
+      <body>rhandfinger2_sp</body>
+      <body>r_grasper2_L</body>
+      <limits>0 0</limits>
+    </joint>
+</KinBody>
 </Robot>
