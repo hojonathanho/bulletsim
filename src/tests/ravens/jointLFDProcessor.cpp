@@ -29,9 +29,9 @@ void LFDProcessor::hardCodeModes () {
 	modes.push_back("pickup");
 	modes.push_back("pickup");
 	modes.push_back("pickup");
-	modes.push_back("pickup");
-	modes.push_back("pickup");
-	modes.push_back("pickup");
+	modes.push_back("knot2");
+	modes.push_back("knot2");
+	//modes.push_back("pickup");
 	//modes.push_back("knot");
 	//modes.push_back("knot");
 	//modes.push_back("knot");
@@ -144,7 +144,7 @@ bool LFDProcessor::preProcess (	Ravens & ravens,
 
 	if (mode_count < modes.size()) {
 		use_needle = false;
-		if (modes[mode_count] == "knot")
+		if (modes[mode_count] == "knot1")
 			use_box = use_hole = false;
 		else if (modes[mode_count] == "flap")
 			use_rope = use_hole = false;
