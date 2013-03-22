@@ -30,6 +30,21 @@ Grab::Grab(btRigidBody* rb, const btTransform& pose, btDynamicsWorld* world_) {
   updatePose(pose);
 }
 
+Grab::Grab(btRigidBody* rb, const btTransform& pose,
+		btVector3 linLowLim, btVector3 linUpLim,
+		btVector3 angLowLim, btVector3 angUpLim,
+		btDynamicsWorld* world_) {
+
+	world = world_;
+	cnt = new btGeneric6DofConstraint(*rb,rb->getCenterOfMassTransform().inverseTimes(pose),true); // second parameter?
+	cnt->setLinearLowerLimit(linLowLim);
+	cnt->setLinearUpperLimit(linUpLim);
+	cnt->setAngularLowerLimit(angLowLim);
+	cnt->setAngularUpperLimit(angUpLim);
+	world->addConstraint(cnt);
+	updatePose(pose);
+}
+
 
 void Grab::updatePosition(const btVector3& pos) {
   cnt->getFrameOffsetA().setOrigin(pos);
