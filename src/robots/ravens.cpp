@@ -44,7 +44,7 @@ void Ravens::loadRobot() {
     ravens.reset(new RaveRobotObject(scene.rave, ROBOT_MODEL_FILE));
     scene.env->add(ravens);
   }
-  ravens->setColor(0.3,0.274,0.5,0.2);
+  ravens->setColor(0.3,0.274,0.5,1.0);
 }
 
 
@@ -298,11 +298,19 @@ void Ravens::processHapticInput() {
     // adjust the transforms
     static const btVector3 ZERO_OFFSET  = btVector3(0, 31.1, 75);
     static const btScalar  HAPTIC_SCALE = 1. / 500 * METERS;
+    //static const btVector3 HAPTIC_OFFSET_L = METERS*(btVector3( -0.10, 0, 0.10) + util::toBtVector(this->ravens->robot->GetLink("base_plate")->GetTransform().trans));
+    //static const btVector3 HAPTIC_OFFSET_R = METERS*(btVector3( -0.10, 0, 0.10) + util::toBtVector(this->ravens->robot->GetLink("base_plate")->GetTransform().trans));
     static const btVector3 HAPTIC_OFFSET_L = METERS*(btVector3( -0.02, -0.1, 0.10) + util::toBtVector(this->ravens->robot->GetLink("base_plate")->GetTransform().trans));
     static const btVector3 HAPTIC_OFFSET_R = METERS*(btVector3(  0.02, -0.1, 0.10) + util::toBtVector(this->ravens->robot->GetLink("base_plate")->GetTransform().trans));
+
     static const btTransform CORRECTION(btMatrix3x3( -1, 0, 0,
-    		                                          0, 0, 1,
-             	 	 	 	 	 	 	              0, 1, 0));
+    		0, 0, 1,
+    		0, 1, 0));
+
+    static const btTransform ROT(btMatrix3x3( 0,  1, 0,
+    										 -1,  0, 0,
+    										  0,  0, 1));
+    //CORRECTION = ROT*CORRECTION;
 
     btVector3 translation0 = HAPTIC_SCALE * (trans0.getOrigin() + ZERO_OFFSET);
     btVector3 translation1 = HAPTIC_SCALE * (trans1.getOrigin() + ZERO_OFFSET);
