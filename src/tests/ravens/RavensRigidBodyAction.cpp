@@ -36,6 +36,7 @@ vector<dReal> RavensRigidBodyGripperAction::getCurrDOFVal() {
 }
 
 void RavensRigidBodyGripperAction::setOpenAction()  {
+	if (hasPeg) s.togglePegFinger();
 	setEndpoints(getCurrDOFVal(), OPEN_VAL);
 	string message = "release ";
 	jr->addMessageToFile(message.append(arm));
@@ -50,10 +51,8 @@ void RavensRigidBodyGripperAction::setCloseAction() {
 
 
 void RavensRigidBodyGripperAction::toggleAction() {
-	if (endVal == (hasPeg ? CLOSED_VAL_PEG :CLOSED_VAL)) {
-		if (hasPeg) s.togglePegFinger();
+	if (endVal == (hasPeg ? CLOSED_VAL_PEG :CLOSED_VAL))
 		setOpenAction();
-	}
 	else if (endVal == OPEN_VAL)
 		setCloseAction();
 }
