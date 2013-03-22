@@ -20,8 +20,7 @@ void jointRecorder::toggleRecording () {
 	cout << "Recording: " << (recording ? "true" : "false") << endl;
 	if (recording) {
 		file.open(filename.c_str(), ios::out | ios::app);
-		if (init)
-			scene.recordPoints();
+		scene.recordPoints();
 	} else {
 		file.close();
 		currTime = 0.0;

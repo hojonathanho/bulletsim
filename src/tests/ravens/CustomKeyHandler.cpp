@@ -124,12 +124,12 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,
 		//case '+':
 		//	scene.testGrab();
 		//	break;
-		case '_':
-			scene.plotHoleTfm();
-			break;
-		case ')':
-			scene.plotPeg();
-			break;
+		//case '_':
+		//	scene.plotHoleTfm();
+		//	break;
+		//case ')':
+		//	scene.plotPeg();
+		//	break;
 		case '(':
 			scene.reset();
 			break;

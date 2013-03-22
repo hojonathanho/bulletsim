@@ -62,7 +62,7 @@ public:
 		char s_grasping_gripper;
 		btTransform s_grasp_tfm;
 
-		SuturingNeedle (CustomScene * _scene, float _rope_radius=.0006, float _segment_len=0.003, int _nLinks=90);
+		SuturingNeedle (CustomScene * _scene, float _rope_radius=.0009, float _segment_len=0.003, int _nLinks=90);
 
 		bool pointCloseToNeedle (btVector3 pt);
 
@@ -107,7 +107,7 @@ public:
 
 		SuturingPeg (CustomScene * _scene, RaveRobotObject::Manipulator::Ptr _p_gripperManip,
 					float _p_rad=0.0006, float _p_len=0.006,
-					float _rope_radius=.0006, float _segment_len=0.003, int _nLinks=90);
+					float _rope_radius=.0006, float _segment_len=0.0033, int _nLinks=90);
 
 		void toggleFinger () {p_grasping_finger1 = !p_grasping_finger1;}
 
@@ -171,6 +171,8 @@ public:
 
 	// the table in the scene
 	BoxObject::Ptr table;
+	// supports
+	BoxObject::Ptr support1, support2;
 
 	OpenRAVE::ViewerBasePtr rave_viewer;
 	bool isRaveViewer;

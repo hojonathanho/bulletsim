@@ -112,7 +112,7 @@ bool RavensGrabMonitor::checkContacts(bool left, btRigidBody *target, double &av
 			m_manip->robot->associatedObj(left ? leftFinger : rightFinger)->rigidBody.get();
 
 	const btScalar a = 0.15; // moving average
-	const btScalar multiplier = 3.0;
+	const btScalar multiplier = 2.0;
 	BulletInstance::Ptr bullet = m_manip->robot->getEnvironment()->bullet;
 	for (int i = 0; i < bullet->dispatcher->getNumManifolds(); ++i) {
 		btPersistentManifold* contactManifold = bullet->dispatcher->getManifoldByIndexInternal(i);
@@ -221,8 +221,8 @@ void RavensGrabMonitor::grab(bool grabN, float threshold) {
 
 			// check for contact
 			if (m_bodies[i]->children[j]->objectType() == "CapsuleObject") {
-				r_contact = checkContacts(false, m_bodies[i]->children[j]->rigidBody.get(), avg_impulse, adjusted_thresh, btVector3(0.0025,-0.001,0.01));
-				l_contact = checkContacts(true,  m_bodies[i]->children[j]->rigidBody.get(), avg_impulse, adjusted_thresh, btVector3(0.0025,-0.001,0.01));
+				r_contact = checkContacts(false, m_bodies[i]->children[j]->rigidBody.get(), avg_impulse, adjusted_thresh, btVector3(0.003,-0.001,0.012));
+				l_contact = checkContacts(true,  m_bodies[i]->children[j]->rigidBody.get(), avg_impulse, adjusted_thresh, btVector3(0.003,-0.001,0.012));
 			} else {
 				r_contact = checkContacts(false, m_bodies[i]->children[j]->rigidBody.get(), avg_impulse, adjusted_thresh);
 				l_contact = checkContacts(true,  m_bodies[i]->children[j]->rigidBody.get(), avg_impulse, adjusted_thresh);

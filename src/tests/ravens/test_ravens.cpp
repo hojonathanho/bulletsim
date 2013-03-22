@@ -11,6 +11,8 @@
 
 
 int main(int argc, char *argv[]) {
+
+	srand(0);
 	ViewerConfig::cameraHomePosition = btVector3(0, 0.6, 0.5);
 	ViewerConfig::cameraHomeCenter = btVector3(0, 0, 0.25);
 	BulletConfig::dt = 0.01;

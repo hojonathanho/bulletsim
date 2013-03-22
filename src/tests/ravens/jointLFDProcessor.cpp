@@ -23,9 +23,18 @@ void LFDProcessor::initProcessing () {
 void LFDProcessor::hardCodeModes () {
 	modes.clear();
 	modes.push_back("pierce");
-	//modes.push_back("pierce");
-	//modes.push_back("pierce");
-	//modes.push_back("pierce");
+	modes.push_back("pierce");
+	modes.push_back("pickup");
+	modes.push_back("pickup");
+	modes.push_back("pickup");
+	modes.push_back("pickup");
+	modes.push_back("pickup");
+	modes.push_back("pickup");
+	modes.push_back("pickup");
+	modes.push_back("pickup");
+	//modes.push_back("knot");
+	//modes.push_back("knot");
+	//modes.push_back("knot");
 }
 
 bool LFDProcessor::preProcess (	Ravens & ravens,
@@ -134,23 +143,18 @@ bool LFDProcessor::preProcess (	Ravens & ravens,
 	if (fileClosed) {iFS.close();}
 
 	if (mode_count < modes.size()) {
+		use_needle = false;
 		if (modes[mode_count] == "knot")
-			use_box = false;
-		else if (modes[mode_count] == "pickup flap")
-			use_rope = use_needle = use_hole = false;
-		else if (modes[mode_count] == "hold needle")
-			use_rope = use_box = use_hole = false;
+			use_box = use_hole = false;
+		else if (modes[mode_count] == "flap")
+			use_rope = use_hole = false;
 		else if (modes[mode_count] == "pierce")
 			use_rope = use_box = false;
-		else if (modes[mode_count] == "pull needle")
-			use_rope = use_hole = false;
-		else if (modes[mode_count] == "regrasp needle")
-			use_rope = use_hole = use_box = false;
-		else if (modes[mode_count] == "pull needle")
-			use_rope = use_hole = false;
+		else if (modes[mode_count] == "pickup")
+			use_box = false;
 	}
 
-	//mode_count ++;
+	mode_count ++;
 
 
 	//bool successful = warpRavenJoints (ravens, rope_points, new_rope_points, jointValueVector, processedJointValues);

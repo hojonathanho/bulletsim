@@ -83,6 +83,7 @@ void jointPlayback::process () {
 														boxPoints,
 														holePoints,
 														processedJoints );
+
 	if (processedSuccessfully) {
 		jCount = 0;
 		gCount = (lfdProcessor->grabIndices.size() > 0 ? 0 : -1);
@@ -126,7 +127,7 @@ void jointPlayback::playProcessed () {
 
 		scene.ravens.ravens->setDOFValues(joint_inds, processedJoints[jCount]);
 		if (grabMode) {
-			grabAct->step(4.0*max(1/freq, dt));
+			grabAct->step(3.0*max(1/freq, dt));
 			if (grabAct->done()) grabMode = false;
 		}
 

@@ -14,6 +14,16 @@ Ravens::Ravens(Scene &s) : scene(s), inputState(),
 	initHaptics();
 	controller.reset(new RavensController(scene, ravens));
 	registerSceneCallbacks();
+
+	vector<KinBody::LinkPtr> links;
+	manipR->manip->GetChildLinks(links);
+	ravens->linkMap[links[1]]->setColor(0.2,0.34,0.8,1);
+	ravens->linkMap[links[2]]->setColor(0.8,0.34,0.2,1);
+
+	links.clear();
+	manipL->manip->GetChildLinks(links);
+	ravens->linkMap[links[1]]->setColor(0.2,0.34,0.8,1);
+	ravens->linkMap[links[2]]->setColor(0.8,0.34,0.2,1);
 }
 
 

@@ -167,7 +167,7 @@ CustomScene::SuturingPeg::SuturingPeg (CustomScene * _scene, RaveRobotObject::Ma
 										float _p_rad, float _p_len,
 										float _rope_radius, float _segment_len, int _nLinks):
 										scene(*_scene), p_gripperManip(_p_gripperManip),
-										p_radius(_p_rad), p_len(_p_len), p_grasping_finger1(true),
+										p_radius(_p_rad), p_len(_p_len), p_grasping_finger1(false),
 										rope_radius(_rope_radius), segment_len(_segment_len), nLinks(_nLinks) {
 
 
@@ -268,13 +268,13 @@ void CustomScene::getBoxPoints(vector<btVector3> & boxPoints, float scale) {
 
 	//cloth1: i = 0
 	vector< pair<int,int> > indices1(bcm);
-	for (int i = 0; i < bcn; ++i) indices1[i] = make_pair(i,0);
+	for (int i = 0; i < bcm; ++i) indices1[i] = make_pair(0,i);
 	cloth1->getBoxClothPoints(indices1, boxPoints);
 
 
 	//cloth2: i = n-1
 	vector< pair<int,int> > indices2(bcm);
-	for (int i = 0; i < bcn; ++i) indices2[i] = make_pair(i, bcm-1);
+	for (int i = 0; i < bcm; ++i) indices2[i] = make_pair(bcn-1,i);
 	cloth2->getBoxClothPoints(indices2, boxPoints);
 
 	for (int i = 0; i < boxPoints.size(); ++i) boxPoints[i]  = boxPoints[i]*scale;
@@ -325,6 +325,8 @@ void CustomScene::recordPoints () {
 	for (int i = 0; i < boxHoles.size(); ++i)
 		message << boxHoles[i].x() << " " << boxHoles[i].y() << " " << boxHoles[i].z() << " | ";
 
+	cout<<message.str()<<endl;
+
 	jRecorder->addMessageToFile(message.str());
 }
 
@@ -358,10 +360,10 @@ void CustomScene::run() {
 	const float table_thickness = .05;
 	table = BoxObject::Ptr(new BoxObject(0, GeneralConfig::scale * btVector3(0.23,0.23,table_thickness/2),
 			btTransform(btQuaternion(0, 0, 0, 1),
-					GeneralConfig::scale * btVector3(0, 0, table_height-table_thickness/2))));
+					GeneralConfig::scale * btVector3(0, 0, table_height-table_thickness/2-0.01))));
 	table->receiveShadow = true;
 
-	table->rigidBody->setFriction(0.1);
+	table->rigidBody->setFriction(0.4);
 	env->add(table);
 	table->setColor(0.62, 0.32, 0.17, 0.8);
 	createKinBodyFromBulletBoxObject(table, rave);
@@ -381,18 +383,39 @@ void CustomScene::run() {
 	// add a cloth
 	vector<unsigned int> hole_x, hole_y;
 
-	hole_x.push_back(0); hole_x.push_back(0); hole_x.push_back(0); hole_x.push_back(0);
-	hole_y.push_back(2); hole_y.push_back(5); hole_y.push_back(9); hole_y.push_back(12);
-	cloth1.reset(new BoxCloth(*this, bcn, bcm, hole_x, hole_y, bcs, bch, btVector3( (float)bcn/2*bcs + 0.01, 0 , table_height+0.02)));
+	float bcHeight = table_height+0.015;
+
+	hole_x.push_back(0); hole_x.push_back(0);
+	hole_y.push_back(5); hole_y.push_back(2);
+	cloth1.reset(new BoxCloth(*this, bcn, bcm, hole_x, hole_y, bcs, bch,
+				btVector3( (float)bcn/2*bcs + 0.01 + RavenConfig::xBias, RavenConfig::yBias , bcHeight + RavenConfig::zBias)));
 	if (RavenConfig::cloth)
 		env->add(cloth1);
 
 	hole_x.clear(); hole_y.clear();
-	hole_x.push_back(4); hole_x.push_back(4); hole_x.push_back(4); hole_x.push_back(4);
-	hole_y.push_back(2); hole_y.push_back(5); hole_y.push_back(9); hole_y.push_back(12);
-	cloth2.reset(new BoxCloth(*this, bcn, bcm, hole_x, hole_y, bcs, bch, btVector3( -(float)bcn/2*bcs - 0.01, 0, table_height+0.02)));
+	hole_x.push_back(4); hole_x.push_back(4);
+	hole_y.push_back(5); hole_y.push_back(2);
+	cloth2.reset(new BoxCloth(*this, bcn, bcm, hole_x, hole_y, bcs, bch,
+			btVector3( -(float)bcn/2*bcs - 0.01 + RavenConfig::xBias, RavenConfig::yBias, bcHeight + RavenConfig::zBias)));
 	if (RavenConfig::cloth)
 		env->add(cloth2);
+
+	const float support_thickness = .02;
+	support1 = BoxObject::Ptr(new BoxObject(0, GeneralConfig::scale * btVector3(0.05,0.05,support_thickness/2),
+			btTransform(btQuaternion(0, 0, 0, 1), GeneralConfig::scale *
+			btVector3(-(float)(bcn+1)*bcs - 0.05 + RavenConfig::xBias, 0 + RavenConfig::yBias, bcHeight-support_thickness/2 + RavenConfig::zBias))));
+
+	support2 = BoxObject::Ptr(new BoxObject(0, GeneralConfig::scale * btVector3(0.05,0.05,support_thickness/2),
+			btTransform(btQuaternion(0, 0, 0, 1), GeneralConfig::scale *
+			btVector3((float)(bcn+1)*bcs + 0.05 + RavenConfig::xBias, 0 + RavenConfig::yBias, bcHeight-support_thickness/2 + RavenConfig::zBias))));
+
+	support1->rigidBody->setFriction(0.4);
+	support2->rigidBody->setFriction(0.4);
+
+	env->add(support1);
+	env->add(support2);
+	support1->setColor(0.62, 0.32, 0.17, 0.8);
+	support2->setColor(0.62, 0.32, 0.17, 0.8);
 
 	// position the ravens
 	btTransform T;
@@ -413,13 +436,13 @@ void CustomScene::run() {
 
 
 	/** Define the actions. */
-	vector<CompoundObject<BulletObject>::Ptr> targets;
+	vector<CompoundObject<BulletObject>::Ptr> targetsR, targetsL;
 
 	// add the needle, rope, cloth as targets to check for collisions when grabbing.
 	//targets.push_back(sNeedle->s_needle);
-	targets.push_back(sPeg->ropePtr);
-	targets.push_back(cloth1);
-	targets.push_back(cloth2);
+	targetsL.push_back(sPeg->ropePtr);
+	targetsL.push_back(cloth1);
+	targetsL.push_back(cloth2);
 
 	char l[] = "l\0";
 	char r[] = "r\0";
@@ -429,14 +452,17 @@ void CustomScene::run() {
 			"l_grasper1_L",
 			env->bullet->dynamicsWorld,
 			1, *this, l, jRecorder.get()));
-	lAction->setTargets(targets);
+	lAction->setTargets(targetsL);
+
+	targetsR.push_back(sPeg->ropePtr);
+
 	lAction->setPeg(true);
 	rAction.reset(new RavensRigidBodyGripperAction( ravens.manipR,
 			"r_grasper2_L",
 			"r_grasper1_L",
 			env->bullet->dynamicsWorld,
 			1, *this, r, jRecorder.get()));
-	rAction->setTargets(targets);
+	rAction->setTargets(targetsR);
 
 
 	lAction->setOpenAction();

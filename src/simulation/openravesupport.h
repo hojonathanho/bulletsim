@@ -46,7 +46,6 @@ protected:
   std::vector<boost::shared_ptr<btCollisionShape> > subshapes;
 
   // for looking up the associated Bullet object for an OpenRAVE link
-  std::map<KinBody::LinkPtr, BulletObject::Ptr> linkMap;
   std::map<KinBody::JointPtr, BulletConstraint::Ptr> jointMap;
   std::map<btCollisionObject *, KinBody::LinkPtr> collisionObjMap;
 
@@ -63,7 +62,7 @@ protected:
 
 public:
   typedef boost::shared_ptr<RaveObject> Ptr;
-
+  std::map<KinBody::LinkPtr, BulletObject::Ptr> linkMap;
   KinBodyPtr body;
 
   RaveObject(RaveInstance::Ptr rave_, KinBodyPtr body, TrimeshMode trimeshMode = CONVEX_HULL, bool isDynamic=true);

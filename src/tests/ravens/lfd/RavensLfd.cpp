@@ -5,7 +5,7 @@ using namespace std;
 
 RavensLfdRpm::RavensLfdRpm (Ravens & ravens_, const vector<btVector3> &src_pts,
 		const vector<btVector3> &target_pts) : ravens(ravens_), plot_lines_left(new PlotLines), plot_lines_right(new PlotLines),
-		lfdrpm(new RegistrationModule(src_pts, target_pts, 50, 0.02, 0.0002, 0.2, 0.001)){
+		lfdrpm(new RegistrationModule(src_pts, target_pts, 100, 0.1, 0.0001, 0.2, 0.001)){
 
 	if (src_pts.size() < 50 || target_pts.size() < 50)
 		cout <<"LFD RPM : Warning too few points!"<<endl;
@@ -15,17 +15,20 @@ RavensLfdRpm::RavensLfdRpm (Ravens & ravens_, const vector<btVector3> &src_pts,
 	larm_indices = ravens.manipL->manip->GetArmIndices();
 	rarm_indices = ravens.manipR->manip->GetArmIndices();
 	//ravens.scene.env->add(plot_lines_left);
-	//  ravens.scene.env->add(plot_lines_right);
+	//ravens.scene.env->add(plot_lines_right);
 }
 
 RavensLfdRpm::RavensLfdRpm (Ravens & ravens_, const vector<vector<btVector3> > &src_clouds,
 		const vector<vector<btVector3> > &target_clouds) : ravens(ravens_), plot_lines_left(new PlotLines), plot_lines_right(new PlotLines),
-		lfdrpm(new RegistrationModule(src_clouds, target_clouds, 50, 0.02, 0.0002, 0.2, 0.001)){
+		lfdrpm(new RegistrationModule(src_clouds, target_clouds, 100, 0.1, 0.0001, 0.2, 0.001)){
 
 	std::cout<<"LFD RPM : Please make sure that the src and target points are scaled down by METERS."<<std::endl;
 
 	larm_indices = ravens.manipL->manip->GetArmIndices();
 	rarm_indices = ravens.manipR->manip->GetArmIndices();
+
+	//ravens.scene.env->add(plot_lines_left);
+	//ravens.scene.env->add(plot_lines_right);
 }
 
 
@@ -186,14 +189,16 @@ bool RavensLfdRpm::transformJointsTrajOpt(const vector<vector<dReal> > &joints, 
 	vector<btTransform> warpedLeft2Transforms  = lfdrpm->transform_frames(left2Transforms);
 
 
-	//plotPath(warpedRight1Transforms, plot_lines_right);
-	//plotPath(warpedLeft1Transforms, plot_lines_left);
+	plotPath(warpedRight1Transforms, plot_lines_right);
+	plotPath(warpedLeft1Transforms, plot_lines_left);
 
 
 	/** Do trajectory optimization on the warped transforms. */
 	vector<vector<dReal> > new_r_joints =	 doTrajectoryOptimization2(ravens.manipR, r_finger1_link->GetName(), r_finger2_link->GetName(),warpedRight1Transforms, warpedRight2Transforms, rarm_joints);
 	vector<vector<dReal> > new_l_joints =	 doTrajectoryOptimization2(ravens.manipL, l_finger1_link->GetName(), l_finger2_link->GetName(),warpedLeft1Transforms, warpedLeft2Transforms, larm_joints);
 
+	cout<<"Warped 1: "<<warpedRight1Transforms.size()<<endl;
+	cout<<"Warped 2: "<<warpedLeft1Transforms.size()<<endl;
 
 	// upsample : interpolate
 	vector<float> new_times(joints.size());

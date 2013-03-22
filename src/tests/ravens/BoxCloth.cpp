@@ -310,7 +310,7 @@ BoxCloth::BoxCloth(CustomScene &_s, unsigned int n_, unsigned int m_, vector<uns
 				BoxObject::Ptr child(new BoxObject(mass, halfExtents, trans));
 				child->rigidBody->setDamping(linDamping, angDamping);
 				child->rigidBody->setFriction(1);
-				child->setColor(0.5,0.5,0.5,0.8);
+				child->setColor(0.5,0.5,0.5,0.4);
 				children.push_back(child);
 				grid_to_obj_inds.insert(make_pair(make_pair(i,j), children.size()-1));
 			}
@@ -322,7 +322,7 @@ BoxCloth::BoxCloth(CustomScene &_s, unsigned int n_, unsigned int m_, vector<uns
 				RaveObject::Ptr hole = RaveObject::Ptr(new RaveObject(scene.rave,hole_body,CONVEX_HULL,true));
 
 				holes.push_back(hole);
-				hole->setColor(0.5,0.5,0.5,0.8);
+				hole->setColor(0.5,0.5,0.5,0.4);
 				children.push_back(hole->children[0]);
 				grid_to_obj_inds.insert(make_pair(make_pair(i,j), children.size()-1));
 			}
