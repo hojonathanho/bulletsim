@@ -50,7 +50,7 @@ public:
 						vector<btVector3> & new_hole_points,
 						vector< vector <double> > & processedJointValues);
 
-	void reset () {iFS.open(jointFile.c_str(), ios::in); fileClosed=false;}
+	void reset ();
 
 	~LFDProcessor () {iFS.close();}
 };

@@ -1,7 +1,14 @@
 #include "jointLFDProcessor.h"
 
 void LFDProcessor::initProcessing () {
+
 	iFS.open(jointFile.c_str(), ios::in);
+	if (!iFS) {
+		cout<<"File does not exist!"<<endl;
+		fileClosed = true;
+		return;
+	}
+
 	string line; getline(iFS, line);
 	istringstream in(line); string section; in >> section;
 	// File always starts with section
@@ -16,6 +23,9 @@ void LFDProcessor::initProcessing () {
 void LFDProcessor::hardCodeModes () {
 	modes.clear();
 	modes.push_back("pierce");
+	//modes.push_back("pierce");
+	//modes.push_back("pierce");
+	//modes.push_back("pierce");
 }
 
 bool LFDProcessor::preProcess (	Ravens & ravens,
@@ -34,6 +44,11 @@ bool LFDProcessor::preProcess (	Ravens & ravens,
 	grabIndices.clear();
 	releaseIndices.clear();
 	use_rope = use_needle = use_box = use_hole = false;
+
+	rope_points.clear();
+	hole_points.clear();
+	box_points.clear();
+	needle_points.clear();
 
 	string line;
 
@@ -135,7 +150,7 @@ bool LFDProcessor::preProcess (	Ravens & ravens,
 			use_rope = use_hole = false;
 	}
 
-	mode_count ++;
+	//mode_count ++;
 
 
 	//bool successful = warpRavenJoints (ravens, rope_points, new_rope_points, jointValueVector, processedJointValues);
@@ -150,6 +165,11 @@ bool LFDProcessor::preProcess (	Ravens & ravens,
 	//Actually should be:
 	/* bool successful = warpRavenJoints (ravens, data, jointValueVector, processedJointValues);*/
 	// OR
+
+	cout<<"Rope source points: "<<rope_points.size()<<" and target: "<<new_rope_points.size()<<endl;
+	cout<<"Box source points: "<<box_points.size()<<" and target: "<<new_box_points.size()<<endl;
+	cout<<"Hole source points: "<<hole_points.size()<<" and target: "<<new_hole_points.size()<<endl;
+
 	bool successful = warpRavenJoints (	ravens,
 			make_pair(use_rope, make_pair(rope_points, new_rope_points)),
 			//make_pair(use_needle, make_pair(needle_points, new_needle_points)),
@@ -162,4 +182,9 @@ bool LFDProcessor::preProcess (	Ravens & ravens,
 		iFS.close(); fileClosed = true;
 	}
 	return successful;
+}
+
+void LFDProcessor::reset () {
+	iFS.close();
+	fileClosed = true;
 }
