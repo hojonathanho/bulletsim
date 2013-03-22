@@ -80,9 +80,6 @@ public:
 	/* Class to represent the suturing needle + thread. */
 	class SuturingPeg {
 
-		const float rope_radius;
-		const float segment_len;
-		const int nLinks;
 		Grab* peg_rope_grab;
 
 		btVector3 offset;
@@ -95,6 +92,10 @@ public:
 		boost::shared_ptr<CapsuleRope> ropePtr;
 		const float 			p_radius, p_len;
 
+		const float rope_radius;
+		const float segment_len;
+		const int nLinks;
+
 		// Manipulator currently grasping the needle.
 		RaveRobotObject::Manipulator::Ptr p_gripperManip;
 		KinBody::LinkPtr p_finger1, p_finger2;
@@ -105,7 +106,7 @@ public:
 		btMatrix3x3 corrRot;
 
 		SuturingPeg (CustomScene * _scene, RaveRobotObject::Manipulator::Ptr _p_gripperManip,
-					float _p_rad=0.0006, float _p_len=0.004,
+					float _p_rad=0.0006, float _p_len=0.006,
 					float _rope_radius=.0006, float _segment_len=0.003, int _nLinks=90);
 
 		void toggleFinger () {p_grasping_finger1 = !p_grasping_finger1;}
@@ -224,6 +225,8 @@ public:
 	 *  */
 	void recordPoints ();
 
+	// Resets positions of the things in scene
+	void reset ();
 
 	void run();
 

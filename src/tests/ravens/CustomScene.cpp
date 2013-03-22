@@ -197,7 +197,6 @@ CustomScene::SuturingPeg::SuturingPeg (CustomScene * _scene, RaveRobotObject::Ma
 	vector<btVector3> ctrlPts;
 
 	btVector3 handlePos = getPegCenterTransform().getOrigin();
-	vector<btTransform> transforms;
 	vector<btScalar> lengths;
 	for (int i=0; i< nLinks; i++)
 		//ctrlPts.push_back(handlePos + METERS*btVector3(segment_len*i - 0.15,0,2*rope_radius));  // horizontal rope
@@ -210,8 +209,15 @@ CustomScene::SuturingPeg::SuturingPeg (CustomScene * _scene, RaveRobotObject::Ma
 	ropePtr->children[0]->setColor(1,0,0,1);
 	ropePtr->children[ropePtr->children.size()-1]->setColor(0,0,1,1);
 
+	btTransform TRel;
+	TRel.setIdentity();
+	TRel.setOrigin(-p_len/2*btVector3(1,0,0)*METERS);
+	btTransform TCom = ropePtr->children[0]->rigidBody->getCenterOfMassTransform();
 
-	peg_rope_grab = new Grab(ropePtr->children[0]->rigidBody.get(), getPegCenterTransform().getOrigin(),scene.env->bullet->dynamicsWorld);
+	peg_rope_grab = new Grab (	ropePtr->children[0]->rigidBody.get(), TCom*TRel,
+								btVector3(0,0,0), btVector3(0,0,0),
+								btVector3(0,0,0), btVector3(1,1,1),
+								scene.env->bullet->dynamicsWorld);
 	scene.addPreStepCallback(boost::bind(&CustomScene::SuturingPeg::setConnectedRopeTransformCallback, this));
 	//------------------------------------------------------------------------------
 }
@@ -322,6 +328,18 @@ void CustomScene::recordPoints () {
 	jRecorder->addMessageToFile(message.str());
 }
 
+// Resets scene
+void CustomScene::reset () {
+	ravens.setArmPose("home",'b');
+	btVector3 handlePos = sPeg->getPegCenterTransform().getOrigin();
+	btTransform t;
+	for (int i = 0; i < sPeg->ropePtr->nLinks; ++i) {
+		sPeg->ropePtr->children[i]->motionState->getWorldTransform(t);
+		t.setOrigin(handlePos + METERS*btVector3(-sPeg->segment_len*i, 0, 2*sPeg->rope_radius));
+		sPeg->ropePtr->children[i]->rigidBody->setWorldTransform(t);
+	}
+}
+
 
 /* Sets up the scene and UI event handlers,
  * initializes various structures.*/
@@ -364,15 +382,15 @@ void CustomScene::run() {
 	vector<unsigned int> hole_x, hole_y;
 
 	hole_x.push_back(0); hole_x.push_back(0); hole_x.push_back(0); hole_x.push_back(0);
-	hole_y.push_back(3); hole_y.push_back(6); hole_y.push_back(9); hole_y.push_back(12);
-	cloth1.reset(new BoxCloth(*this, bcn, bcm, hole_y, hole_x, bcs, bch, btVector3(0, (float)bcm/2*bcs + 0.003, table_height+0.02)));
+	hole_y.push_back(2); hole_y.push_back(5); hole_y.push_back(9); hole_y.push_back(12);
+	cloth1.reset(new BoxCloth(*this, bcn, bcm, hole_x, hole_y, bcs, bch, btVector3( (float)bcn/2*bcs + 0.01, 0 , table_height+0.02)));
 	if (RavenConfig::cloth)
 		env->add(cloth1);
 
 	hole_x.clear(); hole_y.clear();
 	hole_x.push_back(4); hole_x.push_back(4); hole_x.push_back(4); hole_x.push_back(4);
-	hole_y.push_back(3); hole_y.push_back(6); hole_y.push_back(9); hole_y.push_back(12);
-	cloth2.reset(new BoxCloth(*this, bcn, bcm, hole_y, hole_x, bcs, bch, btVector3(0, -(float)bcm/2*bcs - 0.003, table_height+0.02)));
+	hole_y.push_back(2); hole_y.push_back(5); hole_y.push_back(9); hole_y.push_back(12);
+	cloth2.reset(new BoxCloth(*this, bcn, bcm, hole_x, hole_y, bcs, bch, btVector3( -(float)bcn/2*bcs - 0.01, 0, table_height+0.02)));
 	if (RavenConfig::cloth)
 		env->add(cloth2);
 
@@ -624,7 +642,8 @@ void CustomScene::plotHoleTfm () {
 }
 
 void CustomScene::plotPeg () {
-	util::drawAxes(sPeg->p_peg->getIndexTransform(0), 0.5*METERS, env);
+	//util::drawAxes(sPeg->p_peg->getIndexTransform(0), 0.5*METERS, env);
+	//util::drawAxes(sPeg->ropePtr->children[0]->getIndexTransform(0), 0.5*METERS, env);
 }
 
 /** Small test to see the angles of the ends of the needle.*/
