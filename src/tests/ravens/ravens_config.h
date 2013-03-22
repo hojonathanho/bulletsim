@@ -33,6 +33,6 @@ struct RavenConfig : Config {
     params.push_back(new Parameter<bool>("enableLfd", &enableLfd, "enable learning from demonstrations for ravens"));
 
     params.push_back(new Parameter<char>("biasAxis",   &biasAxis, "axis to bias the suturing setup, in: {'x','y','z'}"));
-    params.push_back(new Parameter<float>("biasAngle", &biasAngle, "bias angle for suturing setup"));
+    params.push_back(new Parameter<float>("biasAngle", &biasAngle, "bias angle [in degrees] for suturing setup"));
   }
 };

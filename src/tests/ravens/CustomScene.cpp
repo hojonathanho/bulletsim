@@ -390,7 +390,7 @@ void CustomScene::run() {
 	char axis = RavenConfig::biasAxis;
 	btVector3 biasAxis(axis=='x'?1:0, axis=='y'?1:0, axis=='z'?1:0);
 	biasAxis.normalize();
-	const btMatrix3x3 rotBias(btQuaternion(biasAxis,  RavenConfig::biasAngle));
+	const btMatrix3x3 rotBias(btQuaternion(biasAxis,  180.0*RavenConfig::biasAngle/PI));
 	const btTransform biasT(rotBias);
 
 
