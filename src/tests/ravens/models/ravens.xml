@@ -47,7 +47,10 @@
       <limits>0 0</limits>
     </joint>
 </KinBody>
-
+<Manipulator name="lhandfinger1_manip">
+  <base>l_grasper1_L</base> <!-- base link-->
+  <effector>lhandfinger1</effector> <!-- last link where end effector is attached-->
+</Manipulator>
 
 <KinBody name="lhandfinger2">
 
@@ -68,6 +71,10 @@
       <limits>0 0</limits>
     </joint>
 </KinBody>
+<Manipulator name="lhandfinger2_manip">
+  <base>l_grasper2_L</base> <!-- base link-->
+  <effector>lhandfinger2</effector> <!-- last link where end effector is attached-->
+</Manipulator>
 
 
 <KinBody name="rhandfinger1">
@@ -89,6 +96,10 @@
       <limits>0 0</limits>
     </joint>
 </KinBody>
+<Manipulator name="rhandfinger1_manip">
+  <base>r_grasper1_L</base> <!-- base link-->
+  <effector>rhandfinger1</effector> <!-- last link where end effector is attached-->
+</Manipulator>
 
 
 <KinBody name="rhandfinger2">
@@ -110,4 +121,10 @@
       <limits>0 0</limits>
     </joint>
 </KinBody>
+<Manipulator name="rhandfinger2_manip">
+  <base>r_grasper2_L</base> <!-- base link-->
+  <effector>rhandfinger2</effector> <!-- last link where end effector is attached-->
+</Manipulator>
+
+
 </Robot>
