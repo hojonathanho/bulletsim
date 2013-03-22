@@ -130,8 +130,15 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,
 		case ')':
 			scene.plotPeg();
 			break;
-
-
+		case '(':
+			scene.reset();
+			break;
+		case '?':
+			scene.jPlayback->reset();
+			break;
+		case '\\':
+			scene.jPlayback->toggleLfd();
+			break;
 
 			/******************************* RIGHT LOCAL **********************************/
 		case 'e':
