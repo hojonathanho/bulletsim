@@ -13,6 +13,11 @@ public:
   Grab(){}
   Grab(btRigidBody* rb, const btVector3& pos, btDynamicsWorld* world);
   Grab(btRigidBody* rb, const btTransform& pose, btDynamicsWorld* world);
+  Grab(btRigidBody* rb, const btTransform& pose,
+		  btVector3 linLowLim, btVector3 linUpLim,
+		  btVector3 angLowLim, btVector3 angUpLim,
+		  btDynamicsWorld* world);
+
   ~Grab();
 
   void updatePosition(const btVector3& pos);
