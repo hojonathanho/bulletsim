@@ -52,6 +52,11 @@ public:
 		enabled = true;
 		if (!processing && file_closed) {
 			file.open(filename.c_str(), ios::in);
+			if (!file) {
+				cout<<"File does not exist!"<<endl;
+				enabled = false;
+				return;
+			}
 			file_closed = false;
 			currTime = 0.0;
 		} else if (processing && !initialized) {
@@ -71,12 +76,21 @@ public:
 
 	// Goes without saying what this does
 	void toggleEnabled () {
-		cout<<"enabled: "<<enabled<<endl;
 		if (enabled) halt();
 		else run();
 
 		std::cout<<"Playback: "<<(enabled ? "true" : "false") << std::endl;
 	}
+
+	// Toggles lfd
+	void toggleLfd () {
+		reset();
+		processing = !processing;
+		cout<<"Playing using LFD: "<<(processing ? "True" : "False")<<endl;
+	}
+
+	// Resets play back completely.
+	void reset ();
 
 	// Callback to execute waypoints from file
 	void executeNextWaypoint ();

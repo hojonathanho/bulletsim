@@ -45,15 +45,16 @@ void jointPlayback::executeNextWaypoint () {
 				}
 				else if (command == "release") {
 					cout<<"Playback: Releasing."<<endl;
-					grabMode = false;
+					grabMode = true;
 					grabAct->reset();
+					grabAct->setOpenAction();
 				}
 			} else if (command == "joints") {
 				joint_vals.clear();
 				while (in >> jval) joint_vals.push_back(jval);
 				scene.ravens.ravens->setDOFValues(joint_inds, joint_vals);
 				if (grabMode) {
-					grabAct->step(3*max(1/freq, dt));
+					grabAct->step(3.0*max(1/freq, dt));
 					if (grabAct->done()) grabMode = false;
 				}
 				currTime = 0.0;
@@ -118,8 +119,9 @@ void jointPlayback::playProcessed () {
 		}
 		else if (action == 'r') {
 			cout<<"Playback: Releasing."<<endl;
-			grabMode = false;
+			grabMode = true;
 			grabAct->reset();
+			grabAct->setOpenAction();
 		}
 
 		scene.ravens.ravens->setDOFValues(joint_inds, processedJoints[jCount]);
@@ -136,4 +138,16 @@ void jointPlayback::playProcessed () {
 		}
 	} else currTime += dt;
 
+}
+
+
+void jointPlayback::reset () {
+	enabled = false;
+	if (processing) {
+		initialized = false;
+		lfdProcessor->reset();
+	} else if (!file_closed) {
+		file.close();
+		file_closed=true;
+	}
 }
