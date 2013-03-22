@@ -1,5 +1,5 @@
 #include "RavensLfd.h"
-
+#include <boost/foreach.hpp>
 using namespace std;
 
 
@@ -14,9 +14,14 @@ RavensLfdRpm::RavensLfdRpm (Ravens & ravens_, const vector<btVector3> &src_pts,
 
 	larm_indices = ravens.manipL->manip->GetArmIndices();
 	rarm_indices = ravens.manipR->manip->GetArmIndices();
-	//ravens.scene.env->add(plot_lines_left);
-	//ravens.scene.env->add(plot_lines_right);
+
+	ravens.scene.env->add(plot_lines_left);
+    ravens.scene.env->add(plot_lines_right);
 }
+
+bool gLinesAdded=false;
+PlotLines::Ptr gLinesLeft(new PlotLines()), gLinesRight(new PlotLines()), gWarpedLinesLeft(new PlotLines()), gWarpedLinesRight(new PlotLines());
+PlotPoints::Ptr gSrcPlotPoints(new PlotPoints()), gTargPlotPoints(new PlotPoints());
 
 RavensLfdRpm::RavensLfdRpm (Ravens & ravens_, const vector<vector<btVector3> > &src_clouds,
 		const vector<vector<btVector3> > &target_clouds) : ravens(ravens_), plot_lines_left(new PlotLines), plot_lines_right(new PlotLines),
@@ -27,8 +32,32 @@ RavensLfdRpm::RavensLfdRpm (Ravens & ravens_, const vector<vector<btVector3> > &
 	larm_indices = ravens.manipL->manip->GetArmIndices();
 	rarm_indices = ravens.manipR->manip->GetArmIndices();
 
-	//ravens.scene.env->add(plot_lines_left);
-	//ravens.scene.env->add(plot_lines_right);
+	if (!gLinesAdded) {
+		ravens.scene.env->add(gLinesLeft);
+	    ravens.scene.env->add(gLinesRight);
+		ravens.scene.env->add(gWarpedLinesLeft);
+	    ravens.scene.env->add(gWarpedLinesRight);
+	    ravens.scene.env->add(gSrcPlotPoints);
+	    ravens.scene.env->add(gTargPlotPoints);
+	    gLinesAdded = true;
+	}
+	vector<btVector3> srcPoints, targPoints;
+	vector<btVector4> srcCols, targCols;
+	BOOST_FOREACH(const vector<btVector3>& cloud, src_clouds) {
+		BOOST_FOREACH(const btVector3& pt, cloud) {
+			srcPoints.push_back(pt*METERS);
+			srcCols.push_back(btVector4(1,0,0,1));
+		}
+	}
+	BOOST_FOREACH(const vector<btVector3>& cloud, target_clouds) {
+		BOOST_FOREACH(const btVector3& pt, cloud) {
+			srcPoints.push_back(pt*METERS);
+			srcCols.push_back(btVector4(0,0,1,1));
+		}
+	}
+	gSrcPlotPoints->setPoints(srcPoints, srcCols);
+	gTargPlotPoints->setPoints(targPoints, targCols);
+
 }
 
 
@@ -189,8 +218,13 @@ bool RavensLfdRpm::transformJointsTrajOpt(const vector<vector<dReal> > &joints, 
 	vector<btTransform> warpedLeft2Transforms  = lfdrpm->transform_frames(left2Transforms);
 
 
-	plotPath(warpedRight1Transforms, plot_lines_right);
-	plotPath(warpedLeft1Transforms, plot_lines_left);
+	plotPath(right1Transforms, gLinesRight, btVector3(1,0,0));
+	plotPath(left1Transforms, gLinesLeft, btVector3(1,0,0));
+
+	plotPath(warpedRight1Transforms, gWarpedLinesRight,btVector3(0,0,1));
+	plotPath(warpedLeft1Transforms, gWarpedLinesLeft, btVector3(0,0,1));
+
+
 
 
 	/** Do trajectory optimization on the warped transforms. */
@@ -244,7 +278,7 @@ void RavensLfdRpm::plotTransforms(const vector< btTransform > &transforms) {
 	}
 }
 
-void RavensLfdRpm::plotPath (const vector< btTransform > &transforms, PlotLines::Ptr plot_lines) {
+void RavensLfdRpm::plotPath (const vector< btTransform > &transforms, PlotLines::Ptr plot_lines, btVector3 color) {
 	if (transforms.size()) {
 		vector<btVector3> pts0;
 		for (int i =0; i < transforms.size()-1; i+=1) {
@@ -252,8 +286,8 @@ void RavensLfdRpm::plotPath (const vector< btTransform > &transforms, PlotLines:
 			pts0.push_back( METERS*transforms[i+1].getOrigin());
 		}
 		plot_lines->clear();
-		float r = ((float)rand())/RAND_MAX, g=((float)rand())/RAND_MAX, b=((float)rand())/RAND_MAX;
-		plot_lines->setPoints(pts0, vector<btVector4>(pts0.size(), btVector4(r,g,b,1)));
+//		float r = ((float)rand())/RAND_MAX, g=((float)rand())/RAND_MAX, b=((float)rand())/RAND_MAX;
+		plot_lines->setPoints(pts0, vector<btVector4>(pts0.size(), btVector4(color.x(),color.y(),color.z(),1)));
 	}
 }
 

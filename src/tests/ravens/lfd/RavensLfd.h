@@ -35,7 +35,7 @@ private:
 	/** Plotting util functions. */
 	void plotTransforms (const vector< btTransform > &transforms);
 	void plotPoints     (const vector< btTransform > &transforms);
-	void plotPath       (const vector< btTransform > &transforms, PlotLines::Ptr plot_lines);
+	void plotPath       (const vector< btTransform > &transforms, PlotLines::Ptr plot_lines, btVector3 color = btVector3(1,1,1));
 
 public:
 	/** Ravens   : the robot to transform the joints for.
