@@ -13,8 +13,9 @@ using namespace std;
 /** Creates a matrix of transformation for each of the n x m boxes.
  *  The side length along x,y dimensions is assumed to be s.
  *  The transforms are centered around CENTER. */
-void createBoxTransforms(vector<btTransform> &transforms, unsigned int n, unsigned int m, btScalar s, btVector3 center) {
+void BoxCloth::createBoxTransforms(vector<btTransform> &transforms, unsigned int n, unsigned int m, btScalar s, btVector3 center) {
 	transforms.clear();
+	const btTransform offsetT(rot, center);
 	for(unsigned int i=0; i<n; i += 1) {
 		for (unsigned int j=0; j<m; j += 1) {
 			btTransform T;
@@ -22,6 +23,7 @@ void createBoxTransforms(vector<btTransform> &transforms, unsigned int n, unsign
 			btVector3 loc(-1*((n/2)*s)+(i*s), -1*((m/2)*s)+(j*s), 0.0);
 			loc += center;
 			T.setOrigin(loc);
+			T = offsetT*T;
 			transforms.push_back(T);
 		}
 	}
@@ -283,8 +285,9 @@ void BoxCloth::addHoleConstraint (vector<btVector3> &offsetA, vector<btVector3> 
 }
 
 BoxCloth::BoxCloth(CustomScene &_s, unsigned int n_, unsigned int m_, vector<unsigned int> hole_is_, vector<unsigned int> hole_js_,
-		btScalar s_, btScalar h_, btVector3 center_, float angStiffness_, float linDamping_,
-		float angDamping_, float angLimit_) : n(n_), m(m_), s(s_*METERS), h(h_*METERS), center (center_*METERS),
+		btScalar s_, btScalar h_, btVector3 center_, btMatrix3x3 _rot,
+		float angStiffness_, float linDamping_,
+		float angDamping_, float angLimit_) : n(n_), m(m_), s(s_*METERS), h(h_*METERS), center (center_*METERS), rot(_rot),
 		hole_is(hole_is_), hole_js(hole_js_), scene(_s)     {
 
 	angStiffness = angStiffness_;

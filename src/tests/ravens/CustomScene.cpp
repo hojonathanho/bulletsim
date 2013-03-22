@@ -385,10 +385,20 @@ void CustomScene::run() {
 
 	float bcHeight = table_height+0.015;
 
+
+	/** Setup rotation perturbation. */
+	char axis = RavenConfig::biasAxis;
+	btVector3 biasAxis(axis=='x'?1:0, axis=='y'?1:0, axis=='z'?1:0);
+	biasAxis.normalize();
+	const btMatrix3x3 rotBias(btQuaternion(biasAxis,  RavenConfig::biasAngle));
+	const btTransform biasT(rotBias);
+
+
 	hole_x.push_back(0); hole_x.push_back(0);
 	hole_y.push_back(5); hole_y.push_back(2);
 	cloth1.reset(new BoxCloth(*this, bcn, bcm, hole_x, hole_y, bcs, bch,
-				btVector3( (float)bcn/2*bcs + 0.01 + RavenConfig::xBias, RavenConfig::yBias , bcHeight + RavenConfig::zBias)));
+				btVector3( (float)bcn/2*bcs + 0.01 + RavenConfig::xBias, RavenConfig::yBias , bcHeight + RavenConfig::zBias),
+				rotBias));
 	if (RavenConfig::cloth)
 		env->add(cloth1);
 
@@ -396,17 +406,18 @@ void CustomScene::run() {
 	hole_x.push_back(4); hole_x.push_back(4);
 	hole_y.push_back(5); hole_y.push_back(2);
 	cloth2.reset(new BoxCloth(*this, bcn, bcm, hole_x, hole_y, bcs, bch,
-			btVector3( -(float)bcn/2*bcs - 0.01 + RavenConfig::xBias, RavenConfig::yBias, bcHeight + RavenConfig::zBias)));
+			btVector3( -(float)bcn/2*bcs - 0.01 + RavenConfig::xBias, RavenConfig::yBias, bcHeight + RavenConfig::zBias)),
+			rotBias);
 	if (RavenConfig::cloth)
 		env->add(cloth2);
 
 	const float support_thickness = .02;
 	support1 = BoxObject::Ptr(new BoxObject(0, GeneralConfig::scale * btVector3(0.05,0.05,support_thickness/2),
-			btTransform(btQuaternion(0, 0, 0, 1), GeneralConfig::scale *
+			biasT*btTransform(btQuaternion(0, 0, 0, 1), GeneralConfig::scale *
 			btVector3(-(float)(bcn+1)*bcs - 0.05 + RavenConfig::xBias, 0 + RavenConfig::yBias, bcHeight-support_thickness/2 + RavenConfig::zBias))));
 
 	support2 = BoxObject::Ptr(new BoxObject(0, GeneralConfig::scale * btVector3(0.05,0.05,support_thickness/2),
-			btTransform(btQuaternion(0, 0, 0, 1), GeneralConfig::scale *
+			biasT*btTransform(btQuaternion(0, 0, 0, 1), GeneralConfig::scale *
 			btVector3((float)(bcn+1)*bcs + 0.05 + RavenConfig::xBias, 0 + RavenConfig::yBias, bcHeight-support_thickness/2 + RavenConfig::zBias))));
 
 	support1->rigidBody->setFriction(0.4);

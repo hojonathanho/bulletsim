@@ -10,3 +10,5 @@ float RavenConfig::xBias = 0.0;
 float RavenConfig::yBias = 0.0;
 float RavenConfig::zBias = 0.0;
 bool RavenConfig::enableLfd = false;
+float RavenConfig::biasAngle = 0.0;
+char  RavenConfig::biasAxis  = 'x';

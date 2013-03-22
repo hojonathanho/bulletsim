@@ -17,6 +17,9 @@ struct RavenConfig : Config {
 
   static bool enableLfd;
 
+  static char biasAxis; // 'x', 'y' or 'z'
+  static float biasAngle;
+
   RavenConfig() : Config() {
     params.push_back(new Parameter<int>("cloth", &cloth, "include cloth in screen (1/0)"));
     params.push_back(new Parameter<float>("record_freq", &record_freq, "frequency of recording"));
@@ -28,6 +31,8 @@ struct RavenConfig : Config {
     params.push_back(new Parameter<float>("yBias", &yBias, "Bias of box cloth in y dir"));
     params.push_back(new Parameter<float>("zBias", &zBias, "Bias of box cloth in z dir"));
     params.push_back(new Parameter<bool>("enableLfd", &enableLfd, "enable learning from demonstrations for ravens"));
-  }
 
+    params.push_back(new Parameter<char>("biasAxis",   &biasAxis, "axis to bias the suturing setup, in: {'x','y','z'}"));
+    params.push_back(new Parameter<float>("biasAngle", &biasAngle, "bias angle for suturing setup"));
+  }
 };
