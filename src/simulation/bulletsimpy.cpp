@@ -154,7 +154,7 @@ public:
   }
 
   ~PyBulletEnvironment() {
-    cout << "py bullet env destroyed" << endl;
+    LOG_DEBUG("py bullet env destroyed");
   }
 
   PyBulletObjectPtr GetObjectByName(const string &name) {
@@ -188,7 +188,7 @@ public:
     py::list collisions;
     btDynamicsWorld *world = m_env->bullet->dynamicsWorld;
     btCollisionDispatcher *dispatcher = m_env->bullet->dispatcher;
-    world->performDiscreteCollisionDetection();
+    //world->performDiscreteCollisionDetection();
     int numManifolds = dispatcher->getNumManifolds();
     LOG_DEBUG_FMT("number of manifolds: %i", numManifolds);
     for (int i = 0; i < numManifolds; ++i) {

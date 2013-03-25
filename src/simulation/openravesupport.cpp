@@ -23,6 +23,7 @@ using boost::shared_ptr;
 
 
 RaveInstance::RaveInstance(OpenRAVE::EnvironmentBasePtr env_) {
+  isRoot = false;
   env = env_;
   env->StopSimulation();
 }
@@ -42,10 +43,10 @@ RaveInstance::RaveInstance(const RaveInstance &o, int cloneOpts) {
 }
 
 RaveInstance::~RaveInstance() {
-  cout << "DESTROY" << endl;
-//    env->Destroy();
-//	if (isRoot)
-//		RaveDestroy();
+  // only destroy if the environment was created by us
+  if (isRoot) {
+    RaveDestroy();
+  }
 }
 
 RaveLinkObject::RaveLinkObject(RaveInstance::Ptr rave_, KinBody::LinkPtr link_, btScalar mass, btCollisionShape *cs, const btTransform &initTrans, bool isKinematic_) :
