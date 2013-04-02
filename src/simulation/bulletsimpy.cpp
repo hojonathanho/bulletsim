@@ -53,9 +53,27 @@ py::object toNdarray2(const T* data, size_t dim0, size_t dim1) {
   return out;
 }
 
-
 py::object toNdarray(const btVector3 &v) {
   return toNdarray1(v.m_floats, 3); // TODO: check float vs double
+}
+
+template<typename T>
+py::object ensureFormat(py::object ndarray) {
+  // ensure C-order and data type, possibly making a new ndarray
+  return numpy.attr("ascontiguousarray")(ndarray, type_traits<T>::npname);
+}
+
+template<typename T>
+void fromNdarray2(py::object a, vector<T> &out, size_t &out_dim0, size_t &out_dim1) {
+  a = ensureFormat<T>(a);
+  py::object shape = a.attr("shape");
+  if (py::len(shape) != 2) {
+    throw std::runtime_error((boost::format("expected 2-d array, got %d-d instead") % py::len(shape)).str());
+  }
+  out_dim0 = py::extract<size_t>(shape[0]);
+  out_dim1 = py::extract<size_t>(shape[1]);
+  out.resize(out_dim0 * out_dim1);
+  memcpy(out.data(), getPointer<T>(a), out_dim0*out_dim1*sizeof(T));
 }
 
 template<typename KeyT, typename ValueT>
@@ -107,6 +125,26 @@ public:
     btScalar mat[16];
     t.getOpenGLMatrix(mat);
     return toNdarray2(mat, 4, 4).attr("T");
+  }
+
+  void SetTransform(py::object py_hmat) {
+    vector<btScalar> hmat; size_t dim0, dim1;
+    fromNdarray2(py_hmat.attr("T"), hmat, dim0, dim1);
+    if (dim0 != 4 || dim1 != 4) {
+      throw std::runtime_error((boost::format("expected 4x4 matrix, got %dx%d") % dim0 % dim1).str());
+    }
+    btTransform t;
+    t.setFromOpenGLMatrix(hmat.data());
+    //m_obj->children[0]->rigidBody->setCenterOfMassTransform(m_obj->toWorldFrame(t));
+    m_obj->children[0]->motionState->setKinematicPos(m_obj->toWorldFrame(t));
+  }
+
+  void SetLinearVelocity(py::list v) {
+    m_obj->children[0]->rigidBody->setLinearVelocity(toBtVector3(v));
+  }
+
+  void SetAngularVelocity(py::list w) {
+    m_obj->children[0]->rigidBody->setAngularVelocity(toBtVector3(w));
   }
 
   void UpdateBullet() {
@@ -243,6 +281,9 @@ BOOST_PYTHON_MODULE(cbulletsimpy) {
     .def("GetName", &PyBulletObject::GetName)
     .def("GetKinBody", &PyBulletObject::GetKinBody, "get the KinBody in the OpenRAVE environment this object was created from")
     .def("GetTransform", &PyBulletObject::GetTransform)
+    .def("SetTransform", &PyBulletObject::SetTransform)
+    .def("SetLinearVelocity", &PyBulletObject::SetLinearVelocity)
+    .def("SetAngularVelocity", &PyBulletObject::SetAngularVelocity)
     .def("UpdateBullet", &PyBulletObject::UpdateBullet, "set bullet object transform from the current transform in the OpenRAVE environment")
     .def("UpdateRave", &PyBulletObject::UpdateRave, "set the transform in the OpenRAVE environment from what it currently is in Bullet")
     ;
