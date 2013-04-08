@@ -162,6 +162,8 @@ private:
 };
 typedef boost::shared_ptr<PyBulletObject> PyBulletObjectPtr;
 
+struct PyCollision;
+typedef boost::shared_ptr<PyCollision> PyCollisionPtr;
 struct PyCollision {
   py::object linkA;
   py::object linkB;
@@ -178,8 +180,21 @@ struct PyCollision {
     distance(distance_),
     weight(weight_)
   { }
+
+  PyCollision(py::object linkA_, py::object linkB_, py::object ptA_, py::object ptB_, py::object normalB2A_, double distance_, double weight_=1) :
+    linkA(linkA_),
+    linkB(linkB_),
+    ptA(ptA_),
+    ptB(ptB_),
+    normalB2A(normalB2A_),
+    distance(distance_),
+    weight(weight_)
+  { }
+
+  PyCollisionPtr Flipped() const {
+    return PyCollisionPtr(new PyCollision(linkB, linkA, ptB, ptA, normalB2A.attr("__neg__")(), distance, weight));
+  }
 };
-typedef boost::shared_ptr<PyCollision> PyCollisionPtr;
 
 class PyBulletEnvironment {
 public:
@@ -204,6 +219,15 @@ public:
       throw std::runtime_error("trying to get Bullet object for a KinBody that doesn't belong to this (OpenRAVE base) environment");
     }
     return PyBulletObjectPtr(new PyBulletObject(getObjectByName(m_env, m_rave, GetCppKinBody(py_kb, m_rave->env)->GetName())));
+  }
+
+  vector<PyBulletObjectPtr> GetObjects() {
+    vector<PyBulletObjectPtr> out;
+    vector<KinBodyPtr> bodies; m_rave->env->GetBodies(bodies);
+    BOOST_FOREACH(const KinBodyPtr& body, bodies) {
+      out.push_back(GetObjectByName(body->GetName()));
+    }
+    return out;
   }
 
   py::object GetRaveEnv() {
@@ -291,6 +315,7 @@ BOOST_PYTHON_MODULE(cbulletsimpy) {
   py::class_<PyBulletEnvironment, PyBulletEnvironmentPtr>("BulletEnvironment", py::init<py::object, py::list>())
     .def("GetObjectByName", &PyBulletEnvironment::GetObjectByName, "get a BulletObject, given the OpenRAVE object name")
     .def("GetObjectFromKinBody", &PyBulletEnvironment::GetObjectFromKinBody, "")
+    .def("GetObjects", &PyBulletEnvironment::GetObjects, "get all objects")
     .def("GetRaveEnv", &PyBulletEnvironment::GetRaveEnv, "get the backing OpenRAVE environment")
     .def("SetGravity", &PyBulletEnvironment::SetGravity)
     .def("GetGravity", &PyBulletEnvironment::GetGravity)
@@ -307,5 +332,6 @@ BOOST_PYTHON_MODULE(cbulletsimpy) {
     .def_readonly("normalB2A", &PyCollision::normalB2A)
     .def_readonly("distance", &PyCollision::distance)
     .def_readonly("weight", &PyCollision::weight)
+    .def("Flipped", &PyCollision::Flipped)
     ;
 }
