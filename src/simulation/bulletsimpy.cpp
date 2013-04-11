@@ -118,16 +118,24 @@ class PyBulletObject {
 public:
   bool IsKinematic() { return m_obj->getIsKinematic(); }
   string GetName() { return m_obj->body->GetName(); }
-  py::object GetKinBody() { return GetPyKinBody(m_obj->body); }
 
-  py::object GetTransform() {
-    btTransform t(m_obj->toRaveFrame(m_obj->children[0]->rigidBody->getCenterOfMassTransform()));
+  KinBodyPtr GetKinBody() { return m_obj->body; }
+  py::object py_GetKinBody() { return GetPyKinBody(m_obj->body); }
+
+  btTransform GetTransform() {
+    return m_obj->toRaveFrame(m_obj->children[0]->rigidBody->getCenterOfMassTransform());
+  }
+  py::object py_GetTransform() {
     btScalar mat[16];
-    t.getOpenGLMatrix(mat);
+    GetTransform().getOpenGLMatrix(mat);
     return toNdarray2(mat, 4, 4).attr("T");
   }
 
-  void SetTransform(py::object py_hmat) {
+  void SetTransform(const btTransform& t) {
+    //m_obj->children[0]->rigidBody->setCenterOfMassTransform(m_obj->toWorldFrame(t));
+    m_obj->children[0]->motionState->setKinematicPos(m_obj->toWorldFrame(t));
+  }
+  void py_SetTransform(py::object py_hmat) {
     vector<btScalar> hmat; size_t dim0, dim1;
     fromNdarray2(py_hmat.attr("T"), hmat, dim0, dim1);
     if (dim0 != 4 || dim1 != 4) {
@@ -135,16 +143,21 @@ public:
     }
     btTransform t;
     t.setFromOpenGLMatrix(hmat.data());
-    //m_obj->children[0]->rigidBody->setCenterOfMassTransform(m_obj->toWorldFrame(t));
-    m_obj->children[0]->motionState->setKinematicPos(m_obj->toWorldFrame(t));
+    SetTransform(t);
   }
 
-  void SetLinearVelocity(py::list v) {
-    m_obj->children[0]->rigidBody->setLinearVelocity(toBtVector3(v));
+  void SetLinearVelocity(const btVector3& v) {
+    m_obj->children[0]->rigidBody->setLinearVelocity(v);
+  }
+  void py_SetLinearVelocity(py::list v) {
+    SetLinearVelocity(toBtVector3(v));
   }
 
-  void SetAngularVelocity(py::list w) {
-    m_obj->children[0]->rigidBody->setAngularVelocity(toBtVector3(w));
+  void SetAngularVelocity(const btVector3& w) {
+    m_obj->children[0]->rigidBody->setAngularVelocity(w);
+  }
+  void py_SetAngularVelocity(py::list w) {
+    SetAngularVelocity(toBtVector3(w));
   }
 
   void UpdateBullet() {
@@ -165,23 +178,13 @@ typedef boost::shared_ptr<PyBulletObject> PyBulletObjectPtr;
 struct PyCollision;
 typedef boost::shared_ptr<PyCollision> PyCollisionPtr;
 struct PyCollision {
-  py::object linkA;
-  py::object linkB;
-  py::object ptA, ptB, normalB2A;
+  KinBody::LinkPtr linkA;
+  KinBody::LinkPtr linkB;
+  btVector3 ptA, ptB, normalB2A;
   double distance;
   double weight;
 
   PyCollision(const KinBody::LinkPtr linkA_, const KinBody::LinkPtr linkB_, const btVector3& ptA_, const btVector3& ptB_, const btVector3& normalB2A_, double distance_, double weight_=1) :
-    linkA(GetPyLink(linkA_)),
-    linkB(GetPyLink(linkB_)),
-    ptA(toNdarray(ptA_)),
-    ptB(toNdarray(ptB_)),
-    normalB2A(toNdarray(normalB2A_)),
-    distance(distance_),
-    weight(weight_)
-  { }
-
-  PyCollision(py::object linkA_, py::object linkB_, py::object ptA_, py::object ptB_, py::object normalB2A_, double distance_, double weight_=1) :
     linkA(linkA_),
     linkB(linkB_),
     ptA(ptA_),
@@ -191,19 +194,33 @@ struct PyCollision {
     weight(weight_)
   { }
 
+  py::object py_linkA() { return GetPyLink(linkA); }
+  py::object py_linkB() { return GetPyLink(linkB); }
+  py::object py_ptA() { return toNdarray(ptA); }
+  py::object py_ptB() { return toNdarray(ptB); }
+  py::object py_normalB2A() { return toNdarray(normalB2A); }
+
   PyCollisionPtr Flipped() const {
-    return PyCollisionPtr(new PyCollision(linkB, linkA, ptB, ptA, normalB2A.attr("__neg__")(), distance, weight));
+    return PyCollisionPtr(new PyCollision(linkB, linkA, ptB, ptA, -normalB2A, distance, weight));
   }
 };
 
 class PyBulletEnvironment {
-public:
-  PyBulletEnvironment(py::object py_rave_env, py::list dynamic_obj_names) {
+  void init(EnvrionmentBasePtr rave_env, const vector<string>& dynamic_obj_names) {
     BulletInstance::Ptr bullet(new BulletInstance);
     m_env.reset(new Environment(bullet));
-    m_rave.reset(new RaveInstance(GetCppEnv(py_rave_env)));
-    LoadFromRaveExplicit(m_env, m_rave, toStrVec(dynamic_obj_names));
+    m_rave.reset(new RaveInstance(rave_env));
+    LoadFromRaveExplicit(m_env, m_rave, dynamic_obj_names);
     m_env->bullet->setGravity(btVector3(0, 0, -9.8));
+  }
+public:
+  PyBulletEnvironment(EnvrionmentBasePtr rave_env, const vector<string>& dynamic_obj_names) {
+    init(rave_env, dynamic_obj_names);
+  }
+
+  // constructor for python interface
+  PyBulletEnvironment(py::object py_rave_env, py::list dynamic_obj_names) {
+    init(GetCppEnv(py_rave_env), toStrVec(dynamic_obj_names));
   }
 
   ~PyBulletEnvironment() {
@@ -214,7 +231,13 @@ public:
     return PyBulletObjectPtr(new PyBulletObject(getObjectByName(m_env, m_rave, name)));
   }
 
-  PyBulletObjectPtr GetObjectFromKinBody(py::object py_kb) {
+  PyBulletObjectPtr GetObjectFromKinBody(KinBodyPtr kb) {
+    if (RaveGetEnvironmentId(kb->GetEnv()) != RaveGetEnvironmentId(m_rave->env)) {
+      throw std::runtime_error("trying to get Bullet object for a KinBody that doesn't belong to this (OpenRAVE base) environment");
+    }
+    return PyBulletObjectPtr(new PyBulletObject(getObjectByName(m_env, m_rave, kb->GetName())));
+  }
+  PyBulletObjectPtr py_GetObjectFromKinBody(py::object py_kb) {
     if (openravepy.attr("RaveGetEnvironmentId")(py_kb.attr("GetEnv")()) != RaveGetEnvironmentId(m_rave->env)) {
       throw std::runtime_error("trying to get Bullet object for a KinBody that doesn't belong to this (OpenRAVE base) environment");
     }
@@ -222,31 +245,40 @@ public:
   }
 
   vector<PyBulletObjectPtr> GetObjects() {
-    vector<PyBulletObjectPtr> out;
     vector<KinBodyPtr> bodies; m_rave->env->GetBodies(bodies);
+    vector<PyBulletObjectPtr> out; out.reserve(bodies.size());
     BOOST_FOREACH(const KinBodyPtr& body, bodies) {
       out.push_back(GetObjectByName(body->GetName()));
     }
     return out;
   }
 
-  py::object GetRaveEnv() {
+  EnvironmentBasePtr GetRaveEnv() {
+    return m_rave->env;
+  }
+  py::object py_GetRaveEnv() {
     return GetPyEnv(m_rave->env);
   }
 
-  void SetGravity(py::list g) {
-    m_env->bullet->setGravity(toBtVector3(g));
+  void SetGravity(const btVector3& g) {
+    m_env->bullet->setGravity(g);
+  }
+  void py_SetGravity(py::list g) {
+    SetGravity(toBtVector3(g));
   }
 
-  py::object GetGravity() {
-    return toNdarray(m_env->bullet->dynamicsWorld->getGravity());
+  btVector3 GetGravity() {
+    return m_env->bullet->dynamicsWorld->getGravity();
+  }
+  py::object py_GetGravity() {
+    return toNdarray(GetGravity());
   }
 
   void Step(float dt, int maxSubSteps, float fixedTimeStep) {
     m_env->step(dt, maxSubSteps, fixedTimeStep);
   }
 
-  py::list DetectCollisions() {
+  py::list py_DetectCollisions() {
     py::list collisions;
     btDynamicsWorld *world = m_env->bullet->dynamicsWorld;
     btCollisionDispatcher *dispatcher = m_env->bullet->dispatcher;
@@ -303,33 +335,33 @@ BOOST_PYTHON_MODULE(cbulletsimpy) {
   py::class_<PyBulletObject, PyBulletObjectPtr>("BulletObject", py::no_init)
     .def("IsKinematic", &PyBulletObject::IsKinematic)
     .def("GetName", &PyBulletObject::GetName)
-    .def("GetKinBody", &PyBulletObject::GetKinBody, "get the KinBody in the OpenRAVE environment this object was created from")
-    .def("GetTransform", &PyBulletObject::GetTransform)
-    .def("SetTransform", &PyBulletObject::SetTransform)
-    .def("SetLinearVelocity", &PyBulletObject::SetLinearVelocity)
-    .def("SetAngularVelocity", &PyBulletObject::SetAngularVelocity)
+    .def("GetKinBody", &PyBulletObject::py_GetKinBody, "get the KinBody in the OpenRAVE environment this object was created from")
+    .def("GetTransform", &PyBulletObject::py_GetTransform)
+    .def("SetTransform", &PyBulletObject::py_SetTransform)
+    .def("SetLinearVelocity", &PyBulletObject::py_SetLinearVelocity)
+    .def("SetAngularVelocity", &PyBulletObject::py_SetAngularVelocity)
     .def("UpdateBullet", &PyBulletObject::UpdateBullet, "set bullet object transform from the current transform in the OpenRAVE environment")
     .def("UpdateRave", &PyBulletObject::UpdateRave, "set the transform in the OpenRAVE environment from what it currently is in Bullet")
     ;
 
   py::class_<PyBulletEnvironment, PyBulletEnvironmentPtr>("BulletEnvironment", py::init<py::object, py::list>())
     .def("GetObjectByName", &PyBulletEnvironment::GetObjectByName, "get a BulletObject, given the OpenRAVE object name")
-    .def("GetObjectFromKinBody", &PyBulletEnvironment::GetObjectFromKinBody, "")
+    .def("GetObjectFromKinBody", &PyBulletEnvironment::py_GetObjectFromKinBody, "")
     .def("GetObjects", &PyBulletEnvironment::GetObjects, "get all objects")
-    .def("GetRaveEnv", &PyBulletEnvironment::GetRaveEnv, "get the backing OpenRAVE environment")
-    .def("SetGravity", &PyBulletEnvironment::SetGravity)
-    .def("GetGravity", &PyBulletEnvironment::GetGravity)
+    .def("GetRaveEnv", &PyBulletEnvironment::py_GetRaveEnv, "get the backing OpenRAVE environment")
+    .def("SetGravity", &PyBulletEnvironment::py_SetGravity)
+    .def("GetGravity", &PyBulletEnvironment::py_GetGravity)
     .def("Step", &PyBulletEnvironment::Step)
-    .def("DetectCollisions", &PyBulletEnvironment::DetectCollisions)
+    .def("DetectCollisions", &PyBulletEnvironment::py_DetectCollisions)
     .def("SetContactDistance", &PyBulletEnvironment::SetContactDistance)
     ;
 
   py::class_<PyCollision, PyCollisionPtr>("Collision", py::no_init)
-    .def_readonly("linkA", &PyCollision::linkA)
-    .def_readonly("linkB", &PyCollision::linkB)
-    .def_readonly("ptA", &PyCollision::ptA)
-    .def_readonly("ptB", &PyCollision::ptB)
-    .def_readonly("normalB2A", &PyCollision::normalB2A)
+    .add_property("linkA", &PyCollision::py_linkA)
+    .add_property("linkB", &PyCollision::py_linkB)
+    .add_property("ptA", &PyCollision::py_ptA)
+    .add_property("ptB", &PyCollision::py_ptB)
+    .add_property("normalB2A", &PyCollision::py_normalB2A)
     .def_readonly("distance", &PyCollision::distance)
     .def_readonly("weight", &PyCollision::weight)
     .def("Flipped", &PyCollision::Flipped)
