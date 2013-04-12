@@ -25,6 +25,7 @@ add_library(simulation
     config.cpp
     conversions.cpp
     utils_vector.cpp
+    bulletsim_lite.cpp
 )
 
 target_link_libraries(simulation
