@@ -3,6 +3,7 @@
 #include <boost/python.hpp>
 #include "environment.h"
 #include "openravesupport.h"
+#include "macros.h"
 
 namespace bs {
 
@@ -13,7 +14,7 @@ namespace py = boost::python;
 void InitPython();
 
 class BulletEnvironment;
-class BulletObject {
+class BULLETSIM_API BulletObject {
 public:
   bool IsKinematic();
   string GetName();
@@ -45,7 +46,7 @@ typedef boost::shared_ptr<BulletObject> BulletObjectPtr;
 
 struct Collision;
 typedef boost::shared_ptr<Collision> CollisionPtr;
-struct Collision {
+struct BULLETSIM_API Collision {
   KinBody::LinkPtr linkA;
   KinBody::LinkPtr linkB;
   btVector3 ptA, ptB, normalB2A;
@@ -63,7 +64,7 @@ struct Collision {
   CollisionPtr Flipped() const;
 };
 
-class BulletEnvironment {
+class BULLETSIM_API BulletEnvironment {
 public:
   BulletEnvironment(EnvironmentBasePtr rave_env, const vector<string>& dynamic_obj_names);
   // constructor for python interface

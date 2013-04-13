@@ -1,8 +1,4 @@
-#include "lite.h"
-
-//#include <boost/python.hpp>
-//#include "environment.h"
-//#include "openravesupport.h"
+#include "bulletsim_lite.h"
 #include "logging.h"
 
 namespace bs {
