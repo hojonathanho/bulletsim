@@ -91,7 +91,8 @@ public:
 
   void Step(float dt, int maxSubSteps, float fixedTimeStep);
 
-  vector<CollisionPtr> DetectCollisions();
+  vector<CollisionPtr> DetectAllCollisions();
+  vector<CollisionPtr> ContactTest(BulletObjectPtr obj);
 
   void SetContactDistance(double dist);
 

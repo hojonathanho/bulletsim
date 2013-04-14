@@ -47,7 +47,8 @@ BOOST_PYTHON_MODULE(cbulletsimpy) {
     .def("SetGravity", &bs::BulletEnvironment::py_SetGravity)
     .def("GetGravity", &bs::BulletEnvironment::py_GetGravity)
     .def("Step", &bs::BulletEnvironment::Step)
-    .def("DetectCollisions", &bs::BulletEnvironment::DetectCollisions)
+    .def("DetectAllCollisions", &bs::BulletEnvironment::DetectAllCollisions)
+    .def("ContactTest", &bs::BulletEnvironment::ContactTest)
     .def("SetContactDistance", &bs::BulletEnvironment::SetContactDistance)
     ;
 }

@@ -270,7 +270,7 @@ void BulletEnvironment::Step(float dt, int maxSubSteps, float fixedTimeStep) {
   m_env->step(dt, maxSubSteps, fixedTimeStep);
 }
 
-vector<CollisionPtr> BulletEnvironment::DetectCollisions() {
+vector<CollisionPtr> BulletEnvironment::DetectAllCollisions() {
   vector<CollisionPtr> collisions;
   btDynamicsWorld *world = m_env->bullet->dynamicsWorld;
   btCollisionDispatcher *dispatcher = m_env->bullet->dispatcher;
@@ -296,6 +296,35 @@ vector<CollisionPtr> BulletEnvironment::DetectCollisions() {
     //contactManifold->clearManifold();
   }
   return collisions;
+}
+
+vector<CollisionPtr> BulletEnvironment::ContactTest(BulletObjectPtr obj) {
+  vector<CollisionPtr> out;
+  struct ContactCallback : public btCollisionWorld::ContactResultCallback {
+    vector<CollisionPtr> &m_out;
+    RaveInstance::Ptr m_rave;
+    ContactCallback(vector<CollisionPtr> &out_, RaveInstance::Ptr rave) : m_out(out_), m_rave(rave) { }
+    btScalar addSingleResult(btManifoldPoint &pt,
+                             const btCollisionObject *colObj0, int, int,
+                             const btCollisionObject *colObj1, int, int) {
+      btRigidBody *objA = const_cast<btRigidBody *>(static_cast<const btRigidBody *>(colObj0));
+      btRigidBody *objB = const_cast<btRigidBody *>(static_cast<const btRigidBody *>(colObj1));
+      KinBody::LinkPtr linkA = findOrFail(m_rave->bulletsim2rave_links, objA);
+      KinBody::LinkPtr linkB = findOrFail(m_rave->bulletsim2rave_links, objB);
+      m_out.push_back(CollisionPtr(new Collision(
+        linkA, linkB, pt.getPositionWorldOnA(), pt.getPositionWorldOnB(),
+        pt.m_normalWorldOnB, pt.m_distance1, 1.)));
+      return 0;
+    }
+  } cb(out, m_rave);
+
+  // do contact test for all links of obj
+  RaveObject::ChildVector& obj_children = obj->m_obj->getChildren();
+  for (int i = 0; i < obj_children.size(); ++i) {
+    m_env->bullet->dynamicsWorld->contactTest(obj_children[i]->rigidBody.get(), cb);
+  }
+
+  return out;
 }
 
 void BulletEnvironment::SetContactDistance(double dist) {

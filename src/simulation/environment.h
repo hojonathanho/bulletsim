@@ -148,11 +148,10 @@ public:
 // Not a real object; just wraps a bunch of child objects.
 template<class ChildType>
 class CompoundObject : public EnvironmentObject {
-protected:
-    typedef std::vector<typename ChildType::Ptr> ChildVector;
-
 public:
     typedef boost::shared_ptr<CompoundObject<ChildType> > Ptr;
+
+    typedef std::vector<typename ChildType::Ptr> ChildVector;
     ChildVector children;
     ChildVector &getChildren() { return children; }
 
