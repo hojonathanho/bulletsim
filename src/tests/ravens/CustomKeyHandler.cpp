@@ -1,4 +1,3 @@
-
 #include "CustomKeyHandler.h"
 
 
@@ -15,6 +14,7 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,
 
 	switch (ea.getEventType()) {
 	case osgGA::GUIEventAdapter::KEYDOWN:
+		scene.userInput = true;
 		switch (ea.getKey()) {
 		case 'A':
 			cout <<"N : "<<N<<endl;
@@ -149,6 +149,7 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,
 			break;
 		case 'd':
 			scene.moveEndEffector('u',false,'r');
+			break;
 			break;
 		case 'f':
 			scene.moveEndEffector('d',false,'r');

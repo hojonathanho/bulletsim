@@ -238,6 +238,7 @@ public:
 	void plotGrasp(bool remove = false);
 	/** Plot point cloud. */
 	void plotAllPoints(bool remove = false);
+	void plotAllPoints2(vector<btVector3>& old, vector<btVector3>& newpts);
 	/** Plot tfm of hole. */
 	void plotHoleTfm ();
 	/** Plot tfm of peg.*/

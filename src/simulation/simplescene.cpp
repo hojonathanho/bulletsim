@@ -7,7 +7,7 @@
 #include <iostream>
 using namespace std;
 
-Scene::Scene() {
+Scene::Scene()  : userInput(false) {
     osg.reset(new OSGInstance());
     bullet.reset(new BulletInstance());
 

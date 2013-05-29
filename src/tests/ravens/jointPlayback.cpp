@@ -82,7 +82,8 @@ void jointPlayback::process () {
 														//needlePoints,
 														boxPoints,
 														holePoints,
-														processedJoints );
+														processedJoints,
+														scene);
 
 	if (processedSuccessfully) {
 		jCount = 0;

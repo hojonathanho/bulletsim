@@ -4,6 +4,8 @@
 #include <assert.h>
 #include "lfd/RavensLfd.h"
 
+class CustomScene;
+
 class LFDProcessor {
 
 	string jointFile;
@@ -48,7 +50,8 @@ public:
 						//vector<btVector3> & new_needle_points,
 						vector<btVector3> & new_box_points,
 						vector<btVector3> & new_hole_points,
-						vector< vector <double> > & processedJointValues);
+						vector< vector <double> > & processedJointValues,
+						CustomScene &s);
 
 	void reset ();
 

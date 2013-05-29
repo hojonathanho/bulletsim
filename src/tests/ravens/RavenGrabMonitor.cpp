@@ -10,7 +10,6 @@ using namespace OpenRAVE;
 using namespace Eigen;
 
 
-
 /** Constructor for grabs for ravens. */
 RavensGrab::RavensGrab(btRigidBody* rb, const btTransform& pose,
 		btDynamicsWorld* world,  bool leftFinger_, btTransform & offset_) : Grab(rb, pose, world), leftFinger(leftFinger_),offset(offset_) {}

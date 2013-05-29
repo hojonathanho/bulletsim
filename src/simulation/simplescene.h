@@ -25,6 +25,8 @@ public:
 struct Scene {
   typedef boost::shared_ptr<Scene> Ptr;
 
+  bool userInput;
+
   OSGInstance::Ptr osg;
   BulletInstance::Ptr bullet;
   RaveInstance::Ptr rave;

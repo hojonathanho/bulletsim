@@ -16,7 +16,6 @@ class BoxCloth : public CompoundObject<BulletObject> {
 
 public:
 
-
 	// number of boxes along the x-dimension
 	int n;
 
@@ -31,7 +30,7 @@ public:
 
 	// center of the cloth
 	const btVector3   center;
-	const btMatrix3x3 rot;
+	const btTransform rot;
 
 	//indices of the squares in the 2d grid where holes should be located.
 	vector<unsigned int> hole_is, hole_js;
@@ -52,10 +51,11 @@ public:
 	typedef boost::shared_ptr<BoxCloth> Ptr;
 	std::vector<boost::shared_ptr<btCollisionShape> > shapes;
 	std::vector<RaveObject::Ptr>    holes;
+	std::vector<RaveObject::Ptr>    raveBoxes;
 	std::vector<BulletConstraint::Ptr> joints;
 
 	BoxCloth(CustomScene &s, unsigned int n_, unsigned int m_, vector<unsigned int> hole_is_, vector<unsigned int> hole_js_,
-			  btScalar s_=METERS*0.02, btScalar h_=METERS*0.001, btVector3 center_=btVector3(0,0,0), btMatrix3x3 rot=btTransform::getIdentity().getBasis(),
+			  btScalar s_=METERS*0.02, btScalar h_=METERS*0.001, btVector3 center_=btVector3(0,0,0), btTransform rot=btTransform::getIdentity(),
 			  float angStiffness_=1e5, float linDamping_=0.3, float angDamping_=0.1, float angLimit_=0.5);
 
 
@@ -70,7 +70,7 @@ public:
 	void getBoxClothPoints(vector< pair<int, int> > indices, vector<btVector3> & boxPoints);
 	void getBoxClothHoles(vector<btVector3> & holePoints);
 
-	void BoxCloth::createBoxTransforms(vector<btTransform> &transforms, unsigned int n, unsigned int m, btScalar s, btVector3 center);
+	void createBoxTransforms(vector<btTransform> &transforms, unsigned int n, unsigned int m, btScalar s, btVector3 center);
 
 
 	void init();

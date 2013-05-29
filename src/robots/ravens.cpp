@@ -18,12 +18,26 @@ Ravens::Ravens(Scene &s) : scene(s), inputState(),
 	vector<KinBody::LinkPtr> links;
 	manipR->manip->GetChildLinks(links);
 	ravens->linkMap[links[1]]->setColor(0.2,0.34,0.8,1);
-	ravens->linkMap[links[2]]->setColor(0.8,0.34,0.2,1);
+	ravens->linkMap[links[2]]->setColor(1.0,0.64,0.0,1);
 
 	links.clear();
 	manipL->manip->GetChildLinks(links);
 	ravens->linkMap[links[1]]->setColor(0.2,0.34,0.8,1);
-	ravens->linkMap[links[2]]->setColor(0.8,0.34,0.2,1);
+	ravens->linkMap[links[2]]->setColor(1.0,0.64,0.0,1);
+
+	ravens->linkMap[ravens->robot->GetLink("rhandfinger1_sp")]->rigidBody->setCollisionFlags(
+			ravens->linkMap[ravens->robot->GetLink("rhandfinger1_sp")]->rigidBody->getCollisionFlags()
+			| btRigidBody::CF_NO_CONTACT_RESPONSE);;
+	ravens->linkMap[ravens->robot->GetLink("rhandfinger2_sp")]->rigidBody->setCollisionFlags(
+				ravens->linkMap[ravens->robot->GetLink("rhandfinger2_sp")]->rigidBody->getCollisionFlags()
+				| btRigidBody::CF_NO_CONTACT_RESPONSE);;
+
+	ravens->linkMap[ravens->robot->GetLink("lhandfinger1_sp")]->rigidBody->setCollisionFlags(
+				ravens->linkMap[ravens->robot->GetLink("lhandfinger1_sp")]->rigidBody->getCollisionFlags()
+				| btRigidBody::CF_NO_CONTACT_RESPONSE);;
+	ravens->linkMap[ravens->robot->GetLink("lhandfinger2_sp")]->rigidBody->setCollisionFlags(
+				ravens->linkMap[ravens->robot->GetLink("lhandfinger2_sp")]->rigidBody->getCollisionFlags()
+				| btRigidBody::CF_NO_CONTACT_RESPONSE);;
 }
 
 
@@ -54,7 +68,7 @@ void Ravens::loadRobot() {
     ravens.reset(new RaveRobotObject(scene.rave, ROBOT_MODEL_FILE));
     scene.env->add(ravens);
   }
-  ravens->setColor(0.3,0.274,0.5,1.0);
+  ravens->setColor(0.2,0.2,0.2,1.0);
 }
 
 
@@ -74,7 +88,9 @@ bool Ravens::processKeyInput(const osgGA::GUIEventAdapter &ea) {
     case osgGA::GUIEventAdapter::KEYDOWN:
         switch (ea.getKey()) {
         case '1':
-            inputState.moveManip0   = true; break;
+            inputState.moveManip0   = true; break;    hapTrackerLeft->rigidBody->setCollisionFlags(
+                    hapTrackerLeft->rigidBody->getCollisionFlags()
+                    | btRigidBody::CF_NO_CONTACT_RESPONSE);
         case '2':
             inputState.moveManip1   = true; break;
         case 'q':
@@ -165,7 +181,9 @@ bool Ravens::processMouseInput(const osgGA::GUIEventAdapter &ea) {
             RaveRobotObject::Manipulator::Ptr manip;
             if (inputState.moveManip0 || inputState.rotateManip0)
                 manip = manipL;
-            else
+            else    hapTrackerLeft->rigidBody->setCollisionFlags(
+                    hapTrackerLeft->rigidBody->getCollisionFlags()
+                    | btRigidBody::CF_NO_CONTACT_RESPONSE);
                 manip = manipR;
 
             btTransform origTrans = manip->getTransform();

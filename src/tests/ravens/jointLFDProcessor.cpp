@@ -1,4 +1,5 @@
 #include "jointLFDProcessor.h"
+#include "CustomScene.h"
 
 void LFDProcessor::initProcessing () {
 
@@ -42,7 +43,8 @@ bool LFDProcessor::preProcess (	Ravens & ravens,
 		//vector<btVector3> & new_needle_points,
 		vector<btVector3> & new_box_points,
 		vector<btVector3> & new_hole_points,
-		vector< vector <double> > & processedJointValues) {
+		vector< vector <double> > & processedJointValues,
+		CustomScene & s) {
 
 	if (fileClosed) {
 		cout<<"File has ended."<<endl;
@@ -173,6 +175,16 @@ bool LFDProcessor::preProcess (	Ravens & ravens,
 	cout<<"Rope source points: "<<rope_points.size()<<" and target: "<<new_rope_points.size()<<endl;
 	cout<<"Box source points: "<<box_points.size()<<" and target: "<<new_box_points.size()<<endl;
 	cout<<"Hole source points: "<<hole_points.size()<<" and target: "<<new_hole_points.size()<<endl;
+
+	vector <btVector3> old, newpts;
+	for (int i = 0; i < rope_points.size(); ++i) old.push_back(rope_points[i]);
+	for (int i = 0; i < box_points.size(); ++i) old.push_back(box_points[i]);
+	for (int i = 0; i < hole_points.size(); ++i) old.push_back(hole_points[i]);
+
+	for (int i = 0; i < new_rope_points.size(); ++i) newpts.push_back(new_rope_points[i]);
+	for (int i = 0; i < new_box_points.size(); ++i) newpts.push_back(new_box_points[i]);
+	for (int i = 0; i < new_hole_points.size(); ++i) newpts.push_back(new_hole_points[i]);
+	s.plotAllPoints2(old , newpts);
 
 	bool successful = warpRavenJoints (	ravens,
 			make_pair(use_rope, make_pair(rope_points, new_rope_points)),

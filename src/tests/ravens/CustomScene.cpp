@@ -205,9 +205,9 @@ CustomScene::SuturingPeg::SuturingPeg (CustomScene * _scene, RaveRobotObject::Ma
 
 	ropePtr.reset(new CapsuleRope(ctrlPts,METERS*rope_radius));
 	scene.env->add(ropePtr);
-	ropePtr->setColor(0,1,0,1);
-	ropePtr->children[0]->setColor(1,0,0,1);
-	ropePtr->children[ropePtr->children.size()-1]->setColor(0,0,1,1);
+	ropePtr->setColor(0,0,1,1);
+	//ropePtr->children[0]->setColor(1,0,0,1);
+	//ropePtr->children[ropePtr->children.size()-1]->setColor(0,0,1,1);
 
 	btTransform TRel;
 	TRel.setIdentity();
@@ -358,14 +358,14 @@ void CustomScene::run() {
 	// add a table
 	const float table_height = 0.15;
 	const float table_thickness = .05;
-	table = BoxObject::Ptr(new BoxObject(0, GeneralConfig::scale * btVector3(0.23,0.23,table_thickness/2),
+	table = BoxObject::Ptr(new BoxObject(0, GeneralConfig::scale * btVector3(0.23,0.23,table_thickness/2+RavenConfig::zBias),
 			btTransform(btQuaternion(0, 0, 0, 1),
 					GeneralConfig::scale * btVector3(0, 0, table_height-table_thickness/2-0.01))));
 	table->receiveShadow = true;
 
 	table->rigidBody->setFriction(0.4);
 	env->add(table);
-	table->setColor(0.62, 0.32, 0.17, 0.8);
+	table->setColor(0.62, 0.32, 0.17, 1.0);
 	createKinBodyFromBulletBoxObject(table, rave);
 	ravens.ravens->ignoreCollisionWith(table->rigidBody.get());
 
@@ -390,15 +390,20 @@ void CustomScene::run() {
 	char axis = RavenConfig::biasAxis;
 	btVector3 biasAxis(axis=='x'?1:0, axis=='y'?1:0, axis=='z'?1:0);
 	biasAxis.normalize();
-	const btMatrix3x3 rotBias(btQuaternion(biasAxis,  180.0*RavenConfig::biasAngle/PI));
-	const btTransform biasT(rotBias);
+	float biasAngle = RavenConfig::biasAngle;
+	biasAngle  = PI*biasAngle/180.0;
+	const btMatrix3x3 rotBias(btQuaternion(biasAxis,  biasAngle));
+
+	btTransform move; move.setIdentity(); move.setOrigin(btVector3(0,0,-table_height*METERS));
+	btTransform moveback; moveback.setIdentity(); moveback.setOrigin(btVector3(0,0,table_height*METERS));
+	btTransform Tt(rotBias);
+	btTransform biasT = moveback*Tt*move;
 
 
 	hole_x.push_back(0); hole_x.push_back(0);
 	hole_y.push_back(5); hole_y.push_back(2);
 	cloth1.reset(new BoxCloth(*this, bcn, bcm, hole_x, hole_y, bcs, bch,
-				btVector3( (float)bcn/2*bcs + 0.01 + RavenConfig::xBias, RavenConfig::yBias , bcHeight + RavenConfig::zBias),
-				rotBias));
+				btVector3( (float)bcn/2*bcs + 0.01 + RavenConfig::xBias, RavenConfig::yBias , bcHeight + RavenConfig::zBias), biasT));
 	if (RavenConfig::cloth)
 		env->add(cloth1);
 
@@ -406,27 +411,26 @@ void CustomScene::run() {
 	hole_x.push_back(4); hole_x.push_back(4);
 	hole_y.push_back(5); hole_y.push_back(2);
 	cloth2.reset(new BoxCloth(*this, bcn, bcm, hole_x, hole_y, bcs, bch,
-			btVector3( -(float)bcn/2*bcs - 0.01 + RavenConfig::xBias, RavenConfig::yBias, bcHeight + RavenConfig::zBias)),
-			rotBias);
+			btVector3( -(float)bcn/2*bcs - 0.01 + RavenConfig::xBias, RavenConfig::yBias, bcHeight + RavenConfig::zBias), biasT));
 	if (RavenConfig::cloth)
 		env->add(cloth2);
 
-	const float support_thickness = .02;
-	support1 = BoxObject::Ptr(new BoxObject(0, GeneralConfig::scale * btVector3(0.05,0.05,support_thickness/2),
-			biasT*btTransform(btQuaternion(0, 0, 0, 1), GeneralConfig::scale *
+	const float support_thickness = .04;
+	support1 = BoxObject::Ptr(new BoxObject(0, METERS* btVector3(0.05,0.05,support_thickness/2),
+			biasT*btTransform(btQuaternion(0,0,0,1), METERS*
 			btVector3(-(float)(bcn+1)*bcs - 0.05 + RavenConfig::xBias, 0 + RavenConfig::yBias, bcHeight-support_thickness/2 + RavenConfig::zBias))));
 
-	support2 = BoxObject::Ptr(new BoxObject(0, GeneralConfig::scale * btVector3(0.05,0.05,support_thickness/2),
-			biasT*btTransform(btQuaternion(0, 0, 0, 1), GeneralConfig::scale *
+	support2 = BoxObject::Ptr(new BoxObject(0, METERS * btVector3(0.05,0.05,support_thickness/2),
+			biasT*btTransform(btQuaternion(0,0,0,1), METERS *
 			btVector3((float)(bcn+1)*bcs + 0.05 + RavenConfig::xBias, 0 + RavenConfig::yBias, bcHeight-support_thickness/2 + RavenConfig::zBias))));
 
-	support1->rigidBody->setFriction(0.4);
-	support2->rigidBody->setFriction(0.4);
+	support1->rigidBody->setFriction(0.7);
+	support2->rigidBody->setFriction(0.7);
 
 	env->add(support1);
 	env->add(support2);
-	support1->setColor(0.62, 0.32, 0.17, 0.8);
-	support2->setColor(0.62, 0.32, 0.17, 0.8);
+	support1->setColor(0.62, 0.32, 0.17, 1.0);
+	support2->setColor(0.62, 0.32, 0.17, 1.0);
 
 	// position the ravens
 	btTransform T;
@@ -444,6 +448,14 @@ void CustomScene::run() {
 	env->add(plot_axes1);
 	plot_axes2.reset(new PlotAxes());
 	env->add(plot_axes2);
+
+
+	vector<btVector3> origin; origin.push_back(METERS*btVector3(-0.23,0,table_height-0.0098+RavenConfig::zBias));
+	vector<btVector3> dir; dir.push_back(METERS*btVector3(0.23,0,table_height-0.0098+RavenConfig::zBias));
+	util::drawLines(origin,dir,Eigen::Vector3f(1,0,0), 1, env);
+	origin.clear(); origin.push_back(METERS*btVector3(0,0.23,table_height-0.0098+RavenConfig::zBias));
+	dir.clear(); dir.push_back(METERS*btVector3(0,-0.23,table_height-0.0098+RavenConfig::zBias));
+	util::drawLines(origin,dir,Eigen::Vector3f(0,1,0), 1, env);
 
 
 	/** Define the actions. */
@@ -672,6 +684,42 @@ void CustomScene::plotAllPoints(bool remove) {
 	plot_points->setPoints(plotpoints,color);
 
 }
+
+
+void CustomScene::plotAllPoints2(vector<btVector3> & old, vector<btVector3> & newpts) {
+	plot_points->setPoints(std::vector<btVector3>(),std::vector<btVector4>());
+
+	//Get all points
+	//vector<btVector3> needlePoints; sNeedle->getNeedlePoints(needlePoints);
+
+
+	unsigned int i = 0;
+
+	std::vector<btVector3> plotpoints(newpts.size() + old.size());
+	std::vector<btVector4> color(newpts.size() + old.size());
+
+	//Needle in red
+	//for (int j = 0; j < needlePoints.size(); ++j) {
+	//	plotpoints[i] = needlePoints[j];
+	//	color[i++] = btVector4(1,0,0,1);
+	//}
+
+	//Rope in blue
+	for (int j = 0; j < old.size(); ++j) {
+		plotpoints[i] = old[j];
+		color[i++] = btVector4(1,0,0,1);
+	}
+
+	//Box points in green
+	for (int j = 0; j < newpts.size(); ++j) {
+		plotpoints[i] = newpts[j];
+		color[i++] = btVector4(0,1,0,1);
+	}
+
+	plot_points->setPoints(plotpoints,color);
+
+}
+
 
 void CustomScene::plotHoleTfm () {
 	util::drawAxes(cloth1->holes[0]->getIndexTransform(0), 0.2*METERS, env);

@@ -15,7 +15,6 @@ using namespace std;
  *  The transforms are centered around CENTER. */
 void BoxCloth::createBoxTransforms(vector<btTransform> &transforms, unsigned int n, unsigned int m, btScalar s, btVector3 center) {
 	transforms.clear();
-	const btTransform offsetT(rot, center);
 	for(unsigned int i=0; i<n; i += 1) {
 		for (unsigned int j=0; j<m; j += 1) {
 			btTransform T;
@@ -23,7 +22,7 @@ void BoxCloth::createBoxTransforms(vector<btTransform> &transforms, unsigned int
 			btVector3 loc(-1*((n/2)*s)+(i*s), -1*((m/2)*s)+(j*s), 0.0);
 			loc += center;
 			T.setOrigin(loc);
-			T = offsetT*T;
+			T = rot*T;
 			transforms.push_back(T);
 		}
 	}
@@ -76,7 +75,7 @@ createBendConstraint2(btScalar side_len, bool isX,
 		               const boost::shared_ptr<btRigidBody>& rbB,
 		               float damping, float stiffness, float limit) {
 
-
+btTransform(rotBias
 	vector<btVector3> offsetA, offsetB;
 	if (isX) {
 		offsetA.push_back(btVector3(side_len/2,  side_len/2.01, 0));
@@ -285,7 +284,7 @@ void BoxCloth::addHoleConstraint (vector<btVector3> &offsetA, vector<btVector3> 
 }
 
 BoxCloth::BoxCloth(CustomScene &_s, unsigned int n_, unsigned int m_, vector<unsigned int> hole_is_, vector<unsigned int> hole_js_,
-		btScalar s_, btScalar h_, btVector3 center_, btMatrix3x3 _rot,
+		btScalar s_, btScalar h_, btVector3 center_, btTransform _rot,
 		float angStiffness_, float linDamping_,
 		float angDamping_, float angLimit_) : n(n_), m(m_), s(s_*METERS), h(h_*METERS), center (center_*METERS), rot(_rot),
 		hole_is(hole_is_), hole_js(hole_js_), scene(_s)     {
@@ -308,13 +307,23 @@ BoxCloth::BoxCloth(CustomScene &_s, unsigned int n_, unsigned int m_, vector<uns
 	// create boxes.
 	for (unsigned int i=0; i < n; i++) {
 		for(unsigned int j=0; j<m; j++) {
-			if (! isHole(i,j)) {
+			if (! isHole(i,j)) {/*
 				btTransform trans = transforms[getSerializedIndex(i,j)];
 				BoxObject::Ptr child(new BoxObject(mass, halfExtents, trans));
 				child->rigidBody->setDamping(linDamping, angDamping);
 				child->rigidBody->setFriction(1);
 				child->setColor(0.5,0.5,0.5,0.4);
 				children.push_back(child);
+				grid_to_obj_inds.insert(make_pair(make_pair(i,j), children.size()-1));*/
+				btTransform trans = transforms[getSerializedIndex(i,j)];
+				static const char BOX_MODEL_FILE[] = EXPAND(BULLETSIM_SRC_DIR)"/tests/ravens/models/box.xml";
+				KinBodyPtr box_body = scene.rave->env->ReadKinBodyURI(BOX_MODEL_FILE);
+				box_body->SetTransform(util::toRaveTransform(trans, 1.0f/METERS));
+				RaveObject::Ptr box = RaveObject::Ptr(new RaveObject(scene.rave,box_body,CONVEX_HULL,true));
+
+				raveBoxes.push_back(box);
+				box->setColor(0.937,0.815,0.811,1.0);
+				children.push_back(box->children[0]);
 				grid_to_obj_inds.insert(make_pair(make_pair(i,j), children.size()-1));
 			}
 			else {
@@ -325,12 +334,17 @@ BoxCloth::BoxCloth(CustomScene &_s, unsigned int n_, unsigned int m_, vector<uns
 				RaveObject::Ptr hole = RaveObject::Ptr(new RaveObject(scene.rave,hole_body,CONVEX_HULL,true));
 
 				holes.push_back(hole);
-				hole->setColor(0.5,0.5,0.5,0.4);
+				hole->setColor(0.937,0.815,0.811,1.0);
 				children.push_back(hole->children[0]);
 				grid_to_obj_inds.insert(make_pair(make_pair(i,j), children.size()-1));
 			}
 		}
 	}
+
+	for (int i = 0; i < raveBoxes.size(); ++i)
+		scene.rave->env->Add(raveBoxes[i]->body,true);
+	for (int i = 0; i < holes.size(); ++i)
+		scene.rave->env->Add(holes[i]->body,true);
 
 	// create constraints
 
