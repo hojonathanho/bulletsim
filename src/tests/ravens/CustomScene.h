@@ -36,6 +36,10 @@
 
 //class CustomScene;
 
+enum TestSuite {
+	SUTURING, ROPE_MANIP
+};
+
 class CustomScene : public Scene {
 public:
 
@@ -77,7 +81,37 @@ public:
 		void setConnectedRopeTransformCallback();
 	};
 
-	/* Class to represent the suturing needle + thread. */
+
+	/** Class to represent the suturing thread. */
+	class SuturingRope {
+	public:
+		typedef boost::shared_ptr<SuturingRope> Ptr;
+
+		// transforms applied to links to set their initial position.
+		// the rope is laid out along the x-axis. Then it is transformed by this transform.
+		const btTransform initTfm;
+
+		// pointer to the capsule-rope object
+		boost::shared_ptr<CapsuleRope> capsulePtr;
+
+		// rope links' parameters
+		const float rope_radius;
+		const float segment_len;
+		const int numLinks;
+
+
+		SuturingRope(CustomScene * scene, btTransform initLinkTfm,
+				float _rope_radius=.0006, float _segment_len=0.0033, int _nLinks=90);
+
+		// return the points sampled along the rope (generates a point-cloud for the rope).
+		void getRopePoints (bool nodes, vector<btVector3> & ropePoints, float scale=1.0);
+
+		// reset the link-transforms to their initial transforms.
+		void resetLinkTransforms();
+	};
+
+
+	/* Class to represent the suturing peg [needle] + thread. */
 	class SuturingPeg {
 
 		Grab* peg_rope_grab;
@@ -89,12 +123,10 @@ public:
 		CustomScene &scene;
 
 		CapsuleObject::Ptr p_peg;
-		boost::shared_ptr<CapsuleRope> ropePtr;
-		const float 			p_radius, p_len;
+		const float  p_radius, p_len;
 
-		const float rope_radius;
-		const float segment_len;
-		const int nLinks;
+		//pointer to the rope:
+		SuturingRope::Ptr ropePtr;
 
 		// Manipulator currently grasping the needle.
 		RaveRobotObject::Manipulator::Ptr p_gripperManip;
@@ -106,8 +138,8 @@ public:
 		btMatrix3x3 corrRot;
 
 		SuturingPeg (CustomScene * _scene, RaveRobotObject::Manipulator::Ptr _p_gripperManip,
-					float _p_rad=0.0006, float _p_len=0.006,
-					float _rope_radius=.0006, float _segment_len=0.0033, int _nLinks=90);
+				float _p_rad=0.0006, float _p_len=0.006,
+				float _rope_radius=.0006, float _segment_len=0.0033, int _nLinks=90);
 
 		void toggleFinger () {p_grasping_finger1 = !p_grasping_finger1;}
 
@@ -119,27 +151,6 @@ public:
 		void setConnectedRopeTransformCallback();
 	};
 
-
-	/** Class for cloth made using box objects and spring constraints. *\/
-	class BoxSutureCloth {
-
-	public:
-		typedef boost::shared_ptr<BoxSutureCloth> Ptr;
-
-
-		// node indices of the nodes on the cut
-		std::vector<int> cut_nodes1, cut_nodes2;
-
-		/** @params:
-		 *  N : the number of box-objects along the x-dimension.
-		 *  M : the number of box-objects along the y-dimension.
-		 *  S : the length of side of each box object.
-		 *  H : the height of the box object : should be small to represent a plate.
-		 *  CENTER : location of the center of the cloth.
-		 *\/
-		BoxSutureCloth(CustomScene &scene, int n, int m, btScalar s, btVector3 center);
-
-	};*/
 
 	//SoftBodyGripperAction::Ptr leftAction, rightAction;
 
@@ -153,12 +164,11 @@ public:
 	IKInterpolationPlanner::Ptr ikPlannerL, ikPlannerR;
 
 
-
 	/*
 	// the cloth to be sutured
 	SutureCloth::Ptr sCloth;
-	*/
-	// Two sides of box cloth cloth
+	 */
+	// Two sides of box cloth
 	BoxCloth::Ptr cloth1, cloth2;
 	unsigned int bcn, bcm;
 	float bcs, bch;
@@ -167,10 +177,14 @@ public:
 	SuturingNeedle::Ptr sNeedle;
 
 	// Suturing peg
-	SuturingPeg::Ptr sPeg;
+	SuturingPeg::Ptr  sPeg;
+
+	// suturing rope
+	SuturingRope::Ptr sRope;
 
 	// the table in the scene
 	BoxObject::Ptr table;
+
 	// supports
 	BoxObject::Ptr support1, support2;
 
@@ -186,14 +200,17 @@ public:
 	PlotPoints::Ptr plot_needle;
 
 	/** Axes corresponding to the location where the
-     *  left grippers are. **/
+	 *  left grippers are. **/
 	PlotAxes::Ptr plot_axes1;
 	PlotAxes::Ptr plot_axes2;
 
 	jointRecorder::Ptr jRecorder;
 	jointPlayback::Ptr jPlayback;
 
-	CustomScene() : ravens(*this), isRaveViewer(false) {
+	// type of scene to set-up
+	TestSuite tsuite;
+
+	CustomScene(TestSuite _tsuite=SUTURING) : ravens(*this), isRaveViewer(false), tsuite(_tsuite) {
 		ikPlannerL.reset(new IKInterpolationPlanner(ravens,rave,'l'));
 		ikPlannerR.reset(new IKInterpolationPlanner(ravens,rave,'r'));
 
@@ -230,6 +247,12 @@ public:
 	// Resets positions of the things in scene
 	void reset ();
 
+	// sets up objects in the scene for suturing setting.
+	void setup_suturing();
+
+	// sets up objects in the scene for rope manipulation.
+	void setup_rope_manip();
+
 	void run();
 
 	/** Plots needle tip, flag for removing plots. */
@@ -255,7 +278,7 @@ public:
 };
 
 
-/** Rotates a transform TFM by AND, around the point along
+/** Rotates a transform TFM by ANG, around the point along
  * x-axis of the transform at a distance RAD away.*/
 btTransform rotateByAngle (btTransform &tfm, const float ang, const float rad);
 

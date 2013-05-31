@@ -73,7 +73,7 @@ void jointPlayback::executeNextWaypoint () {
 
 void jointPlayback::process () {
 	vector<btVector3> ropePoints, needlePoints, boxPoints, holePoints;
-	scene.sPeg->getRopePoints(true, ropePoints, 1.0/METERS);
+	scene.sRope->getRopePoints(true, ropePoints, 1.0/METERS);
 	//scene.sNeedle->getNeedlePoints(needlePoints, 1.0/METERS);
 	scene.getBoxPoints(boxPoints, 1.0/METERS);
 	scene.getBoxHoles(holePoints, 1.0/METERS);

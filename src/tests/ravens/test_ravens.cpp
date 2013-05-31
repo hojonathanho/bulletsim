@@ -38,7 +38,7 @@ int main(int argc, char *argv[]) {
 
 	parser.read(argc, argv);
 
-	CustomScene().run();
+	CustomScene(ROPE_MANIP).run();
 	return 0;
 }
 

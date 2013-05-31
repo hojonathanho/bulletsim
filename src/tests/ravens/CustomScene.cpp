@@ -26,9 +26,9 @@ btTransform rotateByAngle (btTransform &tfm, const float ang, const float rad) {
 
 /** Constructor for suturing needle. Creates needle from file.*/
 CustomScene::SuturingNeedle::SuturingNeedle(CustomScene * _scene, float _rope_radius, float _segment_len, int _nLinks) :
-													scene(*_scene), s_needle_radius(0.015),
-													s_needle_mass(1000), s_end_angle(1.57),  s_grasping_gripper('n'),
-													rope_radius(_rope_radius), segment_len(_segment_len), nLinks(_nLinks) {
+																																							scene(*_scene), s_needle_radius(0.015),
+																																							s_needle_mass(1000), s_end_angle(1.57),  s_grasping_gripper('n'),
+																																							rope_radius(_rope_radius), segment_len(_segment_len), nLinks(_nLinks) {
 
 	static const char sNeedle_MODEL_FILE[] = EXPAND(BULLETSIM_DATA_DIR) "/xml/needle.xml";
 	KinBodyPtr needle_body = scene.rave->env->ReadKinBodyURI(sNeedle_MODEL_FILE);
@@ -164,12 +164,10 @@ void CustomScene::SuturingNeedle::getRopePoints (bool nodes, vector<btVector3> &
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 CustomScene::SuturingPeg::SuturingPeg (CustomScene * _scene, RaveRobotObject::Manipulator::Ptr _p_gripperManip,
-										float _p_rad, float _p_len,
-										float _rope_radius, float _segment_len, int _nLinks):
-										scene(*_scene), p_gripperManip(_p_gripperManip),
-										p_radius(_p_rad), p_len(_p_len), p_grasping_finger1(false),
-										rope_radius(_rope_radius), segment_len(_segment_len), nLinks(_nLinks) {
-
+		float _p_rad, float _p_len,
+		float _rope_radius, float _segment_len, int _nLinks):
+		scene(*_scene), p_gripperManip(_p_gripperManip),
+		p_radius(_p_rad), p_len(_p_len), p_grasping_finger1(false) {
 
 	vector<KinBody::LinkPtr> links;
 	p_gripperManip->manip->GetChildLinks(links);
@@ -183,8 +181,8 @@ CustomScene::SuturingPeg::SuturingPeg (CustomScene * _scene, RaveRobotObject::Ma
 
 	// Offset from the center of the two transforms
 	offset = btVector3((f1Tfm.getOrigin()-f2Tfm.getOrigin()).length()/2,
-						0.021*METERS,
-						p_len/2*METERS);
+			0.021*METERS,
+			p_len/2*METERS);
 
 	// To orient the peg properly
 	corrRot.setValue(0,0,1,0,1,0,-1,0,0);
@@ -193,43 +191,30 @@ CustomScene::SuturingPeg::SuturingPeg (CustomScene * _scene, RaveRobotObject::Ma
 	p_peg->setColor(0,1,1,1.0); // set the peg's color
 	scene.addPreStepCallback(boost::bind(&CustomScene::SuturingPeg::setFingerTransformCallback, this));
 
-	//------------------------ initialize the rope -------------------------------
-	vector<btVector3> ctrlPts;
 
-	btVector3 handlePos = getPegCenterTransform().getOrigin();
-	vector<btScalar> lengths;
-	for (int i=0; i< nLinks; i++)
-		//ctrlPts.push_back(handlePos + METERS*btVector3(segment_len*i - 0.15,0,2*rope_radius));  // horizontal rope
-		//ctrlPts.push_back(handlePos + METERS*btVector3(0, segment_len*(i - nLinks/2.0), 2*rope_radius)); //vertical rope
-		ctrlPts.push_back(handlePos + METERS*btVector3(-segment_len*i, 0, 2*rope_radius)); //vertical rope
-
-	ropePtr.reset(new CapsuleRope(ctrlPts,METERS*rope_radius));
-	scene.env->add(ropePtr);
-	ropePtr->setColor(0,0,1,1);
-	//ropePtr->children[0]->setColor(1,0,0,1);
-	//ropePtr->children[ropePtr->children.size()-1]->setColor(0,0,1,1);
-
+	// initialize the rope
+	btTransform t; t.setIdentity(); t.setOrigin(p_peg->getIndexTransform(0).getOrigin());
+	ropePtr.reset(new SuturingRope(_scene, t, _rope_radius, _segment_len, _nLinks));
 	btTransform TRel;
 	TRel.setIdentity();
 	TRel.setOrigin(-p_len/2*btVector3(1,0,0)*METERS);
-	btTransform TCom = ropePtr->children[0]->rigidBody->getCenterOfMassTransform();
+	btTransform TCom = ropePtr->capsulePtr->children[0]->rigidBody->getCenterOfMassTransform();
 
-	peg_rope_grab = new Grab (	ropePtr->children[0]->rigidBody.get(), TCom*TRel,
-								btVector3(0,0,0), btVector3(0,0,0),
-								btVector3(0,0,0), btVector3(1,1,1),
-								scene.env->bullet->dynamicsWorld);
+	peg_rope_grab = new Grab (	ropePtr->capsulePtr->children[0]->rigidBody.get(), TCom*TRel,
+			btVector3(0,0,0), btVector3(0,0,0),
+			btVector3(0,0,0), btVector3(1,1,1),
+			scene.env->bullet->dynamicsWorld);
 	scene.addPreStepCallback(boost::bind(&CustomScene::SuturingPeg::setConnectedRopeTransformCallback, this));
-	//------------------------------------------------------------------------------
+	scene.sRope = ropePtr;
+}
+
+
+void CustomScene::SuturingPeg::getRopePoints (bool nodes, vector<btVector3> & ropePoints, float scale) {
+	ropePtr->getRopePoints(nodes, ropePoints, scale);
 }
 
 btTransform CustomScene::SuturingPeg::getPegCenterTransform() {return p_peg->getIndexTransform(0);}
 
-void CustomScene::SuturingPeg::getRopePoints (bool nodes, vector<btVector3> & ropePoints, float scale) {
-	if (nodes) ropePoints = ropePtr->getNodes();
-	else ropePoints = ropePtr->getControlPoints();
-
-	for (int i = 0; i < ropePoints.size(); ++i) ropePoints[i]  = ropePoints[i]*scale;
-}
 
 void CustomScene::SuturingPeg::setFingerTransformCallback() {
 	btTransform fTfm = (p_grasping_finger1 ? util::toBtTransform(p_finger1->GetTransform(), METERS) : util::toBtTransform(p_finger2->GetTransform(), METERS));
@@ -241,6 +226,45 @@ void CustomScene::SuturingPeg::setFingerTransformCallback() {
 void CustomScene::SuturingPeg::setConnectedRopeTransformCallback() {
 	peg_rope_grab->updatePosition(getPegCenterTransform().getOrigin());
 }
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////// SUTURING ROPE /////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////
+
+CustomScene::SuturingRope::SuturingRope(CustomScene * scene, btTransform _initTfm,
+		float _rope_radius, float _segment_len, int _nLinks) :
+		initTfm(_initTfm), rope_radius(_rope_radius), segment_len(_segment_len), numLinks(_nLinks) {
+
+	vector<btVector3> ctrlPts;
+	for (int i=0; i< numLinks; i++)
+		ctrlPts.push_back(initTfm*(METERS*btVector3(-segment_len*i,0,2*rope_radius)));  // horizontal rope
+
+	capsulePtr.reset(new CapsuleRope(ctrlPts,METERS*rope_radius));
+	scene->env->add(capsulePtr);
+	capsulePtr->setColor(0,0,1,1);
+	//ropePtr->children[0]->setColor(1,0,0,1);
+	//ropePtr->children[ropePtr->children.size()-1]->setColor(0,0,1,1);
+}
+
+void CustomScene::SuturingRope::getRopePoints (bool nodes, vector<btVector3> & ropePoints, float scale) {
+	if (nodes) ropePoints = capsulePtr->getNodes();
+	else ropePoints = capsulePtr->getControlPoints();
+
+	for (int i = 0; i < ropePoints.size(); ++i) ropePoints[i]  = ropePoints[i]*scale;
+}
+
+// reset the link-transforms to their initial transforms.
+void CustomScene::SuturingRope::resetLinkTransforms() {
+	btTransform t;
+	for (int i = 0; i < capsulePtr->nLinks; ++i) {
+		capsulePtr->children[i]->motionState->getWorldTransform(t);
+		t.setOrigin(initTfm*(METERS*btVector3(-segment_len*i,0,2*rope_radius)));
+		capsulePtr->children[i]->rigidBody->setWorldTransform(t);
+	}
+}
+
+
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////CUSTOM SCENE///////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -265,28 +289,32 @@ void CustomScene::moveEndEffector(char dir, bool world, char lr, float step) {
 void CustomScene::getBoxPoints(vector<btVector3> & boxPoints, float scale) {
 	boxPoints.clear();
 
+	if (tsuite == SUTURING) {
 
-	//cloth1: i = 0
-	vector< pair<int,int> > indices1(bcm);
-	for (int i = 0; i < bcm; ++i) indices1[i] = make_pair(0,i);
-	cloth1->getBoxClothPoints(indices1, boxPoints);
+		//cloth1: i = 0
+		vector< pair<int,int> > indices1(bcm);
+		for (int i = 0; i < bcm; ++i) indices1[i] = make_pair(0,i);
+		cloth1->getBoxClothPoints(indices1, boxPoints);
 
+		//cloth2: i = n-1
+		vector< pair<int,int> > indices2(bcm);
+		for (int i = 0; i < bcm; ++i) indices2[i] = make_pair(bcn-1,i);
+		cloth2->getBoxClothPoints(indices2, boxPoints);
 
-	//cloth2: i = n-1
-	vector< pair<int,int> > indices2(bcm);
-	for (int i = 0; i < bcm; ++i) indices2[i] = make_pair(bcn-1,i);
-	cloth2->getBoxClothPoints(indices2, boxPoints);
-
-	for (int i = 0; i < boxPoints.size(); ++i) boxPoints[i]  = boxPoints[i]*scale;
+		for (int i = 0; i < boxPoints.size(); ++i) boxPoints[i]  = boxPoints[i]*scale;
+	}
 
 }
 
 void CustomScene::getBoxHoles(vector<btVector3> & boxHoles, float scale) {
 	boxHoles.clear();
-	cloth1->getBoxClothHoles(boxHoles);
-	cloth2->getBoxClothHoles(boxHoles);
 
-	for (int i = 0; i < boxHoles.size(); ++i) boxHoles[i]  = boxHoles[i]*scale;
+	if (tsuite == SUTURING) {
+		cloth1->getBoxClothHoles(boxHoles);
+		cloth2->getBoxClothHoles(boxHoles);
+
+		for (int i = 0; i < boxHoles.size(); ++i) boxHoles[i]  = boxHoles[i]*scale;
+	}
 }
 
 
@@ -299,31 +327,34 @@ void CustomScene::recordPoints () {
 	message << "section";
 
 	vector<btVector3> ropePoints;
-	sPeg->getRopePoints(true, ropePoints, 1.0/METERS);
+
+
+	sRope->getRopePoints(true, ropePoints, 1.0/METERS);
 	message << "\nrope ";
 	for (int i = 0; i < ropePoints.size(); ++i)
 		message << ropePoints[i].x() << " " << ropePoints[i].y() << " " << ropePoints[i].z() << " | ";
 
+	// record point clouds of the cloth iff we are in the suturing setup.
+	if (tsuite == SUTURING) {
+		//vector<btVector3> needlePoints;
+		//sNeedle->getNeedlePoints(needlePoints, 1.0/METERS);
+		//message << "\nneedle ";
+		//for (int i = 0; i < needlePoints.size(); ++i)
+		//	message << needlePoints[i].x() << " " << needlePoints[i].y() << " " << needlePoints[i].z() << " | ";
 
-	//vector<btVector3> needlePoints;
-	//sNeedle->getNeedlePoints(needlePoints, 1.0/METERS);
-	//message << "\nneedle ";
-	//for (int i = 0; i < needlePoints.size(); ++i)
-	//	message << needlePoints[i].x() << " " << needlePoints[i].y() << " " << needlePoints[i].z() << " | ";
+		vector<btVector3> boxPoints;
+		getBoxPoints(boxPoints, 1.0/METERS);
+		message << "\nbox ";
+		for (int i = 0; i < boxPoints.size(); ++i)
+			message << boxPoints[i].x() << " " << boxPoints[i].y() << " " << boxPoints[i].z() << " | ";
 
 
-	vector<btVector3> boxPoints;
-	getBoxPoints(boxPoints, 1.0/METERS);
-	message << "\nbox ";
-	for (int i = 0; i < boxPoints.size(); ++i)
-		message << boxPoints[i].x() << " " << boxPoints[i].y() << " " << boxPoints[i].z() << " | ";
-
-
-	vector<btVector3> boxHoles;
-	getBoxHoles(boxHoles, 1.0/METERS);
-	message << "\nhole ";
-	for (int i = 0; i < boxHoles.size(); ++i)
-		message << boxHoles[i].x() << " " << boxHoles[i].y() << " " << boxHoles[i].z() << " | ";
+		vector<btVector3> boxHoles;
+		getBoxHoles(boxHoles, 1.0/METERS);
+		message << "\nhole ";
+		for (int i = 0; i < boxHoles.size(); ++i)
+			message << boxHoles[i].x() << " " << boxHoles[i].y() << " " << boxHoles[i].z() << " | ";
+	}
 
 	cout<<message.str()<<endl;
 
@@ -333,15 +364,155 @@ void CustomScene::recordPoints () {
 // Resets scene
 void CustomScene::reset () {
 	ravens.setArmPose("home",'b');
-	btVector3 handlePos = sPeg->getPegCenterTransform().getOrigin();
-	btTransform t;
-	for (int i = 0; i < sPeg->ropePtr->nLinks; ++i) {
-		sPeg->ropePtr->children[i]->motionState->getWorldTransform(t);
-		t.setOrigin(handlePos + METERS*btVector3(-sPeg->segment_len*i, 0, 2*sPeg->rope_radius));
-		sPeg->ropePtr->children[i]->rigidBody->setWorldTransform(t);
-	}
+	sRope->resetLinkTransforms();
 }
 
+// sets up objects in the scene for suturing setting.
+void CustomScene::setup_suturing() {
+	// add a needle
+	//sNeedle.reset(new SuturingNeedle(this));
+	//ravens.ravens->ignoreCollisionWith(sNeedle->s_needle->getChildren()[0]->rigidBody.get());
+
+	//env->add(sNeedle->s_needle);
+	//rave->env->Add(sNeedle->s_needle->body);
+
+	// add a peg
+	sPeg.reset(new SuturingPeg(this, ravens.manipL));
+	ravens.ravens->ignoreCollisionWith(sPeg->p_peg->rigidBody.get());
+
+	const float table_height = 0.15;
+
+	/** Setup rotation perturbation. */
+	char axis = RavenConfig::biasAxis;
+	btVector3 biasAxis(axis=='x'?1:0, axis=='y'?1:0, axis=='z'?1:0);
+	biasAxis.normalize();
+	float biasAngle = RavenConfig::biasAngle;
+	biasAngle  = PI*biasAngle/180.0;
+	const btMatrix3x3 rotBias(btQuaternion(biasAxis,  biasAngle));
+
+	btTransform move; move.setIdentity(); move.setOrigin(btVector3(0,0,-table_height*METERS));
+	btTransform moveback; moveback.setIdentity(); moveback.setOrigin(btVector3(0,0,table_height*METERS));
+	btTransform Tt(rotBias);
+	btTransform biasT = moveback*Tt*move;
+
+
+	// setup the box-cloth
+	vector<unsigned int> hole_x, hole_y;
+	float bcHeight = table_height+0.015;
+	hole_x.push_back(0); hole_x.push_back(0);
+	hole_y.push_back(5); hole_y.push_back(2);
+	cloth1.reset(new BoxCloth(*this, bcn, bcm, hole_x, hole_y, bcs, bch,
+			btVector3( (float)bcn/2*bcs + 0.01 + RavenConfig::xBias, RavenConfig::yBias , bcHeight + RavenConfig::zBias), biasT));
+	if (RavenConfig::cloth)
+		env->add(cloth1);
+
+	hole_x.clear(); hole_y.clear();
+	hole_x.push_back(4); hole_x.push_back(4);
+	hole_y.push_back(5); hole_y.push_back(2);
+	cloth2.reset(new BoxCloth(*this, bcn, bcm, hole_x, hole_y, bcs, bch,
+			btVector3( -(float)bcn/2*bcs - 0.01 + RavenConfig::xBias, RavenConfig::yBias, bcHeight + RavenConfig::zBias), biasT));
+	if (RavenConfig::cloth)
+		env->add(cloth2);
+
+
+	// setup the cuboidal supports adjacent to the box-cloth
+	const float support_thickness = .04;
+	support1 = BoxObject::Ptr(new BoxObject(0, METERS* btVector3(0.05,0.05,support_thickness/2),
+			biasT*btTransform(btQuaternion(0,0,0,1), METERS*
+					btVector3(-(float)(bcn+1)*bcs - 0.05 + RavenConfig::xBias, 0 + RavenConfig::yBias, bcHeight-support_thickness/2 + RavenConfig::zBias))));
+
+	support2 = BoxObject::Ptr(new BoxObject(0, METERS * btVector3(0.05,0.05,support_thickness/2),
+			biasT*btTransform(btQuaternion(0,0,0,1), METERS *
+					btVector3((float)(bcn+1)*bcs + 0.05 + RavenConfig::xBias, 0 + RavenConfig::yBias, bcHeight-support_thickness/2 + RavenConfig::zBias))));
+
+	support1->rigidBody->setFriction(0.7);
+	support2->rigidBody->setFriction(0.7);
+
+	env->add(support1);
+	env->add(support2);
+	support1->setColor(0.62, 0.32, 0.17, 1.0);
+	support2->setColor(0.62, 0.32, 0.17, 1.0);
+
+
+	/** Define the vector of objects [targets] which raven's grippers can grab.*/
+	vector<CompoundObject<BulletObject>::Ptr> targetsR, targetsL;
+
+	// add the needle, rope, cloth as targets to check for collisions when grabbing.
+	//targets.push_back(sNeedle->s_needle);
+	targetsL.push_back(sRope->capsulePtr);
+	targetsL.push_back(cloth1);
+	targetsL.push_back(cloth2);
+
+	char l[] = "l\0";
+	lAction.reset(new RavensRigidBodyGripperAction( ravens.manipL,
+			"l_grasper2_L",
+			"l_grasper1_L",
+			env->bullet->dynamicsWorld,
+			1, *this, l, jRecorder.get()));
+	lAction->setTargets(targetsL);
+	lAction->setPeg(true);
+
+
+	targetsR.push_back(sRope->capsulePtr);
+	char r[] = "r\0";
+	rAction.reset(new RavensRigidBodyGripperAction( ravens.manipR,
+			"r_grasper2_L",
+			"r_grasper1_L",
+			env->bullet->dynamicsWorld,
+			1, *this, r, jRecorder.get()));
+	rAction->setTargets(targetsR);
+}
+
+// sets up objects in the scene for rope manipulation.
+void CustomScene::setup_rope_manip() {
+
+	// initialize the rope
+
+	// --> perturb the rope by user-specified perturbation
+	const float table_height = 0.15;
+	const float rradius  = 0.0006;
+	const float llen     = 0.0033;
+	const float nlinks   = 90;
+
+	btTransform lenBias = btTransform::getIdentity();
+	lenBias.setOrigin(METERS*btVector3((nlinks*llen/2.0), 0, table_height));
+
+	char axis = RavenConfig::biasAxis;
+	btVector3 biasAxis(axis=='x'?1:0, axis=='y'?1:0, axis=='z'?1:0);
+	biasAxis.normalize();
+	float biasAngle = RavenConfig::biasAngle;
+	biasAngle  = PI*biasAngle/180.0;
+	btTransform move;
+	move.setRotation(btQuaternion(biasAxis,  biasAngle));
+	move.setOrigin(METERS * btVector3(RavenConfig::xBias, RavenConfig::yBias, RavenConfig::zBias));
+
+	sRope.reset(new SuturingRope(this, move*lenBias, rradius, llen, nlinks));
+
+
+	/** Define the vector of objects [targets] which raven's grippers can grab.*/
+	vector<CompoundObject<BulletObject>::Ptr> targetsR, targetsL;
+
+	// add the needle, rope, cloth as targets to check for collisions when grabbing.
+	//targets.push_back(sNeedle->s_needle);
+	targetsL.push_back(sRope->capsulePtr);
+	char l[] = "l\0";
+	lAction.reset(new RavensRigidBodyGripperAction( ravens.manipL,
+			"l_grasper2_L",
+			"l_grasper1_L",
+			env->bullet->dynamicsWorld,
+			1, *this, l, jRecorder.get()));
+	lAction->setTargets(targetsL);
+
+	targetsR.push_back(sRope->capsulePtr);
+	char r[] = "r\0";
+	rAction.reset(new RavensRigidBodyGripperAction( ravens.manipR,
+			"r_grasper2_L",
+			"r_grasper1_L",
+			env->bullet->dynamicsWorld,
+			1, *this, r, jRecorder.get()));
+	rAction->setTargets(targetsR);
+
+}
 
 /* Sets up the scene and UI event handlers,
  * initializes various structures.*/
@@ -369,69 +540,6 @@ void CustomScene::run() {
 	createKinBodyFromBulletBoxObject(table, rave);
 	ravens.ravens->ignoreCollisionWith(table->rigidBody.get());
 
-	// add a needle
-	//sNeedle.reset(new SuturingNeedle(this));
-	//ravens.ravens->ignoreCollisionWith(sNeedle->s_needle->getChildren()[0]->rigidBody.get());
-
-	//env->add(sNeedle->s_needle);
-	//rave->env->Add(sNeedle->s_needle->body);
-
-	// add a peg
-	sPeg.reset(new SuturingPeg(this, ravens.manipL));
-	ravens.ravens->ignoreCollisionWith(sPeg->p_peg->rigidBody.get());
-
-	// add a cloth
-	vector<unsigned int> hole_x, hole_y;
-
-	float bcHeight = table_height+0.015;
-
-
-	/** Setup rotation perturbation. */
-	char axis = RavenConfig::biasAxis;
-	btVector3 biasAxis(axis=='x'?1:0, axis=='y'?1:0, axis=='z'?1:0);
-	biasAxis.normalize();
-	float biasAngle = RavenConfig::biasAngle;
-	biasAngle  = PI*biasAngle/180.0;
-	const btMatrix3x3 rotBias(btQuaternion(biasAxis,  biasAngle));
-
-	btTransform move; move.setIdentity(); move.setOrigin(btVector3(0,0,-table_height*METERS));
-	btTransform moveback; moveback.setIdentity(); moveback.setOrigin(btVector3(0,0,table_height*METERS));
-	btTransform Tt(rotBias);
-	btTransform biasT = moveback*Tt*move;
-
-
-	hole_x.push_back(0); hole_x.push_back(0);
-	hole_y.push_back(5); hole_y.push_back(2);
-	cloth1.reset(new BoxCloth(*this, bcn, bcm, hole_x, hole_y, bcs, bch,
-				btVector3( (float)bcn/2*bcs + 0.01 + RavenConfig::xBias, RavenConfig::yBias , bcHeight + RavenConfig::zBias), biasT));
-	if (RavenConfig::cloth)
-		env->add(cloth1);
-
-	hole_x.clear(); hole_y.clear();
-	hole_x.push_back(4); hole_x.push_back(4);
-	hole_y.push_back(5); hole_y.push_back(2);
-	cloth2.reset(new BoxCloth(*this, bcn, bcm, hole_x, hole_y, bcs, bch,
-			btVector3( -(float)bcn/2*bcs - 0.01 + RavenConfig::xBias, RavenConfig::yBias, bcHeight + RavenConfig::zBias), biasT));
-	if (RavenConfig::cloth)
-		env->add(cloth2);
-
-	const float support_thickness = .04;
-	support1 = BoxObject::Ptr(new BoxObject(0, METERS* btVector3(0.05,0.05,support_thickness/2),
-			biasT*btTransform(btQuaternion(0,0,0,1), METERS*
-			btVector3(-(float)(bcn+1)*bcs - 0.05 + RavenConfig::xBias, 0 + RavenConfig::yBias, bcHeight-support_thickness/2 + RavenConfig::zBias))));
-
-	support2 = BoxObject::Ptr(new BoxObject(0, METERS * btVector3(0.05,0.05,support_thickness/2),
-			biasT*btTransform(btQuaternion(0,0,0,1), METERS *
-			btVector3((float)(bcn+1)*bcs + 0.05 + RavenConfig::xBias, 0 + RavenConfig::yBias, bcHeight-support_thickness/2 + RavenConfig::zBias))));
-
-	support1->rigidBody->setFriction(0.7);
-	support2->rigidBody->setFriction(0.7);
-
-	env->add(support1);
-	env->add(support2);
-	support1->setColor(0.62, 0.32, 0.17, 1.0);
-	support2->setColor(0.62, 0.32, 0.17, 1.0);
-
 	// position the ravens
 	btTransform T;
 	T.setIdentity();
@@ -450,6 +558,7 @@ void CustomScene::run() {
 	env->add(plot_axes2);
 
 
+	// setup axis-lines [plotting]
 	vector<btVector3> origin; origin.push_back(METERS*btVector3(-0.23,0,table_height-0.0098+RavenConfig::zBias));
 	vector<btVector3> dir; dir.push_back(METERS*btVector3(0.23,0,table_height-0.0098+RavenConfig::zBias));
 	util::drawLines(origin,dir,Eigen::Vector3f(1,0,0), 1, env);
@@ -458,34 +567,12 @@ void CustomScene::run() {
 	util::drawLines(origin,dir,Eigen::Vector3f(0,1,0), 1, env);
 
 
-	/** Define the actions. */
-	vector<CompoundObject<BulletObject>::Ptr> targetsR, targetsL;
 
-	// add the needle, rope, cloth as targets to check for collisions when grabbing.
-	//targets.push_back(sNeedle->s_needle);
-	targetsL.push_back(sPeg->ropePtr);
-	targetsL.push_back(cloth1);
-	targetsL.push_back(cloth2);
-
-	char l[] = "l\0";
-	char r[] = "r\0";
-
-	lAction.reset(new RavensRigidBodyGripperAction( ravens.manipL,
-			"l_grasper2_L",
-			"l_grasper1_L",
-			env->bullet->dynamicsWorld,
-			1, *this, l, jRecorder.get()));
-	lAction->setTargets(targetsL);
-
-	targetsR.push_back(sPeg->ropePtr);
-
-	lAction->setPeg(true);
-	rAction.reset(new RavensRigidBodyGripperAction( ravens.manipR,
-			"r_grasper2_L",
-			"r_grasper1_L",
-			env->bullet->dynamicsWorld,
-			1, *this, r, jRecorder.get()));
-	rAction->setTargets(targetsR);
+	if (tsuite == SUTURING) {
+		setup_suturing();
+	} else {
+		setup_rope_manip();
+	}
 
 
 	lAction->setOpenAction();

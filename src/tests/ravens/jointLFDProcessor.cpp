@@ -144,16 +144,20 @@ bool LFDProcessor::preProcess (	Ravens & ravens,
 
 	if (fileClosed) {iFS.close();}
 
-	if (mode_count < modes.size()) {
-		use_needle = false;
-		if (modes[mode_count] == "knot1")
-			use_box = use_hole = false;
-		else if (modes[mode_count] == "flap")
-			use_rope = use_hole = false;
-		else if (modes[mode_count] == "pierce")
-			use_rope = use_box = false;
-		else if (modes[mode_count] == "pickup")
-			use_box = false;
+	if (s.tsuite == SUTURING) {
+		if (mode_count < modes.size()) {
+			use_needle = false;
+			if (modes[mode_count] == "knot1")
+				use_box = use_hole = false;
+			else if (modes[mode_count] == "flap")
+				use_rope = use_hole = false;
+			else if (modes[mode_count] == "pierce")
+				use_rope = use_box = false;
+			else if (modes[mode_count] == "pickup")
+				use_box = false;
+		}
+	} else if (s.tsuite == ROPE_MANIP) {
+		use_needle = use_box = use_hole = false;
 	}
 
 	mode_count ++;

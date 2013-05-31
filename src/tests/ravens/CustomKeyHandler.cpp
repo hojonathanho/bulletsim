@@ -6,24 +6,11 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,
 
 	vector<double> dofs;
 
-	boost::shared_ptr<CapsuleRope> rope = scene.sPeg->ropePtr;
-	btTransform iT = btTransform::getIdentity();
-	const int N    = rope->children.size();
-	const float rope_radius=.0006, segment_len=0.003;
-
 
 	switch (ea.getEventType()) {
 	case osgGA::GUIEventAdapter::KEYDOWN:
 		scene.userInput = true;
 		switch (ea.getKey()) {
-		case 'A':
-			cout <<"N : "<<N<<endl;
-			for(int i=0; i< N; i+=1) {
-				iT.setOrigin(METERS*btVector3(0, segment_len*(i - N/2.0), 2*rope_radius));
-				rope->children[i]->motionState->setWorldTransform(iT);
-				cout <<"   isKinematic: "<<rope->children[i]->isKinematic<<endl;
-			}
-			break;
 
 		case 'a':
 			scene.lAction->reset();
