@@ -220,4 +220,13 @@ void sendRobotState(btVector3 pos0, btVector3 pos1) {
 			out1[0] << " " << out1[1] << " " << out1[2] << endl;
 }
 
+void linspace(float a, float b, int n, std::vector<float> &out) {
+	out.clear(); out.resize(n);
+	if (n<1) return;
+
+	float m = (b-a)/n;
+	for (int i=0; i<n; i++)
+		out[i] = a + i*m;
+}
+
 }

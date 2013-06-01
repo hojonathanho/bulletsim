@@ -15,6 +15,7 @@ class RavensLfdRpm {
 private:
 
 	PlotLines::Ptr plot_lines_left, plot_lines_right;
+	PlotLinesSet::Ptr pxlines, pylines, pzlines;
 
 	/** Extract the joints indexed by INDS from IN_JOINT_VALS and store them into OUT_JOINT_VALS.*/
 	void extractJoints (const vector<int> &inds, const vector<dReal> &in_joint_vals,
@@ -56,7 +57,9 @@ public:
 	bool transformJointsTrajOpt(const vector<vector<dReal> > &joints, vector<vector<dReal> > &new_joints);
 	bool transformJointsTrajOptWithIK(const vector<vector<dReal> > &joints, vector<vector<dReal> > &new_joints) ;
 
-
+	/** plots a grid representing the warping.*/
+	void plot_warped_grid(btVector3 mins, btVector3 maxs, int ncoarse=10, int nfine=30);
+	void clear_grid();
 };
 
 

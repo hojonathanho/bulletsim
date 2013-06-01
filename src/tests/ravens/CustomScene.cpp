@@ -791,15 +791,15 @@ void CustomScene::plotAllPoints2(vector<btVector3> & old, vector<btVector3> & ne
 	//	color[i++] = btVector4(1,0,0,1);
 	//}
 
-	//Rope in blue
+	//old in red
 	for (int j = 0; j < old.size(); ++j) {
-		plotpoints[i] = old[j];
+		plotpoints[i] = METERS*old[j];
 		color[i++] = btVector4(1,0,0,1);
 	}
 
-	//Box points in green
+	//new points in green
 	for (int j = 0; j < newpts.size(); ++j) {
-		plotpoints[i] = newpts[j];
+		plotpoints[i] = METERS*newpts[j];
 		color[i++] = btVector4(0,1,0,1);
 	}
 

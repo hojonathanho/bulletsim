@@ -43,14 +43,23 @@ public:
 			int n_iter = 50, float reg_init = .01, float reg_final = .0001,
 			float rad_init = .1, float rad_final = .0005);
 
-    /** Transform a btVector using tps.
-     *  Performs the mapping: pt in demonstration |--> pt in new setting. */
+	/** Transform a btVector using tps.
+	 *  Performs the mapping: pt in demonstration |--> pt in new setting. */
 	btVector3 transform_point(btVector3 pt);
-    vector<btVector3>  transform_points(const vector<btVector3> &pts);
+	vector<btVector3>  transform_points(const vector<btVector3> &pts);
 
 
-    /** Transform a 4x4 btTransform using tps.
-     *  Performs the mapping: pt in demonstration |--> pt in new setting. */
+	/** Transform a 4x4 btTransform using tps.
+	 *  Performs the mapping: pt in demonstration |--> pt in new setting. */
 	btTransform transform_frame(btTransform &frame);
 	vector<btTransform> transform_frames(const vector<btTransform> &frames);
+
+	/** return a vector of vector of points representing warped grid b/w mins and maxes.
+	 *  a vector of points defines points on a single line.
+	 *    - it returns three sets of lines, along the x,y,z axis. */
+	void warped_grid3d(btVector3 mins, btVector3 maxs,
+			int ncoarse, int nfine,
+			std::vector<vector<btVector3> > &xlines,
+			std::vector<vector<btVector3> > &ylines,
+			std::vector<vector<btVector3> > &zlines);
 };

@@ -14,7 +14,7 @@ RegistrationModule::RegistrationModule(vector<btVector3> src_pts, vector<btVecto
 
 	try {
 		registration_module  = tps_rpm_func(py_src_pts, py_target_pts, n_iter,
-											reg_init, reg_final, rad_init, rad_final);
+				reg_init, reg_final, rad_init, rad_final);
 	} catch (...) {
 		PyErr_Print();
 	}
@@ -38,10 +38,23 @@ RegistrationModule::RegistrationModule(vector <vector<btVector3> > src_clouds,
 	}
 	try {
 		registration_module  = tps_rpm_func(py_src_clouds, py_target_clouds, n_iter,
-											reg_init, reg_final, rad_init, rad_final);
+				reg_init, reg_final, rad_init, rad_final);
 	} catch (...) {
 		PyErr_Print();
 	}
+
+	//	tps_rpm_func = PyGlobals::lfd_registration_module.attr("tps_rpm");
+	//
+	//	py::object py_src_pts    = pointsToNumpy(src_clouds[0]);
+	//	py::object py_target_pts = pointsToNumpy(target_clouds[0]);
+	//
+	//	try {
+	//		registration_module  = tps_rpm_func(py_src_pts, py_target_pts, n_iter,
+	//				reg_init, reg_final, rad_init, rad_final);
+	//	} catch (...) {
+	//		PyErr_Print();
+	//	}
+
 }
 
 
@@ -102,3 +115,59 @@ vector<btTransform> RegistrationModule::transform_frames(const vector<btTransfor
 	return out_frames;
 }
 
+
+/** return a vector of vector of points representing warped grid b/w mins and maxes.
+ *  a vector of points defines points on a single line.
+ *    - it returns three sets of lines, along the x,y,z axis. */
+void RegistrationModule::warped_grid3d(btVector3 mins, btVector3 maxs,
+		int ncoarse, int nfine,
+		std::vector<vector<btVector3> > &xlines,
+		std::vector<vector<btVector3> > &ylines,
+		std::vector<vector<btVector3> > &zlines) {
+
+	vector<float> xcoarse, xfine;
+	util::linspace(mins.x(), maxs.x(), ncoarse, xcoarse);
+	util::linspace(mins.x(), maxs.x(), nfine, xfine);
+
+	vector<float> ycoarse, yfine;
+	util::linspace(mins.y(), maxs.y(), ncoarse, ycoarse);
+	util::linspace(mins.y(), maxs.y(), nfine, yfine);
+
+	vector<float> zcoarse, zfine;
+	util::linspace(mins.z(), maxs.z(), ncoarse, zcoarse);
+	util::linspace(mins.z(), maxs.z(), nfine, zfine);
+
+	xlines.clear();
+	ylines.clear();
+	zlines.clear();
+
+	for(int iz=0; iz< ncoarse; iz++) {
+
+		// generate x-lines
+		for (int ix = 0; ix < ncoarse; ix++) {
+			vector<btVector3> xline(nfine);
+			for(int iy = 0; iy < nfine; iy++)
+				xline[iy] = transform_point(btVector3(xcoarse[ix], yfine[iy], zcoarse[iz]));
+			xlines.push_back(xline);
+		}
+
+		// generate y-lines
+		for (int iy = 0; iy < ncoarse; iy++) {
+			vector<btVector3> yline(nfine);
+			for(int ix = 0; ix < nfine; ix++)
+				yline[ix] = transform_point(btVector3(xfine[ix], ycoarse[iy], zcoarse[iz]));
+			ylines.push_back(yline);
+		}
+	}
+
+	//generate z-lines
+	for(int ix=0 ; ix < ncoarse; ix++) {
+		for(int iy= 0; iy < ncoarse; iy++) {
+			vector<btVector3> zline(nfine);
+			for(int iz = 0; iz < nfine; iz++) {
+				zline[iz] = transform_point(btVector3(xcoarse[ix], ycoarse[iy], zfine[iz]));
+			}
+			zlines.push_back(zline);
+		}
+	}
+}

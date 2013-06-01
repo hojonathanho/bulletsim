@@ -33,7 +33,7 @@ PlotPoints::Ptr gSrcPlotPoints(new PlotPoints()), gTargPlotPoints(new PlotPoints
 
 RavensLfdRpm::RavensLfdRpm (Ravens & ravens_, const vector<vector<btVector3> > &source_clouds,
 		const vector<vector<btVector3> > &target_clouds) : ravens(ravens_), plot_lines_left(new PlotLines), plot_lines_right(new PlotLines),
-		lfdrpm(new RegistrationModule(source_clouds, target_clouds, 100, .1, .01, 0.2, 0.001)){
+		lfdrpm(new RegistrationModule(source_clouds, target_clouds, 100, 100, 0.0001, 0.9, 0.001)){
 
 	gLinesAdded = !RavenConfig::plotTfm;
 
@@ -83,6 +83,8 @@ RavensLfdRpm::RavensLfdRpm (Ravens & ravens_, const vector<vector<btVector3> > &
 	gTargPlotPoints->setPoints(targPoints, targCols);
 	gWarpedPlotPoints->setPoints(warpedPoints, warpedCols);
 
+	plot_warped_grid(btVector3(-0.1,-0.1,0.15), btVector3(0.1,0.1, .17), 10);
+
 	// block for user input
 	cout << colorize("Look at the point-clouds. Press any key [in simulation] to continue.", "red", true)<< endl;
 	ravens.scene.userInput = false;
@@ -91,6 +93,66 @@ RavensLfdRpm::RavensLfdRpm (Ravens & ravens_, const vector<vector<btVector3> > &
 	}
 }
 
+void RavensLfdRpm::plot_warped_grid(btVector3 mins, btVector3 maxs, int ncoarse, int nfine) {
+	vector<vector<btVector3> > xlines, ylines, zlines;
+	lfdrpm->warped_grid3d(mins, maxs, ncoarse, nfine, xlines, ylines, zlines);
+
+	// scale up for plotting
+	for(int i=0; i < xlines.size(); i++) {
+		for(int j=0; j < xlines[i].size(); j++) {
+			xlines[i][j] = METERS*xlines[i][j];
+		}
+	}
+
+	// scale up for plotting
+	for(int i=0; i < ylines.size(); i++) {
+		for(int j=0; j < ylines[i].size(); j++) {
+			ylines[i][j] = METERS*ylines[i][j];
+		}
+	}
+
+	// scale up for plotting
+	for(int i=0; i < zlines.size(); i++) {
+		for(int j=0; j < zlines[i].size(); j++) {
+			zlines[i][j] = METERS*zlines[i][j];
+		}
+	}
+
+	pxlines.reset(new PlotLinesSet);
+	pxlines->setDefaultColor(0.7,0,0,0.6);
+	ravens.scene.env->add(pxlines);
+
+	pylines.reset(new PlotLinesSet);
+	pylines->setDefaultColor(0,0.7,0,0.6);
+	ravens.scene.env->add(pylines);
+
+	pzlines.reset(new PlotLinesSet);
+	pzlines->setDefaultColor(0,0,0.7,0.6);
+	ravens.scene.env->add(pzlines);
+
+
+
+	for(int i=0; i < xlines.size(); i++)
+		pxlines->addLineSet(xlines[i]);
+
+	for(int i=0; i < ylines.size(); i++)
+		pylines->addLineSet(ylines[i]);
+
+	for(int i=0; i < zlines.size(); i++)
+		pzlines->addLineSet(zlines[i]);
+
+}
+
+
+void RavensLfdRpm::clear_grid() {
+	pxlines->clear();
+	pylines->clear();
+	pzlines->clear();
+
+	pxlines.reset();
+	pylines.reset();
+	pzlines.reset();
+}
 
 /** Does smooth IK on transforms (in joint space: basically chooses the closest subsequent joint-set [l2 normwise].
  *  Ik is done for each transform in TRANSFORMS and the corresponding joints are stored in JOINTS.*/
@@ -239,9 +301,6 @@ bool RavensLfdRpm::transformJointsTrajOpt(const vector<vector<dReal> > &joints, 
 	}
 
 
-
-
-
 	/** Warp the end-effector transforms. */
 	vector<btTransform> warpedRight1Transforms = lfdrpm->transform_frames(right1Transforms);
 	vector<btTransform> warpedLeft1Transforms  = lfdrpm->transform_frames(left1Transforms);
@@ -254,6 +313,7 @@ bool RavensLfdRpm::transformJointsTrajOpt(const vector<vector<dReal> > &joints, 
 
 	plotPath(warpedRight1Transforms, gWarpedLinesRight1,btVector3(0,0,1));
 	plotPath(warpedLeft1Transforms, gWarpedLinesLeft1, btVector3(0,0,1));
+
 
 	plotPath(right2Transforms, gLinesRight2, btVector3(1,0,0));
 	plotPath(left2Transforms, gLinesLeft2, btVector3(1,0,0));
@@ -378,6 +438,7 @@ bool warpRavenJoints( Ravens &ravens,
 	}
 
 	RavensLfdRpm lfdrpm(ravens, src_clouds, target_clouds);
+	lfdrpm.clear_grid();
 	return lfdrpm.transformJointsTrajOpt(in_joints, out_joints);
 }
 

@@ -102,7 +102,8 @@ target_link_libraries(test_boxcloth simulation lfd)
 
 
 
-
+add_executable(test_grid ravens/test_grid.cpp)
+target_link_libraries(test_grid simulation)
 
 
 

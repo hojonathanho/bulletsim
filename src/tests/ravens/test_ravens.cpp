@@ -41,4 +41,3 @@ int main(int argc, char *argv[]) {
 	CustomScene(ROPE_MANIP).run();
 	return 0;
 }
-

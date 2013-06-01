@@ -15,272 +15,388 @@ using namespace util;
 // based on galaxy example in osg docs
 
 void PlotObject::setDefaultColor(float r, float g, float b, float a) {
-  m_defaultColor = osg::Vec4(r,g,b,a);
+	m_defaultColor = osg::Vec4(r,g,b,a);
 }
 
 void PlotObject::clear() {
-  m_geom->getPrimitiveSetList().clear();
-  osg::ref_ptr<osg::Vec3Array> osgPts = new osg::Vec3Array;
-  osg::ref_ptr<osg::Vec4Array> osgCols = new osg::Vec4Array;
-  m_geom->setVertexArray(osgPts);
-  m_geom->setColorArray(osgCols);
+	m_geom->getPrimitiveSetList().clear();
+	osg::ref_ptr<osg::Vec3Array> osgPts = new osg::Vec3Array;
+	osg::ref_ptr<osg::Vec4Array> osgCols = new osg::Vec4Array;
+	m_geom->setVertexArray(osgPts);
+	m_geom->setColorArray(osgCols);
 }
 
 PlotPoints::PlotPoints(float size) {
-  m_geode = new osg::Geode();
-  m_geom = new osg::Geometry();
-  m_geom->setDataVariance(osg::Object::DYNAMIC);
-  m_geode->addDrawable(m_geom);
-  setDefaultColor(1,1,1,1);
+	m_geode = new osg::Geode();
+	m_geom = new osg::Geometry();
+	m_geom->setDataVariance(osg::Object::DYNAMIC);
+	m_geode->addDrawable(m_geom);
+	setDefaultColor(1,1,1,1);
 
-  osg::ref_ptr<osg::StateSet> stateset = new osg::StateSet();
-  osg::Point *point = new osg::Point();
+	osg::ref_ptr<osg::StateSet> stateset = new osg::StateSet();
+	osg::Point *point = new osg::Point();
 
-  //  m_stateset->setMode(GL_DEPTH_TEST, osg::StateAttribute::OFF);
-  stateset->setMode(GL_LIGHTING, osg::StateAttribute::OFF);
+	//  m_stateset->setMode(GL_DEPTH_TEST, osg::StateAttribute::OFF);
+	stateset->setMode(GL_LIGHTING, osg::StateAttribute::OFF);
 
-  osg::ref_ptr<osg::BlendFunc> blendFunc = new osg::BlendFunc;
-  blendFunc->setFunction(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-  stateset->setAttributeAndModes(blendFunc);
-  stateset->setMode(GL_BLEND, osg::StateAttribute::ON);
+	osg::ref_ptr<osg::BlendFunc> blendFunc = new osg::BlendFunc;
+	blendFunc->setFunction(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	stateset->setAttributeAndModes(blendFunc);
+	stateset->setMode(GL_BLEND, osg::StateAttribute::ON);
 
-  point->setSize(size);
-  stateset->setAttribute(point);
-  m_geode->setStateSet(stateset);
+	point->setSize(size);
+	stateset->setAttribute(point);
+	m_geode->setStateSet(stateset);
 }
 
 void PlotPoints::setPoints(const osg::ref_ptr<osg::Vec3Array>& osgPts, const osg::ref_ptr<osg::Vec4Array>& osgCols) {
-  int nPts = osgPts->getNumElements();
-  m_geom->setVertexArray(osgPts);
-  m_geom->setColorArray(osgCols);
-  m_geom->setColorBinding(osg::Geometry::BIND_PER_VERTEX);
-  m_geom->getPrimitiveSetList().clear();
-  m_geom->addPrimitiveSet(new osg::DrawArrays(osg::PrimitiveSet::POINTS,0,nPts));
+	int nPts = osgPts->getNumElements();
+	m_geom->setVertexArray(osgPts);
+	m_geom->setColorArray(osgCols);
+	m_geom->setColorBinding(osg::Geometry::BIND_PER_VERTEX);
+	m_geom->getPrimitiveSetList().clear();
+	m_geom->addPrimitiveSet(new osg::DrawArrays(osg::PrimitiveSet::POINTS,0,nPts));
 }
 
 void PlotPoints::setPoints(const osg::ref_ptr<osg::Vec3Array>& osgPts) {
-  osg::ref_ptr<osg::Vec4Array> osgCols = new osg::Vec4Array(osgPts->size());
-  BOOST_FOREACH(osg::Vec4& col, *osgCols) col = m_defaultColor;
-  setPoints(osgPts, osgCols);
+	osg::ref_ptr<osg::Vec4Array> osgCols = new osg::Vec4Array(osgPts->size());
+	BOOST_FOREACH(osg::Vec4& col, *osgCols) col = m_defaultColor;
+	setPoints(osgPts, osgCols);
 }
 
 void PlotPoints::forceTransparency(float a) {
-  if (!m_geom->getColorArray()) return;
-  osg::Vec4Array &colors = (osg::Vec4Array&) *m_geom->getColorArray();
-  for (int i = 0; i < colors.size(); ++i) {
-    osg::Vec4 c = colors[i];
-    colors[i] = osg::Vec4(c.r(), c.g(), c.b(), a);
-  }
+	if (!m_geom->getColorArray()) return;
+	osg::Vec4Array &colors = (osg::Vec4Array&) *m_geom->getColorArray();
+	for (int i = 0; i < colors.size(); ++i) {
+		osg::Vec4 c = colors[i];
+		colors[i] = osg::Vec4(c.r(), c.g(), c.b(), a);
+	}
 }
 
 void PlotPoints::setPoints(const vector<btVector3>& pts, const vector<btVector4>& cols) {
-  setPoints(toVec3Array(pts), toVec4Array(cols));
+	setPoints(toVec3Array(pts), toVec4Array(cols));
 }
 void PlotPoints::setPoints(const vector<btVector3>& pts) {
-  setPoints(toVec3Array(pts));
+	setPoints(toVec3Array(pts));
 }
 
 PlotLines::PlotLines(float width) {
-  setDefaultColor(1,1,1,1);
+	setDefaultColor(1,1,1,1);
 
-  m_geode = new osg::Geode();
-  m_geom = new osg::Geometry();
-  m_geom->setDataVariance(osg::Object::DYNAMIC);
-  m_geode->addDrawable(m_geom);
+	m_geode = new osg::Geode();
+	m_geom = new osg::Geometry();
+	m_geom->setDataVariance(osg::Object::DYNAMIC);
+	m_geode->addDrawable(m_geom);
 
-  osg::ref_ptr<osg::StateSet> stateset = new osg::StateSet();
-  osg::LineWidth *linewidth = new osg::LineWidth();
-  linewidth->setWidth(width);
-  stateset->setAttributeAndModes(linewidth,osg::StateAttribute::ON);
-  stateset->setMode(GL_LIGHTING, osg::StateAttribute::OFF);
-  stateset->setAttribute(linewidth);
+	osg::ref_ptr<osg::StateSet> stateset = new osg::StateSet();
+	osg::LineWidth *linewidth = new osg::LineWidth();
+	linewidth->setWidth(width);
+	stateset->setAttributeAndModes(linewidth,osg::StateAttribute::ON);
+	stateset->setMode(GL_LIGHTING, osg::StateAttribute::OFF);
+	stateset->setAttribute(linewidth);
 
-  osg::ref_ptr<osg::BlendFunc> blendFunc = new osg::BlendFunc;
-  blendFunc->setFunction(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-  stateset->setAttributeAndModes(blendFunc);
-  stateset->setRenderingHint(osg::StateSet::TRANSPARENT_BIN);
+	osg::ref_ptr<osg::BlendFunc> blendFunc = new osg::BlendFunc;
+	blendFunc->setFunction(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	stateset->setAttributeAndModes(blendFunc);
+	stateset->setRenderingHint(osg::StateSet::TRANSPARENT_BIN);
 
-  m_geode->setStateSet(stateset);
+	m_geode->setStateSet(stateset);
 }
 
 void PlotLines::setPoints(const vector<btVector3>& pts, const vector<btVector4>& cols) {
-  setPoints(toVec3Array(pts),  toVec4Array(cols));
+	setPoints(toVec3Array(pts),  toVec4Array(cols));
 }
 
 void PlotLines::setPoints(const vector<btVector3>& pts) {
-  osg::ref_ptr<osg::Vec4Array> osgCols = new osg::Vec4Array(pts.size());
-  BOOST_FOREACH(osg::Vec4& col, *osgCols) col = m_defaultColor;
-  setPoints(toVec3Array(pts),  osgCols);
+	osg::ref_ptr<osg::Vec4Array> osgCols = new osg::Vec4Array(pts.size());
+	BOOST_FOREACH(osg::Vec4& col, *osgCols) col = m_defaultColor;
+	setPoints(toVec3Array(pts),  osgCols);
 }
 
 
 void PlotLines::setPoints(const osg::ref_ptr<osg::Vec3Array>& osgPts, const osg::ref_ptr<osg::Vec4Array>& osgCols) {
-  int nPts = osgPts->getNumElements();
-  m_geom->setColorArray(osgCols);
-  m_geom->setColorBinding(osg::Geometry::BIND_PER_PRIMITIVE);
-  m_geom->setVertexArray(osgPts);
-  m_geom->getPrimitiveSetList().clear();
-  m_geom->addPrimitiveSet(new osg::DrawArrays(osg::PrimitiveSet::LINES,0,nPts));
+	int nPts = osgPts->getNumElements();
+	m_geom->setColorArray(osgCols);
+	m_geom->setColorBinding(osg::Geometry::BIND_PER_PRIMITIVE);
+	m_geom->setVertexArray(osgPts);
+	m_geom->getPrimitiveSetList().clear();
+	m_geom->addPrimitiveSet(new osg::DrawArrays(osg::PrimitiveSet::LINES,0,nPts));
 }
 
 void PlotLines::setPoints(const osg::ref_ptr<osg::Vec3Array>& osgPts) {
-  osg::ref_ptr<osg::Vec4Array> osgCols = new osg::Vec4Array(osgPts->size());
-  BOOST_FOREACH(osg::Vec4& col, *osgCols) col = m_defaultColor;
-  setPoints(osgPts, osgCols);
+	osg::ref_ptr<osg::Vec4Array> osgCols = new osg::Vec4Array(osgPts->size());
+	BOOST_FOREACH(osg::Vec4& col, *osgCols) col = m_defaultColor;
+	setPoints(osgPts, osgCols);
 }
 
 void PlotLines::forceTransparency(float a) {
-  if (!m_geom->getColorArray()) return;
-  osg::Vec4Array &colors = (osg::Vec4Array&) *m_geom->getColorArray();
-  for (int i = 0; i < colors.size(); ++i) {
-    osg::Vec4 c = colors[i];
-    colors[i] = osg::Vec4(c.r(), c.g(), c.b(), a);
-  }
+	if (!m_geom->getColorArray()) return;
+	osg::Vec4Array &colors = (osg::Vec4Array&) *m_geom->getColorArray();
+	for (int i = 0; i < colors.size(); ++i) {
+		osg::Vec4 c = colors[i];
+		colors[i] = osg::Vec4(c.r(), c.g(), c.b(), a);
+	}
 }
 
+//=============== LINE STRIP =================================================
+
+PlotLineStrip::PlotLineStrip(float width) {
+	setDefaultColor(1,1,1,1);
+
+	m_geode = new osg::Geode();
+	m_geom = new osg::Geometry();
+	m_geom->setDataVariance(osg::Object::DYNAMIC);
+	m_geode->addDrawable(m_geom);
+
+	osg::ref_ptr<osg::StateSet> stateset = new osg::StateSet();
+	osg::LineWidth *linewidth = new osg::LineWidth();
+	linewidth->setWidth(width);
+	stateset->setAttributeAndModes(linewidth,osg::StateAttribute::ON);
+	stateset->setMode(GL_LIGHTING, osg::StateAttribute::OFF);
+	stateset->setAttribute(linewidth);
+
+	osg::ref_ptr<osg::BlendFunc> blendFunc = new osg::BlendFunc;
+	blendFunc->setFunction(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	stateset->setAttributeAndModes(blendFunc);
+	stateset->setRenderingHint(osg::StateSet::TRANSPARENT_BIN);
+
+	m_geode->setStateSet(stateset);
+}
+
+void PlotLineStrip::setPoints(const vector<btVector3>& pts, const vector<btVector4>& cols) {
+	setPoints(toVec3Array(pts),  toVec4Array(cols));
+}
+
+void PlotLineStrip::setPoints(const vector<btVector3>& pts) {
+	osg::ref_ptr<osg::Vec4Array> osgCols = new osg::Vec4Array(pts.size());
+	BOOST_FOREACH(osg::Vec4& col, *osgCols) col = m_defaultColor;
+	setPoints(toVec3Array(pts),  osgCols);
+}
+
+
+void PlotLineStrip::setPoints(const osg::ref_ptr<osg::Vec3Array>& osgPts, const osg::ref_ptr<osg::Vec4Array>& osgCols) {
+	int nPts = osgPts->getNumElements();
+	m_geom->setColorArray(osgCols);
+	m_geom->setColorBinding(osg::Geometry::BIND_PER_PRIMITIVE);
+	m_geom->setVertexArray(osgPts);
+	m_geom->getPrimitiveSetList().clear();
+	m_geom->addPrimitiveSet(new osg::DrawArrays(osg::PrimitiveSet::LINE_STRIP,0,nPts));
+}
+
+void PlotLineStrip::setPoints(const osg::ref_ptr<osg::Vec3Array>& osgPts) {
+	osg::ref_ptr<osg::Vec4Array> osgCols = new osg::Vec4Array(osgPts->size());
+	BOOST_FOREACH(osg::Vec4& col, *osgCols) col = m_defaultColor;
+	setPoints(osgPts, osgCols);
+}
+
+void PlotLineStrip::forceTransparency(float a) {
+	if (!m_geom->getColorArray()) return;
+	osg::Vec4Array &colors = (osg::Vec4Array&) *m_geom->getColorArray();
+	for (int i = 0; i < colors.size(); ++i) {
+		osg::Vec4 c = colors[i];
+		colors[i] = osg::Vec4(c.r(), c.g(), c.b(), a);
+	}
+}
+//=============================================================================
+
+
+//=============== PLOTLINESSET : holds a set of lines together ================
+
+PlotLinesSet::PlotLinesSet(float width) : lwidth(width) {}
+
+void PlotLinesSet::addLineSet(const std::vector<btVector3> &pts) {
+	PlotLineStrip::Ptr new_set(new PlotLineStrip(lwidth));
+	new_set->setDefaultColor(r,g,b,a);
+	new_set->setPoints(pts);
+	getEnvironment()->add(new_set);
+	l_sets.push_back(new_set);
+}
+
+void PlotLinesSet::addLineSet(const std::vector<btVector3> &pts, std::vector<btVector4> &cols) {
+	PlotLineStrip::Ptr new_set(new PlotLineStrip(lwidth));
+	new_set->setDefaultColor(r,g,b,a);
+	new_set->setPoints(pts, cols);
+	getEnvironment()->add(new_set);
+	l_sets.push_back(new_set);
+}
+
+void PlotLinesSet::addLineSet(const osg::ref_ptr<osg::Vec3Array>& pts, const osg::ref_ptr<osg::Vec4Array>& cols) {
+	PlotLineStrip::Ptr new_set(new PlotLineStrip(lwidth));
+	new_set->setDefaultColor(r,g,b,a);
+	new_set->setPoints(pts, cols);
+	getEnvironment()->add(new_set);
+	l_sets.push_back(new_set);
+}
+
+void PlotLinesSet::addLineSet(const osg::ref_ptr<osg::Vec3Array>& pts) {
+	PlotLineStrip::Ptr new_set(new PlotLineStrip(lwidth));
+	new_set->setDefaultColor(r,g,b,a);
+	new_set->setPoints(pts);
+	getEnvironment()->add(new_set);
+	l_sets.push_back(new_set);
+}
+
+void PlotLinesSet::forceTransparency(float a) {
+	for (int i =0; i < l_sets.size(); i++)
+		l_sets[i]->forceTransparency(a);
+}
+
+//=============================================================================
+
+
+
+
+
+
+
+
+
+
+
+
 PlotSpheres::PlotSpheres() {
-  m_geode = new osg::Geode();
-  m_nDrawables = 0;
+	m_geode = new osg::Geode();
+	m_nDrawables = 0;
 
-  osg::ref_ptr<osg::StateSet> stateset = new osg::StateSet();
-  //stateset->setMode(GL_LIGHTING, osg::StateAttribute::OFF);
-  osg::ref_ptr<osg::BlendFunc> blendFunc = new osg::BlendFunc;
-  blendFunc->setFunction(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-  stateset->setAttributeAndModes(blendFunc);
-  stateset->setRenderingHint(osg::StateSet::TRANSPARENT_BIN);
-  stateset->setMode(GL_BLEND, osg::StateAttribute::ON);
+	osg::ref_ptr<osg::StateSet> stateset = new osg::StateSet();
+	//stateset->setMode(GL_LIGHTING, osg::StateAttribute::OFF);
+	osg::ref_ptr<osg::BlendFunc> blendFunc = new osg::BlendFunc;
+	blendFunc->setFunction(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	stateset->setAttributeAndModes(blendFunc);
+	stateset->setRenderingHint(osg::StateSet::TRANSPARENT_BIN);
+	stateset->setMode(GL_BLEND, osg::StateAttribute::ON);
 
-  m_geode->setStateSet(stateset);
+	m_geode->setStateSet(stateset);
 
 };
 
 void PlotSpheres::clear() {
-  m_geode->removeDrawables(0,m_nDrawables);
+	m_geode->removeDrawables(0,m_nDrawables);
 }
 
 void PlotSpheres::plot(const osg::ref_ptr<osg::Vec3Array>& centers, const osg::ref_ptr<osg::Vec4Array>& cols, const vector<float>& radii) {
-  m_geode->removeDrawables(0,m_nDrawables);
-  m_nDrawables = centers->size();
-  for (int i=0; i < centers->size(); i++) {
-    osg::TessellationHints* hints = new osg::TessellationHints;
-    hints->setDetailRatio(0.25f);
-    osg::Sphere* sphere = new osg::Sphere( centers->at(i), radii.at(i));
-    osg::ShapeDrawable* sphereDrawable = new osg::ShapeDrawable(sphere,hints);
-    sphereDrawable->setColor(cols->at(i));
-    m_geode->addDrawable(sphereDrawable);
-  }
+	m_geode->removeDrawables(0,m_nDrawables);
+	m_nDrawables = centers->size();
+	for (int i=0; i < centers->size(); i++) {
+		osg::TessellationHints* hints = new osg::TessellationHints;
+		hints->setDetailRatio(0.25f);
+		osg::Sphere* sphere = new osg::Sphere( centers->at(i), radii.at(i));
+		osg::ShapeDrawable* sphereDrawable = new osg::ShapeDrawable(sphere,hints);
+		sphereDrawable->setColor(cols->at(i));
+		m_geode->addDrawable(sphereDrawable);
+	}
 }
 
 PlotBoxes::PlotBoxes() {
-  m_geode = new osg::Geode();
-  osg::ref_ptr<osg::StateSet> stateset = new osg::StateSet();
-  osg::ref_ptr<osg::BlendFunc> blendFunc = new osg::BlendFunc;
-  blendFunc->setFunction(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-  stateset->setAttributeAndModes(blendFunc);
-  stateset->setRenderingHint(osg::StateSet::TRANSPARENT_BIN);
-  m_geode->setStateSet(stateset);
+	m_geode = new osg::Geode();
+	osg::ref_ptr<osg::StateSet> stateset = new osg::StateSet();
+	osg::ref_ptr<osg::BlendFunc> blendFunc = new osg::BlendFunc;
+	blendFunc->setFunction(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	stateset->setAttributeAndModes(blendFunc);
+	stateset->setRenderingHint(osg::StateSet::TRANSPARENT_BIN);
+	m_geode->setStateSet(stateset);
 }
 
 void PlotBoxes::clear() {
-  while (m_geode->removeDrawables(0, 1)) ;
+	while (m_geode->removeDrawables(0, 1)) ;
 }
 
 void PlotBoxes::addBox(const osg::Vec3 &center, float lenx, float leny, float lenz, const osg::Vec4 &color) {
-  osg::Box *box = new osg::Box(center, lenx, leny, lenz);
-  osg::ShapeDrawable *boxDrawable = new osg::ShapeDrawable(box);
-  boxDrawable->setColor(color);
-  m_geode->addDrawable(boxDrawable);
+	osg::Box *box = new osg::Box(center, lenx, leny, lenz);
+	osg::ShapeDrawable *boxDrawable = new osg::ShapeDrawable(box);
+	boxDrawable->setColor(color);
+	m_geode->addDrawable(boxDrawable);
 }
 
 void PlotAxes::setup(const btTransform &tf, float size) {
-  btMatrix3x3 mat(tf.getRotation());
-  osg::Vec3f origin = util::toOSGVector(tf.getOrigin());
-  osg::Vec3f x = util::toOSGVector(mat.getColumn(0));
-  osg::Vec3f y = util::toOSGVector(mat.getColumn(1));
-  osg::Vec3f z = util::toOSGVector(mat.getColumn(2));
-  setup(origin, x, y, z, size);
+	btMatrix3x3 mat(tf.getRotation());
+	osg::Vec3f origin = util::toOSGVector(tf.getOrigin());
+	osg::Vec3f x = util::toOSGVector(mat.getColumn(0));
+	osg::Vec3f y = util::toOSGVector(mat.getColumn(1));
+	osg::Vec3f z = util::toOSGVector(mat.getColumn(2));
+	setup(origin, x, y, z, size);
 }
 
 PlotAxes::PlotAxes(osg::Vec3f origin, osg::Vec3f x, osg::Vec3f y, osg::Vec3f z, float size) {
-  setup(origin, x, y, z, size);
+	setup(origin, x, y, z, size);
 
 
-  osg::ref_ptr<osg::StateSet> stateset = new osg::StateSet();
-  osg::ref_ptr<osg::BlendFunc> blendFunc = new osg::BlendFunc;
-  blendFunc->setFunction(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-  stateset->setAttributeAndModes(blendFunc);
-  stateset->setMode(GL_BLEND, osg::StateAttribute::ON);
+	osg::ref_ptr<osg::StateSet> stateset = new osg::StateSet();
+	osg::ref_ptr<osg::BlendFunc> blendFunc = new osg::BlendFunc;
+	blendFunc->setFunction(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	stateset->setAttributeAndModes(blendFunc);
+	stateset->setMode(GL_BLEND, osg::StateAttribute::ON);
 
 }
 
 void PlotAxes::setup(osg::Vec3f origin, osg::Vec3f x, osg::Vec3f y, osg::Vec3f z, float size) {
-    
-  osg::ref_ptr<osg::Vec4Array> cols = new osg::Vec4Array();
-  osg::ref_ptr<osg::Vec3Array> pts = new osg::Vec3Array();
 
-  pts->push_back(origin);
-  pts->push_back(origin+x*(size/x.length()));
-  pts->push_back(origin);
-  pts->push_back(origin+y*(size/y.length()));
-  pts->push_back(origin);
-  pts->push_back(origin+z*(size/z.length()));
+	osg::ref_ptr<osg::Vec4Array> cols = new osg::Vec4Array();
+	osg::ref_ptr<osg::Vec3Array> pts = new osg::Vec3Array();
 
-  cols->push_back(osg::Vec4f(1,0,0,1));
-  cols->push_back(osg::Vec4f(0,1,0,1));
-  cols->push_back(osg::Vec4f(0,0,1,1));
+	pts->push_back(origin);
+	pts->push_back(origin+x*(size/x.length()));
+	pts->push_back(origin);
+	pts->push_back(origin+y*(size/y.length()));
+	pts->push_back(origin);
+	pts->push_back(origin+z*(size/z.length()));
 
-  PlotLines::setPoints(pts, cols);
+	cols->push_back(osg::Vec4f(1,0,0,1));
+	cols->push_back(osg::Vec4f(0,1,0,1));
+	cols->push_back(osg::Vec4f(0,0,1,1));
 
-  osg::ref_ptr<osg::Vec3Array> endpts = new osg::Vec3Array();
-  endpts->push_back(origin+x*(size/x.length()));
-  endpts->push_back(origin+y*(size/y.length()));
-  endpts->push_back(origin+z*(size/z.length()));
-  vector<float> radii(3,.1*size);
-  m_ends->plot(endpts, cols, radii);
+	PlotLines::setPoints(pts, cols);
+
+	osg::ref_ptr<osg::Vec3Array> endpts = new osg::Vec3Array();
+	endpts->push_back(origin+x*(size/x.length()));
+	endpts->push_back(origin+y*(size/y.length()));
+	endpts->push_back(origin+z*(size/z.length()));
+	vector<float> radii(3,.1*size);
+	m_ends->plot(endpts, cols, radii);
 }
 
 void PlotAxes::clear() {
 	PlotLines::clear();
 	m_ends->clear();
-    getEnvironment()->osg->root->removeChild(m_geode.get());
-    getEnvironment()->osg->root->removeChild(m_ends->m_geode.get());
+	getEnvironment()->osg->root->removeChild(m_geode.get());
+	getEnvironment()->osg->root->removeChild(m_ends->m_geode.get());
 }
 
 PlotCurve::PlotCurve(float width) : osg::Geode(), m_defaultColor(1,0,0,1) {
 
-  m_geom = new osg::Geometry();
-  addDrawable(m_geom);
+	m_geom = new osg::Geometry();
+	addDrawable(m_geom);
 
-  osg::ref_ptr<osg::StateSet> stateset = new osg::StateSet();
-  osg::LineWidth *linewidth = new osg::LineWidth();
-  linewidth->setWidth(width);
-  stateset->setAttributeAndModes(linewidth,osg::StateAttribute::ON);
-  stateset->setMode(GL_LIGHTING, osg::StateAttribute::OFF);
-  stateset->setAttribute(linewidth);
+	osg::ref_ptr<osg::StateSet> stateset = new osg::StateSet();
+	osg::LineWidth *linewidth = new osg::LineWidth();
+	linewidth->setWidth(width);
+	stateset->setAttributeAndModes(linewidth,osg::StateAttribute::ON);
+	stateset->setMode(GL_LIGHTING, osg::StateAttribute::OFF);
+	stateset->setAttribute(linewidth);
 
-  osg::ref_ptr<osg::BlendFunc> blendFunc = new osg::BlendFunc;
-  blendFunc->setFunction(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-  stateset->setAttributeAndModes(blendFunc);
-  stateset->setMode(GL_BLEND, osg::StateAttribute::ON);
+	osg::ref_ptr<osg::BlendFunc> blendFunc = new osg::BlendFunc;
+	blendFunc->setFunction(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	stateset->setAttributeAndModes(blendFunc);
+	stateset->setMode(GL_BLEND, osg::StateAttribute::ON);
 
-  setStateSet(stateset);
+	setStateSet(stateset);
 }
 
 void PlotCurve::setPoints(const vector<btVector3>& pts, const vector<btVector4>& cols) {
-  setPoints(toVec3Array(pts),  toVec4Array(cols));
+	setPoints(toVec3Array(pts),  toVec4Array(cols));
 }
 
 void PlotCurve::setPoints(const vector<btVector3>& pts) {
-  osg::ref_ptr<osg::Vec4Array> osgCols = new osg::Vec4Array(pts.size());
-  BOOST_FOREACH(osg::Vec4& col, *osgCols) col = m_defaultColor;
-  setPoints(toVec3Array(pts),  osgCols);
+	osg::ref_ptr<osg::Vec4Array> osgCols = new osg::Vec4Array(pts.size());
+	BOOST_FOREACH(osg::Vec4& col, *osgCols) col = m_defaultColor;
+	setPoints(toVec3Array(pts),  osgCols);
 }
 
 void PlotCurve::setPoints(const osg::ref_ptr<osg::Vec3Array>& osgPts, const osg::ref_ptr<osg::Vec4Array>& osgCols) {
-  int nPts = osgPts->getNumElements();
-  m_geom->setColorArray(osgCols);
-  m_geom->setColorBinding(osg::Geometry::BIND_PER_PRIMITIVE);
-  m_geom->setVertexArray(osgPts);
-  m_geom->getPrimitiveSetList().clear();
-  m_geom->addPrimitiveSet(new osg::DrawArrays(osg::PrimitiveSet::LINE_STRIP,0,nPts));
+	int nPts = osgPts->getNumElements();
+	m_geom->setColorArray(osgCols);
+	m_geom->setColorBinding(osg::Geometry::BIND_PER_PRIMITIVE);
+	m_geom->setVertexArray(osgPts);
+	m_geom->getPrimitiveSetList().clear();
+	m_geom->addPrimitiveSet(new osg::DrawArrays(osg::PrimitiveSet::LINE_STRIP,0,nPts));
 }

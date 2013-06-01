@@ -188,7 +188,7 @@ bool LFDProcessor::preProcess (	Ravens & ravens,
 	for (int i = 0; i < new_rope_points.size(); ++i) newpts.push_back(new_rope_points[i]);
 	for (int i = 0; i < new_box_points.size(); ++i) newpts.push_back(new_box_points[i]);
 	for (int i = 0; i < new_hole_points.size(); ++i) newpts.push_back(new_hole_points[i]);
-	s.plotAllPoints2(old , newpts);
+	//s.plotAllPoints2(old , newpts);
 
 	bool successful = warpRavenJoints (	ravens,
 			make_pair(use_rope, make_pair(rope_points, new_rope_points)),
