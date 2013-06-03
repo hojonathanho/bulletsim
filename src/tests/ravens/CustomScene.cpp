@@ -237,21 +237,21 @@ CustomScene::SuturingRope::SuturingRope(CustomScene * scene, btTransform _initTf
 		initTfm(_initTfm), rope_radius(_rope_radius), segment_len(_segment_len), numLinks(_nLinks) {
 
 	vector<btVector3> ctrlPts;
-//	for (int i=0; i< numLinks; i++)
-//		ctrlPts.push_back(initTfm*(METERS*btVector3(-segment_len*i,0,2*rope_radius)));  // horizontal rope
-
-	int foldx;
-	for(int i=0; i < numLinks; i++) {
-		if (i < numLinks/2) {
-			btVector3 pos(-segment_len*i,0,2*rope_radius);
-			ctrlPts.push_back(initTfm*(METERS*pos));
-			foldx = i;
-		}
-		else {
-			btVector3 pos(-segment_len*foldx, segment_len*(i-foldx), 2*rope_radius);
-			ctrlPts.push_back(initTfm*(METERS*pos));
-		}
-	}
+	for (int i=0; i< numLinks; i++)
+		ctrlPts.push_back(initTfm*(METERS*btVector3(-segment_len*i,0,2*rope_radius)));  // horizontal rope
+//
+//	int foldx;
+//	for(int i=0; i < numLinks; i++) {
+//		if (i < numLinks/2) {
+//			btVector3 pos(-segment_len*i,0,2*rope_radius);
+//			ctrlPts.push_back(initTfm*(METERS*pos));
+//			foldx = i;
+//		}
+//		else {
+//			btVector3 pos(-segment_len*foldx, segment_len*(i-foldx), 2*rope_radius);
+//			ctrlPts.push_back(initTfm*(METERS*pos));
+//		}
+//	}
 
 	capsulePtr.reset(new CapsuleRope(ctrlPts,METERS*rope_radius));
 	scene->env->add(capsulePtr);
