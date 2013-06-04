@@ -25,6 +25,7 @@ void setup_python() {
 	PyGlobals::math_module       = py::import("jds_utils.math_utils");
 }
 
+
 /** Converts a vector of btVector3 (list of 3d points) to a 2D numpy array.*/
 py::object pointsToNumpy(const vector<btVector3>& pts) {
 	int nRows = pts.size();
@@ -238,8 +239,14 @@ pair< vector<float>, vector< vector <double> > >
 
 
 	py::object py_signal     = jointsToNumpy(in_signal);
+	py::object times_samples;
 
-	py::object times_samples = PyGlobals::iros_utils_module.attr("adaptive_resample")(py_signal, tol, max_change, min_steps);
+	try {
+		times_samples = PyGlobals::iros_utils_module.attr("adaptive_resample")(py_signal, tol, max_change, min_steps);
+	} catch(...) {
+		PyErr_Print();
+	}
+
 	py::object py_times      = times_samples[0];
 	py::object py_samples    = times_samples[1];
 
@@ -247,4 +254,25 @@ pair< vector<float>, vector< vector <double> > >
 	vector<vector<double> > samples = jointsFromNumpy(py_samples);
 	pair <vector<float>, vector<vector<double> > > out = make_pair(times, samples);
 	return out;
+}
+
+
+/** Saves the point-clouds in a numpy .npz file.
+ *  fname       :  name of the .npz file
+ *  cloud_names :  names of the clouds
+ *  clouds      :  the point-clouds to be saved. */
+void saveClouds(const std::string fname,
+		const vector<std::string> &cloud_names, const vector<vector<btVector3> > &clouds) {
+	assert(("saveClouds : Number of names and clouds do not match.", clouds.size()==cloud_names.size()));
+
+	py::dict pyclouds;
+	for (int c=0; c < clouds.size(); c++)
+		pyclouds[cloud_names[c]] = pointsToNumpy(clouds[c]);
+
+	try {
+		py::list args; args.append(fname);
+		NP.attr("savez")(*py::tuple(args), **pyclouds);
+	} catch (...) {
+		PyErr_Print();
+	}
 }

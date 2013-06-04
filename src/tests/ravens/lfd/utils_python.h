@@ -96,3 +96,12 @@ vector<vector<double> > interpolate(const vector<float> & sample_times, const ve
  *                    - second is the actual data (2 dimensional)*/
 pair< vector<float>, vector< vector <double> > >
 	adaptive_resample (const vector < vector <double> > & in_signal, double tol, double max_change=-1, int min_steps=3);
+
+
+/** saves the point-clouds in a numpy .npz file.
+ *  fname       :  name of the .npz file
+ *  cloud_names :  names of the clouds
+ *  clouds      :  the point-clouds to be saved. */
+void saveClouds(const std::string fname, const vector<std::string> &cloud_names, const vector<vector<btVector3> > &clouds);
+
+

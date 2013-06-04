@@ -57,6 +57,10 @@ RavensLfdRpm::RavensLfdRpm (Ravens & ravens_, const vector<vector<btVector3> > &
 		gLinesAdded = true;
 	}
 
+
+	// save clouds to file
+	save_clouds(source_clouds, target_clouds);
+
 	vector<btVector3> srcPoints, targPoints, warpedPoints;
 	vector<btVector4> srcCols, targCols, warpedCols;
 	BOOST_FOREACH(const vector<btVector3>& cloud, source_clouds) {
@@ -92,6 +96,27 @@ RavensLfdRpm::RavensLfdRpm (Ravens & ravens_, const vector<vector<btVector3> > &
 		ravens.scene.viewer.frame();
 	}
 }
+
+
+/** save the source and target clouds in a numpy file.*/
+void RavensLfdRpm::save_clouds(const std::vector<std::vector<btVector3> > &src_clouds, const std::vector<std::vector<btVector3> > & target_clouds) {
+	vector<vector<btVector3> > clouds(src_clouds.size()+ target_clouds.size());
+	vector<string> names(src_clouds.size() + target_clouds.size());
+	for(int i=0; i< src_clouds.size(); i+=1) {
+		clouds[i] = src_clouds[i];
+		names[i]  = string("src_") + boost::lexical_cast<string>(i);
+	}
+
+	for(int i=0; i< target_clouds.size(); i+=1) {
+		clouds[i + src_clouds.size()] = target_clouds[i];
+		names[i + src_clouds.size()]  = string("target_") + boost::lexical_cast<string>(i);
+	}
+
+	string suffix = string("/tests/ravens/recorded/clouds_") + boost::lexical_cast<string>(rand()%1000);
+	string fname = string(EXPAND(BULLETSIM_SRC_DIR)) + suffix;
+	saveClouds(fname, names, clouds);
+}
+
 
 void RavensLfdRpm::plot_warped_grid(btVector3 mins, btVector3 maxs, int ncoarse, int nfine) {
 	vector<vector<btVector3> > xlines, ylines, zlines;

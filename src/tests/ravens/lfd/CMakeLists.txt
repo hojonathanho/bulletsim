@@ -17,3 +17,7 @@ target_link_libraries(lfd simulation robots
                           ${PYTHON_LIBRARIES}
                           ${Boost_LIBRARIES}
                      )
+                     
+
+add_executable(test_savez test_savez.cpp)
+target_link_libraries(test_savez lfd)

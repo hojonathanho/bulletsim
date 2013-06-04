@@ -190,15 +190,6 @@ bool LFDProcessor::preProcess (	Ravens & ravens,
 	for (int i = 0; i < new_hole_points.size(); ++i) newpts.push_back(new_hole_points[i]);
 	//s.plotAllPoints2(old , newpts);
 
-	cout << "old"<<endl;
-	for(int i=0; i < rope_points.size(); i++)
-		cout << rope_points[i].x()<<"\t"<<rope_points[i].y()<<"\t"<<rope_points[i].z()<<"\n";
-	cout << endl;
-	cout << "new"<<endl;
-	for(int i=0; i < new_rope_points.size(); i++)
-			cout << new_rope_points[i].x()<<"\t"<<new_rope_points[i].y()<<"\t"<<new_rope_points[i].z()<<"\n";
-
-	exit(0);
 	bool successful = warpRavenJoints (	ravens,
 			make_pair(use_rope, make_pair(rope_points, new_rope_points)),
 			//make_pair(use_needle, make_pair(needle_points, new_needle_points)),
