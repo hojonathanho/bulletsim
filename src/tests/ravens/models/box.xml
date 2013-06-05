@@ -1,0 +1,19 @@
+<!--Hole-->
+<KinBody name="hole">
+
+  <Body name="hole" type="dynamic">
+
+    <!--Mass-->
+    <Mass type="mimicgeom">
+      <total>1000</total>
+    </Mass>
+  
+    <!--Boxes-->
+    <Geom type="box">
+      <Extents>0.005 0.005 0.00075</Extents>
+      <Translation>0 0 0</Translation>
+    </Geom>
+
+  </Body>
+
+</KinBody>

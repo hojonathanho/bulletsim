@@ -1,0 +1,7 @@
+<kinbody name="sphere">
+  <body>
+    <geom type="sphere">
+      <radius>0.001</radius>
+    </geom>
+  </body>
+</kinbody>
