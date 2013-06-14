@@ -101,7 +101,7 @@ public:
 
 
 		SuturingRope(CustomScene * scene, btTransform initLinkTfm,
-				float _rope_radius=.0006, float _segment_len=0.0033, int _nLinks=90);
+				float _rope_radius=.0006, float _segment_len=0.0011, int _nLinks=90); // segment len was 0.0033
 
 		// return the points sampled along the rope (generates a point-cloud for the rope).
 		void getRopePoints (bool nodes, vector<btVector3> & ropePoints, float scale=1.0);
@@ -138,8 +138,8 @@ public:
 		btMatrix3x3 corrRot;
 
 		SuturingPeg (CustomScene * _scene, RaveRobotObject::Manipulator::Ptr _p_gripperManip,
-				float _p_rad=0.0006, float _p_len=0.006,
-				float _rope_radius=.0006, float _segment_len=0.0033, int _nLinks=90);
+				float _p_rad=0.001, float _p_len=0.006,
+				float _rope_radius=.0006, float _segment_len=0.0011, int _nLinks=200);
 
 		void toggleFinger () {p_grasping_finger1 = !p_grasping_finger1;}
 
@@ -162,7 +162,6 @@ public:
 	RaveRobotObject::Ptr origRobot, tmpRobot;
 	Ravens ravens;
 	IKInterpolationPlanner::Ptr ikPlannerL, ikPlannerR;
-
 
 	/*
 	// the cloth to be sutured

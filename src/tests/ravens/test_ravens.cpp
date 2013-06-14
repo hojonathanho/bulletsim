@@ -15,11 +15,11 @@ int main(int argc, char *argv[]) {
 	srand(0);
 	ViewerConfig::cameraHomePosition = btVector3(0, 0.6, 0.5);
 	ViewerConfig::cameraHomeCenter = btVector3(0, 0, 0.25);
-	BulletConfig::dt = 0.01;
 
-	BulletConfig::internalTimeStep = 0.001;
-	BulletConfig::maxSubSteps = 10;
-	BulletConfig::gravity = -1*btVector3(0,0,10);
+	BulletConfig::dt               = 0.01;
+	BulletConfig::internalTimeStep = 0.0005;
+	BulletConfig::maxSubSteps      = 20;
+	BulletConfig::gravity          = -1*btVector3(0,0,10);
 	RavenConfig::record_freq = 100;
 	RavenConfig::cloth = 0;
 	RavenConfig::enableLfd = 1;

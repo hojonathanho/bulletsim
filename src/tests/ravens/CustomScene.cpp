@@ -25,10 +25,10 @@ btTransform rotateByAngle (btTransform &tfm, const float ang, const float rad) {
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /** Constructor for suturing needle. Creates needle from file.*/
-CustomScene::SuturingNeedle::SuturingNeedle(CustomScene * _scene, float _rope_radius, float _segment_len, int _nLinks) :
-																																							scene(*_scene), s_needle_radius(0.015),
-																																							s_needle_mass(1000), s_end_angle(1.57),  s_grasping_gripper('n'),
-																																							rope_radius(_rope_radius), segment_len(_segment_len), nLinks(_nLinks) {
+CustomScene::SuturingNeedle::SuturingNeedle(CustomScene * _scene,
+		float _rope_radius, float _segment_len, int _nLinks) :scene(*_scene), s_needle_radius(0.015),
+		s_needle_mass(1000), s_end_angle(1.57),  s_grasping_gripper('n'),
+		rope_radius(_rope_radius), segment_len(_segment_len), nLinks(_nLinks) {
 
 	static const char sNeedle_MODEL_FILE[] = EXPAND(BULLETSIM_DATA_DIR) "/xml/needle.xml";
 	KinBodyPtr needle_body = scene.rave->env->ReadKinBodyURI(sNeedle_MODEL_FILE);
@@ -195,14 +195,16 @@ CustomScene::SuturingPeg::SuturingPeg (CustomScene * _scene, RaveRobotObject::Ma
 	// initialize the rope
 	btTransform t; t.setIdentity(); t.setOrigin(p_peg->getIndexTransform(0).getOrigin());
 	ropePtr.reset(new SuturingRope(_scene, t, _rope_radius, _segment_len, _nLinks));
+
+	// connect the rope to the peg:
 	btTransform TRel;
 	TRel.setIdentity();
-	TRel.setOrigin(-p_len/2*btVector3(1,0,0)*METERS);
+	TRel.setOrigin(-p_len/2*btVector3(1,-0.0007,-0.0007)*METERS);
 	btTransform TCom = ropePtr->capsulePtr->children[0]->rigidBody->getCenterOfMassTransform();
 
 	peg_rope_grab = new Grab (	ropePtr->capsulePtr->children[0]->rigidBody.get(), TCom*TRel,
 			btVector3(0,0,0), btVector3(0,0,0),
-			btVector3(0,0,0), btVector3(1,1,1),
+			btVector3(0,0,0), btVector3(0,.2,.2),
 			scene.env->bullet->dynamicsWorld);
 	scene.addPreStepCallback(boost::bind(&CustomScene::SuturingPeg::setConnectedRopeTransformCallback, this));
 	scene.sRope = ropePtr;
@@ -239,19 +241,19 @@ CustomScene::SuturingRope::SuturingRope(CustomScene * scene, btTransform _initTf
 	vector<btVector3> ctrlPts;
 	for (int i=0; i< numLinks; i++)
 		ctrlPts.push_back(initTfm*(METERS*btVector3(-segment_len*i,0,2*rope_radius)));  // horizontal rope
-//
-//	int foldx;
-//	for(int i=0; i < numLinks; i++) {
-//		if (i < numLinks/2) {
-//			btVector3 pos(-segment_len*i,0,2*rope_radius);
-//			ctrlPts.push_back(initTfm*(METERS*pos));
-//			foldx = i;
-//		}
-//		else {
-//			btVector3 pos(-segment_len*foldx, segment_len*(i-foldx), 2*rope_radius);
-//			ctrlPts.push_back(initTfm*(METERS*pos));
-//		}
-//	}
+	//
+	//	int foldx;
+	//	for(int i=0; i < numLinks; i++) {
+	//		if (i < numLinks/2) {
+	//			btVector3 pos(-segment_len*i,0,2*rope_radius);
+	//			ctrlPts.push_back(initTfm*(METERS*pos));
+	//			foldx = i;
+	//		}
+	//		else {
+	//			btVector3 pos(-segment_len*foldx, segment_len*(i-foldx), 2*rope_radius);
+	//			ctrlPts.push_back(initTfm*(METERS*pos));
+	//		}
+	//	}
 
 	capsulePtr.reset(new CapsuleRope(ctrlPts,METERS*rope_radius));
 	scene->env->add(capsulePtr);

@@ -114,6 +114,7 @@ void RavensLfdRpm::save_clouds(const std::vector<std::vector<btVector3> > &src_c
 
 	string suffix = string("/tests/ravens/recorded/clouds_") + boost::lexical_cast<string>(rand()%1000);
 	string fname = string(EXPAND(BULLETSIM_SRC_DIR)) + suffix;
+	cout << colorize(string("Saving clouds in : ")+fname, "green", true)<<endl;
 	saveClouds(fname, names, clouds);
 }
 
