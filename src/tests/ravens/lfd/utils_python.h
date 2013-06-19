@@ -19,6 +19,7 @@ struct PyGlobals {
   static py::object resampling_module;
   static py::object openrave_module;
   static py::object math_module;
+  static py::object iros_utils_module;
 };
 
 #define NP PyGlobals::numpy_module

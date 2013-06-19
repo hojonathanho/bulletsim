@@ -8,6 +8,7 @@ py::object PyGlobals::lfd_registration_module;
 py::object PyGlobals::openrave_module;
 py::object PyGlobals::resampling_module;
 py::object PyGlobals::math_module;
+py::object PyGlobals::iros_utils_module;
 
 void setup_python() {
 	Py_Initialize();
@@ -24,6 +25,7 @@ void setup_python() {
 	PyGlobals::resampling_module = py::import("rapprentice.resampling");
 	PyGlobals::openrave_module   = py::import("openravepy");
 	PyGlobals::math_module       = py::import("jds_utils.math_utils");
+	PyGlobals::iros_utils_module = py::import("iros.iros_utils");
 }
 
 
