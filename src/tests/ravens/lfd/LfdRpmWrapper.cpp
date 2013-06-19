@@ -7,7 +7,7 @@ RegistrationModule::RegistrationModule(vector<btVector3> src_pts, vector<btVecto
 		int n_iter, float reg_init, float reg_final,
 		float rad_init, float rad_final) {
 
-	tps_rpm_func = PyGlobals::lfd_registration_module.attr("tps_rpm");
+	tps_rpm_func = PyGlobals::lfd_registration_module.attr("tps_rpm_regrot");
 
 	py::object py_src_pts    = pointsToNumpy(src_pts);
 	py::object py_target_pts = pointsToNumpy(target_pts);
@@ -27,7 +27,7 @@ RegistrationModule::RegistrationModule(vector <vector<btVector3> > src_clouds,
 		float rad_init, float rad_final) {
 
 	assert (("Different number of point-clouds.",src_clouds.size()==target_clouds.size()));
-	tps_rpm_func = PyGlobals::lfd_registration_module.attr("tps_rpm_multi");
+	tps_rpm_func = PyGlobals::lfd_registration_module.attr("tps_rpm_regrot_multi");
 
 	py::list py_src_clouds, py_target_clouds;
 	for (int i=0; i<src_clouds.size(); i+=1) {

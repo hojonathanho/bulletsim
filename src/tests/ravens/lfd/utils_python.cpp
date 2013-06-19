@@ -6,7 +6,7 @@ py::object PyGlobals::builtin_module;
 py::object PyGlobals::numpy_module;
 py::object PyGlobals::lfd_registration_module;
 py::object PyGlobals::openrave_module;
-py::object PyGlobals::iros_utils_module;
+py::object PyGlobals::resampling_module;
 py::object PyGlobals::math_module;
 
 void setup_python() {
@@ -19,8 +19,9 @@ void setup_python() {
 
 	py::exec("import sys", PyGlobals::main_namespace);
 	py::exec("sys.argv = ['call_lfd_from_cpp']", PyGlobals::main_namespace); // otherwise sys.argv is none and ros imports give errors
-	PyGlobals::lfd_registration_module =  py::import("lfd.registration");
-	PyGlobals::iros_utils_module = py::import("iros.iros_utils");
+
+	PyGlobals::lfd_registration_module =  py::import("rapprentice.registration");
+	PyGlobals::resampling_module = py::import("rapprentice.resampling");
 	PyGlobals::openrave_module   = py::import("openravepy");
 	PyGlobals::math_module       = py::import("jds_utils.math_utils");
 }
@@ -242,7 +243,7 @@ pair< vector<float>, vector< vector <double> > >
 	py::object times_samples;
 
 	try {
-		times_samples = PyGlobals::iros_utils_module.attr("adaptive_resample")(py_signal, tol, max_change, min_steps);
+		times_samples = PyGlobals::resampling_module.attr("adaptive_resample")(py_signal, tol, max_change, min_steps);
 	} catch(...) {
 		PyErr_Print();
 	}

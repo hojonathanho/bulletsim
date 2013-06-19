@@ -16,7 +16,7 @@ struct PyGlobals {
   static py::object builtin_module;
   static py::object numpy_module;
   static py::object lfd_registration_module;
-  static py::object iros_utils_module;
+  static py::object resampling_module;
   static py::object openrave_module;
   static py::object math_module;
 };

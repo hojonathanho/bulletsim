@@ -486,8 +486,8 @@ void CustomScene::setup_rope_manip() {
 	// --> perturb the rope by user-specified perturbation
 	const float table_height = 0.15;
 	const float rradius  = 0.0006;
-	const float llen     = 0.0033;
-	const float nlinks   = 90;
+	const float llen     = 0.0011;
+	const float nlinks   = 200;
 
 	btTransform lenBias = btTransform::getIdentity();
 	lenBias.setOrigin(METERS*btVector3((nlinks*llen/2.0), 0, table_height));
