@@ -13,32 +13,71 @@ namespace py = boost::python;
 
 void InitPython();
 
+struct SimulationParams;
+SimulationParams& GetSimParams();
+
 class BulletEnvironment;
+// class BULLETSIM_API KinBodyObject {
+// public:
+//   KinBodyObject(KinBodyPtr kinbody, BulletObject::Ptr bulletobj);
+//   virtual ~KinBodyObject() { }
+
+//   virtual bool IsKinematic();
+//   virtual string GetName();
+
+//   virtual KinBodyPtr GetKinBody();
+//   virtual py::object py_GetKinBody();
+
+//   virtual btTransform GetTransform();
+//   virtual py::object py_GetTransform();
+
+//   virtual void SetTransform(const btTransform& t);
+//   virtual void py_SetTransform(py::object py_hmat);
+
+//   virtual void SetLinearVelocity(const btVector3& v);
+//   virtual void py_SetLinearVelocity(py::list v);
+
+//   virtual void SetAngularVelocity(const btVector3& w);
+//   virtual void py_SetAngularVelocity(py::list w);
+
+//   virtual void UpdateBullet();
+//   virtual void UpdateRave();
+
+// protected:
+//   friend class BulletEnvironment;
+//   KinBodyPtr m_kinbody;
+//   BulletObject::Ptr m_bulletobj;
+// };
+// typedef boost::shared_ptr<KinBodyObject> KinBodyObjectPtr;
+
 class BULLETSIM_API BulletObject {
 public:
+  virtual ~BulletObject() { }
+
   bool IsKinematic();
   string GetName();
 
   KinBodyPtr GetKinBody();
   py::object py_GetKinBody();
 
-  btTransform GetTransform();
-  py::object py_GetTransform();
+  virtual btTransform GetTransform();
+  virtual py::object py_GetTransform();
 
-  void SetTransform(const btTransform& t);
-  void py_SetTransform(py::object py_hmat);
+  virtual void SetTransform(const btTransform& t);
+  virtual void py_SetTransform(py::object py_hmat);
 
-  void SetLinearVelocity(const btVector3& v);
-  void py_SetLinearVelocity(py::list v);
+  virtual void SetLinearVelocity(const btVector3& v);
+  virtual void py_SetLinearVelocity(py::list v);
 
-  void SetAngularVelocity(const btVector3& w);
-  void py_SetAngularVelocity(py::list w);
+  virtual void SetAngularVelocity(const btVector3& w);
+  virtual void py_SetAngularVelocity(py::list w);
 
-  void UpdateBullet();
-  void UpdateRave();
+  virtual void UpdateBullet();
+  virtual void UpdateRave();
 
-private:
+protected:
   friend class BulletEnvironment;
+  BulletObject() { }
   BulletObject(RaveObject::Ptr obj) : m_obj(obj) { }
   RaveObject::Ptr m_obj;
 };
@@ -64,6 +103,21 @@ struct BULLETSIM_API Collision {
   CollisionPtr Flipped() const;
 };
 
+struct BULLETSIM_API SimulationParams {
+  float scale;
+  btVector3 gravity;
+  float dt;
+  int maxSubSteps;
+  float internalTimeStep;
+  float friction;
+  float restitution;
+  float margin;
+  float linkPadding;
+
+  SimulationParams();
+  void Apply();
+};
+
 class BULLETSIM_API BulletEnvironment {
 public:
   BulletEnvironment(EnvironmentBasePtr rave_env, const vector<string>& dynamic_obj_names);
@@ -82,6 +136,9 @@ public:
 
   EnvironmentBasePtr GetRaveEnv();
   py::object py_GetRaveEnv();
+
+  Environment::Ptr GetBulletEnv();
+  RaveInstance::Ptr GetRaveInstance();
 
   void SetGravity(const btVector3& g);
   void py_SetGravity(py::list g);
@@ -104,5 +161,48 @@ private:
 };
 typedef boost::shared_ptr<BulletEnvironment> BulletEnvironmentPtr;
 
+
+struct BULLETSIM_API CapsuleRopeParams {
+  float radius;
+  float angStiffness;
+  float angDamping;
+  float linDamping;
+  float angLimit;
+  float linStopErp;
+};
+
+class BULLETSIM_API CapsuleRope : public BulletObject {
+public:
+  CapsuleRope(BulletEnvironmentPtr env, const string& name, const vector<btVector3>& ctrlPoints, const CapsuleRopeParams& params);
+  CapsuleRope(BulletEnvironmentPtr env, const string& name, py::object ctrlPoints, const CapsuleRopeParams& params); // boost python wrapper
+
+  CapsuleRopeParams m_params;
+
+  virtual void UpdateRave();
+
+  std::vector<btVector3> GetNodes();
+  std::vector<btVector3> GetControlPoints();
+  vector<btMatrix3x3> GetRotations();
+  vector<float> GetHalfHeights();
+
+  py::object py_GetNodes();
+  py::object py_GetControlPoints();
+  py::object py_GetRotations();
+  py::object py_GetHalfHeights();
+
+  // not supported
+  virtual void UpdateBullet();
+  virtual void SetTransform(const btTransform&);
+  virtual void SetLinearVelocity(const btVector3&);
+  virtual void SetAngularVelocity(const btVector3&);
+  // end not supported
+
+private:
+  vector<RaveLinkObject::Ptr> m_children;
+  vector<btRigidBody*> m_children_rigidbodies;
+
+  void init(BulletEnvironmentPtr env, const string& name, const vector<btVector3>& ctrlPoints, const CapsuleRopeParams& params);
+};
+typedef boost::shared_ptr<CapsuleRope> CapsuleRopePtr;
 
 } // namespace bs

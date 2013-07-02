@@ -1,13 +1,20 @@
 #include "bulletsim_lite.h"
 #include "logging.h"
 
+#include "rope.h"
+
 namespace bs {
 
 static py::object openravepy, numpy;
+static SimulationParams g_simparams;
 
 void InitPython() {
   openravepy = py::import("openravepy");
   numpy = py::import("numpy");
+}
+
+SimulationParams& GetSimParams() {
+  return g_simparams;
 }
 
 vector<string> toStrVec(py::list py_str_list) {
@@ -59,6 +66,35 @@ py::object toNdarray(const btVector3 &v) {
 }
 
 template<typename T>
+py::object toNdarray(const vector<T> &v) {
+  return toNdarray1<T>(v.data(), v.size());
+}
+
+py::object toNdarray2(const vector<btVector3> &vs) {
+  py::object out = numpy.attr("empty")(py::make_tuple(vs.size(), 3), type_traits<btScalar>::npname);
+  btScalar* pout = getPointer<btScalar>(out);
+  for (int i = 0; i < vs.size(); ++i) {
+    for (int j = 0; j < 3; ++j) {
+      *(pout + 3*i + j) = vs[i].m_floats[j];
+    }
+  }
+  return out;
+}
+
+py::object toNdarray3(const vector<btMatrix3x3> &v) {
+  py::object out = numpy.attr("empty")(py::make_tuple(v.size(), 3, 3), type_traits<btScalar>::npname);
+  btScalar* pout = getPointer<btScalar>(out);
+  for (int i = 0; i < v.size(); ++i) {
+    for (int j = 0; j < 3; ++j) {
+      for (int k = 0; k < 3; ++k) {
+        *(pout + 9*i + 3*j + k) = v[i].getRow(j).m_floats[k];
+      }
+    }
+  }
+  return out;
+}
+
+template<typename T>
 py::object ensureFormat(py::object ndarray) {
   // ensure C-order and data type, possibly making a new ndarray
   return numpy.attr("ascontiguousarray")(ndarray, type_traits<T>::npname);
@@ -75,6 +111,27 @@ void fromNdarray2(py::object a, vector<T> &out, size_t &out_dim0, size_t &out_di
   out_dim1 = py::extract<size_t>(shape[1]);
   out.resize(out_dim0 * out_dim1);
   memcpy(out.data(), getPointer<T>(a), out_dim0*out_dim1*sizeof(T));
+}
+
+void fromNdarray2ToBtVecs(py::object a, vector<btVector3> &out) {
+  a = ensureFormat<btScalar>(a);
+  py::object shape = a.attr("shape");
+  if (py::len(shape) != 2) {
+    throw std::runtime_error((boost::format("expected 2-d array, got %d-d instead") % py::len(shape)).str());
+  }
+  size_t out_dim0 = py::extract<size_t>(shape[0]);
+  size_t out_dim1 = py::extract<size_t>(shape[1]);
+  if (out_dim1 != 3) {
+    throw std::runtime_error((boost::format("expected shape[1] == 3, got %d instead") % out_dim1).str());
+  }
+
+  btScalar* pin = getPointer<btScalar>(a);
+  out.resize(out_dim0);
+  for (int i = 0; i < out_dim0; ++i) {
+    for (int j = 0; j < 3; ++j) {
+      out[i].m_floats[j] = *(pin + 3*i + j);
+    }
+  }
 }
 
 template<typename KeyT, typename ValueT>
@@ -115,6 +172,65 @@ py::object GetPyLink(KinBody::LinkPtr link) {
 }
 
 
+// KinBodyObject::KinBodyObject(KinBodyPtr kinbody, BulletObject::Ptr bulletobj) : m_kinbody(kinbody), m_bulletobj(bulletobj) {
+//   if (m_kinbody->GetLinks().size() != 1) {
+//     throw std::runtime_error((boost::format("kinbody %s has %d links, but KinBodyObject only works with single-link kinbodies")
+//       % m_kinbody->GetName() % m_kinbody->GetLinks().size()).str());
+//   }
+// }
+// bool KinBodyObject::IsKinematic() { return m_bulletobj-> }
+// string KinBodyObject::GetName() { return m_kinbody->GetName(); }
+// KinBodyPtr KinBodyObject::GetKinBody() { return m_kinbody; }
+// py::object KinBodyObject::py_GetKinBody() { return GetPyKinBody(m_kinbody); }
+
+// btTransform KinBodyObject::GetTransform() {
+//   return m_obj->toRaveFrame(m_bulletobj->rigidBody->getCenterOfMassTransform());
+// }
+// py::object KinBodyObject::py_GetTransform() {
+//   btScalar mat[16];
+//   GetTransform().getOpenGLMatrix(mat);
+//   return toNdarray2(mat, 4, 4).attr("T");
+// }
+
+// void KinBodyObject::SetTransform(const btTransform& t) {
+//   //m_bulletobj->rigidBody->setCenterOfMassTransform(m_obj->toWorldFrame(t));
+//   m_bulletobj->motionState->setKinematicPos(m_obj->toWorldFrame(t));
+// }
+// void KinBodyObject::py_SetTransform(py::object py_hmat) {
+//   vector<btScalar> hmat; size_t dim0, dim1;
+//   fromNdarray2(py_hmat.attr("T"), hmat, dim0, dim1);
+//   if (dim0 != 4 || dim1 != 4) {
+//     throw std::runtime_error((boost::format("expected 4x4 matrix, got %dx%d") % dim0 % dim1).str());
+//   }
+//   btTransform t;
+//   t.setFromOpenGLMatrix(hmat.data());
+//   SetTransform(t);
+// }
+
+// void KinBodyObject::SetLinearVelocity(const btVector3& v) {
+//   m_bulletobj->rigidBody->setLinearVelocity(v);
+// }
+// void KinBodyObject::py_SetLinearVelocity(py::list v) {
+//   SetLinearVelocity(toBtVector3(v));
+// }
+
+// void KinBodyObject::SetAngularVelocity(const btVector3& w) {
+//   m_bulletobj->rigidBody->setAngularVelocity(w);
+// }
+// void KinBodyObject::py_SetAngularVelocity(py::list w) {
+//   SetAngularVelocity(toBtVector3(w));
+// }
+
+// void KinBodyObject::UpdateBullet() {
+//   m_bulletobj->motionState->setKinematicPos(util::toBtTransform(m_kinbody->GetTransform(),GeneralConfig::scale));
+// }
+
+// void KinBodyObject::UpdateRave() {
+//   m_kinbody->SetTransform(util::toRaveTransform(m_bulletobj->rigidBody->getCenterOfMassTransform(),1/METERS));
+// }
+
+
+
 bool BulletObject::IsKinematic() { return m_obj->getIsKinematic(); }
 string BulletObject::GetName() { return m_obj->body->GetName(); }
 KinBodyPtr BulletObject::GetKinBody() { return m_obj->body; }
@@ -145,14 +261,14 @@ void BulletObject::py_SetTransform(py::object py_hmat) {
 }
 
 void BulletObject::SetLinearVelocity(const btVector3& v) {
-  m_obj->children[0]->rigidBody->setLinearVelocity(v);
+  m_obj->children[0]->rigidBody->setLinearVelocity(v * METERS);
 }
 void BulletObject::py_SetLinearVelocity(py::list v) {
   SetLinearVelocity(toBtVector3(v));
 }
 
 void BulletObject::SetAngularVelocity(const btVector3& w) {
-  m_obj->children[0]->rigidBody->setAngularVelocity(w);
+  m_obj->children[0]->rigidBody->setAngularVelocity(w * METERS);
 }
 void BulletObject::py_SetAngularVelocity(py::list w) {
   SetAngularVelocity(toBtVector3(w));
@@ -188,14 +304,38 @@ CollisionPtr Collision::Flipped() const {
 }
 
 
+SimulationParams::SimulationParams()
+  : scale(10.),
+    gravity(btVector3(0, 0, -1)),
+    dt(.01),
+    maxSubSteps(200),
+    internalTimeStep(1./200.),
+    friction(.5),
+    restitution(0),
+    margin(.0005),
+    linkPadding(0)
+{ }
+
+void SimulationParams::Apply() {
+  GeneralConfig::scale = scale;
+  BulletConfig::gravity = gravity;
+  BulletConfig::dt = dt;
+  BulletConfig::maxSubSteps = maxSubSteps;
+  BulletConfig::internalTimeStep = internalTimeStep;
+  BulletConfig::friction = friction;
+  BulletConfig::restitution = restitution;
+  BulletConfig::margin = margin;
+  BulletConfig::linkPadding = linkPadding;
+}
 
 void BulletEnvironment::init(EnvironmentBasePtr rave_env, const vector<string>& dynamic_obj_names) {
+  GetSimParams().Apply();
   BulletInstance::Ptr bullet(new BulletInstance);
   m_env.reset(new Environment(bullet));
   m_rave.reset(new RaveInstance(rave_env));
   m_dynamic_obj_names = dynamic_obj_names;
   LoadFromRaveExplicit(m_env, m_rave, dynamic_obj_names);
-  m_env->bullet->setGravity(btVector3(0, 0, -9.8));
+  SetGravity(GetSimParams().gravity);
 }
 
 BulletEnvironment::BulletEnvironment(EnvironmentBasePtr rave_env, const vector<string>& dynamic_obj_names) {
@@ -252,6 +392,14 @@ py::object BulletEnvironment::py_GetRaveEnv() {
   return GetPyEnv(m_rave->env);
 }
 
+Environment::Ptr BulletEnvironment::GetBulletEnv() {
+  return m_env;
+}
+
+RaveInstance::Ptr BulletEnvironment::GetRaveInstance() {
+  return m_rave;
+}
+
 void BulletEnvironment::SetGravity(const btVector3& g) {
   m_env->bullet->setGravity(g);
 }
@@ -288,8 +436,8 @@ vector<CollisionPtr> BulletEnvironment::DetectAllCollisions() {
       KinBody::LinkPtr linkA = findOrFail(m_rave->bulletsim2rave_links, objA);
       KinBody::LinkPtr linkB = findOrFail(m_rave->bulletsim2rave_links, objB);
       collisions.push_back(CollisionPtr(new Collision(
-        linkA, linkB, pt.getPositionWorldOnA(), pt.getPositionWorldOnB(),
-        pt.m_normalWorldOnB, pt.m_distance1, 1./numContacts)));
+        linkA, linkB, pt.getPositionWorldOnA()/METERS, pt.getPositionWorldOnB()/METERS,
+        pt.m_normalWorldOnB/METERS, pt.m_distance1/METERS, 1./numContacts)));
       LOG_DEBUG_FMT("%s/%s - %s/%s collided", linkA->GetParent()->GetName().c_str(), linkA->GetName().c_str(), linkB->GetParent()->GetName().c_str(), linkB->GetName().c_str());
     }
     // caching helps performance, but for optimization the cost should not be history-dependent
@@ -312,8 +460,8 @@ vector<CollisionPtr> BulletEnvironment::ContactTest(BulletObjectPtr obj) {
       KinBody::LinkPtr linkA = findOrFail(m_rave->bulletsim2rave_links, objA);
       KinBody::LinkPtr linkB = findOrFail(m_rave->bulletsim2rave_links, objB);
       m_out.push_back(CollisionPtr(new Collision(
-        linkA, linkB, pt.getPositionWorldOnA(), pt.getPositionWorldOnB(),
-        pt.m_normalWorldOnB, pt.m_distance1, 1.)));
+        linkA, linkB, pt.getPositionWorldOnA()/METERS, pt.getPositionWorldOnB()/METERS,
+        pt.m_normalWorldOnB/METERS, pt.m_distance1/METERS, 1.)));
       return 0;
     }
   } cb(out, m_rave);
@@ -340,5 +488,110 @@ void BulletEnvironment::SetContactDistance(double dist) {
   dispatcher->setDispatcherFlags(dispatcher->getDispatcherFlags() & ~btCollisionDispatcher::CD_USE_RELATIVE_CONTACT_BREAKING_THRESHOLD);
 }
 
+
+
+static string makeRaveCylsXML(string name, btScalar radius, const vector<btScalar> &lengths) {
+  stringstream xml;
+  xml << "<Environment><KinBody name=\"" << name << "\">";
+  for (int i = 0; i < lengths.size(); ++i) {
+    btScalar len = lengths[i];
+    xml << "<Body name=\"" << (boost::format("%s_%d") % name % i) << "\" type=\"static\"><Geom type=\"cylinder\">";
+    xml << "<radius>" << radius << "</radius>";
+    xml << "<height>" << len << "</height>";
+    xml << "<RotationAxis>0 0 1 90</RotationAxis>";
+    xml << "</Geom></Body>";
+  }
+  xml << "</KinBody></Environment>";
+  return xml.str();
+}
+
+static vector<btRigidBody*> extractRigidBodies(const vector<RaveLinkObject::Ptr> &children) {
+  vector<btRigidBody*> out(children.size());
+  for (int i = 0; i < children.size(); ++i) {
+    out[i] = children[i]->rigidBody.get();
+  }
+  return out;
+}
+
+
+CapsuleRope::CapsuleRope(BulletEnvironmentPtr env, const string& name, const vector<btVector3>& ctrlPoints, const CapsuleRopeParams& params) {
+  init(env, name, ctrlPoints, params);
+}
+
+CapsuleRope::CapsuleRope(BulletEnvironmentPtr env, const string& name, py::object ctrlPoints, const CapsuleRopeParams& params) {
+  vector<btVector3> v;
+  fromNdarray2ToBtVecs(numpy.attr("asarray")(ctrlPoints), v);
+  init(env, name, v, params);
+}
+
+void CapsuleRope::init(BulletEnvironmentPtr env, const string& name, const vector<btVector3>& ctrlPoints, const CapsuleRopeParams& params) {
+  m_params = params;
+  int nLinks = ctrlPoints.size()-1;
+  vector<btTransform> transforms;
+  vector<btScalar> lengths;
+  CapsuleRope_createRopeTransforms(transforms,lengths,ctrlPoints);
+
+  // cout << "got control points:\n";
+  // for (int i = 0; i < ctrlPoints.size(); ++i) {
+  //   cout << '\t' << ctrlPoints[i].x() << ' ' << ctrlPoints[i].y() << ' ' << ctrlPoints[i].z() << endl;
+  // }
+
+  env->GetRaveEnv()->LoadData(makeRaveCylsXML(name, m_params.radius, lengths));
+  OpenRAVE::KinBodyPtr kinbody = env->GetRaveEnv()->GetKinBody(name);
+
+  std::vector<BulletConstraint::Ptr> bulletJoints;
+  for (int i=0; i < nLinks; i++) {
+    btTransform trans = transforms[i]; trans.setOrigin(trans.getOrigin()*METERS);
+    btScalar len = lengths[i] * METERS;
+    float mass = 1.;
+
+    CapsuleObject::Ptr tmp(new CapsuleObject(mass,m_params.radius*METERS,len,trans)); // only used for collision shape
+    RaveLinkObject::Ptr link(new RaveLinkObject(env->GetRaveInstance(), kinbody->GetLinks()[i], mass, tmp->collisionShape, trans, false));
+    link->rigidBody->setDamping(m_params.linDamping, m_params.angDamping);
+    link->rigidBody->setFriction(1);
+    //link->collisionShape->setMargin(0.04);
+    m_children.push_back(link);
+
+    kinbody->GetLinks()[i]->SetTransform(util::toRaveTransform(trans));
+
+    if (i>0) {
+      boost::shared_ptr<btPoint2PointConstraint> jointPtr(new btPoint2PointConstraint(*m_children[i-1]->rigidBody,*m_children[i]->rigidBody,btVector3(len/2,0,0),btVector3(-len/2,0,0)));
+      jointPtr->setParam(BT_CONSTRAINT_STOP_ERP, m_params.linStopErp);
+      bulletJoints.push_back(BulletConstraint::Ptr(new BulletConstraint(jointPtr, true)));
+
+      boost::shared_ptr<btGeneric6DofSpringConstraint> springPtr = CapsuleRope_createBendConstraint(len,m_children[i-1]->rigidBody,m_children[i]->rigidBody,m_params.angDamping,m_params.angStiffness,m_params.angLimit);
+      bulletJoints.push_back(BulletConstraint::Ptr(new BulletConstraint(springPtr, true)));
+    }
+  }
+
+  m_obj.reset(new RaveObject(env->GetRaveInstance(), kinbody, m_children, bulletJoints, false));
+  env->GetBulletEnv()->add(m_obj);
+
+  m_children_rigidbodies = extractRigidBodies(m_children);
+}
+
+void CapsuleRope::UpdateRave() {
+  const std::vector<KinBody::LinkPtr> &links = m_obj->body->GetLinks();
+  assert(links.size() == m_children.size());
+  for (int i = 0; i < m_children.size(); ++i) {
+    links[i]->SetTransform(util::toRaveTransform(m_children[i]->rigidBody->getCenterOfMassTransform(), 1./METERS));
+  }
+}
+
+void CapsuleRope::UpdateBullet() { throw std::runtime_error("CapsuleRope::UpdateBullet not supported"); }
+void CapsuleRope::SetTransform(const btTransform&) { throw std::runtime_error("CapsuleRope::SetTransform not supported"); }
+void CapsuleRope::SetLinearVelocity(const btVector3&){ throw std::runtime_error("CapsuleRope::SetLinearVelocity not supported"); }
+void CapsuleRope::SetAngularVelocity(const btVector3&){ throw std::runtime_error("CapsuleRope::SetAngularVelocity not supported"); }
+
+std::vector<btVector3> CapsuleRope::GetNodes() { return CapsuleRope_getNodes(m_children_rigidbodies); }
+std::vector<btVector3> CapsuleRope::GetControlPoints() { return CapsuleRope_getControlPoints(m_children_rigidbodies); }
+vector<btMatrix3x3> CapsuleRope::GetRotations() { return CapsuleRope_getRotations(m_children_rigidbodies); }
+vector<float> CapsuleRope::GetHalfHeights() { return CapsuleRope_getHalfHeights(m_children_rigidbodies); }
+
+
+py::object CapsuleRope::py_GetNodes() { return toNdarray2(GetNodes()); }
+py::object CapsuleRope::py_GetControlPoints() { return toNdarray2(GetControlPoints()); }
+py::object CapsuleRope::py_GetRotations() { return toNdarray3(GetRotations()); }
+py::object CapsuleRope::py_GetHalfHeights() { return toNdarray(GetHalfHeights()); }
 
 } // namespace bs

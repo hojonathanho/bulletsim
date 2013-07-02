@@ -17,7 +17,7 @@ add_library(simulation
     util.cpp
 #    softbodies.cpp
 #    softBodyHelpers.cpp
-#    rope.cpp
+    rope.cpp
     config_bullet.cpp
     bullet_io.cpp
 #    tetgen_helpers.cpp

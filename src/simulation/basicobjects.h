@@ -21,7 +21,7 @@ public:
         }
 
         void setKinematicPos(const btTransform &pos) {
-						if (!obj.isKinematic) cout << "warning! called setKinematicPos on non-kinematic object." << endl;;
+						//if (!obj.isKinematic) cout << "warning! called setKinematicPos on non-kinematic object." << endl;;
             btDefaultMotionState::setWorldTransform(pos);
             // if we want to do collision detection in between timesteps,
             // we also have to directly set this

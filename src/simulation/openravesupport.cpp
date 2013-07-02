@@ -90,27 +90,47 @@ void LoadFromRave(Environment::Ptr env, RaveInstance::Ptr rave) {
 
 }
 
+void GetLoadedBodies(Environment::Ptr env, std::set<string> &bodiesAlreadyLoaded) {
+  BOOST_FOREACH(EnvironmentObject::Ptr obj, env->objects) {
+    RaveObject* robj = dynamic_cast<RaveObject*>(obj.get());
+    if (robj) {
+      bodiesAlreadyLoaded.insert(robj->body->GetName());
+      LOG_WARN("body already loaded: " << robj->body->GetName());
+    }
+  }
+}
+
+void LoadFromRaveSingle(Environment::Ptr env, RaveInstance::Ptr rave, OpenRAVE::KinBodyPtr body, bool isKinematic, bool checkLoaded) {
+  std::set<string> bodiesAlreadyLoaded;
+  if (checkLoaded) {
+    GetLoadedBodies(env, bodiesAlreadyLoaded);
+    if (bodiesAlreadyLoaded.find(body->GetName()) != bodiesAlreadyLoaded.end()) {
+      LOG_WARN("body " << body->GetName() << " already loaded; not loading");
+      return;
+    }
+  }
+
+  if (body->IsRobot()) {
+    LOG_INFO("loading robot " << body->GetName());
+    env->add(RaveRobotObject::Ptr(new RaveRobotObject(
+      rave, boost::dynamic_pointer_cast<RobotBase>(body), CONVEX_HULL, isKinematic)));
+  } else {
+    LOG_INFO("loading " << body->GetName());
+    env->add(RaveObject::Ptr(new RaveObject(rave, body, CONVEX_HULL, isKinematic)));
+  }
+}
+
 // explicit kinematic policy
 void LoadFromRaveExplicit(Environment::Ptr env, RaveInstance::Ptr rave, const vector<string> &dynamicNames) {
   std::set<string> bodiesAlreadyLoaded;
   BOOST_FOREACH(EnvironmentObject::Ptr obj, env->objects) {
-    RaveObject* robj = dynamic_cast<RaveObject*>(obj.get());
-    if (robj) bodiesAlreadyLoaded.insert(robj->body->GetName());
+    GetLoadedBodies(env, bodiesAlreadyLoaded);
   }
   std::vector<boost::shared_ptr<OpenRAVE::KinBody> > bodies;
   rave->env->GetBodies(bodies);
   BOOST_FOREACH(OpenRAVE::KinBodyPtr body, bodies) {
-    if (bodiesAlreadyLoaded.find(body->GetName()) == bodiesAlreadyLoaded.end()) {
-      bool isKinematic = std::find(dynamicNames.begin(), dynamicNames.end(), body->GetName()) == dynamicNames.end();
-      if (body->IsRobot()) {
-        LOG_INFO("loading robot " << body->GetName());
-        env->add(RaveRobotObject::Ptr(new RaveRobotObject(
-				  rave, boost::dynamic_pointer_cast<RobotBase>(body), CONVEX_HULL, isKinematic)));
-      } else {
-        LOG_INFO("loading " << body->GetName());
-        env->add(RaveObject::Ptr(new RaveObject(rave, body, CONVEX_HULL, isKinematic)));
-      }
-    }
+    bool isKinematic = std::find(dynamicNames.begin(), dynamicNames.end(), body->GetName()) == dynamicNames.end();
+    LoadFromRaveSingle(env, rave, body, isKinematic, false);
   }
 }
 
@@ -152,12 +172,18 @@ RaveObject::RaveObject(RaveInstance::Ptr rave_, KinBodyPtr body_, TrimeshMode tr
 	initRaveObject(rave_, body_, trimeshMode, isKinematic_);
 }
 
+
+RaveObject::RaveObject(RaveInstance::Ptr rave_, KinBodyPtr body_,
+    const vector<RaveLinkObject::Ptr> &bulletLinks, const vector<BulletConstraint::Ptr> &constraints_,
+    bool isKinematic_) {
+  initRaveObject(rave_, body_, bulletLinks, constraints_, isKinematic_);
+}
+
 void RaveObject::init() {
   CompoundRaveLinkObject::init();
 
-	typedef std::map<KinBody::JointPtr, BulletConstraint::Ptr> map_t;
-	BOOST_FOREACH( map_t::value_type &joint_cnt, jointMap ) { 	
-	  getEnvironment()->addConstraint(joint_cnt.second);
+  BOOST_FOREACH(BulletConstraint::Ptr &cnt, constraints) {
+    getEnvironment()->addConstraint(cnt);
   }
 }
 
@@ -166,11 +192,10 @@ void RaveObject::destroy() {
 
   rave->rave2bulletsim.erase(body);
   rave->bulletsim2rave.erase(this);
-
-	typedef std::map<KinBody::JointPtr, BulletConstraint::Ptr> map_t;
-	map_t mmap;
-	BOOST_FOREACH( map_t::value_type &joint_cnt, mmap ) getEnvironment()->removeConstraint(joint_cnt.second);
-
+	
+  BOOST_FOREACH(BulletConstraint::Ptr &cnt, constraints) {
+    getEnvironment()->removeConstraint(cnt);
+  }
 }
 
 
@@ -187,12 +212,12 @@ static RaveLinkObject::Ptr createFromLink(RaveInstance::Ptr rave, KinBody::LinkP
 #else
   const std::list<KinBody::Link::GEOMPROPERTIES> &geometries =link->GetGeometries();
 #endif
-	// sometimes the OpenRAVE link might not even have any geometry data associated with it
-	// (this is the case with the PR2 model). therefore just add an empty BulletObject
-	// pointer so we know to skip it in the future
-	if (geometries.empty()) {
-		return RaveLinkObject::Ptr();
-	}
+  // sometimes the OpenRAVE link might not even have any geometry data associated with it
+  // (this is the case with the PR2 model). therefore just add an empty BulletObject
+  // pointer so we know to skip it in the future
+  if (geometries.empty()) {
+  	return RaveLinkObject::Ptr();
+  }
 
 //	bool useCompound = geometries.size() > 1;
 	bool useCompound = true;
@@ -371,45 +396,61 @@ BulletConstraint::Ptr createFromJoint(KinBody::JointPtr joint, std::map<KinBody:
 }
 
 void RaveObject::initRaveObject(RaveInstance::Ptr rave_, KinBodyPtr body_,
-		TrimeshMode trimeshMode, bool isKinematic_) {
-	rave = rave_;
-	body = body_;
-	rave->rave2bulletsim[body] = this;
+    const vector<RaveLinkObject::Ptr> &bulletLinks, const vector<BulletConstraint::Ptr> &constraints_, bool isKinematic_) {
+
+  assert(bulletLinks.size() == body_->GetLinks().size());
+  assert(!isKinematic_ || constraints_.size() == 0);
+
+  rave = rave_;
+  body = body_;
+  rave->rave2bulletsim[body] = this;
   rave->bulletsim2rave[this] = body;
+  isKinematic = isKinematic_;
+  constraints = constraints_;
 
-	const std::vector<KinBody::LinkPtr> &links = body->GetLinks();
+  const std::vector<KinBody::LinkPtr> &links = body->GetLinks();
+  getChildren().reserve(links.size());
+  // iterate through each link in the robot (to be stored in the children vector)
+  for (int i = 0; i < links.size(); ++i) {
+    KinBody::LinkPtr link = links[i];
+    RaveLinkObject::Ptr child = bulletLinks[i];
 
-	isKinematic = isKinematic_;
+    if (child) getChildren().push_back(child);
 
-	getChildren().reserve(links.size());
-	// iterate through each link in the robot (to be stored in the children vector)
-	BOOST_FOREACH(KinBody::LinkPtr link, links) {
-		RaveLinkObject::Ptr child = createFromLink(rave, link, subshapes, meshes, trimeshMode, isKinematic);
-		if (child) getChildren().push_back(child);
+    linkMap[link] = child;
+    childPosMap[child] = getChildren().size() - 1;
+    if (child) {
+      collisionObjMap[child->rigidBody.get()] = link;
+      // since the joints are always in contact, we should ignore their collisions
+      // when setting joint positions (OpenRAVE should take care of them anyway)
+      ignoreCollisionWith(child->rigidBody.get());
+    }
+  }
+}
 
-		linkMap[link] = child;
-		childPosMap[child] = getChildren().size() - 1;
-		if (child) {
-			collisionObjMap[child->rigidBody.get()] = link;
-		// since the joints are always in contact, we should ignore their collisions
-		// when setting joint positions (OpenRAVE should take care of them anyway)
-			ignoreCollisionWith(child->rigidBody.get());
-		}
-	}
+void RaveObject::initRaveObject(RaveInstance::Ptr rave_, KinBodyPtr body_,
+		TrimeshMode trimeshMode, bool isKinematic_) {
+  vector<RaveLinkObject::Ptr> bulletLinks;
+  BOOST_FOREACH(KinBody::LinkPtr link, body_->GetLinks()) {
+    bulletLinks.push_back(createFromLink(rave_, link, subshapes, meshes, trimeshMode, isKinematic_));
+  }
 
-	if (!isKinematic) {
-		vector<KinBody::JointPtr> vbodyjoints; vbodyjoints.reserve(body->GetJoints().size()+body->GetPassiveJoints().size());
-		vbodyjoints.insert(vbodyjoints.end(),body->GetJoints().begin(),body->GetJoints().end());
-		vbodyjoints.insert(vbodyjoints.end(),body->GetPassiveJoints().begin(),body->GetPassiveJoints().end());
-		BOOST_FOREACH(KinBody::JointPtr joint, vbodyjoints) {
-			BulletConstraint::Ptr constraint = createFromJoint(joint, linkMap);
-			if (constraint) {
-				// todo: put this in init:
-				// getEnvironment()->bullet->dynamicsWorld->addConstraint(constraint->cnt, bIgnoreCollision);
-				jointMap[joint] = constraint;
-			}
-		}
-	}
+  vector<BulletConstraint::Ptr> constraints_;
+  if (!isKinematic_) {
+    vector<KinBody::JointPtr> vbodyjoints; vbodyjoints.reserve(body_->GetJoints().size()+body_->GetPassiveJoints().size());
+    vbodyjoints.insert(vbodyjoints.end(),body_->GetJoints().begin(),body_->GetJoints().end());
+    vbodyjoints.insert(vbodyjoints.end(),body_->GetPassiveJoints().begin(),body_->GetPassiveJoints().end());
+    BOOST_FOREACH(KinBody::JointPtr joint, vbodyjoints) {
+      BulletConstraint::Ptr constraint = createFromJoint(joint, linkMap);
+      if (constraint) {
+        // todo: put this in init:
+        // getEnvironment()->bullet->dynamicsWorld->addConstraint(constraint->cnt, bIgnoreCollision);
+        constraints_.push_back(constraint);
+      }
+    }
+  }
+
+  initRaveObject(rave_, body_, bulletLinks, constraints_, isKinematic_);
 }
 
 bool RaveObject::detectCollisions() {

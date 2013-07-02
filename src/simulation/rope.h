@@ -4,12 +4,22 @@
 #include "btBulletDynamicsCommon.h"
 #include <vector>
 
+
+boost::shared_ptr<btGeneric6DofSpringConstraint> CapsuleRope_createBendConstraint(btScalar len, const boost::shared_ptr<btRigidBody> rbA, const boost::shared_ptr<btRigidBody>& rbB, float damping, float stiffness, float limit);
+btMatrix3x3 CapsuleRope_makePerpBasis(const btVector3& a0);
+void CapsuleRope_createRopeTransforms(vector<btTransform>& transforms, vector<btScalar>& lengths, const vector<btVector3>& ctrlPoints);
+vector<btVector3> CapsuleRope_getNodes(const vector<btRigidBody*> &capsules);
+vector<btVector3> CapsuleRope_getControlPoints(const vector<btRigidBody*> &capsules);
+vector<btMatrix3x3> CapsuleRope_getRotations(const vector<btRigidBody*> &capsules);
+vector<float> CapsuleRope_getHalfHeights(const vector<btRigidBody*> &capsules);
+
 class CapsuleRope : public CompoundObject<BulletObject> {
 private:
   float angStiffness;
   float angDamping;
   float linDamping;
   float angLimit;
+  std::vector<btRigidBody*> children_rigidBodies;
 public:
   typedef boost::shared_ptr<CapsuleRope> Ptr;
   std::vector<boost::shared_ptr<btCollisionShape> > shapes;
@@ -25,5 +35,4 @@ public:
   std::vector<btVector3> getControlPoints();
   vector<btMatrix3x3> getRotations();
   vector<float> getHalfHeights();
-	void setTexture(cv::Mat image, cv::Mat mask, const btTransform& camFromWorld);
 };

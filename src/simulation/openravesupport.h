@@ -49,8 +49,10 @@ public:
 };
 
 void LoadFromRave(Environment::Ptr env, RaveInstance::Ptr rave);
+void LoadFromRaveSingle(Environment::Ptr env, RaveInstance::Ptr rave, OpenRAVE::KinBodyPtr body, bool isKinematic, bool checkLoaded=true);
 void LoadFromRaveExplicit(Environment::Ptr env, RaveInstance::Ptr rave, const vector<string> &dynamicNames);
 void Load(Environment::Ptr env, RaveInstance::Ptr rave, const string& name);
+void GetLoadedBodies(Environment::Ptr env, std::set<string> &bodiesAlreadyLoaded);
 
 enum TrimeshMode {
   CONVEX_HULL, // use btShapeHull
@@ -65,6 +67,9 @@ public:
   RaveInstance::Ptr rave;
   KinBodyPtr body;
 
+  // constructor that takes pre-created bullet objects for the links and arbitrary constraints
+  RaveObject(RaveInstance::Ptr rave_, KinBodyPtr body_, const vector<RaveLinkObject::Ptr> &bulletLinks, const vector<BulletConstraint::Ptr> &constraints_, bool isKinematic_=true);
+  // constructor that creates bullet objects for the links
   RaveObject(RaveInstance::Ptr rave_, KinBodyPtr body, TrimeshMode trimeshMode = CONVEX_HULL, bool isKinematic=true);
   // This constructor assumes the robot is already in openrave. Use this if you're loading a bunch of stuff from an
   // xml file, and you want to put everything in bullet
@@ -116,7 +121,7 @@ protected:
 
   // for looking up the associated Bullet object for an OpenRAVE link
   std::map<KinBody::LinkPtr, RaveLinkObject::Ptr> linkMap;
-  std::map<KinBody::JointPtr, BulletConstraint::Ptr> jointMap;
+  std::vector<BulletConstraint::Ptr> constraints;
   std::map<btCollisionObject *, KinBody::LinkPtr> collisionObjMap;
 
   // maps a child to a position in the children array. used for copying
@@ -128,13 +133,14 @@ protected:
   // vector of objects to ignore collision with
   BulletInstance::CollisionObjectSet ignoreCollisionObjs;
 
+  // initializes the children vector with pre-created BulletObjects (bulletLinks.size() == body_->GetLinks().size()) and arbitrary constraints
+  void initRaveObject(RaveInstance::Ptr rave_, KinBodyPtr body_, const vector<RaveLinkObject::Ptr> &bulletLinks, const vector<BulletConstraint::Ptr> &constraints_, bool isKinematic_);
   // for the loaded robot, this will create BulletObjects
   // and place them into the children vector
   void initRaveObject(RaveInstance::Ptr rave_, KinBodyPtr body_, TrimeshMode trimeshMode, bool isKinematic);
   RaveObject() {} // for manual copying
   void internalCopy(RaveObject::Ptr o, Fork &f) const;
   bool isKinematic;
-
 };
 
 class RaveRobotObject : public RaveObject {

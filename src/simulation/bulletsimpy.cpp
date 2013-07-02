@@ -38,6 +38,18 @@ BOOST_PYTHON_MODULE(cbulletsimpy) {
   py::class_<vector<bs::CollisionPtr> >("vector_Collision")
     .def(py::vector_indexing_suite<vector<bs::CollisionPtr>, true>());
 
+  py::class_<bs::SimulationParams>("SimulationParams")
+    .def_readwrite("scale", &bs::SimulationParams::scale)
+    .def_readwrite("gravity", &bs::SimulationParams::gravity)
+    .def_readwrite("dt", &bs::SimulationParams::dt)
+    .def_readwrite("maxSubSteps", &bs::SimulationParams::maxSubSteps)
+    .def_readwrite("internalTimeStep", &bs::SimulationParams::internalTimeStep)
+    .def_readwrite("friction", &bs::SimulationParams::friction)
+    .def_readwrite("restitution", &bs::SimulationParams::restitution)
+    .def_readwrite("margin", &bs::SimulationParams::margin)
+    .def_readwrite("linkPadding", &bs::SimulationParams::linkPadding)
+    ;
+
   py::class_<bs::BulletEnvironment, bs::BulletEnvironmentPtr>("BulletEnvironment", py::init<py::object, py::list>())
     .def("GetObjectByName", &bs::BulletEnvironment::GetObjectByName, "get a BulletObject, given the OpenRAVE object name")
     .def("GetObjectFromKinBody", &bs::BulletEnvironment::py_GetObjectFromKinBody, "")
@@ -51,4 +63,22 @@ BOOST_PYTHON_MODULE(cbulletsimpy) {
     .def("ContactTest", &bs::BulletEnvironment::ContactTest)
     .def("SetContactDistance", &bs::BulletEnvironment::SetContactDistance)
     ;
+
+  py::class_<bs::CapsuleRopeParams>("CapsuleRopeParams")
+    .def_readwrite("radius", &bs::CapsuleRopeParams::radius)
+    .def_readwrite("angStiffness", &bs::CapsuleRopeParams::angStiffness)
+    .def_readwrite("angDamping", &bs::CapsuleRopeParams::angDamping)
+    .def_readwrite("linDamping", &bs::CapsuleRopeParams::linDamping)
+    .def_readwrite("angLimit", &bs::CapsuleRopeParams::angLimit)
+    .def_readwrite("linStopErp", &bs::CapsuleRopeParams::linStopErp)
+    ;
+
+  py::class_<bs::CapsuleRope, bs::CapsuleRopePtr, py::bases<bs::BulletObject> >("CapsuleRope", py::init<bs::BulletEnvironmentPtr, const string&, py::object, const bs::CapsuleRopeParams&>())
+    .def("GetNodes", &bs::CapsuleRope::py_GetNodes)
+    .def("GetControlPoints", &bs::CapsuleRope::py_GetControlPoints)
+    .def("GetRotations", &bs::CapsuleRope::py_GetRotations)
+    .def("GetHalfHeights", &bs::CapsuleRope::py_GetHalfHeights)
+    ;
+
+  py::scope().attr("sim_params") = bs::GetSimParams();
 }

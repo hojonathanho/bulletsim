@@ -53,7 +53,7 @@ for t in range(TIMESTEPS):
   bullet_env.Step(0.01, 100, 0.01)
 
   print "Collisions:"
-  collisions = bullet_env.DetectCollisions()
+  collisions = bullet_env.DetectAllCollisions()
   for c in collisions:
     print 'linkA:', c.linkA.GetParent().GetName(), c.linkA.GetName()
     print 'linkB:', c.linkB.GetParent().GetName(), c.linkB.GetName()
