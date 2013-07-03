@@ -17,6 +17,10 @@ SimulationParams& GetSimParams() {
   return g_simparams;
 }
 
+void TranslateStdException(const std::exception& e) {
+  PyErr_SetString(PyExc_RuntimeError, e.what());
+}
+
 vector<string> toStrVec(py::list py_str_list) {
   int n = py::len(py_str_list);
   vector<string> out;
@@ -26,9 +30,10 @@ vector<string> toStrVec(py::list py_str_list) {
   return out;
 }
 
-btVector3 toBtVector3(py::list v) {
-  assert(py::len(v) == 3);
-  return btVector3(py::extract<btScalar>(v[0]), py::extract<btScalar>(v[1]), py::extract<btScalar>(v[2]));
+string toStr(const btVector3 &v) {
+  stringstream ss;
+  ss << v.x() << ' ' << v.y() << ' ' << v.z();
+  return ss.str();
 }
 
 template<typename T>
@@ -113,6 +118,21 @@ void fromNdarray2(py::object a, vector<T> &out, size_t &out_dim0, size_t &out_di
   memcpy(out.data(), getPointer<T>(a), out_dim0*out_dim1*sizeof(T));
 }
 
+btVector3 fromNdarray1ToBtVec3(py::object a) {
+  a = ensureFormat<btScalar>(a);
+  py::object shape = a.attr("shape");
+  if (py::len(shape) != 1) {
+    throw std::runtime_error((boost::format("expected 1-d array, got %d-d instead") % py::len(shape)).str());
+  }
+  size_t out_dim0 = py::extract<size_t>(shape[0]);
+  if (out_dim0 != 3) {
+    throw std::runtime_error((boost::format("expected shape[0] == 3, got %d instead") % out_dim0).str());
+  }
+
+  btScalar* pin = getPointer<btScalar>(a);
+  return btVector3(*pin, *(pin + 1), *(pin + 2));
+}
+
 void fromNdarray2ToBtVecs(py::object a, vector<btVector3> &out) {
   a = ensureFormat<btScalar>(a);
   py::object shape = a.attr("shape");
@@ -132,6 +152,18 @@ void fromNdarray2ToBtVecs(py::object a, vector<btVector3> &out) {
       out[i].m_floats[j] = *(pin + 3*i + j);
     }
   }
+}
+
+btVector3 toBtVector3(py::object v) {
+  py::extract<py::list> get_list(v);
+  if (get_list.check()) {
+    py::list l = get_list();
+    if (py::len(l) != 3) {
+      throw std::runtime_error((boost::format("Expected list of length 3, got %d instead") % py::len(l)).str());
+    }
+    return btVector3(py::extract<btScalar>(l[0]), py::extract<btScalar>(l[1]), py::extract<btScalar>(l[2]));
+  }
+  return fromNdarray1ToBtVec3(v);
 }
 
 template<typename KeyT, typename ValueT>
@@ -170,65 +202,6 @@ py::object GetPyLink(KinBody::LinkPtr link) {
   py::object parent = GetPyKinBody(link->GetParent());
   return parent.attr("GetLinks")()[link->GetIndex()];
 }
-
-
-// KinBodyObject::KinBodyObject(KinBodyPtr kinbody, BulletObject::Ptr bulletobj) : m_kinbody(kinbody), m_bulletobj(bulletobj) {
-//   if (m_kinbody->GetLinks().size() != 1) {
-//     throw std::runtime_error((boost::format("kinbody %s has %d links, but KinBodyObject only works with single-link kinbodies")
-//       % m_kinbody->GetName() % m_kinbody->GetLinks().size()).str());
-//   }
-// }
-// bool KinBodyObject::IsKinematic() { return m_bulletobj-> }
-// string KinBodyObject::GetName() { return m_kinbody->GetName(); }
-// KinBodyPtr KinBodyObject::GetKinBody() { return m_kinbody; }
-// py::object KinBodyObject::py_GetKinBody() { return GetPyKinBody(m_kinbody); }
-
-// btTransform KinBodyObject::GetTransform() {
-//   return m_obj->toRaveFrame(m_bulletobj->rigidBody->getCenterOfMassTransform());
-// }
-// py::object KinBodyObject::py_GetTransform() {
-//   btScalar mat[16];
-//   GetTransform().getOpenGLMatrix(mat);
-//   return toNdarray2(mat, 4, 4).attr("T");
-// }
-
-// void KinBodyObject::SetTransform(const btTransform& t) {
-//   //m_bulletobj->rigidBody->setCenterOfMassTransform(m_obj->toWorldFrame(t));
-//   m_bulletobj->motionState->setKinematicPos(m_obj->toWorldFrame(t));
-// }
-// void KinBodyObject::py_SetTransform(py::object py_hmat) {
-//   vector<btScalar> hmat; size_t dim0, dim1;
-//   fromNdarray2(py_hmat.attr("T"), hmat, dim0, dim1);
-//   if (dim0 != 4 || dim1 != 4) {
-//     throw std::runtime_error((boost::format("expected 4x4 matrix, got %dx%d") % dim0 % dim1).str());
-//   }
-//   btTransform t;
-//   t.setFromOpenGLMatrix(hmat.data());
-//   SetTransform(t);
-// }
-
-// void KinBodyObject::SetLinearVelocity(const btVector3& v) {
-//   m_bulletobj->rigidBody->setLinearVelocity(v);
-// }
-// void KinBodyObject::py_SetLinearVelocity(py::list v) {
-//   SetLinearVelocity(toBtVector3(v));
-// }
-
-// void KinBodyObject::SetAngularVelocity(const btVector3& w) {
-//   m_bulletobj->rigidBody->setAngularVelocity(w);
-// }
-// void KinBodyObject::py_SetAngularVelocity(py::list w) {
-//   SetAngularVelocity(toBtVector3(w));
-// }
-
-// void KinBodyObject::UpdateBullet() {
-//   m_bulletobj->motionState->setKinematicPos(util::toBtTransform(m_kinbody->GetTransform(),GeneralConfig::scale));
-// }
-
-// void KinBodyObject::UpdateRave() {
-//   m_kinbody->SetTransform(util::toRaveTransform(m_bulletobj->rigidBody->getCenterOfMassTransform(),1/METERS));
-// }
-
 
 
 bool BulletObject::IsKinematic() { return m_obj->getIsKinematic(); }
@@ -489,6 +462,44 @@ void BulletEnvironment::SetContactDistance(double dist) {
 }
 
 
+BulletConstraint::Ptr BulletEnvironment::AddConstraint(BulletConstraint::Ptr cnt) {
+  m_env->addConstraint(cnt);
+  return cnt;
+}
+
+BulletConstraint::Ptr BulletEnvironment::py_AddConstraint(py::dict desc) {
+  string type = py::extract<string>(desc["type"]);
+  py::dict params = py::extract<py::dict>(desc["params"]);
+  bool disable_collision_between_linked_bodies = false;
+  if (params.has_key("disable_collision_between_linked_bodies")) {
+    disable_collision_between_linked_bodies = py::extract<bool>(params["disable_collision_between_linked_bodies"]);
+  }
+
+  btTypedConstraint *cnt;
+  if (type == "point2point") {
+    KinBody::LinkPtr linkA = GetCppLink(params["link_a"], m_rave->env);
+    KinBody::LinkPtr linkB = GetCppLink(params["link_b"], m_rave->env);
+    btVector3 pivotInA = toBtVector3(params["pivot_in_a"]) * METERS;
+    btVector3 pivotInB = toBtVector3(params["pivot_in_b"]) * METERS;
+    cout << "BS: pivotInA " << toStr(pivotInA) << " pivotInB " << toStr(pivotInB) << endl;
+    btRigidBody *rbA = findOrFail(m_rave->rave2bulletsim_links, linkA,
+      (boost::format("link %s/%s not in bullet env") % linkA->GetParent()->GetName() % linkA->GetName()).str());
+    btRigidBody *rbB = findOrFail(m_rave->rave2bulletsim_links, linkB,
+      (boost::format("link %s/%s not in bullet env") % linkB->GetParent()->GetName() % linkB->GetName()).str());
+    cnt = new btPoint2PointConstraint(*rbA, *rbB, pivotInA, pivotInB);
+  } else {
+    throw std::runtime_error((boost::format("constraint type %s not recognized") % type).str());
+  }
+
+  return AddConstraint(BulletConstraint::Ptr(new BulletConstraint(cnt, disable_collision_between_linked_bodies)));
+}
+
+void BulletEnvironment::RemoveConstraint(BulletConstraint::Ptr cnt) {
+  m_env->removeConstraint(cnt);
+}
+
+
+
 
 static string makeRaveCylsXML(string name, btScalar radius, const vector<btScalar> &lengths) {
   stringstream xml;
@@ -583,11 +594,31 @@ void CapsuleRope::SetTransform(const btTransform&) { throw std::runtime_error("C
 void CapsuleRope::SetLinearVelocity(const btVector3&){ throw std::runtime_error("CapsuleRope::SetLinearVelocity not supported"); }
 void CapsuleRope::SetAngularVelocity(const btVector3&){ throw std::runtime_error("CapsuleRope::SetAngularVelocity not supported"); }
 
-std::vector<btVector3> CapsuleRope::GetNodes() { return CapsuleRope_getNodes(m_children_rigidbodies); }
-std::vector<btVector3> CapsuleRope::GetControlPoints() { return CapsuleRope_getControlPoints(m_children_rigidbodies); }
-vector<btMatrix3x3> CapsuleRope::GetRotations() { return CapsuleRope_getRotations(m_children_rigidbodies); }
-vector<float> CapsuleRope::GetHalfHeights() { return CapsuleRope_getHalfHeights(m_children_rigidbodies); }
+template<typename T, typename S>
+static void scale(vector<T>& v, S w) {
+  BOOST_FOREACH(T& x, v) {
+    x *= w;
+  }
+}
 
+std::vector<btVector3> CapsuleRope::GetNodes() {
+  std::vector<btVector3> out = CapsuleRope_getNodes(m_children_rigidbodies);
+  scale(out, 1.0f/METERS);
+  return out;
+}
+std::vector<btVector3> CapsuleRope::GetControlPoints() {
+  std::vector<btVector3> out = CapsuleRope_getControlPoints(m_children_rigidbodies);
+  scale(out, 1.0f/METERS);
+  return out;
+}
+vector<btMatrix3x3> CapsuleRope::GetRotations() {
+  return CapsuleRope_getRotations(m_children_rigidbodies);
+}
+vector<float> CapsuleRope::GetHalfHeights() {
+  std::vector<float> out = CapsuleRope_getHalfHeights(m_children_rigidbodies);
+  scale(out, 1.0f/METERS);
+  return out;
+}
 
 py::object CapsuleRope::py_GetNodes() { return toNdarray2(GetNodes()); }
 py::object CapsuleRope::py_GetControlPoints() { return toNdarray2(GetControlPoints()); }

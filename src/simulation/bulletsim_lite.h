@@ -12,44 +12,11 @@ using namespace OpenRAVE;
 namespace py = boost::python;
 
 void InitPython();
-
 struct SimulationParams;
 SimulationParams& GetSimParams();
+void TranslateStdException(const std::exception& e);
 
 class BulletEnvironment;
-// class BULLETSIM_API KinBodyObject {
-// public:
-//   KinBodyObject(KinBodyPtr kinbody, BulletObject::Ptr bulletobj);
-//   virtual ~KinBodyObject() { }
-
-//   virtual bool IsKinematic();
-//   virtual string GetName();
-
-//   virtual KinBodyPtr GetKinBody();
-//   virtual py::object py_GetKinBody();
-
-//   virtual btTransform GetTransform();
-//   virtual py::object py_GetTransform();
-
-//   virtual void SetTransform(const btTransform& t);
-//   virtual void py_SetTransform(py::object py_hmat);
-
-//   virtual void SetLinearVelocity(const btVector3& v);
-//   virtual void py_SetLinearVelocity(py::list v);
-
-//   virtual void SetAngularVelocity(const btVector3& w);
-//   virtual void py_SetAngularVelocity(py::list w);
-
-//   virtual void UpdateBullet();
-//   virtual void UpdateRave();
-
-// protected:
-//   friend class BulletEnvironment;
-//   KinBodyPtr m_kinbody;
-//   BulletObject::Ptr m_bulletobj;
-// };
-// typedef boost::shared_ptr<KinBodyObject> KinBodyObjectPtr;
-
 class BULLETSIM_API BulletObject {
 public:
   virtual ~BulletObject() { }
@@ -152,6 +119,10 @@ public:
   vector<CollisionPtr> ContactTest(BulletObjectPtr obj);
 
   void SetContactDistance(double dist);
+
+  BulletConstraint::Ptr AddConstraint(BulletConstraint::Ptr cnt);
+  BulletConstraint::Ptr py_AddConstraint(py::dict desc);
+  void RemoveConstraint(BulletConstraint::Ptr cnt);
 
 private:
   Environment::Ptr m_env;

@@ -11,6 +11,8 @@ BOOST_PYTHON_MODULE(cbulletsimpy) {
 
   bs::InitPython();
 
+  py::register_exception_translator<std::exception>(&bs::TranslateStdException);
+
   py::class_<bs::BulletObject, bs::BulletObjectPtr>("BulletObject", py::no_init)
     .def("IsKinematic", &bs::BulletObject::IsKinematic)
     .def("GetName", &bs::BulletObject::GetName)
@@ -38,6 +40,8 @@ BOOST_PYTHON_MODULE(cbulletsimpy) {
   py::class_<vector<bs::CollisionPtr> >("vector_Collision")
     .def(py::vector_indexing_suite<vector<bs::CollisionPtr>, true>());
 
+  py::class_<BulletConstraint, BulletConstraint::Ptr, boost::noncopyable>("BulletConstraint", py::no_init);
+
   py::class_<bs::SimulationParams>("SimulationParams")
     .def_readwrite("scale", &bs::SimulationParams::scale)
     .def_readwrite("gravity", &bs::SimulationParams::gravity)
@@ -62,6 +66,8 @@ BOOST_PYTHON_MODULE(cbulletsimpy) {
     .def("DetectAllCollisions", &bs::BulletEnvironment::DetectAllCollisions)
     .def("ContactTest", &bs::BulletEnvironment::ContactTest)
     .def("SetContactDistance", &bs::BulletEnvironment::SetContactDistance)
+    .def("AddConstraint", &bs::BulletEnvironment::py_AddConstraint)
+    .def("RemoveConstraint", &bs::BulletEnvironment::RemoveConstraint)
     ;
 
   py::class_<bs::CapsuleRopeParams>("CapsuleRopeParams")
