@@ -4,11 +4,11 @@ build/*
 *.wpr
 *.wpu
 data/knots
-CMakeFiles
-*.cmake
 *.a
 bin/
 CMakeCache.txt
+*.cmake
+CMakeFiles
 data/bagfiles/
 data/clouds/
 data/depths/
