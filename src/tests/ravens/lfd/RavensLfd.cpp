@@ -12,7 +12,7 @@ bool gLinesAdded;
 
 RavensLfdRpm::RavensLfdRpm (Ravens & ravens_, const vector<btVector3> &src_pts,
 		const vector<btVector3> &target_pts) : ravens(ravens_), plot_lines_left(new PlotLines), plot_lines_right(new PlotLines),
-		lfdrpm(new RegistrationModule(target_pts, src_pts, 100, 0.1, 0.0001, 0.2, 0.001)){
+		lfdrpm(new RegistrationModule(target_pts, src_pts)){
 
 	gLinesAdded = !RavenConfig::plotTfm;
 
@@ -33,7 +33,7 @@ PlotPoints::Ptr gSrcPlotPoints(new PlotPoints()), gTargPlotPoints(new PlotPoints
 
 RavensLfdRpm::RavensLfdRpm (Ravens & ravens_, const vector<vector<btVector3> > &source_clouds,
 		const vector<vector<btVector3> > &target_clouds) : ravens(ravens_), plot_lines_left(new PlotLines), plot_lines_right(new PlotLines),
-		lfdrpm(new RegistrationModule(source_clouds, target_clouds, 100, 0.1, 0.0001, 0.9, 0.001)){
+		lfdrpm(new RegistrationModule(source_clouds, target_clouds)){
 
 	gLinesAdded = !RavenConfig::plotTfm;
 

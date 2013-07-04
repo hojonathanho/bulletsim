@@ -33,15 +33,6 @@ private:
 	vector<int> larm_indices;
 	vector<int> rarm_indices;
 
-
-//	/** Saves the source and target point clouds to a txt file.*/
-//	void saveToFile(const std::string fname, const vector<btVector3> &cloud, const std::string cloud_name) {
-//		py::object savez = PyGlobals::numpy_module.attr("savez");
-//		py::object pycloud = pointsToNumpy(cloud);
-//		savez(fname, pycloud);
-//	}
-
-
 	/** save the source and target clouds in a numpy file.*/
 	void save_clouds(const std::vector<std::vector<btVector3> > &src_clouds, const std::vector<std::vector<btVector3> > & target_clouds);
 

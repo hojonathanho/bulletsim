@@ -4,8 +4,11 @@
 
 /** Wraps around lfd rpm module. */
 RegistrationModule::RegistrationModule(vector<btVector3> src_pts, vector<btVector3> target_pts,
-		int n_iter, float reg_init, float reg_final,
+		int n_iter, float bend_init, float bend_final,
+		Eigen::Vector3f rot_init, Eigen::Vector3f rot_final,
+		float scale_init, float scale_final,
 		float rad_init, float rad_final) {
+
 
 	tps_rpm_func = PyGlobals::lfd_registration_module.attr("tps_rpm_regrot");
 
@@ -14,7 +17,10 @@ RegistrationModule::RegistrationModule(vector<btVector3> src_pts, vector<btVecto
 
 	try {
 		registration_module  = tps_rpm_func(py_src_pts, py_target_pts, n_iter,
-				reg_init, reg_final, rad_init, rad_final);
+                       				        bend_init, bend_final,
+                       				        py::make_tuple(rot_init.x(), rot_init.y(), rot_init.z()),
+                       				     	py::make_tuple(rot_final.x(), rot_final.y(), rot_final.z()),
+                       				     	scale_init, scale_final, rad_init, rad_final);
 	} catch (...) {
 		PyErr_Print();
 	}
@@ -23,7 +29,10 @@ RegistrationModule::RegistrationModule(vector<btVector3> src_pts, vector<btVecto
 /** Wraps around lfd rpm module. */
 RegistrationModule::RegistrationModule(vector <vector<btVector3> > src_clouds,
 		vector <vector<btVector3> > target_clouds,
-		int n_iter, float reg_init, float reg_final,
+		int n_iter,
+		float bend_init, float bend_final,
+		Eigen::Vector3f rot_init, Eigen::Vector3f rot_final,
+		float scale_init, float scale_final,
 		float rad_init, float rad_final) {
 
 	assert (("Different number of point-clouds.",src_clouds.size()==target_clouds.size()));
@@ -37,8 +46,15 @@ RegistrationModule::RegistrationModule(vector <vector<btVector3> > src_clouds,
 		py_target_clouds.append(py_target_cloud);
 	}
 	try {
-		registration_module  = tps_rpm_func(py_src_clouds, py_target_clouds, n_iter,
-				reg_init, reg_final, rad_init, rad_final);
+		py::object none_dict = py::dict();
+		registration_module  = tps_rpm_func(py_src_clouds, py_target_clouds,
+				n_iter,
+				100, 100, // powell's iteration.
+				bend_init, bend_final,
+				py::make_tuple(rot_init.x(), rot_init.y(), rot_init.z()),
+				py::make_tuple(rot_final.x(), rot_final.y(), rot_final.z()),
+				scale_init, scale_final,
+				rad_init, rad_final);
 	} catch (...) {
 		PyErr_Print();
 	}
@@ -84,35 +100,14 @@ btTransform RegistrationModule::transform_frame(btTransform &frame) {
 }
 
 vector<btTransform> RegistrationModule::transform_frames(const vector<btTransform> &frames) {
-
-	vector<btMatrix3x3> rots(frames.size());
-	for(int i=0; i<frames.size(); i+=1)
-		rots[i] = frames[i].getBasis();
-
-	vector<btVector3> trans(frames.size());
-	for(int i=0; i<trans.size(); i+=1)
-		trans[i] = frames[i].getOrigin();
-
-	py::object py_rots  = rotationsToNumpy(rots);
-	py::object py_trans = pointsToNumpy(trans);
-
-	py::object transformed_py_frames = registration_module.attr("transform_frames")(py_trans, py_rots);
-	py::object transformed_py_trans = transformed_py_frames[0];
-	py::object transformed_py_rots  = transformed_py_frames[1];
-
-	vector<btVector3> transformed_pts    = pointsFromNumpy(transformed_py_trans);
-	vector<btMatrix3x3> transformed_rots = rotationsFromNumpy(transformed_py_rots);
-
-	assert((transformed_pts.size()==transformed_rots.size(), "Number of rotations is not equal to number of translations!"));
-
-	vector<btTransform> out_frames(transformed_pts.size());
-	for (int i=0; i<transformed_pts.size(); i+=1) {
-		out_frames[i] = btTransform::getIdentity();
-		out_frames[i].setOrigin(transformed_pts[i]);
-		out_frames[i].setBasis(transformed_rots[i]);
+	py::object py_tfms  = transformsToNumpy(frames);
+	py::object transformed_py_frames;
+	try {
+		transformed_py_frames = registration_module.attr("transform_hmats")(py_tfms);
+	} catch (...) {
+		PyErr_Print();
 	}
-
-	return out_frames;
+	return transformsFromNumpy(transformed_py_frames);
 }
 
 

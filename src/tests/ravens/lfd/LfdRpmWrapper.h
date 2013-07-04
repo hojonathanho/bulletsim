@@ -28,9 +28,15 @@ public:
 	 *    n_iter            : number of iterations
 	 *    reg_init/reg_final: regularization on curvature; affineness vs. non-affineness
 	 *    rad_init/rad_final: radius for correspondence calculation (meters) */
-	RegistrationModule(vector<btVector3> src_pts, vector<btVector3> target_pts,
-			int n_iter = 50, float reg_init = .01, float reg_final = .0001,
-			float rad_init = .1, float rad_final = .0005);
+	RegistrationModule(vector <vector<btVector3> > src_clouds,
+			vector <vector<btVector3> > target_clouds,
+			int n_iter=100,
+			float bend_init=0.05, float bend_final=0.0001,
+			Eigen::Vector3f rot_init=Eigen::Vector3f(0.1,0.1, 0.025),
+			Eigen::Vector3f rot_final=Eigen::Vector3f(0.001, 0.001, 0.00025),
+			float scale_init=1, float scale_final=0.001,
+			float rad_init=0.5, float rad_final=0.0005);
+
 
 	/** tps-rpm algorithm mostly as described by chui and rangaran
 	 *  @params:
@@ -39,8 +45,11 @@ public:
 	 *    n_iter            : number of iterations
 	 *    reg_init/reg_final: regularization on curvature; affineness vs. non-affineness
 	 *    rad_init/rad_final: radius for correspondence calculation (meters) */
-	RegistrationModule(vector<vector<btVector3> > src_pts, vector<vector<btVector3> > target_pts,
-			int n_iter = 50, float reg_init = .01, float reg_final = .0001,
+	RegistrationModule(vector<btVector3> src_pts, vector<btVector3> target_pts,
+			int n_iter = 100, float bend_init = .005, float bend_final = .0001,
+			Eigen::Vector3f rot_init=Eigen::Vector3f(0.1,0.1, 0.025),
+			Eigen::Vector3f rot_final=Eigen::Vector3f(0.001, 0.001, 0.00025),
+			float scale_init=1, float scale_final=0.001,
 			float rad_init = .1, float rad_final = .0005);
 
 	/** Transform a btVector using tps.

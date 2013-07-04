@@ -9,6 +9,7 @@ py::object PyGlobals::openrave_module;
 py::object PyGlobals::resampling_module;
 py::object PyGlobals::math_module;
 py::object PyGlobals::iros_utils_module;
+py::object PyGlobals::None;
 
 void setup_python() {
 	Py_Initialize();
@@ -26,8 +27,8 @@ void setup_python() {
 	PyGlobals::openrave_module   = py::import("openravepy");
 	PyGlobals::math_module       = py::import("jds_utils.math_utils");
 	PyGlobals::iros_utils_module = py::import("iros.iros_utils");
+	PyGlobals::None              = py::api::object();
 }
-
 
 /** Converts a vector of btVector3 (list of 3d points) to a 2D numpy array.*/
 py::object pointsToNumpy(const vector<btVector3>& pts) {
@@ -158,6 +159,36 @@ py::object transformsToNumpy(const vector<btTransform>& trans) {
 	return out;
 }
 
+/** Reverse of rotationsToNumpy. Converts a 3D numpy array into a vector of btMatrix3x3.
+ *  Assumes that there the dimensions are nx3x3. */
+vector<btTransform> transformsFromNumpy(const py::object &py_tfms) {
+	int n = ii(py_tfms.attr("__len__")());
+	vector<btTransform> out_frames(n);
+
+	for (int i=0; i < n; i++) {
+		py::object py_tfm = py_tfms[i];
+
+		// fill in rotation:
+		btMatrix3x3 tmp_rot;
+		for (int j=0; j < 3; j+= 1) {
+			for (int k=0; k <3; k+=1) {
+				tmp_rot[j][k] = ff(py_tfm[j][k]);
+			}
+		}
+
+		// fill in translation:
+		btVector3 tmp_trans;
+		for(int j=0; j < 3; j+=1) {
+			tmp_trans[j] = ff(py_tfm[j][3]);
+		}
+		out_frames[i].setIdentity();
+		out_frames[i].setBasis(tmp_rot);
+		out_frames[i].setOrigin(tmp_trans);
+	}
+	return out_frames;
+}
+
+
 
 /** Converts a vector of vectors of doubles into a numpy array. */
 py::object jointsToNumpy( const vector< vector<dReal> > &joints) {
@@ -245,7 +276,7 @@ pair< vector<float>, vector< vector <double> > >
 	py::object times_samples;
 
 	try {
-		times_samples = PyGlobals::resampling_module.attr("adaptive_resample")(py_signal, tol, max_change, min_steps);
+		times_samples = PyGlobals::iros_utils_module.attr("adaptive_resample")(py_signal, tol, max_change, min_steps);
 	} catch(...) {
 		PyErr_Print();
 	}

@@ -38,6 +38,7 @@ int main(int argc, char *argv[]) {
 
 	parser.read(argc, argv);
 
-	CustomScene(SUTURING).run();
+	// options are: {SUTURING, ROPE_MANIP}
+	CustomScene(ROPE_MANIP).run();
 	return 0;
 }

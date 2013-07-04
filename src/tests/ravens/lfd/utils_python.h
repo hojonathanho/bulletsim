@@ -20,6 +20,7 @@ struct PyGlobals {
   static py::object openrave_module;
   static py::object math_module;
   static py::object iros_utils_module;
+  static py::object None;
 };
 
 #define NP PyGlobals::numpy_module
@@ -64,6 +65,9 @@ vector<btMatrix3x3> rotationsFromNumpy(const py::object &py_rots);
 
 /** Converts a vector of btTransform to a 3D numpy array.*/
 py::object transformsToNumpy(const vector<btTransform>& trans);
+
+/** Reverse of above. */
+vector<btTransform> transformsFromNumpy(const py::object &py_tfms);
 
 /** Converts a 2D Numpy array into a vector of vector of doubles. */
 vector<vector<double> > jointsFromNumpy(py::object array2d);
