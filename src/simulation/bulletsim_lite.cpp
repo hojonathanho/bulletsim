@@ -166,6 +166,18 @@ btVector3 toBtVector3(py::object v) {
   return fromNdarray1ToBtVec3(v);
 }
 
+btTransform toBtTransform(py::object py_hmat, btScalar scale=1) {
+  vector<btScalar> hmat; size_t dim0, dim1;
+  fromNdarray2(py_hmat.attr("T"), hmat, dim0, dim1);
+  if (dim0 != 4 || dim1 != 4) {
+    throw std::runtime_error((boost::format("expected 4x4 matrix, got %dx%d") % dim0 % dim1).str());
+  }
+  btTransform t;
+  t.setFromOpenGLMatrix(hmat.data());
+  t.getOrigin() *= scale;
+  return t;
+}
+
 template<typename KeyT, typename ValueT>
 ValueT &findOrFail(map<KeyT, ValueT> &m, const KeyT &key, const string &error_str="") {
   typename map<KeyT, ValueT>::iterator i = m.find(key);
@@ -223,14 +235,7 @@ void BulletObject::SetTransform(const btTransform& t) {
   m_obj->children[0]->motionState->setKinematicPos(m_obj->toWorldFrame(t));
 }
 void BulletObject::py_SetTransform(py::object py_hmat) {
-  vector<btScalar> hmat; size_t dim0, dim1;
-  fromNdarray2(py_hmat.attr("T"), hmat, dim0, dim1);
-  if (dim0 != 4 || dim1 != 4) {
-    throw std::runtime_error((boost::format("expected 4x4 matrix, got %dx%d") % dim0 % dim1).str());
-  }
-  btTransform t;
-  t.setFromOpenGLMatrix(hmat.data());
-  SetTransform(t);
+  SetTransform(toBtTransform(py_hmat, 1));
 }
 
 void BulletObject::SetLinearVelocity(const btVector3& v) {
@@ -470,10 +475,6 @@ BulletConstraint::Ptr BulletEnvironment::AddConstraint(BulletConstraint::Ptr cnt
 BulletConstraint::Ptr BulletEnvironment::py_AddConstraint(py::dict desc) {
   string type = py::extract<string>(desc["type"]);
   py::dict params = py::extract<py::dict>(desc["params"]);
-  bool disable_collision_between_linked_bodies = false;
-  if (params.has_key("disable_collision_between_linked_bodies")) {
-    disable_collision_between_linked_bodies = py::extract<bool>(params["disable_collision_between_linked_bodies"]);
-  }
 
   btTypedConstraint *cnt;
   if (type == "point2point") {
@@ -481,14 +482,41 @@ BulletConstraint::Ptr BulletEnvironment::py_AddConstraint(py::dict desc) {
     KinBody::LinkPtr linkB = GetCppLink(params["link_b"], m_rave->env);
     btVector3 pivotInA = toBtVector3(params["pivot_in_a"]) * METERS;
     btVector3 pivotInB = toBtVector3(params["pivot_in_b"]) * METERS;
-    cout << "BS: pivotInA " << toStr(pivotInA) << " pivotInB " << toStr(pivotInB) << endl;
+
     btRigidBody *rbA = findOrFail(m_rave->rave2bulletsim_links, linkA,
       (boost::format("link %s/%s not in bullet env") % linkA->GetParent()->GetName() % linkA->GetName()).str());
     btRigidBody *rbB = findOrFail(m_rave->rave2bulletsim_links, linkB,
       (boost::format("link %s/%s not in bullet env") % linkB->GetParent()->GetName() % linkB->GetName()).str());
     cnt = new btPoint2PointConstraint(*rbA, *rbB, pivotInA, pivotInB);
+
+  } else if (type == "generic6dof") {
+    KinBody::LinkPtr linkA = GetCppLink(params["link_a"], m_rave->env);
+    KinBody::LinkPtr linkB = GetCppLink(params["link_b"], m_rave->env);
+    btTransform frameInA = toBtTransform(params["frame_in_a"], METERS);
+    btTransform frameInB = toBtTransform(params["frame_in_b"], METERS);
+    bool useLinearReferenceFrameA = py::extract<bool>(params["use_linear_reference_frame_a"]);
+
+    btRigidBody *rbA = findOrFail(m_rave->rave2bulletsim_links, linkA,
+      (boost::format("link %s/%s not in bullet env") % linkA->GetParent()->GetName() % linkA->GetName()).str());
+    btRigidBody *rbB = findOrFail(m_rave->rave2bulletsim_links, linkB,
+      (boost::format("link %s/%s not in bullet env") % linkB->GetParent()->GetName() % linkB->GetName()).str());
+    cnt = new btGeneric6DofConstraint(*rbA, *rbB, frameInA, frameInB, useLinearReferenceFrameA);
+
   } else {
     throw std::runtime_error((boost::format("constraint type %s not recognized") % type).str());
+  }
+
+  bool disable_collision_between_linked_bodies = false;
+  if (params.has_key("disable_collision_between_linked_bodies")) {
+    disable_collision_between_linked_bodies = py::extract<bool>(params["disable_collision_between_linked_bodies"]);
+  }
+  if (params.has_key("stop_erp")) {
+    cout << "stop_erp" << py::extract<btScalar>(params["stop_erp"]) << endl;
+    cnt->setParam(BT_CONSTRAINT_STOP_ERP, py::extract<btScalar>(params["stop_erp"]));
+  }
+  if (params.has_key("stop_cfm")) {
+    cout << "stop_cfm" << py::extract<btScalar>(params["stop_cfm"]) << endl;
+    cnt->setParam(BT_CONSTRAINT_STOP_CFM, py::extract<btScalar>(params["stop_cfm"]));
   }
 
   return AddConstraint(BulletConstraint::Ptr(new BulletConstraint(cnt, disable_collision_between_linked_bodies)));
