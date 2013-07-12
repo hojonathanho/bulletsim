@@ -75,9 +75,18 @@ include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/ravens)
 add_executable(ravens ravens/test_ravens.cpp
                       ravens/CustomScene.cpp
                       ravens/CustomKeyHandler.cpp
-                      ravens/RavenPlanners.cpp)
-target_link_libraries(ravens simulation robots)
+                      ravens/RavenPlanners.cpp
+                      ravens/ravens_config.cpp
+                      ravens/BoxCloth.cpp)
+target_link_libraries(ravens simulation robots lfd)
 
+add_executable(test_lfd_wrapper ravens/test_lfd_wrapper.cpp )
+target_link_libraries(test_lfd_wrapper simulation lfd)
+
+#------------------------------------------------------------------
+#add_executable(test_boxcloth ravens/test_boxcloth.cpp
+#                      ravens/BoxCloth.cpp)
+#target_link_libraries(test_boxcloth simulation lfd)
 
 add_executable(test_piercing test_piercing.cpp
                             	 test_surgical/CustomScenePiercing.cpp

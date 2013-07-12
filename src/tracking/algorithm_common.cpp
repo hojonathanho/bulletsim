@@ -37,6 +37,7 @@ Eigen::MatrixXf calculateNodesNaive(const Eigen::MatrixXf& estPts, const Eigen::
 	return nodes;
 }
 
+// Not the same as the one above, does not use estimated points.
 Eigen::MatrixXf calculateNodes(const Eigen::MatrixXf& estPts, const Eigen::MatrixXf& obsPts, const Eigen::MatrixXf& pZgivenC) {
 	int K = pZgivenC.rows(); //nodes
 	int N = pZgivenC.cols(); //observations
@@ -88,16 +89,20 @@ Eigen::MatrixXf calculateStdev(const Eigen::MatrixXf& estPts, const Eigen::Matri
 	assert(dPrior.size() == F);
 
 	MatrixXf variance(K,F);
+	// Find variance with estPts(k) as mean for row k
 	for (int f=0; f<F; f++) {
 		MatrixXf sqdists_f(K,N);// = pairwiseSquareDist(estPts.col(f), obsPts.col(f));
 		for (int k=0; k<K; k++)
 			sqdists_f.row(k) = (obsPts.col(f).array() - estPts(k,f)).square();
 		variance.col(f) = pZgivenC.cwiseProduct(sqdists_f).rowwise().sum();
 	}
+	// Add noise
 	variance = variance.rowwise() + ((VectorXf) dPrior.array().square()).transpose()*nuPrior;
+	// Normalize
 	VectorXf invDenom = (pZgivenC.rowwise().sum().array() + nuPrior).inverse();
 	for (int f=0; f<F; f++)
 		variance.col(f) = variance.col(f).cwiseProduct(invDenom);
+	// Standard deviation
 	return variance.array().sqrt();
 }
 
@@ -117,18 +122,22 @@ Eigen::MatrixXf calculateResponsibilitiesNaive(const Eigen::MatrixXf& estPts, co
 	MatrixXf invVariances = invStdev.array().square();
 
 	MatrixXf squaredDistsInvVariance(K+1,N);
+	// Finding x^T Sigma x for the relevant spots.
 	for (int k=0; k<K; k++) {
 		for (int n=0; n<N; n++) {
 			VectorXf diff = (obsPts.row(n) - estPts.row(k)).transpose();
 			squaredDistsInvVariance(k,n) = diff.transpose() * invVariances.row(k).asDiagonal() * diff;
 		}
 	}
+	// Doing the same as above for the outliers
 	VectorXf outlierInvStdev = outlierStdev.array().inverse();
 	VectorXf outlierInvVariances = outlierInvStdev.array().square();
 	for (int n=0; n<N; n++)
 		squaredDistsInvVariance(K,n) = outlierDist.transpose() * outlierInvVariances.asDiagonal() * outlierDist;
 
+	// Gaussian exponential part
 	MatrixXf pZgivenC_exp_part = (-0.5*squaredDistsInvVariance).array().exp();
+	// Inverse square root of determinant of variance
 	VectorXf sqrtDetInvVariances = invStdev.rowwise().prod();
 	MatrixXf pZgivenC(K+1,N);
 	for (int k=0; k<K; k++)

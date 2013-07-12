@@ -32,29 +32,29 @@ public:
 	static int m_allDim;
 	static const int FT_SIZES[];
 
-  FeatureExtractor();
+	FeatureExtractor();
 
-  //The children of this class is responsible for updating m_features before this are called
-  //returns the submatrix of m_features that contain the feature fType.
-  Eigen::Block<Eigen::MatrixXf> getFeatures(FeatureType fType=FT_ALL);
+	// The children of this class are responsible for updating m_features before this is called
+	// Returns the sub-matrix of m_features that contain the feature fType.
+	Eigen::Block<Eigen::MatrixXf> getFeatures(FeatureType fType=FT_ALL);
 
-  virtual void updateFeatures() = 0;
-  virtual Eigen::MatrixXf computeFeature(FeatureType fType) = 0;
+	virtual void updateFeatures() = 0;
+	virtual Eigen::MatrixXf computeFeature(FeatureType fType) = 0;
 
-  static Eigen::MatrixXf all2ActiveFeatures(const Eigen::MatrixXf& all_features) {
-  	Eigen::MatrixXf active_features(all_features.rows(), m_dim);
-  	BOOST_FOREACH(FeatureType& fType, m_types)
-  		active_features.middleCols(m_startCols[m_allType2Ind[fType]], m_sizes[m_allType2Ind[fType]]) = all_features.middleCols(m_allStartCols[fType], m_allSizes[fType]);
-  	return active_features;
-  }
+	static Eigen::MatrixXf all2ActiveFeatures(const Eigen::MatrixXf& all_features) {
+		Eigen::MatrixXf active_features(all_features.rows(), m_dim);
+		BOOST_FOREACH(FeatureType& fType, m_types)
+			active_features.middleCols(m_startCols[m_allType2Ind[fType]], m_sizes[m_allType2Ind[fType]]) = all_features.middleCols(m_allStartCols[fType], m_allSizes[fType]);
+		return active_features;
+	}
 
-  static Eigen::MatrixXf activeFeatures2Feature(const Eigen::MatrixXf active_features, FeatureType fType) {
-  	return active_features.middleCols(m_startCols[m_allType2Ind[fType]], m_sizes[m_allType2Ind[fType]]);
-  }
+	static Eigen::MatrixXf activeFeatures2Feature(const Eigen::MatrixXf active_features, FeatureType fType) {
+		return active_features.middleCols(m_startCols[m_allType2Ind[fType]], m_sizes[m_allType2Ind[fType]]);
+	}
 
 protected:
-  Eigen::MatrixXf m_features;
-  static cv::PCA pca_surf;
+	Eigen::MatrixXf m_features;
+	static cv::PCA pca_surf;
 
 private:
 	static std::vector<int> m_allSizes;
@@ -63,8 +63,8 @@ private:
 	static std::vector<int> m_startCols;
 	static std::vector<FeatureType> m_allType2Ind;
 
-  int calcFeatureDim(const std::vector<FeatureType>& featureTypes);
-  void calcFeatureSubsetIndices(const vector<int>& sub_types, const vector<int>& all_sizes, vector<int>&all_startCols, vector<int> &sub_sizes, vector<int>& sub_startCols, vector<int>& all2sub);
+	int calcFeatureDim(const std::vector<FeatureType>& featureTypes);
+	void calcFeatureSubsetIndices(const vector<int>& sub_types, const vector<int>& all_sizes, vector<int>&all_startCols, vector<int> &sub_sizes, vector<int>& sub_startCols, vector<int>& all2sub);
 };
 
 typedef FeatureExtractor FE;
@@ -80,7 +80,7 @@ public:
 	void updateInputs(ColorCloudPtr cloud);
 	void updateInputs(ColorCloudPtr cloud, cv::Mat image, CoordinateTransformer* transformer);
 	void updateFeatures();
-  Eigen::MatrixXf computeFeature(FeatureType fType);
+	Eigen::MatrixXf computeFeature(FeatureType fType);
 };
 
 
@@ -89,8 +89,8 @@ public:
 	typedef boost::shared_ptr<TrackedObjectFeatureExtractor> Ptr;
 	TrackedObject::Ptr m_obj;
 
-  TrackedObjectFeatureExtractor(TrackedObject::Ptr obj);
-  void updateFeatures();
-  void setObj(TrackedObject::Ptr obj);
-  Eigen::MatrixXf computeFeature(FeatureType fType);
+	TrackedObjectFeatureExtractor(TrackedObject::Ptr obj);
+	void updateFeatures();
+	void setObj(TrackedObject::Ptr obj);
+	Eigen::MatrixXf computeFeature(FeatureType fType);
 };

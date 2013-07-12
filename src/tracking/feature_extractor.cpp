@@ -35,8 +35,8 @@ FeatureExtractor::FeatureExtractor() {
 	BOOST_FOREACH(int fType, m_types) assert(FT_ALL < fType  &&  fType < FT_COUNT);
 	m_allSizes = vector<int> (FT_SIZES, FT_SIZES + FT_COUNT);
 	m_dim = m_allDim = 0;
-	BOOST_FOREACH(int fType, m_types) m_dim	+= FT_SIZES[fType];
 	BOOST_FOREACH(int dim, m_allSizes) m_allDim	+= dim;
+	BOOST_FOREACH(int fType, m_types) m_dim	+= FT_SIZES[fType];
 	calcFeatureSubsetIndices(m_types, m_allSizes, m_allStartCols, m_sizes, m_startCols, m_allType2Ind);
 }
 
@@ -116,10 +116,10 @@ Eigen::MatrixXf CloudFeatureExtractor::computeFeature(FeatureType fType) {
 		feature = lab.cast<float> () / 255.;
 	} else if (fType == FT_SURF) {
 		feature.resize(m_cloud->size(), FT_SIZES[FT_SURF]);
-	  MatrixXf ptsCam = toEigenMatrix(m_transformer->toCamFromWorldN(toBulletVectors(m_cloud)));
-	  MatrixXi uvs = xyz2uv(ptsCam);
+		MatrixXf ptsCam = toEigenMatrix(m_transformer->toCamFromWorldN(toBulletVectors(m_cloud)));
+		MatrixXi uvs = xyz2uv(ptsCam);
 
-	  vector<cv::KeyPoint> keypoints(m_cloud->size());
+		vector<cv::KeyPoint> keypoints(m_cloud->size());
 		for (int i = 0; i < m_cloud->size(); i++) {
 			keypoints[i] = cv::KeyPoint(uvs(i,1), uvs(i,0), TrackingConfig::node_pixel);
 		}
@@ -154,17 +154,17 @@ Eigen::MatrixXf CloudFeatureExtractor::computeFeature(FeatureType fType) {
 }
 
 TrackedObjectFeatureExtractor::TrackedObjectFeatureExtractor(TrackedObject::Ptr obj) :
-	FeatureExtractor() {
-  setObj(obj);
+			FeatureExtractor() {
+	setObj(obj);
 	//initialize ALL the features
 	BOOST_FOREACH(FeatureType& fType, m_types) {
-	  getFeatures(fType) = computeFeature(fType);
+		getFeatures(fType) = computeFeature(fType);
 	}
 }
 
 void TrackedObjectFeatureExtractor::setObj(TrackedObject::Ptr obj) {
-  m_obj = obj;
-  m_features.resize(m_obj->m_nNodes, m_dim);
+	m_obj = obj;
+	m_features.resize(m_obj->m_nNodes, m_dim);
 }
 
 void TrackedObjectFeatureExtractor::updateFeatures() {
@@ -255,14 +255,14 @@ Eigen::MatrixXf TrackedObjectFeatureExtractor::computeFeature(FeatureType fType)
 		}
 
 		//debug stuff
-//		cv::Mat grad_save = grad * 255.0;
-//		cv::imwrite("/home/alex/Desktop/grad.jpg", grad_save);
-//		cv::Mat grad_debug = grad_save.clone();
-//		for (int i = 0; i < m_obj->m_nNodes; i++) {
-//			cv::Point2f uv = tracked_towel->textureCoordinate(i);
-//			cv::rectangle(grad_debug, uv-cv::Point2f(range,range), uv+cv::Point2f(range,range), cv::Scalar(feature(i,0) * 255), -1, 8, 0);
-//		}
-//		cv::imwrite("/home/alex/Desktop/grad_debug.jpg", grad_debug);
+		//		cv::Mat grad_save = grad * 255.0;
+		//		cv::imwrite("/home/alex/Desktop/grad.jpg", grad_save);
+		//		cv::Mat grad_debug = grad_save.clone();
+		//		for (int i = 0; i < m_obj->m_nNodes; i++) {
+		//			cv::Point2f uv = tracked_towel->textureCoordinate(i);
+		//			cv::rectangle(grad_debug, uv-cv::Point2f(range,range), uv+cv::Point2f(range,range), cv::Scalar(feature(i,0) * 255), -1, 8, 0);
+		//		}
+		//		cv::imwrite("/home/alex/Desktop/grad_debug.jpg", grad_debug);
 
 	} else {
 		throw std::runtime_error("feature type not yet implemented");

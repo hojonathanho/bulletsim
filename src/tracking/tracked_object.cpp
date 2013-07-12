@@ -30,31 +30,32 @@ const Eigen::VectorXf TrackedObject::getPriorDist() {
 }
 
 std::vector<btVector3> calcImpulsesDamped(const std::vector<btVector3>& estPos, const std::vector<btVector3>& estVel,
-  const std::vector<btVector3>& obsPts, const Eigen::MatrixXf& corr, const vector<float>& masses, float kp, float kd) {
-  int K = estPos.size();
-  int N = obsPts.size();
-  assert(estVel.size() == K);
-  assert(corr.rows() == K);
-  assert(corr.cols() == N);
-  assert(masses.size() == K);
-  vector<btVector3> impulses(K);
+		const std::vector<btVector3>& obsPts, const Eigen::MatrixXf& corr, const vector<float>& masses, float kp, float kd) {
+	int K = estPos.size();
+	int N = obsPts.size();
+	assert(estVel.size() == K);
+	assert(corr.rows() == K);
+	assert(corr.cols() == N);
+	assert(masses.size() == K);
+	vector<btVector3> impulses(K);
 
-  for (int k=0; k<K; k++) {
-  	btVector3 dv = -kd * estVel[k];
-  	for (int n=0; n<N; n++)
+	for (int k=0; k<K; k++) {
+		btVector3 dv = -kd * estVel[k];
+		for (int n=0; n<N; n++)
 			dv += (kp * corr(k,n)) * (obsPts[n] - estPos[k]);
 		impulses[k] = masses[k]*dv;
 		// XXX SHOULD THERE BE DT?
-  }
+		// ^ WHAT ABOUT THIS SHIT?
+	}
 
-//  float max_impulse=1;
-//  for (int k=0; k<K; k++) {
-//  	if (impulses[k].length2() > max_impulse*max_impulse) {
-//  		impulses[k].normalize();
-//			impulses[k] *= max_impulse;
-//  	}
-//  }
-//  cout << "max impulse mag " << max(impulses).length() << endl;
+	//  float max_impulse=1;
+	//  for (int k=0; k<K; k++) {
+	//  	if (impulses[k].length2() > max_impulse*max_impulse) {
+	//  		impulses[k].normalize();
+	//			impulses[k] *= max_impulse;
+	//  	}
+	//  }
+	//  cout << "max impulse mag " << max(impulses).length() << endl;
 
-  return impulses;
+	return impulses;
 }
