@@ -1,0 +1,127 @@
+# format is as following:
+# =====================
+# test #number
+#      source file_path
+#      target file_path
+#      correspondences file_path
+#
+#  comments are start with '#'
+
+
+##===============================
+
+test1
+	x0.04/scI.txt
+	orig/scI.txt
+	corres/x0.04_I.txt
+
+
+test2
+	x0.04/scII.txt
+	orig/scII.txt
+	corres/x0.04_II.txt
+
+test3
+	x0.04/scIII.txt
+	orig/scIII.txt
+	corres/x0.04_III.txt
+
+test4
+	x0.04/scIV.txt
+	orig/scIV.txt
+	corres/x0.04_IV.txt
+
+## ===================================
+
+test5
+	x0.04y0.04/scI.txt
+	orig/scI.txt
+	corres/x0.04y0.04_I.txt
+
+
+test6
+	x0.04y0.04/scII.txt
+	orig/scII.txt
+	corres/x0.04y0.04_II.txt
+
+test7
+	x0.04y0.04/scIII.txt
+	orig/scIII.txt
+	corres/x0.04y0.04_III.txt
+
+test8
+	x0.04y0.04/scIV.txt
+	orig/scIV.txt
+	corres/x0.04y0.04_IV.txt
+
+## ===================================
+
+test9
+	x0.04y0.04zrot30/scI.txt
+	orig/scI.txt
+	corres/x0.04y0.04zrot30_I.txt
+
+
+test10
+	x0.04y0.04zrot30/scII.txt
+	orig/scII.txt
+	corres/x0.04y0.04zrot30_II.txt
+
+test11
+	x0.04y0.04zrot30/scIII.txt
+	orig/scIII.txt
+	corres/x0.04y0.04zrot30_III.txt
+
+test12
+	x0.04y0.04zrot30/scIV.txt
+	orig/scIV.txt
+	corres/x0.04y0.04zrot30_IV.txt
+
+## ===================================
+
+test13
+	zrot90/scI.txt
+	orig/scI.txt
+	corres/zrot90_I.txt
+
+
+test14
+	zrot90/scII.txt
+	orig/scII.txt
+	corres/zrot90_II.txt
+
+test15
+	zrot90/scIII.txt
+	orig/scIII.txt
+	corres/zrot90_III.txt
+
+test16
+	zrot90/scIV.txt
+	orig/scIV.txt
+	corres/zrot90_IV.txt
+
+## ===================================
+
+### Just rope tests 22 278 384 701:
+
+test17
+	rope-tests/rope-22-src.txt	
+	rope-tests/rope-22-targ.txt
+	corres/rope-22.txt
+
+test18
+	rope-tests/rope-278-src.txt	
+	rope-tests/rope-278-targ.txt
+	corres/rope-278.txt
+
+test19
+	rope-tests/rope-384-src.txt	
+	rope-tests/rope-384-targ.txt
+	corres/rope-384.txt
+
+test20
+	rope-tests/rope-701-src.txt	
+	rope-tests/rope-701-targ.txt
+	corres/rope-701.txt
+
+#######################################
