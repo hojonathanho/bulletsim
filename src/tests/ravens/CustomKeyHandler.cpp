@@ -23,6 +23,10 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,
 			scene.runAction(scene.rAction, BulletConfig::dt);
 			break;
 
+		case 'S': // save scene point cloud in a file.
+			scene.saveScenePoints();
+			break;
+
 		case 'W':
 			if (!scene.isRaveViewer) {
 				scene.rave_viewer = OpenRAVE::RaveCreateViewer(scene.rave->env, "qtcoin");

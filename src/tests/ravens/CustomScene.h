@@ -243,6 +243,10 @@ public:
 	 *  */
 	void recordPoints ();
 
+	/** Actually saves the scene points into a file with name:
+	 *  scene_XXXXX.txt, where XXXXX is a random number. */
+	void saveScenePoints();
+
 	// Resets positions of the things in scene
 	void reset ();
 

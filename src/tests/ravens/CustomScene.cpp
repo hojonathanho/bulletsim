@@ -1,5 +1,6 @@
 #include "CustomScene.h"
 #include "CustomKeyHandler.h"
+#include <utils/colorize.h>
 
 /** Rotates a transform TFM by ANG, around the point along
  * x-axis of the transform at a distance RAD away.*/
@@ -199,7 +200,7 @@ CustomScene::SuturingPeg::SuturingPeg (CustomScene * _scene, RaveRobotObject::Ma
 	// connect the rope to the peg:
 	btTransform TRel;
 	TRel.setIdentity();
-	TRel.setOrigin(-p_len/2*btVector3(1,-0.0007,-0.0007)*METERS);
+	TRel.setOrigin(-p_len/2*btVector3(0,-0.0007,-0.0007)*METERS);
 	btTransform TCom = ropePtr->capsulePtr->children[0]->rigidBody->getCenterOfMassTransform();
 
 	peg_rope_grab = new Grab (	ropePtr->capsulePtr->children[0]->rigidBody.get(), TCom*TRel,
@@ -374,6 +375,43 @@ void CustomScene::recordPoints () {
 	cout<<message.str()<<endl;
 
 	jRecorder->addMessageToFile(message.str());
+}
+
+
+/** Actually saves the scene points into a file with name:
+ *  scene_XXXXX.txt, where XXXXX is a random number. */
+void CustomScene::saveScenePoints() {
+	unsigned fnum = rand()%10000;
+	string fname = (boost::format("scene_%i.txt") % fnum).str();
+	cout<<colorize(string("Saving scene-points to file : ") + fname, "blue", true)<<endl;
+
+	ofstream file;
+	string fpath = string(EXPAND(BULLETSIM_SRC_DIR)) + string("/tests/ravens/recorded/") +  fname;
+	file.open(fpath.c_str(), ios::out);
+
+	vector<btVector3> ropePoints;
+	sRope->getRopePoints(true, ropePoints, 1.0/METERS);
+	file << "## rope :\n";
+	for (int i = 0; i < ropePoints.size(); ++i)
+		file << ropePoints[i].x() << "\t" << ropePoints[i].y() << "\t" << ropePoints[i].z() << "\n";
+
+	// record point clouds of the cloth iff we are in the suturing setup.
+	if (tsuite == SUTURING) {
+		vector<btVector3> boxPoints;
+		getBoxPoints(boxPoints, 1.0/METERS);
+		file << "## box-cloth points :\n";
+		for (int i = 0; i < boxPoints.size(); ++i)
+			file << boxPoints[i].x() << "\t" << boxPoints[i].y() << "\t" << boxPoints[i].z() << "\n";
+
+		vector<btVector3> boxHoles;
+		getBoxHoles(boxHoles, 1.0/METERS);
+		file << "## hole-points :\n";
+		for (int i = 0; i < boxHoles.size(); ++i)
+			file << boxHoles[i].x() << "\t" << boxHoles[i].y() << "\t" << boxHoles[i].z() << "\n";
+	}
+
+	file.flush();
+	file.close();
 }
 
 // Resets scene

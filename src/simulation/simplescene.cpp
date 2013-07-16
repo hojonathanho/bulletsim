@@ -68,18 +68,18 @@ void Scene::startViewer() {
 
     //viewer.getCamera()->getView()->setLightingMode(osg::View::NO_LIGHT);
 
-    osg::Light* light = new osg::Light();
-    osg::LightSource * lightsource = new osg::LightSource();
-    lightsource->setLight(light);
-    osg->root->addChild(lightsource);
-
-    osg::StateSet* stateset = osg->root->getOrCreateStateSet();
-    lightsource->setStateSetModes(*stateset, osg::StateAttribute::ON);
-
-    light->setAmbient(osg::Vec4d(0.0, 0.0, 0.0, 1.0));
-    light->setDiffuse(osg::Vec4d(1.0, 1.0, 1.0, 1.0));
-    light->setSpecular(osg::Vec4d(0.5, 0.2, 0.5, 1.0));
-    light->setPosition(osg::Vec4d(2*METERS, 2*METERS, METERS*3.0, 1.0));
+//    osg::Light* light = new osg::Light();
+//    osg::LightSource * lightsource = new osg::LightSource();
+//    lightsource->setLight(light);
+//    osg->root->addChild(lightsource);
+//
+//    osg::StateSet* stateset = osg->root->getOrCreateStateSet();
+//    lightsource->setStateSetModes(*stateset, osg::StateAttribute::ON);
+//
+//    light->setAmbient(osg::Vec4d(0.0, 0.0, 0.0, 1.0));
+//    light->setDiffuse(osg::Vec4d(1.0, 1.0, 1.0, 1.0));
+//    light->setSpecular(osg::Vec4d(0.5, 0.2, 0.5, 1.0));
+//    light->setPosition(osg::Vec4d(2*METERS, 2*METERS, METERS*3.0, 1.0));
 
 
     osg::Light* light1 = new osg::Light();
@@ -88,10 +88,10 @@ void Scene::startViewer() {
     osg->root->addChild(lightsource1);
     osg::StateSet* stateset1 = osg->root->getOrCreateStateSet();
     lightsource1->setStateSetModes(*stateset1, osg::StateAttribute::ON);
-    light1->setAmbient(osg::Vec4d(0.0, 0.0, 0.0, 1.0));
+    light1->setAmbient(osg::Vec4d(0.2, 0.2, 0.2, 1.0));
     light1->setDiffuse(osg::Vec4d(1.0, 1.0, 1.0, 1.0));
-    light1->setSpecular(osg::Vec4d(0.5, 0.2, 0.5, 1.0));
-    light1->setPosition(osg::Vec4d(0*METERS, 1*METERS, METERS*1.0, 1.0));
+    light1->setSpecular(osg::Vec4d(0.5, 0.5, 0.5, 1.0));
+    light1->setPosition(osg::Vec4d(0*METERS, 0.5*METERS, METERS*.50, 1.0));
 
 
     viewer.realize();

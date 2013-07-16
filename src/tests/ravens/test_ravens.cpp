@@ -12,7 +12,7 @@
 
 int main(int argc, char *argv[]) {
 
-	srand(0);
+//	/srand(0);
 	ViewerConfig::cameraHomePosition = btVector3(0, 0.6, 0.5);
 	ViewerConfig::cameraHomeCenter = btVector3(0, 0, 0.25);
 
@@ -39,6 +39,6 @@ int main(int argc, char *argv[]) {
 	parser.read(argc, argv);
 
 	// options are: {SUTURING, ROPE_MANIP}
-	CustomScene(ROPE_MANIP).run();
+	CustomScene(SUTURING).run();
 	return 0;
 }
