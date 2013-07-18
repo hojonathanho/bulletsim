@@ -334,10 +334,61 @@ void CustomScene::getBoxHoles(vector<btVector3> & boxHoles, float scale) {
 }
 
 
+/** Returns a string representing the current points in the scene.*/
+string CustomScene::getPointsMessage() {
+	ostringstream point_msg;
+	point_msg << "points\n";
+
+	vector<btVector3> points;
+
+	// add rope-points:
+	points.clear();
+	sRope->getRopePoints(true, points, 1.0/METERS);
+	point_msg << "\trope\n";
+	for (int i = 0; i < points.size(); ++i)
+		point_msg << "\t\t" << points[i].x() << "\t" << points[i].y() << "\t" << points[i].z() << "\n";
+
+	// record point clouds of the cloth iff we are in the suturing setup.
+	if (tsuite == SUTURING) {
+		points.clear();
+		getBoxPoints(points, 1.0/METERS);
+		point_msg << "\tbox\n";
+		for (int i = 0; i < points.size(); ++i)
+			point_msg << "\t\t" << points[i].x() << "\t" << points[i].y() << "\t" << points[i].z() << "\n";
+
+		points.clear();
+		getBoxHoles(points, 1.0/METERS);
+		point_msg << "\thole\n";
+		for (int i = 0; i < points.size(); ++i)
+			point_msg << "\t\t" << points[i].x() << "\t" << points[i].y() << "\t" << points[i].z() << "\n";
+	}
+	return point_msg.str();
+}
+
+
+/** Returns a string representing the current values of the DOFs of the robot. */
+string CustomScene::getJointsMessage() {
+	vector<double> joint_vals;
+	ravens.ravens->robot->GetDOFValues(joint_vals);
+	const int jsize = joint_vals.size();
+
+	ostringstream joint_msg;
+	joint_msg << "joints :\t";
+
+	for (int i = 0; i < jsize; ++i)
+		joint_msg << joint_vals[i] << "  ";
+	joint_msg<< "\n";
+	return joint_msg.str();
+}
+
+
+/** Just adds the msg to the scene recording file. */
+void CustomScene::recordMessage(string msg) {
+	sceneRecorder->addMessageToFile(msg, true);
+}
+
 // Record rope points to file
 void CustomScene::recordPoints () {
-
-	cout<<"Recording points to file."<<endl;
 
 	ostringstream message;
 	message << "section";
@@ -374,7 +425,7 @@ void CustomScene::recordPoints () {
 
 	cout<<message.str()<<endl;
 
-	jRecorder->addMessageToFile(message.str());
+	//jRecorder->addMessageToFile(message.str());
 }
 
 
@@ -501,7 +552,7 @@ void CustomScene::setup_suturing() {
 			"l_grasper2_L",
 			"l_grasper1_L",
 			env->bullet->dynamicsWorld,
-			1, *this, l, jRecorder.get()));
+			1, *this, l));
 	lAction->setTargets(targetsL);
 	lAction->setPeg(true);
 
@@ -512,7 +563,7 @@ void CustomScene::setup_suturing() {
 			"r_grasper2_L",
 			"r_grasper1_L",
 			env->bullet->dynamicsWorld,
-			1, *this, r, jRecorder.get()));
+			1, *this, r));
 	rAction->setTargets(targetsR);
 }
 
@@ -553,7 +604,7 @@ void CustomScene::setup_rope_manip() {
 			"l_grasper2_L",
 			"l_grasper1_L",
 			env->bullet->dynamicsWorld,
-			1, *this, l, jRecorder.get()));
+			1, *this, l));
 	lAction->setTargets(targetsL);
 
 	targetsR.push_back(sRope->capsulePtr);
@@ -562,9 +613,8 @@ void CustomScene::setup_rope_manip() {
 			"r_grasper2_L",
 			"r_grasper1_L",
 			env->bullet->dynamicsWorld,
-			1, *this, r, jRecorder.get()));
+			1, *this, r));
 	rAction->setTargets(targetsR);
-
 }
 
 /* Sets up the scene and UI event handlers,

@@ -234,7 +234,7 @@ vector<vector<double> > interpolate(const vector<float> & sample_times, const ve
 	py::object py_data         = jointsToNumpy(data);
 	py::object py_time_stamps  = vectorToNumpy(time_stamps);
 
-	py::object interp2d          = PyGlobals::math_module.attr("interp2d");
+	py::object interp2d        = PyGlobals::math_module.attr("interp2d");
 	py::object interpolated_data;
 
 	try {

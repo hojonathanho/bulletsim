@@ -1,6 +1,5 @@
 #pragma once
 #include "RavenGrabMonitor.h"
-#include "jointRecorder.h"
 
 class CustomScene;
 
@@ -20,8 +19,7 @@ class RavensRigidBodyGripperAction : public Action {
     bool hasPeg;
 
     string arm;
-    // jointRecorder to push in "grab" or "release" lines into file
-    jointRecorder::Ptr jr;
+
 
     // min/max gripper dof vals
     static const float CLOSED_VAL = 0.0f, CLOSED_VAL_PEG = 0.15f, OPEN_VAL = 0.30f;
@@ -32,7 +30,7 @@ public:
                            	     const string &leftFingerName,
                            	     const string &rightFingerName,
                            	     btDynamicsWorld* world_,
-                           	     float time, CustomScene &_s, char * _arm, jointRecorder * _jr);
+                           	     float time, CustomScene &_s, char * _arm);
 
     void setPeg (bool _hasPeg) {hasPeg = _hasPeg;}
 

@@ -90,6 +90,7 @@ add_executable(ravens ravens/test_ravens.cpp
                       ravens/CustomKeyHandler.cpp
                       ravens/RavenPlanners.cpp
                       ravens/ravens_config.cpp
+                      ravens/SceneRecorder.cpp
                       ravens/BoxCloth.cpp)
 target_link_libraries(ravens simulation robots lfd)
 add_executable(test_lfd_wrapper ravens/test_lfd_wrapper.cpp )

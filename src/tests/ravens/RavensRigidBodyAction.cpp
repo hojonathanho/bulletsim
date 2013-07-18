@@ -5,9 +5,9 @@ RavensRigidBodyGripperAction::RavensRigidBodyGripperAction(RaveRobotObject::Mani
 		const string &leftFingerName,
 		const string &rightFingerName,
 		btDynamicsWorld* world_,
-		float time, CustomScene &_s, char * _arm, jointRecorder * _jr) :
+		float time, CustomScene &_s, char * _arm) :
 		s(_s), Action(time), manip(manip_), vals(2, 0),
-		jr (_jr), arm(_arm), hasPeg(false) {
+		arm(_arm), hasPeg(false) {
 
 	grabMonitor.reset(new RavensGrabMonitor(manip_, world_, arm[0], leftFingerName, rightFingerName, s));
 	manip->manip->GetChildDOFIndices(indices);
@@ -38,15 +38,17 @@ vector<dReal> RavensRigidBodyGripperAction::getCurrDOFVal() {
 void RavensRigidBodyGripperAction::setOpenAction()  {
 	if (hasPeg) s.togglePegFinger();
 	setEndpoints(getCurrDOFVal(), OPEN_VAL);
-	string message = "release ";
-	jr->addMessageToFile(message.append(arm));
+	stringstream msgss;
+	msgss << "release " << arm << "\n";
+	s.recordMessage(msgss.str());
 }
 
 
 void RavensRigidBodyGripperAction::setCloseAction() {
 	setEndpoints(getCurrDOFVal(), (hasPeg ? CLOSED_VAL_PEG :CLOSED_VAL));
-	string message = "grab ";
-	jr->addMessageToFile(message.append(arm));
+	stringstream msgss;
+	msgss << "grab " << arm << "\n";
+	s.recordMessage(msgss.str());
 }
 
 

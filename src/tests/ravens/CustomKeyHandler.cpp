@@ -87,7 +87,8 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,
 			//scene.testTrajectory3();
 			break;
 		case 'K':
-			scene.recordPoints();
+			//scene.recordPoints();
+			scene.recordMessage("look\n");
 			break;
 		case 'I':
 			scene.ravens.setArmPose("home",'b');
@@ -95,7 +96,7 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,
 
 			// Recording/Playback stuff
 		case 'T':
-			scene.jRecorder->toggleRecording();
+			scene.sceneRecorder->toggleRecording();
 			break;
 		case 'l':
 			scene.jPlayback->toggleEnabled();

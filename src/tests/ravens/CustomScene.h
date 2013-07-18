@@ -29,6 +29,7 @@
 #include "RavenPlanners.h"
 #include "BoxCloth.h"
 #include "jointRecorder.h"
+#include "SceneRecorder.hpp"
 #include "jointPlayback.h"
 
 #include "ravens_config.h"
@@ -203,8 +204,12 @@ public:
 	PlotAxes::Ptr plot_axes1;
 	PlotAxes::Ptr plot_axes2;
 
-	jointRecorder::Ptr jRecorder;
+	//jointRecorder::Ptr jRecorder;
 	jointPlayback::Ptr jPlayback;
+
+	SceneRecorder::Ptr sceneRecorder;
+
+
 
 	// type of scene to set-up
 	TestSuite tsuite;
@@ -213,8 +218,11 @@ public:
 		ikPlannerL.reset(new IKInterpolationPlanner(ravens,rave,'l'));
 		ikPlannerR.reset(new IKInterpolationPlanner(ravens,rave,'r'));
 
-		jRecorder.reset (new jointRecorder (*this));
+		//jRecorder.reset (new jointRecorder (*this));
 		jPlayback.reset (new jointPlayback (*this, RavenConfig::enableLfd));
+
+		// new scene recorder:
+		sceneRecorder.reset(new SceneRecorder(*this));
 
 		bcn = RavenConfig::bcN; bcm = RavenConfig::bcM;
 		bcs = RavenConfig::bcS; bch = RavenConfig::bcH;
@@ -238,10 +246,20 @@ public:
 	void getBoxPoints(vector<btVector3> & boxPoints, float scale=1.0);
 	/** Gets points of holes. */
 	void getBoxHoles(vector<btVector3> & boxHoles, float scale=1.0);
+
+	/** returns a formatted string of current scene points.*/
+	std::string getPointsMessage();
+
+	/** Returns a string representing the current values of the DOFs of the robot. */
+	std::string getJointsMessage();
+
 	/** Stores the points of the rope into current recording file.
 	 *  Stores either nodes or control points.
 	 *  */
 	void recordPoints ();
+
+	/** Just adds the msg to the scene recording file. */
+	void recordMessage(std::string msg);
 
 	/** Actually saves the scene points into a file with name:
 	 *  scene_XXXXX.txt, where XXXXX is a random number. */

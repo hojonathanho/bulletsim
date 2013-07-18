@@ -7,7 +7,7 @@
 #include <iostream>
 using namespace std;
 
-Scene::Scene()  : userInput(false) {
+Scene::Scene()  : userInput(false), simtime(0.0) {
     osg.reset(new OSGInstance());
     bullet.reset(new BulletInstance());
 
@@ -114,6 +114,7 @@ void Scene::help() {
 }
 
 void Scene::step(float dt, int maxsteps, float internaldt) {
+	simtime += dt;
     static float startTime=viewer.getFrameStamp()->getSimulationTime(), endTime;
 
     if (syncTime && drawingOn)

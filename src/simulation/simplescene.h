@@ -27,6 +27,9 @@ struct Scene {
 
   bool userInput;
 
+  // time since the start of the simulation
+  double simtime;
+
   OSGInstance::Ptr osg;
   BulletInstance::Ptr bullet;
   RaveInstance::Ptr rave;
@@ -67,6 +70,7 @@ struct Scene {
   vector<VoidCallback> predrawCallbacks;
   void addPreDrawCallback(VoidCallback cb);
 
+  double getSimTime() {return simtime;}
 
   Scene();
 
