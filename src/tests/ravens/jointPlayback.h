@@ -14,7 +14,7 @@ class CustomScene;
 /* Class to load a trajectory and play it back. **/
 class jointPlayback {
 
-	CustomScene &scene;								// Scene in which robot is
+	CustomScene &scene;								// Scene in which the robot is
 
 	vector<int> joint_inds;		 					// Indices of joints to set DOF values
 	vector<dReal> joint_vals;						// Latest joint values loaded from file.
@@ -43,7 +43,7 @@ public:
 	typedef boost::shared_ptr<jointPlayback> Ptr;
 
 	// Constructor
-	jointPlayback (	CustomScene &_scene, bool _processing=false,
+	jointPlayback (CustomScene &_scene, bool _processing=false,
 					float _freq = -1.0, float _dt = -1.0,
 					string _filename=EXPAND(BULLETSIM_SRC_DIR)"/tests/ravens/recorded/raven_joints.txt");
 

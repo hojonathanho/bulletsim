@@ -362,6 +362,7 @@ string CustomScene::getPointsMessage() {
 		for (int i = 0; i < points.size(); ++i)
 			point_msg << "\t\t" << points[i].x() << "\t" << points[i].y() << "\t" << points[i].z() << "\n";
 	}
+	point_msg << "end-points\n";
 	return point_msg.str();
 }
 

@@ -13,7 +13,7 @@ int SceneRecorder::getAndUpdateRunNum() {
 	unsigned int runnum;
 
 	if(!inpfile.is_open()) {
-		cout << "[ERROR : SceneRecorder] Unable to open runum file : " << runnumfname << endl;
+		cout << "[ERROR : SceneRecorder] : Unable to open runum file : " << runnumfname << endl;
 		exit(-1);
 	} else {
 		while(!inpfile.eof()) {
@@ -31,7 +31,7 @@ int SceneRecorder::getAndUpdateRunNum() {
 				continue;
 			} else {
 				if(splitline.size() != 1) {
-					cout << "[ERROR : SceneRecorder] Unknown file format."<< endl;
+					cout << "[ERROR : SceneRecorder] : Unknown file format."<< endl;
 					exit(-1);
 				}
 				runnum = atoi(splitline[0].c_str());
@@ -94,7 +94,6 @@ void SceneRecorder::recordCallback () {
 	if (recording) {
 
 		double nowTime = scene.getSimTime();
-		cout << nowTime<<endl;
 
 		if ((nowTime - pLastMsgTime)>= points_tp) {
 			addMessageToFile(scene.getPointsMessage());
