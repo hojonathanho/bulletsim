@@ -22,6 +22,8 @@ struct RavenConfig : Config {
   static char biasAxis; // 'x', 'y' or 'z'
   static float biasAngle;
 
+  static bool ropeManip;
+
   RavenConfig() : Config() {
     params.push_back(new Parameter<int>("cloth", &cloth, "include cloth in screen (1/0)"));
     params.push_back(new Parameter<float>("record_freq", &record_freq, "frequency of recording"));
@@ -37,5 +39,8 @@ struct RavenConfig : Config {
 
     params.push_back(new Parameter<char>("biasAxis",   &biasAxis, "axis to bias the suturing setup, in: {'x','y','z'}"));
     params.push_back(new Parameter<float>("biasAngle", &biasAngle, "bias angle [in degrees] for suturing setup"));
+
+    params.push_back(new Parameter<bool>("ropeManip", &ropeManip, "bool to just have a rope in the scene."));
+
   }
 };

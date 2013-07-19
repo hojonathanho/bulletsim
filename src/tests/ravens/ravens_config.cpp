@@ -13,3 +13,5 @@ bool RavenConfig::enableLfd = false;
 bool RavenConfig::plotTfm = false;
 float RavenConfig::biasAngle = 0.0;
 char  RavenConfig::biasAxis  = 'x';
+bool RavenConfig::ropeManip = false;
+

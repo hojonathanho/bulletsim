@@ -40,6 +40,10 @@ int main(int argc, char *argv[]) {
 	parser.read(argc, argv);
 
 	// options are: {SUTURING, ROPE_MANIP}
-	CustomScene(ROPE_MANIP).run();
+	if (RavenConfig::ropeManip)
+		CustomScene(ROPE_MANIP).run();
+	else
+		CustomScene(SUTURING).run();
+
 	return 0;
 }
