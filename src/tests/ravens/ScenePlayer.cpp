@@ -179,14 +179,14 @@ void ScenePlayer::setupNewSegment() {
 		vector<vector<btVector3> > target_clouds;
 		if (use_rope) {
 			vector<btVector3> target_rope;
-			scene.getBoxHoles(target_rope, 1.0/METERS);
+			scene.sRope->getRopePoints(true, target_rope, 1.0/METERS);
 			target_clouds.push_back(target_rope);
 		}
 
 
 		if (use_box) {
 			vector<btVector3> target_box;
-			scene.getBoxHoles(target_box, 1.0/METERS);
+			scene.getBoxPoints(target_box, 1.0/METERS);
 			target_clouds.push_back(target_box);
 		}
 
