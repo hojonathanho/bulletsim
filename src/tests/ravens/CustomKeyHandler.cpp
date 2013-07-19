@@ -1,5 +1,5 @@
 #include "CustomKeyHandler.h"
-
+#include <utils/colorize.h>
 
 bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,
 		osgGA::GUIActionAdapter &) {
@@ -82,7 +82,7 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,
 			//scene.testTrajectory3();
 			break;
 		case 'K':
-			//scene.recordPoints();
+			cout << colorize("Starting new trajectory segment.", "blue")<<endl;
 			scene.recordMessage("look\n");
 			break;
 		case 'I':

@@ -668,7 +668,7 @@ void CustomScene::run() {
 
 	// setup boost::python for calling lfd functions
 	//if (RavenConfig::enableLfd)
-	setup_python();
+	//setup_python();
 
 	// add a table
 	const float table_height = 0.15;

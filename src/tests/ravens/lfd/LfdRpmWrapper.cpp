@@ -2,6 +2,7 @@
 
 #include "LfdRpmWrapper.h"
 
+
 /** Wraps around lfd rpm module. */
 RegistrationModule::RegistrationModule(vector<btVector3> src_pts, vector<btVector3> target_pts,
 		int n_iter, float bend_init, float bend_final,

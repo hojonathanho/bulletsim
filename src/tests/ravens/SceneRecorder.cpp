@@ -61,6 +61,7 @@ SceneRecorder::SceneRecorder(CustomScene &_scene, double _joints_freq, double _p
 					scene(_scene),
 					joints_freq(_joints_freq),
 					points_freq(_points_freq),
+					recording(false),
 					runfilepath(EXPAND(BULLETSIM_SRC_DIR)"/tests/ravens/recorded/simruns"),
 					runnumfname(EXPAND(BULLETSIM_SRC_DIR)"/tests/ravens/recorded/runnum.txt") {
 
@@ -110,7 +111,7 @@ void SceneRecorder::recordCallback () {
 
 // Toggles file and opens/closes file appropriately
 void SceneRecorder::toggleRecording () {
-	recording = !recording;
+	recording = not recording;
 
 	// display a message on the terminal
 	stringstream rec_msg;
