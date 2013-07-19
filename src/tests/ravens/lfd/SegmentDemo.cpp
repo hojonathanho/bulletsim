@@ -1,42 +1,14 @@
-#include <vector>
+#include "SegmentDemo.hpp"
 #include <iostream>
-#include <boost/shared_ptr.hpp>
-#include <string>
-#include <fstream>
-
-#include <Eigen/Core>
-
 // string operations
 #include <boost/lexical_cast.hpp>
 #include <boost/algorithm/string/predicate.hpp>
 
-
 using namespace std;
 using namespace Eigen;
 
-enum GripperAction{RELEASE_R, GRAB_R, RELEASE_L, GRAB_L};
-
-/** A segment of the demo trajectory : joints + env data b/w two looks. **/
-struct trajSegment {
-	typedef boost::shared_ptr<trajSegment> Ptr;
-
-	// robot joint values and their time-stamps
-	vector<float> jtimes;
-	vector<vector<double> > joints;
-
-	// robot gripper actions and their time stamps
-	vector<float> gtimes;
-	vector<GripperAction> grips;
-
-	// point-cloud data at the start of every segment
-	vector<Vector3f> ropePts;
-	vector<Vector3f> boxPts;
-	vector<Vector3f> holePts;
-};
-
-
 /** Just finds a prompt in a vector of strings. */
-int getPromptIndex(vector<string> ss) {
+int Segmenter::getPromptIndex(vector<string> ss) {
 	if (ss.size() > 0) {
 		int i=0;
 		do {
@@ -52,17 +24,16 @@ int getPromptIndex(vector<string> ss) {
 }
 
 /** Trivial predicates to resolve the type of line. */
-bool inline isPointCloudLine(const string &line) {
+bool inline Segmenter::isPointCloudLine(const string &line) {
 	return boost::starts_with(line, "\t") && !boost::starts_with(line, "\t\t");
 }
 
-bool inline isPointLine(const string &line) {
+bool inline Segmenter::isPointLine(const string &line) {
 	return boost::starts_with(line, "\t\t");
 }
 
-
 /** Reads a point-cloud into tseg from file. */
-void readPoints(ifstream &file, trajSegment::Ptr tseg) {
+void Segmenter::readPoints(ifstream &file, trajSegment::Ptr tseg) {
 	vector<Vector3f> * currentCloud;
 	bool gotCurrentCloud = false;
 	string line;
@@ -113,7 +84,7 @@ void readPoints(ifstream &file, trajSegment::Ptr tseg) {
 }
 
 /** Returns the command in the data-file. */
-string inline getCommand(const vector<string> &splitline) {
+string inline Segmenter::getCommand(const vector<string> &splitline) {
 	int prompt_idx = getPromptIndex(splitline);
 	if (prompt_idx == -1) {
 		cout << "[ERROR : Trajectory Segmentation] : Got bad command-type line in the file with no prompt.\n";
@@ -123,88 +94,82 @@ string inline getCommand(const vector<string> &splitline) {
 }
 
 /** Returns the time-stamp on a command in the date-file. */
-float inline getTimeStamp(const vector<string> &splitline) {
+float inline Segmenter::getTimeStamp(const vector<string> &splitline) {
 	return boost::lexical_cast<float>(splitline[0]);
 }
 
-/** Segments a demo-file and sequentially returns segments upon requests. */
-class Segmenter {
-public:
-	ifstream demofile;
-	bool firstSegmentDone;
 
-	Segmenter(string fpath) : demofile(fpath.c_str()), firstSegmentDone(false) {
-		if(!demofile.is_open()) {
-			stringstream errss;
-			errss << "[ERROR : Traj Segmenter] Unable to open demo file : " << fpath;
-			cout << errss.str() <<endl;
-			exit(-1);
-		}
+Segmenter::Segmenter(string fpath) : demofile(fpath.c_str()), firstSegmentDone(false) {
+	if(!demofile.is_open()) {
+		stringstream errss;
+		errss << "[ERROR : Traj Segmenter] Unable to open demo file : " << fpath;
+		cout << errss.str() <<endl;
+		exit(-1);
 	}
+}
 
-	/** Parse the demo data file to generate segment information. */
-	trajSegment::Ptr getNextSegment() {
+/** Parse the demo data file to generate segment information. */
+trajSegment::Ptr Segmenter::getNextSegment() {
 
-		if (not demofile.is_open() or demofile.eof())
-			return trajSegment::Ptr();
+	if (not demofile.is_open() or demofile.eof())
+		return trajSegment::Ptr();
 
-		bool skipPoints = false;
+	bool skipPoints = false;
 
-		trajSegment::Ptr tseg(new trajSegment);
+	trajSegment::Ptr tseg(new trajSegment);
 
-		// find the first "look" command in the file
-		if (not firstSegmentDone) {
-			bool gotFirstLook = false;
-			while(not demofile.eof() and not gotFirstLook) {
-				string line;
-				getline(demofile, line);
-				gotFirstLook = boost::contains(line, "look");
-			}
-			firstSegmentDone = true;
-		}
-
-		while(!demofile.eof()) {
+	// find the first "look" command in the file
+	if (not firstSegmentDone) {
+		bool gotFirstLook = false;
+		while(not demofile.eof() and not gotFirstLook) {
 			string line;
 			getline(demofile, line);
-
-			vector<string> splitline;
-			string buf;
-			stringstream ss(line);
-			while(ss >> buf) splitline.push_back(buf);
-
-			if (splitline.size()==0 || splitline[0][0] == '#') // skip blank lines and comments
-				continue;
-
-			string cmd = getCommand(splitline);
-			float timestamp = getTimeStamp(splitline);
-
-			if (cmd == "look") {
-				return tseg;
-			} else if (cmd == "points") {
-				if (not skipPoints) {
-					readPoints(demofile, tseg);
-					skipPoints = true;
-				} else {
-					trajSegment::Ptr tempSegment(new trajSegment);
-					readPoints(demofile, tempSegment);
-				}
-			} else if (cmd == "joints") {
-				tseg->jtimes.push_back(timestamp);
-				const int numjoints = splitline.size() - 4;
-				vector<double> tjoints(numjoints);
-				for (int k=0; k < numjoints; k+=1)
-					tjoints[k] = boost::lexical_cast<double>(splitline[k+4]);
-				tseg->joints.push_back(tjoints);
-			} else if (cmd == "grab") {
-				tseg->gtimes.push_back(timestamp);
-				tseg->grips.push_back((splitline[3]=="l")? GRAB_L : GRAB_R);
-			} else if (cmd == "release") {
-				tseg->gtimes.push_back(timestamp);
-				tseg->grips.push_back((splitline[3]=="l")? RELEASE_L : RELEASE_R);
-			} else {
-				cout << "[WARN : Traj Segmenter] : Unknown command "<<cmd << ", skipping.\n";
-			}
+			gotFirstLook = boost::contains(line, "look");
 		}
-		return tseg;
+		firstSegmentDone = true;
 	}
-};
+
+	while(!demofile.eof()) {
+		string line;
+		getline(demofile, line);
+
+		vector<string> splitline;
+		string buf;
+		stringstream ss(line);
+		while(ss >> buf) splitline.push_back(buf);
+
+		if (splitline.size()==0 || splitline[0][0] == '#') // skip blank lines and comments
+			continue;
+
+		string cmd = getCommand(splitline);
+		float timestamp = getTimeStamp(splitline);
+
+		if (cmd == "look") {
+			return tseg;
+		} else if (cmd == "points") {
+			if (not skipPoints) {
+				readPoints(demofile, tseg);
+				skipPoints = true;
+			} else {
+				trajSegment::Ptr tempSegment(new trajSegment);
+				readPoints(demofile, tempSegment);
+			}
+		} else if (cmd == "joints") {
+			tseg->jtimes.push_back(timestamp);
+			const int numjoints = splitline.size() - 4;
+			vector<double> tjoints(numjoints);
+			for (int k=0; k < numjoints; k+=1)
+				tjoints[k] = boost::lexical_cast<double>(splitline[k+4]);
+			tseg->joints.push_back(tjoints);
+		} else if (cmd == "grab") {
+			tseg->gtimes.push_back(timestamp);
+			tseg->grips.push_back((splitline[3]=="l")? GRAB_L : GRAB_R);
+		} else if (cmd == "release") {
+			tseg->gtimes.push_back(timestamp);
+			tseg->grips.push_back((splitline[3]=="l")? RELEASE_L : RELEASE_R);
+		} else {
+			cout << "[WARN : Traj Segmenter] : Unknown command "<<cmd << ", skipping.\n";
+		}
+	}
+	return tseg;
+}
