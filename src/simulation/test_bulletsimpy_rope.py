@@ -4,7 +4,7 @@ import numpy as np
 import trajoptpy
 
 env = openravepy.Environment()
-env.Load('/home/jonathan/code/trajopt/data/table.xml')
+env.Load('/home/robbie/trajopt/data/table.xml')
 viewer = trajoptpy.GetViewer(env)
 
 print 'number of objects in environment:', len(env.GetBodies())
