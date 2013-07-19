@@ -66,10 +66,11 @@ vector<btVector3> pointsFromNumpy(const py::object &py_pts) {
 
 /** Converts a vector of doubles to a numpy array.*/
 py::object vectorToNumpy(const std::vector<double>& vec) {
+
 	int len = vec.size();
 	py::object out = NP.attr("zeros")(len);
 
-	for (int i=0; i<len; ++i) out[i] = vec[i];
+	for (int i=0; i<len; ++i) 	out[i] = vec[i];
 
 	return out;
 }
@@ -196,12 +197,12 @@ py::object jointsToNumpy( const vector< vector<dReal> > &joints) {
 	if (N > 0) { // ensure that there is at least one vector inside
 		const int M = joints[0].size();
 		py::object out = NP.attr("zeros")(py::make_tuple(N, M));
-		 for (int i =0 ; i < N; i+=1) {
-			 assert(("Numbers of elements in the second dimension are not the same.", joints[i].size()==M));
-			 const vector<dReal> & joint_set = joints[i];
-			 for (int j=0; j < M; j+=1)
-				 out[i][j] = joint_set[j];
-		 }
+		for (int i =0 ; i < N; i+=1) {
+			assert(("Numbers of elements in the second dimension are not the same.", joints[i].size()==M));
+			const vector<dReal> & joint_set = joints[i];
+			for (int j=0; j < M; j+=1)
+				out[i][j] = joint_set[j];
+		}
 		return out;
 	}
 	return NP.attr("zeros")(py::make_tuple(0, 0));;
@@ -291,7 +292,7 @@ vector<vector<double> > interpolateD(const vector<double> & sample_times, const 
  *                      note: the times are such that in the input data the ith vector is assumed to be a sample at time =i.
  *                    - second is the actual data (2 dimensional)*/
 pair< vector<float>, vector< vector <double> > >
-	adaptive_resample (const vector < vector <double> > & in_signal, double tol, double max_change, int min_steps) {
+adaptive_resample (const vector < vector <double> > & in_signal, double tol, double max_change, int min_steps) {
 
 
 	py::object py_signal     = jointsToNumpy(in_signal);

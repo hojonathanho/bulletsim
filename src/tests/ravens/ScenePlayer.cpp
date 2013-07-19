@@ -7,6 +7,7 @@
 #include <fstream>
 #include <algorithm>
 #include "lfd/utils_python.h"
+#include <utils/colorize.h>
 
 using namespace std;
 
@@ -71,17 +72,17 @@ void ScenePlayer::genTimeStamps(double startt, double endt, vector<double> &tsta
 }
 
 ScenePlayer::ScenePlayer(CustomScene & _scene, float _freq, int numfile) :
-				scene(_scene),
-				freq(_freq),
-				doLFD(false),
-				playing(false),
-				currentTimeStampIndex(-1.),
-				runnumfname(string(EXPAND(BULLETSIM_SRC_DIR)) + "/tests/ravens/recorded/playrunnum.txt") {
+								scene(_scene),
+								freq(_freq),
+								doLFD(false),
+								playing(false),
+								currentTimeStampIndex(-1.),
+								runnumfname(string(EXPAND(BULLETSIM_SRC_DIR)) + "/tests/ravens/recorded/playrunnum.txt") {
 	if (numfile < 0)
 		numfile = getCurrentPlayNumber();
 
 	stringstream scenefnamess;
-	scenefnamess << EXPAND(BULLETSIM_SRC_DIR)"/test/ravens/recorded/simruns/run" << numfile << ".txt";
+	scenefnamess << EXPAND(BULLETSIM_SRC_DIR)"/tests/ravens/recorded/simruns/run" << numfile << ".txt";
 	scenefname  = scenefnamess.str();
 
 	// set the play-back frequency
@@ -96,7 +97,7 @@ ScenePlayer::ScenePlayer(CustomScene & _scene, float _freq, int numfile) :
 	// register a callback with the scene's step
 	scene.addPreStepCallback(boost::bind(&ScenePlayer::playCallback, this));
 
-	resetPlayer();
+	//resetPlayer();
 }
 
 // do LFD based warping or not
@@ -108,7 +109,10 @@ void ScenePlayer::toggleLFD() {
 void ScenePlayer::togglePlay() {
 	resetPlayer();
 	playing = not playing;
+	if (playing)
+		cout << colorize("Now playing demo file: " + scenefname, "green", true)<<endl;
 }
+
 
 bool inline ScenePlayer::doNextSegment() {
 	return (playTimeStamps.size() ==0 or currentTimeStampIndex==playTimeStamps.size());
@@ -121,6 +125,7 @@ void ScenePlayer::setupNewSegment() {
 	if (not currentTrajSeg) {
 		playing = false;
 		resetPlayer();
+		cout << colorize("Done playing demo file: " + scenefname, "green", true)<<endl;
 		return;
 	}
 
@@ -168,8 +173,8 @@ void ScenePlayer::setupNewSegment() {
 
 		// warp the joints using LFD/ Trajopt
 		vector<vector<double> > warpedJoints;
-//		warpJointsLFD(src_clouds, target_clouds,
-//				currentTrajSeg->joints, warpedJoints);
+		//		warpJointsLFD(src_clouds, target_clouds,
+		//				currentTrajSeg->joints, warpedJoints);
 
 		// interpolate the warped-joints at the play-backtimes
 		rjoints = interpolateD( playTimeStamps, warpedJoints,currentTrajSeg->jtimes);
@@ -197,8 +202,10 @@ void ScenePlayer::playCallback() {
 			currentTimeStampIndex += 1;
 
 			// set the robot gripper actions
-			if (currentGripperActionIndex < currentTrajSeg->grips.size() and currentTrajSeg->gtimes[currentGripperActionIndex] >= timestamp) {
+			if (currentGripperActionIndex < currentTrajSeg->grips.size() and currentTrajSeg->gtimes[currentGripperActionIndex] <= timestamp) {
 				GripperAction gaction = currentTrajSeg->grips[currentGripperActionIndex];
+
+				currentGripperActionIndex += 1;
 
 				if (gaction == RELEASE_R)
 					scene.openGrippers("r");
@@ -208,8 +215,6 @@ void ScenePlayer::playCallback() {
 					scene.closeGrippers("r");
 				else if (gaction == GRAB_L)
 					scene.closeGrippers("l");
-
-				currentGripperActionIndex += 1;
 			}
 		}
 	}
