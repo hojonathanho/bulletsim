@@ -3,6 +3,7 @@
 #include <iostream>
 #include "bullet_io.h"
 #include <boost/foreach.hpp>
+#include "config_bullet.h"
 using namespace std;
 
 boost::shared_ptr<btGeneric6DofSpringConstraint> CapsuleRope_createBendConstraint(btScalar len,
@@ -125,7 +126,7 @@ CapsuleRope::CapsuleRope(const vector<btVector3>& ctrlPoints, btScalar radius_, 
     float mass = 0.2;
     CapsuleObject::Ptr child(new CapsuleObject(mass,radius,len,trans));
     child->rigidBody->setDamping(linDamping,angDamping);
-    child->rigidBody->setFriction(1);
+    child->rigidBody->setFriction(BulletConfig::friction);
     //child->collisionShape->setMargin(0.04);
 
     children.push_back(child);

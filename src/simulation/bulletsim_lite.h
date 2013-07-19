@@ -12,8 +12,8 @@ using namespace OpenRAVE;
 namespace py = boost::python;
 
 void InitPython();
-struct SimulationParams;
-SimulationParams& GetSimParams();
+struct SimulationParams; typedef boost::shared_ptr<SimulationParams> SimulationParamsPtr;
+SimulationParamsPtr GetSimParams();
 void TranslateStdException(const std::exception& e);
 
 class BulletEnvironment;

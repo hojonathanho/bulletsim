@@ -6,14 +6,17 @@
 namespace bs {
 
 static py::object openravepy, numpy;
-static SimulationParams g_simparams;
+static SimulationParamsPtr g_simparams;
 
 void InitPython() {
   openravepy = py::import("openravepy");
   numpy = py::import("numpy");
 }
 
-SimulationParams& GetSimParams() {
+SimulationParamsPtr GetSimParams() {
+  if (!g_simparams) {
+    g_simparams.reset(new SimulationParams);
+  }
   return g_simparams;
 }
 
@@ -307,13 +310,13 @@ void SimulationParams::Apply() {
 }
 
 void BulletEnvironment::init(EnvironmentBasePtr rave_env, const vector<string>& dynamic_obj_names) {
-  GetSimParams().Apply();
+  GetSimParams()->Apply();
   BulletInstance::Ptr bullet(new BulletInstance);
   m_env.reset(new Environment(bullet));
   m_rave.reset(new RaveInstance(rave_env));
   m_dynamic_obj_names = dynamic_obj_names;
   LoadFromRaveExplicit(m_env, m_rave, dynamic_obj_names);
-  SetGravity(GetSimParams().gravity);
+  SetGravity(GetSimParams()->gravity);
 }
 
 BulletEnvironment::BulletEnvironment(EnvironmentBasePtr rave_env, const vector<string>& dynamic_obj_names) {
@@ -587,7 +590,7 @@ void CapsuleRope::init(BulletEnvironmentPtr env, const string& name, const vecto
     CapsuleObject::Ptr tmp(new CapsuleObject(mass,m_params.radius*METERS,len,trans)); // only used for collision shape
     RaveLinkObject::Ptr link(new RaveLinkObject(env->GetRaveInstance(), kinbody->GetLinks()[i], mass, tmp->collisionShape, trans, false));
     link->rigidBody->setDamping(m_params.linDamping, m_params.angDamping);
-    link->rigidBody->setFriction(1);
+    link->rigidBody->setFriction(BulletConfig::friction);
     //link->collisionShape->setMargin(0.04);
     m_children.push_back(link);
 
