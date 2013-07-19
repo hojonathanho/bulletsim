@@ -22,7 +22,7 @@ class RavensRigidBodyGripperAction : public Action {
 
 
     // min/max gripper dof vals
-    static const float CLOSED_VAL = 0.0f, CLOSED_VAL_PEG = 0.15f, OPEN_VAL = 0.30f;
+    static const float CLOSED_VAL = 0.0f, CLOSED_VAL_PEG = 0.015f, OPEN_VAL = 0.30f;
 
 public:
     typedef boost::shared_ptr<RavensRigidBodyGripperAction> Ptr;

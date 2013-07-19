@@ -201,7 +201,6 @@ void ScenePlayer::setupNewSegment() {
 		warpRavenJointsBij(scene.ravens, src_clouds, target_clouds,
 				currentTrajSeg->joints, warpedJoints);
 
-
 		// interpolate the warped-joints at the play-backtimes
 		rjoints = interpolateD( playTimeStamps, warpedJoints,currentTrajSeg->jtimes);
 

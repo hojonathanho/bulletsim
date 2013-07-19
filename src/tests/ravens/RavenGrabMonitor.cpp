@@ -111,7 +111,7 @@ bool RavensGrabMonitor::checkContacts(bool left, btRigidBody *target, double &av
 			m_manip->robot->associatedObj(left ? leftFinger : rightFinger)->rigidBody.get();
 
 	const btScalar a = 0.15; // moving average
-	const btScalar multiplier = 2.0;
+	const btScalar multiplier = 1.5;
 	BulletInstance::Ptr bullet = m_manip->robot->getEnvironment()->bullet;
 	for (int i = 0; i < bullet->dispatcher->getNumManifolds(); ++i) {
 		btPersistentManifold* contactManifold = bullet->dispatcher->getManifoldByIndexInternal(i);
