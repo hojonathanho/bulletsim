@@ -220,7 +220,7 @@ public:
 		ikPlannerR.reset(new IKInterpolationPlanner(ravens,rave,'r'));
 
 		//jRecorder.reset (new jointRecorder (*this));
-		scenePlayer.reset (new ScenePlayer (*this));
+		scenePlayer.reset (new ScenePlayer (*this, 100., RavenConfig::enableLfd));
 
 		// new scene recorder:
 		sceneRecorder.reset(new SceneRecorder(*this));

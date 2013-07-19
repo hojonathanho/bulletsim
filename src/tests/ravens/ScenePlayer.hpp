@@ -54,7 +54,7 @@ public:
 
 	typedef boost::shared_ptr<ScenePlayer> Ptr;
 
-	ScenePlayer(CustomScene & _scene, float _freq=100., int numfile=-1);
+	ScenePlayer(CustomScene & _scene, float _freq=100., bool doLFD=false, int numfile=-1);
 	// do LFD based warping or not
 	void toggleLFD();
 	// play the demo or not

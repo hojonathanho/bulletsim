@@ -9,6 +9,8 @@
 #include "lfd/utils_python.h"
 #include <utils/colorize.h>
 
+#include "lfd/TPSBijectWrapper.hpp"
+
 using namespace std;
 
 int ScenePlayer::getCurrentPlayNumber() {
@@ -71,13 +73,13 @@ void ScenePlayer::genTimeStamps(double startt, double endt, vector<double> &tsta
 		tstamps.push_back(endt);
 }
 
-ScenePlayer::ScenePlayer(CustomScene & _scene, float _freq, int numfile) :
-								scene(_scene),
-								freq(_freq),
-								doLFD(false),
-								playing(false),
-								currentTimeStampIndex(-1.),
-								runnumfname(string(EXPAND(BULLETSIM_SRC_DIR)) + "/tests/ravens/recorded/playrunnum.txt") {
+ScenePlayer::ScenePlayer(CustomScene & _scene, float _freq, bool _doLFD, int numfile) :
+										scene(_scene),
+										freq(_freq),
+										doLFD(_doLFD),
+										playing(false),
+										currentTimeStampIndex(-1.),
+										runnumfname(string(EXPAND(BULLETSIM_SRC_DIR)) + "/tests/ravens/recorded/playrunnum.txt") {
 	if (numfile < 0)
 		numfile = getCurrentPlayNumber();
 
@@ -129,17 +131,36 @@ void ScenePlayer::setupNewSegment() {
 		return;
 	}
 
+	cout << "jtimes size : "<<  currentTrajSeg->jtimes.size() <<endl;
+	cout << "joints size : "<<  currentTrajSeg->joints.size() <<endl;
+	cout << "gtimes size : "<<  currentTrajSeg->gtimes.size() <<endl;
+	cout << "grips size : " <<  currentTrajSeg->grips.size() <<endl;
+
 	// sample joints at the correct freqeuncy.
-	double tstart = min(currentTrajSeg->jtimes[0], currentTrajSeg->gtimes[0]);
-	double tend   = max(currentTrajSeg->jtimes.back(), currentTrajSeg->gtimes.back());
+
+	double tstart;
+	if (currentTrajSeg->gtimes.size() != 0)
+		tstart = min(currentTrajSeg->jtimes[0], currentTrajSeg->gtimes[0]);
+	else
+		tstart = currentTrajSeg->jtimes[0];
+
+	double tend;
+	if (currentTrajSeg->gtimes.size() != 0)
+		tend = max(currentTrajSeg->jtimes.back(), currentTrajSeg->gtimes.back());
+	else
+		tend = currentTrajSeg->jtimes.back();
+
 	genTimeStamps(tstart, tend, playTimeStamps);
+
 	currentTimeStampIndex = 0;
 	currentGripperActionIndex = 0;
 	playbackStartTime = scene.getSimTime();
 
+
 	if (doLFD) {// warp joints.
 
-		vector<vector<btVector3> >  src_cloud;
+		vector<vector<btVector3> >  src_clouds;
+
 
 		bool use_rope  = currentTrajSeg->ropePts.size() != 0;
 		bool use_box   = currentTrajSeg->boxPts.size() != 0;
@@ -147,34 +168,39 @@ void ScenePlayer::setupNewSegment() {
 
 		// get source clouds
 		if (use_rope)
-			src_cloud.push_back(currentTrajSeg->ropePts);
+			src_clouds.push_back(currentTrajSeg->ropePts);
 		if (use_box)
-			src_cloud.push_back(currentTrajSeg->boxPts);
+			src_clouds.push_back(currentTrajSeg->boxPts);
 		if (use_hole)
-			src_cloud.push_back(currentTrajSeg->holePts);
+			src_clouds.push_back(currentTrajSeg->holePts);
+
 
 		// get target clouds
-		vector<vector<btVector3> > target_cloud;
+		vector<vector<btVector3> > target_clouds;
 		if (use_rope) {
 			vector<btVector3> target_rope;
 			scene.getBoxHoles(target_rope, 1.0/METERS);
-			target_cloud.push_back(target_rope);
+			target_clouds.push_back(target_rope);
 		}
+
+
 		if (use_box) {
 			vector<btVector3> target_box;
 			scene.getBoxHoles(target_box, 1.0/METERS);
-			target_cloud.push_back(target_box);
+			target_clouds.push_back(target_box);
 		}
+
 		if (use_hole) {
 			vector<btVector3> target_hole;
 			scene.getBoxHoles(target_hole, 1.0/METERS);
-			target_cloud.push_back(target_hole);
+			target_clouds.push_back(target_hole);
 		}
 
 		// warp the joints using LFD/ Trajopt
 		vector<vector<double> > warpedJoints;
-		//		warpJointsLFD(src_clouds, target_clouds,
-		//				currentTrajSeg->joints, warpedJoints);
+		warpRavenJointsBij(scene.ravens, src_clouds, target_clouds,
+				currentTrajSeg->joints, warpedJoints);
+
 
 		// interpolate the warped-joints at the play-backtimes
 		rjoints = interpolateD( playTimeStamps, warpedJoints,currentTrajSeg->jtimes);

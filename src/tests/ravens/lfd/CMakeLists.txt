@@ -11,6 +11,7 @@ add_library(lfd LfdRpmWrapper.cpp
 				RavensLfd.cpp
 				utils_python.cpp
 				SegmentDemo.cpp
+				TPSBijectWrapper.cpp
 				)
 
 target_link_libraries(lfd simulation robots 

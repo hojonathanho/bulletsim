@@ -5,29 +5,37 @@ py::object PyGlobals::main_namespace;
 py::object PyGlobals::builtin_module;
 py::object PyGlobals::numpy_module;
 py::object PyGlobals::lfd_registration_module;
+py::object PyGlobals::joschu_lfd_registration_module;
 py::object PyGlobals::openrave_module;
 py::object PyGlobals::resampling_module;
 py::object PyGlobals::math_module;
 py::object PyGlobals::iros_utils_module;
 py::object PyGlobals::None;
 
+
 void setup_python() {
-	Py_Initialize();
+	try {
+		Py_Initialize();
 
-	PyGlobals::main_module    = py::import("__main__");
-	PyGlobals::main_namespace = PyGlobals::main_module.attr("__dict__");
-	PyGlobals::builtin_module = py::import("__builtin__");
-	PyGlobals::numpy_module   = py::import("numpy");
+		PyGlobals::main_module    = py::import("__main__");
+		PyGlobals::main_namespace = PyGlobals::main_module.attr("__dict__");
+		PyGlobals::builtin_module = py::import("__builtin__");
+		PyGlobals::numpy_module   = py::import("numpy");
 
-	py::exec("import sys", PyGlobals::main_namespace);
-	py::exec("sys.argv = ['call_lfd_from_cpp']", PyGlobals::main_namespace); // otherwise sys.argv is none and ros imports give errors
+		py::exec("import sys", PyGlobals::main_namespace);
+		py::exec("sys.argv = ['call_lfd_from_cpp']", PyGlobals::main_namespace); // otherwise sys.argv is none and ros imports give errors
 
-	PyGlobals::lfd_registration_module =  py::import("rapprentice.registration");
-	PyGlobals::resampling_module = py::import("rapprentice.resampling");
-	PyGlobals::openrave_module   = py::import("openravepy");
-	PyGlobals::math_module       = py::import("jds_utils.math_utils");
-	PyGlobals::iros_utils_module = py::import("iros.iros_utils");
-	PyGlobals::None              = py::api::object();
+		PyGlobals::lfd_registration_module =  py::import("rapprentice.registration");
+		PyGlobals::joschu_lfd_registration_module = py::import("rapprentice_joschu.registration");
+
+		PyGlobals::resampling_module = py::import("rapprentice.resampling");
+		PyGlobals::openrave_module   = py::import("openravepy");
+		PyGlobals::math_module       = py::import("jds_utils.math_utils");
+		PyGlobals::iros_utils_module = py::import("iros.iros_utils");
+		PyGlobals::None              = py::api::object();
+	} catch(...) {
+		PyErr_Print();
+	}
 }
 
 /** Converts a vector of btVector3 (list of 3d points) to a 2D numpy array.*/
