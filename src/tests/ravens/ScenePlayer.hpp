@@ -15,7 +15,9 @@ class ScenePlayer {
 	CustomScene &scene;
 
 	// ravens joint indices which are set by this player
-	std::vector<int> joint_inds;
+	std::vector<int> larm_inds;
+	std::vector<int> rarm_inds;
+
 
 	// number of the scene file recording
 	int runnumber;

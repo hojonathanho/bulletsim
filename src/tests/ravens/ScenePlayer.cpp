@@ -93,8 +93,8 @@ ScenePlayer::ScenePlayer(CustomScene & _scene, float _freq, bool _doLFD, int num
 	tp  = 1./freq;
 
 	// the dofs of the robot which are set
-	int dof = scene.ravens.ravens->robot->GetDOF();
-	for (int i = 0; i < dof; ++i) joint_inds.push_back(i);
+	larm_inds = scene.ravens.manipL->manip->GetArmIndices();
+	rarm_inds = scene.ravens.manipR->manip->GetArmIndices();
 
 	// register a callback with the scene's step
 	scene.addPreStepCallback(boost::bind(&ScenePlayer::playCallback, this));
@@ -209,6 +209,14 @@ void ScenePlayer::setupNewSegment() {
 	}
 }
 
+void extractJoints (const vector<int> &inds,
+		const vector<dReal> &in_joint_vals, vector<dReal> &out_joint_vals) {
+	out_joint_vals.clear();
+	out_joint_vals.reserve(inds.size());
+	for(int i=0; i<inds.size(); i+=1)
+		out_joint_vals.push_back(in_joint_vals[inds[i]]);
+}
+
 
 // callback for playing back joints on the robot.
 void ScenePlayer::playCallback() {
@@ -221,9 +229,15 @@ void ScenePlayer::playCallback() {
 
 		if (playTimeSinceStart >= simTimeSinceStart) {
 
-			// set the robot joints
 			double timestamp = playTimeStamps[currentTimeStampIndex];
-			scene.ravens.ravens->setDOFValues(joint_inds, rjoints[currentTimeStampIndex]);
+
+			// set the robot-arms joints
+			vector<double> larm_joints, rarm_joints;
+			extractJoints(larm_inds, rjoints[currentTimeStampIndex], larm_joints);
+			extractJoints(rarm_inds, rjoints[currentTimeStampIndex], rarm_joints);
+			scene.ravens.setArmJointAngles(larm_joints, 'l');
+			scene.ravens.setArmJointAngles(rarm_joints, 'r');
+
 			currentTimeStampIndex += 1;
 
 			// set the robot gripper actions

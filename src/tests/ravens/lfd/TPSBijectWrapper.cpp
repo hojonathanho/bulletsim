@@ -173,7 +173,7 @@ bool RavensLFDBij::transformJointsTrajOpt(const vector<vector<dReal> > &joints, 
 	KinBody::LinkPtr l_finger1_link = ravens.ravens->robot->GetLink("lhandfinger1_sp");
 	KinBody::LinkPtr l_finger2_link = ravens.ravens->robot->GetLink("lhandfinger2_sp");
 
-	double tol = 0.001;  //DOWNSAMPLE
+	double tol = 0.002;  //DOWNSAMPLE
 	std::pair< vector <float>, vector < vector <double> > > times_joints = adaptive_resample(joints, tol);
 	vector<float> resampled_times             = times_joints.first;
 	vector <vector<double> > resampled_joints = times_joints.second;

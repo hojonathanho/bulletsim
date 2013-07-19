@@ -210,8 +210,6 @@ public:
 	ScenePlayer::Ptr scenePlayer;
 	SceneRecorder::Ptr sceneRecorder;
 
-
-
 	// type of scene to set-up
 	TestSuite tsuite;
 
