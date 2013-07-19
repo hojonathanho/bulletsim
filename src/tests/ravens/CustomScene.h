@@ -30,6 +30,7 @@
 #include "BoxCloth.h"
 #include "jointRecorder.h"
 #include "SceneRecorder.hpp"
+#include "ScenePlayer.hpp"
 #include "jointPlayback.h"
 
 #include "ravens_config.h"
@@ -205,8 +206,8 @@ public:
 	PlotAxes::Ptr plot_axes2;
 
 	//jointRecorder::Ptr jRecorder;
-	jointPlayback::Ptr jPlayback;
-
+	//jointPlayback::Ptr jPlayback;
+	ScenePlayer::Ptr scenePlayer;
 	SceneRecorder::Ptr sceneRecorder;
 
 
@@ -219,7 +220,7 @@ public:
 		ikPlannerR.reset(new IKInterpolationPlanner(ravens,rave,'r'));
 
 		//jRecorder.reset (new jointRecorder (*this));
-		jPlayback.reset (new jointPlayback (*this, RavenConfig::enableLfd));
+		scenePlayer.reset (new ScenePlayer (*this));
 
 		// new scene recorder:
 		sceneRecorder.reset(new SceneRecorder(*this));
@@ -237,6 +238,10 @@ public:
 	}
 
 	void togglePegFinger () {sPeg->toggleFinger();}
+
+	void toggleGrippers(string rl);
+	void closeGrippers(string rl);
+	void openGrippers(string rl);
 
 	/** Move the end-effector. */
 	void moveEndEffector(char dir, bool world=false, char lr='l', float step=0.005);

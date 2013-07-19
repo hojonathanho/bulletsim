@@ -78,6 +78,8 @@ py::object jointsToNumpy( const vector< vector<dReal> > &joints);
 /** Does linear interpolation on data to return samples as times specified in SAMPLE_TIMES.
  *  The input data is 2D, at TIME_STAMPS. */
 vector<vector<double> > interpolate(const vector<float> & sample_times, const vector<vector<double > > & data, const vector<float> & time_stamps);
+vector<vector<double> > interpolateD(const vector<double> & sample_times, const vector<vector<double > > & data, const vector<double> & time_stamps);
+
 
 /** Resample original signal with a small number of waypoints so that the the sparsely sampled function,
  *   when linearly interpolated, deviates from the original function by less than TOL at every time

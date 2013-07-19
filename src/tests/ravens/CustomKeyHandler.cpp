@@ -13,16 +13,11 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,
 		switch (ea.getKey()) {
 
 		case 'a':
-			scene.lAction->reset();
-			scene.lAction->toggleAction();
-			scene.runAction(scene.lAction, BulletConfig::dt);
+			scene.toggleGrippers("l");
 			break;
 		case 's':
-			scene.rAction->reset();
-			scene.rAction->toggleAction();
-			scene.runAction(scene.rAction, BulletConfig::dt);
+			scene.toggleGrippers("r");
 			break;
-
 		case 'S': // save scene point cloud in a file.
 			scene.saveScenePoints();
 			break;
@@ -99,7 +94,7 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,
 			scene.sceneRecorder->toggleRecording();
 			break;
 		case 'l':
-			scene.jPlayback->toggleEnabled();
+			scene.scenePlayer->togglePlay();
 			break;
 		//case ']':
 		//	scene.plotGrasp();
@@ -126,10 +121,10 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,
 			scene.reset();
 			break;
 		case '?':
-			scene.jPlayback->reset();
+			//scene.jPlayback->reset();
 			break;
 		case '\\':
-			scene.jPlayback->toggleLfd();
+			scene.scenePlayer->toggleLFD();
 			break;
 
 			/******************************* RIGHT LOCAL **********************************/

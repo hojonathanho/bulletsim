@@ -10,6 +10,7 @@ include_directories (${PYTHON_INCLUDE_DIRS})
 add_library(lfd LfdRpmWrapper.cpp
 				RavensLfd.cpp
 				utils_python.cpp
+				SegmentDemo.cpp
 				)
 
 target_link_libraries(lfd simulation robots 

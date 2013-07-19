@@ -247,6 +247,28 @@ vector<vector<double> > interpolate(const vector<float> & sample_times, const ve
 	return out;
 }
 
+/** Does linear interpolation on data to return samples as times specified in SAMPLE_TIMES.
+ *  The input data is 2D, at TIME_STAMPS. */
+vector<vector<double> > interpolateD(const vector<double> & sample_times, const vector<vector<double > > & data, const vector<double> & time_stamps) {
+
+	py::object py_sample_times = vectorToNumpy(sample_times);
+	py::object py_data         = jointsToNumpy(data);
+	py::object py_time_stamps  = vectorToNumpy(time_stamps);
+
+	py::object interp2d        = PyGlobals::math_module.attr("interp2d");
+	py::object interpolated_data;
+
+	try {
+		interpolated_data = interp2d(py_sample_times, py_time_stamps, py_data);
+	} catch(...) {
+		PyErr_Print();
+	}
+
+	vector<vector<double> > out = jointsFromNumpy(interpolated_data);
+	return out;
+}
+
+
 
 /** Resample original signal with a small number of waypoints so that the the sparsely sampled function,
  *   when linearly interpolated, deviates from the original function by less than TOL at every time

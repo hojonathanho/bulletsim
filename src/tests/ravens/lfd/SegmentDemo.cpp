@@ -34,7 +34,7 @@ bool inline Segmenter::isPointLine(const string &line) {
 
 /** Reads a point-cloud into tseg from file. */
 void Segmenter::readPoints(ifstream &file, trajSegment::Ptr tseg) {
-	vector<Vector3f> * currentCloud;
+	vector<btVector3> * currentCloud;
 	bool gotCurrentCloud = false;
 	string line;
 
@@ -73,7 +73,7 @@ void Segmenter::readPoints(ifstream &file, trajSegment::Ptr tseg) {
 				string sx, sy, sz;
 				stringstream coords(line);
 				coords >> sx >> sy >> sz;
-				Vector3f pt(boost::lexical_cast<float>(sx), boost::lexical_cast<float>(sy), boost::lexical_cast<float>(sz));
+				btVector3 pt(boost::lexical_cast<float>(sx), boost::lexical_cast<float>(sy), boost::lexical_cast<float>(sz));
 				currentCloud->push_back(pt);
 			} else {
 				cout << "[ERROR : Trajectory Segmentation] : Got point before cloud type."<<endl;
@@ -94,8 +94,8 @@ string inline Segmenter::getCommand(const vector<string> &splitline) {
 }
 
 /** Returns the time-stamp on a command in the date-file. */
-float inline Segmenter::getTimeStamp(const vector<string> &splitline) {
-	return boost::lexical_cast<float>(splitline[0]);
+double inline Segmenter::getTimeStamp(const vector<string> &splitline) {
+	return boost::lexical_cast<double>(splitline[0]);
 }
 
 
@@ -142,7 +142,7 @@ trajSegment::Ptr Segmenter::getNextSegment() {
 			continue;
 
 		string cmd = getCommand(splitline);
-		float timestamp = getTimeStamp(splitline);
+		double timestamp = getTimeStamp(splitline);
 
 		if (cmd == "look") {
 			return tseg;

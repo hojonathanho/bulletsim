@@ -1,9 +1,10 @@
+#pragma once
 #include <vector>
 #include <boost/shared_ptr.hpp>
 #include <string>
 #include <fstream>
 #include <Eigen/Core>
-
+#include <simulation/simplescene.h>
 
 enum GripperAction{RELEASE_R, GRAB_R, RELEASE_L, GRAB_L};
 
@@ -12,17 +13,17 @@ struct trajSegment {
 	typedef boost::shared_ptr<trajSegment> Ptr;
 
 	// robot joint values and their time-stamps
-	std::vector<float> jtimes;
+	std::vector<double> jtimes;
 	std::vector<std::vector<double> > joints;
 
 	// robot gripper actions and their time stamps
-	std::vector<float> gtimes;
+	std::vector<double> gtimes;
 	std::vector<GripperAction> grips;
 
 	// point-cloud data at the start of every segment
-	std::vector<Eigen::Vector3f> ropePts;
-	std::vector<Eigen::Vector3f> boxPts;
-	std::vector<Eigen::Vector3f> holePts;
+	std::vector<btVector3> ropePts;
+	std::vector<btVector3> boxPts;
+	std::vector<btVector3> holePts;
 };
 
 
@@ -47,9 +48,11 @@ private:
 	std::string inline getCommand(const std::vector<std::string> &splitline);
 
 	/** Returns the time-stamp on a command in the date-file. */
-	float inline getTimeStamp(const std::vector<std::string> &splitline);
+	double inline getTimeStamp(const std::vector<std::string> &splitline);
 
 public:
+	typedef boost::shared_ptr<Segmenter> Ptr;
+
 	Segmenter(std::string fpath);
 
 	/** Parse the demo data file to generate segment information. */

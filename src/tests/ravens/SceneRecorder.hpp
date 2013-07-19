@@ -19,11 +19,11 @@ class SceneRecorder {
 	vector<double> joint_vals;			// Vector to store joint values
 	bool recording;						// Check if recording currently
 
-	const string runfilepath;	 		// File name
+	const string runfilepath;	 		// File directory
 	ofstream file;						// Output file stream
 
-	double jLastMsgTime;					// Time stamp when the last JOINT message was recorded
-	double pLastMsgTime;					// Time stamp when the last POINT message was recorded
+	double jLastMsgTime;				// Time stamp when the last JOINT message was recorded
+	double pLastMsgTime;				// Time stamp when the last POINT message was recorded
 
 	double joints_freq;					// Frequency of recording JOINTS
 	double joints_tp;					// Time period of recording the robot's joints = 1/joints_freq

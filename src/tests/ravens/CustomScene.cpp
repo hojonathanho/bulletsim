@@ -21,6 +21,46 @@ btTransform rotateByAngle (btTransform &tfm, const float ang, const float rad) {
 }
 
 
+//--------------------->> control ravens grippers <<-------------------------
+void CustomScene::toggleGrippers(string rl) {
+	if (rl == "l") {
+		lAction->reset();
+		lAction->toggleAction();
+		runAction(lAction, BulletConfig::dt);
+	} else if (rl == "r") {
+		rAction->reset();
+		rAction->toggleAction();
+		runAction(rAction, BulletConfig::dt);
+	}
+}
+
+
+void CustomScene::closeGrippers(string rl) {
+	if (rl == "l") {
+		lAction->reset();
+		lAction->setCloseAction();
+		runAction(lAction, BulletConfig::dt);
+	} else if (rl == "r") {
+		rAction->reset();
+		rAction->setCloseAction();
+		runAction(rAction, BulletConfig::dt);
+	}
+}
+
+void CustomScene::openGrippers(string rl) {
+	if (rl == "l") {
+		lAction->reset();
+		lAction->setOpenAction();
+		runAction(lAction, BulletConfig::dt);
+	} else if (rl == "r") {
+		rAction->reset();
+		rAction->setOpenAction();
+		runAction(rAction, BulletConfig::dt);
+	}
+}
+
+
+
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////SUTURING NEEDLE/////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
