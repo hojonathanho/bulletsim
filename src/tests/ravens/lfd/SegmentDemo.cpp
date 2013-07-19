@@ -3,7 +3,8 @@
 #include <boost/shared_ptr.hpp>
 #include <string>
 #include <fstream>
-#include <utils/colorize.h>
+
+#include <Eigen/Core>
 
 // string operations
 #include <boost/lexical_cast.hpp>
@@ -13,29 +14,26 @@
 using namespace std;
 using namespace Eigen;
 
-enum GripperAction{NONE, R_OPEN, R_CLOSE, L_OPEN, L_CLOSE};
-
-
-/** Structure to hold the robot gripper action at a given time-stamp.
- *  An implicit assumption is that there can only be one of
- *  the above five gripper actions possible per time-stamp. */
-struct robotInfo {
-	typedef boost::shared_ptr<robotInfo> Ptr;
-
-	GripperAction gaction;
-	vector<double> joints;
-};
+enum GripperAction{RELEASE_R, GRAB_R, RELEASE_L, GRAB_L};
 
 /** A segment of the demo trajectory : joints + env data b/w two looks. **/
 struct trajSegment {
 	typedef boost::shared_ptr<trajSegment> Ptr;
 
-	vector<float> times;
-	vector<robotInfo> rInfo;
+	// robot joint values and their time-stamps
+	vector<float> jtimes;
+	vector<vector<double> > joints;
+
+	// robot gripper actions and their time stamps
+	vector<float> gtimes;
+	vector<GripperAction> grips;
+
+	// point-cloud data at the start of every segment
 	vector<Vector3f> ropePts;
 	vector<Vector3f> boxPts;
 	vector<Vector3f> holePts;
 };
+
 
 /** Just finds a prompt in a vector of strings. */
 int getPromptIndex(vector<string> ss) {
@@ -63,15 +61,22 @@ bool inline isPointLine(const string &line) {
 }
 
 
-/** Reads a point-cloud into tsef from file. */
+/** Reads a point-cloud into tseg from file. */
 void readPoints(ifstream &file, trajSegment::Ptr tseg) {
 	vector<Vector3f> * currentCloud;
 	bool gotCurrentCloud = false;
 	string line;
 
-
 	while(not ( file.eof() or boost::contains(line, "end-points")) ) {
 		getline(file, line);
+
+		vector<string> splitline;
+		string buf;
+		stringstream ss(line);
+		while(ss >> buf) splitline.push_back(buf);
+
+		if (splitline.size()==0 || splitline[0][0] == '#') // skip blank lines and comments
+			continue;
 
 		if (isPointCloudLine(line)) {
 			string cloud_type;
@@ -101,6 +106,7 @@ void readPoints(ifstream &file, trajSegment::Ptr tseg) {
 				currentCloud->push_back(pt);
 			} else {
 				cout << "[ERROR : Trajectory Segmentation] : Got point before cloud type."<<endl;
+				exit(-1);
 			}
 		}
 	}
@@ -121,73 +127,84 @@ float inline getTimeStamp(const vector<string> &splitline) {
 	return boost::lexical_cast<float>(splitline[0]);
 }
 
+/** Segments a demo-file and sequentially returns segments upon requests. */
+class Segmenter {
+public:
+	ifstream demofile;
+	bool firstSegmentDone;
 
-/** Parse the demo data file to generate segment information. */
-vector<trajSegment> getTrajSegments(string fpath) {
-	ifstream demofile(fpath.c_str());
-	if(!demofile.is_open()) {
-		stringstream errss;
-		errss << "[ERROR : getTrajSegments] Unable to open demo file : " << fpath;
-		cout << colorize(errss.str(), "red", true);
-		exit(-1);
+	Segmenter(string fpath) : demofile(fpath.c_str()), firstSegmentDone(false) {
+		if(!demofile.is_open()) {
+			stringstream errss;
+			errss << "[ERROR : Traj Segmenter] Unable to open demo file : " << fpath;
+			cout << errss.str() <<endl;
+			exit(-1);
+		}
 	}
 
-	vector<trajSegment::Ptr> segments;
-	int numSegments = 0;
-	bool firstDone  = false;
-	bool inPoints   = false;
-	bool skipPoints = false;
-	float lastTimestamp = -1;
-	unsigned rinfoIndex = -1;
+	/** Parse the demo data file to generate segment information. */
+	trajSegment::Ptr getNextSegment() {
 
-	trajSegment::Ptr newSegment(new trajSegment);
+		if (not demofile.is_open() or demofile.eof())
+			return trajSegment::Ptr();
 
+		bool skipPoints = false;
 
-	while(!demofile.eof()) {
-		string line;
-		getline(demofile, line);
+		trajSegment::Ptr tseg(new trajSegment);
 
-		vector<string> splitline;
-		string buf;
-		stringstream ss(line);
-		while(ss >> buf) splitline.push_back(buf);
-
-		if (splitline.size()==0 || splitline[0][0] == '#') // skip blank lines and comments
-			continue;
-
-		// read-points
-		if (inPoints && !skipPoints) {
-			readPoints(demofile, newSegment);
-			skipPoints = true;
-			inPoints   = false;
+		// find the first "look" command in the file
+		if (not firstSegmentDone) {
+			bool gotFirstLook = false;
+			while(not demofile.eof() and not gotFirstLook) {
+				string line;
+				getline(demofile, line);
+				gotFirstLook = boost::contains(line, "look");
+			}
+			firstSegmentDone = true;
 		}
-		else if (inPoints && skipPoints) {
-			trajSegment::Ptr tempSegment(new trajSegment);
-			readPoints(demofile, tempSegment);
-			inPoints = false;
-		}
-		else {// it is some command, where command is of the format: time-step : {look, grab/release {r,l}, joints, points}
+
+		while(!demofile.eof()) {
+			string line;
+			getline(demofile, line);
+
+			vector<string> splitline;
+			string buf;
+			stringstream ss(line);
+			while(ss >> buf) splitline.push_back(buf);
+
+			if (splitline.size()==0 || splitline[0][0] == '#') // skip blank lines and comments
+				continue;
+
 			string cmd = getCommand(splitline);
+			float timestamp = getTimeStamp(splitline);
 
 			if (cmd == "look") {
-				if (not firstDone) {// special case for first traj segment
-					firstDone = true;
-				} else {// start a new segment at the occurence of a LOOK command.
-					segments.push_back(newSegment);
-					newSegment.reset(new trajSegment);
+				return tseg;
+			} else if (cmd == "points") {
+				if (not skipPoints) {
+					readPoints(demofile, tseg);
+					skipPoints = true;
+				} else {
+					trajSegment::Ptr tempSegment(new trajSegment);
+					readPoints(demofile, tempSegment);
 				}
 			} else if (cmd == "joints") {
-				float timestamp = getTimeStamp(splitline);
-				if (timestamp == lastTimeStamp) {
-					add to the robot-info
-				} else {
-					create a new robot info
-					update rinfoindex
-				}
-			} else if (cmd == "") {}
-
+				tseg->jtimes.push_back(timestamp);
+				const int numjoints = splitline.size() - 4;
+				vector<double> tjoints(numjoints);
+				for (int k=0; k < numjoints; k+=1)
+					tjoints[k] = boost::lexical_cast<double>(splitline[k+4]);
+				tseg->joints.push_back(tjoints);
+			} else if (cmd == "grab") {
+				tseg->gtimes.push_back(timestamp);
+				tseg->grips.push_back((splitline[3]=="l")? GRAB_L : GRAB_R);
+			} else if (cmd == "release") {
+				tseg->gtimes.push_back(timestamp);
+				tseg->grips.push_back((splitline[3]=="l")? RELEASE_L : RELEASE_R);
+			} else {
+				cout << "[WARN : Traj Segmenter] : Unknown command "<<cmd << ", skipping.\n";
+			}
 		}
-
+		return tseg;
 	}
-}
-
+};
