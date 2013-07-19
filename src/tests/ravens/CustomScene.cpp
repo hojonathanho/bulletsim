@@ -315,7 +315,7 @@ void CustomScene::SuturingRope::resetLinkTransforms() {
 	btTransform t;
 	for (int i = 0; i < capsulePtr->nLinks; ++i) {
 		capsulePtr->children[i]->motionState->getWorldTransform(t);
-		t.setOrigin(initTfm*(METERS*btVector3(-segment_len*i,0,2*rope_radius)));
+		t.setOrigin(initTfm*(METERS*btVector3(0.8*-segment_len*i,0,2*rope_radius - 0.04*(1 - exp(-0.015*i)))));//-0.0006*i)));
 		capsulePtr->children[i]->rigidBody->setWorldTransform(t);
 	}
 }
