@@ -109,7 +109,7 @@ public:
 
 	/** Calculates the distance of each point in the point-cloud
 	 *  from the robot grippers and outputs to a file. */
-	void writeWeights(trajSegment::Ptr tseg, string fname, string robot_fname) {
+	void writeWeights(trajSegment::Ptr tseg, string fname) {
 		cout<<colorize(string("Saving weights to file : ") + fname, "green", true)<<endl;
 		ofstream file;
 		file.open(fname.c_str(), ios::out);
@@ -142,21 +142,6 @@ public:
 			rgrip_pos[i] = (right1T.getOrigin() + right2T.getOrigin())/2;
 			lgrip_pos[i] = (left1T.getOrigin() + left2T.getOrigin())/2;
 		}
-		//////////////////////////
-		ofstream robot_file;
-		robot_file.open(robot_fname.c_str(), ios::out);
-		for (int i=0; i < tseg->joints.size(); i+=1) {
-			btVector3 rr = rgrip_pos[i];
-			robot_file << rr.x() << "\t" << rr.y() << "\t" << rr.z() << "\n";
-		}
-		for (int i=0; i < tseg->joints.size(); i+=1) {
-			btVector3 rr = lgrip_pos[i];
-			robot_file << rr.x() << "\t" << rr.y() << "\t" << rr.z() << "\n";
-		}
-		robot_file.close();
-		////////////////////////////
-
-
 
 		file << "## rope :\n";
 		for (int i = 0; i < tseg->ropePts.size(); ++i) {
@@ -225,10 +210,7 @@ public:
 
 			stringstream dists_fname;
 			dists_fname <<  fdir << "/run" << FileConfig::fnum << "-seg" << segnum << "-dists.txt";
-
-			stringstream robot_fname;
-			robot_fname <<  fdir << "/run" << FileConfig::fnum << "-seg" << segnum << "-robot.txt";
-			writeWeights(tseg, dists_fname.str(), robot_fname.str());
+			writeWeights(tseg, dists_fname.str());
 
 
 			cout << endl;
