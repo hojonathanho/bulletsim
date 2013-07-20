@@ -673,9 +673,9 @@ void CustomScene::run() {
 	// add a table
 	const float table_height = 0.15;
 	const float table_thickness = .05;
-	table = BoxObject::Ptr(new BoxObject(0, GeneralConfig::scale * btVector3(0.23,0.23,table_thickness/2+RavenConfig::zBias),
+	table = BoxObject::Ptr(new BoxObject(0, GeneralConfig::scale * btVector3(0.23,0.23,table_thickness/2),
 			btTransform(btQuaternion(0, 0, 0, 1),
-					GeneralConfig::scale * btVector3(0, 0, table_height-table_thickness/2-0.01))));
+					GeneralConfig::scale * btVector3(0, 0, table_height-table_thickness/2-0.01+RavenConfig::zBias))));
 	table->receiveShadow = true;
 
 	table->rigidBody->setFriction(0.4);

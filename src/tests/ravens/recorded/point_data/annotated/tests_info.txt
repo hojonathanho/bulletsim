@@ -1,0 +1,163 @@
+# format:
+#=========
+#
+# test_name
+#	src_points_file_name
+#	src_dists_from_robot
+# 	robot_positions_for_src  <== this is really not required. Included for completeness
+# 	target_points_file_name
+#	correspondences_file_name
+#
+
+
+#===============  trans z = +0.03  ==============
+test1
+	points/run13-seg1-points.txt
+	dists/run13-seg1-dists.txt
+	robot/run13-seg1-robot.txt
+	points/run19-seg1-points.txt
+	corres/13.1_19.1.txt
+
+test2
+	points/run13-seg2-points.txt
+	dists/run13-seg2-dists.txt
+	robot/run13-seg2-robot.txt
+	points/run19-seg2-points.txt
+	corres/box_holes.txt
+
+test3
+	points/run13-seg3-points.txt
+	dists/run13-seg3-dists.txt
+	robot/run13-seg3-robot.txt
+	points/run19-seg3-points.txt
+	corres/box_holes.txt
+
+test4
+	points/run13-seg5-points.txt
+	dists/run13-seg5-dists.txt
+	robot/run13-seg5-robot.txt
+	points/run19-seg5-points.txt
+	corres/13.5_19.5.txt
+
+test5
+	points/run13-seg7-points.txt
+	dists/run13-seg7-dists.txt
+	robot/run13-seg7-robot.txt
+	points/run19-seg7-points.txt
+	corres/13.7_19.7.txt
+
+#=================================================
+
+
+#===============  trans z = -0.06  ===============
+test6
+	points/run13-seg1-points.txt
+	dists/run13-seg1-dists.txt
+	robot/run13-seg1-robot.txt
+	points/run20-seg1-points.txt
+	corres/13.1_20.1.txt
+
+test7
+	points/run13-seg2-points.txt
+	dists/run13-seg2-dists.txt
+	robot/run13-seg2-robot.txt
+	points/run20-seg2-points.txt
+	corres/box_holes.txt
+
+test8
+	points/run13-seg3-points.txt
+	dists/run13-seg3-dists.txt
+	robot/run13-seg3-robot.txt
+	points/run20-seg3-points.txt
+	corres/box_holes.txt
+
+test9
+	points/run13-seg5-points.txt
+	dists/run13-seg5-dists.txt
+	robot/run13-seg5-robot.txt
+	points/run20-seg5-points.txt
+	corres/13.5_20.5.txt
+
+test10
+	points/run13-seg7-points.txt
+	dists/run13-seg7-dists.txt
+	robot/run13-seg7-robot.txt
+	points/run20-seg7-points.txt
+	corres/13.7_20.7.txt
+#==================================================
+
+
+#===============  trans x = 0.1, y=0.1  ===========
+test11
+	points/run13-seg1-points.txt
+	dists/run13-seg1-dists.txt
+	robot/run13-seg1-robot.txt
+	points/run22-seg1-points.txt
+	corres/13.1_22.1.txt
+
+test12
+	points/run13-seg2-points.txt
+	dists/run13-seg2-dists.txt
+	robot/run13-seg2-robot.txt
+	points/run22-seg2-points.txt
+	corres/box_holes.txt
+
+test13
+	points/run13-seg3-points.txt
+	dists/run13-seg3-dists.txt
+	robot/run13-seg3-robot.txt
+	points/run22-seg3-points.txt
+	corres/box_holes.txt
+
+test14
+	points/run13-seg5-points.txt
+	dists/run13-seg5-dists.txt
+	robot/run13-seg5-robot.txt
+	points/run22-seg5-points.txt
+	corres/13.5_22.5.txt
+
+test15
+	points/run13-seg7-points.txt
+	dists/run13-seg7-dists.txt
+	robot/run13-seg7-robot.txt
+	points/run22-seg7-points.txt
+	corres/13.7_22.7.txt
+#==================================================
+
+
+#===============  rotation z = 10 deg =============
+test16
+	points/run13-seg1-points.txt
+	dists/run13-seg1-dists.txt
+	robot/run13-seg1-robot.txt
+	points/run31-seg1-points.txt
+	corres/13.1_31.1.txt
+
+test17
+	points/run13-seg2-points.txt
+	dists/run13-seg2-dists.txt
+	robot/run13-seg2-robot.txt
+	points/run31-seg2-points.txt
+	corres/box_holes.txt
+
+test18
+	points/run13-seg3-points.txt
+	dists/run13-seg3-dists.txt
+	robot/run13-seg3-robot.txt
+	points/run31-seg3-points.txt
+	corres/box_holes.txt
+
+test19
+	points/run13-seg5-points.txt
+	dists/run13-seg5-dists.txt
+	robot/run13-seg5-robot.txt
+	points/run31-seg5-points.txt
+	corres/13.5_31.5.txt
+
+test20
+	points/run13-seg7-points.txt
+	dists/run13-seg7-dists.txt
+	robot/run13-seg7-robot.txt
+	points/run31-seg7-points.txt
+	corres/13.7_31.7.txt
+#==================================================

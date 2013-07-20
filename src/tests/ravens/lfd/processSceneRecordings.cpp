@@ -23,6 +23,7 @@ struct FileConfig : Config {
 };
 int FileConfig::fnum = -1;
 
+
 class CustomScene : public Scene {
 public:
 	BulletInstance::Ptr bullet2;
@@ -109,7 +110,7 @@ public:
 
 	/** Calculates the distance of each point in the point-cloud
 	 *  from the robot grippers and outputs to a file. */
-	void writeWeights(trajSegment::Ptr tseg, string fname) {
+	void writeWeights(trajSegment::Ptr tseg, string fname, string robot_fname) {
 		cout<<colorize(string("Saving weights to file : ") + fname, "green", true)<<endl;
 		ofstream file;
 		file.open(fname.c_str(), ios::out);
@@ -139,9 +140,25 @@ public:
 			btTransform left1T   = util::scaleTransform(scene.ravens.manipL->getFK(larm_joints, l_finger1_link), 1.f/METERS);
 			btTransform left2T   = util::scaleTransform(scene.ravens.manipL->getFK(larm_joints, l_finger2_link), 1.f/METERS);
 
-			rgrip_pos[i] = (right1T.getOrigin() + right2T.getOrigin())/2;
-			lgrip_pos[i] = (left1T.getOrigin() + left2T.getOrigin())/2;
+			rgrip_pos[i] = (right1T.getOrigin() + right2T.getOrigin())/2.;
+			lgrip_pos[i] = (left1T.getOrigin() + left2T.getOrigin())/2.;
 		}
+
+		//////////////////////////
+		ofstream robot_file;
+		robot_file.open(robot_fname.c_str(), ios::out);
+		for (int i=0; i < tseg->joints.size(); i+=1) {
+			btVector3 rr = rgrip_pos[i];
+			robot_file << rr.x() << "\t" << rr.y() << "\t" << rr.z() << "\n";
+		}
+		for (int i=0; i < tseg->joints.size(); i+=1) {
+			btVector3 rr = lgrip_pos[i];
+			robot_file << rr.x() << "\t" << rr.y() << "\t" << rr.z() << "\n";
+		}
+		robot_file.close();
+		////////////////////////////
+
+
 
 		file << "## rope :\n";
 		for (int i = 0; i < tseg->ropePts.size(); ++i) {
@@ -210,7 +227,10 @@ public:
 
 			stringstream dists_fname;
 			dists_fname <<  fdir << "/run" << FileConfig::fnum << "-seg" << segnum << "-dists.txt";
-			writeWeights(tseg, dists_fname.str());
+
+			stringstream robot_fname;
+			robot_fname <<  fdir << "/run" << FileConfig::fnum << "-seg" << segnum << "-robot.txt";
+			writeWeights(tseg, dists_fname.str(), robot_fname.str());
 
 
 			cout << endl;
@@ -232,16 +252,12 @@ public:
 
 int main(int argc, char *argv[]) {
 
-	GeneralConfig::scale  = 100.;
-
 	Parser parser;
 	parser.addGroup(GeneralConfig());
 	parser.addGroup(BulletConfig());
 	parser.addGroup(SceneConfig());
 	parser.addGroup(FileConfig());
 	parser.read(argc, argv);
-
-
 
 	runOneSegment();
 	return 0;
