@@ -8,6 +8,14 @@
 
 class CustomScene;
 
+
+struct pointsToUse{
+	bool use_rope;
+	bool use_box;
+	bool use_hole;
+};
+
+
 /** Plays the scene files as recorded in recorded/simruns by the class SceneRecorder. */
 class ScenePlayer {
 
@@ -31,6 +39,9 @@ class ScenePlayer {
 	std::string scenefname;
 
 	Segmenter::Ptr tsegmenter;
+
+	int segNum;
+	vector<pointsToUse> lookModes;
 
 	bool doLFD;
 	bool playing;

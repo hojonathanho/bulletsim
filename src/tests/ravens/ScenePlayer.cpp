@@ -13,6 +13,13 @@
 
 using namespace std;
 
+
+pointsToUse all         = {true, true, true};
+pointsToUse ropeOnly    = {true, false, false};
+pointsToUse boxAndHole  = {false, true, true};
+pointsToUse ropeAndHole = {true, false, true};
+
+
 int ScenePlayer::getCurrentPlayNumber() {
 	ifstream inpfile(runnumfname.c_str());
 	unsigned int runnum;
@@ -56,6 +63,8 @@ void ScenePlayer::resetPlayer() {
 	currentTimeStampIndex = 0;
 	currentGripperActionIndex = 0;
 
+	segNum = -1;
+
 	playTimeStamps.clear();
 	currentTrajSeg.reset();
 	rjoints.clear();
@@ -78,10 +87,23 @@ ScenePlayer::ScenePlayer(CustomScene & _scene, float _freq, bool _doLFD, int num
 										freq(_freq),
 										doLFD(_doLFD),
 										playing(false),
+										segNum(-1),
 										currentTimeStampIndex(-1.),
 										runnumfname(string(EXPAND(BULLETSIM_SRC_DIR)) + "/tests/ravens/recorded/playrunnum.txt") {
 	if (numfile < 0)
 		numfile = getCurrentPlayNumber();
+
+	// specify which point-clouds to use for warping [the following specification is for run13.txt]
+	lookModes.resize(8);
+	lookModes[0] = ropeOnly;
+	lookModes[1] = ropeOnly;
+	lookModes[2] = boxAndHole;
+	lookModes[3] = boxAndHole;
+	lookModes[4] = all;
+	lookModes[5] = ropeOnly;
+	lookModes[6] = ropeAndHole;
+	lookModes[7] = ropeAndHole;
+
 
 	stringstream scenefnamess;
 	scenefnamess << EXPAND(BULLETSIM_SRC_DIR)"/tests/ravens/recorded/simruns/run" << numfile << ".txt";
@@ -131,13 +153,9 @@ void ScenePlayer::setupNewSegment() {
 		return;
 	}
 
-	cout << "jtimes size : "<<  currentTrajSeg->jtimes.size() <<endl;
-	cout << "joints size : "<<  currentTrajSeg->joints.size() <<endl;
-	cout << "gtimes size : "<<  currentTrajSeg->gtimes.size() <<endl;
-	cout << "grips size : " <<  currentTrajSeg->grips.size() <<endl;
+	segNum += 1;
 
 	// sample joints at the correct freqeuncy.
-
 	double tstart;
 	if (currentTrajSeg->gtimes.size() != 0)
 		tstart = min(currentTrajSeg->jtimes[0], currentTrajSeg->gtimes[0]);
@@ -162,9 +180,13 @@ void ScenePlayer::setupNewSegment() {
 		vector<vector<btVector3> >  src_clouds;
 
 
-		bool use_rope  = currentTrajSeg->ropePts.size() != 0;
-		bool use_box   = currentTrajSeg->boxPts.size() != 0;
-		bool use_hole  = currentTrajSeg->holePts.size() != 0;
+//		bool use_rope  = currentTrajSeg->ropePts.size() != 0;
+//		bool use_box   = currentTrajSeg->boxPts.size() != 0;
+//		bool use_hole  = currentTrajSeg->holePts.size() != 0;
+
+		bool use_rope = lookModes[segNum].use_rope;
+		bool use_box  = lookModes[segNum].use_box;
+		bool use_hole = lookModes[segNum].use_hole;
 
 		// get source clouds
 		if (use_rope)
