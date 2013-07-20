@@ -22,3 +22,6 @@ target_link_libraries(lfd simulation robots
 
 add_executable(test_savez test_savez.cpp)
 target_link_libraries(test_savez lfd)
+
+add_executable(proc_rec processSceneRecordings.cpp SegmentDemo.cpp)
+target_link_libraries(proc_rec  simulation robots)
