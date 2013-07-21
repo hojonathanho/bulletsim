@@ -5,7 +5,6 @@ py::object PyGlobals::main_namespace;
 py::object PyGlobals::builtin_module;
 py::object PyGlobals::numpy_module;
 py::object PyGlobals::lfd_registration_module;
-py::object PyGlobals::joschu_lfd_registration_module;
 py::object PyGlobals::openrave_module;
 py::object PyGlobals::resampling_module;
 py::object PyGlobals::math_module;
@@ -26,7 +25,6 @@ void setup_python() {
 		py::exec("sys.argv = ['call_lfd_from_cpp']", PyGlobals::main_namespace); // otherwise sys.argv is none and ros imports give errors
 
 		PyGlobals::lfd_registration_module =  py::import("rapprentice.registration");
-		PyGlobals::joschu_lfd_registration_module = py::import("rapprentice_joschu.registration");
 
 		PyGlobals::resampling_module = py::import("rapprentice.resampling");
 		PyGlobals::openrave_module   = py::import("openravepy");
@@ -35,6 +33,7 @@ void setup_python() {
 		PyGlobals::None              = py::api::object();
 	} catch(...) {
 		PyErr_Print();
+		exit(-1);
 	}
 }
 
@@ -250,6 +249,7 @@ vector<vector<double> > interpolate(const vector<float> & sample_times, const ve
 		interpolated_data = interp2d(py_sample_times, py_time_stamps, py_data);
 	} catch(...) {
 		PyErr_Print();
+		exit(-1);
 	}
 
 	vector<vector<double> > out = jointsFromNumpy(interpolated_data);
@@ -271,6 +271,7 @@ vector<vector<double> > interpolateD(const vector<double> & sample_times, const 
 		interpolated_data = interp2d(py_sample_times, py_time_stamps, py_data);
 	} catch(...) {
 		PyErr_Print();
+		exit(-1);
 	}
 
 	vector<vector<double> > out = jointsFromNumpy(interpolated_data);

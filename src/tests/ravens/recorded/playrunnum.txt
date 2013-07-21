@@ -1,3 +1,18 @@
 # This file stores the number of the scene-recording file
 # Change this file manually to set which scene to play-back
-13
+
+# demo at no perturbation
+#13
+
+# demo at zrot = 45
+#33
+
+# demo at zrot = 60, warped from 45
+#34
+
+# demo at zrot = 75, warped from 60 : 
+#    problems are: 
+#      1. jumping due to collision with table
+#      2. knot switch 1 is not robust
+38
+

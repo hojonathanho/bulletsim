@@ -30,8 +30,8 @@ public:
 	 *    rad_init/rad_final: radius for correspondence calculation (meters) */
 	RegistrationBijectModule(std::vector <std::vector<btVector3> > src_clouds,
 			std::vector <std::vector<btVector3> > target_clouds,
-			int n_iter=20,
-			float bend_init=0.1, float bend_final=0.001,
+			int n_iter=50,
+			float bend_init=0.1, float bend_final=0.00001,
 			float rad_init=0.5, float rad_final=0.0001,
 			float rot_reg=1e-3);
 

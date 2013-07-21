@@ -93,16 +93,32 @@ ScenePlayer::ScenePlayer(CustomScene & _scene, float _freq, bool _doLFD, int num
 	if (numfile < 0)
 		numfile = getCurrentPlayNumber();
 
-	// specify which point-clouds to use for warping [the following specification is for run13.txt]
-	lookModes.resize(8);
+	// specify which point-clouds to use for warping
+	// [the following specification is for run13.txt]
+//	lookModes.resize(8);
+//	lookModes[0] = ropeOnly;
+//	lookModes[1] = ropeOnly;
+//	lookModes[2] = boxAndHole;
+//	lookModes[3] = boxAndHole;
+//	lookModes[4] = all;
+//	lookModes[5] = ropeOnly;
+//	lookModes[6] = ropeAndHole;
+//	lookModes[7] = ropeAndHole;
+
+	// [the following specification is for run13.txt]
+	lookModes.resize(10);
 	lookModes[0] = ropeOnly;
 	lookModes[1] = ropeOnly;
 	lookModes[2] = boxAndHole;
 	lookModes[3] = boxAndHole;
-	lookModes[4] = all;
+	lookModes[4] = boxAndHole;
 	lookModes[5] = ropeOnly;
-	lookModes[6] = ropeAndHole;
-	lookModes[7] = ropeAndHole;
+	lookModes[6] = ropeOnly;
+	lookModes[7] = ropeOnly;
+	lookModes[8] = ropeAndHole;
+	lookModes[9] = ropeAndHole;
+
+
 
 
 	stringstream scenefnamess;
@@ -154,6 +170,9 @@ void ScenePlayer::setupNewSegment() {
 	}
 
 	segNum += 1;
+	stringstream msg;
+	msg << "Playing a new segment : " <<segNum;
+	cout << colorize(msg.str(), "yellow", true) << endl;
 
 	// sample joints at the correct freqeuncy.
 	double tstart;
@@ -243,8 +262,9 @@ void extractJoints (const vector<int> &inds,
 // callback for playing back joints on the robot.
 void ScenePlayer::playCallback() {
 	if (playing) {
-		if (doNextSegment())
+		if (doNextSegment()) {
 			setupNewSegment();
+		}
 
 		double playTimeSinceStart = playTimeStamps[currentTimeStampIndex] - playTimeStamps[0];
 		double simTimeSinceStart  = scene.getSimTime() - playbackStartTime;

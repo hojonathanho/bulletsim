@@ -18,7 +18,7 @@ RegistrationBijectModule::RegistrationBijectModule(vector<vector<btVector3> > sr
 
 	assert (("Different number of point-clouds.",src_clouds.size()==target_clouds.size()));
 
-	tps_rpm_func = PyGlobals::joschu_lfd_registration_module.attr("tps_rpm_bij");
+	tps_rpm_func = PyGlobals::lfd_registration_module.attr("tps_rpm_bij");
 
 	py::list py_src_clouds, py_target_clouds;
 	for (int i=0; i<src_clouds.size(); i+=1) {
