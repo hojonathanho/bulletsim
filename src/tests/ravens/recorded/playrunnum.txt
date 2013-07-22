@@ -5,7 +5,7 @@
 #13
 
 # demo at zrot = 45
-#33
+33
 
 # demo at zrot = 60, warped from 45
 #34
@@ -14,5 +14,8 @@
 #    problems are: 
 #      1. jumping due to collision with table
 #      2. knot switch 1 is not robust
-38
+#38
 
+# demo at zrot = 90, warped from 75 : 
+# problems : same as in zrot=75
+#40

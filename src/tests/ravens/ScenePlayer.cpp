@@ -55,7 +55,12 @@ int ScenePlayer::getCurrentPlayNumber() {
 }
 
 void ScenePlayer::resetPlayer() {
-	playing = false;
+	//playing = false;
+
+	unsigned numfile = getCurrentPlayNumber();
+	stringstream scenefnamess;
+	scenefnamess << EXPAND(BULLETSIM_SRC_DIR)"/tests/ravens/recorded/simruns/run" << numfile << ".txt";
+	scenefname = scenefnamess.str();
 
 	// create a new trajectory-segmenter:
 	tsegmenter.reset(new Segmenter(scenefname));
@@ -83,27 +88,25 @@ void ScenePlayer::genTimeStamps(double startt, double endt, vector<double> &tsta
 }
 
 ScenePlayer::ScenePlayer(CustomScene & _scene, float _freq, bool _doLFD, int numfile) :
-										scene(_scene),
-										freq(_freq),
-										doLFD(_doLFD),
-										playing(false),
-										segNum(-1),
-										currentTimeStampIndex(-1.),
-										runnumfname(string(EXPAND(BULLETSIM_SRC_DIR)) + "/tests/ravens/recorded/playrunnum.txt") {
-	if (numfile < 0)
-		numfile = getCurrentPlayNumber();
+												scene(_scene),
+												freq(_freq),
+												doLFD(_doLFD),
+												playing(false),
+												segNum(-1),
+												currentTimeStampIndex(-1.),
+												runnumfname(string(EXPAND(BULLETSIM_SRC_DIR)) + "/tests/ravens/recorded/playrunnum.txt") {
 
 	// specify which point-clouds to use for warping
 	// [the following specification is for run13.txt]
-//	lookModes.resize(8);
-//	lookModes[0] = ropeOnly;
-//	lookModes[1] = ropeOnly;
-//	lookModes[2] = boxAndHole;
-//	lookModes[3] = boxAndHole;
-//	lookModes[4] = all;
-//	lookModes[5] = ropeOnly;
-//	lookModes[6] = ropeAndHole;
-//	lookModes[7] = ropeAndHole;
+	//	lookModes.resize(8);
+	//	lookModes[0] = ropeOnly;
+	//	lookModes[1] = ropeOnly;
+	//	lookModes[2] = boxAndHole;
+	//	lookModes[3] = boxAndHole;
+	//	lookModes[4] = all;
+	//	lookModes[5] = ropeOnly;
+	//	lookModes[6] = ropeAndHole;
+	//	lookModes[7] = ropeAndHole;
 
 	// [the following specification is for run13.txt]
 	lookModes.resize(10);
@@ -118,12 +121,6 @@ ScenePlayer::ScenePlayer(CustomScene & _scene, float _freq, bool _doLFD, int num
 	lookModes[8] = ropeAndHole;
 	lookModes[9] = ropeAndHole;
 
-
-
-
-	stringstream scenefnamess;
-	scenefnamess << EXPAND(BULLETSIM_SRC_DIR)"/tests/ravens/recorded/simruns/run" << numfile << ".txt";
-	scenefname  = scenefnamess.str();
 
 	// set the play-back frequency
 	if (freq < 0)
@@ -147,10 +144,14 @@ void ScenePlayer::toggleLFD() {
 
 // play the demo or not
 void ScenePlayer::togglePlay() {
-	resetPlayer();
 	playing = not playing;
-	if (playing)
+
+	if (playing) {
+		resetPlayer();
 		cout << colorize("Now playing demo file: " + scenefname, "green", true)<<endl;
+	} else {
+		cout << colorize("Stopped playing demo file: " + scenefname, "red", true)<<endl;
+	}
 }
 
 
@@ -164,7 +165,6 @@ void ScenePlayer::setupNewSegment() {
 	// stop play-back if no more segments
 	if (not currentTrajSeg) {
 		playing = false;
-		resetPlayer();
 		cout << colorize("Done playing demo file: " + scenefname, "green", true)<<endl;
 		return;
 	}
@@ -199,9 +199,9 @@ void ScenePlayer::setupNewSegment() {
 		vector<vector<btVector3> >  src_clouds;
 
 
-//		bool use_rope  = currentTrajSeg->ropePts.size() != 0;
-//		bool use_box   = currentTrajSeg->boxPts.size() != 0;
-//		bool use_hole  = currentTrajSeg->holePts.size() != 0;
+		//		bool use_rope  = currentTrajSeg->ropePts.size() != 0;
+		//		bool use_box   = currentTrajSeg->boxPts.size() != 0;
+		//		bool use_hole  = currentTrajSeg->holePts.size() != 0;
 
 		bool use_rope = lookModes[segNum].use_rope;
 		bool use_box  = lookModes[segNum].use_box;
@@ -262,8 +262,11 @@ void extractJoints (const vector<int> &inds,
 // callback for playing back joints on the robot.
 void ScenePlayer::playCallback() {
 	if (playing) {
+
 		if (doNextSegment()) {
 			setupNewSegment();
+			if (!playing) // startNewSegment can also set playing to false.
+				return;
 		}
 
 		double playTimeSinceStart = playTimeStamps[currentTimeStampIndex] - playTimeStamps[0];
