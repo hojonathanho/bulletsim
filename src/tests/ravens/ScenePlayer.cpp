@@ -18,7 +18,7 @@ pointsToUse all         = {true, true, true};
 pointsToUse ropeOnly    = {true, false, false};
 pointsToUse boxAndHole  = {false, true, true};
 pointsToUse ropeAndHole = {true, false, true};
-
+pointsToUse pointModes[] = {all, ropeOnly, boxAndHole, ropeAndHole};
 
 int ScenePlayer::getCurrentPlayNumber() {
 	ifstream inpfile(runnumfname.c_str());
@@ -133,23 +133,73 @@ int ScenePlayer::getClosestDemoNum() {
 /** Changes the lookModes variable to contain the look-information
  *  (which point-clouds to use for registration), for the given demo file number.*/
 void ScenePlayer::loadDemoLookInfo(const int demonum) {
+	ifstream inpfile(demoinfofname.c_str());
+	bool foundInfo = false;
 
+	if(!inpfile.is_open()) {
+		cout << "[ERROR : ScenePlayer] : Unable to open demo info file : " << demoinfofname << endl;
+		exit(-1);
+	} else {
+		while(!inpfile.eof()) {
+			string line;
+			getline(inpfile,line);
+			vector<string> splitline;
+			string buf;
+			stringstream ss(line);
+
+			while (ss >> buf)  // extract white-space separated strings on a line
+				splitline.push_back(buf);
+
+			if (splitline.size()==0 || splitline[0][0] == '#') { // skip blank lines and comments
+				continue;
+			} else {
+				if(splitline[1] != ":") {
+					cout << "[ERROR : ScenePlayer] : Unknown demo-info file format."<< endl;
+					exit(-1);
+				}
+				int fdemonum = atoi(splitline[0].c_str());
+				if (fdemonum == demonum) {
+					foundInfo = true;
+					lookModes.clear();
+					for(int i=2; i < splitline.size(); i+=1) {
+						int look_num = atoi(splitline[i].c_str());
+						lookModes.push_back(pointModes[look_num]);
+					}
+					break;
+				}
+			}
+		}
+
+		inpfile.close();
+
+		if (not foundInfo) {
+			cout << "[ERROR : ScenePlayer] : No demo-info found for demo num : " << demonum << endl;
+			exit(-1);
+		}
+	}
 }
 
 
 void ScenePlayer::resetPlayer() {
 	//playing = false;
 
-	unsigned numfile;
+	unsigned numdemo;
 	if (findClosestDemo) {
-		numfile = getClosestDemoNum();
+		cout << colorize("Looking up the closest demo in the demo library ... [takes a while]", "magenta", true) <<endl;
+		numdemo = getClosestDemoNum();
+
+		stringstream msg;
+		msg << "Closest demo to current situation found is demo # " << numdemo;
+		cout << colorize(msg.str(), "cyan", true) <<endl;
 	} else {
-		numfile = getCurrentPlayNumber();
+		numdemo= getCurrentPlayNumber();
 	}
 
+	// load the look info for all the segments of the demo.
+	loadDemoLookInfo(numdemo);
 
 	stringstream scenefnamess;
-	scenefnamess << demodir << "/run" << numfile << ".txt";
+	scenefnamess << demodir << "/run" << numdemo << ".txt";
 	scenefname = scenefnamess.str();
 
 	// create a new trajectory-segmenter:
@@ -178,41 +228,17 @@ void ScenePlayer::genTimeStamps(double startt, double endt, vector<double> &tsta
 }
 
 ScenePlayer::ScenePlayer(CustomScene & _scene, float _freq, bool _doLFD, bool _findClosestDemo, int numfile) :
-			scene(_scene),
-			freq(_freq),
-			doLFD(_doLFD),
-			playing(false),
-			findClosestDemo(_findClosestDemo),
-			segNum(-1),
-			currentTimeStampIndex(-1.),
-			demodir(EXPAND(RAVENS_DEMO_DIR)),
-			runnumfname(string(EXPAND(BULLETSIM_SRC_DIR)) + "/tests/ravens/recorded/playrunnum.txt"),
-			demolibfname(string(EXPAND(BULLETSIM_SRC_DIR)) + "/tests/ravens/recorded/demolib.txt") {
-
-	// specify which point-clouds to use for warping
-	// [the following specification is for run13.txt]
-	//	lookModes.resize(8);
-	//	lookModes[0] = ropeOnly;
-	//	lookModes[1] = ropeOnly;
-	//	lookModes[2] = boxAndHole;
-	//	lookModes[3] = boxAndHole;
-	//	lookModes[4] = all;
-	//	lookModes[5] = ropeOnly;
-	//	lookModes[6] = ropeAndHole;
-	//	lookModes[7] = ropeAndHole;
-
-	// [the following specification is for run33.txt]
-	lookModes.resize(10);
-	lookModes[0] = ropeOnly;
-	lookModes[1] = ropeOnly;
-	lookModes[2] = boxAndHole;
-	lookModes[3] = boxAndHole;
-	lookModes[4] = boxAndHole;
-	lookModes[5] = ropeOnly;
-	lookModes[6] = ropeOnly;
-	lookModes[7] = ropeOnly;
-	lookModes[8] = ropeAndHole;
-	lookModes[9] = ropeAndHole;
+							scene(_scene),
+							freq(_freq),
+							doLFD(_doLFD),
+							playing(false),
+							findClosestDemo(_findClosestDemo),
+							segNum(-1),
+							currentTimeStampIndex(-1.),
+							demodir(EXPAND(RAVENS_DEMO_DIR)),
+							runnumfname(string(EXPAND(BULLETSIM_SRC_DIR)) + "/tests/ravens/recorded/playrunnum.txt"),
+							demolibfname(string(EXPAND(BULLETSIM_SRC_DIR)) + "/tests/ravens/recorded/demolib.txt"),
+							demoinfofname(string(EXPAND(BULLETSIM_SRC_DIR)) + "/tests/ravens/recorded/demo_info.txt")	{
 
 	// set the play-back frequency
 	if (freq < 0)
@@ -285,12 +311,12 @@ void ScenePlayer::setupNewSegment() {
 
 
 	if (doLFD) {// warp joints.
-
 		vector<vector<btVector3> >  src_clouds;
 
-		//		bool use_rope  = currentTrajSeg->ropePts.size() != 0;
-		//		bool use_box   = currentTrajSeg->boxPts.size() != 0;
-		//		bool use_hole  = currentTrajSeg->holePts.size() != 0;
+		if (segNum >= lookModes.size()) {
+			cout << "[ERROR : ScenePlayer] : Not enough demo-look info. Exiting." <<endl;
+			exit(-1);
+		}
 
 		bool use_rope = lookModes[segNum].use_rope;
 		bool use_box  = lookModes[segNum].use_box;
@@ -304,7 +330,6 @@ void ScenePlayer::setupNewSegment() {
 		if (use_hole)
 			src_clouds.push_back(currentTrajSeg->holePts);
 
-
 		// get target clouds
 		vector<vector<btVector3> > target_clouds;
 		if (use_rope) {
@@ -312,7 +337,6 @@ void ScenePlayer::setupNewSegment() {
 			scene.sRope->getRopePoints(true, target_rope, 1.0/METERS);
 			target_clouds.push_back(target_rope);
 		}
-
 
 		if (use_box) {
 			vector<btVector3> target_box;

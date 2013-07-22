@@ -36,6 +36,7 @@ class ScenePlayer {
 	// File paths
 	const std::string runnumfname;   // file which stores which demo to use as the reference.
 	const std::string demolibfname;  // file which stores which demos are in the library of demos
+	const std::string demoinfofname; // file for storing look-info for each demo.
 	const std::string demodir; // directory where all the demos are stored
 	std::string scenefname;
 
@@ -43,7 +44,6 @@ class ScenePlayer {
 
 	int segNum;
 	vector<pointsToUse> lookModes;
-
 
 	bool doLFD;
 	bool playing;
@@ -88,7 +88,7 @@ public :
 
 	typedef boost::shared_ptr<ScenePlayer> Ptr;
 
-	ScenePlayer(CustomScene & _scene, float _freq=100., bool doLFD=false, bool _findClosestDemo=false, int numfile=-1);
+	ScenePlayer(CustomScene & _scene, float _freq=100., bool doLFD=false, bool _findClosestDemo=true, int numfile=-1);
 	// do LFD based warping or not
 	void toggleLFD();
 	// play the demo or not
