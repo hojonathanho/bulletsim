@@ -3,6 +3,7 @@
 #include <utils/colorize.h>
 #include <boost/foreach.hpp>
 #include "ravens_config.h"
+#include <utility>
 
 using namespace std;
 
@@ -28,12 +29,18 @@ RegistrationBijectModule::RegistrationBijectModule(vector<vector<btVector3> > sr
 		py_target_clouds.append(py_target_cloud);
 	}
 	try {
-		py::object none_dict = py::dict();
-		py::object f_g_reg_modules = tps_rpm_func(py_src_clouds, py_target_clouds, n_iter, bend_init, bend_final, rad_init, rad_final, rot_reg);
+		f_g_reg_modules = tps_rpm_func(py_src_clouds, py_target_clouds, n_iter, bend_init, bend_final, rad_init, rad_final, rot_reg);
 		registration_module = f_g_reg_modules[0];
 	} catch (...) {
 		PyErr_Print();
 	}
+}
+
+// returns the cost of warping : <f._cost, g._cost>
+std::pair<double, double> RegistrationBijectModule::getWarpingCosts() {
+	double f_cost = dd(f_g_reg_modules[0].attr("_cost"));
+	double g_cost = dd(f_g_reg_modules[1].attr("_cost"));
+	return make_pair(f_cost, g_cost);
 }
 
 /** Transform a btVector using tps.
@@ -422,4 +429,11 @@ bool warpRavenJointsBij(Ravens &ravens,
 	RavensLFDBij lfdrpm(ravens, src_clouds, target_clouds);
 	lfdrpm.clear_grid();
 	return lfdrpm.transformJointsTrajOpt(in_joints, out_joints);
+}
+
+
+/** Returns the warping objective cost based on tps_rpm_bij. */
+double getWarpingDistance(const vector<vector<btVector3> > &src_clouds, const vector<vector<btVector3> > &target_clouds) {
+	pair<double, double> fg_costs = RegistrationBijectModule(src_clouds, target_clouds).getWarpingCosts();
+	return fg_costs.first + fg_costs.second;
 }

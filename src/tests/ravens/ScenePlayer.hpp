@@ -26,7 +26,6 @@ class ScenePlayer {
 	std::vector<int> larm_inds;
 	std::vector<int> rarm_inds;
 
-
 	// number of the scene file recording
 	int runnumber;
 
@@ -34,14 +33,17 @@ class ScenePlayer {
 	double freq;
 	double tp;
 
-	// File directory
-	std::string runnumfname;
+	// File paths
+	const std::string runnumfname;   // file which stores which demo to use as the reference.
+	const std::string demolibfname;  // file which stores which demos are in the library of demos
+	const std::string demodir; // directory where all the demos are stored
 	std::string scenefname;
 
 	Segmenter::Ptr tsegmenter;
 
 	int segNum;
 	vector<pointsToUse> lookModes;
+
 
 	bool doLFD;
 	bool playing;
@@ -52,8 +54,27 @@ class ScenePlayer {
 	std::vector<std::vector<double> > rjoints;
 	double playbackStartTime;
 
+	// if we should look at all the demos in the library and
+	// find the one which matches the current setting the most
+	bool findClosestDemo;
 
 	int getCurrentPlayNumber();
+
+
+	/** Returns the demo-file number of the the demo which
+	 *  matches the most to the current setting.
+	 *
+	 *  Note: Only the first segment of a demo in the library is used to calculate the cost.
+	 *
+	 *  This is done iff findClosestDemo is true. Else getCurrentPlayNumber is used. */
+	int getClosestDemoNum();
+
+	/** Returns a list of the demo numbers in the demo-lib file.*/
+	std::vector<int> readDemoLibFile();
+
+	/** Changes the lookModes variable to contain the look-information
+	 *  (which point-clouds to use for registration), for the given demo file number.*/
+	void loadDemoLookInfo(int demonum);
 
 	void resetPlayer();
 	/** Generate the time-stamps for joints. */
@@ -63,11 +84,11 @@ class ScenePlayer {
 	bool inline doNextSegment();
 	void setupNewSegment();
 
-public:
+public :
 
 	typedef boost::shared_ptr<ScenePlayer> Ptr;
 
-	ScenePlayer(CustomScene & _scene, float _freq=100., bool doLFD=false, int numfile=-1);
+	ScenePlayer(CustomScene & _scene, float _freq=100., bool doLFD=false, bool _findClosestDemo=false, int numfile=-1);
 	// do LFD based warping or not
 	void toggleLFD();
 	// play the demo or not

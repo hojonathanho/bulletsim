@@ -1,0 +1,20 @@
+# List of the run-numbers of good demos,
+# which make up the "demo library":
+
+# demo at no perturbation
+13
+
+# demo at zrot=45
+33
+
+# zrot = 60
+34
+
+# demo at zrot = 75, warped from 60 : 
+#    problems are: 
+#      1. jumping due to collision with table
+#      2. knot switch 1 is not robust
+38
+
+# zrot = 90
+40

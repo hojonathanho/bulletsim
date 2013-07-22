@@ -1,0 +1,32 @@
+# Information about which point-clouds to use for registration
+# for each segment of the demos.
+#
+# Use the following mapping:
+# =========================
+#
+#      all         : 0
+#      ropeOnly    : 1
+#      boxAndHole  : 2
+#      ropeAndHole : 3
+#
+# This file is used in scene-playback.
+#
+# An example look-info specification is: 
+#  13 : 0 1 0 2 3 3 0
+# This means, that the info is for demo run13.txt
+#
+
+# demo at no perturbation:
+13 : 1 1 2 2 0 1 3 3
+
+# demo at zrot=45 deg:
+33 : 1 1 2 2 2 1 1 1 3 3
+
+# zrot = 60:
+34 : 1 1 2 2 2 1 1 1 3 3
+
+# zrot = 75
+38 : 1 1 2 2 2 1 1 1 3 3
+
+# zrot = 90
+40 : 1 1 2 2 2 1 1 1 3 3

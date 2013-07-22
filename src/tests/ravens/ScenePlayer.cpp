@@ -42,24 +42,114 @@ int ScenePlayer::getCurrentPlayNumber() {
 				continue;
 			} else {
 				if(splitline.size() != 1) {
-					cout << "[ERROR : SceneRecorder] : Unknown file format."<< endl;
+					cout << "[ERROR : ScenePlayer] : Unknown run-num file format."<< endl;
 					exit(-1);
 				}
 				runnum = atoi(splitline[0].c_str());
 			}
 		}
-
 		inpfile.close();
 		return runnum;
 	}
 }
 
+vector<int> ScenePlayer::readDemoLibFile() {
+	vector<int> demonums;
+	ifstream inpfile(demolibfname.c_str());
+
+	if(!inpfile.is_open()) {
+		cout << "[ERROR : ScenePlayer] : Unable to open demo library file : " << demolibfname << endl;
+		exit(-1);
+	} else {
+		while(!inpfile.eof()) {
+			string line;
+			getline(inpfile,line);
+			vector<string> splitline;
+			string buf;
+			stringstream ss(line);
+
+			while (ss >> buf)  // extract white-space separated strings on a line
+				splitline.push_back(buf);
+
+			if (splitline.size()==0 || splitline[0][0] == '#') { // skip blank lines and comments
+				continue;
+			} else {
+				if(splitline.size() != 1) {
+					cout << "[ERROR : ScenePlayer] : Unknown demo library file format."<< endl;
+					exit(-1);
+				}
+				demonums.push_back(atoi(splitline[0].c_str()));
+			}
+		}
+
+		inpfile.close();
+		return demonums;
+	}
+}
+
+/** Returns the demo-file number of the the demo which
+ *  matches the most to the current setting.
+ *
+ *  Note: Only the first segment of a demo in the library is used to calculate the cost.
+ *
+ *  This is done iff findClosestDemo is true. Else getCurrentPlayNumber is used. */
+int ScenePlayer::getClosestDemoNum() {
+	// get current scene's points
+	vector<btVector3> target_rope, target_box, target_hole;
+	scene.sRope->getRopePoints(true, target_rope, 1.0/METERS);
+	scene.getBoxPoints(target_box, 1.0/METERS);
+	scene.getBoxHoles(target_hole, 1.0/METERS);
+
+	vector<vector<btVector3> > target_clouds;
+	target_clouds.push_back(target_rope);
+	target_clouds.push_back(target_box);
+	target_clouds.push_back(target_hole);
+
+	vector<int> demonums = readDemoLibFile();
+	vector<double> warpingDists(demonums.size());
+
+	for(int i=0; i < demonums.size(); i+=1) {
+		stringstream demofnamess;
+		demofnamess << demodir << "/run" << demonums[i] << ".txt";
+		string demofname = demofnamess.str();
+		trajSegment::Ptr tseg = Segmenter(demofname).getNextSegment();
+
+		if (tseg) {
+			vector<vector<btVector3> > src_clouds;
+			src_clouds.push_back(tseg->ropePts);
+			src_clouds.push_back(tseg->boxPts);
+			src_clouds.push_back(tseg->holePts);
+
+			warpingDists[i] = getWarpingDistance(src_clouds, target_clouds);
+		} else {
+			warpingDists[i] = numeric_limits<double>::infinity();
+		}
+	}
+
+	// return the argmin of the warping distance vector.
+	return demonums[distance(warpingDists.begin(), min_element(warpingDists.begin(), warpingDists.end()))];
+}
+
+/** Changes the lookModes variable to contain the look-information
+ *  (which point-clouds to use for registration), for the given demo file number.*/
+void ScenePlayer::loadDemoLookInfo(const int demonum) {
+
+}
+
+
 void ScenePlayer::resetPlayer() {
 	//playing = false;
 
-	unsigned numfile = getCurrentPlayNumber();
+	unsigned numfile;
+	if (findClosestDemo) {
+		numfile = getClosestDemoNum();
+	} else {
+		numfile = getCurrentPlayNumber();
+	}
+
+
 	stringstream scenefnamess;
-	scenefnamess << EXPAND(BULLETSIM_SRC_DIR)"/tests/ravens/recorded/simruns/run" << numfile << ".txt";
+	scenefnamess << demodir << "/run" << numfile << ".txt";
 	scenefname = scenefnamess.str();
 
 	// create a new trajectory-segmenter:
@@ -87,14 +177,17 @@ void ScenePlayer::genTimeStamps(double startt, double endt, vector<double> &tsta
 		tstamps.push_back(endt);
 }
 
-ScenePlayer::ScenePlayer(CustomScene & _scene, float _freq, bool _doLFD, int numfile) :
-												scene(_scene),
-												freq(_freq),
-												doLFD(_doLFD),
-												playing(false),
-												segNum(-1),
-												currentTimeStampIndex(-1.),
-												runnumfname(string(EXPAND(BULLETSIM_SRC_DIR)) + "/tests/ravens/recorded/playrunnum.txt") {
+ScenePlayer::ScenePlayer(CustomScene & _scene, float _freq, bool _doLFD, bool _findClosestDemo, int numfile) :
+			scene(_scene),
+			freq(_freq),
+			doLFD(_doLFD),
+			playing(false),
+			findClosestDemo(_findClosestDemo),
+			segNum(-1),
+			currentTimeStampIndex(-1.),
+			demodir(EXPAND(RAVENS_DEMO_DIR)),
+			runnumfname(string(EXPAND(BULLETSIM_SRC_DIR)) + "/tests/ravens/recorded/playrunnum.txt"),
+			demolibfname(string(EXPAND(BULLETSIM_SRC_DIR)) + "/tests/ravens/recorded/demolib.txt") {
 
 	// specify which point-clouds to use for warping
 	// [the following specification is for run13.txt]
@@ -108,7 +201,7 @@ ScenePlayer::ScenePlayer(CustomScene & _scene, float _freq, bool _doLFD, int num
 	//	lookModes[6] = ropeAndHole;
 	//	lookModes[7] = ropeAndHole;
 
-	// [the following specification is for run13.txt]
+	// [the following specification is for run33.txt]
 	lookModes.resize(10);
 	lookModes[0] = ropeOnly;
 	lookModes[1] = ropeOnly;
@@ -121,7 +214,6 @@ ScenePlayer::ScenePlayer(CustomScene & _scene, float _freq, bool _doLFD, int num
 	lookModes[8] = ropeAndHole;
 	lookModes[9] = ropeAndHole;
 
-
 	// set the play-back frequency
 	if (freq < 0)
 		freq = 100.;
@@ -133,8 +225,6 @@ ScenePlayer::ScenePlayer(CustomScene & _scene, float _freq, bool _doLFD, int num
 
 	// register a callback with the scene's step
 	scene.addPreStepCallback(boost::bind(&ScenePlayer::playCallback, this));
-
-	//resetPlayer();
 }
 
 // do LFD based warping or not
@@ -198,7 +288,6 @@ void ScenePlayer::setupNewSegment() {
 
 		vector<vector<btVector3> >  src_clouds;
 
-
 		//		bool use_rope  = currentTrajSeg->ropePts.size() != 0;
 		//		bool use_box   = currentTrajSeg->boxPts.size() != 0;
 		//		bool use_hole  = currentTrajSeg->holePts.size() != 0;
@@ -249,6 +338,7 @@ void ScenePlayer::setupNewSegment() {
 		rjoints = interpolateD(playTimeStamps, currentTrajSeg->joints, currentTrajSeg->jtimes);
 	}
 }
+
 
 void extractJoints (const vector<int> &inds,
 		const vector<dReal> &in_joint_vals, vector<dReal> &out_joint_vals) {

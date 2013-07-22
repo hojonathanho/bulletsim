@@ -73,12 +73,16 @@ include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/ravens)
 
 
 # ---------------- BOOST PYTHON STUFF : LFD --------------------------
+set(RAVENS_DEMO_DIR $ENV{HOME}/Dropbox/simruns)
+add_definitions("-DRAVENS_DEMO_DIR=${RAVENS_DEMO_DIR}")
+
 add_subdirectory(ravens/lfd)
 
 find_package(Boost COMPONENTS python)
 include_directories (${Boost_INCLUDE_DIRS})
 find_package(PythonLibs)
 include_directories (${PYTHON_INCLUDE_DIRS})
+
 
 add_executable(ravens ravens/test_ravens.cpp
 					  ravens/RavensRigidBodyAction.cpp

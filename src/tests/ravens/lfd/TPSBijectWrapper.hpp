@@ -14,6 +14,7 @@ namespace py = boost::python;
 
 /** Wraps around lfd rpm module. */
 class RegistrationBijectModule {
+	py::object f_g_reg_modules;
 	py::object registration_module;
 	py::object tps_rpm_func;
 
@@ -34,6 +35,9 @@ public:
 			float bend_init=0.1, float bend_final=0.00001,
 			float rad_init=0.5, float rad_final=0.0001,
 			float rot_reg=1e-3);
+
+	// returns the cost of warping : <f._cost, g._cost>
+	std::pair<double, double> getWarpingCosts();
 
 	/** Transform a btVector using tps.
 	 *  Performs the mapping: pt in demonstration |--> pt in new setting. */
@@ -106,3 +110,7 @@ public:
 bool warpRavenJointsBij(Ravens &ravens,
 		const vector<vector<btVector3> > &src_pts, const vector< vector<btVector3> > &target_pts,
 		const vector< vector<dReal> >& in_joints, vector< vector<dReal> > & out_joints);
+
+/** Returns the warping objective cost based on tps_rpm_bij. */
+double getWarpingDistance(const vector<vector<btVector3> > &src_clouds, const vector<vector<btVector3> > &target_clouds);
+

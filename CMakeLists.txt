@@ -3,6 +3,7 @@ project(bulletsim)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/CMakeModules")
 set(BULLETSIM_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
+
 # http://cmake.3232098.n2.nabble.com/Default-value-for-CMAKE-BUILD-TYPE-td7550756.html
 # borrowed from trajopt
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)

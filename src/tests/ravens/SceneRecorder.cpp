@@ -62,7 +62,7 @@ SceneRecorder::SceneRecorder(CustomScene &_scene, double _joints_freq, double _p
 					joints_freq(_joints_freq),
 					points_freq(_points_freq),
 					recording(false),
-					runfilepath(EXPAND(BULLETSIM_SRC_DIR)"/tests/ravens/recorded/simruns"),
+					runfilepath(EXPAND(RAVENS_DEMO_DIR)),
 					runnumfname(EXPAND(BULLETSIM_SRC_DIR)"/tests/ravens/recorded/runnum.txt") {
 
 	// this is a fudge factor. The simulation runs about 4 times slower.
