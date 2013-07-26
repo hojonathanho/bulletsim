@@ -6,13 +6,19 @@ int   RavenConfig::bcN = 5;
 int   RavenConfig::bcM = 8;
 float RavenConfig::bcS = 0.01;
 float RavenConfig::bcH = 0.0015;
-float RavenConfig::xBias = 0.0;
-float RavenConfig::yBias = 0.0;
-float RavenConfig::zBias = 0.0;
+
 bool RavenConfig::enableLfd = false;
 bool RavenConfig::useDemoLib = true;
 bool RavenConfig::plotTfm = false;
-float RavenConfig::biasAngle = 0.0;
-char  RavenConfig::biasAxis  = 'x';
+
+// perturbations
+char  RavenConfig::perturbFlap = 'r';
+float RavenConfig::xBias = 0.0;
+float RavenConfig::yBias = 0.0;
+float RavenConfig::zBias = 0.0;
+float RavenConfig::xRot = 0.0;
+float RavenConfig::yRot = 0.0;
+float RavenConfig::zRot = 0.0;
+
 bool RavenConfig::ropeManip = false;
 bool RavenConfig::holdEnd = true;

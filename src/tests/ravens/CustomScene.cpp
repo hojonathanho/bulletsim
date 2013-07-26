@@ -261,7 +261,7 @@ CustomScene::SuturingPeg::SuturingPeg (CustomScene * _scene,
 
 		btTransform Tc = ropePtr->capsulePtr->children[_nLinks-2]->rigidBody->getCenterOfMassTransform();
 		rope_raven_grab = new Grab (ropePtr->capsulePtr->children[_nLinks-2]->rigidBody.get(),
-				 	 	 	 	 	 Tc, scene.env->bullet->dynamicsWorld);
+				Tc, scene.env->bullet->dynamicsWorld);
 	}
 
 }
@@ -549,12 +549,12 @@ void CustomScene::setup_suturing() {
 	const float table_height = 0.15;
 
 	/** Setup rotation perturbation. */
-	char axis = RavenConfig::biasAxis;
-	btVector3 biasAxis(axis=='x'?1:0, axis=='y'?1:0, axis=='z'?1:0);
-	biasAxis.normalize();
-	float biasAngle = RavenConfig::biasAngle;
-	biasAngle  = PI*biasAngle/180.0;
-	const btMatrix3x3 rotBias(btQuaternion(biasAxis,  biasAngle));
+	btVector3 biasTrans(RavenConfig::xBias, RavenConfig::yBias, RavenConfig::zBias);
+	const btMatrix3x3 xRotM(btQuaternion(btVector3(1,0,0), PI*RavenConfig::xRot/180.0));
+	const btMatrix3x3 yRotM(btQuaternion(btVector3(0,1,0), PI*RavenConfig::yRot/180.0));
+	const btMatrix3x3 zRotM(btQuaternion(btVector3(0,0,1), PI*RavenConfig::zRot/180.0));
+
+	const btMatrix3x3 rotBias = (xRotM*yRotM)*zRotM;
 
 	btTransform move; move.setIdentity(); move.setOrigin(btVector3(0,0,-table_height*METERS));
 	btTransform moveback; moveback.setIdentity(); moveback.setOrigin(btVector3(0,0,table_height*METERS));
@@ -562,13 +562,30 @@ void CustomScene::setup_suturing() {
 	btTransform biasT = moveback*Tt*move;
 
 
-	// setup the box-cloth
+	// setup the box-cloth and supports:
+	// select which flap to apply the perturbations to:
+	btTransform rBiasTfm, lBiasTfm;
+	rBiasTfm.setIdentity(); lBiasTfm.setIdentity();
+	btVector3 rTrans(0,0,0);
+	btVector3 lTrans(0,0,0);
+	if (RavenConfig::perturbFlap == 'r' or RavenConfig::perturbFlap=='b') {
+		rBiasTfm = biasT;
+		rTrans   = biasTrans;
+	}
+	if (RavenConfig::perturbFlap == 'l' or RavenConfig::perturbFlap=='b') {
+		lBiasTfm = biasT;
+		lTrans   = biasTrans;
+	}
+
+
+	// set up the box-cloth:
 	vector<unsigned int> hole_x, hole_y;
 	float bcHeight = table_height+0.015;
 	hole_x.push_back(0); hole_x.push_back(0);
 	hole_y.push_back(5); hole_y.push_back(2);
+
 	cloth1.reset(new BoxCloth(*this, bcn, bcm, hole_x, hole_y, bcs, bch,
-			btVector3( (float)bcn/2*bcs + 0.01 + RavenConfig::xBias, RavenConfig::yBias , bcHeight + RavenConfig::zBias), biasT));
+			btVector3( (float)bcn/2*bcs + 0.01,0, bcHeight) + lTrans, lBiasTfm));
 	if (RavenConfig::cloth)
 		env->add(cloth1);
 
@@ -576,28 +593,27 @@ void CustomScene::setup_suturing() {
 	hole_x.push_back(4); hole_x.push_back(4);
 	hole_y.push_back(5); hole_y.push_back(2);
 	cloth2.reset(new BoxCloth(*this, bcn, bcm, hole_x, hole_y, bcs, bch,
-			btVector3( -(float)bcn/2*bcs - 0.01 + RavenConfig::xBias, RavenConfig::yBias, bcHeight + RavenConfig::zBias), biasT));
+			btVector3( -(float)bcn/2*bcs - 0.01,0, bcHeight) + rTrans, rBiasTfm));
 	if (RavenConfig::cloth)
 		env->add(cloth2);
 
 
-	// setup the cuboidal supports adjacent to the box-cloth
+	// set up the cuboidal supports:
 	const float support_thickness = .04;
 	support1 = BoxObject::Ptr(new BoxObject(0, METERS* btVector3(0.05,0.05,support_thickness/2),
-			biasT*btTransform(btQuaternion(0,0,0,1), METERS*
-					btVector3(-(float)(bcn+1)*bcs - 0.05 + RavenConfig::xBias, 0 + RavenConfig::yBias, bcHeight-support_thickness/2 + RavenConfig::zBias))));
-
+			rBiasTfm*btTransform(btQuaternion(0,0,0,1),
+					METERS* (btVector3(-(float)(bcn+1)*bcs - 0.05, 0, bcHeight-support_thickness/2)   + rTrans)   )));
 	support2 = BoxObject::Ptr(new BoxObject(0, METERS * btVector3(0.05,0.05,support_thickness/2),
-			biasT*btTransform(btQuaternion(0,0,0,1), METERS *
-					btVector3((float)(bcn+1)*bcs + 0.05 + RavenConfig::xBias, 0 + RavenConfig::yBias, bcHeight-support_thickness/2 + RavenConfig::zBias))));
+			lBiasTfm*btTransform(btQuaternion(0,0,0,1),
+					METERS * (btVector3((float)(bcn+1)*bcs + 0.05, 0, bcHeight-support_thickness/2 ) + lTrans)  )));
 
 	support1->rigidBody->setFriction(0.7);
 	support2->rigidBody->setFriction(0.7);
-
 	env->add(support1);
 	env->add(support2);
 	support1->setColor(0.62, 0.32, 0.17, 1.0);
 	support2->setColor(0.62, 0.32, 0.17, 1.0);
+
 
 
 	/** Define the vector of objects [targets] which raven's grippers can grab.*/
@@ -643,16 +659,7 @@ void CustomScene::setup_rope_manip() {
 	btTransform lenBias = btTransform::getIdentity();
 	lenBias.setOrigin(METERS*btVector3((nlinks*llen/2.0), 0, table_height));
 
-	char axis = RavenConfig::biasAxis;
-	btVector3 biasAxis(axis=='x'?1:0, axis=='y'?1:0, axis=='z'?1:0);
-	biasAxis.normalize();
-	float biasAngle = RavenConfig::biasAngle;
-	biasAngle  = PI*biasAngle/180.0;
-	btTransform move;
-	move.setRotation(btQuaternion(biasAxis,  biasAngle));
-	move.setOrigin(METERS * btVector3(RavenConfig::xBias, RavenConfig::yBias, RavenConfig::zBias));
-
-	sRope.reset(new SuturingRope(this, move*lenBias, rradius, llen, nlinks));
+	sRope.reset(new SuturingRope(this, lenBias, rradius, llen, nlinks));
 
 
 	/** Define the vector of objects [targets] which raven's grippers can grab.*/
@@ -696,7 +703,7 @@ void CustomScene::run() {
 	const float table_thickness = .05;
 	table = BoxObject::Ptr(new BoxObject(0, GeneralConfig::scale * btVector3(0.23,0.23,table_thickness/2),
 			btTransform(btQuaternion(0, 0, 0, 1),
-					GeneralConfig::scale * btVector3(0, 0, table_height-table_thickness/2-0.01+RavenConfig::zBias))));
+					GeneralConfig::scale * btVector3(0, 0, table_height-table_thickness/2-0.01))));
 	table->receiveShadow = true;
 
 	table->rigidBody->setFriction(0.4);
@@ -724,13 +731,12 @@ void CustomScene::run() {
 
 
 	// setup axis-lines [plotting]
-	vector<btVector3> origin; origin.push_back(METERS*btVector3(-0.23,0,table_height-0.0098+RavenConfig::zBias));
-	vector<btVector3> dir; dir.push_back(METERS*btVector3(0.23,0,table_height-0.0098+RavenConfig::zBias));
+	vector<btVector3> origin; origin.push_back(METERS*btVector3(-0.23,0,table_height-0.0098));
+	vector<btVector3> dir; dir.push_back(METERS*btVector3(0.23,0,table_height-0.0098));
 	util::drawLines(origin,dir,Eigen::Vector3f(1,0,0), 1, env);
-	origin.clear(); origin.push_back(METERS*btVector3(0,0.23,table_height-0.0098+RavenConfig::zBias));
-	dir.clear(); dir.push_back(METERS*btVector3(0,-0.23,table_height-0.0098+RavenConfig::zBias));
+	origin.clear(); origin.push_back(METERS*btVector3(0,0.23,table_height-0.0098));
+	dir.clear(); dir.push_back(METERS*btVector3(0,-0.23,table_height-0.0098));
 	util::drawLines(origin,dir,Eigen::Vector3f(0,1,0), 1, env);
-
 
 
 	if (tsuite == SUTURING) {
