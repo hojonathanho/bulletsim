@@ -356,7 +356,7 @@ void ScenePlayer::setupNewSegment() {
 				currentTrajSeg->joints, warpedJoints);
 
 		// interpolate the warped-joints at the play-backtimes
-		rjoints = interpolateD( playTimeStamps, warpedJoints,currentTrajSeg->jtimes);
+		rjoints = interpolateD( playTimeStamps, warpedJoints, currentTrajSeg->jtimes);
 
 	} else {// just interpolate the recorded joints at the play-back time stamps
 		rjoints = interpolateD(playTimeStamps, currentTrajSeg->joints, currentTrajSeg->jtimes);

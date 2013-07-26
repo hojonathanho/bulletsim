@@ -105,6 +105,10 @@ pair< vector<float>, vector< vector <double> > >
 	adaptive_resample (const vector < vector <double> > & in_signal, double tol, double max_change=-1, int min_steps=3);
 
 
+pair< vector<float>, vector< vector <double> > >
+	adaptive_resample_new (const vector < vector <double> > & in_signal, double tol);
+
+
 /** saves the point-clouds in a numpy .npz file.
  *  fname       :  name of the .npz file
  *  cloud_names :  names of the clouds

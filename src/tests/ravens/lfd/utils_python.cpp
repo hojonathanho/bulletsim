@@ -322,6 +322,28 @@ adaptive_resample (const vector < vector <double> > & in_signal, double tol, dou
 	return out;
 }
 
+/** Uses latest implementation of adaptive resampling. */
+pair< vector<float>, vector< vector <double> > >
+adaptive_resample_new (const vector < vector <double> > & in_signal, double tol) {
+
+	py::object py_signal     = jointsToNumpy(in_signal);
+	py::object py_inds;
+
+	try {
+		py_inds = PyGlobals::resampling_module.attr("adaptive_resample")(py_signal, PyGlobals::None, tol);
+	} catch(...) {
+		PyErr_Print();
+	}
+
+	vector<float> inds = vectorFromNumpy(py_inds);
+
+	vector<vector<double> > samples;
+	for (int i=0; i < inds.size(); i+=1) {
+		samples.push_back(in_signal[(int) inds[i]]);
+	}
+
+	return make_pair(inds, samples);
+}
 
 /** Saves the point-clouds in a numpy .npz file.
  *  fname       :  name of the .npz file

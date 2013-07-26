@@ -117,6 +117,7 @@ public:
 	class SuturingPeg {
 
 		Grab* peg_rope_grab;
+		Grab* rope_raven_grab; // grab for the other end of the rope.
 
 		btVector3 offset;
 
@@ -134,12 +135,17 @@ public:
 		RaveRobotObject::Manipulator::Ptr p_gripperManip;
 		KinBody::LinkPtr p_finger1, p_finger2;
 
+		// The finger to hold the other end of the rope
+		KinBody::LinkPtr r_finger;
+
 		// Which gripper is grasping the needle?
 		bool p_grasping_finger1;
 		btTransform p_grasp_tfm;
 		btMatrix3x3 corrRot;
 
-		SuturingPeg (CustomScene * _scene, RaveRobotObject::Manipulator::Ptr _p_gripperManip,
+		SuturingPeg (CustomScene * _scene,
+				RaveRobotObject::Manipulator::Ptr _p_gripperManip,
+				RaveRobotObject::Manipulator::Ptr _r_gripperManip,
 				float _p_rad=0.001, float _p_len=0.006,
 				float _rope_radius=.0006, float _segment_len=0.0011, int _nLinks=200);
 
@@ -218,7 +224,7 @@ public:
 		ikPlannerR.reset(new IKInterpolationPlanner(ravens,rave,'r'));
 
 		//jRecorder.reset (new jointRecorder (*this));
-		scenePlayer.reset (new ScenePlayer (*this, 100., RavenConfig::enableLfd));
+		scenePlayer.reset (new ScenePlayer (*this, 100., RavenConfig::enableLfd, RavenConfig::useDemoLib));
 
 		// new scene recorder:
 		sceneRecorder.reset(new SceneRecorder(*this));

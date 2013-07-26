@@ -204,10 +204,13 @@ void CustomScene::SuturingNeedle::getRopePoints (bool nodes, vector<btVector3> &
 //////////////////////////////////////////SUTURING PEG///////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-CustomScene::SuturingPeg::SuturingPeg (CustomScene * _scene, RaveRobotObject::Manipulator::Ptr _p_gripperManip,
+CustomScene::SuturingPeg::SuturingPeg (CustomScene * _scene,
+		RaveRobotObject::Manipulator::Ptr _p_gripperManip,
+		RaveRobotObject::Manipulator::Ptr _r_gripperManip,
 		float _p_rad, float _p_len,
 		float _rope_radius, float _segment_len, int _nLinks):
-		scene(*_scene), p_gripperManip(_p_gripperManip),
+		scene(*_scene),
+		p_gripperManip(_p_gripperManip),
 		p_radius(_p_rad), p_len(_p_len), p_grasping_finger1(false) {
 
 	vector<KinBody::LinkPtr> links;
@@ -249,6 +252,18 @@ CustomScene::SuturingPeg::SuturingPeg (CustomScene * _scene, RaveRobotObject::Ma
 			scene.env->bullet->dynamicsWorld);
 	scene.addPreStepCallback(boost::bind(&CustomScene::SuturingPeg::setConnectedRopeTransformCallback, this));
 	scene.sRope = ropePtr;
+
+	// hold the other end of the rope.
+	if (RavenConfig::holdEnd) {
+		vector<KinBody::LinkPtr> finger_links;
+		_r_gripperManip->manip->GetChildLinks(finger_links);
+		r_finger = finger_links[1];
+
+		btTransform Tc = ropePtr->capsulePtr->children[_nLinks-2]->rigidBody->getCenterOfMassTransform();
+		rope_raven_grab = new Grab (ropePtr->capsulePtr->children[_nLinks-2]->rigidBody.get(),
+				 	 	 	 	 	 Tc, scene.env->bullet->dynamicsWorld);
+	}
+
 }
 
 
@@ -268,6 +283,12 @@ void CustomScene::SuturingPeg::setFingerTransformCallback() {
 
 void CustomScene::SuturingPeg::setConnectedRopeTransformCallback() {
 	peg_rope_grab->updatePosition(getPegCenterTransform().getOrigin());
+
+	if (RavenConfig::holdEnd) {
+		btVector3 offtrans(0, 0.02*METERS, 0);
+		rope_raven_grab->updatePosition(util::toBtTransform(r_finger->GetTransform(), METERS)*offtrans);
+	}
+
 }
 
 
@@ -522,7 +543,7 @@ void CustomScene::setup_suturing() {
 	//rave->env->Add(sNeedle->s_needle->body);
 
 	// add a peg
-	sPeg.reset(new SuturingPeg(this, ravens.manipL));
+	sPeg.reset(new SuturingPeg(this, ravens.manipL, ravens.manipR));
 	ravens.ravens->ignoreCollisionWith(sPeg->p_peg->rigidBody.get());
 
 	const float table_height = 0.15;
@@ -724,7 +745,8 @@ void CustomScene::run() {
 	rAction->setOpenAction();
 	runAction(rAction, dt);
 
-	ravens.setArmPose("home",'b');
+	//ravens.setArmPose("home",'b');
+	reset();
 
 	//setSyncTime(true);
 	startViewer();

@@ -19,6 +19,8 @@
 # demo at no perturbation:
 13 : 1 1 2 2 0 1 3 3
 
+130 : 1 1 1 1 2 2 0 1 3 3
+
 # demo at zrot=45 deg:
 33 : 1 1 2 2 2 1 1 1 3 3
 

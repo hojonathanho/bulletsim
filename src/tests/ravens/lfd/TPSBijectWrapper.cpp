@@ -15,7 +15,7 @@ RegistrationBijectModule::RegistrationBijectModule(vector<vector<btVector3> > sr
 		int n_iter,
 		float bend_init, float bend_final,
 		float rad_init, float rad_final,
-		float rot_reg) {
+		float rot_reg, float corr_reg, float outliersd) {
 
 	assert (("Different number of point-clouds.",src_clouds.size()==target_clouds.size()));
 
@@ -29,7 +29,13 @@ RegistrationBijectModule::RegistrationBijectModule(vector<vector<btVector3> > sr
 		py_target_clouds.append(py_target_cloud);
 	}
 	try {
-		f_g_reg_modules = tps_rpm_func(py_src_clouds, py_target_clouds, n_iter, bend_init, bend_final, rad_init, rad_final, rot_reg);
+		f_g_reg_modules = tps_rpm_func(py_src_clouds, py_target_clouds, n_iter,
+				bend_init, bend_final,
+				rad_init, rad_final,
+				rot_reg,
+				false, PyGlobals::None,
+				outliersd, corr_reg, true);
+
 		registration_module = f_g_reg_modules[0];
 	} catch (...) {
 		PyErr_Print();
@@ -180,11 +186,12 @@ bool RavensLFDBij::transformJointsTrajOpt(const vector<vector<dReal> > &joints, 
 	KinBody::LinkPtr l_finger1_link = ravens.ravens->robot->GetLink("lhandfinger1_sp");
 	KinBody::LinkPtr l_finger2_link = ravens.ravens->robot->GetLink("lhandfinger2_sp");
 
-	double tol = 0.002;  //DOWNSAMPLE
+	double tol = 0.01;  //DOWNSAMPLE
 	std::pair< vector <float>, vector < vector <double> > > times_joints = adaptive_resample(joints, tol);
 	vector<float> resampled_times             = times_joints.first;
 	vector <vector<double> > resampled_joints = times_joints.second;
 	cout << "adaptive resampling (tolerance ="<<tol<<"):\n\tbefore: "<<joints.size()<<"\n\tafter: "<<resampled_joints.size()<<endl;
+
 
 	/** Do forward-kinematics and get the end-effector transform. */
 	vector<btTransform> right1Transforms(resampled_joints.size());

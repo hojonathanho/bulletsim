@@ -18,7 +18,6 @@ Grab::Grab(btRigidBody* rb, const btVector3& pos, btDynamicsWorld* world_) {
   updatePosition(pos);
 }
 
-
 Grab::Grab(btRigidBody* rb, const btTransform& pose, btDynamicsWorld* world_) {
   world = world_;
   cnt = new btGeneric6DofConstraint(*rb,rb->getCenterOfMassTransform().inverseTimes(pose),true); // second parameter?

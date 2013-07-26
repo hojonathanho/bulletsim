@@ -34,7 +34,7 @@ public:
 			int n_iter=50,
 			float bend_init=0.1, float bend_final=0.00001,
 			float rad_init=0.5, float rad_final=0.0001,
-			float rot_reg=1e-3);
+			float rot_reg=1, float corr_reg=0.5, float outliersd=3);
 
 	// returns the cost of warping : <f._cost, g._cost>
 	std::pair<double, double> getWarpingCosts();
@@ -113,4 +113,3 @@ bool warpRavenJointsBij(Ravens &ravens,
 
 /** Returns the warping objective cost based on tps_rpm_bij. */
 double getWarpingDistance(const vector<vector<btVector3> > &src_clouds, const vector<vector<btVector3> > &target_clouds);
-

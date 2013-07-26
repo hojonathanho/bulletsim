@@ -16,13 +16,14 @@ struct RavenConfig : Config {
   static float zBias;
 
   static bool enableLfd;
-
+  static bool useDemoLib;
   static bool plotTfm;
 
   static char biasAxis; // 'x', 'y' or 'z'
   static float biasAngle;
 
   static bool ropeManip;
+  static bool holdEnd;
 
   RavenConfig() : Config() {
     params.push_back(new Parameter<int>("cloth", &cloth, "include cloth in screen (1/0)"));
@@ -41,6 +42,10 @@ struct RavenConfig : Config {
     params.push_back(new Parameter<float>("biasAngle", &biasAngle, "bias angle [in degrees] for suturing setup"));
 
     params.push_back(new Parameter<bool>("ropeManip", &ropeManip, "bool to just have a rope in the scene."));
+    params.push_back(new Parameter<bool>("holdEnd", &holdEnd, "bool to grab the other end of the rope."));
+
+    params.push_back(new Parameter<bool>("useDemoLib", &useDemoLib, "Match up current scene against demos in the library. If false, uses playrunnum.txt."));
+
 
   }
 };
