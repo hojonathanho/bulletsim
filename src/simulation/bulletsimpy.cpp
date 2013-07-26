@@ -42,7 +42,7 @@ BOOST_PYTHON_MODULE(cbulletsimpy) {
 
   py::class_<BulletConstraint, BulletConstraint::Ptr, boost::noncopyable>("BulletConstraint", py::no_init);
 
-  py::class_<bs::SimulationParams>("SimulationParams")
+  py::class_<bs::SimulationParams, bs::SimulationParamsPtr>("SimulationParams", py::no_init)
     .def_readwrite("scale", &bs::SimulationParams::scale)
     .def_readwrite("gravity", &bs::SimulationParams::gravity)
     .def_readwrite("dt", &bs::SimulationParams::dt)
