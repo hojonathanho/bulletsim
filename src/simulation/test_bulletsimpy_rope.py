@@ -9,13 +9,17 @@ viewer = trajoptpy.GetViewer(env)
 
 print 'number of objects in environment:', len(env.GetBodies())
 print env.GetBodies()
+
+bulletsimpy.sim_params.friction = 0
+print 'friction from python', bulletsimpy.sim_params.friction
 bt_env = bulletsimpy.BulletEnvironment(env, [])
+print 'friction from python', bulletsimpy.sim_params.friction
 
 rope_params = bulletsimpy.CapsuleRopeParams()
 rope_params.radius = 0.005
 rope_params.angStiffness=.1
 rope_params.angDamping=.5
-rope_params.linDamping=.75
+rope_params.linDamping=0
 rope_params.angLimit=.4
 rope_params.linStopErp=.2
 

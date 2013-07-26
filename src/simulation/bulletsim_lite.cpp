@@ -514,11 +514,11 @@ BulletConstraint::Ptr BulletEnvironment::py_AddConstraint(py::dict desc) {
     disable_collision_between_linked_bodies = py::extract<bool>(params["disable_collision_between_linked_bodies"]);
   }
   if (params.has_key("stop_erp")) {
-    cout << "stop_erp" << py::extract<btScalar>(params["stop_erp"]) << endl;
+    //    cout << "stop_erp" << py::extract<btScalar>(params["stop_erp"]) << endl;
     cnt->setParam(BT_CONSTRAINT_STOP_ERP, py::extract<btScalar>(params["stop_erp"]));
   }
   if (params.has_key("stop_cfm")) {
-    cout << "stop_cfm" << py::extract<btScalar>(params["stop_cfm"]) << endl;
+    //    cout << "stop_cfm" << py::extract<btScalar>(params["stop_cfm"]) << endl;
     cnt->setParam(BT_CONSTRAINT_STOP_CFM, py::extract<btScalar>(params["stop_cfm"]));
   }
 
