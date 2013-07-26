@@ -755,10 +755,24 @@ void CustomScene::run() {
 	reset();
 
 	//setSyncTime(true);
-	startViewer();
+
+	if (not RavenConfig::autoLFD)
+		startViewer();
+
 	stepFor(dt, 2);
 
-	startFixedTimestepLoop(dt);
+	// start play-back if autoLFD enabled:
+	if (RavenConfig::autoLFD) {
+		sceneRecorder->toggleRecording();
+		scenePlayer->togglePlay();
+
+		loopState.looping = true;
+		while (loopState.looping)
+			step(dt);
+	}
+
+	if (not RavenConfig::autoLFD)
+		startFixedTimestepLoop(dt);
 }
 
 

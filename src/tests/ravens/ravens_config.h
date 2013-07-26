@@ -28,6 +28,10 @@ struct RavenConfig : Config {
 	static bool ropeManip;
 	static bool holdEnd;
 
+	// auto lfd:
+	static bool autoLFD;
+
+
 	RavenConfig() : Config() {
 		params.push_back(new Parameter<int>("cloth", &cloth, "include cloth in screen (1/0)"));
 		params.push_back(new Parameter<float>("record_freq", &record_freq, "frequency of recording"));
@@ -53,6 +57,8 @@ struct RavenConfig : Config {
 		params.push_back(new Parameter<bool>("holdEnd", &holdEnd, "bool to grab the other end of the rope"));
 
 		params.push_back(new Parameter<bool>("useDemoLib", &useDemoLib, "Match up current scene against demos in the library. If false, uses playrunnum.txt"));
+
+		params.push_back(new Parameter<bool>("autoLFD", &autoLFD, "Start playback and logging automatically."));
 
 
 	}

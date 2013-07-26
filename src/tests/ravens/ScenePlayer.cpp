@@ -282,6 +282,12 @@ void ScenePlayer::setupNewSegment() {
 	if (not currentTrajSeg) {
 		playing = false;
 		cout << colorize("Done playing demo file: " + scenefname, "green", true)<<endl;
+
+		if (RavenConfig::autoLFD) {
+			scene.sceneRecorder->toggleRecording();
+			scene.stopLoop();
+		}
+
 		return;
 	}
 
@@ -289,6 +295,12 @@ void ScenePlayer::setupNewSegment() {
 	stringstream msg;
 	msg << "Playing a new segment : " <<segNum;
 	cout << colorize(msg.str(), "yellow", true) << endl;
+
+	// store the "look" command if auto-recording:
+	// for the 0th segment, the scene recorded automatically inserts the look command
+	if (RavenConfig::autoLFD and not (segNum == 0)) {
+		scene.recordMessage("look\n");
+	}
 
 	// sample joints at the correct freqeuncy.
 	double tstart;

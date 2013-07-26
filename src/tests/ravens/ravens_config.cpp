@@ -22,3 +22,5 @@ float RavenConfig::zRot = 0.0;
 
 bool RavenConfig::ropeManip = false;
 bool RavenConfig::holdEnd = true;
+
+bool RavenConfig::autoLFD = false;

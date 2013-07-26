@@ -190,7 +190,7 @@ bool RavensLFDBij::transformJointsTrajOpt(const vector<vector<dReal> > &joints, 
 	std::pair< vector <float>, vector < vector <double> > > times_joints = adaptive_resample(joints, tol);
 	vector<float> resampled_times             = times_joints.first;
 	vector <vector<double> > resampled_joints = times_joints.second;
-	cout << "adaptive resampling (tolerance ="<<tol<<"):\n\tbefore: "<<joints.size()<<"\n\tafter: "<<resampled_joints.size()<<endl;
+//	/cout << "adaptive resampling (tolerance ="<<tol<<"):\n\tbefore: "<<joints.size()<<"\n\tafter: "<<resampled_joints.size()<<endl;
 
 
 	/** Do forward-kinematics and get the end-effector transform. */
@@ -222,18 +222,18 @@ bool RavensLFDBij::transformJointsTrajOpt(const vector<vector<dReal> > &joints, 
 	vector<btTransform> warpedRight2Transforms = lfdrpm->transform_frames(right2Transforms);
 	vector<btTransform> warpedLeft2Transforms  = lfdrpm->transform_frames(left2Transforms);
 
-	plotPath(right1Transforms, gbLinesRight1, btVector3(1,0,0));
-	plotPath(left1Transforms, gbLinesLeft1, btVector3(1,0,0));
-
-	plotPath(warpedRight1Transforms, gbWarpedLinesRight1,btVector3(0,0,1));
-	plotPath(warpedLeft1Transforms, gbWarpedLinesLeft1, btVector3(0,0,1));
-
-
-	plotPath(right2Transforms, gbLinesRight2, btVector3(1,0,0));
-	plotPath(left2Transforms, gbLinesLeft2, btVector3(1,0,0));
-
-	plotPath(warpedRight2Transforms, gbWarpedLinesRight2,btVector3(0,0,1));
-	plotPath(warpedLeft2Transforms, gbWarpedLinesLeft2, btVector3(0,0,1));
+//	plotPath(right1Transforms, gbLinesRight1, btVector3(1,0,0));
+//	plotPath(left1Transforms, gbLinesLeft1, btVector3(1,0,0));
+//
+//	plotPath(warpedRight1Transforms, gbWarpedLinesRight1,btVector3(0,0,1));
+//	plotPath(warpedLeft1Transforms, gbWarpedLinesLeft1, btVector3(0,0,1));
+//
+//
+//	plotPath(right2Transforms, gbLinesRight2, btVector3(1,0,0));
+//	plotPath(left2Transforms, gbLinesLeft2, btVector3(1,0,0));
+//
+//	plotPath(warpedRight2Transforms, gbWarpedLinesRight2,btVector3(0,0,1));
+//	plotPath(warpedLeft2Transforms, gbWarpedLinesLeft2, btVector3(0,0,1));
 
 
 	/** Do trajectory optimization on the warped transforms. */
@@ -366,12 +366,12 @@ RavensLFDBij::RavensLFDBij (Ravens &ravens_, const vector<vector<btVector3> > &s
 		lfdrpm(new RegistrationBijectModule(src_clouds, target_clouds)) {
 
 
-	std::cout<<colorize("LFD RPM : Please make sure that the src and target points are scaled down by METERS.", "red", true)<<std::endl;
+	//std::cout<<colorize("LFD RPM : Please make sure that the src and target points are scaled down by METERS.", "red", true)<<std::endl;
 
 	larm_indices = ravens.manipL->manip->GetArmIndices();
 	rarm_indices = ravens.manipR->manip->GetArmIndices();
 
-	gbLinesAdded = not RavenConfig::plotTfm;
+	/**gbLinesAdded = not RavenConfig::plotTfm;
 
 	if (not gbLinesAdded) {
 		ravens.scene.env->add(gbLinesLeft1);
@@ -425,7 +425,7 @@ RavensLFDBij::RavensLFDBij (Ravens &ravens_, const vector<vector<btVector3> > &s
 	ravens.scene.userInput = false;
 	while (!ravens.scene.userInput) {
 		ravens.scene.viewer.frame();
-	}
+	}*/
 }
 
 /** Warp the joint values of the ravens using SRC_PTS as the reference
@@ -434,7 +434,7 @@ bool warpRavenJointsBij(Ravens &ravens,
 		const vector<vector<btVector3> > &src_clouds, const vector< vector<btVector3> > &target_clouds,
 		const vector< vector<dReal> >& in_joints, vector< vector<dReal> > & out_joints) {
 	RavensLFDBij lfdrpm(ravens, src_clouds, target_clouds);
-	lfdrpm.clear_grid();
+	//lfdrpm.clear_grid();
 	return lfdrpm.transformJointsTrajOpt(in_joints, out_joints);
 }
 
