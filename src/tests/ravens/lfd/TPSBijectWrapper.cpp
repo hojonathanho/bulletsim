@@ -154,7 +154,8 @@ vector< vector<double> > RavensLFDBij::doTrajOpt(RaveRobotObject::Manipulator::P
 		std::string finger1_name, std::string finger2_name,
 		const vector<btTransform> & finger1_transforms,
 		const vector<btTransform> & finger2_transforms,
-		const vector< vector<dReal> > &old_joints) {
+		const vector< vector<dReal> > &old_joints,
+		py::dict suture_info) {
 	RobotBasePtr robot     = manip->manip->GetRobot();
 	EnvironmentBasePtr env = robot->GetEnv();
 	int env_id             = RaveGetEnvironmentId(env);
@@ -171,7 +172,8 @@ vector< vector<double> > RavensLFDBij::doTrajOpt(RaveRobotObject::Manipulator::P
 	py::object py_manip_name(manip->manip->GetName());
 	py::object py_traj;
 	try {
-		py_traj = PyGlobals::iros_utils_module.attr("plan_follow_traj2")(py_robot, py_manip_name, py_link1_name, py_mats1, py_link2_name, py_mats2, py_old_joints);
+		py_traj = PyGlobals::iros_utils_module.attr("plan_follow_traj2")(py_robot, py_manip_name,
+				py_link1_name, py_mats1, py_link2_name, py_mats2, py_old_joints, suture_info);
 	} catch(...) {
 		PyErr_Print();
 	}
@@ -180,7 +182,7 @@ vector< vector<double> > RavensLFDBij::doTrajOpt(RaveRobotObject::Manipulator::P
 }
 
 /** Warp the joint angles of ravens using warping and trajectory optimization.*/
-bool RavensLFDBij::transformJointsTrajOpt(const vector<vector<dReal> > &joints, vector<vector<dReal> > &new_joints) {
+bool RavensLFDBij::transformJointsTrajOpt(const vector<vector<dReal> > &joints, vector<vector<dReal> > &new_joints, py::dict suture_info) {
 	KinBody::LinkPtr r_finger1_link = ravens.ravens->robot->GetLink("rhandfinger1_sp");
 	KinBody::LinkPtr r_finger2_link = ravens.ravens->robot->GetLink("rhandfinger2_sp");
 	KinBody::LinkPtr l_finger1_link = ravens.ravens->robot->GetLink("lhandfinger1_sp");
@@ -237,8 +239,8 @@ bool RavensLFDBij::transformJointsTrajOpt(const vector<vector<dReal> > &joints, 
 
 
 	/** Do trajectory optimization on the warped transforms. */
-	vector<vector<dReal> > new_r_joints = doTrajOpt(ravens.manipR, "rhandfinger1_sp", "rhandfinger2_sp",warpedRight1Transforms, warpedRight2Transforms, rarm_joints);
-	vector<vector<dReal> > new_l_joints = doTrajOpt(ravens.manipL, "lhandfinger1_sp", "lhandfinger2_sp",warpedLeft1Transforms, warpedLeft2Transforms, larm_joints);
+	vector<vector<dReal> > new_r_joints = doTrajOpt(ravens.manipR, "rhandfinger1_sp", "rhandfinger2_sp",warpedRight1Transforms, warpedRight2Transforms, rarm_joints, suture_info);
+	vector<vector<dReal> > new_l_joints = doTrajOpt(ravens.manipL, "lhandfinger1_sp", "lhandfinger2_sp",warpedLeft1Transforms, warpedLeft2Transforms, larm_joints, suture_info);
 
 	// upsample : interpolate
 	vector<float> new_times(joints.size());
@@ -432,10 +434,22 @@ RavensLFDBij::RavensLFDBij (Ravens &ravens_, const vector<vector<btVector3> > &s
  *  and TARGETR_PTS as the new points for warping.*/
 bool warpRavenJointsBij(Ravens &ravens,
 		const vector<vector<btVector3> > &src_clouds, const vector< vector<btVector3> > &target_clouds,
-		const vector< vector<dReal> >& in_joints, vector< vector<dReal> > & out_joints) {
+		const vector< vector<dReal> >& in_joints, vector< vector<dReal> > & out_joints,
+		const int n_segs,
+		const vector<float> & perturbations, const string rec_fname) {
 	RavensLFDBij lfdrpm(ravens, src_clouds, target_clouds);
+
+	pair<double, double> fg_costs = lfdrpm.lfdrpm->getWarpingCosts();
+	py::object warp_costs = py::make_tuple(fg_costs.first, fg_costs.second);
+
+	py::dict suturing_info;
+	suturing_info["perturbations"] = vectorToNumpy(perturbations);
+	suturing_info["num_segs"]      = n_segs;
+	suturing_info["recording_fname"] = rec_fname;
+	suturing_info["warp_costs"]      = warp_costs;
+
 	//lfdrpm.clear_grid();
-	return lfdrpm.transformJointsTrajOpt(in_joints, out_joints);
+	return lfdrpm.transformJointsTrajOpt(in_joints, out_joints, suturing_info);
 }
 
 

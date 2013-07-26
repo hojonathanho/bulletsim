@@ -32,7 +32,6 @@ class SceneRecorder {
 	double points_tp;					// Time period of recording scene POINTS = 1/points_freq
 
 	const string runnumfname;
-	string currentSceneFile;
 
 	// this function returns the current simulation run number and updates the counter (stored in a file).
 	int getAndUpdateRunNum();
@@ -41,6 +40,7 @@ class SceneRecorder {
 	string stamp(string msg);
 
 public:
+	string currentSceneFile;
 
 	typedef boost::shared_ptr<SceneRecorder> Ptr;
 

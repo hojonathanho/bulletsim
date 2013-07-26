@@ -72,7 +72,7 @@ private:
 			vector<dReal> &out_joint_vals);
 
 	Ravens  &ravens;
-	RegistrationBijectModule::Ptr lfdrpm;
+
 
 	vector<int> larm_indices;
 	vector<int> rarm_indices;
@@ -82,7 +82,8 @@ private:
 			std::string link1_name, std::string link2_name,
 			const vector<btTransform> & finger1_transforms,
 			const vector<btTransform> & finger2_transforms,
-			const vector< vector<dReal> > &old_joints);
+			const vector< vector<dReal> > &old_joints,
+			py::dict = PyGlobals::None);
 
 	/** Plotting util functions. */
 	void plotTransforms (const vector< btTransform > &transforms);
@@ -90,6 +91,8 @@ private:
 	void plotPath        (const vector< btTransform > &transforms, PlotLines::Ptr plot_lines, btVector3 color = btVector3(1,1,1));
 
 public:
+	RegistrationBijectModule::Ptr lfdrpm;
+
 	/** Ravens   : the robot to transform the joints for.
 	 *  SRC_PTS_ : the reference point locations.
 	 *  TARGET_PTS_: the new point locations. */
@@ -97,7 +100,7 @@ public:
 			       const vector<vector<btVector3> > & target_pts);
 
 	/** Warp the joint angles of ravens using warping and trajectory optimization.*/
-	bool transformJointsTrajOpt(const vector<vector<dReal> > &joints, vector<vector<dReal> > &new_joints);
+	bool transformJointsTrajOpt(const vector<vector<dReal> > &joints, vector<vector<dReal> > &new_joints, py::dict suture_info=PyGlobals::None);
 
 	/** plots a grid representing the warping.*/
 	void plot_warped_grid(btVector3 mins, btVector3 maxs, int ncoarse=10, int nfine=30);
@@ -109,7 +112,9 @@ public:
  *  and TARGETR_PTS as the new points for warping.*/
 bool warpRavenJointsBij(Ravens &ravens,
 		const vector<vector<btVector3> > &src_pts, const vector< vector<btVector3> > &target_pts,
-		const vector< vector<dReal> >& in_joints, vector< vector<dReal> > & out_joints);
+		const vector< vector<dReal> >& in_joints, vector< vector<dReal> > & out_joints,
+		const int n_segs,
+		const vector<float> & perturbations, const string rec_fname);
 
 /** Returns the warping objective cost based on tps_rpm_bij. */
 double getWarpingDistance(const vector<vector<btVector3> > &src_clouds, const vector<vector<btVector3> > &target_clouds);

@@ -738,6 +738,13 @@ void CustomScene::run() {
 	dir.clear(); dir.push_back(METERS*btVector3(0,-0.23,table_height-0.0098));
 	util::drawLines(origin,dir,Eigen::Vector3f(0,1,0), 1, env);
 
+	// store the information about the perturbations applied to the scene:
+	perturbation_vector[0] = RavenConfig::xBias;
+	perturbation_vector[1] = RavenConfig::yBias;
+	perturbation_vector[2] = RavenConfig::zBias;
+	perturbation_vector[3] = RavenConfig::xRot;
+	perturbation_vector[4] = RavenConfig::yRot;
+	perturbation_vector[5] = RavenConfig::zRot;
 
 	if (tsuite == SUTURING) {
 		setup_suturing();

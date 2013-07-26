@@ -228,17 +228,17 @@ void ScenePlayer::genTimeStamps(double startt, double endt, vector<double> &tsta
 }
 
 ScenePlayer::ScenePlayer(CustomScene & _scene, float _freq, bool _doLFD, bool _findClosestDemo, int numfile) :
-							scene(_scene),
-							freq(_freq),
-							doLFD(_doLFD),
-							playing(false),
-							findClosestDemo(_findClosestDemo),
-							segNum(-1),
-							currentTimeStampIndex(-1.),
-							demodir(EXPAND(RAVENS_DEMO_DIR)),
-							runnumfname(string(EXPAND(BULLETSIM_SRC_DIR)) + "/tests/ravens/recorded/playrunnum.txt"),
-							demolibfname(string(EXPAND(BULLETSIM_SRC_DIR)) + "/tests/ravens/recorded/demolib.txt"),
-							demoinfofname(string(EXPAND(BULLETSIM_SRC_DIR)) + "/tests/ravens/recorded/demo_info.txt")	{
+									scene(_scene),
+									freq(_freq),
+									doLFD(_doLFD),
+									playing(false),
+									findClosestDemo(_findClosestDemo),
+									segNum(-1),
+									currentTimeStampIndex(-1.),
+									demodir(EXPAND(RAVENS_DEMO_DIR)),
+									runnumfname(string(EXPAND(BULLETSIM_SRC_DIR)) + "/tests/ravens/recorded/playrunnum.txt"),
+									demolibfname(string(EXPAND(BULLETSIM_SRC_DIR)) + "/tests/ravens/recorded/demolib.txt"),
+									demoinfofname(string(EXPAND(BULLETSIM_SRC_DIR)) + "/tests/ravens/recorded/demo_info.txt")	{
 
 	// set the play-back frequency
 	if (freq < 0)
@@ -365,7 +365,10 @@ void ScenePlayer::setupNewSegment() {
 		// warp the joints using LFD/ Trajopt
 		vector<vector<double> > warpedJoints;
 		warpRavenJointsBij(scene.ravens, src_clouds, target_clouds,
-				currentTrajSeg->joints, warpedJoints);
+				currentTrajSeg->joints, warpedJoints,
+				lookModes.size(),
+				scene.perturbation_vector,
+				scene.sceneRecorder->currentSceneFile);
 
 		// interpolate the warped-joints at the play-backtimes
 		rjoints = interpolateD( playTimeStamps, warpedJoints, currentTrajSeg->jtimes);
