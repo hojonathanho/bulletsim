@@ -102,11 +102,77 @@ bool RavensGrabMonitor::onInnerSide(const btVector3 &pt, bool left, btVector3 th
 }
 
 
+void RavensGrabMonitor::testingg(bool left) {
+
+	btRigidBody * const finger =
+			m_manip->robot->associatedObj(left ? leftFinger : rightFinger)->rigidBody.get();
+
+	for (int i = 0; i < m_bodies.size(); i += 1) { // each m_body is a compound object.
+
+		// vector of impulses for the current bodies:
+		vector<btScalar> impulses;
+		vector<int> childnum;
+
+		for (int j=0; j < m_bodies[i]->children.size(); j+=1) {// for each bullet object in the compound object
+
+			btRigidBody* target = m_bodies[i]->children[j]->rigidBody.get();
+
+			BulletInstance::Ptr bullet = m_manip->robot->getEnvironment()->bullet;
+
+			for (int k = 0; k < bullet->dispatcher->getNumManifolds(); ++k) {
+				btPersistentManifold* contactManifold = bullet->dispatcher->getManifoldByIndexInternal(k);
+				btCollisionObject* obA = static_cast<btCollisionObject*>(contactManifold->getBody0());
+				btCollisionObject* obB = static_cast<btCollisionObject*>(contactManifold->getBody1());
+
+				if ((obA != finger || obB != target) && (obB != finger || obA != target)) {
+					continue;
+				}
+
+				for (int l = 0; l < contactManifold->getNumContacts(); l++) {
+					btManifoldPoint& pt = contactManifold->getContactPoint(l);
+					btScalar impulse    = pt.getAppliedImpulse();
+					btVector3 contact_pt = pt.getPositionWorldOnA();
+
+					btVector3 grabThresh(0.0025, -0.001, 0.005);
+					if (m_bodies[i]->children[j]->objectType() == "CapsuleObject")
+						grabThresh = btVector3(0.003,-0.001,0.012);
+
+					if (onInnerSide(contact_pt, left, grabThresh)) {
+						impulses.push_back(impulse);
+						childnum.push_back(j);
+					}
+				}
+			}
+		}
+
+		btScalar avg_impulse = 0;
+		for (int k=0; k < impulses.size(); k+=1)
+			avg_impulse += impulses[k];
+		if (impulses.size() != 0) avg_impulse /= impulses.size();
+
+		for (int k=0; k < impulses.size(); k+=1) {
+			double factor = 3.;
+			if (m_bodies[i]->children[childnum[k]]->objectType() == "CapsuleObject") factor=5.;
+
+			if (impulses[k] > factor*avg_impulse) { // grab this body:
+				numGrabbed += 1;
+				btTransform bodyTfm;
+				m_bodies[i]->children[childnum[k]]->motionState->getWorldTransform(bodyTfm);
+				btTransform offset = finger->getWorldTransform().inverseTimes(bodyTfm);
+				RavensGrab::Ptr grab(new RavensGrab(m_bodies[i]->children[childnum[k]]->rigidBody.get(), bodyTfm, m_world, left, offset));
+				m_grabs.push_back(grab);
+			}
+		}
+	}
+}
+
+
+
 /** Look for contacts between the specified finger and target
     if the applied impulse reaches some threshold, this returns true
     signifying that the gripper cannot be closed further without penetrating the target. */
 bool RavensGrabMonitor::checkContacts(bool left, btRigidBody *target, double &avg_impulse,
-									  float threshold, btVector3 grabThresh) {
+		float threshold, btVector3 grabThresh) {
 	btRigidBody * const finger =
 			m_manip->robot->associatedObj(left ? leftFinger : rightFinger)->rigidBody.get();
 
@@ -129,8 +195,6 @@ bool RavensGrabMonitor::checkContacts(bool left, btRigidBody *target, double &av
 
 			//if (impulse > 100000) return true;
 
-			cout <<" Found contacts with impulse "<<(float) impulse<<"."<<endl;
-
 			btVector3 contact_pt = pt.getPositionWorldOnA();
 			if (avg_impulse <= 0.0001) {
 				avg_impulse = (double)impulse;
@@ -139,24 +203,12 @@ bool RavensGrabMonitor::checkContacts(bool left, btRigidBody *target, double &av
 			btTransform tfm = getInverseFingerTfm(left);
 
 			if (impulse > multiplier*avg_impulse) {
-				cout<<"   Found exceeding impulse"<<endl;
 				if (onInnerSide(contact_pt, left, grabThresh)) {
-					//contact_pt = tfm.inverse()*contact_pt;
-					//cout<<"Point: " <<contact_pt.x()<<","<<contact_pt.y()<<","<<contact_pt.z()<<endl;
-					//cout<<"Distance: "<<contact_pt.length()<<endl;
-					//cout<<"   Found inner contact point"<<endl;
-					cout<<"-------"<<endl;
 					return true;
-				} else {
-					//contact_pt = tfm.inverse()*contact_pt;
-					//cout<<"Point: " <<contact_pt.x()<<","<<contact_pt.y()<<","<<contact_pt.z()<<endl;
-					//cout<<"Distance: "<<contact_pt.length()<<endl;
-					cout<<"   NOT Found inner point"<<endl;
 				}
 			}
 
 			avg_impulse = (double) a*impulse + (1.0 - a)*avg_impulse;
-			cout<<"   weighted avg: "<<avg_impulse<<endl;
 		}
 	}
 	return false;
@@ -188,58 +240,62 @@ RavensGrabMonitor::RavensGrabMonitor(RaveRobotObject::Manipulator::Ptr _manip, b
 void RavensGrabMonitor::grab() {grab(false);}
 
 void RavensGrabMonitor::grab(bool grabN, float threshold) {
+
+	numGrabbed = 0;
+	testingg(false); testingg(true); // <<<<<<<<<<<<<<<<<<<<< REMOVE THIS
+
 	// grabs objects in contact
 	//cout << "grabbing objects in contact" << endl;
 
-	int num_in_contact = 0;
-	for (int i = 0; i < m_bodies.size(); i += 1) { // each m_body is a compound object.
-
-		double avg_impulse = 0.0;
-		bool r_contact = false;
-		bool l_contact = false;
-		for (int j=0; j < m_bodies[i]->children.size(); j+=1) {// for each bullet object in the compound object
-
-
-/*			if (grabN && (s.sNeedle->s_needle->children[0]->isKinematic || s.sNeedle->s_needle_mass == 0)
-					&& m_bodies[i]->objectType() == "RaveObject") {
-				// To get to the center of the gripper
-				btTransform gpTfm = manip->getTransform();
-				btVector3 offset = gpTfm.getBasis().getColumn(2)*-0.003*METERS;
-
-				btVector3 eePose = manip->getTransform().getOrigin() + offset;
-				if (s.sNeedle->pointCloseToNeedle(eePose)) {
-					grabNeedle();
-					cout<<"Grabbed needle!"<<endl;
-					num_in_contact += 1;
-				}
-				continue;
-			}*/
-
-			float adjusted_thresh = threshold;
-			if (m_bodies[i]->children[j]->objectType() == "BoxObject") adjusted_thresh *= 50;
-
-			// check for contact
-			if (m_bodies[i]->children[j]->objectType() == "CapsuleObject") {
-				r_contact = checkContacts(false, m_bodies[i]->children[j]->rigidBody.get(), avg_impulse, adjusted_thresh, btVector3(0.003,-0.001,0.012));
-				l_contact = checkContacts(true,  m_bodies[i]->children[j]->rigidBody.get(), avg_impulse, adjusted_thresh, btVector3(0.003,-0.001,0.012));
-			} else {
-				r_contact = checkContacts(false, m_bodies[i]->children[j]->rigidBody.get(), avg_impulse, adjusted_thresh);
-				l_contact = checkContacts(true,  m_bodies[i]->children[j]->rigidBody.get(), avg_impulse, adjusted_thresh);
-			}
-
-			if (l_contact || r_contact) {
-				num_in_contact += 1;
-				boost::shared_ptr<btRigidBody>  finger = m_manip->robot->associatedObj(l_contact ? leftFinger : rightFinger)->rigidBody;
-				btTransform bodyTfm;
-				m_bodies[i]->children[j]->motionState->getWorldTransform(bodyTfm);
-				btTransform offset = finger->getWorldTransform().inverseTimes(bodyTfm);
-				RavensGrab::Ptr grab(new RavensGrab(m_bodies[i]->children[j]->rigidBody.get(), bodyTfm, m_world, l_contact, offset));
-				m_grabs.push_back(grab);
-				cout<< " Grabbed : "<<num_in_contact<<" objects."<<endl;
-			}
-		}
-	}
-	numGrabbed = num_in_contact;
+	//	int num_in_contact = 0;
+	//	for (int i = 0; i < m_bodies.size(); i += 1) { // each m_body is a compound object.
+	//
+	//		double avg_impulse = 0.0;
+	//		bool r_contact = false;
+	//		bool l_contact = false;
+	//		for (int j=0; j < m_bodies[i]->children.size(); j+=1) {// for each bullet object in the compound object
+	//
+	//
+	//			/*			if (grabN && (s.sNeedle->s_needle->children[0]->isKinematic || s.sNeedle->s_needle_mass == 0)
+	//					&& m_bodies[i]->objectType() == "RaveObject") {
+	//				// To get to the center of the gripper
+	//				btTransform gpTfm = manip->getTransform();
+	//				btVector3 offset = gpTfm.getBasis().getColumn(2)*-0.003*METERS;
+	//
+	//				btVector3 eePose = manip->getTransform().getOrigin() + offset;
+	//				if (s.sNeedle->pointCloseToNeedle(eePose)) {
+	//					grabNeedle();
+	//					cout<<"Grabbed needle!"<<endl;
+	//					num_in_contact += 1;
+	//				}
+	//				continue;
+	//			}*/
+	//
+	//			float adjusted_thresh = threshold;
+	//			if (m_bodies[i]->children[j]->objectType() == "BoxObject") adjusted_thresh *= 50;
+	//
+	//			// check for contact
+	//			if (m_bodies[i]->children[j]->objectType() == "CapsuleObject") {
+	//				r_contact = checkContacts(false, m_bodies[i]->children[j]->rigidBody.get(), avg_impulse, adjusted_thresh, btVector3(0.003,-0.001,0.012));
+	//				l_contact = checkContacts(true,  m_bodies[i]->children[j]->rigidBody.get(), avg_impulse, adjusted_thresh, btVector3(0.003,-0.001,0.012));
+	//			} else {
+	//				r_contact = checkContacts(false, m_bodies[i]->children[j]->rigidBody.get(), avg_impulse, adjusted_thresh);
+	//				l_contact = checkContacts(true,  m_bodies[i]->children[j]->rigidBody.get(), avg_impulse, adjusted_thresh);
+	//			}
+	//
+	//			if ((l_contact || r_contact) and false) {
+	//				num_in_contact += 1;
+	//				boost::shared_ptr<btRigidBody>  finger = m_manip->robot->associatedObj(l_contact ? leftFinger : rightFinger)->rigidBody;
+	//				btTransform bodyTfm;
+	//				m_bodies[i]->children[j]->motionState->getWorldTransform(bodyTfm);
+	//				btTransform offset = finger->getWorldTransform().inverseTimes(bodyTfm);
+	//				RavensGrab::Ptr grab(new RavensGrab(m_bodies[i]->children[j]->rigidBody.get(), bodyTfm, m_world, l_contact, offset));
+	//				m_grabs.push_back(grab);
+	//				cout<< " Grabbed : "<<num_in_contact<<" objects."<<endl;
+	//			}
+	//		}
+	//	}
+	//	numGrabbed = num_in_contact;*/
 }
 
 
@@ -282,8 +338,8 @@ void RavensGrabMonitor::grabNeedle () {
 	btVector3 nVecY = nVecZ.cross(nVecX);
 	// Setting new rotation
 	nTfm.getBasis().setValue( nVecX.x(), nVecY.x(), nVecZ.x(),
-							  nVecX.y(), nVecY.y(), nVecZ.y(),
-							  nVecX.z(), nVecY.z(), nVecZ.z() );
+			nVecX.y(), nVecY.y(), nVecZ.y(),
+			nVecX.z(), nVecY.z(), nVecZ.z() );
 
 	if (s.sNeedle->s_needle->children[0]->isKinematic)
 		s.sNeedle->s_needle->getChildren()[0]->motionState->setKinematicPos(nTfm);

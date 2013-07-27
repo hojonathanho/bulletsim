@@ -25,6 +25,9 @@ public:
 
 
 class RavensGrabMonitor : public Monitor {
+
+	void testingg(bool);
+
 public:
   typedef boost::shared_ptr<RavensGrabMonitor> Ptr;
 

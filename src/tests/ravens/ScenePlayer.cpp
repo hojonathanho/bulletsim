@@ -192,7 +192,10 @@ void ScenePlayer::resetPlayer() {
 		msg << "Closest demo to current situation found is demo # " << numdemo;
 		cout << colorize(msg.str(), "cyan", true) <<endl;
 	} else {
-		numdemo= getCurrentPlayNumber();
+		if (RavenConfig::autoLFD and RavenConfig::playnum != -1)
+			numdemo = RavenConfig::playnum;
+		else
+			numdemo= getCurrentPlayNumber();
 	}
 
 	// load the look info for all the segments of the demo.

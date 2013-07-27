@@ -24,3 +24,5 @@ bool RavenConfig::ropeManip = false;
 bool RavenConfig::holdEnd = true;
 
 bool RavenConfig::autoLFD = false;
+int RavenConfig::runnum = -1;
+int RavenConfig::playnum = -1;

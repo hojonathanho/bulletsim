@@ -224,25 +224,25 @@ bool RavensLFDBij::transformJointsTrajOpt(const vector<vector<dReal> > &joints, 
 	vector<btTransform> warpedRight2Transforms = lfdrpm->transform_frames(right2Transforms);
 	vector<btTransform> warpedLeft2Transforms  = lfdrpm->transform_frames(left2Transforms);
 
-//	plotPath(right1Transforms, gbLinesRight1, btVector3(1,0,0));
-//	plotPath(left1Transforms, gbLinesLeft1, btVector3(1,0,0));
-//
-//	plotPath(warpedRight1Transforms, gbWarpedLinesRight1,btVector3(0,0,1));
-//	plotPath(warpedLeft1Transforms, gbWarpedLinesLeft1, btVector3(0,0,1));
-//
-//
-//	plotPath(right2Transforms, gbLinesRight2, btVector3(1,0,0));
-//	plotPath(left2Transforms, gbLinesLeft2, btVector3(1,0,0));
-//
-//	plotPath(warpedRight2Transforms, gbWarpedLinesRight2,btVector3(0,0,1));
-//	plotPath(warpedLeft2Transforms, gbWarpedLinesLeft2, btVector3(0,0,1));
+	if (not RavenConfig::autoLFD) {
+		plotPath(right1Transforms, gbLinesRight1, btVector3(1,0,0));
+		plotPath(left1Transforms, gbLinesLeft1, btVector3(1,0,0));
 
+		plotPath(warpedRight1Transforms, gbWarpedLinesRight1,btVector3(0,0,1));
+		plotPath(warpedLeft1Transforms, gbWarpedLinesLeft1, btVector3(0,0,1));
+
+		plotPath(right2Transforms, gbLinesRight2, btVector3(1,0,0));
+		plotPath(left2Transforms, gbLinesLeft2, btVector3(1,0,0));
+
+		plotPath(warpedRight2Transforms, gbWarpedLinesRight2,btVector3(0,0,1));
+		plotPath(warpedLeft2Transforms, gbWarpedLinesLeft2, btVector3(0,0,1));
+	}
 
 	/** Do trajectory optimization on the warped transforms. */
 	vector<vector<dReal> > new_r_joints = doTrajOpt(ravens.manipR, "rhandfinger1_sp", "rhandfinger2_sp",warpedRight1Transforms, warpedRight2Transforms, rarm_joints, suture_info);
 	vector<vector<dReal> > new_l_joints = doTrajOpt(ravens.manipL, "lhandfinger1_sp", "lhandfinger2_sp",warpedLeft1Transforms, warpedLeft2Transforms, larm_joints, suture_info);
 
-	// upsample : interpolate
+	// up-sample : interpolate
 	vector<float> new_times(joints.size());
 	for (int i = 0.0; i < joints.size(); ++i) new_times[i] = (float) i;
 	vector<vector <dReal> > interpolated_r_joints = interpolate(new_times, new_r_joints, resampled_times);
@@ -373,9 +373,9 @@ RavensLFDBij::RavensLFDBij (Ravens &ravens_, const vector<vector<btVector3> > &s
 	larm_indices = ravens.manipL->manip->GetArmIndices();
 	rarm_indices = ravens.manipR->manip->GetArmIndices();
 
-	/**gbLinesAdded = not RavenConfig::plotTfm;
+	gbLinesAdded = not RavenConfig::plotTfm;
 
-	if (not gbLinesAdded) {
+	if (not gbLinesAdded and not RavenConfig::autoLFD) {
 		ravens.scene.env->add(gbLinesLeft1);
 		ravens.scene.env->add(gbLinesRight1);
 		ravens.scene.env->add(gbWarpedLinesLeft1);
@@ -392,43 +392,45 @@ RavensLFDBij::RavensLFDBij (Ravens &ravens_, const vector<vector<btVector3> > &s
 
 	// save clouds to file
 	//save_clouds(source_clouds, target_clouds);
+	if (not RavenConfig::autoLFD) {
+		vector<btVector3> srcPoints, targPoints, warpedPoints;
+		vector<btVector4> srcCols, targCols, warpedCols;
+		BOOST_FOREACH(const vector<btVector3>& cloud, src_clouds) {
+			BOOST_FOREACH(const btVector3& pt, cloud) {
+				srcPoints.push_back(pt*METERS);
+				srcCols.push_back(btVector4(1,0,0,1));
+			}
+		}
 
-	vector<btVector3> srcPoints, targPoints, warpedPoints;
-	vector<btVector4> srcCols, targCols, warpedCols;
-	BOOST_FOREACH(const vector<btVector3>& cloud, src_clouds) {
-		BOOST_FOREACH(const btVector3& pt, cloud) {
-			srcPoints.push_back(pt*METERS);
-			srcCols.push_back(btVector4(1,0,0,1));
+		BOOST_FOREACH(const vector<btVector3>& cloud, target_clouds) {
+			BOOST_FOREACH(const btVector3& pt, cloud) {
+				targPoints.push_back(pt*METERS);
+				targCols.push_back(btVector4(0,0,1,1));
+			}
+		}
+		BOOST_FOREACH(const vector<btVector3>& cloud, src_clouds) {
+			vector<btVector3> warped_cloud = lfdrpm->transform_points(cloud);
+			BOOST_FOREACH(const btVector3& pt, warped_cloud) {
+				warpedPoints.push_back(pt*METERS);
+				warpedCols.push_back(btVector4(0,1,0,1));
+			}
+		}
+
+		gbSrcPlotPoints->setPoints(srcPoints, srcCols);
+		gbTargPlotPoints->setPoints(targPoints, targCols);
+		gbWarpedPlotPoints->setPoints(warpedPoints, warpedCols);
+
+		plot_warped_grid(btVector3(-0.1,-0.1,0.15), btVector3(0.1,0.1, .17), 10);
+
+		// block for user input
+		cout << colorize("Look at the point-clouds. Press any key [in simulation] to continue.", "red", true)<< endl;
+		ravens.scene.userInput = false;
+		while (!ravens.scene.userInput) {
+			ravens.scene.viewer.frame();
 		}
 	}
-
-	BOOST_FOREACH(const vector<btVector3>& cloud, target_clouds) {
-		BOOST_FOREACH(const btVector3& pt, cloud) {
-			targPoints.push_back(pt*METERS);
-			targCols.push_back(btVector4(0,0,1,1));
-		}
-	}
-	BOOST_FOREACH(const vector<btVector3>& cloud, src_clouds) {
-		vector<btVector3> warped_cloud = lfdrpm->transform_points(cloud);
-		BOOST_FOREACH(const btVector3& pt, warped_cloud) {
-			warpedPoints.push_back(pt*METERS);
-			warpedCols.push_back(btVector4(0,1,0,1));
-		}
-	}
-
-	gbSrcPlotPoints->setPoints(srcPoints, srcCols);
-	gbTargPlotPoints->setPoints(targPoints, targCols);
-	gbWarpedPlotPoints->setPoints(warpedPoints, warpedCols);
-
-	plot_warped_grid(btVector3(-0.1,-0.1,0.15), btVector3(0.1,0.1, .17), 10);
-
-	// block for user input
-	cout << colorize("Look at the point-clouds. Press any key [in simulation] to continue.", "red", true)<< endl;
-	ravens.scene.userInput = false;
-	while (!ravens.scene.userInput) {
-		ravens.scene.viewer.frame();
-	}*/
 }
+
 
 /** Warp the joint values of the ravens using SRC_PTS as the reference
  *  and TARGETR_PTS as the new points for warping.*/
@@ -448,10 +450,10 @@ bool warpRavenJointsBij(Ravens &ravens,
 	suturing_info["recording_fname"] = rec_fname;
 	suturing_info["warp_costs"]      = warp_costs;
 
-	//lfdrpm.clear_grid();
+	if (not RavenConfig::autoLFD) // then the grid is being plotted ==> clear
+		lfdrpm.clear_grid();
 	return lfdrpm.transformJointsTrajOpt(in_joints, out_joints, suturing_info);
 }
-
 
 /** Returns the warping objective cost based on tps_rpm_bij. */
 double getWarpingDistance(const vector<vector<btVector3> > &src_clouds, const vector<vector<btVector3> > &target_clouds) {
