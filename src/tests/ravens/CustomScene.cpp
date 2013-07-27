@@ -211,7 +211,7 @@ CustomScene::SuturingPeg::SuturingPeg (CustomScene * _scene,
 		float _rope_radius, float _segment_len, int _nLinks):
 		scene(*_scene),
 		p_gripperManip(_p_gripperManip),
-		p_radius(_p_rad), p_len(_p_len), p_grasping_finger1(false) {
+		p_radius(_p_rad), p_len(_p_len), p_grasping_finger1(false), interpPeg(false) {
 
 	vector<KinBody::LinkPtr> links;
 	p_gripperManip->manip->GetChildLinks(links);
@@ -274,11 +274,43 @@ void CustomScene::SuturingPeg::getRopePoints (bool nodes, vector<btVector3> & ro
 btTransform CustomScene::SuturingPeg::getPegCenterTransform() {return p_peg->getIndexTransform(0);}
 
 
+btTransform interpTrans(const btTransform &t1, const btTransform &t2) {
+	const btScalar alpha = 0.65;
+
+	btMatrix3x3 resRot = t2.getBasis();
+	btVector3 tt1 = t2.inverse()*t1.getOrigin();
+	btVector3 tt2 = t2.inverse()*t2.getOrigin();
+
+	btVector3 resTrans(tt2);
+	resTrans.setX(alpha*tt1.x() + (1-alpha)*tt2.x());
+	resTrans = t2*resTrans;
+
+	btTransform res;
+	res.setIdentity();
+	res.setOrigin(resTrans);
+	res.setBasis(resRot);
+	return res;
+}
+
 void CustomScene::SuturingPeg::setFingerTransformCallback() {
 	btTransform fTfm = (p_grasping_finger1 ? util::toBtTransform(p_finger1->GetTransform(), METERS) : util::toBtTransform(p_finger2->GetTransform(), METERS));
 	fTfm.setOrigin(fTfm*offset);
 	fTfm.setBasis(fTfm.getBasis()*corrRot);
-	p_peg->motionState->setKinematicPos(fTfm);
+
+	btTransform currentTfm;
+	p_peg->motionState->getWorldTransform(currentTfm);
+
+
+	double delta = (currentTfm.getOrigin() - fTfm.getOrigin()).length();
+
+	if (interpPeg) {
+		if (delta > 0.1)
+			p_peg->motionState->setKinematicPos(interpTrans(currentTfm, fTfm));
+		else
+			interpPeg = false;
+	} else {
+		p_peg->motionState->setKinematicPos(fTfm);
+	}
 }
 
 void CustomScene::SuturingPeg::setConnectedRopeTransformCallback() {

@@ -139,7 +139,7 @@ public:
 		KinBody::LinkPtr r_finger;
 
 		// Which gripper is grasping the needle?
-		bool p_grasping_finger1;
+		bool p_grasping_finger1, interpPeg;
 		btTransform p_grasp_tfm;
 		btMatrix3x3 corrRot;
 
@@ -149,7 +149,7 @@ public:
 				float _p_rad=0.001, float _p_len=0.006,
 				float _rope_radius=.0006, float _segment_len=0.0011, int _nLinks=200);
 
-		void toggleFinger () {p_grasping_finger1 = !p_grasping_finger1;}
+		void toggleFinger () {p_grasping_finger1 = !p_grasping_finger1; interpPeg = true;}
 
 		btTransform getPegCenterTransform ();
 
