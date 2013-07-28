@@ -28,6 +28,7 @@ BulletInstance::BulletInstance() {
     collisionConfiguration = new btSoftBodyRigidBodyCollisionConfiguration();
     dispatcher = new btCollisionDispatcher(collisionConfiguration);
     solver = new btSequentialImpulseConstraintSolver;
+    solver->reset();
     dynamicsWorld = new btSoftRigidDynamicsWorld(dispatcher, broadphase, solver, collisionConfiguration);
     dynamicsWorld->getDispatchInfo().m_enableSPU = true;
 
