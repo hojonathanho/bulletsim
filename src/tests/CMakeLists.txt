@@ -42,6 +42,9 @@ target_link_libraries(test_action simulation)
 add_executable(test_scene_record test_scene_record.cpp)
 target_link_libraries(test_scene_record simulation)
 
+add_executable(test_frame test_frame.cpp)
+target_link_libraries(test_frame simulation robots)
+
 add_executable(test_logging test_logging.cpp)
 target_link_libraries(test_logging simulation)
 

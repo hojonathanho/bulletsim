@@ -49,3 +49,8 @@ int main(int argc, char *argv[]) {
 
 	return 0;
 }
+
+
+T = dot(env.GetViewer().GetCameraTransform(), matrixFromAxisAngle([pi,0,0]))
+I = env.GetViewer().GetCameraImage(640,480,  T, [640,640,320,240])
+scipy.misc.imsave('openrave.jpg',I)
