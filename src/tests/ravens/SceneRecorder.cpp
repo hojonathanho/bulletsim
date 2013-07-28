@@ -123,10 +123,11 @@ void SceneRecorder::toggleRecording () {
 		stringstream fnamess;
 
 		if (RavenConfig::autoLFD and RavenConfig::runnum != -1)
-			fnamess << runfilepath << "/run" << RavenConfig::runnum << ".txt";
+			current_runnum =  RavenConfig::runnum;
 		else
-			fnamess << runfilepath << "/run" << getAndUpdateRunNum() << ".txt";
+			current_runnum =  getAndUpdateRunNum();
 
+		fnamess << runfilepath << "/run" << current_runnum << ".txt";
 		currentSceneFile = fnamess.str();
 		file.open(currentSceneFile.c_str(), ios::out | ios::app);
 

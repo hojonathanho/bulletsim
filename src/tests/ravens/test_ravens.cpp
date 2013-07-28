@@ -16,11 +16,17 @@ int main(int argc, char *argv[]) {
 
 	srand(0);
 
-	ViewerConfig::cameraHomePosition = btVector3(0, 0.6, 0.5);
-	ViewerConfig::cameraHomeCenter = btVector3(0, 0, 0.25);
+//	ViewerConfig::cameraHomePosition = btVector3(0, 0.6, 0.5);
+//	ViewerConfig::cameraHomeCenter = btVector3(0, 0, 0.25);
+//
+	ViewerConfig::windowHeight = 768;
+	ViewerConfig::windowWidth = 1024;
+	ViewerConfig::cameraHomePosition = btVector3(0, 0.25, 0.3);
+	ViewerConfig::cameraHomeCenter = btVector3(0, 0, 0.15);
 
 	BulletConfig::dt               = 0.01;
-	BulletConfig::internalTimeStep = 0.00025;
+	//BulletConfig::internalTimeStep = 0.00025;
+	BulletConfig::internalTimeStep = 0.0005;
 	BulletConfig::maxSubSteps      = 50;
 	BulletConfig::gravity          = -1*btVector3(0,0,10);
 	RavenConfig::record_freq       = 100;
@@ -49,8 +55,3 @@ int main(int argc, char *argv[]) {
 
 	return 0;
 }
-
-
-T = dot(env.GetViewer().GetCameraTransform(), matrixFromAxisAngle([pi,0,0]))
-I = env.GetViewer().GetCameraImage(640,480,  T, [640,640,320,240])
-scipy.misc.imsave('openrave.jpg',I)

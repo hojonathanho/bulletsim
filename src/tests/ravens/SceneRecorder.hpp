@@ -41,6 +41,7 @@ class SceneRecorder {
 
 public:
 	string currentSceneFile;
+	int current_runnum;
 
 	typedef boost::shared_ptr<SceneRecorder> Ptr;
 

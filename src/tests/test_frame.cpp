@@ -100,8 +100,10 @@ int main(int argc, char *argv[]) {
 	//scene.startViewer();
 	//scene.step(3);
 
-	ViewerConfig::cameraHomePosition = btVector3(0, 0.6, 0.5);
-	ViewerConfig::cameraHomeCenter = btVector3(0, 0, 0.25);
+	ViewerConfig::windowHeight = 768;
+	ViewerConfig::windowWidth = 1024;
+	ViewerConfig::cameraHomePosition = btVector3(0, 0.45, 0.5);
+	ViewerConfig::cameraHomeCenter = btVector3(0, 0, 0.15);
 
 	scene.viewer.setUpViewInWindow(0, 0, ViewerConfig::windowWidth, ViewerConfig::windowHeight);
 	osg::ref_ptr<EventHandler>  manip = new EventHandler(scene);
@@ -120,8 +122,7 @@ int main(int argc, char *argv[]) {
 	light1->setDiffuse(osg::Vec4d(1.0, 1.0, 1.0, 1.0));
 	light1->setSpecular(osg::Vec4d(0.5, 0.5, 0.5, 1.0));
 	light1->setPosition(osg::Vec4d(0*METERS, 0.5*METERS, METERS*.50, 1.0));
-	scene.viewer.realize();
-
+	//scene.viewer.realize();
 
 	//ScreenCapture(scene.viewer).snapshot();
 	CaptureScreen(scene.viewer, "/home/ankush/test_image1.jpg").snapshot();

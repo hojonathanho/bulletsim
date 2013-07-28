@@ -559,6 +559,37 @@ void CustomScene::saveScenePoints() {
 	file.close();
 }
 
+
+/** Setups up viewer for screen-capture. */
+void CustomScene::captureViewerSetup() {
+	viewer.setUpViewInWindow(0, 0, ViewerConfig::windowWidth, ViewerConfig::windowHeight);
+	osg::ref_ptr<EventHandler>  manip = new EventHandler(*this);
+	manip->setHomePosition(util::toOSGVector(ViewerConfig::cameraHomePosition)*METERS, util::toOSGVector(ViewerConfig::cameraHomeCenter)*METERS, util::toOSGVector(ViewerConfig::cameraHomeUp)*METERS);
+	manip->setWheelZoomFactor(ViewerConfig::zoomFactor);
+	viewer.setCameraManipulator(manip);
+	viewer.setSceneData(osg->root.get());
+
+	osg::Light* light1 = new osg::Light();
+	osg::LightSource * lightsource1 = new osg::LightSource();
+	lightsource1->setLight(light1);
+	osg->root->addChild(lightsource1);
+	osg::StateSet* stateset1 = osg->root->getOrCreateStateSet();
+	lightsource1->setStateSetModes(*stateset1, osg::StateAttribute::ON);
+	light1->setAmbient(osg::Vec4d(0.2, 0.2, 0.2, 1.0));
+	light1->setDiffuse(osg::Vec4d(1.0, 1.0, 1.0, 1.0));
+	light1->setSpecular(osg::Vec4d(0.5, 0.5, 0.5, 1.0));
+	light1->setPosition(osg::Vec4d(0*METERS, 0.5*METERS, METERS*.50, 1.0));
+}
+
+/** Save a screen-shot of current simulation scene. */
+void CustomScene::captureScene(string fname) {
+	captureViewerSetup();
+	CaptureScreen(viewer, fname).snapshot();
+	cout << colorize("Saved scene image to : " + fname, "magenta", true ) << endl;
+	viewer.frame();
+}
+
+
 // Resets scene
 void CustomScene::reset () {
 	ravens.setArmPose("home",'b');

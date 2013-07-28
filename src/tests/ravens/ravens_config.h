@@ -30,6 +30,7 @@ struct RavenConfig : Config {
 
 	// auto lfd:
 	static bool autoLFD;
+	static bool saveImage;
 
 	// number of the scene to save
 	static int runnum;
@@ -64,6 +65,7 @@ struct RavenConfig : Config {
 		params.push_back(new Parameter<bool>("useDemoLib", &useDemoLib, "Match up current scene against demos in the library. If false, uses playrunnum.txt"));
 
 		params.push_back(new Parameter<bool>("autoLFD", &autoLFD, "Start playback and logging automatically."));
+		params.push_back(new Parameter<bool>("saveImage", &saveImage, "Save the final scene image to file."));
 
 		params.push_back(new Parameter<int>("runnum", &runnum, "Number of the scene to save. The recorded scene would be saved to runRUNNUM.txt. This runnum is only used if autoLFD is true."));
 		params.push_back(new Parameter<int>("playnum", &playnum, "Number of the scene to use for playback. This playnum is only used if autoLFD is true."));

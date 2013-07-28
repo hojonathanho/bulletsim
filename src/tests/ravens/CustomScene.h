@@ -36,8 +36,38 @@
 #include "ravens_config.h"
 #include "lfd/utils_python.h"
 
-//class CustomScene;
+#include <osgViewer/ViewerEventHandlers>
+#include <osgDB/WriteFile>
 
+struct SaveImageOp: public osgViewer::ScreenCaptureHandler::CaptureOperation {
+	string fname;
+
+	SaveImageOp(string _fname) : osgViewer::ScreenCaptureHandler::CaptureOperation(), fname(_fname) {}
+
+	void operator () (const osg::Image& image, const unsigned int context_id) {
+		osgDB::writeImageFile(image, fname);
+	}
+};
+
+class CaptureScreen {
+public:
+	osg::ref_ptr<osgViewer::ScreenCaptureHandler> m_captureHandler;
+	osgViewer::Viewer& m_viewer;
+	SaveImageOp* m_capture_op;
+
+	CaptureScreen(osgViewer::Viewer& viewer, string fname) : m_viewer(viewer) {
+		m_capture_op = new SaveImageOp(fname);
+		m_captureHandler = new osgViewer::ScreenCaptureHandler(m_capture_op);
+	}
+
+	void snapshot() {
+		m_captureHandler->captureNextFrame(m_viewer);
+		m_captureHandler->setFramesToCapture(1);
+	}
+};
+
+
+//class CustomScene;
 enum TestSuite {
 	SUTURING, ROPE_MANIP
 };
@@ -235,6 +265,11 @@ public:
 		bcn = RavenConfig::bcN; bcm = RavenConfig::bcM;
 		bcs = RavenConfig::bcS; bch = RavenConfig::bcH;
 	}
+
+	/** Setups up viewer for screen-capture. */
+	void captureViewerSetup();
+	/** Save a screen-shot of current simulation scene. */
+	void captureScene(std::string fname);
 
 
 	void callGripperAction(char lr='l') {

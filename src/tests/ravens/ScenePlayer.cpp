@@ -288,6 +288,13 @@ void ScenePlayer::setupNewSegment() {
 
 		if (RavenConfig::autoLFD) {
 			scene.sceneRecorder->toggleRecording();
+
+			if (RavenConfig::saveImage) {
+				stringstream image_fname;
+				image_fname << EXPAND(RAVENS_STORE_DIR) << "/run" << scene.sceneRecorder->current_runnum << "-image.jpg";
+				scene.captureScene(image_fname.str());
+			}
+
 			scene.stopLoop();
 		}
 
