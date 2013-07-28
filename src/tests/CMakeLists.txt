@@ -77,7 +77,7 @@ include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/ravens)
 
 # ---------------- BOOST PYTHON STUFF : LFD --------------------------
 set(RAVENS_DEMO_DIR $ENV{HOME}/Dropbox/simruns)
-set(RAVENS_STORE_DIR /media/0846DE7846DE65CA/suturing_runs)
+set(RAVENS_STORE_DIR /media/data/suturing_runs)
 add_definitions("-DRAVENS_DEMO_DIR=${RAVENS_DEMO_DIR}")
 add_definitions("-DRAVENS_STORE_DIR=${RAVENS_STORE_DIR}")
 
@@ -102,13 +102,13 @@ add_executable(ravens ravens/test_ravens.cpp
                       ravens/SceneRecorder.cpp
                       ravens/ScenePlayer.cpp
                       ravens/BoxCloth.cpp)
+
 target_link_libraries(ravens simulation robots lfd)
 add_executable(test_lfd_wrapper ravens/test_lfd_wrapper.cpp )
 target_link_libraries(test_lfd_wrapper simulation lfd)
 
 #------------------------------------------------------------------
-add_executable(test_boxcloth ravens/test_boxcloth.cpp
-                      ravens/BoxCloth.cpp)
+add_executable(test_boxcloth ravens/test_boxcloth.cpp	      ravens/BoxCloth.cpp)
 target_link_libraries(test_boxcloth simulation lfd)
 
 

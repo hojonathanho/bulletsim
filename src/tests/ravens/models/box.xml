@@ -1,11 +1,11 @@
 <!--Hole-->
-<KinBody name="hole">
+<KinBody name="box">
 
-  <Body name="hole" type="dynamic">
+  <Body name="box" type="dynamic">
 
     <!--Mass-->
     <Mass type="mimicgeom">
-      <total>1000</total>
+      <total>10000</total>
     </Mass>
   
     <!--Boxes-->

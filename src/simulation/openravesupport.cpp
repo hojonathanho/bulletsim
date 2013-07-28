@@ -305,7 +305,7 @@ static BulletObject::Ptr createFromLink(KinBody::LinkPtr link,
 	btTransform childTrans = util::toBtTransform(link->GetTransform(),GeneralConfig::scale);
 
 
-	float mass = isDynamic ? link->GetMass() : 0;
+	float mass = isDynamic ? (link->GetMass() + 100) : 0;
 	BulletObject::Ptr child(new BulletObject(mass, compound, childTrans,!isDynamic));
 //	child->drawingOn=false;
 	return child;
@@ -376,6 +376,7 @@ void RaveObject::initRaveObject(RaveInstance::Ptr rave_, KinBodyPtr body_,
 	rave = rave_;
 	body = body_;
 
+
 	const std::vector<KinBody::LinkPtr> &links = body->GetLinks();
 	getChildren().reserve(links.size());
 	// iterate through each link in the robot (to be stored in the children vector)
@@ -394,6 +395,7 @@ void RaveObject::initRaveObject(RaveInstance::Ptr rave_, KinBodyPtr body_,
 	}
 
 	if (isDynamic) {
+
 		vector<KinBody::JointPtr> vbodyjoints; vbodyjoints.reserve(body->GetJoints().size()+body->GetPassiveJoints().size());
 		vbodyjoints.insert(vbodyjoints.end(),body->GetJoints().begin(),body->GetJoints().end());
 		vbodyjoints.insert(vbodyjoints.end(),body->GetPassiveJoints().begin(),body->GetPassiveJoints().end());

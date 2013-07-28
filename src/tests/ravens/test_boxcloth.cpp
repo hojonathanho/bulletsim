@@ -8,6 +8,7 @@
 #include <openrave/kinbody.h>
 #include "robots/pr2.h"
 #include "CustomScene.h"
+#include "ravens_config.h"
 
 struct LocalConfig : Config {
 	static int n;
@@ -25,12 +26,12 @@ struct LocalConfig : Config {
 
 int LocalConfig::n = 5;
 int LocalConfig::m = 5;
-float LocalConfig::s = 0.05;
+float LocalConfig::s = 0.0101;
 float LocalConfig::h = 0.001;
 
 int main(int argc, char* argv[]) {
 	GeneralConfig::scale = 20.;
-	ViewerConfig::cameraHomePosition = btVector3(100, 0, 100);
+	ViewerConfig::cameraHomePosition = btVector3(0, 1, 1);
 	BulletConfig::dt = 0.01;
 	BulletConfig::internalTimeStep = 0.001;
 	BulletConfig::maxSubSteps = 10;
@@ -53,7 +54,8 @@ int main(int argc, char* argv[]) {
 	hole_y.push_back(2);
 	hole_y.push_back(3);
 
-	BoxCloth::Ptr cloth(new BoxCloth(LocalConfig::n,LocalConfig::m, hole_x, hole_y, LocalConfig::s,LocalConfig::h, btVector3(0,1,0.3)));
+	BoxCloth::Ptr cloth(new BoxCloth(scene, LocalConfig::n,LocalConfig::m, hole_x, hole_y,
+			LocalConfig::s,LocalConfig::h, btVector3(0,0,LocalConfig::h)));
 
 	scene.env->add(cloth);
 	scene.startViewer();

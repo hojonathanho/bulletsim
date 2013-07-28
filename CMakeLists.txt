@@ -19,7 +19,7 @@ message("if cmake can't find anything, you need to put /opt/ros/fuerte/share:/op
 find_package(Boost COMPONENTS system filesystem program_options REQUIRED)
 
 find_package(Eigen3 REQUIRED)
-find_package(OpenRAVE 0.9 REQUIRED)
+find_package(OpenRAVE REQUIRED)
 find_package(OpenThreads REQUIRED)
 find_package(osg REQUIRED)
 find_package(osgDB REQUIRED)
@@ -33,14 +33,14 @@ set(OSG_INCLUDE_DIRS ${OPENTHREADS_LIBRARY_INCLUDE_DIR} ${OSG_LIBRARY_INCLUDE_DI
 find_package(OpenCV REQUIRED)
 find_package(PCL REQUIRED)
 
-find_package(ROS REQUIRED COMPONENTS
- sensor_msgs geometry_msgs std_msgs
- roscpp rosconsole message_filters
- cpp_common rostime roscpp_traits
- roscpp_serialization
- bulletsim_msgs
-)
-set(ROS_ROOT_DIR /opt/ros/fuerte)
+#find_package(ROS REQUIRED COMPONENTS
+# sensor_msgs geometry_msgs std_msgs
+# roscpp rosconsole message_filters
+# cpp_common rostime roscpp_traits
+# roscpp_serialization
+# bulletsim_msgs
+#)
+#set(ROS_ROOT_DIR /opt/ros/fuerte)
 
 find_package(OpenCV REQUIRED)
 
@@ -48,8 +48,11 @@ add_definitions(${PCL_DEFINITIONS})
 add_definitions("-DEIGEN_DEFAULT_TO_ROW_MAJOR")
 add_definitions("-DBT_NO_PROFILE")
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fopenmp")
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
+#set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fopenmp")
+set(CMAKE_CXX_FLaGS "${CMAKE_CXX_FLAGS} -march=native")
+set(CMAKE_C_FLaGS "${CMAKE_C_FLAGS} -march=native")
+
 
 # directories for libraries packaged in this tree
 set(BULLET_DIR ${BULLETSIM_SOURCE_DIR}/lib/bullet-2.79)
@@ -80,6 +83,8 @@ option(BUILD_TESTS "Build test/demo programs" on)
 option(BUILD_TRACKING "Build tracking code" on)
 
 set(BUILD_SHARED_LIBS off)
+
+include_directories( /usr/local/include/opencv)
 
 add_subdirectory(lib)
 add_subdirectory(src)
