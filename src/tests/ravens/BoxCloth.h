@@ -2,6 +2,7 @@
 #include <simulation/environment.h>
 #include <simulation/basicobjects.h>
 #include <simulation/openravesupport.h>
+#include <simulation/simplescene.h>
 
 #include "btBulletDynamicsCommon.h"
 #include <vector>
@@ -12,7 +13,7 @@ class CustomScene;
 
 class BoxCloth : public CompoundObject<BulletObject> {
 
-	CustomScene & scene;
+	Scene & scene;
 
 public:
 
@@ -54,9 +55,10 @@ public:
 	std::vector<RaveObject::Ptr>    raveBoxes;
 	std::vector<BulletConstraint::Ptr> joints;
 
-	BoxCloth(CustomScene &s, unsigned int n_, unsigned int m_, vector<unsigned int> hole_is_, vector<unsigned int> hole_js_,
-			  btScalar s_=METERS*0.02, btScalar h_=METERS*0.001, btVector3 center_=btVector3(0,0,0), btTransform rot=btTransform::getIdentity(),
-			  float angStiffness_=1e5, float linDamping_=0.3, float angDamping_=0.1, float angLimit_=0.5);
+	BoxCloth(Scene &s, unsigned int n_, unsigned int m_, vector<unsigned int> hole_is_, vector<unsigned int> hole_js_,
+			  btScalar s_=METERS*0.02, btScalar h_=METERS*0.001, btVector3 center_=btVector3(0,0,0),
+			  btTransform rot=btTransform::getIdentity(),
+			  float angStiffness_=1e0, float linDamping_=3, float angDamping_=1, float angLimit_=0.5);
 
 
 	void makeHole (btTransform &tfm);
