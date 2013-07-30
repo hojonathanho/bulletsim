@@ -192,7 +192,7 @@ bool RavensLFDBij::transformJointsTrajOpt(const vector<vector<dReal> > &joints, 
 	std::pair< vector <float>, vector < vector <double> > > times_joints = adaptive_resample(joints, tol);
 	vector<float> resampled_times             = times_joints.first;
 	vector <vector<double> > resampled_joints = times_joints.second;
-//	/cout << "adaptive resampling (tolerance ="<<tol<<"):\n\tbefore: "<<joints.size()<<"\n\tafter: "<<resampled_joints.size()<<endl;
+	//	/cout << "adaptive resampling (tolerance ="<<tol<<"):\n\tbefore: "<<joints.size()<<"\n\tafter: "<<resampled_joints.size()<<endl;
 
 
 	/** Do forward-kinematics and get the end-effector transform. */
@@ -281,7 +281,7 @@ void RavensLFDBij::plotTransforms(const vector< btTransform > &transforms) {
 		Ts[i]    = util::scaleTransform(transforms[i], METERS);
 		PlotAxes::Ptr plot_axes(new PlotAxes());
 		ravens.scene.env->add(plot_axes);
-		plot_axes->setup(Ts[i], 0.01*METERS);
+		plot_axes->setup(Ts[i], 0.002*METERS);
 	}
 }
 
@@ -408,6 +408,7 @@ RavensLFDBij::RavensLFDBij (Ravens &ravens_, const vector<vector<btVector3> > &s
 				targCols.push_back(btVector4(0,0,1,1));
 			}
 		}
+
 		BOOST_FOREACH(const vector<btVector3>& cloud, src_clouds) {
 			vector<btVector3> warped_cloud = lfdrpm->transform_points(cloud);
 			BOOST_FOREACH(const btVector3& pt, warped_cloud) {
@@ -420,13 +421,15 @@ RavensLFDBij::RavensLFDBij (Ravens &ravens_, const vector<vector<btVector3> > &s
 		gbTargPlotPoints->setPoints(targPoints, targCols);
 		gbWarpedPlotPoints->setPoints(warpedPoints, warpedCols);
 
-		plot_warped_grid(btVector3(-0.1,-0.1,0.15), btVector3(0.1,0.1, .17), 10);
+		if (RavenConfig::plotTfm) {
+			plot_warped_grid(btVector3(-0.1,-0.1,0.15), btVector3(0.1,0.1, .17), 10);
 
-		// block for user input
-		cout << colorize("Look at the point-clouds. Press any key [in simulation] to continue.", "red", true)<< endl;
-		ravens.scene.userInput = false;
-		while (!ravens.scene.userInput) {
-			ravens.scene.viewer.frame();
+			// block for user input
+			cout << colorize("Look at the point-clouds. Press any key [in simulation] to continue.", "red", true)<< endl;
+			ravens.scene.userInput = false;
+			while (!ravens.scene.userInput) {
+				ravens.scene.viewer.frame();
+			}
 		}
 	}
 }
@@ -450,7 +453,7 @@ bool warpRavenJointsBij(Ravens &ravens,
 	suturing_info["recording_fname"] = rec_fname;
 	suturing_info["warp_costs"]      = warp_costs;
 
-	if (not RavenConfig::autoLFD) // then the grid is being plotted ==> clear
+	if (not RavenConfig::autoLFD and RavenConfig::plotTfm) // then the grid is being plotted ==> clear
 		lfdrpm.clear_grid();
 	return lfdrpm.transformJointsTrajOpt(in_joints, out_joints, suturing_info);
 }

@@ -252,7 +252,9 @@ public:
 	// store the perturbation applied to the current scene: vector of 6 values: {x,y,z}_{trans, rot}
 	vector<float> perturbation_vector;
 
-	CustomScene(TestSuite _tsuite=SUTURING) : ravens(*this), isRaveViewer(false), tsuite(_tsuite), perturbation_vector(6,0.) {
+	bool playing;
+
+	CustomScene(TestSuite _tsuite=SUTURING) : ravens(*this), isRaveViewer(false), tsuite(_tsuite), perturbation_vector(6,0.), playing(true) {
 		ikPlannerL.reset(new IKInterpolationPlanner(ravens,rave,'l'));
 		ikPlannerR.reset(new IKInterpolationPlanner(ravens,rave,'r'));
 

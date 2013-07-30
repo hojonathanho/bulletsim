@@ -322,7 +322,7 @@ BoxCloth::BoxCloth(CustomScene &_s, unsigned int n_, unsigned int m_, vector<uns
 				RaveObject::Ptr box = RaveObject::Ptr(new RaveObject(scene.rave,box_body,CONVEX_HULL,true));
 
 				raveBoxes.push_back(box);
-				box->setColor(0.937,0.815,0.811,1.0);
+				box->setColor(0.937,0.815,0.811,1);
 				children.push_back(box->children[0]);
 				grid_to_obj_inds.insert(make_pair(make_pair(i,j), children.size()-1));
 			}
@@ -334,7 +334,7 @@ BoxCloth::BoxCloth(CustomScene &_s, unsigned int n_, unsigned int m_, vector<uns
 				RaveObject::Ptr hole = RaveObject::Ptr(new RaveObject(scene.rave,hole_body,CONVEX_HULL,true));
 
 				holes.push_back(hole);
-				hole->setColor(0.937,0.815,0.811,1.0);
+				hole->setColor(0.937,0.815,0.811,1);
 				children.push_back(hole->children[0]);
 				grid_to_obj_inds.insert(make_pair(make_pair(i,j), children.size()-1));
 			}

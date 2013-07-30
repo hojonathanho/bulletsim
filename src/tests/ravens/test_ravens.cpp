@@ -21,11 +21,10 @@ int main(int argc, char *argv[]) {
 //
 	ViewerConfig::windowHeight = 768;
 	ViewerConfig::windowWidth = 1024;
-	ViewerConfig::cameraHomePosition = btVector3(0, 0.25, 0.3);
-	ViewerConfig::cameraHomeCenter = btVector3(0, 0, 0.15);
+	ViewerConfig::cameraHomePosition = btVector3(0, 0.5, 0.5);
+	ViewerConfig::cameraHomeCenter = btVector3(0, 0, 0.25);
 
 	BulletConfig::dt               = 0.01;
-	//BulletConfig::internalTimeStep = 0.00025;
 	BulletConfig::internalTimeStep = 0.0005;
 	BulletConfig::maxSubSteps      = 50;
 	BulletConfig::gravity          = -1*btVector3(0,0,10);

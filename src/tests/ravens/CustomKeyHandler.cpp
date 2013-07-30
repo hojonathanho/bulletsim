@@ -132,7 +132,8 @@ bool CustomKeyHandler::handle(const osgGA::GUIEventAdapter &ea,
 			scene.moveEndEffector('f',false,'r');
 			break;
 		case 'r':
-			scene.moveEndEffector('b',false,'r');
+			//scene.moveEndEffector('b',false,'r');
+			scene.playing = !scene.playing;
 			break;
 		case 'd':
 			scene.moveEndEffector('u',false,'r');

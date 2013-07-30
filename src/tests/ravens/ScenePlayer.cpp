@@ -419,8 +419,13 @@ void ScenePlayer::playCallback() {
 			vector<double> larm_joints, rarm_joints;
 			extractJoints(larm_inds, rjoints[currentTimeStampIndex], larm_joints);
 			extractJoints(rarm_inds, rjoints[currentTimeStampIndex], rarm_joints);
-			scene.ravens.setArmJointAngles(larm_joints, 'l');
-			scene.ravens.setArmJointAngles(rarm_joints, 'r');
+
+			if (scene.playing) {
+				scene.ravens.setArmJointAngles(larm_joints, 'l');
+				scene.ravens.setArmJointAngles(rarm_joints, 'r');
+			} else{
+				cout << "setting joints"<<endl;
+			}
 
 			currentTimeStampIndex += 1;
 
