@@ -50,6 +50,7 @@ public:
 	void setPoints(const osg::ref_ptr<osg::Vec3Array>& pts, const osg::ref_ptr<osg::Vec4Array>& cols);
 	void setPoints(const osg::ref_ptr<osg::Vec3Array>& pts);
 	void forceTransparency(float a);
+	void shadowsOff();
 };
 
 class PlotLineStrip : public PlotObject {
@@ -62,6 +63,7 @@ public:
 	void setPoints(const osg::ref_ptr<osg::Vec3Array>& pts, const osg::ref_ptr<osg::Vec4Array>& cols);
 	void setPoints(const osg::ref_ptr<osg::Vec3Array>& pts);
 	void forceTransparency(float a);
+	void shadowsOff();
 };
 
 
@@ -114,6 +116,7 @@ public:
 	void addLineSet(const osg::ref_ptr<osg::Vec3Array>& pts, const osg::ref_ptr<osg::Vec4Array>& cols);
 	void addLineSet(const osg::ref_ptr<osg::Vec3Array>& pts);
 	void forceTransparency(float a);
+	void shadowsOff();
 };
 
 

@@ -88,10 +88,12 @@ private:
 	/** Plotting util functions. */
 	void plotTransforms (const vector< btTransform > &transforms);
 	void plotPoints      (const vector< btTransform > &transforms);
+	void plotPoints (const vector< btVector3 > &pts);
 	void plotPath        (const vector< btTransform > &transforms, PlotLines::Ptr plot_lines, btVector3 color = btVector3(1,1,1));
 
 public:
 	RegistrationBijectModule::Ptr lfdrpm;
+	static int segnum;
 
 	/** Ravens   : the robot to transform the joints for.
 	 *  SRC_PTS_ : the reference point locations.

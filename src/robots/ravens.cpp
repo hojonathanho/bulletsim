@@ -17,13 +17,18 @@ Ravens::Ravens(Scene &s) : scene(s), inputState(),
 
 	vector<KinBody::LinkPtr> links;
 	manipR->manip->GetChildLinks(links);
-	ravens->linkMap[links[1]]->setColor(0.2,0.34,0.8,1);
-	ravens->linkMap[links[2]]->setColor(1.0,0.64,0.0,1);
+	float gc = 151./255.;
+	ravens->linkMap[links[1]]->setColor(gc,gc,gc,1);
+	ravens->linkMap[links[2]]->setColor(gc,gc,gc,1);
 
 	links.clear();
 	manipL->manip->GetChildLinks(links);
-	ravens->linkMap[links[1]]->setColor(0.2,0.34,0.8,1);
-	ravens->linkMap[links[2]]->setColor(1.0,0.64,0.0,1);
+	ravens->linkMap[links[1]]->setColor(gc,gc,gc,1);
+	ravens->linkMap[links[2]]->setColor(gc,gc,gc,1);
+	//ravens->linkMap[links[1]]->setColor(0.2,0.34,0.8,1);
+	//ravens->linkMap[links[2]]->setColor(1.0,0.64,0.0,1);
+
+
 
 	ravens->linkMap[ravens->robot->GetLink("rhandfinger1_sp")]->rigidBody->setCollisionFlags(
 			ravens->linkMap[ravens->robot->GetLink("rhandfinger1_sp")]->rigidBody->getCollisionFlags()

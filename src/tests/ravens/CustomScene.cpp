@@ -232,7 +232,8 @@ CustomScene::SuturingPeg::SuturingPeg (CustomScene * _scene,
 	corrRot.setValue(0,0,1,0,1,0,-1,0,0);
 
 	_scene->env->add(p_peg);
-	p_peg->setColor(0,1,1,1.0); // set the peg's color
+	float pc = 151./255;
+	p_peg->setColor(pc,pc,pc,1.0); // set the peg's color
 	scene.addPreStepCallback(boost::bind(&CustomScene::SuturingPeg::setFingerTransformCallback, this));
 
 
@@ -351,7 +352,10 @@ CustomScene::SuturingRope::SuturingRope(CustomScene * scene, btTransform _initTf
 
 	capsulePtr.reset(new CapsuleRope(ctrlPts,METERS*rope_radius));
 	scene->env->add(capsulePtr);
-	capsulePtr->setColor(0,0,1,1);
+	//capsulePtr->setColor(79./255.,0./255.,105./255.,1.);
+	//capsulePtr->setColor(182./255.,155./255.,207./255.,1.);
+	capsulePtr->setColor(193./255.,115./255.,201./255.,1.);
+
 	//ropePtr->children[0]->setColor(1,0,0,1);
 	//ropePtr->children[ropePtr->children.size()-1]->setColor(0,0,1,1);
 }
@@ -399,7 +403,6 @@ void CustomScene::getBoxPoints(vector<btVector3> & boxPoints, float scale) {
 	boxPoints.clear();
 
 	if (tsuite == SUTURING) {
-
 		//cloth1: i = 0
 		vector< pair<int,int> > indices1(bcm);
 		for (int i = 0; i < bcm; ++i) indices1[i] = make_pair(0,i);
@@ -412,7 +415,6 @@ void CustomScene::getBoxPoints(vector<btVector3> & boxPoints, float scale) {
 
 		for (int i = 0; i < boxPoints.size(); ++i) boxPoints[i]  = boxPoints[i]*scale;
 	}
-
 }
 
 void CustomScene::getBoxHoles(vector<btVector3> & boxHoles, float scale) {
@@ -674,10 +676,14 @@ void CustomScene::setup_suturing() {
 	support2->rigidBody->setFriction(0.7);
 	env->add(support1);
 	env->add(support2);
-	support1->setColor(0.62, 0.32, 0.17, 1.0);
-	support2->setColor(0.62, 0.32, 0.17, 1.0);
+	//support1->setColor(0.62, 0.32, 0.17, 1.0);
+	//support2->setColor(0.62, 0.32, 0.17, 1.0);
 
+	support1->setColor(115./255., 82./255., 39./255., 1.0);
+	support2->setColor(115./255., 82./255., 39./255., 1.0);
 
+	support1->setColor(145./255., 82./255., 36./255., 1.0);
+	support2->setColor(145./255., 82./255., 36./255., 1.0);
 
 	/** Define the vector of objects [targets] which raven's grippers can grab.*/
 	vector<CompoundObject<BulletObject>::Ptr> targetsR, targetsL;
@@ -771,7 +777,13 @@ void CustomScene::run() {
 
 	table->rigidBody->setFriction(0.4);
 	env->add(table);
-	table->setColor(0.62, 0.32, 0.17, 1.0);
+	//table->setColor(0.62, 0.32, 0.17, 1.0);
+	table->setColor(181./255., 127./255., 9./255., 1.0);
+	table->setColor(115./255., 82./255., 39./255., 1.0);
+	table->setColor(145./255., 82./255., 36./255., 1.0);
+
+
+
 	createKinBodyFromBulletBoxObject(table, rave);
 	ravens.ravens->ignoreCollisionWith(table->rigidBody.get());
 
@@ -796,10 +808,10 @@ void CustomScene::run() {
 	// setup axis-lines [plotting]
 	vector<btVector3> origin; origin.push_back(METERS*btVector3(-0.23,0,table_height-0.0098));
 	vector<btVector3> dir; dir.push_back(METERS*btVector3(0.23,0,table_height-0.0098));
-	util::drawLines(origin,dir,Eigen::Vector3f(1,0,0), 1, env);
+	//util::drawLines(origin,dir,Eigen::Vector3f(1,0,0), 1, env);
 	origin.clear(); origin.push_back(METERS*btVector3(0,0.23,table_height-0.0098));
 	dir.clear(); dir.push_back(METERS*btVector3(0,-0.23,table_height-0.0098));
-	util::drawLines(origin,dir,Eigen::Vector3f(0,1,0), 1, env);
+	//util::drawLines(origin,dir,Eigen::Vector3f(0,1,0), 1, env);
 
 	// store the information about the perturbations applied to the scene:
 	perturbation_vector[0] = RavenConfig::xBias;
@@ -826,8 +838,14 @@ void CustomScene::run() {
 
 	//setSyncTime(true);
 
-	if (not RavenConfig::autoLFD)
+	if (not RavenConfig::autoLFD) {
 		startViewer();
+
+		// change the background color:
+		//viewer.getCamera()->setClearColor(osg::Vec4f(212./255.,212./255.,212./255.,1));
+		viewer.getCamera()->setClearColor(osg::Vec4f(255./255.,242./255.,214./255.,1));
+
+	}
 
 	stepFor(dt, 2);
 

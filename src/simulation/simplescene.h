@@ -41,7 +41,6 @@ struct Scene {
   osgViewer::Viewer viewer;
   osg::ref_ptr<EventHandler> manip;
 
-
   BoxObject::Ptr ground;
 
   // callbacks should return true if the default TrackballManipulator::handle behavior

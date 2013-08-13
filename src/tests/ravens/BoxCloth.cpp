@@ -359,10 +359,12 @@ BoxCloth::BoxCloth(Scene &_s, unsigned int n_, unsigned int m_, vector<unsigned 
 		joints.push_back(BulletConstraint::Ptr(new BulletConstraint(jointPtr, true)));
 	}
 
-	children[grid_to_obj_inds[make_pair(corners_x[0], corners_y[0])]]->setColor(1,0,0,0.4);
-	children[grid_to_obj_inds[make_pair(corners_x[1], corners_y[1])]]->setColor(0,1,0,0.4);
-	children[grid_to_obj_inds[make_pair(corners_x[2], corners_y[2])]]->setColor(0,0,1,0.4);
-	children[grid_to_obj_inds[make_pair(corners_x[3], corners_y[3])]]->setColor(1,0,1,0.4);
+//	children[grid_to_obj_inds[make_pair(corners_x[0], corners_y[0])]]->setColor(1,0,0,0.4);
+//	children[grid_to_obj_inds[make_pair(corners_x[1], corners_y[1])]]->setColor(0,1,0,0.4);
+//	children[grid_to_obj_inds[make_pair(corners_x[2], corners_y[2])]]->setColor(0,0,1,0.4);
+//	children[grid_to_obj_inds[make_pair(corners_x[3], corners_y[3])]]->setColor(1,0,1,0.4);
+
+
 
 	for (unsigned int i=0; i < n; i++) {
 		for(unsigned int j=0; j<m; j++) {

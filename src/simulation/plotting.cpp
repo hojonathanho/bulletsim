@@ -138,6 +138,11 @@ void PlotLines::forceTransparency(float a) {
 	}
 }
 
+
+void PlotLines::shadowsOff() {
+	m_geode->setNodeMask(m_geode->getNodeMask() & ~0x3);
+}
+
 //=============== LINE STRIP =================================================
 
 PlotLineStrip::PlotLineStrip(float width) {
@@ -197,6 +202,10 @@ void PlotLineStrip::forceTransparency(float a) {
 		colors[i] = osg::Vec4(c.r(), c.g(), c.b(), a);
 	}
 }
+
+void PlotLineStrip::shadowsOff() {
+	m_geode->setNodeMask(m_geode->getNodeMask() & ~0x3);
+}
 //=============================================================================
 
 
@@ -240,6 +249,12 @@ void PlotLinesSet::forceTransparency(float a) {
 	for (int i =0; i < l_sets.size(); i++)
 		l_sets[i]->forceTransparency(a);
 }
+
+void PlotLinesSet::shadowsOff() {
+	for (int i =0; i < l_sets.size(); i++)
+			l_sets[i]->shadowsOff();
+}
+
 
 //=============================================================================
 

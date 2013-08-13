@@ -116,7 +116,8 @@ void RegistrationBijectModule::warped_grid3d(btVector3 mins, btVector3 maxs,
 				xline[iy] = transform_point(btVector3(xcoarse[ix], yfine[iy], zcoarse[iz]));
 			xlines.push_back(xline);
 		}
-
+	}
+	for(int iz=0; iz< ncoarse; iz++) {
 		// generate y-lines
 		for (int iy = 0; iy < ncoarse; iy++) {
 			vector<btVector3> yline(nfine);
@@ -225,17 +226,22 @@ bool RavensLFDBij::transformJointsTrajOpt(const vector<vector<dReal> > &joints, 
 	vector<btTransform> warpedLeft2Transforms  = lfdrpm->transform_frames(left2Transforms);
 
 	if (not RavenConfig::autoLFD) {
-		plotPath(right1Transforms, gbLinesRight1, btVector3(1,0,0));
-		plotPath(left1Transforms, gbLinesLeft1, btVector3(1,0,0));
+		//plotPath(right1Transforms, gbLinesRight1, btVector3(1,0,0));
+		//plotPath(left1Transforms, gbLinesLeft1, btVector3(1,0,0));
+		//plotPath(warpedRight1Transforms, gbWarpedLinesRight1, btVector3(0./255.,123./255.,255./255.));
+		//plotPath(warpedLeft1Transforms, gbWarpedLinesLeft1,  btVector3(0./255.,123./255.,255./255.));
 
-		plotPath(warpedRight1Transforms, gbWarpedLinesRight1,btVector3(0,0,1));
-		plotPath(warpedLeft1Transforms, gbWarpedLinesLeft1, btVector3(0,0,1));
+		plotPath(warpedRight1Transforms, gbWarpedLinesLeft1,  btVector3(1,0,0));// btVector3(181./255.,250./255.,255./255.));
+		plotPath(warpedLeft1Transforms, gbWarpedLinesLeft1,  btVector3(1,0,0));//btVector3(181./255.,250./255.,255./255.));
 
-		plotPath(right2Transforms, gbLinesRight2, btVector3(1,0,0));
-		plotPath(left2Transforms, gbLinesLeft2, btVector3(1,0,0));
+		//plotPath(warpedRight1Transforms, gbWarpedLinesLeft1, btVector3(181./255.,250./255.,255./255.));
+		//plotPath(warpedLeft1Transforms, gbWarpedLinesLeft1,  btVector3(181./255.,250./255.,255./255.));
 
-		plotPath(warpedRight2Transforms, gbWarpedLinesRight2,btVector3(0,0,1));
-		plotPath(warpedLeft2Transforms, gbWarpedLinesLeft2, btVector3(0,0,1));
+
+		//		plsaotPath(right2Transforms, gbLinesRight2, btVector3(1,0,0));
+		//		plotPath(left2Transforms, gbLinesLeft2, btVector3(1,0,0));
+		//		plotPath(warpedRight2Transforms, gbWarpedLinesRight2,btVector3(0,0,1));
+		//		plotPath(warpedLeft2Transforms, gbWarpedLinesLeft2, btVector3(0,0,1));
 	}
 
 	/** Do trajectory optimization on the warped transforms. */
@@ -275,6 +281,14 @@ void RavensLFDBij::plotPoints (const vector< btTransform > &transforms) {
 }
 
 
+void RavensLFDBij::plotPoints (const vector< btVector3 > &pts) {
+	vector<btVector3> ps(pts.size());
+	for (int i =0; i< pts.size();i+=1)
+		ps[i]    = pts[i];
+	util::drawSpheres(ps, Eigen::Vector3f(0.65,0,0), 1, 0.0005*METERS, ravens.scene.env);
+}
+
+
 void RavensLFDBij::plotTransforms(const vector< btTransform > &transforms) {
 	vector<btTransform> Ts(transforms.size());
 	for (int i =0; i< transforms.size();i+=1) {
@@ -294,6 +308,8 @@ void RavensLFDBij::plotPath (const vector< btTransform > &transforms, PlotLines:
 		}
 		plot_lines->clear();
 		plot_lines->setPoints(pts0, vector<btVector4>(pts0.size(), btVector4(color.x(),color.y(),color.z(),1)));
+		plot_lines->shadowsOff();
+
 	}
 }
 
@@ -322,16 +338,22 @@ void RavensLFDBij::plot_warped_grid(btVector3 mins, btVector3 maxs, int ncoarse,
 		}
 	}
 
+
+	float gr = 43./255.;
+	float gg = 150./255.;
+	float gb = 0./255;
+	float gt = 0.5;
+
 	pxlines.reset(new PlotLinesSet);
-	pxlines->setDefaultColor(0.7,0,0,0.6);
+	pxlines->setDefaultColor(gr,gg,gb,gt);
 	ravens.scene.env->add(pxlines);
 
 	pylines.reset(new PlotLinesSet);
-	pylines->setDefaultColor(0,0.7,0,0.6);
+	pylines->setDefaultColor(gr,gg,gb,gt);
 	ravens.scene.env->add(pylines);
 
 	pzlines.reset(new PlotLinesSet);
-	pzlines->setDefaultColor(0,0,0.7,0.6);
+	pzlines->setDefaultColor(gr,gg,gb,gt);
 	ravens.scene.env->add(pzlines);
 
 
@@ -343,6 +365,11 @@ void RavensLFDBij::plot_warped_grid(btVector3 mins, btVector3 maxs, int ncoarse,
 
 	for(int i=0; i < zlines.size(); i++)
 		pzlines->addLineSet(zlines[i]);
+
+	pxlines->shadowsOff();
+	pylines->shadowsOff();
+	pzlines->shadowsOff();
+
 }
 
 
@@ -355,7 +382,7 @@ void RavensLFDBij::clear_grid() {
 	pylines.reset();
 	pzlines.reset();
 }
-
+int RavensLFDBij::segnum = 0;
 
 /** Ravens   : the robot to transform the joints for.
  *  SRC_PTS_ : the reference point locations.
@@ -398,7 +425,7 @@ RavensLFDBij::RavensLFDBij (Ravens &ravens_, const vector<vector<btVector3> > &s
 		BOOST_FOREACH(const vector<btVector3>& cloud, src_clouds) {
 			BOOST_FOREACH(const btVector3& pt, cloud) {
 				srcPoints.push_back(pt*METERS);
-				srcCols.push_back(btVector4(1,0,0,1));
+				srcCols.push_back(btVector4(0,0,0,1));
 			}
 		}
 
@@ -417,12 +444,12 @@ RavensLFDBij::RavensLFDBij (Ravens &ravens_, const vector<vector<btVector3> > &s
 			}
 		}
 
-		gbSrcPlotPoints->setPoints(srcPoints, srcCols);
-		gbTargPlotPoints->setPoints(targPoints, targCols);
-		gbWarpedPlotPoints->setPoints(warpedPoints, warpedCols);
-
-		if (RavenConfig::plotTfm) {
-			plot_warped_grid(btVector3(-0.1,-0.1,0.15), btVector3(0.1,0.1, .17), 10);
+		//gbSrcPlotPoints->setPoints(srcPoints, srcCols);
+		//gbTargPlotPoints->setPoints(targPoints, targCols);
+		//gbWarpedPlotPoints->setPoints(warpedPoints, warpedCols);
+		if (RavenConfig::plotTfm and RavensLFDBij::segnum==0) {
+			plotPoints(targPoints);
+			plot_warped_grid(btVector3(-0.1,-0.05,0.15), btVector3(0.1,0.05, .19), 10, 35);
 
 			// block for user input
 			cout << colorize("Look at the point-clouds. Press any key [in simulation] to continue.", "red", true)<< endl;
@@ -431,6 +458,8 @@ RavensLFDBij::RavensLFDBij (Ravens &ravens_, const vector<vector<btVector3> > &s
 				ravens.scene.viewer.frame();
 			}
 		}
+		RavensLFDBij::segnum += 1;
+
 	}
 }
 
@@ -453,9 +482,19 @@ bool warpRavenJointsBij(Ravens &ravens,
 	suturing_info["recording_fname"] = rec_fname;
 	suturing_info["warp_costs"]      = warp_costs;
 
-	if (not RavenConfig::autoLFD and RavenConfig::plotTfm) // then the grid is being plotted ==> clear
-		lfdrpm.clear_grid();
-	return lfdrpm.transformJointsTrajOpt(in_joints, out_joints, suturing_info);
+	bool res = lfdrpm.transformJointsTrajOpt(in_joints, out_joints, suturing_info);
+
+	if (RavenConfig::plotTfm) {
+		cout << colorize("\tPress any key [in simulation] to continue.", "green", true)<< endl;
+		ravens.scene.userInput = false;
+		while (!ravens.scene.userInput) {
+			ravens.scene.viewer.frame();
+		}
+	}
+
+	//if (not RavenConfig::autoLFD and RavenConfig::plotTfm) // then the grid is being plotted ==> clear
+	//	lfdrpm.clear_grid();
+	return res;
 }
 
 /** Returns the warping objective cost based on tps_rpm_bij. */

@@ -11,6 +11,7 @@
     <rotationmat>-1 0 0 0 -1 0 0 0 1</rotationmat>
   </Robot>
 
+
 <KinBody name="frame" file="stand.xml"/>
 
 <KinBody name="dum">

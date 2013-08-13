@@ -36,7 +36,7 @@ Scene::Scene()  : userInput(false), simtime(0.0) {
 		}
 		ground->setTexture(tex);
 
-    env->add(ground);
+    //env->add(ground);
 
     // default callbacks
     addVoidKeyCallback('p', boost::bind(&Scene::toggleIdle, this), "pause simulation");

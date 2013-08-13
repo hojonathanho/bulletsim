@@ -21,6 +21,7 @@ pointsToUse ropeAndHole = {true, false, true};
 pointsToUse pointModes[] = {all, ropeOnly, boxAndHole, ropeAndHole};
 
 int ScenePlayer::getCurrentPlayNumber() {
+	cout << "GETTING CURRENT PLAY NUM"<<endl;
 	ifstream inpfile(runnumfname.c_str());
 	unsigned int runnum;
 
@@ -49,6 +50,8 @@ int ScenePlayer::getCurrentPlayNumber() {
 			}
 		}
 		inpfile.close();
+		cout << "PLAY NUM : "<<runnum<<endl;
+
 		return runnum;
 	}
 }
