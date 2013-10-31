@@ -13,6 +13,7 @@
   <body type="dynamic" name="lpole">
      <geom type="box">
         <translation>-0.35 0 0.115</translation>
+        <extents>.025 0.035 0.115</extents>
         <diffuseColor>.6 .6 .6</diffuseColor>
       	<ambientColor>0.6 0.6 0.6</ambientColor>
       </geom>

@@ -19,22 +19,22 @@ namespace util {
 /**  Return am orthonormal basis (rotation matrix + 0 translation)
  * in R3 with the x-axis aligned with the input vector. */
 btTransform getOrthogonalTransform(btVector3 x) {
-	 btVector3 y(-x.getY(), x.getX(), 0);
-	 btVector3 z = x.cross(y);
+	btVector3 y(-x.getY(), x.getX(), 0);
+	btVector3 z = x.cross(y);
 
-	 x.normalize();
-	 y.normalize();
-	 z.normalize();
+	x.normalize();
+	y.normalize();
+	z.normalize();
 
-	 btTransform trans;
+	btTransform trans;
 
-	 btMatrix3x3 rot;
-	 rot.setValue(x.getX(), x.getY(), x.getZ(),
-			 	  y.getX(), y.getY(), y.getZ(),
-			 	  z.getX(), z.getY(), z.getZ());
+	btMatrix3x3 rot;
+	rot.setValue(x.getX(), x.getY(), x.getZ(),
+			y.getX(), y.getY(), y.getZ(),
+			z.getX(), z.getY(), z.getZ());
 
-	 trans.setBasis(rot);
-	 return trans;
+	trans.setBasis(rot);
+	return trans;
 }
 
 /** L2 Norm squared. */
@@ -72,35 +72,35 @@ double wrapAroundL2 (vector<double> v1, vector<double> v2) {
 }
 
 osg::ref_ptr<osg::Vec3Array> toVec3Array(const std::vector<btVector3>& in) {
-    osg::ref_ptr<osg::Vec3Array> out = new osg::Vec3Array();
-    out->reserve(in.size());
-    BOOST_FOREACH(const btVector3& pt, in) out->push_back(osg::Vec3(pt.x(),pt.y(),pt.z()));
-    return out;
+	osg::ref_ptr<osg::Vec3Array> out = new osg::Vec3Array();
+	out->reserve(in.size());
+	BOOST_FOREACH(const btVector3& pt, in) out->push_back(osg::Vec3(pt.x(),pt.y(),pt.z()));
+	return out;
 }
 
 osg::ref_ptr<osg::Vec4Array> toVec4Array(const std::vector<btVector4>& in) {
-    osg::ref_ptr<osg::Vec4Array> out = new osg::Vec4Array();
-    out->reserve(in.size());
-    BOOST_FOREACH(const btVector3& pt, in) out->push_back(osg::Vec4(pt.x(),pt.y(),pt.z(),pt.w()));
-    return out;
+	osg::ref_ptr<osg::Vec4Array> out = new osg::Vec4Array();
+	out->reserve(in.size());
+	BOOST_FOREACH(const btVector3& pt, in) out->push_back(osg::Vec4(pt.x(),pt.y(),pt.z(),pt.w()));
+	return out;
 }
 
 osg::ref_ptr<osg::Vec3Array> toVec3Array(const Eigen::MatrixXf& in) {
-		assert(in.cols() == 3);
-    osg::ref_ptr<osg::Vec3Array> out = new osg::Vec3Array();
-    out->reserve(in.rows());
-    for (int row=0; row < in.rows(); row++)
-    	out->push_back(osg::Vec3(in(row, 0), in(row, 1), in(row, 2)));
-    return out;
+	assert(in.cols() == 3);
+	osg::ref_ptr<osg::Vec3Array> out = new osg::Vec3Array();
+	out->reserve(in.rows());
+	for (int row=0; row < in.rows(); row++)
+		out->push_back(osg::Vec3(in(row, 0), in(row, 1), in(row, 2)));
+	return out;
 }
 
 osg::ref_ptr<osg::Vec4Array> toVec4Array(const Eigen::MatrixXf& in) {
-		assert(in.cols() == 4);
-    osg::ref_ptr<osg::Vec4Array> out = new osg::Vec4Array();
-    out->reserve(in.rows());
-    for (int row=0; row < in.rows(); row++)
-    	out->push_back(osg::Vec4(in(row, 0), in(row, 1), in(row, 2), in(row, 3)));
-    return out;
+	assert(in.cols() == 4);
+	osg::ref_ptr<osg::Vec4Array> out = new osg::Vec4Array();
+	out->reserve(in.rows());
+	for (int row=0; row < in.rows(); row++)
+		out->push_back(osg::Vec4(in(row, 0), in(row, 1), in(row, 2), in(row, 3)));
+	return out;
 }
 
 void drawSpheres(vector<btVector3> points, Vector3f color, float alpha, float radius, Environment::Ptr env) {
@@ -166,49 +166,50 @@ Environment::Ptr getGlobalEnv() { return gEnv; }
 
 static const btMatrix3x3 HAPTIC_ROTATION(btQuaternion(-M_PI/2., 0., 0.));
 static inline btMatrix3x3 toBtMatrix(const Matrix3d &m) {
-    // note: the rows are permuted
-    return btMatrix3x3(m(0, 0), m(0, 1), m(0, 2),
-                       m(1, 0), m(1, 1), m(1, 2),
-                       m(2, 0), m(2, 1), m(2, 2));
+	// note: the rows are permuted
+	return btMatrix3x3(m(0, 0), m(0, 1), m(0, 2),
+			m(1, 0), m(1, 1), m(1, 2),
+			m(2, 0), m(2, 1), m(2, 2));
 }
+
 static inline btMatrix3x3 toHapticBtMatrix(const Matrix3d &m) {
-    // note: the rows are permuted
-    return btMatrix3x3(m(2, 0), m(2, 1), m(2, 2),
-                       m(0, 0), m(0, 1), m(0, 2),
-                       m(1, 0), m(1, 1), m(1, 2));
+	// note: the rows are permuted
+	return btMatrix3x3(m(2, 0), m(2, 1), m(2, 2),
+			m(0, 0), m(0, 1), m(0, 2),
+			m(1, 0), m(1, 1), m(1, 2));
 }
 static inline btVector3 toHapticBtVector(const Vector3d &v) {
-    // note: the components are permuted
-    return btVector3(v.z(), v.x(), v.y());
+	// note: the components are permuted
+	return btVector3(v.z(), v.x(), v.y());
 }
 
 bool getHapticInput2(btTransform &trans0, bool buttons0[2], btTransform &trans1, bool buttons1[2]) {// just converts eigen to btTransform
-    Vector3d start_proxy_pos, end_proxy_pos;
-    Matrix3d start_proxy_rot, end_proxy_rot;
-    if (!getDeviceState2(start_proxy_pos, start_proxy_rot, buttons0,
-                        end_proxy_pos, end_proxy_rot, buttons1))
-        return false;
-    trans0 = btTransform(toBtMatrix(start_proxy_rot),
-                         util::toBtVector(start_proxy_pos));
+	Vector3d start_proxy_pos, end_proxy_pos;
+	Matrix3d start_proxy_rot, end_proxy_rot;
+	if (!getDeviceState2(start_proxy_pos, start_proxy_rot, buttons0,
+			end_proxy_pos, end_proxy_rot, buttons1))
+		return false;
+	trans0 = btTransform(toBtMatrix(start_proxy_rot),
+			util::toBtVector(start_proxy_pos));
 
-    trans1 = btTransform(toBtMatrix(end_proxy_rot),
-                         util::toBtVector(end_proxy_pos));
-    return true;
+	trans1 = btTransform(toBtMatrix(end_proxy_rot),
+			util::toBtVector(end_proxy_pos));
+	return true;
 }
 
 bool getHapticInput(btTransform &trans0, bool buttons0[2], btTransform &trans1, bool buttons1[2]) {
-    Vector3d start_proxy_pos, end_proxy_pos;
-    Matrix3d start_proxy_rot, end_proxy_rot;
-    if (!getDeviceState(start_proxy_pos, start_proxy_rot, buttons0,
-                        end_proxy_pos, end_proxy_rot, buttons1))
-        return false;
-    trans0 = btTransform(toHapticBtMatrix(start_proxy_rot) * HAPTIC_ROTATION,
-                         toHapticBtVector(start_proxy_pos));
+	Vector3d start_proxy_pos, end_proxy_pos;
+	Matrix3d start_proxy_rot, end_proxy_rot;
+	if (!getDeviceState(start_proxy_pos, start_proxy_rot, buttons0,
+			end_proxy_pos, end_proxy_rot, buttons1))
+		return false;
+	trans0 = btTransform(toHapticBtMatrix(start_proxy_rot) * HAPTIC_ROTATION,
+			toHapticBtVector(start_proxy_pos));
 
-    trans1 = btTransform(toHapticBtMatrix(end_proxy_rot) * HAPTIC_ROTATION,
-                         toHapticBtVector(end_proxy_pos));
+	trans1 = btTransform(toHapticBtMatrix(end_proxy_rot) * HAPTIC_ROTATION,
+			toHapticBtVector(end_proxy_pos));
 
-    return true;
+	return true;
 }
 
 

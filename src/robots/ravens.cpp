@@ -340,9 +340,6 @@ void Ravens::processHapticInput() {
     		0, 0, 1,
     		0, 1, 0));
 
-    static const btTransform ROT(btMatrix3x3( 0,  1, 0,
-    										 -1,  0, 0,
-    										  0,  0, 1));
     //CORRECTION = ROT*CORRECTION;
 
     btVector3 translation0 = HAPTIC_SCALE * (trans0.getOrigin() + ZERO_OFFSET);

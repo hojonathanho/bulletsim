@@ -91,6 +91,12 @@ private:
 	void plotPoints (const vector< btVector3 > &pts);
 	void plotPath        (const vector< btTransform > &transforms, PlotLines::Ptr plot_lines, btVector3 color = btVector3(1,1,1));
 
+	/** Does smooth IK on transforms (in joint space: basically chooses the closest subsequent joint-set [l2 normwise].
+	 *  Ik is done for each transform in TRANSFORMS and the corresponding joints are stored in JOINTS.*/
+	bool doSmoothIK(RaveRobotObject::Manipulator::Ptr manip, const vector<btTransform> & transforms, vector< vector<dReal> > &joints, vector <float>&times);
+
+
+
 public:
 	RegistrationBijectModule::Ptr lfdrpm;
 	static int segnum;
@@ -103,6 +109,10 @@ public:
 
 	/** Warp the joint angles of ravens using warping and trajectory optimization.*/
 	bool transformJointsTrajOpt(const vector<vector<dReal> > &joints, vector<vector<dReal> > &new_joints, py::dict suture_info=PyGlobals::None);
+
+	/** Transform joints without using trajopt -- use "smooth" IK. */
+	bool transformJointsIK(const vector<vector<dReal> > &joints, vector<vector<dReal> > &new_joints, py::dict suture_info=PyGlobals::None);
+
 
 	/** plots a grid representing the warping.*/
 	void plot_warped_grid(btVector3 mins, btVector3 maxs, int ncoarse=10, int nfine=30);

@@ -12,7 +12,8 @@
 using Eigen::Vector3d;
 using Eigen::Matrix3d;
 
-#define IP "128.32.37.98"
+//#define IP "128.32.37.98"
+#define IP "192.168.1.100"
 #define RECEIVE_PORT 9000
 #define SEND_PORT 9001
 

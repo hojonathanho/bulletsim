@@ -231,8 +231,8 @@ bool RavensLFDBij::transformJointsTrajOpt(const vector<vector<dReal> > &joints, 
 		//plotPath(warpedRight1Transforms, gbWarpedLinesRight1, btVector3(0./255.,123./255.,255./255.));
 		//plotPath(warpedLeft1Transforms, gbWarpedLinesLeft1,  btVector3(0./255.,123./255.,255./255.));
 
-		plotPath(warpedRight1Transforms, gbWarpedLinesLeft1,  btVector3(1,0,0));// btVector3(181./255.,250./255.,255./255.));
-		plotPath(warpedLeft1Transforms, gbWarpedLinesLeft1,  btVector3(1,0,0));//btVector3(181./255.,250./255.,255./255.));
+		//plotPath(warpedRight1Transforms, gbWarpedLinesLeft1,  btVector3(1,0,0));// btVector3(181./255.,250./255.,255./255.));
+		//plotPath(warpedLeft1Transforms, gbWarpedLinesLeft1,  btVector3(1,0,0));//btVector3(181./255.,250./255.,255./255.));
 
 		//plotPath(warpedRight1Transforms, gbWarpedLinesLeft1, btVector3(181./255.,250./255.,255./255.));
 		//plotPath(warpedLeft1Transforms, gbWarpedLinesLeft1,  btVector3(181./255.,250./255.,255./255.));
@@ -271,6 +271,113 @@ bool RavensLFDBij::transformJointsTrajOpt(const vector<vector<dReal> > &joints, 
 		new_joints.push_back(combined_joints);
 	}
 	return true;
+}
+
+/** Does smooth IK on transforms (in joint space: basically chooses the closest subsequent joint-set [l2 normwise].
+ *  Ik is done for each transform in TRANSFORMS and the corresponding joints are stored in JOINTS.*/
+bool RavensLFDBij::doSmoothIK(RaveRobotObject::Manipulator::Ptr manip, const vector<btTransform> & transforms, vector< vector<dReal> > &joints, vector<float> &times)  {
+	joints.clear();
+	vector<dReal> currentDOFs = manip->getDOFValues();
+
+	vector<float> inds;
+	for(int i = 0; i < transforms.size(); i+=1) {
+		vector <vector<dReal> > values;
+		if (manip->solveAllIKUnscaled(util::toRaveTransform(transforms[i]), values)) {
+			int solSize = values.size();
+
+			vector<double> bestDOFs = values[0];
+
+			double bestL2 = util::wrapAroundL2(bestDOFs, currentDOFs);
+
+			for (int j = 1; j < solSize; ++j) {
+				double newL2 = util::wrapAroundL2(values[j],currentDOFs);
+				if (newL2 < bestL2) {
+					bestDOFs = values[j];
+					bestL2 = newL2;
+				}
+			}
+			joints.push_back(bestDOFs);
+			inds.push_back(times[i]);
+
+			currentDOFs = bestDOFs;
+			//} else {//failure
+			//RAVELOG_INFO("IK failed on warped transforms.\n");
+			//return false;
+		}
+	}
+	//unwrapWayPointDOFs(curerntDOFs);
+
+	vector<float> all_times;
+	for (int i=0; i < transforms.size(); i+=1)
+		all_times.push_back(i);
+
+	joints = interpolate(times,  joints, inds);
+
+	return true;
+}
+
+
+bool RavensLFDBij::transformJointsIK(const vector<vector<dReal> > &joints, vector<vector<dReal> > &new_joints, py::dict suture_info) {
+	/** Do forward-kinematics and get the end-effector transform. */
+	double tol = 0.01;  //DOWNSAMPLE
+	std::pair< vector <float>, vector < vector <double> > > times_joints = adaptive_resample(joints, tol);
+	vector<float> resampled_times             = times_joints.first;
+	vector <vector<double> > resampled_joints = times_joints.second;
+
+	vector<btTransform> rightEETransforms(resampled_joints.size());
+	vector<btTransform> leftEETransforms(resampled_joints.size());
+
+	for (int i =0; i< resampled_joints.size(); i+=1) {
+		vector<dReal> r_joints;
+		extractJoints(rarm_indices, resampled_joints[i], r_joints);
+
+		vector<dReal> l_joints;
+		extractJoints(larm_indices, resampled_joints[i], l_joints);
+
+		/** work with end-effector transforms. */
+		rightEETransforms[i]  = util::scaleTransform(ravens.manipR->getFK(r_joints), 1.f/METERS);
+		leftEETransforms[i]   = util::scaleTransform(ravens.manipL->getFK(l_joints), 1.f/METERS);
+	}
+
+	/** Warp the end-effector transforms. */
+	vector<btTransform> warpedRightEETransforms = lfdrpm->transform_frames(rightEETransforms);
+	vector<btTransform> warpedLeftEETransforms  = lfdrpm->transform_frames(leftEETransforms);
+
+	/** Do IK on the warped transforms. */
+	vector<vector<dReal> > new_r_joints;
+	bool r_success = doSmoothIK(ravens.manipR, warpedRightEETransforms, new_r_joints, resampled_times);
+
+	vector<vector<dReal> > new_l_joints;
+	bool l_success = doSmoothIK(ravens.manipL, warpedLeftEETransforms, new_l_joints, resampled_times);
+
+	// up-sample : interpolate
+	vector<float> new_times(joints.size());
+	for (int i = 0.0; i < joints.size(); ++i) new_times[i] = (float) i;
+	new_r_joints = interpolate(new_times, new_r_joints, resampled_times);
+	new_l_joints = interpolate(new_times, new_l_joints, resampled_times);
+
+
+	if (r_success && l_success) {
+		/** combine the new joint values into one vector while filling in the dofs
+		 * which do not correspond to the arm joints from the original input.*/
+		assert(("Number of set of joint angles for the arms are different.",
+				(new_r_joints.size()==new_l_joints.size() && new_r_joints.size()==joints.size())));
+		new_joints.clear();
+		const int num_dofs = joints[0].size();
+		for(int i=0; i< joints.size(); i+=1) {
+			vector<dReal> combined_joints(num_dofs);
+			for(int k =0; k < num_dofs; k+=1)
+				combined_joints[k] = joints[i][k];
+			for(int k =0; k < larm_indices.size(); k+=1)
+				combined_joints[larm_indices[k]] = new_l_joints[i][k];
+			for(int k =0; k < rarm_indices.size(); k+=1)
+				combined_joints[rarm_indices[k]] = new_r_joints[i][k];
+			new_joints.push_back(combined_joints);
+		}
+		return true;
+	} else {
+		return false;
+	}
 }
 
 void RavensLFDBij::plotPoints (const vector< btTransform > &transforms) {
@@ -447,8 +554,8 @@ RavensLFDBij::RavensLFDBij (Ravens &ravens_, const vector<vector<btVector3> > &s
 		//gbSrcPlotPoints->setPoints(srcPoints, srcCols);
 		//gbTargPlotPoints->setPoints(targPoints, targCols);
 		//gbWarpedPlotPoints->setPoints(warpedPoints, warpedCols);
-		if (RavenConfig::plotTfm and RavensLFDBij::segnum==0) {
-			plotPoints(targPoints);
+		if (RavenConfig::plotTfm) {// and RavensLFDBij::segnum==0) {
+			//plotPoints(targPoints);
 			plot_warped_grid(btVector3(-0.1,-0.05,0.15), btVector3(0.1,0.05, .19), 10, 35);
 
 			// block for user input
@@ -482,7 +589,8 @@ bool warpRavenJointsBij(Ravens &ravens,
 	suturing_info["recording_fname"] = rec_fname;
 	suturing_info["warp_costs"]      = warp_costs;
 
-	bool res = lfdrpm.transformJointsTrajOpt(in_joints, out_joints, suturing_info);
+	//bool res = lfdrpm.transformJointsTrajOpt(in_joints, out_joints, suturing_info);
+	bool res = lfdrpm.transformJointsIK(in_joints, out_joints, suturing_info);
 
 	if (RavenConfig::plotTfm) {
 		cout << colorize("\tPress any key [in simulation] to continue.", "green", true)<< endl;
@@ -492,8 +600,8 @@ bool warpRavenJointsBij(Ravens &ravens,
 		}
 	}
 
-	//if (not RavenConfig::autoLFD and RavenConfig::plotTfm) // then the grid is being plotted ==> clear
-	//	lfdrpm.clear_grid();
+	if (not RavenConfig::autoLFD and RavenConfig::plotTfm) // then the grid is being plotted ==> clear
+		lfdrpm.clear_grid();
 	return res;
 }
 
