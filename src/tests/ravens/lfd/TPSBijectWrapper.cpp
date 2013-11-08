@@ -280,37 +280,35 @@ bool RavensLFDBij::doSmoothIK(RaveRobotObject::Manipulator::Ptr manip, const vec
 	vector<dReal> currentDOFs = manip->getDOFValues();
 
 	vector<float> inds;
+
 	for(int i = 0; i < transforms.size(); i+=1) {
 		vector <vector<dReal> > values;
 		if (manip->solveAllIKUnscaled(util::toRaveTransform(transforms[i]), values)) {
 			int solSize = values.size();
 
-			vector<double> bestDOFs = values[0];
+			vector<double> * bestDOFs (new vector<double>());
+			*bestDOFs = values[0];
 
-			double bestL2 = util::wrapAroundL2(bestDOFs, currentDOFs);
+			double bestL2 = util::wrapAroundL2(*bestDOFs, currentDOFs);
 
 			for (int j = 1; j < solSize; ++j) {
 				double newL2 = util::wrapAroundL2(values[j],currentDOFs);
 				if (newL2 < bestL2) {
-					bestDOFs = values[j];
+					*bestDOFs = values[j];
 					bestL2 = newL2;
 				}
 			}
-			joints.push_back(bestDOFs);
+			joints.push_back(*bestDOFs);
 			inds.push_back(times[i]);
-
-			currentDOFs = bestDOFs;
-			//} else {//failure
+			currentDOFs = *bestDOFs;
+		//} else {//failure
 			//RAVELOG_INFO("IK failed on warped transforms.\n");
 			//return false;
 		}
 	}
 	//unwrapWayPointDOFs(curerntDOFs);
 
-	vector<float> all_times;
-	for (int i=0; i < transforms.size(); i+=1)
-		all_times.push_back(i);
-
+	cout << "got : "<< inds.size()<< "/"<<transforms.size()<<endl;
 	joints = interpolate(times,  joints, inds);
 
 	return true;
@@ -319,13 +317,13 @@ bool RavensLFDBij::doSmoothIK(RaveRobotObject::Manipulator::Ptr manip, const vec
 
 bool RavensLFDBij::transformJointsIK(const vector<vector<dReal> > &joints, vector<vector<dReal> > &new_joints, py::dict suture_info) {
 	/** Do forward-kinematics and get the end-effector transform. */
+	vector<btTransform> rightEETransforms(joints.size());
+	vector<btTransform> leftEETransforms(joints.size());
+
 	double tol = 0.01;  //DOWNSAMPLE
 	std::pair< vector <float>, vector < vector <double> > > times_joints = adaptive_resample(joints, tol);
 	vector<float> resampled_times             = times_joints.first;
 	vector <vector<double> > resampled_joints = times_joints.second;
-
-	vector<btTransform> rightEETransforms(resampled_joints.size());
-	vector<btTransform> leftEETransforms(resampled_joints.size());
 
 	for (int i =0; i< resampled_joints.size(); i+=1) {
 		vector<dReal> r_joints;
@@ -349,13 +347,6 @@ bool RavensLFDBij::transformJointsIK(const vector<vector<dReal> > &joints, vecto
 
 	vector<vector<dReal> > new_l_joints;
 	bool l_success = doSmoothIK(ravens.manipL, warpedLeftEETransforms, new_l_joints, resampled_times);
-
-	// up-sample : interpolate
-	vector<float> new_times(joints.size());
-	for (int i = 0.0; i < joints.size(); ++i) new_times[i] = (float) i;
-	new_r_joints = interpolate(new_times, new_r_joints, resampled_times);
-	new_l_joints = interpolate(new_times, new_l_joints, resampled_times);
-
 
 	if (r_success && l_success) {
 		/** combine the new joint values into one vector while filling in the dofs
