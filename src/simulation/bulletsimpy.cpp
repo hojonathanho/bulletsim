@@ -68,6 +68,7 @@ BOOST_PYTHON_MODULE(cbulletsimpy) {
     .def("SetContactDistance", &bs::BulletEnvironment::SetContactDistance)
     .def("AddConstraint", &bs::BulletEnvironment::py_AddConstraint)
     .def("RemoveConstraint", &bs::BulletEnvironment::RemoveConstraint)
+    .def("Remove", &bs::BulletEnvironment::Remove)
     ;
 
   py::class_<bs::CapsuleRopeParams>("CapsuleRopeParams")

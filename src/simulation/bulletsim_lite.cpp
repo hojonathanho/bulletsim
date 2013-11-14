@@ -529,6 +529,10 @@ void BulletEnvironment::RemoveConstraint(BulletConstraint::Ptr cnt) {
   m_env->removeConstraint(cnt);
 }
 
+void BulletEnvironment::Remove(BulletObjectPtr obj) {
+  m_env->remove(obj->m_obj);
+}
+
 
 
 

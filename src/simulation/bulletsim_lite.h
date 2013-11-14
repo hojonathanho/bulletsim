@@ -124,6 +124,8 @@ public:
   BulletConstraint::Ptr py_AddConstraint(py::dict desc);
   void RemoveConstraint(BulletConstraint::Ptr cnt);
 
+  void Remove(BulletObjectPtr obj);
+
 private:
   Environment::Ptr m_env;
   RaveInstance::Ptr m_rave;
