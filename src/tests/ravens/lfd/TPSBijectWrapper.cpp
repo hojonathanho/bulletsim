@@ -580,8 +580,8 @@ bool warpRavenJointsBij(Ravens &ravens,
 	suturing_info["recording_fname"] = rec_fname;
 	suturing_info["warp_costs"]      = warp_costs;
 
-	//bool res = lfdrpm.transformJointsTrajOpt(in_joints, out_joints, suturing_info);
-	bool res = lfdrpm.transformJointsIK(in_joints, out_joints, suturing_info);
+	bool res = lfdrpm.transformJointsTrajOpt(in_joints, out_joints, suturing_info);
+	//bool res = lfdrpm.transformJointsIK(in_joints, out_joints, suturing_info);
 
 	if (RavenConfig::plotTfm) {
 		cout << colorize("\tPress any key [in simulation] to continue.", "green", true)<< endl;
