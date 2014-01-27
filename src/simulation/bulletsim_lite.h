@@ -125,6 +125,7 @@ public:
   void RemoveConstraint(BulletConstraint::Ptr cnt);
 
   void Remove(BulletObjectPtr obj);
+  void Add(BulletObjectPtr obj);
 
 private:
   Environment::Ptr m_env;
@@ -156,11 +157,17 @@ public:
   std::vector<btVector3> GetNodes();
   std::vector<btVector3> GetControlPoints();
   vector<btMatrix3x3> GetRotations();
+  void SetRotations(py::object rots);
+  vector<btVector3> GetTranslations();
+  void SetTranslations(py::object trans);
   vector<float> GetHalfHeights();
 
   py::object py_GetNodes();
   py::object py_GetControlPoints();
   py::object py_GetRotations();
+  void py_SetRotations(py::object py_rots);
+  py::object py_GetTranslations();
+  void py_SetTranslations(py::object py_trans);
   py::object py_GetHalfHeights();
 
   // not supported

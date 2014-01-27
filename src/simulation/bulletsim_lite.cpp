@@ -102,6 +102,26 @@ py::object toNdarray3(const vector<btMatrix3x3> &v) {
   return out;
 }
 
+py::object toNdarray3(const vector<btTransform> &v) {
+  py::object out = numpy.attr("empty")(py::make_tuple(v.size(), 3, 3), type_traits<btScalar>::npname);
+  btScalar* pout = getPointer<btScalar>(out);
+  for (int i = 0; i < v.size(); ++i) {
+    for (int j = 0; j < 3; ++j) {
+      for (int k = 0; k < 3; ++k) {
+        *(pout + 9*i + 3*j + k) = v[i].getBasis().getRow(j).m_floats[k];
+      }
+    }
+    for (int j = 0; j < 3; ++j) {
+      *(pout + 9*i + 3*j + 3) = v[i].getOrigin().m_floats[j];
+    }
+    for (int k = 0; k < 3; ++k) {
+      *(pout + 9*i + 3*3 + k) = 0.0;
+    }
+    *(pout + 9*i + 3*3 + 3) = 1.0;
+  }
+  return out;
+}
+
 template<typename T>
 py::object ensureFormat(py::object ndarray) {
   // ensure C-order and data type, possibly making a new ndarray
@@ -153,6 +173,33 @@ void fromNdarray2ToBtVecs(py::object a, vector<btVector3> &out) {
   for (int i = 0; i < out_dim0; ++i) {
     for (int j = 0; j < 3; ++j) {
       out[i].m_floats[j] = *(pin + 3*i + j);
+    }
+  }
+}
+
+void fromNdarray3ToBtMats(py::object a, vector<btMatrix3x3> &out) {
+  a = ensureFormat<btScalar>(a);
+  py::object shape = a.attr("shape");
+  if (py::len(shape) != 3) {
+    throw std::runtime_error((boost::format("expected 3-d array, got %d-d instead") % py::len(shape)).str());
+  }
+  size_t out_dim0 = py::extract<size_t>(shape[0]);
+  size_t out_dim1 = py::extract<size_t>(shape[1]);
+  size_t out_dim2 = py::extract<size_t>(shape[2]);
+  if (out_dim1 != 3) {
+    throw std::runtime_error((boost::format("expected shape[1] == 3, got %d instead") % out_dim1).str());
+  }
+  if (out_dim2 != 3) {
+    throw std::runtime_error((boost::format("expected shape[2] == 3, got %d instead") % out_dim2).str());
+  }
+
+  btScalar* pin = getPointer<btScalar>(a);
+  out.resize(out_dim0);
+  for (int i = 0; i < out_dim0; ++i) {
+    for (int j = 0; j < 3; ++j) {
+      for (int k = 0; k < 3; ++k) {
+        out[i][j].m_floats[k] = *(pin + 9*i + 3*j + k);
+      }
     }
   }
 }
@@ -533,6 +580,9 @@ void BulletEnvironment::Remove(BulletObjectPtr obj) {
   m_env->remove(obj->m_obj);
 }
 
+void BulletEnvironment::Add(BulletObjectPtr obj) {
+  m_env->add(obj->m_obj);
+}
 
 
 
@@ -649,6 +699,22 @@ std::vector<btVector3> CapsuleRope::GetControlPoints() {
 vector<btMatrix3x3> CapsuleRope::GetRotations() {
   return CapsuleRope_getRotations(m_children_rigidbodies);
 }
+void CapsuleRope::SetRotations(py::object rots) {
+  vector<btMatrix3x3> m;
+  fromNdarray3ToBtMats(numpy.attr("asarray")(rots), m);
+  CapsuleRope_setRotations(m_children_rigidbodies, m);
+}
+std::vector<btVector3> CapsuleRope::GetTranslations() {
+  std::vector<btVector3> out = CapsuleRope_getTranslations(m_children_rigidbodies);
+  scale(out, 1.0f/METERS);
+  return out;
+}
+void CapsuleRope::SetTranslations(py::object trans) {
+  vector<btVector3> v;
+  fromNdarray2ToBtVecs(numpy.attr("asarray")(trans), v);
+  scale(v, METERS);
+  CapsuleRope_setTranslations(m_children_rigidbodies, v);
+}
 vector<float> CapsuleRope::GetHalfHeights() {
   std::vector<float> out = CapsuleRope_getHalfHeights(m_children_rigidbodies);
   scale(out, 1.0f/METERS);
@@ -658,6 +724,9 @@ vector<float> CapsuleRope::GetHalfHeights() {
 py::object CapsuleRope::py_GetNodes() { return toNdarray2(GetNodes()); }
 py::object CapsuleRope::py_GetControlPoints() { return toNdarray2(GetControlPoints()); }
 py::object CapsuleRope::py_GetRotations() { return toNdarray3(GetRotations()); }
+void CapsuleRope::py_SetRotations(py::object py_rots) { return SetRotations(py_rots); }
+py::object CapsuleRope::py_GetTranslations() { return toNdarray2(GetTranslations()); }
+void CapsuleRope::py_SetTranslations(py::object py_trans) { return SetTranslations(py_trans); }
 py::object CapsuleRope::py_GetHalfHeights() { return toNdarray(GetHalfHeights()); }
 
 } // namespace bs
