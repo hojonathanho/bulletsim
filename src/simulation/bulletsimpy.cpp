@@ -68,6 +68,8 @@ BOOST_PYTHON_MODULE(cbulletsimpy) {
     .def("SetContactDistance", &bs::BulletEnvironment::SetContactDistance)
     .def("AddConstraint", &bs::BulletEnvironment::py_AddConstraint)
     .def("RemoveConstraint", &bs::BulletEnvironment::RemoveConstraint)
+    .def("Remove", &bs::BulletEnvironment::Remove)
+    .def("Add", &bs::BulletEnvironment::Add)
     ;
 
   py::class_<bs::CapsuleRopeParams>("CapsuleRopeParams")
@@ -83,6 +85,9 @@ BOOST_PYTHON_MODULE(cbulletsimpy) {
     .def("GetNodes", &bs::CapsuleRope::py_GetNodes)
     .def("GetControlPoints", &bs::CapsuleRope::py_GetControlPoints)
     .def("GetRotations", &bs::CapsuleRope::py_GetRotations)
+    .def("SetRotations", &bs::CapsuleRope::py_SetRotations)
+    .def("GetTranslations", &bs::CapsuleRope::py_GetTranslations)
+    .def("SetTranslations", &bs::CapsuleRope::py_SetTranslations)
     .def("GetHalfHeights", &bs::CapsuleRope::py_GetHalfHeights)
     ;
 

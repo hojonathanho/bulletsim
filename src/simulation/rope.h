@@ -11,6 +11,9 @@ void CapsuleRope_createRopeTransforms(vector<btTransform>& transforms, vector<bt
 vector<btVector3> CapsuleRope_getNodes(const vector<btRigidBody*> &capsules);
 vector<btVector3> CapsuleRope_getControlPoints(const vector<btRigidBody*> &capsules);
 vector<btMatrix3x3> CapsuleRope_getRotations(const vector<btRigidBody*> &capsules);
+void CapsuleRope_setRotations(const vector<btRigidBody*> &capsules, const vector<btMatrix3x3>& rots);
+vector<btVector3> CapsuleRope_getTranslations(const vector<btRigidBody*> &capsules);
+void CapsuleRope_setTranslations(const vector<btRigidBody*> &capsules, const vector<btVector3>& trans);
 vector<float> CapsuleRope_getHalfHeights(const vector<btRigidBody*> &capsules);
 
 class CapsuleRope : public CompoundObject<BulletObject> {
@@ -34,5 +37,8 @@ public:
   std::vector<btVector3> getNodes();
   std::vector<btVector3> getControlPoints();
   vector<btMatrix3x3> getRotations();
+  void setRotations(const vector<btMatrix3x3>& rots);
+  vector<btVector3> getTranslations();
+  void setTranslations(const vector<btVector3>& trans);
   vector<float> getHalfHeights();
 };
