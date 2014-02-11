@@ -2,8 +2,6 @@
 #include "util.h"
 #include "bullet_io.h"
 #include <fstream>
-#include <opencv2/core/core.hpp>
-#include <opencv2/highgui/highgui.hpp>
 #include <osg/LightModel>
 #include <osg/BlendFunc>
 #include <osg/Texture2D>
@@ -16,7 +14,6 @@
 #include <osgUtil/IntersectionVisitor>
 #include <osgUtil/LineSegmentIntersector>
 #include "clouds/utils_pcl.h"
-#include <opencv2/imgproc/imgproc.hpp>
 #include <boost/foreach.hpp>
 #include "softBodyHelpers.h"
 #include "tetgen_helpers.h"
