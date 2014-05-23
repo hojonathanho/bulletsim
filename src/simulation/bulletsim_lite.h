@@ -70,6 +70,23 @@ struct BULLETSIM_API Collision {
   CollisionPtr Flipped() const;
 };
 
+struct RayCollision;
+typedef boost::shared_ptr<RayCollision> RayCollisionPtr;
+struct BULLETSIM_API RayCollision {
+  btVector3 rayFrom, rayTo;
+  KinBody::LinkPtr link;
+  btVector3 pt, normal;
+  double closestHitFraction;
+
+  RayCollision(const btVector3& rayFrom, const btVector3& rayTo, const KinBody::LinkPtr link, const btVector3& pt, const btVector3& normal, double closestHitFraction);
+
+  py::object py_rayFrom();
+  py::object py_rayTo();
+  py::object py_link();
+  py::object py_pt();
+  py::object py_normal();
+};
+
 struct BULLETSIM_API SimulationParams {
   float scale;
   btVector3 gravity;
@@ -117,6 +134,8 @@ public:
 
   vector<CollisionPtr> DetectAllCollisions();
   vector<CollisionPtr> ContactTest(BulletObjectPtr obj);
+  vector<RayCollisionPtr> RayTest(const vector<btVector3>& rayFroms, const vector<btVector3>& rayTos, BulletObjectPtr obj);
+  vector<RayCollisionPtr> py_RayTest(py::object py_rayFroms, py::object py_rayTos, BulletObjectPtr obj);
 
   void SetContactDistance(double dist);
 

@@ -40,6 +40,17 @@ BOOST_PYTHON_MODULE(cbulletsimpy) {
   py::class_<vector<bs::CollisionPtr> >("vector_Collision")
     .def(py::vector_indexing_suite<vector<bs::CollisionPtr>, true>());
 
+  py::class_<bs::RayCollision, bs::RayCollisionPtr>("RayCollision", py::no_init)
+    .add_property("rayFrom", &bs::RayCollision::py_rayFrom)
+    .add_property("rayTo", &bs::RayCollision::py_rayTo)
+    .add_property("link", &bs::RayCollision::py_link)
+    .add_property("pt", &bs::RayCollision::py_pt)
+    .add_property("normal", &bs::RayCollision::py_normal)
+    .def_readonly("closestHitFraction", &bs::RayCollision::closestHitFraction)
+    ;
+  py::class_<vector<bs::RayCollisionPtr> >("vector_RayCollision")
+    .def(py::vector_indexing_suite<vector<bs::RayCollisionPtr>, true>());
+
   py::class_<BulletConstraint, BulletConstraint::Ptr, boost::noncopyable>("BulletConstraint", py::no_init);
 
   py::class_<bs::SimulationParams, bs::SimulationParamsPtr>("SimulationParams", py::no_init)
@@ -65,6 +76,7 @@ BOOST_PYTHON_MODULE(cbulletsimpy) {
     .def("Step", &bs::BulletEnvironment::Step)
     .def("DetectAllCollisions", &bs::BulletEnvironment::DetectAllCollisions)
     .def("ContactTest", &bs::BulletEnvironment::ContactTest)
+    .def("RayTest", &bs::BulletEnvironment::py_RayTest)
     .def("SetContactDistance", &bs::BulletEnvironment::SetContactDistance)
     .def("AddConstraint", &bs::BulletEnvironment::py_AddConstraint)
     .def("RemoveConstraint", &bs::BulletEnvironment::RemoveConstraint)

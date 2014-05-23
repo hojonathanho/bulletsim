@@ -332,6 +332,22 @@ CollisionPtr Collision::Flipped() const {
 }
 
 
+RayCollision::RayCollision(const btVector3& rayFrom_, const btVector3& rayTo_, const KinBody::LinkPtr link_, const btVector3& pt_, const btVector3& normal_, double closestHitFraction_) :
+    rayFrom(rayFrom_),
+    rayTo(rayTo_),
+    link(link_),
+    pt(pt_),
+    normal(normal_),
+    closestHitFraction(closestHitFraction_)
+{ }
+
+py::object RayCollision::py_rayFrom() { return toNdarray(rayFrom); }
+py::object RayCollision::py_rayTo() { return toNdarray(rayTo); }
+py::object RayCollision::py_link() { return GetPyLink(link); }
+py::object RayCollision::py_pt() { return toNdarray(pt); }
+py::object RayCollision::py_normal() { return toNdarray(normal); }
+
+
 SimulationParams::SimulationParams()
   : scale(10.),
     gravity(btVector3(0, 0, -1)),
@@ -501,6 +517,67 @@ vector<CollisionPtr> BulletEnvironment::ContactTest(BulletObjectPtr obj) {
   }
 
   return out;
+}
+
+vector<RayCollisionPtr> BulletEnvironment::RayTest(const vector<btVector3>& rayFroms, const vector<btVector3>& rayTos, BulletObjectPtr obj) {
+  vector<RayCollisionPtr> ray_collisions;
+
+  btTransform rayFromTrans;
+  btTransform rayToTrans;
+  rayFromTrans.setIdentity();
+  rayToTrans.setIdentity();
+
+  RaveObject::ChildVector& obj_children = obj->m_obj->getChildren();
+
+  // precompute aabb for each links of objs
+  vector<btVector3> aabbMins(obj_children.size()), aabbMaxs(obj_children.size());
+  for (int j = 0; j < obj_children.size(); ++j) {
+    const btTransform& transform = obj_children[j]->rigidBody->getCenterOfMassTransform();
+    btCollisionShape* shape = obj_children[j]->collisionShape.get();
+    shape->getAabb(transform, aabbMins[j], aabbMaxs[j]);
+  }
+
+  for (int i = 0; i < rayFroms.size(); ++i) {
+    btVector3 rayFrom = rayFroms[i] * METERS;
+    btVector3 rayTo = rayTos[i] * METERS;
+
+    btCollisionWorld::ClosestRayResultCallback resultCallback(rayFrom, rayTo);
+    rayFromTrans.setOrigin(rayFrom);
+    rayToTrans.setOrigin(rayTo);
+
+    // do ray test for all links of obj
+    for (int j = 0; j < obj_children.size(); ++j) {
+      //comment-out next line to get all hits, instead of just the closest hit
+      //resultCallback.m_closestHitFraction = 1.f;
+
+      btScalar hitLambda = 1.f;
+      btVector3 hitNormal;
+      if (btRayAabb(rayFrom, rayTo, aabbMins[j], aabbMaxs[j], hitLambda, hitNormal)) { // do some culling, ray versus aabb
+        btCollisionObject* rigidBody = obj_children[j]->rigidBody.get();
+        btCollisionShape* collisionShape = obj_children[j]->collisionShape.get();
+        const btTransform& transform = obj_children[j]->rigidBody->getCenterOfMassTransform(); // in bullet scale
+        btCollisionWorld::rayTestSingle(rayFromTrans, rayToTrans, rigidBody, collisionShape, transform, resultCallback);
+        if (resultCallback.hasHit()) {
+          KinBody::LinkPtr link = findOrFail(m_rave->bulletsim2rave_links, obj_children[j]->rigidBody.get());
+          ray_collisions.push_back(RayCollisionPtr(new RayCollision(
+              resultCallback.m_rayFromWorld/METERS,
+              resultCallback.m_rayToWorld/METERS,
+              link,
+              resultCallback.m_hitPointWorld/METERS,
+              resultCallback.m_hitNormalWorld/METERS, // normalize?
+              resultCallback.m_closestHitFraction)));
+        }
+      }
+    }
+  }
+  return ray_collisions;
+}
+
+vector<RayCollisionPtr> BulletEnvironment::py_RayTest(py::object py_rayFroms, py::object py_rayTos, BulletObjectPtr obj) {
+  vector<btVector3> rayFroms, rayTos;
+  fromNdarray2ToBtVecs(numpy.attr("asarray")(py_rayFroms), rayFroms);
+  fromNdarray2ToBtVecs(numpy.attr("asarray")(py_rayTos), rayTos);
+  return RayTest(rayFroms, rayTos, obj);
 }
 
 void BulletEnvironment::SetContactDistance(double dist) {
