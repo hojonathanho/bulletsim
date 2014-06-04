@@ -162,7 +162,11 @@ struct BULLETSIM_API CapsuleRopeParams {
   float linDamping;
   float angLimit;
   float linStopErp;
+  float mass;
+
+  CapsuleRopeParams();
 };
+struct CapsuleRopeParams; typedef boost::shared_ptr<CapsuleRopeParams> CapsuleRopeParamsPtr;
 
 class BULLETSIM_API CapsuleRope : public BulletObject {
 public:

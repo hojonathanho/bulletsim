@@ -84,13 +84,14 @@ BOOST_PYTHON_MODULE(cbulletsimpy) {
     .def("Add", &bs::BulletEnvironment::Add)
     ;
 
-  py::class_<bs::CapsuleRopeParams>("CapsuleRopeParams")
+  py::class_<bs::CapsuleRopeParams, bs::CapsuleRopeParamsPtr>("CapsuleRopeParams", py::init<>())
     .def_readwrite("radius", &bs::CapsuleRopeParams::radius)
     .def_readwrite("angStiffness", &bs::CapsuleRopeParams::angStiffness)
     .def_readwrite("angDamping", &bs::CapsuleRopeParams::angDamping)
     .def_readwrite("linDamping", &bs::CapsuleRopeParams::linDamping)
     .def_readwrite("angLimit", &bs::CapsuleRopeParams::angLimit)
     .def_readwrite("linStopErp", &bs::CapsuleRopeParams::linStopErp)
+    .def_readwrite("mass", &bs::CapsuleRopeParams::mass)
     ;
 
   py::class_<bs::CapsuleRope, bs::CapsuleRopePtr, py::bases<bs::BulletObject> >("CapsuleRope", py::init<bs::BulletEnvironmentPtr, const string&, py::object, const bs::CapsuleRopeParams&>())

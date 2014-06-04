@@ -686,6 +686,15 @@ static vector<btRigidBody*> extractRigidBodies(const vector<RaveLinkObject::Ptr>
   return out;
 }
 
+CapsuleRopeParams::CapsuleRopeParams()
+  : radius(.005),
+    angStiffness(.1),
+    angDamping(1.),
+    linDamping(.75),
+    angLimit(.4),
+    linStopErp(.2),
+    mass(1.)
+{ }
 
 CapsuleRope::CapsuleRope(BulletEnvironmentPtr env, const string& name, const vector<btVector3>& ctrlPoints, const CapsuleRopeParams& params) {
   init(env, name, ctrlPoints, params);
@@ -716,10 +725,9 @@ void CapsuleRope::init(BulletEnvironmentPtr env, const string& name, const vecto
   for (int i=0; i < nLinks; i++) {
     btTransform trans = transforms[i]; trans.setOrigin(trans.getOrigin()*METERS);
     btScalar len = lengths[i] * METERS;
-    float mass = 1.;
 
-    CapsuleObject::Ptr tmp(new CapsuleObject(mass,m_params.radius*METERS,len,trans)); // only used for collision shape
-    RaveLinkObject::Ptr link(new RaveLinkObject(env->GetRaveInstance(), kinbody->GetLinks()[i], mass, tmp->collisionShape, trans, false));
+    CapsuleObject::Ptr tmp(new CapsuleObject(m_params.mass,m_params.radius*METERS,len,trans)); // only used for collision shape
+    RaveLinkObject::Ptr link(new RaveLinkObject(env->GetRaveInstance(), kinbody->GetLinks()[i], m_params.mass, tmp->collisionShape, trans, false));
     link->rigidBody->setDamping(m_params.linDamping, m_params.angDamping);
     link->rigidBody->setFriction(BulletConfig::friction);
     //link->collisionShape->setMargin(0.04);
