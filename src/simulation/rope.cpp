@@ -33,9 +33,9 @@ btMatrix3x3 CapsuleRope_makePerpBasis(const btVector3& a0) {
     btVector3 b = btVector3(a0.y(), -a0.x(), 0);
     b.normalize();
     btVector3 c = a.cross(b);
-    return btMatrix3x3(a.x(), a.y(), a.z(),
-		       b.x(), b.y(), b.z(),
-		       c.x(), c.y(), c.z());
+    return btMatrix3x3(a.x(), b.x(), c.x(),
+           a.y(), b.y(), c.y(),
+           a.z(), b.z(), c.z());
   }
 }
 
