@@ -558,7 +558,8 @@ vector<RayCollisionPtr> BulletEnvironment::RayTest(const vector<btVector3>& rayF
         const btTransform& transform = obj_children[j]->rigidBody->getCenterOfMassTransform(); // in bullet scale
         btCollisionWorld::rayTestSingle(rayFromTrans, rayToTrans, rigidBody, collisionShape, transform, resultCallback);
         if (resultCallback.hasHit()) {
-          KinBody::LinkPtr link = findOrFail(m_rave->bulletsim2rave_links, obj_children[j]->rigidBody.get());
+          KinBody::LinkPtr link = findOrFail(m_rave->bulletsim2rave_links, dynamic_cast<btRigidBody*>(resultCallback.m_collisionObject));
+          // for some reason resultCallback.m_collisionObject is not the same as rigidBody sometimes
           ray_collisions.push_back(RayCollisionPtr(new RayCollision(
               resultCallback.m_rayFromWorld/METERS,
               resultCallback.m_rayToWorld/METERS,
