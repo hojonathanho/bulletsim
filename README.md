@@ -1,6 +1,6 @@
-#Simulation environment with Bullet physics
+# Simulation environment with Bullet physics
 
-##Installation instructions
+## Installation instructions
 Build with cmake as you would normally do:
 ```
 mkdir build_bulletsim
